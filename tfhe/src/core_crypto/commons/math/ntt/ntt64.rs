@@ -165,17 +165,21 @@ impl Ntt64View<'_> {
         data: &mut [u64],
     ) {
         let mod_p_u128 = self.plan.modulus() as u128;
+        let half_p = mod_p_u128 >> 1;
         for val in data.iter_mut() {
-            let val_u128: u128 = (*val).cast_into();
-            *val = (((((val_u128) << output_modulus_width) | ((mod_p_u128) >> 1)) / mod_p_u128)
-                as u64)
-                << (u64::BITS - output_modulus_width);
+            // dbg! add a test for this with some hard coded values for cases that might "fail" with
+            // the old code
+            let numerator = ((*val as u128) << output_modulus_width) + half_p;
+            *val = ((numerator / mod_p_u128) as u64) << (u64::BITS - output_modulus_width);
         }
     }
 
     /// Applies a forward negacyclic NTT
     ///
     /// Entries coefficients are on power_of_two modulus
+    ///
+    /// This function first applies a modulus switch to the NTT modulus which can result in some
+    /// loss of precision/additional noise.
     pub fn forward_from_power_of_two_modulus(
         &self,
         input_modulus_width: u32,

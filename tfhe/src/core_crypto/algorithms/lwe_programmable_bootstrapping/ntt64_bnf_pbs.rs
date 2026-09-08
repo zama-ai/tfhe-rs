@@ -588,6 +588,9 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
         // it has been fully initialized for the first time.
         let mut is_output_uninit = true;
 
+        // dbg! actually with how the ntt64 is setup we have to have the output buffer set to 0 at
+        // the start
+
         {
             // ------------------------------------------------------ EXTERNAL PRODUCT IN FOURIER
             // DOMAIN In this section, we perform the external product in the ntt

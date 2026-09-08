@@ -35,8 +35,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use itertools::Itertools;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{mpsc, Condvar, Mutex};
+use std::sync::{Condvar, Mutex};
 use std::thread;
 
 /// Compute the multi-bit key bundle of a group of LWE mask elements in the standard domain, modulo
@@ -59,14 +58,14 @@ use std::thread;
 /// This function will panic if the ciphertext modulus of `multi_bit_ggsw` is a power of two or if
 /// the number of GGSW ciphertexts in the group does not match the number of degrees in
 /// `switched_degrees` plus one.
-pub fn std_prepare_multi_bit_ggsw_ntt64_bnf<GgswBufferCont, TmpGgswBufferCont, GgswGroupCont>(
+pub fn std_prepare_multi_bit_ggsw_ntt64_bnf<GgswBufferCont, TmpPolyBufferCont, GgswGroupCont>(
     multi_bit_ggsw: &mut GgswCiphertext<GgswBufferCont>,
-    tmp_ggsw_buffer: &mut GgswCiphertext<TmpGgswBufferCont>,
-    ggsw_group: &[GgswCiphertext<GgswGroupCont>],
+    tmp_poly_buffer: &mut Polynomial<TmpPolyBufferCont>,
+    ggsw_group: &GgswCiphertextList<GgswGroupCont>,
     switched_degrees: impl Iterator<Item = usize>,
 ) where
     GgswBufferCont: ContainerMut<Element = u64>,
-    TmpGgswBufferCont: ContainerMut<Element = u64>,
+    TmpPolyBufferCont: ContainerMut<Element = u64>,
     GgswGroupCont: Container<Element = u64>,
 {
     let ciphertext_modulus = multi_bit_ggsw.ciphertext_modulus();
@@ -78,46 +77,56 @@ pub fn std_prepare_multi_bit_ggsw_ntt64_bnf<GgswBufferCont, TmpGgswBufferCont, G
     let modulus: u64 = ciphertext_modulus.get_custom_modulus().cast_into();
 
     let mut multi_bit_ggsw = multi_bit_ggsw.as_mut_view();
-    let mut tmp_ggsw_buffer = tmp_ggsw_buffer.as_mut_view();
 
     let mut ggsw_group_iter = ggsw_group.iter();
 
-    // Keygen guarantees the first GGSW encrypts the product of the negated key bits of the group,
-    // i.e. the constant term of the bundle in the usual formulation. It is not needed here as the
-    // corresponding factor (X^0 - 1) is 0.
+    // Keygen guarantees the first GGSW corresponds to the case where both key bits are 0.
+    // In the formulation we use, where this corresponds to X^0 == 1, this GGSW is not needed in the
+    // creation of the key bundle.
     let _ggsw_a_none = ggsw_group_iter.next().unwrap();
 
-    for (ggsw_idx, (std_ggsw, switched_degree)) in
-        ggsw_group_iter.zip_eq(switched_degrees).enumerate()
+    let mut iter = ggsw_group_iter.zip_eq(switched_degrees);
+
+    // First ggsw mul result is assigned to the buffer
     {
+        let (first_ggsw, first_switched_degree) = iter.next().unwrap();
+
+        for (mut dst_polynomial, src_polynomial) in multi_bit_ggsw
+            .as_mut_polynomial_list()
+            .iter_mut()
+            .zip_eq(first_ggsw.as_polynomial_list().iter())
+        {
+            // dst = input * X^{switched_degree} - input
+            polynomial_wrapping_monic_monomial_mul_and_subtract_custom_mod(
+                &mut dst_polynomial,
+                &src_polynomial,
+                MonomialDegree(first_switched_degree),
+                modulus,
+            );
+        }
+    }
+
+    // Further ggsw multiplications are added to the result
+    for (std_ggsw, switched_degree) in iter {
         debug_assert_eq!(std_ggsw.ciphertext_modulus(), ciphertext_modulus);
 
-        // The first term is written directly in the output, the following ones go through the
-        // temporary buffer before being accumulated
-        let dst_ggsw = if ggsw_idx == 0 {
-            &mut multi_bit_ggsw
-        } else {
-            &mut tmp_ggsw_buffer
-        };
-
-        for (mut dst_polynomial, input_polynomial) in dst_ggsw
+        for (mut dst_poylnomial, src_polynomial) in multi_bit_ggsw
             .as_mut_polynomial_list()
             .iter_mut()
             .zip_eq(std_ggsw.as_polynomial_list().iter())
         {
             // dst = input * X^{switched_degree} - input
             polynomial_wrapping_monic_monomial_mul_and_subtract_custom_mod(
-                &mut dst_polynomial,
-                &input_polynomial,
+                tmp_poly_buffer,
+                &src_polynomial,
                 MonomialDegree(switched_degree),
                 modulus,
             );
-        }
 
-        if ggsw_idx != 0 {
+            // Accumulate in the output buffer to build the bundle
             slice_wrapping_add_assign_custom_mod(
-                multi_bit_ggsw.as_mut(),
-                tmp_ggsw_buffer.as_ref(),
+                dst_poylnomial.as_mut(),
+                tmp_poly_buffer.as_ref(),
                 modulus,
             );
         }
@@ -149,71 +158,24 @@ pub fn multi_bit_ntt64_bnf_blind_rotate_assign<OutputCont, KeyCont>(
     OutputCont: ContainerMut<Element = u64>,
     KeyCont: Container<Element = u64> + Sync,
 {
-    if deterministic_execution {
-        multi_bit_ntt64_bnf_deterministic_blind_rotate_assign(
-            multi_bit_modulus_switched_input,
-            accumulator,
-            multi_bit_bsk,
-            thread_count,
-        )
-    } else {
-        multi_bit_ntt64_bnf_non_deterministic_blind_rotate_assign(
-            multi_bit_modulus_switched_input,
-            accumulator,
-            multi_bit_bsk,
-            thread_count,
-        )
-    }
+    // For simplicity and given performance is currently not great we only have the deterministic
+    // variant written
+    let _ = deterministic_execution;
+    multi_bit_ntt64_bnf_deterministic_blind_rotate_assign(
+        multi_bit_modulus_switched_input,
+        accumulator,
+        multi_bit_bsk,
+        thread_count,
+    )
 }
 
 /// Deterministic variant of [`multi_bit_ntt64_bnf_blind_rotate_assign`]. Performance may be
 /// slightly worse than the non deterministic version.
 pub fn multi_bit_ntt64_bnf_deterministic_blind_rotate_assign<OutputCont, KeyCont>(
-    multi_bit_modulus_switched_input: &impl MultiBitModulusSwitchedLweCiphertext,
-    accumulator: &mut GlweCiphertext<OutputCont>,
-    multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
-    thread_count: ThreadCount,
-) where
-    OutputCont: ContainerMut<Element = u64>,
-    KeyCont: Container<Element = u64> + Sync,
-{
-    multi_bit_ntt64_bnf_blind_rotate_assign_impl(
-        multi_bit_modulus_switched_input,
-        accumulator,
-        multi_bit_bsk,
-        thread_count,
-        true,
-    );
-}
-
-/// Non deterministic variant of [`multi_bit_ntt64_bnf_blind_rotate_assign`]. The key bundles are
-/// consumed in the order they get computed by the producer threads, the output ciphertext is
-/// therefore not guaranteed to be bit-exact between two executions (it stays a valid encryption of
-/// the expected result).
-pub fn multi_bit_ntt64_bnf_non_deterministic_blind_rotate_assign<OutputCont, KeyCont>(
-    multi_bit_modulus_switched_input: &impl MultiBitModulusSwitchedLweCiphertext,
-    accumulator: &mut GlweCiphertext<OutputCont>,
-    multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
-    thread_count: ThreadCount,
-) where
-    OutputCont: ContainerMut<Element = u64>,
-    KeyCont: Container<Element = u64> + Sync,
-{
-    multi_bit_ntt64_bnf_blind_rotate_assign_impl(
-        multi_bit_modulus_switched_input,
-        accumulator,
-        multi_bit_bsk,
-        thread_count,
-        false,
-    );
-}
-
-fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
     switched_modulus_input: &impl MultiBitModulusSwitchedLweCiphertext,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
-    deterministic_execution: bool,
 ) where
     OutputCont: ContainerMut<Element = u64>,
     KeyCont: Container<Element = u64> + Sync,
@@ -289,24 +251,10 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
     let ntt = Ntt64::new(bsk_ciphertext_modulus, polynomial_size);
     let ntt = ntt.as_view();
 
-    // No way to chunk the result of iter at the moment
-    let ggsw_vec: Vec<_> = multi_bit_bsk.iter().collect();
-
     let grouping_factor = multi_bit_bsk.grouping_factor();
     let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 
     let max_work_index = multi_bit_bsk.multi_bit_input_lwe_dimension().0;
-
-    // Rotate the accumulator by -b_hat, this is done on the power of two modulus of the accumulator
-    accumulator
-        .as_mut_polynomial_list()
-        .iter_mut()
-        .for_each(|mut poly| {
-            polynomial_wrapping_monic_monomial_div_assign(
-                &mut poly,
-                MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
-            );
-        });
 
     // One key bundle buffer per producer thread, along with the flag (protected by a mutex and
     // paired with a condvar) indicating whether the buffer holds a bundle ready to be consumed
@@ -325,13 +273,8 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
         })
         .collect();
 
-    // Only used by the non deterministic execution: the producers dynamically pick the groups to
-    // work on and notify the consumer of the buffers that are ready
-    let work_index_counter = AtomicUsize::new(0);
-    let (tx, rx) = mpsc::channel::<usize>();
-
     thread::scope(|s| {
-        let produce_multi_bit_ntt_ggsw = |thread_id: usize, tx: mpsc::Sender<usize>| {
+        let produce_multi_bit_ntt_ggsw = |thread_id: usize| {
             let mut std_ggsw_buffer = GgswCiphertext::new(
                 0u64,
                 glwe_size,
@@ -341,34 +284,21 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
                 bsk_ciphertext_modulus,
             );
 
-            let mut tmp_ggsw_buffer = GgswCiphertext::new(
-                0u64,
-                glwe_size,
-                polynomial_size,
-                decomposition_base_log,
-                decomposition_level_count,
-                bsk_ciphertext_modulus,
-            );
+            let mut tmp_poly_buffer = Polynomial::new(0u64, polynomial_size);
 
             let (ready_for_consumer_lock, condvar, ntt_ggsw_buffer) =
                 &ntt_multi_bit_ggsw_buffers[thread_id];
 
-            let work_indices: Box<dyn Iterator<Item = usize> + '_> = if deterministic_execution {
-                // Static round robin distribution of the groups over the producer threads
-                Box::new((0..max_work_index).skip(thread_id).step_by(thread_count.0))
-            } else {
-                Box::new(std::iter::from_fn(|| {
-                    let work_index = work_index_counter.fetch_add(1, Ordering::Relaxed);
-                    (work_index < max_work_index).then_some(work_index)
-                }))
-            };
+            let work_indices = (0..max_work_index).skip(thread_id).step_by(thread_count.0);
 
             for work_index in work_indices {
                 let switched_degrees =
                     switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
 
-                let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
-                    ..(work_index + 1) * ggsw_per_multi_bit_element.0];
+                let ggsw_group = multi_bit_bsk.get_sub(
+                    work_index * ggsw_per_multi_bit_element.0
+                        ..(work_index + 1) * ggsw_per_multi_bit_element.0,
+                );
 
                 let mut ready_for_consumer = ready_for_consumer_lock.lock().unwrap();
 
@@ -382,8 +312,8 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
 
                 std_prepare_multi_bit_ggsw_ntt64_bnf(
                     &mut std_ggsw_buffer,
-                    &mut tmp_ggsw_buffer,
-                    ggsw_group,
+                    &mut tmp_poly_buffer,
+                    &ggsw_group,
                     switched_degrees,
                 );
 
@@ -400,9 +330,6 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
                 drop(ntt_ggsw_buffer);
 
                 *ready_for_consumer = true;
-                if !deterministic_execution {
-                    tx.send(thread_id).unwrap();
-                }
 
                 // Wake threads waiting on the condvar
                 condvar.notify_all();
@@ -412,19 +339,12 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
         // false positive as the mapping function has side effects (thread spawning)
         #[allow(clippy::needless_collect)]
         let threads: Vec<_> = (0..thread_count.0)
-            .map(|thread_id| {
-                let tx = tx.clone();
-                s.spawn(move || produce_multi_bit_ntt_ggsw(thread_id, tx))
-            })
+            .map(|thread_id| s.spawn(move || produce_multi_bit_ntt_ggsw(thread_id)))
             .collect();
-
-        // Producers have their own senders, dropping this one lets the consumer detect the channel
-        // getting closed if all producers die
-        drop(tx);
 
         // The consumer updates ct0 (the accumulator) in place, ct1 holds a copy of the accumulator
         // to be used as the external product input
-        let ct0 = accumulator;
+        let ct0 = &mut *accumulator;
         let mut ct1 =
             GlweCiphertext::new(0u64, glwe_size, polynomial_size, ct0.ciphertext_modulus());
 
@@ -435,15 +355,14 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
                 .unaligned_bytes_required(),
         );
 
-        let buffer_indices: Box<dyn Iterator<Item = usize> + '_> = if deterministic_execution {
-            // Buffers are consumed following the round robin distribution of the groups
-            Box::new((0..thread_count.0).cycle())
-        } else {
-            Box::new(std::iter::from_fn(|| rx.recv().ok()))
-        };
-
-        for buffer_idx in buffer_indices.take(max_work_index) {
-            let (ready_lock, condvar, ntt_multi_bit_ggsw) = &ntt_multi_bit_ggsw_buffers[buffer_idx];
+        for (ready_lock, condvar, ntt_multi_bit_ggsw) in ntt_multi_bit_ggsw_buffers
+            .iter()
+            .cycle()
+            .take(max_work_index)
+        {
+            // The bundle encrypts X^{<a, s>} - 1, the accumulator update is acc <- acc + bundle ⊡
+            // acc
+            ct1.as_mut().copy_from_slice(ct0.as_ref());
 
             let mut ready = ready_lock.lock().unwrap();
 
@@ -453,8 +372,6 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
 
             let ntt_multi_bit_ggsw = ntt_multi_bit_ggsw.lock().unwrap();
 
-            // The bundle encrypts X^{<a, s>} - 1, the accumulator update is acc <- acc + bundle ⊡ acc
-            ct1.as_mut().copy_from_slice(ct0.as_ref());
             add_external_product_ntt64_bnf_assign(
                 ct0.as_mut_view(),
                 ntt_multi_bit_ggsw.as_view(),
@@ -475,6 +392,18 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
             t.join().unwrap();
         }
     });
+
+    // Done at the end to more easily match stimuli requirements
+    // Rotate the accumulator by -b_hat
+    accumulator
+        .as_mut_polynomial_list()
+        .iter_mut()
+        .for_each(|mut poly| {
+            polynomial_wrapping_monic_monomial_div_assign(
+                &mut poly,
+                MonomialDegree(switched_modulus_input.switched_modulus_input_lwe_body()),
+            );
+        });
 }
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
@@ -572,7 +501,7 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
 ///     ntt_modulus,
 /// );
 ///
-/// par_modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus(&bsk, &mut ntt_modulus_bsk);
+/// modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus(&bsk, &mut ntt_modulus_bsk);
 ///
 /// // We don't need the native modulus bootstrapping key anymore
 /// drop(bsk);
@@ -644,6 +573,7 @@ fn multi_bit_ntt64_bnf_blind_rotate_assign_impl<OutputCont, KeyCont>(
 /// );
 /// ```
 pub fn multi_bit_programmable_bootstrap_ntt64_bnf_lwe_ciphertext<
+    InputScalar,
     InputCont,
     OutputCont,
     AccCont,
@@ -656,7 +586,8 @@ pub fn multi_bit_programmable_bootstrap_ntt64_bnf_lwe_ciphertext<
     thread_count: ThreadCount,
     deterministic_execution: bool,
 ) where
-    InputCont: Container<Element = u64> + Sync,
+    InputScalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+    InputCont: Container<Element = InputScalar> + Sync,
     OutputCont: ContainerMut<Element = u64>,
     AccCont: Container<Element = u64>,
     KeyCont: Container<Element = u64> + Sync,
@@ -695,14 +626,6 @@ pub fn multi_bit_programmable_bootstrap_ntt64_bnf_lwe_ciphertext<
         LweMultiBitBootstrapKey PolynomialSize {:?}.",
         accumulator.polynomial_size(),
         multi_bit_bsk.polynomial_size(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
     );
 
     assert_eq!(

@@ -261,27 +261,3 @@ pub fn modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus<InputCont, Ou
     output_bsk.as_mut().copy_from_slice(input_bsk.as_ref());
     ntt.modswitch_from_power_of_two_to_ntt_prime(input_modulus_width, output_bsk.as_mut());
 }
-
-/// Parallel variant of [`modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus`].
-pub fn par_modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus<InputCont, OutputCont>(
-    input_bsk: &LweMultiBitBootstrapKey<InputCont>,
-    output_bsk: &mut LweMultiBitBootstrapKey<OutputCont>,
-) where
-    InputCont: Container<Element = u64> + Sync,
-    OutputCont: ContainerMut<Element = u64>,
-{
-    let (ntt, input_modulus_width) =
-        modulus_switch_lwe_multi_bit_bootstrap_key_to_ntt64_modulus_setup(input_bsk, output_bsk);
-    let ntt = ntt.as_view();
-
-    let polynomial_size = input_bsk.polynomial_size();
-
-    output_bsk
-        .as_mut()
-        .par_chunks_mut(polynomial_size.0)
-        .zip(input_bsk.as_ref().par_chunks(polynomial_size.0))
-        .for_each(|(output_poly, input_poly)| {
-            output_poly.copy_from_slice(input_poly);
-            ntt.modswitch_from_power_of_two_to_ntt_prime(input_modulus_width, output_poly);
-        });
-}

@@ -1153,6 +1153,7 @@ pub fn std_prepare_multi_bit_ggsw<Scalar, GgswBufferCont, TmpGgswBufferCont, Ggs
             .iter_mut()
             .zip(std_ggsw.as_polynomial_list().iter())
             .for_each(|(mut tmp_polynomial, input_polynomial)| {
+                // dbg! yikes, a whole ass GGSW is used as buffer...
                 polynomial_wrapping_monic_monomial_mul(
                     &mut tmp_polynomial,
                     &input_polynomial,
