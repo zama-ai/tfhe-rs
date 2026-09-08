@@ -416,6 +416,16 @@ pub const INSECURE_TEST_TRANSCIPHERING_META_PARAMS: TestMetaParameters = TestMet
     transciphering_parameters: Some(TestTranscipheringParameters::SameAsCompute),
 };
 
+pub const INSECURE_TEST_TRANSCIPHERING_DEDICATED_META_PARAMS: TestMetaParameters =
+    TestMetaParameters {
+        compute_parameters: INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION_LWE_DIM_64,
+        dedicated_compact_public_key_parameters: None,
+        compression_parameters: None,
+        noise_squashing_parameters: None,
+        rerand_configuration: None,
+        transciphering_parameters: Some(TestTranscipheringParameters::DedicatedOprf(32)),
+    };
+
 pub fn save_cbor<Data: Serialize, P: AsRef<Path>>(msg: &Data, path: P) {
     let path = path.as_ref();
     if path.exists() {

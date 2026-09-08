@@ -10,6 +10,7 @@ use super::super::list_compression::p_fail_2_minus_128::*;
 use super::super::multi_bit::gaussian::p_fail_2_minus_128::ks_pbs::*;
 use super::super::multi_bit::tuniform::p_fail_2_minus_128::ks_pbs::*;
 use super::super::noise_squashing::p_fail_2_minus_128::*;
+use crate::shortint::parameters::v1_8::transciphering::V1_8_TRANSCIPHERING_PARAM_DEDICATED_OPRF;
 use crate::shortint::parameters::{
     Backend, MetaNoiseSquashingParameters, TranscipheringParameters,
 };
@@ -600,6 +601,6 @@ pub const V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV1_TUNIFORM_2M128: MetaPar
         rerand_configuration: Some(
             ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch,
         ),
-        transciphering_parameters: Some(TranscipheringParameters::SameAsCompute),
+        transciphering_parameters: Some(V1_8_TRANSCIPHERING_PARAM_DEDICATED_OPRF),
     }
     .validate();

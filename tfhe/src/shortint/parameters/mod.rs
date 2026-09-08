@@ -846,3 +846,23 @@ impl ModulusSwitchType {
         }
     }
 }
+
+/// Parameters of a dedicated OPRF key.
+///
+/// OPRF performance can be improved by using a smaller LWE dimension than the one used for compute,
+/// as long as lwe security is preserved. The rest of the pbs parameters are taken from the compute
+/// params.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(OprfParametersVersions)]
+pub struct OprfParameters {
+    pub lwe_dimension: LweDimension,
+}
+
+impl OprfParameters {
+    /// The parameters of an OPRF key mirroring the compute key.
+    pub const fn same_as_compute(compute_params: AtomicPatternParameters) -> Self {
+        Self {
+            lwe_dimension: compute_params.lwe_dimension(),
+        }
+    }
+}

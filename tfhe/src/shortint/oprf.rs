@@ -3,7 +3,8 @@ use tfhe_versionable::Versionize;
 use crate::named::Named;
 
 use super::backward_compatibility::oprf::*;
-use super::client_key::atomic_pattern::AtomicPatternClientKey;
+use super::client_key::atomic_pattern::{AtomicPatternClientKey, EncryptionAtomicPattern};
+use super::parameters::OprfParameters;
 use super::server_key::LookupTableSize;
 use super::Ciphertext;
 use crate::conformance::ParameterSetConformant;
@@ -91,20 +92,33 @@ impl OprfPrivateKey {
     /// Create a new private key, this uses the same parameters as the bootstrap key used for
     /// compute
     pub fn new(target_ck: &ClientKey) -> Self {
+        Self::new_with_lwe_dimension(
+            target_ck,
+            target_ck.atomic_pattern.parameters().lwe_dimension(),
+        )
+    }
+
+    pub fn new_with_params(target_ck: &ClientKey, params: OprfParameters) -> Self {
+        let OprfParameters { lwe_dimension } = params;
+
+        Self::new_with_lwe_dimension(target_ck, lwe_dimension)
+    }
+
+    fn new_with_lwe_dimension(target_ck: &ClientKey, lwe_dimension: LweDimension) -> Self {
         match &target_ck.atomic_pattern {
-            AtomicPatternClientKey::Standard(std) => {
+            AtomicPatternClientKey::Standard(_) => {
                 let lwe_sk = ShortintEngine::with_thread_local_mut(|engine| {
                     allocate_and_generate_new_binary_lwe_secret_key(
-                        std.parameters.lwe_dimension(),
+                        lwe_dimension,
                         &mut engine.secret_generator,
                     )
                 });
                 Self(AtomicPatternOprfPrivateKey::Standard(lwe_sk))
             }
-            AtomicPatternClientKey::KeySwitch32(ks32) => {
+            AtomicPatternClientKey::KeySwitch32(_) => {
                 let lwe_sk = ShortintEngine::with_thread_local_mut(|engine| {
                     allocate_and_generate_new_binary_lwe_secret_key(
-                        ks32.parameters.lwe_dimension(),
+                        lwe_dimension,
                         &mut engine.secret_generator,
                     )
                 });
@@ -181,7 +195,7 @@ impl<C: Container<Element = c64>> OprfBootstrappingKey<C> {
         &self,
         target_bsk: &ShortintBootstrappingKey<T>,
     ) {
-        assert_eq!(target_bsk.input_lwe_dimension(), self.input_lwe_dimension());
+        assert!(target_bsk.input_lwe_dimension() >= self.input_lwe_dimension());
         assert_eq!(
             target_bsk.output_lwe_dimension(),
             self.output_lwe_dimension()
@@ -438,15 +452,48 @@ impl CompressedOprfServerKey {
     }
 }
 
-impl ParameterSetConformant for CompressedOprfServerKey {
-    type ParameterSet = AtomicPatternParameters;
+#[derive(Copy, Clone)]
+pub struct OprfKeyConformanceParams {
+    pub compute_params: AtomicPatternParameters,
+    pub oprf_params: OprfParameters,
+}
 
-    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        let pbs_conformance_params: PBSConformanceParams = match parameter_set {
+impl OprfKeyConformanceParams {
+    pub const fn new(compute_params: AtomicPatternParameters, oprf_params: OprfParameters) -> Self {
+        Self {
+            compute_params,
+            oprf_params,
+        }
+    }
+
+    /// The parameters for an OPRF key mirroring the compute key
+    pub const fn same_as_compute(compute_params: AtomicPatternParameters) -> Self {
+        Self::new(
+            compute_params,
+            OprfParameters::same_as_compute(compute_params),
+        )
+    }
+
+    fn to_pbs_conformance_params(self) -> PBSConformanceParams {
+        let mut params: PBSConformanceParams = match &self.compute_params {
             AtomicPatternParameters::Standard(std_params) => std_params.into(),
             AtomicPatternParameters::KeySwitch32(ks32_params) => ks32_params.into(),
         };
-        self.inner.is_conformant(&pbs_conformance_params)
+
+        // Only the input dimension is specific to the OPRF key, the rest comes from the compute
+        // key.
+        params.in_lwe_dimension = self.oprf_params.lwe_dimension;
+
+        params
+    }
+}
+
+impl ParameterSetConformant for CompressedOprfServerKey {
+    type ParameterSet = OprfKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        self.inner
+            .is_conformant(&parameter_set.to_pbs_conformance_params())
     }
 }
 
@@ -743,14 +790,11 @@ impl OprfServerKey {
 }
 
 impl ParameterSetConformant for OprfServerKey {
-    type ParameterSet = AtomicPatternParameters;
+    type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        let pbs_conformance_params: PBSConformanceParams = match parameter_set {
-            AtomicPatternParameters::Standard(std_params) => std_params.into(),
-            AtomicPatternParameters::KeySwitch32(ks32_params) => ks32_params.into(),
-        };
-        self.inner.is_conformant(&pbs_conformance_params)
+        self.inner
+            .is_conformant(&parameter_set.to_pbs_conformance_params())
     }
 }
 

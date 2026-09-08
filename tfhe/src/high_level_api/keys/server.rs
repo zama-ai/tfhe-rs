@@ -856,12 +856,14 @@ mod test {
     use crate::prelude::ParameterSetConformant;
     use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
     use crate::shortint::parameters::{
-        TranscipheringParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        OprfParameters, TranscipheringParameters,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    use crate::shortint::prelude::LweDimension;
     use crate::shortint::ClassicPBSParameters;
     use crate::{ClientKey, CompressedServerKey, ConfigBuilder, ServerKey};
 
@@ -1043,6 +1045,40 @@ mod test {
             let without = ConfigBuilder::with_custom_parameters(params).build();
             let sk_without = ServerKey::new(&ClientKey::generate(without));
             assert!(!sk_without.is_conformant(&conformance_params));
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let dedicated = OprfParameters {
+                lwe_dimension: LweDimension(600),
+            };
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .enable_transciphering(TranscipheringParameters::DedicatedOprf(dedicated))
+                .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+            let compressed_sk = CompressedServerKey::new(&ck);
+
+            let sk_param = params.into();
+            let mut conformance_params = IntegerServerKeyConformanceParams {
+                sk_param,
+                cpk_param: None,
+                compression_param: None,
+                noise_squashing_param: None,
+                noise_squashing_compression_param: None,
+                cpk_re_randomization_params: None,
+                dedicated_oprf_key: true,
+                transciphering_parameters: Some(TranscipheringParameters::DedicatedOprf(dedicated)),
+            };
+
+            assert!(sk.is_conformant(&conformance_params));
+            assert!(compressed_sk.is_conformant(&conformance_params));
+
+            conformance_params.transciphering_parameters =
+                Some(TranscipheringParameters::SameAsCompute);
+            assert!(!sk.is_conformant(&conformance_params));
+            assert!(!compressed_sk.is_conformant(&conformance_params));
         }
     }
 

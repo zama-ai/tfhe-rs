@@ -10,6 +10,7 @@ pub mod list_compression;
 pub mod meta;
 pub mod multi_bit;
 pub mod noise_squashing;
+pub mod transciphering;
 pub use classic::gaussian::p_fail_2_minus_128::ks_pbs::*;
 pub use classic::gaussian::p_fail_2_minus_128::ks_pbs_gpu::*;
 pub use classic::tuniform::p_fail_2_minus_128::ks_pbs::*;
