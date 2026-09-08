@@ -19,6 +19,8 @@ use zhc::config::multi_hpu::MultiHpuConfig;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
+use std::path::PathBuf;
+
 /// Define CLI arguments
 pub use clap::Parser;
 pub use clap_num::maybe_hex;
@@ -62,6 +64,10 @@ pub struct Args {
     /// Use trivial encrypt ciphertext
     #[arg(long)]
     pub trivial: bool,
+
+    /// Dump generated IOp assembly in this folder
+    #[arg(long)]
+    pub out_asm: Option<String>,
 }
 
 /// Simple enum that let user select the desired operation
@@ -203,6 +209,29 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 }
                 _ => unimplemented!("Current op not defined"),
             };
+
+            if let Some(ref asm_f) = args.out_asm {
+                let asm_p = PathBuf::from(asm_f);
+                if asm_p.exists() {
+                    if asm_p.is_file() {
+                        panic!("ASM_OUT: given out_asm is a file. Directory expected");
+                    }
+                } else {
+                    // Create it
+                    std::fs::create_dir_all(&asm_p).unwrap();
+                }
+
+                for (i, mut asm) in mh_pipeline
+                    .get_multi_hpu_assembly()
+                    .to_vec()
+                    .into_iter()
+                    .enumerate()
+                {
+                    let filename = format!("{zhc_op}_{i}.asm");
+                    let file_p = asm_p.join(&filename);
+                    asm.move_to(&file_p)?;
+                }
+            }
 
             let proto = zhc_to_native_proto(mh_factor, &zhc_spec, mh_pipeline.get_prototype());
             let stream = ZhcStream::new(None, mh_pipeline.into_multi_hpu_stream());
