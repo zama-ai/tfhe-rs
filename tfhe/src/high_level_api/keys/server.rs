@@ -856,12 +856,14 @@ mod test {
     use crate::prelude::ParameterSetConformant;
     use crate::shortint::parameters::test_params::TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
     use crate::shortint::parameters::{
-        TranscipheringParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        OprfParameters, TranscipheringParameters,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    use crate::shortint::prelude::LweDimension;
     use crate::shortint::ClassicPBSParameters;
     use crate::{ClientKey, CompressedServerKey, ConfigBuilder, ServerKey};
 
@@ -965,18 +967,8 @@ mod test {
 
                 modifier(&mut sk_param);
 
-                let sk_param = sk_param.into();
-
-                let conformance_params = IntegerServerKeyConformanceParams {
-                    sk_param,
-                    cpk_param: None,
-                    compression_param: None,
-                    noise_squashing_param: None,
-                    noise_squashing_compression_param: None,
-                    cpk_re_randomization_params: None,
-                    dedicated_oprf_key: true,
-                    transciphering_parameters: None,
-                };
+                let mut conformance_params = IntegerServerKeyConformanceParams::from(config);
+                conformance_params.sk_param = sk_param.into();
 
                 assert!(!sk.is_conformant(&conformance_params));
             }
@@ -995,54 +987,60 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
 
-            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-
             cpk_params.encryption_lwe_dimension.0 += 1;
 
-            let conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: Some((cpk_params, casting_params)),
-                compression_param: None,
-                noise_squashing_param: None,
-                noise_squashing_compression_param: None,
-                cpk_re_randomization_params: None,
-                dedicated_oprf_key: true,
-                transciphering_parameters: None,
-            };
+            let mut conformance_params = IntegerServerKeyConformanceParams::from(config);
+            conformance_params.cpk_param = Some((cpk_params, casting_params));
 
             assert!(!sk.is_conformant(&conformance_params));
         }
         {
             let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let with_transciphering = ConfigBuilder::with_custom_parameters(params)
+                .enable_transciphering(TranscipheringParameters::SameAsCompute)
+                .build();
+            let without_transciphering = ConfigBuilder::with_custom_parameters(params).build();
+
+            let with_params = IntegerServerKeyConformanceParams::from(with_transciphering);
+            let without_params = IntegerServerKeyConformanceParams::from(without_transciphering);
+
+            let ck = ClientKey::generate(with_transciphering);
+            let sk = ServerKey::new(&ck);
+
+            // Key has transciphering, parameters do not.
+            assert!(!sk.is_conformant(&without_params));
+            assert!(sk.is_conformant(&with_params));
+
+            // Parameters ask for transciphering, key does not have it.
+            let sk_without = ServerKey::new(&ClientKey::generate(without_transciphering));
+            assert!(!sk_without.is_conformant(&with_params));
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let dedicated = OprfParameters {
+                lwe_dimension: LweDimension(600),
+            };
+
             let config = ConfigBuilder::with_custom_parameters(params)
+                .enable_transciphering(TranscipheringParameters::DedicatedOprf(dedicated))
+                .build();
+            let same_as_compute_config = ConfigBuilder::with_custom_parameters(params)
                 .enable_transciphering(TranscipheringParameters::SameAsCompute)
                 .build();
 
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
+            let compressed_sk = CompressedServerKey::new(&ck);
 
-            let sk_param = params.into();
-            let mut conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: None,
-                compression_param: None,
-                noise_squashing_param: None,
-                noise_squashing_compression_param: None,
-                cpk_re_randomization_params: None,
-                dedicated_oprf_key: true,
-                transciphering_parameters: None,
-            };
+            let dedicated_oprf_params = IntegerServerKeyConformanceParams::from(config);
+            let same_as_compute_params =
+                IntegerServerKeyConformanceParams::from(same_as_compute_config);
 
-            // Key has transciphering, parameters do not.
-            assert!(!sk.is_conformant(&conformance_params));
-            conformance_params.transciphering_parameters =
-                Some(TranscipheringParameters::SameAsCompute);
-            assert!(sk.is_conformant(&conformance_params));
+            assert!(sk.is_conformant(&dedicated_oprf_params));
+            assert!(compressed_sk.is_conformant(&dedicated_oprf_params));
 
-            // Parameters ask for transciphering, key does not have it.
-            let without = ConfigBuilder::with_custom_parameters(params).build();
-            let sk_without = ServerKey::new(&ClientKey::generate(without));
-            assert!(!sk_without.is_conformant(&conformance_params));
+            assert!(!sk.is_conformant(&same_as_compute_params));
+            assert!(!compressed_sk.is_conformant(&same_as_compute_params));
         }
     }
 
@@ -1145,18 +1143,8 @@ mod test {
 
                 modifier(&mut sk_param);
 
-                let sk_param = sk_param.into();
-
-                let conformance_params = IntegerServerKeyConformanceParams {
-                    sk_param,
-                    cpk_param: None,
-                    compression_param: None,
-                    noise_squashing_param: None,
-                    noise_squashing_compression_param: None,
-                    cpk_re_randomization_params: None,
-                    dedicated_oprf_key: true,
-                    transciphering_parameters: None,
-                };
+                let mut conformance_params = IntegerServerKeyConformanceParams::from(config);
+                conformance_params.sk_param = sk_param.into();
 
                 assert!(!sk.is_conformant(&conformance_params));
             }
@@ -1175,77 +1163,47 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-
             cpk_params.encryption_lwe_dimension.0 += 1;
 
-            let conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: Some((cpk_params, casting_params)),
-                compression_param: None,
-                noise_squashing_param: None,
-                noise_squashing_compression_param: None,
-                cpk_re_randomization_params: None,
-                dedicated_oprf_key: true,
-                transciphering_parameters: None,
-            };
+            let mut conformance_params = IntegerServerKeyConformanceParams::from(config);
+            conformance_params.cpk_param = Some((cpk_params, casting_params));
 
             assert!(!sk.is_conformant(&conformance_params));
         }
         {
             let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-            let config = ConfigBuilder::with_custom_parameters(params)
+            let without_dedicated_oprf = ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_oprf_key(false)
                 .build();
+            let with_dedicated_oprf = ConfigBuilder::with_custom_parameters(params).build();
 
-            let ck = ClientKey::generate(config);
+            let without_params = IntegerServerKeyConformanceParams::from(without_dedicated_oprf);
+            let with_params = IntegerServerKeyConformanceParams::from(with_dedicated_oprf);
+
+            let ck = ClientKey::generate(without_dedicated_oprf);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = params.into();
-            let mut conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: None,
-                compression_param: None,
-                noise_squashing_param: None,
-                noise_squashing_compression_param: None,
-                cpk_re_randomization_params: None,
-                dedicated_oprf_key: true,
-                transciphering_parameters: None,
-            };
-
-            assert!(!sk.is_conformant(&conformance_params));
-            conformance_params.dedicated_oprf_key = false;
-            assert!(sk.is_conformant(&conformance_params));
+            assert!(!sk.is_conformant(&with_params));
+            assert!(sk.is_conformant(&without_params));
         }
         {
             let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-            let config = ConfigBuilder::with_custom_parameters(params)
+            let with_transciphering = ConfigBuilder::with_custom_parameters(params)
                 .enable_transciphering(TranscipheringParameters::SameAsCompute)
                 .build();
+            let without_transciphering = ConfigBuilder::with_custom_parameters(params).build();
 
-            let ck = ClientKey::generate(config);
+            let with_params = IntegerServerKeyConformanceParams::from(with_transciphering);
+            let without_params = IntegerServerKeyConformanceParams::from(without_transciphering);
+
+            let ck = ClientKey::generate(with_transciphering);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = params.into();
-            let mut conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: None,
-                compression_param: None,
-                noise_squashing_param: None,
-                noise_squashing_compression_param: None,
-                cpk_re_randomization_params: None,
-                dedicated_oprf_key: true,
-                transciphering_parameters: None,
-            };
+            assert!(!sk.is_conformant(&without_params));
+            assert!(sk.is_conformant(&with_params));
 
-            assert!(!sk.is_conformant(&conformance_params));
-            conformance_params.transciphering_parameters =
-                Some(TranscipheringParameters::SameAsCompute);
-            assert!(sk.is_conformant(&conformance_params));
-
-            let without = ConfigBuilder::with_custom_parameters(params).build();
-            let sk_without = CompressedServerKey::new(&ClientKey::generate(without));
-            assert!(!sk_without.is_conformant(&conformance_params));
+            let sk_without = CompressedServerKey::new(&ClientKey::generate(without_transciphering));
+            assert!(!sk_without.is_conformant(&with_params));
         }
     }
 }

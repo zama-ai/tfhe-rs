@@ -9,10 +9,11 @@ use crate::named::Named;
 use crate::shortint::oprf::{
     CompressedOprfServerKey as ShortintCompressedOprfServerKey,
     ExpandedOprfServerKey as ShortintExpandedOprfServerKey,
-    GenericOprfServerKey as ShortintGenericOprfServerKey, OprfPrivateKey as ShortintOprfPrivateKey,
-    OprfServerKey as ShortintOprfServerKey,
+    GenericOprfServerKey as ShortintGenericOprfServerKey, OprfKeyConformanceParams,
+    OprfPrivateKey as ShortintOprfPrivateKey, OprfServerKey as ShortintOprfServerKey,
 };
-use crate::shortint::{AtomicPatternParameters, OprfSeed};
+use crate::shortint::parameters::OprfParameters;
+use crate::shortint::OprfSeed;
 use aligned_vec::ABox;
 use std::num::NonZeroU64;
 use tfhe_fft::c64;
@@ -29,6 +30,10 @@ pub struct OprfPrivateKey(pub(crate) ShortintOprfPrivateKey);
 impl OprfPrivateKey {
     pub fn new(ck: &ClientKey) -> Self {
         Self(ShortintOprfPrivateKey::new(&ck.key))
+    }
+
+    pub fn new_with_params(ck: &ClientKey, params: OprfParameters) -> Self {
+        Self(ShortintOprfPrivateKey::new_with_params(&ck.key, params))
     }
 
     pub fn from_raw_parts(sk: ShortintOprfPrivateKey) -> Self {
@@ -61,8 +66,8 @@ impl CompressedOprfServerKey {
         ExpandedOprfServerKey(self.0.expand())
     }
 
-    pub(crate) fn is_conformant(&self, sk_param: &AtomicPatternParameters) -> bool {
-        self.0.is_conformant(sk_param)
+    pub(crate) fn is_conformant(&self, params: &OprfKeyConformanceParams) -> bool {
+        self.0.is_conformant(params)
     }
 }
 
@@ -711,7 +716,7 @@ impl ServerKey {
 }
 
 impl ParameterSetConformant for OprfServerKey {
-    type ParameterSet = AtomicPatternParameters;
+    type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         self.key.is_conformant(parameter_set)

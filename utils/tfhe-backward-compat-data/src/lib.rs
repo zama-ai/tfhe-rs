@@ -202,6 +202,7 @@ pub enum TestReRandomizationConfiguration {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum TestTranscipheringParameters {
     SameAsCompute,
+    DedicatedOprf(usize),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

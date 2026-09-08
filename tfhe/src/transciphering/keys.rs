@@ -1,10 +1,11 @@
 use crate::conformance::ParameterSetConformant;
 use crate::named::Named;
 use crate::shortint::oprf::{
-    CompressedOprfServerKey, ExpandedOprfServerKey, OprfPrivateKey, OprfServerKey,
+    CompressedOprfServerKey, ExpandedOprfServerKey, OprfKeyConformanceParams, OprfPrivateKey,
+    OprfServerKey,
 };
 use crate::shortint::parameters::TranscipheringParameters;
-use crate::shortint::{AtomicPatternParameters, ClientKey};
+use crate::shortint::ClientKey;
 use crate::transciphering::backward_compatibility::{
     CompressedTranscipheringServerKeyVersions, TranscipheringPrivateKeyVersions,
     TranscipheringServerKeyVersions,
@@ -27,6 +28,9 @@ impl TranscipheringPrivateKey {
     pub fn new(ck: &ClientKey, params: TranscipheringParameters) -> Self {
         let oprf_key = match params {
             TranscipheringParameters::SameAsCompute => OprfPrivateKey::new(ck),
+            TranscipheringParameters::DedicatedOprf(oprf_params) => {
+                OprfPrivateKey::new_with_params(ck, oprf_params)
+            }
         };
 
         Self { oprf_key, params }
@@ -59,11 +63,12 @@ pub struct TranscipheringServerKey {
     oprf_key: OprfServerKey,
 }
 
-/// The key bootstraps into the compute key, so it is checked against the compute parameters.
+/// The key bootstraps into the compute key, so it is checked against the compute parameters, plus
+/// the OPRF parameters it was generated with.
 ///
 /// A key that does not match them makes the pseudo random generation it is used for panic.
 impl ParameterSetConformant for TranscipheringServerKey {
-    type ParameterSet = AtomicPatternParameters;
+    type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         self.oprf_key.is_conformant(parameter_set)
@@ -96,7 +101,7 @@ pub struct CompressedTranscipheringServerKey {
 }
 
 impl ParameterSetConformant for CompressedTranscipheringServerKey {
-    type ParameterSet = AtomicPatternParameters;
+    type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         self.oprf_key.is_conformant(parameter_set)
@@ -170,7 +175,29 @@ mod test {
         TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    use crate::shortint::parameters::OprfParameters;
     use crate::shortint::prelude::*;
+
+    /// Builds the transciphering keys for `transciphering_params` and checks them against every
+    /// entry of `expectations`.
+    fn check_conformance(
+        cks: &ClientKey,
+        transciphering_params: TranscipheringParameters,
+        expectations: &[(OprfKeyConformanceParams, bool)],
+    ) {
+        let private_key = TranscipheringPrivateKey::new(cks, transciphering_params);
+
+        let server_key = TranscipheringServerKey::new(&private_key, cks).unwrap();
+        let compressed = CompressedTranscipheringServerKey::new(&private_key, cks).unwrap();
+        // Decompressing must preserve conformance.
+        let expanded = compressed.expand().to_fourier();
+
+        for (conformance_params, expected) in expectations {
+            assert_eq!(server_key.is_conformant(conformance_params), *expected);
+            assert_eq!(compressed.is_conformant(conformance_params), *expected);
+            assert_eq!(expanded.is_conformant(conformance_params), *expected);
+        }
+    }
 
     #[test]
     fn transciphering_server_key_conformance() {
@@ -178,21 +205,51 @@ mod test {
         let other_params = TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
 
         let (cks, _sks) = gen_keys(params);
-        let private_key =
-            TranscipheringPrivateKey::new(&cks, TranscipheringParameters::SameAsCompute);
 
-        let matching: AtomicPatternParameters = params.into();
-        let mismatched: AtomicPatternParameters = other_params.into();
+        let compute: AtomicPatternParameters = params.into();
+        let other_compute: AtomicPatternParameters = other_params.into();
 
-        let server_key = TranscipheringServerKey::new(&private_key, &cks).unwrap();
-        assert!(server_key.is_conformant(&matching));
-        assert!(!server_key.is_conformant(&mismatched));
+        check_conformance(
+            &cks,
+            TranscipheringParameters::SameAsCompute,
+            &[
+                (OprfKeyConformanceParams::same_as_compute(compute), true),
+                (
+                    OprfKeyConformanceParams::same_as_compute(other_compute),
+                    false,
+                ),
+            ],
+        );
+    }
 
-        let compressed = CompressedTranscipheringServerKey::new(&private_key, &cks).unwrap();
-        assert!(compressed.is_conformant(&matching));
-        assert!(!compressed.is_conformant(&mismatched));
+    #[test]
+    fn transciphering_server_key_conformance_dedicated_oprf() {
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        // Decompressing must preserve conformance.
-        assert!(compressed.expand().to_fourier().is_conformant(&matching));
+        let (cks, _sks) = gen_keys(params);
+
+        let compute: AtomicPatternParameters = params.into();
+        let dedicated = OprfParameters {
+            lwe_dimension: LweDimension(600),
+        };
+
+        check_conformance(
+            &cks,
+            TranscipheringParameters::DedicatedOprf(dedicated),
+            &[
+                // A dedicated key must not pass for a key mirroring the compute parameters.
+                (OprfKeyConformanceParams::same_as_compute(compute), false),
+                (OprfKeyConformanceParams::new(compute, dedicated), true),
+            ],
+        );
+
+        check_conformance(
+            &cks,
+            TranscipheringParameters::SameAsCompute,
+            &[
+                (OprfKeyConformanceParams::same_as_compute(compute), true),
+                (OprfKeyConformanceParams::new(compute, dedicated), false),
+            ],
+        );
     }
 }

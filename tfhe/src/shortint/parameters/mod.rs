@@ -374,6 +374,14 @@ impl PBSParameters {
             Self::MultiBitPBS(param) => param.to_compressed_modswitched_conformance_param(),
         }
     }
+
+    /// Check if dedicated oprf parameters and compute parameters are compatible
+    pub const fn is_compatible_with_oprf_params(&self, oprf_params: OprfParameters) -> bool {
+        match self {
+            Self::PBS(param) => param.is_compatible_with_oprf_params(oprf_params),
+            Self::MultiBitPBS(param) => param.is_compatible_with_oprf_params(oprf_params),
+        }
+    }
 }
 
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
@@ -685,6 +693,15 @@ impl ShortintParameterSet {
     pub const fn pbs_and_wopbs(&self) -> bool {
         self.inner.is_pbs_and_wopbs()
     }
+
+    /// Check if dedicated oprf parameters and compute parameters are compatible
+    pub const fn is_compatible_with_oprf_params(&self, oprf_params: OprfParameters) -> bool {
+        if let Some(params) = self.ap_parameters() {
+            params.is_compatible_with_oprf_params(oprf_params)
+        } else {
+            false
+        }
+    }
 }
 
 impl<P> From<P> for ShortintParameterSet
@@ -843,6 +860,26 @@ impl ModulusSwitchType {
             Self::CenteredMeanNoiseReduction => {
                 CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction
             }
+        }
+    }
+}
+
+/// Parameters of a dedicated OPRF key.
+///
+/// OPRF performance can be improved by using a smaller LWE dimension than the one used for compute,
+/// as long as lwe security is preserved. The rest of the pbs parameters are taken from the compute
+/// params.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(OprfParametersVersions)]
+pub struct OprfParameters {
+    pub lwe_dimension: LweDimension,
+}
+
+impl OprfParameters {
+    /// The parameters of an OPRF key mirroring the compute key.
+    pub const fn same_as_compute(compute_params: AtomicPatternParameters) -> Self {
+        Self {
+            lwe_dimension: compute_params.lwe_dimension(),
         }
     }
 }
