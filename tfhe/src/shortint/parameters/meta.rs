@@ -126,7 +126,7 @@ impl MetaParameters {
     }
 
     pub const fn is_valid(&self) -> bool {
-        if let Some(rerand_configuration) = self.rerand_configuration {
+        let rerand_is_ok = if let Some(rerand_configuration) = self.rerand_configuration {
             match rerand_configuration {
                 ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch => {
                     let Some(params) = self.dedicated_compact_public_key_parameters else {
@@ -163,7 +163,17 @@ impl MetaParameters {
         } else {
             // No rerand config, check pke is valid and that there is no legacy rerand params
             self.dedicated_cpk_is_valid_has_no_rerand()
-        }
+        };
+
+        // need to match to be const
+        let transciphering_is_ok = match self.transciphering_parameters {
+            Some(TranscipheringParameters::DedicatedOprf(oprf_params)) => {
+                oprf_params.lwe_dimension.0 <= self.compute_parameters.lwe_dimension().0
+            }
+            Some(TranscipheringParameters::SameAsCompute) | None => true,
+        };
+
+        rerand_is_ok && transciphering_is_ok
     }
 
     pub const fn validate(self) -> Self {
