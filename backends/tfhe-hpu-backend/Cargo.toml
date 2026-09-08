@@ -41,7 +41,9 @@ lru = "0.18.2"
 bitfield-struct = "0.13.0"
 crossbeam = { version = "0.8.4", features = ["crossbeam-queue"] }
 rayon = { workspace = true }
-zhc = "0.9"
+# TODO revert to release version once available
+# zhc = "0.9"
+zhc= { git = "https://github.com/zama-ai/zhc", branch = "br/dyn_iop" }
 
 # Dependencies used for Sim feature
 ra2m_ffi = "1.0"
