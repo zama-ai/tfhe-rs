@@ -119,9 +119,9 @@ pub struct BoardConfig {
     /// Depict the memory connected to ucore master_axi for Fw table
     pub fw_pc: ffi::MemKind,
     /// Expressed the size in u32 word allocated to Zhc dynamic Fw table
-    pub zhc_size: usize,
+    pub dyn_fw_size: usize,
     /// Depict the memory connected to ucore master_axi for zhc dynamic Fw table
-    pub zhc_pc: ffi::MemKind,
+    pub dyn_fw_pc: ffi::MemKind,
     /// Depict the memory connected to trace manager
     pub trace_pc: ffi::MemKind,
     /// The trace memory depth in MB
