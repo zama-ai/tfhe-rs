@@ -14,6 +14,8 @@ use crate::shortint::parameters::{
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
+use super::OprfParameters;
+
 /// A structure defining the set of cryptographic parameters for homomorphic integer circuit
 /// evaluation.
 ///
@@ -176,5 +178,12 @@ impl ClassicPBSParameters {
     /// Returns [`AtomicPatternKind::Standard`] derived from the PBS order.
     pub const fn atomic_pattern(&self) -> AtomicPatternKind {
         AtomicPatternKind::Standard(self.pbs_order())
+    }
+
+    /// Check if dedicated oprf parameters and compute parameters are compatible
+    pub const fn is_compatible_with_oprf_params(&self, oprf_params: OprfParameters) -> bool {
+        let OprfParameters { lwe_dimension } = oprf_params;
+
+        lwe_dimension.0 <= self.lwe_dimension.0
     }
 }

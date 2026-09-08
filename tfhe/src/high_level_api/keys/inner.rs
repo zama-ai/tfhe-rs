@@ -26,6 +26,7 @@ use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
+use crate::shortint::oprf::OprfKeyConformanceParams;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, NoiseSquashingCompressionParameters,
@@ -1253,7 +1254,9 @@ impl ParameterSetConformant for IntegerServerKey {
         let oprf_is_ok = match (parameter_set.dedicated_oprf_key, oprf_key.as_ref()) {
             // We have to have a dedicated oprf key
             // Make sure it's there and that it's conformant
-            (true, Some(key)) => key.is_conformant(&parameter_set.sk_param),
+            (true, Some(key)) => key.is_conformant(&OprfKeyConformanceParams::same_as_compute(
+                parameter_set.sk_param,
+            )),
             (true, None) => false,
             // The config says to not use a dedicated oprf key but we have one
             // while it works, it is not strictly conformant
@@ -1266,9 +1269,12 @@ impl ParameterSetConformant for IntegerServerKey {
             transciphering_key.as_ref(),
         ) {
             // The key bootstraps into the compute key, so it is checked against the compute
-            // parameters.
-            (Some(TranscipheringParameters::SameAsCompute), Some(key)) => {
-                key.is_conformant(&parameter_set.sk_param)
+            // parameters, plus the oprf parameters it was generated with.
+            (Some(transciphering_params), Some(key)) => {
+                key.is_conformant(&OprfKeyConformanceParams::new(
+                    parameter_set.sk_param,
+                    transciphering_params.oprf_parameters(parameter_set.sk_param),
+                ))
             }
             (Some(_), None) => false,
             // The config says to not use transciphering but we have a key
@@ -1427,7 +1433,9 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
         let oprf_is_ok = match (parameter_set.dedicated_oprf_key, oprf_key.as_ref()) {
             // We have to have a dedicated oprf key
             // Make sure it's there and that it's conformant
-            (true, Some(key)) => key.is_conformant(&parameter_set.sk_param),
+            (true, Some(key)) => key.is_conformant(&OprfKeyConformanceParams::same_as_compute(
+                parameter_set.sk_param,
+            )),
             (true, None) => false,
             // The config says to not use a dedicated oprf key but we have one
             // while it works, it is not strictly conformant
@@ -1440,9 +1448,12 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             transciphering_key.as_ref(),
         ) {
             // The key bootstraps into the compute key, so it is checked against the compute
-            // parameters.
-            (Some(TranscipheringParameters::SameAsCompute), Some(key)) => {
-                key.is_conformant(&parameter_set.sk_param)
+            // parameters, plus the oprf parameters it was generated with.
+            (Some(transciphering_params), Some(key)) => {
+                key.is_conformant(&OprfKeyConformanceParams::new(
+                    parameter_set.sk_param,
+                    transciphering_params.oprf_parameters(parameter_set.sk_param),
+                ))
             }
             (Some(_), None) => false,
             // The config says to not use transciphering but we have a key

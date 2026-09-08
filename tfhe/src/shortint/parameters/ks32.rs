@@ -16,7 +16,7 @@ use crate::shortint::parameters::ModulusSwitchType;
 
 use super::{
     AtomicPatternKind, CarryModulus, CiphertextConformanceParams, CiphertextModulus,
-    CiphertextModulus32, Degree, MaxNoiseLevel, MessageModulus, NoiseLevel,
+    CiphertextModulus32, Degree, MaxNoiseLevel, MessageModulus, NoiseLevel, OprfParameters,
 };
 
 /// A set of cryptographic parameters used with the atomic pattern
@@ -197,5 +197,12 @@ impl KeySwitch32PBSParameters {
                 self.post_keyswitch_ciphertext_modulus().try_to().unwrap()
             }
         }
+    }
+
+    /// Check if dedicated oprf parameters and compute parameters are compatible
+    pub const fn is_compatible_with_oprf_params(&self, oprf_params: OprfParameters) -> bool {
+        let OprfParameters { lwe_dimension } = oprf_params;
+
+        lwe_dimension.0 <= self.lwe_dimension.0
     }
 }

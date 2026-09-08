@@ -460,6 +460,11 @@ impl ConvertParams<TranscipheringParameters> for TestTranscipheringParameters {
     fn convert(self) -> TranscipheringParameters {
         match self {
             Self::SameAsCompute => TranscipheringParameters::SameAsCompute,
+            Self::DedicatedOprf(lwe_dim) => {
+                TranscipheringParameters::DedicatedOprf(OprfParameters {
+                    lwe_dimension: LweDimension(lwe_dim),
+                })
+            }
         }
     }
 }

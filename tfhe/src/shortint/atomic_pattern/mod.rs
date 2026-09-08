@@ -31,7 +31,7 @@ use super::ciphertext::{
 use super::client_key::atomic_pattern::AtomicPatternClientKey;
 use super::engine::ShortintEngine;
 use super::parameters::{
-    CiphertextConformanceParams, DynamicDistribution, KeySwitch32PBSParameters,
+    CiphertextConformanceParams, DynamicDistribution, KeySwitch32PBSParameters, OprfParameters,
 };
 use super::prelude::{DecompositionBaseLog, DecompositionLevelCount};
 use super::server_key::{
@@ -604,6 +604,14 @@ impl AtomicPatternParameters {
         self.set_deterministic_execution(true);
 
         self
+    }
+
+    /// Check if dedicated oprf parameters and compute parameters are compatible
+    pub const fn is_compatible_with_oprf_params(&self, oprf_params: OprfParameters) -> bool {
+        match self {
+            Self::Standard(parameters) => parameters.is_compatible_with_oprf_params(oprf_params),
+            Self::KeySwitch32(parameters) => parameters.is_compatible_with_oprf_params(oprf_params),
+        }
     }
 }
 
