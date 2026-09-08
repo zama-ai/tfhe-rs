@@ -1662,42 +1662,41 @@ mod test {
 
     /// test that the fused monic monomial multiplication and subtraction with a custom modulus
     /// matches the two step computation
-    fn test_monic_monomial_mul_and_subtract_custom_mod<T: UnsignedTorus>(modulus: T) {
-        let mut rng = rand::thread_rng();
-        let mut generator = new_random_generator();
+    fn test_monic_monomial_mul_and_subtract_custom_mod<T>(modulus: T)
+    where
+        T: UnsignedTorus + rand_distr::uniform::SampleUniform,
+    {
+        for polynomial_log in 4..=12 {
+            for _ in 0..50 {
+                let polynomial_size = PolynomialSize(1 << polynomial_log);
+                let mut rng = rand::thread_rng();
 
-        for _ in 0..50 {
-            let polynomial_size = random_polynomial_size(2048);
+                // generate a random polynomial with coefficients in [0, modulus[
+                let mut input = Polynomial::new(T::ZERO, polynomial_size);
+                input.as_mut().fill_with(|| rng.gen_range(T::ZERO..modulus));
 
-            // generate a random polynomial with coefficients in [0, modulus)
-            let mut input = Polynomial::new(T::ZERO, polynomial_size);
-            generator.fill_slice_with_random_uniform(input.as_mut());
-            input
-                .as_mut()
-                .iter_mut()
-                .for_each(|x| *x = x.wrapping_rem(modulus));
+                // random degree, potentially bigger than the polynomial size to exercise the
+                // wrap around
+                let degree = MonomialDegree(rng.gen::<usize>() % (4 * polynomial_size.0));
 
-            // random degree, potentially bigger than the polynomial size to exercise the wrap
-            // around
-            let degree = MonomialDegree(rng.gen::<usize>() % (4 * polynomial_size.0));
+                let mut expected = input.clone();
+                polynomial_wrapping_monic_monomial_mul_assign_custom_mod(
+                    &mut expected,
+                    degree,
+                    modulus,
+                );
+                slice_wrapping_sub_assign_custom_mod(expected.as_mut(), input.as_ref(), modulus);
 
-            let mut expected = input.clone();
-            polynomial_wrapping_monic_monomial_mul_assign_custom_mod(
-                &mut expected,
-                degree,
-                modulus,
-            );
-            slice_wrapping_sub_assign_custom_mod(expected.as_mut(), input.as_ref(), modulus);
+                let mut output = Polynomial::new(T::ZERO, polynomial_size);
+                polynomial_wrapping_monic_monomial_mul_and_subtract_custom_mod(
+                    &mut output,
+                    &input,
+                    degree,
+                    modulus,
+                );
 
-            let mut output = Polynomial::new(T::ZERO, polynomial_size);
-            polynomial_wrapping_monic_monomial_mul_and_subtract_custom_mod(
-                &mut output,
-                &input,
-                degree,
-                modulus,
-            );
-
-            assert_eq!(&output, &expected);
+                assert_eq!(&output, &expected);
+            }
         }
     }
 
