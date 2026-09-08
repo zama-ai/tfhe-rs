@@ -160,8 +160,9 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Instantiate HpuDevice --------------------------------------------------
     println!("\n A.0. Hpu backend default configuration");
     println!("   Open hardware with given configuration...");
-    let hpu_device = HpuDevice::from_config(&args.config.expand(), args.force_reload)
-        .expect("Hpu device init failed");
+    let hpu_config = HpuConfig::from_toml(args.config.expand().as_str());
+    let hpu_device =
+        HpuDevice::new(hpu_config.clone(), args.force_reload).expect("Hpu device init failed");
 
     println!("   Generate client and server keys...");
     // Force key seeder if seed specified by user
@@ -184,32 +185,29 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     for width in args.integer_w {
         // Define associated config and spec for Zhc
-        let zhc_config = new_zhc_config(hpu_device.params());
+        let zhc_config = new_zhc_config(&hpu_config, hpu_device.params());
         let zhc_spec = zhc::builder::CiphertextSpec::new(width as u16, 2, 2);
 
         for zhc_op in args.zhc_ops.iter() {
             // Build custom IOp Ir ----------------------------------------------------
             println!("FwDyn_{width}b:: Start fw generation for {zhc_op} ...");
-            let (mh_factor, mut mh_pipeline) = match zhc_op {
+            let mh_pipeline = match zhc_op {
                 ZhcDynOp::MhMul(mh_factor) => {
                     let mh_config = MultiHpuConfig {
                         n_hpus: *mh_factor as u8,
                         hpu_config: zhc_config.clone(),
                     };
-                    (
-                        *mh_factor,
-                        zhc::pipeline::compat::mh_mul(zhc_spec, mh_config),
-                    )
+                    zhc::compat::mh_mul(zhc_spec, mh_config)
                 }
                 _ => unimplemented!("Current op not defined"),
             };
 
-            let proto = zhc_to_native_proto(mh_factor, &zhc_spec, mh_pipeline.get_prototype());
-            let stream = ZhcStream::new(None, mh_pipeline.into_multi_hpu_stream());
-            let hash = ZhcStreamHash::from(&stream);
-
             // Register fw on Hpu -----------------------------------------------------
-            let iopcode = hpu_device.fw_dyn(hash, stream, proto.clone())?;
+            let fw_entry = hpu_device.fw_dyn_init(
+                mh_pipeline,
+                &crate::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable,
+            )?;
+            let proto = fw_entry.proto();
 
             // Execution ROI ----------------------------------------------------------
             let num_block = width / hpu_device.params().pbs_params.message_width;
@@ -258,7 +256,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     let res = HpuRadixCiphertext::exec(
                         &proto,
                         hpu_asm::FwMode::Dynamic,
-                        iopcode,
+                        fw_entry.iop(),
                         &srcs_enc,
                         &imms,
                         None,
@@ -304,78 +302,4 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(())
-}
-
-/// Utility function to convert Zhc Operation signature in IOpPrototype
-/// Generate a set of DOpStream for multi-hpu multiplication
-fn zhc_to_native_proto(
-    mh_factor: usize,
-    ct_spec: &CiphertextSpec,
-    zhc_sig: &zhc::ir::Signature<zhc::builder::Type>,
-) -> hpu_asm::IOpProto {
-    use zhc::builder::Type;
-    use zhc::ir::Signature;
-
-    let native_w = ct_spec.int_size();
-    let half_w = native_w / 2;
-
-    let Signature(sig_src, sig_dst) = zhc_sig;
-    let dst_mode = sig_dst
-        .iter()
-        .filter_map(|sig| {
-            if let Type::Ciphertext(spec) = sig {
-                Some(spec)
-            } else {
-                None
-            }
-        })
-        .map(|spec| {
-            if spec.int_size() == native_w {
-                hpu_asm::iop::VarMode::Native
-            } else if spec.int_size() == half_w {
-                hpu_asm::iop::VarMode::Half
-            } else if spec.int_size() == 1 {
-                hpu_asm::iop::VarMode::Bool
-            } else {
-                panic!("Unexpected Ciphertext Type");
-            }
-        })
-        .collect::<Vec<_>>();
-    let src_mode = sig_src
-        .iter()
-        .filter_map(|sig| {
-            if let Type::Ciphertext(spec) = sig {
-                Some(spec)
-            } else {
-                None
-            }
-        })
-        .map(|spec| {
-            if spec.int_size() == native_w {
-                hpu_asm::iop::VarMode::Native
-            } else if spec.int_size() == half_w {
-                hpu_asm::iop::VarMode::Half
-            } else if spec.int_size() == 1 {
-                hpu_asm::iop::VarMode::Bool
-            } else {
-                panic!("Unexpected Ciphertext Type");
-            }
-        })
-        .collect::<Vec<_>>();
-    let imm = sig_src
-        .iter()
-        .filter_map(|sig| {
-            if let Type::Plaintext(_) = sig {
-                Some(())
-            } else {
-                None
-            }
-        })
-        .count();
-    hpu_asm::IOpProto {
-        used_nodes: hpu_asm::iop::NodesMap::new(&[mh_factor as u8]),
-        dst: dst_mode,
-        src: src_mode,
-        imm,
-    }
 }

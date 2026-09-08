@@ -63,12 +63,13 @@ impl From<HpuGlweLookuptableView<'_, u64>> for GlweCiphertextOwned<u64> {
     }
 }
 
-pub fn create_hpu_lookuptable(
-    params: &HpuParameters,
-    pbs: &hpu_asm::Pbs,
-) -> HpuGlweLookuptableOwned<u64> {
-    // Create Glwe
+pub fn create_hpu_lookuptable(params: &HpuParameters, lut: &[u64]) -> HpuGlweLookuptableOwned<u64> {
     let pbs_p = params.pbs_params;
+
+    // Check that lut definition match with message/carry width
+    assert_eq!(lut.len(), 1 << (pbs_p.message_width + pbs_p.carry_width));
+
+    // Create Glwe
     let mut cpu_acc = GlweCiphertext::new(
         0,
         GlweDimension(pbs_p.glwe_dimension).to_glwe_size(),
@@ -92,32 +93,17 @@ pub fn create_hpu_lookuptable(
     // NB: Tfhe-rs always align information in MSB whatever power_of_two modulus is used
     //     This is why we compute the encoding delta based on container width instead of
     //     real modulus width
-    let encode = |x: Cleartext<u64>| {
+    let encode = |x: u64| {
         let cleartext_and_padding_width = pbs_p.message_width + pbs_p.carry_width + 1;
         let delta = 1 << (u64::BITS - cleartext_and_padding_width as u32);
-        Plaintext(x.0.wrapping_mul(delta))
+        Plaintext(x.wrapping_mul(delta))
     };
 
     let mut body = cpu_acc_view.get_mut_body();
     let body_u64 = body.as_mut();
 
-    let digits_params = hpu_asm::DigitParameters {
-        msg_w: params.pbs_params.message_width,
-        carry_w: params.pbs_params.carry_width,
-    };
-
-    let lut_nb = pbs.lut_nb() as usize;
-
-    let single_function_sub_lut_size = (modulus_sup / lut_nb) * box_size;
-
-    for (pos, function_sub_lut) in body_u64
-        .chunks_mut(single_function_sub_lut_size)
-        .enumerate()
-    {
-        for (msg_value, sub_lut_box) in function_sub_lut.chunks_exact_mut(box_size).enumerate() {
-            let function_eval = pbs.fn_at(pos, &digits_params, msg_value) as u64;
-            sub_lut_box.fill(encode(Cleartext(function_eval)).0);
-        }
+    for (pos, lut_box) in body_u64.chunks_mut(box_size).enumerate() {
+        lut_box.fill(encode(lut[pos]).0);
     }
 
     let half_box_size = box_size / 2;
