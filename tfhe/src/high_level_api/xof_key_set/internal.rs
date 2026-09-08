@@ -23,8 +23,8 @@ use crate::shortint::noise_squashing::atomic_pattern::compressed::CompressedAtom
 use crate::shortint::noise_squashing::CompressedShortint128BootstrappingKey;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, CompressionParameters,
-    NoiseSquashingCompressionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
-    TranscipheringParameters,
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters, OprfParameters,
+    ShortintKeySwitchingParameters, TranscipheringParameters,
 };
 use crate::shortint::server_key::{
     CompressedModulusSwitchConfiguration, CompressedModulusSwitchNoiseReductionKey,
@@ -159,16 +159,22 @@ impl crate::integer::ClientKey {
 impl OprfPrivateKey {
     fn generate_with_pre_seeded_generator<G>(
         params: AtomicPatternParameters,
+        oprf_params: OprfParameters,
         max_norm_hwt: NormalizedHammingWeightBound,
         secret_generator: &mut SecretRandomGenerator<G>,
     ) -> Self
     where
         G: ByteRandomGenerator,
     {
+        assert!(
+            params.is_compatible_with_oprf_params(oprf_params),
+            "OPRF parameters are not compatible with compute parameters"
+        );
+
         let sk = match params {
-            shortint::AtomicPatternParameters::Standard(std_params) => {
+            shortint::AtomicPatternParameters::Standard(_) => {
                 let mut lwe_secret_key =
-                    LweSecretKey::new_empty_key(0u64, std_params.lwe_dimension());
+                    LweSecretKey::new_empty_key(0u64, oprf_params.lwe_dimension);
                 generate_binary_lwe_secret_key_with_bounded_hamming_weight(
                     &mut lwe_secret_key,
                     secret_generator,
@@ -177,9 +183,9 @@ impl OprfPrivateKey {
 
                 crate::shortint::oprf::AtomicPatternOprfPrivateKey::Standard(lwe_secret_key)
             }
-            shortint::AtomicPatternParameters::KeySwitch32(ks32_params) => {
+            shortint::AtomicPatternParameters::KeySwitch32(_) => {
                 let mut lwe_secret_key =
-                    LweSecretKey::new_empty_key(0u32, ks32_params.lwe_dimension());
+                    LweSecretKey::new_empty_key(0u32, oprf_params.lwe_dimension);
                 generate_binary_lwe_secret_key_with_bounded_hamming_weight(
                     &mut lwe_secret_key,
                     secret_generator,
@@ -285,15 +291,12 @@ impl crate::transciphering::TranscipheringPrivateKey {
     where
         G: ByteRandomGenerator,
     {
-        let oprf_key = match transciphering_params {
-            TranscipheringParameters::SameAsCompute => {
-                OprfPrivateKey::generate_with_pre_seeded_generator(
-                    compute_params,
-                    max_norm_hwt,
-                    secret_generator,
-                )
-            }
-        };
+        let oprf_key = OprfPrivateKey::generate_with_pre_seeded_generator(
+            compute_params,
+            transciphering_params.oprf_parameters(compute_params),
+            max_norm_hwt,
+            secret_generator,
+        );
 
         Self::from_raw_parts(oprf_key.0, transciphering_params)
     }
@@ -343,6 +346,7 @@ impl ClientKey {
         let dedicated_oprf_private_key = config.inner.dedicated_oprf_key.then(|| {
             OprfPrivateKey::generate_with_pre_seeded_generator(
                 config.inner.block_parameters,
+                OprfParameters::same_as_compute(config.inner.block_parameters),
                 max_norm_hwt,
                 secret_generator,
             )
@@ -744,6 +748,13 @@ impl crate::shortint::oprf::CompressedOprfServerKey {
         Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
     {
         use crate::shortint::oprf::CompressedOprfBootstrappingKey;
+
+        assert!(
+            client_key
+                .parameters()
+                .is_compatible_with_oprf_params(private_oprf_key.parameters()),
+            "oprf key lwe dimension is not compatible with target client key"
+        );
 
         let inner = match (&private_oprf_key.0, &client_key.atomic_pattern) {
             (

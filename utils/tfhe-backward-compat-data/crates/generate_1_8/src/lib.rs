@@ -21,6 +21,8 @@ use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
 
 const TRANSCIPHERING_CLIENT_KEY_FILENAME: &str = "transciphering_client_key";
+const TRANSCIPHERING_CLIENT_KEY_DEDICATED_FILENAME: &str =
+    "transciphering_client_key_dedicated_params";
 const TRANSCIPHERING_TAG: &[u8] = &[0xC0, 0xFF, 0xEE, 0x00];
 const KREYVIUM_PLAIN_KEY: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 const KREYVIUM_IV: [u8; 16] = [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
@@ -31,6 +33,11 @@ const ONE_TIME_PAD: [u8; 8] = [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE];
 
 const HL_TRANSCIPHERING_CLIENT_KEY_TEST: HlClientKeyTest = HlClientKeyTest {
     test_filename: Cow::Borrowed(TRANSCIPHERING_CLIENT_KEY_FILENAME),
+    parameters: INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION_LWE_DIM_64,
+};
+
+const HL_TRANSCIPHERING_DEDICATED_PARAMS_CLIENT_KEY_TEST: HlClientKeyTest = HlClientKeyTest {
+    test_filename: Cow::Borrowed(TRANSCIPHERING_CLIENT_KEY_DEDICATED_FILENAME),
     parameters: INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION_LWE_DIM_64,
 };
 
@@ -164,6 +171,17 @@ impl TfhersVersion for V1_8 {
             );
         }
 
+        {
+            let client_key =
+                ClientKey::generate(INSECURE_TEST_TRANSCIPHERING_DEDICATED_META_PARAMS.convert());
+
+            store_versioned_test(
+                &client_key,
+                &dir,
+                &HL_TRANSCIPHERING_DEDICATED_PARAMS_CLIENT_KEY_TEST.test_filename(),
+            );
+        }
+
         vec![
             TestMetadata::HlClientKey(HL_TRANSCIPHERING_CLIENT_KEY_TEST),
             TestMetadata::HlKreyviumFheKey(HL_KREYVIUM_FHE_KEY_TEST),
@@ -172,6 +190,7 @@ impl TfhersVersion for V1_8 {
             TestMetadata::HlStreamCiphertext(HL_STREAM_CIPHERTEXT_TEST),
             TestMetadata::HlServerKey(HL_COMPRESSED_SERVER_KEY_TEST),
             TestMetadata::HlServerKey(HL_SERVER_KEY_TEST),
+            TestMetadata::HlClientKey(HL_TRANSCIPHERING_DEDICATED_PARAMS_CLIENT_KEY_TEST),
         ]
     }
 }

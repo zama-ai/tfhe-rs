@@ -18,6 +18,8 @@ use crate::shortint::server_key::PBSConformanceParams;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
+use super::OprfParameters;
+
 /// A structure defining the set of cryptographic parameters for homomorphic integer circuit
 /// evaluation. This structure contains information to run the so-called multi-bit PBS with improved
 /// latency provided enough threads are available on the machine performing the FHE computations
@@ -134,6 +136,14 @@ impl MultiBitPBSParameters {
             atomic_pattern,
             degree,
         }
+    }
+
+    /// Check if dedicated oprf parameters and compute parameters are compatible
+    pub const fn is_compatible_with_oprf_params(&self, oprf_params: OprfParameters) -> bool {
+        let OprfParameters { lwe_dimension } = oprf_params;
+
+        lwe_dimension.0 <= self.lwe_dimension.0
+            && lwe_dimension.0.is_multiple_of(self.grouping_factor.0)
     }
 }
 

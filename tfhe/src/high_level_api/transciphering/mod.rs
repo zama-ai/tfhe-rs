@@ -354,6 +354,8 @@ where
 mod test {
     use tfhe_safe_serialize::{safe_deserialize, safe_serialize};
 
+    use crate::shortint::parameters::{OprfParameters, TranscipheringParameters};
+    use crate::shortint::prelude::LweDimension;
     use crate::FheUint64;
 
     const SIZE_LIMIT: u64 = 1024 * 1024 * 1024;
@@ -565,18 +567,27 @@ mod test {
     /// client, which is the direction the transciphering protocol uses.
     #[test]
     fn test_one_time_pad_using_oprf() {
+        for params in [
+            TranscipheringParameters::SameAsCompute,
+            TranscipheringParameters::DedicatedOprf(OprfParameters {
+                lwe_dimension: LweDimension(600),
+            }),
+        ] {
+            test_one_time_pad_using_oprf_impl(params)
+        }
+    }
+
+    fn test_one_time_pad_using_oprf_impl(params: TranscipheringParameters) {
         use super::{HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession};
         use crate::prelude::*;
-        use crate::shortint::parameters::TranscipheringParameters;
         use crate::transciphering::{OneTimePadPlainSecretMask, OneTimePadPlainState};
         use crate::{generate_keys, set_server_key, ConfigBuilder, Seed};
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
 
-        let (client_key, server_key) = generate_keys(
-            ConfigBuilder::default().enable_transciphering(TranscipheringParameters::SameAsCompute),
-        );
+        let (client_key, server_key) =
+            generate_keys(ConfigBuilder::default().enable_transciphering(params));
         set_server_key(server_key);
 
         // Server: generate a random FHE pad.

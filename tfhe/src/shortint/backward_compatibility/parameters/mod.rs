@@ -15,8 +15,8 @@ use crate::shortint::parameters::meta::{
 };
 use crate::shortint::parameters::{
     Backend, CiphertextModulus32, CompressionParameters, MetaNoiseSquashingParameters,
-    ModulusSwitchNoiseReductionParams, ModulusSwitchType, ShortintParameterSetInner,
-    SupportedCompactPkeZkScheme,
+    ModulusSwitchNoiseReductionParams, ModulusSwitchType, OprfParameters,
+    ShortintParameterSetInner, SupportedCompactPkeZkScheme,
 };
 use crate::shortint::*;
 use parameters::KeySwitch32PBSParameters;
@@ -385,4 +385,9 @@ pub enum MetaParametersVersions {
 #[derive(VersionsDispatch)]
 pub enum ReRandomizationConfigurationVersions {
     V0(ReRandomizationConfiguration),
+}
+
+#[derive(VersionsDispatch)]
+pub enum OprfParametersVersions {
+    V0(OprfParameters),
 }
