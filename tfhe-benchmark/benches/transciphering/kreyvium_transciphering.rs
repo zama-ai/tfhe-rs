@@ -8,7 +8,7 @@
 //!   * `keystream_64bits`   : 64 keystream bits from an already-warmed state. 64 is Kreyvium's
 //!     parallel round-batch size (`next_64`).
 //!   * `transcipher_64bits` : end-to-end `transcipher` over 64 bits (`next_keystream_bits` +
-//!     `apply_keystream_2_2`).
+//!     `apply_keystream`).
 //!
 //! Run with:
 //! ```sh
@@ -30,7 +30,7 @@ use tfhe::shortint::AtomicPatternParameters;
 use tfhe::transciphering::ciphers::kreyvium::{
     KreyviumFheState, KreyviumIV, KreyviumPlainKey, KreyviumPlainState,
 };
-use tfhe::transciphering::{StreamCipher, Transcipherer};
+use tfhe::transciphering::{StreamCipher, Transcipherer, TranscipheringOutputLayout};
 
 const KEY_BITS: usize = 128;
 const KEYSTREAM_BITS: usize = 64;
@@ -124,6 +124,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
         );
         plain_stream.encrypt(&message).unwrap()
     };
+    let layout = TranscipheringOutputLayout::radix(sym_cipher.n_bits(), sks.message_modulus);
 
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Kreyvium(KreyviumFlavor::Transcipher64Bits),
@@ -142,7 +143,7 @@ pub fn cpu_kreyvium_transciphering(c: &mut Criterion) {
             b.iter_batched(
                 || warm_state.clone(),
                 |mut stream| {
-                    black_box(stream.transcipher(&sks, &sym_cipher).unwrap());
+                    black_box(stream.transcipher(&sks, &sym_cipher, &layout).unwrap());
                 },
                 BatchSize::SmallInput,
             )

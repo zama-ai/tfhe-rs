@@ -4,7 +4,10 @@ use crate::shortint::prelude::*;
 use crate::transciphering::ciphers::aes::{
     AesFheRoundKeys, AesFheState, AesIv, AesPlainKey, AesPlainState,
 };
-use crate::transciphering::{InsufficientKeystream, StreamCipher, Transcipherer};
+use crate::transciphering::{
+    FheKeyStreamError, InsufficientKeystream, StreamCipher, Transcipherer,
+    TranscipheringOutputLayout,
+};
 use rand::{Rng, SeedableRng};
 use rayon::prelude::*;
 
@@ -227,7 +230,7 @@ fn aes_fhe_known_answer() {
     let mut stream = AesFheState::new(fhe_key, IV);
 
     let keystream = stream.next_keystream_bits(&sks, 128).unwrap();
-    let got = decrypt_block(&cks, &keystream.into_raw_parts());
+    let got = decrypt_block(&cks, &keystream.into_raw_parts().0);
 
     assert_eq!(
         got, EXPECTED,
@@ -247,7 +250,7 @@ fn aes_fhe_ctr_byte_order_nist() {
 
     let n_blocks = CTR_KEYSTREAM.len();
     let keystream = stream.next_keystream_bits(&sks, 128 * n_blocks).unwrap();
-    let bits = keystream.into_raw_parts();
+    let bits = keystream.into_raw_parts().0;
 
     for (i, expected) in CTR_KEYSTREAM.iter().enumerate() {
         let got = decrypt_block(&cks, &bits[128 * i..128 * (i + 1)]);
@@ -272,7 +275,7 @@ fn aes_fhe_matches_plain_random() {
     let mut stream = AesFheState::new(fhe_key, iv);
 
     let keystream = stream.next_keystream_bits(&sks, 128 * n_blocks).unwrap();
-    let bits = keystream.into_raw_parts();
+    let bits = keystream.into_raw_parts().0;
 
     for (i, expected) in plain.iter().enumerate() {
         let got = decrypt_block(&cks, &bits[128 * i..128 * (i + 1)]);
@@ -296,7 +299,9 @@ fn aes_transcipher_round_trip() {
     let enc_key = AesPlainKey::from(key).encrypt(&cks);
     let fhe_key = AesFheRoundKeys::new(&sks, &enc_key);
     let mut fhe_stream = AesFheState::new(fhe_key, iv);
-    let fhe_cipher = fhe_stream.transcipher(&sks, &sym_cipher).unwrap();
+
+    let layout = TranscipheringOutputLayout::radix(sym_cipher.n_bits(), sks.message_modulus);
+    let fhe_cipher = fhe_stream.transcipher(&sks, &sym_cipher, &layout).unwrap();
 
     // `apply_keystream` in `2_2` packs two output bits per ciphertext, so 128
     // message bits decode from 64 ciphertexts.
@@ -360,7 +365,8 @@ fn aes_fhe_seek() {
     let fhe_bits = fhe_stream
         .next_keystream_bits(&sks, n_bits)
         .unwrap()
-        .into_raw_parts();
+        .into_raw_parts()
+        .0;
     let plain_bytes = plain_stream.next_keystream_bits(n_bits).unwrap();
     assert_keystream_matches(&cks, &fhe_bits, &plain_bytes, n_bits);
     assert_eq!(fhe_stream.current_counter(), 64 + n_bits as u64);
@@ -382,7 +388,8 @@ fn aes_fhe_non_byte_aligned_n_bits() {
     let fhe_bits = fhe_stream
         .next_keystream_bits(&sks, n_bits)
         .unwrap()
-        .into_raw_parts();
+        .into_raw_parts()
+        .0;
     let plain_bytes = plain_stream.next_keystream_bits(n_bits).unwrap();
     assert_keystream_matches(&cks, &fhe_bits, &plain_bytes, n_bits);
     assert_eq!(fhe_stream.current_counter(), n_bits as u64);
@@ -412,7 +419,7 @@ fn aes_exhaustion_at_counter_range_end() {
     assert_eq!(plain_stream.current_counter(), start);
     assert!(matches!(
         fhe_stream.next_keystream_bits(&sks, n_bits + 1),
-        Err(InsufficientKeystream)
+        Err(FheKeyStreamError::Insufficient(_))
     ));
     assert_eq!(fhe_stream.current_counter(), start);
 
@@ -421,7 +428,8 @@ fn aes_exhaustion_at_counter_range_end() {
     let fhe_bits = fhe_stream
         .next_keystream_bits(&sks, n_bits)
         .unwrap()
-        .into_raw_parts();
+        .into_raw_parts()
+        .0;
     let plain_bytes = plain_stream.next_keystream_bits(n_bits).unwrap();
     assert_keystream_matches(&cks, &fhe_bits, &plain_bytes, n_bits);
     assert_eq!(fhe_stream.current_counter(), u64::MAX);
