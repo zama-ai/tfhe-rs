@@ -8,9 +8,10 @@ use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::{BooleanBlock, DataKind};
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::shortint::MessageModulus;
 use crate::transciphering::{
     InsufficientKeystream, StreamCipher, StreamCipherKind, StreamCiphertext,
-    StreamCiphertextConformanceParams, TranscipherError, Transcipherer,
+    StreamCiphertextConformanceParams, TranscipherError, Transcipherer, TranscipheringOutputLayout,
 };
 
 use super::backward_compatibility::transciphering::{
@@ -113,6 +114,40 @@ impl IntegerStreamCiphertext {
     pub fn n_bits(&self) -> usize {
         self.inner.n_bits()
     }
+
+    /// The output layout this ciphertext should be transciphered into, based on its kind
+    pub fn output_layout(
+        &self,
+        message_modulus: MessageModulus,
+    ) -> Result<TranscipheringOutputLayout, IntegerTranscipherError> {
+        match self.kind {
+            IntegerStreamCiphertextKind::Unsigned | IntegerStreamCiphertextKind::Signed => {
+                // If the input integer is signed and its size is not a multiple of the block size,
+                // it means that we have to handle sign extension in the transciphering
+                if !self
+                    .n_bits()
+                    .is_multiple_of(message_modulus.0.ilog2() as usize)
+                {
+                    return Err(IntegerTranscipherError::RadixInvalidBitCount {
+                        ciphertext_bit_count: self.n_bits(),
+                        message_modulus_log: message_modulus.0.ilog2(),
+                    });
+                }
+                Ok(TranscipheringOutputLayout::radix(
+                    self.n_bits(),
+                    message_modulus,
+                ))
+            }
+            IntegerStreamCiphertextKind::Boolean => {
+                if self.n_bits() != 1 {
+                    return Err(IntegerTranscipherError::BooleanInvalidBitCount {
+                        ciphertext_bit_count: self.n_bits(),
+                    });
+                }
+                Ok(TranscipheringOutputLayout::boolean())
+            }
+        }
+    }
 }
 
 /// Client-side extension of [`StreamCipher`] that produces
@@ -134,6 +169,9 @@ pub trait IntegerStreamCipher {
     /// If `n_bits > T::BITS` the value is sign- or zero-extended (based on
     /// the sign of `T`), if `n_bits < T::BITS` it is truncated to the low
     /// `n_bits`.
+    ///
+    /// The server only accepts an `n_bits` that is a multiple of the number of message bits per
+    /// block of its parameters (2 with the default parameters).
     ///
     /// # Panics
     /// Panics if `n_bits == 0`.
@@ -234,6 +272,11 @@ pub enum IntegerTranscipherError {
     },
     /// The stream ciphertext did not have the right bit count for a boolean value.
     BooleanInvalidBitCount { ciphertext_bit_count: usize },
+    /// The stream ciphertext did not have the right bit count for a radix value.
+    RadixInvalidBitCount {
+        ciphertext_bit_count: usize,
+        message_modulus_log: u32,
+    },
 }
 
 impl From<TranscipherError> for IntegerTranscipherError {
@@ -256,6 +299,14 @@ impl std::fmt::Display for IntegerTranscipherError {
                 f,
                 "integer stream ciphertext bit count mismatch for boolean value. \
                 Expected 1 bit, got {ciphertext_bit_count}"
+            ),
+            Self::RadixInvalidBitCount {
+                ciphertext_bit_count,
+                message_modulus_log,
+            } => write!(
+                f,
+                "integer stream ciphertext bit count mismatch for radix value. \
+                Got {ciphertext_bit_count}, expected a multiple of {message_modulus_log}"
             ),
         }
     }
@@ -295,7 +346,8 @@ impl<T: Transcipherer> IntegerTranscipherer for T {
         input: &IntegerStreamCiphertext,
     ) -> Result<RadixCiphertext, IntegerTranscipherError> {
         check_kind(input, IntegerStreamCiphertextKind::Unsigned)?;
-        let blocks = self.transcipher(&sks.key, &input.inner)?;
+        let layout = input.output_layout(sks.message_modulus())?;
+        let blocks = self.transcipher(&sks.key, &input.inner, &layout)?;
         Ok(RadixCiphertext::from(blocks))
     }
 
@@ -305,7 +357,8 @@ impl<T: Transcipherer> IntegerTranscipherer for T {
         input: &IntegerStreamCiphertext,
     ) -> Result<SignedRadixCiphertext, IntegerTranscipherError> {
         check_kind(input, IntegerStreamCiphertextKind::Signed)?;
-        let blocks = self.transcipher(&sks.key, &input.inner)?;
+        let layout = input.output_layout(sks.message_modulus())?;
+        let blocks = self.transcipher(&sks.key, &input.inner, &layout)?;
         Ok(SignedRadixCiphertext::from(blocks))
     }
 
@@ -314,20 +367,15 @@ impl<T: Transcipherer> IntegerTranscipherer for T {
         sks: &ServerKey,
         input: &IntegerStreamCiphertext,
     ) -> Result<BooleanBlock, IntegerTranscipherError> {
-        let input_n_bits = input.n_bits();
-        if input_n_bits != 1 {
-            return Err(IntegerTranscipherError::BooleanInvalidBitCount {
-                ciphertext_bit_count: input_n_bits,
-            });
-        }
         check_kind(input, IntegerStreamCiphertextKind::Boolean)?;
-        let mut blocks = self.transcipher(&sks.key, &input.inner)?;
+        let layout = input.output_layout(sks.message_modulus())?;
+        let mut blocks = self.transcipher(&sks.key, &input.inner, &layout)?;
         let block = blocks.pop().expect("boolean transcipher produced no block");
         Ok(BooleanBlock::new_unchecked(block))
     }
 }
 
-fn check_kind(
+pub(crate) fn check_kind(
     input: &IntegerStreamCiphertext,
     expected: IntegerStreamCiphertextKind,
 ) -> Result<(), IntegerTranscipherError> {
