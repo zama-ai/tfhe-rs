@@ -8,7 +8,7 @@
 //!     path.
 //!   * `keystream_16_blocks`  : 16 CTR blocks (cheap multi-block measurement).
 //!   * `transcipher_16_blocks` : end-to-end `transcipher` over 16 blocks (`next_keystream_bits` +
-//!     `apply_keystream_2_2`).
+//!     `apply_keystream`).
 //!
 //! Run with:
 //! ```sh
@@ -30,7 +30,7 @@ use tfhe::shortint::AtomicPatternParameters;
 use tfhe::transciphering::ciphers::aes::{
     AesFheRoundKeys, AesFheState, AesPlainKey, AesPlainState,
 };
-use tfhe::transciphering::{StreamCipher, Transcipherer};
+use tfhe::transciphering::{StreamCipher, Transcipherer, TranscipheringOutputLayout};
 
 const N_BLOCKS: usize = 16;
 const BLOCK_BITS: usize = 128;
@@ -163,6 +163,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
     let total_bytes = BLOCK_BYTES * N_BLOCKS;
     let message = vec![0u8; total_bytes];
     let sym_cipher = AesPlainState::new(key, iv).encrypt(&message).unwrap();
+    let layout = TranscipheringOutputLayout::radix(sym_cipher.n_bits(), sks.message_modulus);
 
     let benchmark_spec = BenchmarkSpec::new_transciphering(
         TranscipheringBench::Aes(AesFlavor::Transcipher16Blocks),
@@ -180,7 +181,7 @@ pub fn cpu_aes_transciphering(c: &mut Criterion) {
         |b| {
             b.iter(|| {
                 stream.seek(&sks, 0);
-                black_box(stream.transcipher(&sks, &sym_cipher).unwrap());
+                black_box(stream.transcipher(&sks, &sym_cipher, &layout).unwrap());
             })
         },
     );
