@@ -33,6 +33,7 @@ use crate::shortint::parameters::{
 };
 
 /// All [`ClassicPBSParameters`] in this module.
+#[allow(deprecated)]
 pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 10] = [
     (
         &V1_7_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,

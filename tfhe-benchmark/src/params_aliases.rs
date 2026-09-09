@@ -52,6 +52,7 @@ pub mod shortint_params_aliases {
     pub const BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
         v1_6::V1_6_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64;
 
+    #[allow(deprecated)]
     pub const BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
         if cfg!(feature = "gpu") {
             V1_7_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128
