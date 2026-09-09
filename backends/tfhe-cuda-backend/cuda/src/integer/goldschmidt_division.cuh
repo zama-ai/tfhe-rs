@@ -301,18 +301,6 @@ __host__ void goldschmidt_finalize(
   host_cmux<Torus, KSTorus>(streams, mem->cmux_result, mem->overflow_block,
                             mem->cmux_true, mem->cmux_false, mem->cmux_mem,
                             bsks, ksks);
-  // TEMPORARY DEBUG: expose the uncorrected pair and the overflow flag.
-  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, quotient, 0,
-                                           num_blocks, mem->quotient_tmp, 0,
-                                           num_blocks);
-  set_zero_radix_ciphertext_slice_async<Torus>(stream, gpu_index, remainder, 0,
-                                               num_blocks);
-  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, remainder, 0, 1,
-                                           mem->overflow_block, 0, 1);
-  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, remainder, 1,
-                                           num_blocks, mem->remainder_tmp, 0,
-                                           num_blocks - 1);
-  return;
 
   // Division by zero returns an all-ones quotient and the numerator, matching
   // the CPU backend's contract.
