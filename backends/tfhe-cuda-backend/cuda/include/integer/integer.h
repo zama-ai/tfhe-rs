@@ -446,6 +446,35 @@ void cuda_partial_sum_ciphertexts_vec_64_async(
 void cleanup_cuda_partial_sum_ciphertexts_vec_64(CudaStreamsFFI streams,
                                                  int8_t **mem_ptr_void);
 
+// Fixed-point fused multiply-add with an asymmetric right operand.
+// `mode` is 0 for the fixed-point shape (accumulator = lhs + rhs + rescaling,
+// low columns below the precision threshold skipped) and 1 for the low half of
+// a square product with caller-supplied extra terms. In both cases the result
+// has as many blocks as the left operand.
+uint64_t scratch_cuda_mul_add_fixed_point_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t mode,
+    uint32_t lhs_blocks, uint32_t rhs_blocks, uint32_t rescaling,
+    uint32_t precision, uint32_t max_extra_terms, uint32_t message_modulus,
+    uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_mul_add_fixed_point_with_rescaling_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *added, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks);
+
+void cuda_mul_low_partial_sum_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
+    bool propagate_carries, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks);
+
+void cleanup_cuda_mul_add_fixed_point_64(CudaStreamsFFI streams,
+                                         int8_t **mem_ptr_void);
+
 uint64_t scratch_cuda_integer_scalar_mul_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,

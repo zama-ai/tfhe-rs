@@ -5372,6 +5372,186 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
     update_noise_degree(result, &cuda_ffi_result);
 }
 
+/// Shape selectors, mirroring the `MUL_ADD_MODE_*` defines in
+/// `cuda/include/integer/multiplication.h`.
+const MUL_ADD_MODE_FIXED_POINT: u32 = 0;
+const MUL_ADD_MODE_MUL_LOW: u32 = 1;
+
+#[allow(clippy::too_many_arguments)]
+/// Fixed-point fused multiply-add with an asymmetric right operand:
+///
+/// `result[L] = trunc_beta^(R + rescaling)(lhs[L] * rhs[R]) + added[L]`
+///
+/// The low columns whose worst-case weight stays below one output ulp
+/// (`2^precision`) are never bootstrapped. The result has as many blocks as
+/// `lhs`.
+///
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
+    streams: &CudaStreams,
+    result: &mut CudaRadixCiphertext,
+    lhs: &CudaRadixCiphertext,
+    rhs: &CudaRadixCiphertext,
+    added: Option<&CudaRadixCiphertext>,
+    rescaling: u32,
+    precision: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+    let lhs_blocks = u32::try_from(lhs.d_blocks.lwe_ciphertext_count().0).unwrap();
+    let rhs_blocks = u32::try_from(rhs.d_blocks.lwe_ciphertext_count().0).unwrap();
+
+    let mut result_degrees = result.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut result_noise_levels = result.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_result =
+        prepare_cuda_radix_ffi(result, &mut result_degrees, &mut result_noise_levels);
+    let mut lhs_degrees = lhs.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut lhs_noise_levels = lhs.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_lhs = prepare_cuda_radix_ffi(lhs, &mut lhs_degrees, &mut lhs_noise_levels);
+    let mut rhs_degrees = rhs.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut rhs_noise_levels = rhs.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_rhs = prepare_cuda_radix_ffi(rhs, &mut rhs_degrees, &mut rhs_noise_levels);
+    let mut added_degrees: Vec<u64> = added
+        .map(|a| a.info.blocks.iter().map(|b| b.degree.0).collect())
+        .unwrap_or_default();
+    let mut added_noise_levels: Vec<u64> = added
+        .map(|a| a.info.blocks.iter().map(|b| b.noise_level.0).collect())
+        .unwrap_or_default();
+    let cuda_ffi_added =
+        added.map(|a| prepare_cuda_radix_ffi(a, &mut added_degrees, &mut added_noise_levels));
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_mul_add_fixed_point_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        MUL_ADD_MODE_FIXED_POINT,
+        lhs_blocks,
+        rhs_blocks,
+        rescaling,
+        precision,
+        0,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        bsk_params,
+        ksk_params,
+        true,
+        noise_reduction_type as u32,
+    );
+    cuda_mul_add_fixed_point_with_rescaling_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_result,
+        &raw const cuda_ffi_lhs,
+        &raw const cuda_ffi_rhs,
+        cuda_ffi_added
+            .as_ref()
+            .map_or(std::ptr::null(), std::ptr::from_ref),
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+    cleanup_cuda_mul_add_fixed_point_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    update_noise_degree(result, &cuda_ffi_result);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// Low half of `lhs[n] * rhs[n]`, plus `num_extra_terms` addends of `n` blocks
+/// each passed as one radix list. Unless `propagate_carries` is set the result
+/// is the raw column sum, i.e. blocks may hold non-empty carries - which is
+/// what the Goldschmidt remainder step consumes.
+///
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    result: &mut CudaRadixCiphertext,
+    lhs: &CudaRadixCiphertext,
+    rhs: &CudaRadixCiphertext,
+    extra_terms: Option<&CudaRadixCiphertext>,
+    num_extra_terms: u32,
+    propagate_carries: bool,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+    let num_blocks = u32::try_from(lhs.d_blocks.lwe_ciphertext_count().0).unwrap();
+
+    let mut result_degrees = result.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut result_noise_levels = result.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_result =
+        prepare_cuda_radix_ffi(result, &mut result_degrees, &mut result_noise_levels);
+    let mut lhs_degrees = lhs.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut lhs_noise_levels = lhs.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_lhs = prepare_cuda_radix_ffi(lhs, &mut lhs_degrees, &mut lhs_noise_levels);
+    let mut rhs_degrees = rhs.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut rhs_noise_levels = rhs.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_rhs = prepare_cuda_radix_ffi(rhs, &mut rhs_degrees, &mut rhs_noise_levels);
+    let mut extra_degrees: Vec<u64> = extra_terms
+        .map(|e| e.info.blocks.iter().map(|b| b.degree.0).collect())
+        .unwrap_or_default();
+    let mut extra_noise_levels: Vec<u64> = extra_terms
+        .map(|e| e.info.blocks.iter().map(|b| b.noise_level.0).collect())
+        .unwrap_or_default();
+    let cuda_ffi_extra =
+        extra_terms.map(|e| prepare_cuda_radix_ffi(e, &mut extra_degrees, &mut extra_noise_levels));
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_mul_add_fixed_point_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        MUL_ADD_MODE_MUL_LOW,
+        num_blocks,
+        num_blocks,
+        0,
+        0,
+        num_extra_terms,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        bsk_params,
+        ksk_params,
+        true,
+        noise_reduction_type as u32,
+    );
+    cuda_mul_low_partial_sum_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_result,
+        &raw const cuda_ffi_lhs,
+        &raw const cuda_ffi_rhs,
+        cuda_ffi_extra
+            .as_ref()
+            .map_or(std::ptr::null(), std::ptr::from_ref),
+        num_extra_terms,
+        propagate_carries,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+    cleanup_cuda_mul_add_fixed_point_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    update_noise_degree(result, &cuda_ffi_result);
+}
+
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///

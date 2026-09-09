@@ -40,6 +40,7 @@ mod div_mod;
 mod even_odd;
 mod ilog2;
 mod mul;
+mod mul_add_fixed_point;
 mod neg;
 mod oprf;
 mod rotate;

@@ -3,6 +3,8 @@
 mod aes;
 mod aes256;
 mod kreyvium;
+#[cfg(feature = "gpu")]
+mod mul_add_fixed_point;
 mod oprf;
 mod trivium;
 mod vector_find;
@@ -2578,6 +2580,8 @@ mod cuda {
         cuda_ilog2,
         oprf::cuda::cuda_unsigned_oprf,
         vector_find::cuda::cuda_match_value,
+        mul_add_fixed_point::cuda::cuda_mul_add_fixed_point,
+        mul_add_fixed_point::cuda::cuda_mul_low_partial_sum,
     );
 
     criterion_group!(
@@ -3506,6 +3510,13 @@ criterion_group!(oprf, oprf::unsigned_oprf);
 criterion_group!(vector_find, vector_find::match_value);
 
 #[cfg(feature = "gpu")]
+criterion_group!(
+    cuda_mul_add_fixed_point_ops,
+    mul_add_fixed_point::cuda::cuda_mul_add_fixed_point,
+    mul_add_fixed_point::cuda::cuda_mul_low_partial_sum,
+);
+
+#[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
@@ -3519,6 +3530,9 @@ fn go_through_gpu_bench_groups(val: &str) {
         "unchecked" => {
             unchecked_cuda_ops();
             unchecked_scalar_cuda_ops()
+        }
+        "mul_add_fixed_point" => {
+            cuda_mul_add_fixed_point_ops();
         }
         _ => panic!("unknown benchmark operations flavor"),
     };
