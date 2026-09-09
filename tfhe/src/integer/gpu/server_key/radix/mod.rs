@@ -38,6 +38,7 @@ mod cmux;
 mod comparison;
 mod div_mod;
 mod even_odd;
+mod goldschmidt_division;
 mod ilog2;
 mod mul;
 mod mul_add_fixed_point;

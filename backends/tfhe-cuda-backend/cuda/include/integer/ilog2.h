@@ -1,3 +1,4 @@
+#pragma once
 #include "integer_utilities.h"
 
 template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
