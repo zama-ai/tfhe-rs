@@ -9,7 +9,8 @@ use crate::transciphering::backward_compatibility::OneTimePadFheSecretMaskVersio
 use crate::transciphering::ciphers::one_time_pad::plain::OneTimePadPlainSecretMask;
 use crate::transciphering::ciphers::pack_bits_lsb_first;
 use crate::transciphering::{
-    FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer, TranscipheringServerKey,
+    FheKeyStream, FheKeyStreamError, InsufficientKeystream, KeyStreamLayout, StreamCipherKind,
+    Transcipherer, TranscipheringServerKey,
 };
 
 #[derive(Clone, Serialize, Deserialize, Versionize)]
@@ -21,16 +22,16 @@ pub struct OneTimePadFheSecretMask {
 }
 
 impl OneTimePadFheSecretMask {
-    /// `secret_mask` must hold exactly one [`Ciphertext`] per bit, each a clean single-bit
-    /// encryption (degree <= 1, with at most nominal noise), conformant with the [`ServerKey`]
+    /// `secret_mask` must hold exactly one [`Ciphertext`] per bit, each a fresh single-bit
+    /// encryption (degree <= 1, nominal noise, not trivial), conformant with the [`ServerKey`]
     /// parameters that will be used for transciphering.
     pub fn try_new(secret_mask: Vec<Ciphertext>) -> Result<Self, &'static str> {
         for ct in &secret_mask {
             if ct.degree.get() > 1 {
                 return Err("Mask ciphertexts must encrypt single bits (degree <= 1).");
             }
-            if ct.noise_level() > NoiseLevel::NOMINAL {
-                return Err("Mask ciphertexts must have at most nominal noise.");
+            if ct.noise_level() != NoiseLevel::NOMINAL {
+                return Err("Mask ciphertexts must have nominal noise.");
             }
         }
 
@@ -39,8 +40,8 @@ impl OneTimePadFheSecretMask {
 
     /// # Panics
     ///
-    /// Panics if `secret_mask` contains a ciphertext that is not a clean boolean encryption
-    /// (degree <= 1, noise <= NOMINAL).
+    /// Panics if `secret_mask` contains a ciphertext that is not a fresh boolean encryption
+    /// (degree <= 1, nominal noise, not trivial).
     pub fn new(secret_mask: Vec<Ciphertext>) -> Self {
         Self::try_new(secret_mask).unwrap()
     }
@@ -116,26 +117,30 @@ impl Transcipherer for OneTimePadFheState {
         &mut self,
         _sks: &ServerKey,
         n_bits: usize,
-    ) -> Result<FheKeyStream, InsufficientKeystream> {
+    ) -> Result<FheKeyStream, FheKeyStreamError> {
         if n_bits == 0 {
-            return Ok(FheKeyStream::from_raw_parts(vec![]));
+            return FheKeyStream::try_new(vec![], KeyStreamLayout::single_bit());
         }
 
         let n_bits_u64: u64 = n_bits.try_into().unwrap();
 
         let remaining_bits = self.remaining_bits();
         if remaining_bits < n_bits_u64 {
-            return Err(InsufficientKeystream);
+            return Err(InsufficientKeystream.into());
         }
 
         let start_ciphertext_idx: usize = self.current_counter.try_into().unwrap();
         let stop_ciphertext_idx = start_ciphertext_idx + n_bits;
 
+        // Validate the keystream before advancing the counter, so a rejected draw can be retried
+        let keystream = FheKeyStream::try_new(
+            self.secret_mask.secret_mask[start_ciphertext_idx..stop_ciphertext_idx].to_vec(),
+            KeyStreamLayout::single_bit(),
+        )?;
+
         self.current_counter = self.current_counter.checked_add(n_bits_u64).unwrap();
 
-        Ok(FheKeyStream::from_raw_parts(
-            self.secret_mask.secret_mask[start_ciphertext_idx..stop_ciphertext_idx].to_vec(),
-        ))
+        Ok(keystream)
     }
 
     fn seek(&mut self, _sks: &ServerKey, target_counter: u64) {
