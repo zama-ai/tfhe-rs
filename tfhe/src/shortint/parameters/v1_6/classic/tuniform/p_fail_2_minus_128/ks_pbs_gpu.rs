@@ -5,6 +5,10 @@ use crate::shortint::parameters::{
 };
 
 /// p-fail = 2^-144.851, algorithmic cost ~ 93.2, 2-norm = 3
+#[deprecated(
+    since = "1.6.4",
+    note = "This parameter set has lower pfail than expected, upgrade to 1.8+ for a replacement"
+)]
 pub const V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(759),
