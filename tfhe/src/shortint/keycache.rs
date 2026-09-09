@@ -11,6 +11,12 @@ use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
 
+// This parameter set is deprecated but must still be known by the key cache, shadow it locally
+// to avoid deprecation warnings in the macro expansion.
+#[allow(deprecated)]
+const V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
+    crate::shortint::parameters::current_params::V1_6_PARAM_GPU_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128;
+
 named_params_impl!( ShortintParameterSet =>
     V1_6_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128,
     V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
