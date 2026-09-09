@@ -13,6 +13,7 @@ pub use key::AesFheRoundKeys;
 pub use plain::AesPlainState;
 
 use crate::named::Named;
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::oprf::OprfSeed;
 use crate::shortint::{Ciphertext, ClientKey, ServerKey};
 use crate::transciphering::backward_compatibility::{
@@ -147,6 +148,19 @@ impl TryFrom<SerializableAesFheKey> for AesFheKey {
         let key: [Ciphertext; 128] = value.key.try_into().map_err(|_| {
             crate::error!("an AES key must hold exactly 128 ciphertexts, got {len}")
         })?;
+        for (i, ct) in key.iter().enumerate() {
+            if ct.degree.get() > 1 {
+                return Err(crate::error!(
+                    "AES key ciphertext {i} is not a single bit (degree {})",
+                    ct.degree.get(),
+                ));
+            }
+            if ct.noise_level() != NoiseLevel::NOMINAL {
+                return Err(crate::error!(
+                    "AES key ciphertext {i} does not have nominal noise or is trivial"
+                ));
+            }
+        }
         Ok(Self { key })
     }
 }
