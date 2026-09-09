@@ -202,3 +202,60 @@ void cleanup_cuda_partial_sum_ciphertexts_vec_64(CudaStreamsFFI streams,
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
+
+uint64_t scratch_cuda_mul_add_fixed_point_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t mode,
+    uint32_t lhs_blocks, uint32_t rhs_blocks, uint32_t rescaling,
+    uint32_t precision, uint32_t max_extra_terms, uint32_t message_modulus,
+    uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
+                          carry_modulus, noise_reduction_type);
+  return scratch_cuda_mul_add_fixed_point<uint64_t>(
+      CudaStreams(streams),
+      (int_mul_add_fixed_point_memory<uint64_t> **)mem_ptr, mode, lhs_blocks,
+      rhs_blocks, rescaling, precision, max_extra_terms, params,
+      allocate_gpu_memory);
+}
+
+void cuda_mul_add_fixed_point_with_rescaling_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *added, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks) {
+  PANIC_IF_FALSE(result != lhs && result != added,
+                 "Output and input pointers must be different for "
+                 "out-of-place operations");
+  host_mul_add_fixed_point_with_rescaling<uint64_t>(
+      CudaStreams(streams), result, lhs, rhs, added,
+      (int_mul_add_fixed_point_memory<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks));
+}
+
+void cuda_mul_low_partial_sum_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
+    bool propagate_carries, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks) {
+  PANIC_IF_FALSE(result != lhs && result != rhs,
+                 "Output and input pointers must be different for "
+                 "out-of-place operations");
+  host_mul_low_partial_sum<uint64_t>(
+      CudaStreams(streams), result, lhs, rhs, extra_terms, num_extra_terms,
+      propagate_carries, (int_mul_add_fixed_point_memory<uint64_t> *)mem_ptr,
+      bsks, (uint64_t **)(ksks));
+}
+
+void cleanup_cuda_mul_add_fixed_point_64(CudaStreamsFFI streams,
+                                         int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup mul_add_fixed_point")
+  int_mul_add_fixed_point_memory<uint64_t> *mem_ptr =
+      (int_mul_add_fixed_point_memory<uint64_t> *)(*mem_ptr_void);
+
+  mem_ptr->release(CudaStreams(streams));
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
+  POP_RANGE()
+}
