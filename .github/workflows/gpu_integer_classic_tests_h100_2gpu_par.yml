@@ -166,6 +166,11 @@ jobs:
           done
           exit "${STATUS}"
 
+      # Separate build: the golden test needs the gpu-goldschmidt-trace feature.
+      - name: Run Goldschmidt division golden trace test
+        run: |
+          make test_integer_goldschmidt_golden_trace_gpu
+
   slack-notify:
     name: gpu_integer_classic_tests_h100_2gpu_par/slack-notify
     needs: [setup-instance, cuda-tests-linux]

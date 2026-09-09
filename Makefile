@@ -1178,6 +1178,13 @@ test_signed_integer_gpu_ci: install_cargo_nextest
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--signed-only --tfhe-package "tfhe"
 
+.PHONY: test_integer_goldschmidt_golden_trace_gpu # Check every Goldschmidt division iterate against the Lean-generated golden trace on gpu backend
+test_integer_goldschmidt_golden_trace_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu-goldschmidt-trace -p tfhe --lib -- \
+		integer::gpu::server_key::radix::goldschmidt_division::tests::test_goldschmidt_division_golden_trace \
+		--exact --nocapture
+
 .PHONY: test_signed_integer_fake_multi_gpu # Run the tests for signed integer ci on gpu backend
 test_signed_integer_fake_multi_gpu: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
