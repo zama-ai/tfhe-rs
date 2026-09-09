@@ -44,6 +44,7 @@ pub enum IntegerOp {
     FullPropagateParallelized,
     Ge,
     GeParallelized,
+    GoldschmidtDivision,
     Gt,
     GtParallelized,
     IfThenElse,

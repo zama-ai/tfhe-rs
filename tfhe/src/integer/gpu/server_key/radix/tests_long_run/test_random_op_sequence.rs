@@ -378,14 +378,24 @@ where
         "select".to_string(),
     )];
 
-    // Div executor
+    // Div executors. Goldschmidt division returns the same (quotient, remainder)
+    // pair as div rem, so it shares the clear function.
     let div_rem_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::div_rem);
+    let goldschmidt_division_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::goldschmidt_division);
     #[allow(clippy::type_complexity)]
-    let mut div_rem_op: Vec<(DivRemOpExecutor, &dyn Fn(u64, u64) -> (u64, u64), String)> = vec![(
-        Box::new(div_rem_executor),
-        &clear_functions::clear_div_rem,
-        "div rem".to_string(),
-    )];
+    let mut div_rem_op: Vec<(DivRemOpExecutor, &dyn Fn(u64, u64) -> (u64, u64), String)> = vec![
+        (
+            Box::new(div_rem_executor),
+            &clear_functions::clear_div_rem,
+            "div rem".to_string(),
+        ),
+        (
+            Box::new(goldschmidt_division_executor),
+            &clear_functions::clear_div_rem,
+            "goldschmidt division".to_string(),
+        ),
+    ];
 
     // Scalar Div executor
     let scalar_div_rem_executor =
@@ -858,14 +868,24 @@ where
         "select".to_string(),
     )];
 
-    // Div executor
+    // Div executors. Goldschmidt division returns the same (quotient, remainder)
+    // pair as div rem, so it shares the clear function.
     let div_rem_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::div_rem);
+    let goldschmidt_division_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::goldschmidt_division);
     #[allow(clippy::type_complexity)]
-    let mut div_rem_op: Vec<(DivRemOpExecutor, &dyn Fn(u64, u64) -> (u64, u64), String)> = vec![(
-        Box::new(div_rem_executor),
-        &clear_functions::clear_div_rem,
-        "div rem".to_string(),
-    )];
+    let mut div_rem_op: Vec<(DivRemOpExecutor, &dyn Fn(u64, u64) -> (u64, u64), String)> = vec![
+        (
+            Box::new(div_rem_executor),
+            &clear_functions::clear_div_rem,
+            "div rem".to_string(),
+        ),
+        (
+            Box::new(goldschmidt_division_executor),
+            &clear_functions::clear_div_rem,
+            "goldschmidt division".to_string(),
+        ),
+    ];
 
     // Scalar Div executor
     let scalar_div_rem_executor =
