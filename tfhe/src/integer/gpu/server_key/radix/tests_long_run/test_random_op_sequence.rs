@@ -1,3 +1,4 @@
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_long_run::{
     clear_shared_gpu_context_for_setup, install_shared_gpu_context_for_setup,
@@ -180,6 +181,23 @@ where
     (cks, sks, datagen)
 }
 
+/// Blocks kept from the right operand of the fused multiply-add. It has to be
+/// narrower than the left one, which is what makes the operation asymmetric.
+const MUL_ADD_RHS_BLOCKS: usize = 4;
+/// Message bits per block for the parameters these tests run on.
+const MUL_ADD_BITS_PER_BLOCK: u32 = 2;
+const MUL_ADD_RHS_BITS: u32 = MUL_ADD_RHS_BLOCKS as u32 * MUL_ADD_BITS_PER_BLOCK;
+/// No extra rescaling, so the product drops exactly its low R blocks.
+const MUL_ADD_RESCALING: u32 = 0;
+/// One output ulp is worth 2^0, so no column may be skipped. That costs some
+/// bootstraps, but it makes the result the exact truncated product rather than
+/// "exact or one ulp below", which this harness needs: it compares against the
+/// clear model exactly and feeds every result back into the operand pool, so a
+/// one-ulp drift would compound rather than being caught here.
+const MUL_ADD_PRECISION: u32 = 0;
+const MUL_ADD_SHIFT_BITS: u32 =
+    (MUL_ADD_RHS_BLOCKS as u32 + MUL_ADD_RESCALING) * MUL_ADD_BITS_PER_BLOCK;
+
 mod clear_functions {
     #![allow(non_upper_case_globals)]
 
@@ -190,6 +208,19 @@ mod clear_functions {
     pub(crate) const clear_bitwise_or: fn(u64, u64) -> u64 = |x, y| x | y;
     pub(crate) const clear_bitwise_xor: fn(u64, u64) -> u64 = |x, y| x ^ y;
     pub(crate) const clear_mul: fn(u64, u64) -> u64 = |x, y| x.wrapping_mul(y);
+    // `mul_low_partial_sum` with no extra terms is the low half of the product,
+    // which for a 64-bit radix is exactly a wrapping multiply.
+    pub(crate) const clear_mul_low_partial_sum: fn(u64, u64) -> u64 =
+        |x, y| x.wrapping_mul(y);
+    // The fused multiply-add takes a right operand narrower than the left one,
+    // so the executor keeps only its low MUL_ADD_RHS_BLOCKS blocks and this
+    // masks the clear value the same way. `s = R + rescaling` low blocks are
+    // then dropped from the product. The intermediate needs u128: the product
+    // overflows u64 before the shift brings it back into range.
+    pub(crate) const clear_mul_add_fixed_point: fn(u64, u64) -> u64 = |x, y| {
+        let rhs = y & ((1u64 << super::MUL_ADD_RHS_BITS) - 1);
+        (((x as u128) * (rhs as u128)) >> super::MUL_ADD_SHIFT_BITS) as u64
+    };
     // Warning this rotate definition only works with 64-bit ciphertexts
     pub(crate) const clear_rotate_left: fn(u64, u64) -> u64 =
         |x: u64, y: u64| x.rotate_left(y as u32);
@@ -245,6 +276,34 @@ where
     let bitwise_xor_executor =
         OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitxor);
     let mul_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);
+    let mul_low_partial_sum_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        |sks: &CudaServerKey,
+         lhs: &CudaUnsignedRadixCiphertext,
+         rhs: &CudaUnsignedRadixCiphertext,
+         streams: &CudaStreams| {
+            sks.mul_low_partial_sum(lhs, rhs, &[], true, streams)
+        },
+    );
+    let mul_add_fixed_point_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        |sks: &CudaServerKey,
+         lhs: &CudaUnsignedRadixCiphertext,
+         rhs: &CudaUnsignedRadixCiphertext,
+         streams: &CudaStreams| {
+            // Narrow the right operand to the asymmetric shape the operation
+            // needs. The output keeps the left operand's width, so nothing has
+            // to be cast back.
+            let rhs_narrow: CudaUnsignedRadixCiphertext =
+                sks.trim_radix_blocks_msb(rhs, NB_CTXT_LONG_RUN - MUL_ADD_RHS_BLOCKS, streams);
+            sks.mul_add_fixed_point_with_rescaling(
+                lhs,
+                &rhs_narrow,
+                None,
+                MUL_ADD_RESCALING,
+                MUL_ADD_PRECISION,
+                streams,
+            )
+        },
+    );
 
     // Binary Ops Clear functions
     #[allow(clippy::type_complexity)]
@@ -278,6 +337,16 @@ where
             Box::new(mul_executor),
             &clear_functions::clear_mul,
             "mul".to_string(),
+        ),
+        (
+            Box::new(mul_low_partial_sum_executor),
+            &clear_functions::clear_mul_low_partial_sum,
+            "mul low partial sum".to_string(),
+        ),
+        (
+            Box::new(mul_add_fixed_point_executor),
+            &clear_functions::clear_mul_add_fixed_point,
+            "mul add fixed point".to_string(),
         ),
     ];
 
@@ -412,6 +481,34 @@ where
     let bitwise_xor_executor =
         OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitxor);
     let mul_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);
+    let mul_low_partial_sum_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        |sks: &CudaServerKey,
+         lhs: &CudaUnsignedRadixCiphertext,
+         rhs: &CudaUnsignedRadixCiphertext,
+         streams: &CudaStreams| {
+            sks.mul_low_partial_sum(lhs, rhs, &[], true, streams)
+        },
+    );
+    let mul_add_fixed_point_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
+        |sks: &CudaServerKey,
+         lhs: &CudaUnsignedRadixCiphertext,
+         rhs: &CudaUnsignedRadixCiphertext,
+         streams: &CudaStreams| {
+            // Narrow the right operand to the asymmetric shape the operation
+            // needs. The output keeps the left operand's width, so nothing has
+            // to be cast back.
+            let rhs_narrow: CudaUnsignedRadixCiphertext =
+                sks.trim_radix_blocks_msb(rhs, NB_CTXT_LONG_RUN - MUL_ADD_RHS_BLOCKS, streams);
+            sks.mul_add_fixed_point_with_rescaling(
+                lhs,
+                &rhs_narrow,
+                None,
+                MUL_ADD_RESCALING,
+                MUL_ADD_PRECISION,
+                streams,
+            )
+        },
+    );
     let rotate_left_executor =
         OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_left);
     let left_shift_executor =
@@ -455,6 +552,16 @@ where
             Box::new(mul_executor),
             &clear_functions::clear_mul,
             "mul".to_string(),
+        ),
+        (
+            Box::new(mul_low_partial_sum_executor),
+            &clear_functions::clear_mul_low_partial_sum,
+            "mul low partial sum".to_string(),
+        ),
+        (
+            Box::new(mul_add_fixed_point_executor),
+            &clear_functions::clear_mul_add_fixed_point,
+            "mul add fixed point".to_string(),
         ),
         (
             Box::new(rotate_left_executor),

@@ -10,20 +10,20 @@ template <typename Torus> struct int_shift_and_rotate_by_bits_buffer {
   bool gpu_memory_allocated;
 
   /// @brief The value being shifted, exploded into one ciphertext per bit.
-  CudaRadixCiphertextFFI *tmp_bits;
+  CudaRadixCiphertextFFI tmp_bits;
   /// @brief The shift amount's low bits, one per barrel round, each already
   /// aligned on the cmux control position.
-  CudaRadixCiphertextFFI *tmp_shift_bits;
+  CudaRadixCiphertextFFI tmp_shift_bits;
   /// @brief Destination of a round's bit rotation, which is not in-place.
-  CudaRadixCiphertextFFI *tmp_rotated;
+  CudaRadixCiphertextFFI tmp_rotated;
   /// @brief Bit array carrying the result, updated in place every round.
-  CudaRadixCiphertextFFI *tmp_input_bits_a;
+  CudaRadixCiphertextFFI tmp_input_bits_a;
   /// @brief Copy of that array the rotation reads from, so the cmux can pick
   /// between the shifted and unshifted bit.
-  CudaRadixCiphertextFFI *tmp_input_bits_b;
+  CudaRadixCiphertextFFI tmp_input_bits_b;
   /// @brief Packs control | shifted | unshifted into one block per bit, the
   /// input of the mux LUT.
-  CudaRadixCiphertextFFI *tmp_mux_inputs;
+  CudaRadixCiphertextFFI tmp_mux_inputs;
 
   /// @brief Explodes the value into its individual bits.
   int_bit_extract_luts_buffer<Torus> *bit_extract_luts;
@@ -52,39 +52,33 @@ template <typename Torus> struct int_shift_and_rotate_by_bits_buffer {
                                        bits_per_block * num_radix_blocks,
                                        allocate_gpu_memory, size_tracker);
 
-    tmp_bits = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_bits,
+        streams.stream(0), streams.gpu_index(0), &tmp_bits,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    tmp_shift_bits = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_shift_bits,
+        streams.stream(0), streams.gpu_index(0), &tmp_shift_bits,
         max_num_bits_that_tell_shift * num_radix_blocks,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    tmp_rotated = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_rotated,
+        streams.stream(0), streams.gpu_index(0), &tmp_rotated,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    tmp_input_bits_a = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_input_bits_a,
+        streams.stream(0), streams.gpu_index(0), &tmp_input_bits_a,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    tmp_input_bits_b = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_input_bits_b,
+        streams.stream(0), streams.gpu_index(0), &tmp_input_bits_b,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
-    tmp_mux_inputs = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_mux_inputs,
+        streams.stream(0), streams.gpu_index(0), &tmp_mux_inputs,
         bits_per_block * num_radix_blocks, params.big_lwe_dimension,
         size_tracker, allocate_gpu_memory);
 
@@ -116,14 +110,13 @@ template <typename Torus> struct int_shift_and_rotate_by_bits_buffer {
     auto drop_ct = [&](CudaRadixCiphertextFFI *ct) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      ct, gpu_memory_allocated);
-      delete ct;
     };
-    drop_ct(tmp_bits);
-    drop_ct(tmp_shift_bits);
-    drop_ct(tmp_rotated);
-    drop_ct(tmp_input_bits_a);
-    drop_ct(tmp_input_bits_b);
-    drop_ct(tmp_mux_inputs);
+    drop_ct(&tmp_bits);
+    drop_ct(&tmp_shift_bits);
+    drop_ct(&tmp_rotated);
+    drop_ct(&tmp_input_bits_a);
+    drop_ct(&tmp_input_bits_b);
+    drop_ct(&tmp_mux_inputs);
 
     bit_extract_luts->release(streams);
     delete bit_extract_luts;
@@ -148,37 +141,41 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
   /// @brief Whether the value being shifted is signed; with a right shift
   /// this makes the shift arithmetic.
   bool is_signed;
+  /// @brief True for a right shift of a signed value, the only case that pads
+  /// with the sign. Tells release() whether the sign and padding members below
+  /// hold anything.
+  bool arithmetic;
   bool gpu_memory_allocated;
 
   /// @brief Result being built: what each block keeps of its own value,
   /// accumulated with the two donor arrays below.
-  CudaRadixCiphertextFFI *messages;
+  CudaRadixCiphertextFFI messages;
   /// @brief What each block hands to the block one position away.
-  CudaRadixCiphertextFFI *next;
+  CudaRadixCiphertextFFI next;
   /// @brief What each block hands to the block two positions away.
-  CudaRadixCiphertextFFI *next_next;
+  CudaRadixCiphertextFFI next_next;
   /// @brief Destination of the block rotations, which are not in-place.
-  CudaRadixCiphertextFFI *rotate_tmp;
+  CudaRadixCiphertextFFI rotate_tmp;
   /// @brief Holds (input block) * message_modulus + (amount block 0) for the
   /// three bivariate LUTs of the first round.
-  CudaRadixCiphertextFFI *pack_tmp;
+  CudaRadixCiphertextFFI pack_tmp;
   /// @brief Many-LUT output of a barrel round: messages in [0, num_blocks),
   /// carries in [num_blocks, 2 * num_blocks).
-  CudaRadixCiphertextFFI *many_out;
+  CudaRadixCiphertextFFI many_out;
   /// @brief Shift-amount bits 2.. , one per remaining barrel round, already
   /// aligned on the control-bit position.
-  CudaRadixCiphertextFFI *shift_bits;
+  CudaRadixCiphertextFFI shift_bits;
   /// @brief Sign bit of the original input (arithmetic right shift only).
-  CudaRadixCiphertextFFI *sign_block;
+  CudaRadixCiphertextFFI sign_block;
   /// @brief Sign-extension block filling the slots that wrap around during an
   /// arithmetic right shift, recomputed every round.
-  CudaRadixCiphertextFFI *padding_block;
+  CudaRadixCiphertextFFI padding_block;
   /// @brief Input of the padding LUT: the saved top block plus the round's
   /// shift bit.
-  CudaRadixCiphertextFFI *padding_block_in;
+  CudaRadixCiphertextFFI padding_block_in;
   /// @brief Copy of the top block after the first round; the sign source for
   /// padding_block, kept because `messages` is overwritten each round.
-  CudaRadixCiphertextFFI *saved_top_block;
+  CudaRadixCiphertextFFI saved_top_block;
 
   /// @brief Extracts the rounds' shift bits onto the control-bit position.
   int_bit_extract_luts_buffer<Torus> *shift_bit_extract_luts;
@@ -223,7 +220,7 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
     // sign. Left shifts and rotations never do this. It needs two extra LUT
     // variants for the block that holds the sign, plus the sign and padding
     // machinery allocated at the end of this constructor.
-    bool arithmetic = is_signed && (shift_type == RIGHT_SHIFT);
+    arithmetic = is_signed && (shift_type == RIGHT_SHIFT);
 
     // Amount block 0 carries the first log2(bits_per_block) + 1 shift bits,
     // consumed by the fused first round.
@@ -243,19 +240,18 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
     uint32_t box_size = params.polynomial_size / block_modulus;
     lut_stride = (block_modulus / 2) * box_size;
 
-    auto alloc = [&](CudaRadixCiphertextFFI **ct, uint32_t n) {
-      *ct = new CudaRadixCiphertextFFI;
+    auto create_zero = [&](CudaRadixCiphertextFFI *ct, uint32_t n) {
       create_zero_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), *ct, n,
+          streams.stream(0), streams.gpu_index(0), ct, n,
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     };
-    alloc(&messages, num_radix_blocks);
-    alloc(&next, num_radix_blocks);
-    alloc(&next_next, num_radix_blocks);
-    alloc(&rotate_tmp, num_radix_blocks);
-    alloc(&pack_tmp, num_radix_blocks);
-    alloc(&many_out, 2 * num_radix_blocks);
-    alloc(&shift_bits, std::max(1u, num_rounds));
+    create_zero(&messages, num_radix_blocks);
+    create_zero(&next, num_radix_blocks);
+    create_zero(&next_next, num_radix_blocks);
+    create_zero(&rotate_tmp, num_radix_blocks);
+    create_zero(&pack_tmp, num_radix_blocks);
+    create_zero(&many_out, 2 * num_radix_blocks);
+    create_zero(&shift_bits, std::max(1u, num_rounds));
 
     // Shift bits are extracted onto plaintext position bits_per_block, which
     // is where the round LUT expects the control bit.
@@ -390,10 +386,10 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
 
     // ---- arithmetic right shift extras ----
     if (arithmetic) {
-      alloc(&sign_block, 1);
-      alloc(&padding_block, 1);
-      alloc(&padding_block_in, 1);
-      alloc(&saved_top_block, 1);
+      create_zero(&sign_block, 1);
+      create_zero(&padding_block, 1);
+      create_zero(&padding_block_in, 1);
+      create_zero(&saved_top_block, 1);
 
       auto active_streams_single =
           streams.active_gpu_subset(1, params.pbs_type);
@@ -424,10 +420,8 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
       padding_lut->generate_and_broadcast_lut(
           active_streams_single, {0}, {f_padding}, LUT_0_FOR_ALL_BLOCKS);
     } else {
-      sign_block = nullptr;
-      padding_block = nullptr;
-      padding_block_in = nullptr;
-      saved_top_block = nullptr;
+      // The sign and padding members are left untouched; `arithmetic` is what
+      // tells release() that they hold nothing.
       sign_lut = nullptr;
       padding_lut = nullptr;
     }
@@ -435,11 +429,8 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
 
   void release(CudaStreams streams) {
     auto drop_ct = [&](CudaRadixCiphertextFFI *ct) {
-      if (ct == nullptr)
-        return;
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      ct, gpu_memory_allocated);
-      delete ct;
     };
     auto drop_lut = [&](int_radix_lut<Torus> *lut) {
       if (lut == nullptr)
@@ -448,18 +439,20 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
       delete lut;
     };
 
-    drop_ct(messages);
-    drop_ct(next);
-    drop_ct(next_next);
-    drop_ct(rotate_tmp);
-    drop_ct(pack_tmp);
-    drop_ct(many_out);
-    drop_ct(shift_bits);
+    drop_ct(&messages);
+    drop_ct(&next);
+    drop_ct(&next_next);
+    drop_ct(&rotate_tmp);
+    drop_ct(&pack_tmp);
+    drop_ct(&many_out);
+    drop_ct(&shift_bits);
     // Allocated only for an arithmetic right shift.
-    drop_ct(sign_block);
-    drop_ct(padding_block);
-    drop_ct(padding_block_in);
-    drop_ct(saved_top_block);
+    if (arithmetic) {
+      drop_ct(&sign_block);
+      drop_ct(&padding_block);
+      drop_ct(&padding_block_in);
+      drop_ct(&saved_top_block);
+    }
 
     shift_bit_extract_luts->release(streams);
     delete shift_bit_extract_luts;

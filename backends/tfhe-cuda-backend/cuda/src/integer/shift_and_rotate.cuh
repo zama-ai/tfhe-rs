@@ -188,7 +188,7 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
     as_radix_ciphertext_slice<Torus>(&top_block, lwe_array, num_blocks - 1,
                                      num_blocks);
     integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, mem->block_mem->sign_block, &top_block, bsks, ksks,
+        streams, &mem->block_mem->sign_block, &top_block, bsks, ksks,
         mem->block_mem->sign_lut, 1);
   }
 
@@ -197,20 +197,20 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
   CudaRadixCiphertextFFI amount_block_0;
   as_radix_ciphertext_slice<Torus>(&amount_block_0, lwe_shift, 0, 1);
 
-  auto packed = mem->block_mem->pack_tmp;
+  auto packed = &mem->block_mem->pack_tmp;
   host_pack_bivariate_blocks_with_single_block<Torus>(
       streams, packed, mem->block_mem->msg_lut->lwe_indexes_in, lwe_array,
       &amount_block_0, mem->block_mem->msg_lut->lwe_indexes_in, message_modulus,
       num_blocks, message_modulus, carry_modulus);
 
   integer_radix_apply_univariate_lookup_table<Torus>(
-      streams, mem->block_mem->messages, packed, bsks, ksks,
+      streams, &mem->block_mem->messages, packed, bsks, ksks,
       mem->block_mem->msg_lut, num_blocks);
   integer_radix_apply_univariate_lookup_table<Torus>(
-      streams, mem->block_mem->next, packed, bsks, ksks,
+      streams, &mem->block_mem->next, packed, bsks, ksks,
       mem->block_mem->next_lut, num_blocks);
   integer_radix_apply_univariate_lookup_table<Torus>(
-      streams, mem->block_mem->next_next, packed, bsks, ksks,
+      streams, &mem->block_mem->next_next, packed, bsks, ksks,
       mem->block_mem->next_next_lut, num_blocks);
 
   // Moves a donor array `rotations` blocks along and accumulates it into the
@@ -221,27 +221,27 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
   auto accumulate_donor = [&](CudaRadixCiphertextFFI *donor,
                               uint32_t rotations) {
     if (is_left)
-      host_radix_blocks_rotate_right<Torus>(streams, mem->block_mem->rotate_tmp,
-                                            donor, rotations, num_blocks);
+      host_radix_blocks_rotate_right<Torus>(
+          streams, &mem->block_mem->rotate_tmp, donor, rotations, num_blocks);
     else
-      host_radix_blocks_rotate_left<Torus>(streams, mem->block_mem->rotate_tmp,
+      host_radix_blocks_rotate_left<Torus>(streams, &mem->block_mem->rotate_tmp,
                                            donor, rotations, num_blocks);
     if (!is_rotate) {
       uint32_t start = is_left ? 0 : num_blocks - rotations;
       uint32_t end = is_left ? rotations : num_blocks;
       set_zero_radix_ciphertext_slice_async<Torus>(
-          stream, gpu_index, mem->block_mem->rotate_tmp, start, end);
+          stream, gpu_index, &mem->block_mem->rotate_tmp, start, end);
     }
-    host_addition<Torus>(stream, gpu_index, mem->block_mem->messages,
-                         mem->block_mem->messages, mem->block_mem->rotate_tmp,
+    host_addition<Torus>(stream, gpu_index, &mem->block_mem->messages,
+                         &mem->block_mem->messages, &mem->block_mem->rotate_tmp,
                          num_blocks, message_modulus, carry_modulus);
   };
-  accumulate_donor(mem->block_mem->next, 1);
-  accumulate_donor(mem->block_mem->next_next, 2);
+  accumulate_donor(&mem->block_mem->next, 1);
+  accumulate_donor(&mem->block_mem->next_next, 2);
   // At most one of the three contributions is non-zero for a given block, so
   // the sum still fits in the message space.
   for (uint32_t i = 0; i < num_blocks; i++)
-    mem->block_mem->messages->degrees[i] = message_modulus - 1;
+    mem->block_mem->messages.degrees[i] = message_modulus - 1;
 
   if (mem->block_mem->num_rounds > 0) {
     if (arithmetic) {
@@ -250,8 +250,8 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
       // put it there, and each round below shifts sign bits into the top
       // block, so that MSB never changes.
       copy_radix_ciphertext_slice_async<Torus>(
-          stream, gpu_index, mem->block_mem->saved_top_block, 0, 1,
-          mem->block_mem->messages, num_blocks - 1, num_blocks);
+          stream, gpu_index, &mem->block_mem->saved_top_block, 0, 1,
+          &mem->block_mem->messages, num_blocks - 1, num_blocks);
     }
 
     // Bits 0..1 of the amount were spent by the first round, so the rounds
@@ -259,7 +259,7 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
     CudaRadixCiphertextFFI amount_high;
     as_radix_ciphertext_slice<Torus>(&amount_high, lwe_shift, 1,
                                      1 + mem->block_mem->num_amount_blocks);
-    extract_n_bits<Torus>(streams, mem->block_mem->shift_bits, &amount_high,
+    extract_n_bits<Torus>(streams, &mem->block_mem->shift_bits, &amount_high,
                           bsks, ksks, mem->block_mem->num_rounds,
                           mem->block_mem->num_amount_blocks,
                           mem->block_mem->shift_bit_extract_luts);
@@ -267,7 +267,7 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
 
   for (uint32_t d = 1; d <= mem->block_mem->num_rounds; d++) {
     CudaRadixCiphertextFFI shift_bit;
-    as_radix_ciphertext_slice<Torus>(&shift_bit, mem->block_mem->shift_bits,
+    as_radix_ciphertext_slice<Torus>(&shift_bit, &mem->block_mem->shift_bits,
                                      d - 1, d);
 
     if (arithmetic) {
@@ -277,37 +277,38 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
       // block. The LUT reads the sign from the saved top block and the gate
       // from the shift bit, which already sits on the control position, so
       // the two can simply be added together first.
-      host_addition<Torus>(stream, gpu_index, mem->block_mem->padding_block_in,
-                           mem->block_mem->saved_top_block, &shift_bit, 1,
+      host_addition<Torus>(stream, gpu_index, &mem->block_mem->padding_block_in,
+                           &mem->block_mem->saved_top_block, &shift_bit, 1,
                            message_modulus, carry_modulus);
       integer_radix_apply_univariate_lookup_table<Torus>(
-          streams, mem->block_mem->padding_block,
-          mem->block_mem->padding_block_in, bsks, ksks,
+          streams, &mem->block_mem->padding_block,
+          &mem->block_mem->padding_block_in, bsks, ksks,
           mem->block_mem->padding_lut, 1);
     }
 
     // The shift bit sits on the control position, so a single many-LUT splits
     // every block into "what it keeps" and "what it hands over".
     host_add_the_same_block_to_all_blocks<Torus>(
-        stream, gpu_index, mem->block_mem->messages, mem->block_mem->messages,
+        stream, gpu_index, &mem->block_mem->messages, &mem->block_mem->messages,
         &shift_bit, message_modulus, carry_modulus);
     integer_radix_apply_many_univariate_lookup_table<Torus>(
-        streams, mem->block_mem->many_out, mem->block_mem->messages, bsks, ksks,
-        mem->block_mem->round_lut, 2, mem->block_mem->lut_stride);
+        streams, &mem->block_mem->many_out, &mem->block_mem->messages, bsks,
+        ksks, mem->block_mem->round_lut, 2, mem->block_mem->lut_stride);
 
     copy_radix_ciphertext_slice_async<Torus>(
-        stream, gpu_index, mem->block_mem->messages, 0, num_blocks,
-        mem->block_mem->many_out, 0, num_blocks);
+        stream, gpu_index, &mem->block_mem->messages, 0, num_blocks,
+        &mem->block_mem->many_out, 0, num_blocks);
     CudaRadixCiphertextFFI carries;
-    as_radix_ciphertext_slice<Torus>(&carries, mem->block_mem->many_out,
+    as_radix_ciphertext_slice<Torus>(&carries, &mem->block_mem->many_out,
                                      num_blocks, 2 * num_blocks);
 
     uint32_t rotations = 1u << d;
     if (is_left)
-      host_radix_blocks_rotate_right<Torus>(streams, mem->block_mem->rotate_tmp,
+      host_radix_blocks_rotate_right<Torus>(streams,
+                                            &mem->block_mem->rotate_tmp,
                                             &carries, rotations, num_blocks);
     else
-      host_radix_blocks_rotate_left<Torus>(streams, mem->block_mem->rotate_tmp,
+      host_radix_blocks_rotate_left<Torus>(streams, &mem->block_mem->rotate_tmp,
                                            &carries, rotations, num_blocks);
 
     if (!is_rotate) {
@@ -318,19 +319,19 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
         // bits, which is what sign-extends the vacated high end.
         for (uint32_t i = start; i < end; i++)
           copy_radix_ciphertext_slice_async<Torus>(
-              stream, gpu_index, mem->block_mem->rotate_tmp, i, i + 1,
-              mem->block_mem->padding_block, 0, 1);
+              stream, gpu_index, &mem->block_mem->rotate_tmp, i, i + 1,
+              &mem->block_mem->padding_block, 0, 1);
       } else {
         set_zero_radix_ciphertext_slice_async<Torus>(
-            stream, gpu_index, mem->block_mem->rotate_tmp, start, end);
+            stream, gpu_index, &mem->block_mem->rotate_tmp, start, end);
       }
     }
 
-    host_addition<Torus>(stream, gpu_index, mem->block_mem->messages,
-                         mem->block_mem->messages, mem->block_mem->rotate_tmp,
+    host_addition<Torus>(stream, gpu_index, &mem->block_mem->messages,
+                         &mem->block_mem->messages, &mem->block_mem->rotate_tmp,
                          num_blocks, message_modulus, carry_modulus);
     for (uint32_t i = 0; i < num_blocks; i++)
-      mem->block_mem->messages->degrees[i] = message_modulus - 1;
+      mem->block_mem->messages.degrees[i] = message_modulus - 1;
   }
 
   // finalize
@@ -338,13 +339,13 @@ host_block_shift_and_rotate_inplace(CudaStreams streams,
   // anyway; for a shift it also applies the overshift selection for free.
   if (is_rotate) {
     integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, lwe_array, mem->block_mem->messages, bsks, ksks,
+        streams, lwe_array, &mem->block_mem->messages, bsks, ksks,
         mem->cleaning_lut, num_blocks);
   } else {
     host_compute_overshift_condition<Torus, KSTorus>(
-        streams, lwe_shift, mem->block_mem->sign_block, mem, bsks, ksks);
+        streams, lwe_shift, &mem->block_mem->sign_block, mem, bsks, ksks);
     host_apply_overshift_cleanup<Torus, KSTorus>(
-        streams, lwe_array, mem->block_mem->messages, mem, bsks, ksks);
+        streams, lwe_array, &mem->block_mem->messages, mem, bsks, ksks);
   }
 }
 
@@ -390,13 +391,13 @@ host_shift_and_rotate_inplace(CudaStreams streams,
           "big_lwe_dimension")
 
   // Extract all bits
-  auto bits = mem->bits_mem->tmp_bits;
+  auto bits = &mem->bits_mem->tmp_bits;
   extract_n_bits<Torus>(streams, bits, lwe_array, bsks, ksks,
                         num_radix_blocks * bits_per_block, num_radix_blocks,
                         mem->bits_mem->bit_extract_luts);
 
   // Extract shift bits
-  auto shift_bits = mem->bits_mem->tmp_shift_bits;
+  auto shift_bits = &mem->bits_mem->tmp_shift_bits;
   auto is_power_of_two = [](uint32_t n) {
     return (n > 0) && ((n & (n - 1)) == 0);
   };
@@ -422,11 +423,11 @@ host_shift_and_rotate_inplace(CudaStreams streams,
                                    total_nb_bits);
 
   // Apply op
-  auto rotated_input = mem->bits_mem->tmp_rotated;
-  auto input_bits_a = mem->bits_mem->tmp_input_bits_a;
-  auto input_bits_b = mem->bits_mem->tmp_input_bits_b;
+  auto rotated_input = &mem->bits_mem->tmp_rotated;
+  auto input_bits_a = &mem->bits_mem->tmp_input_bits_a;
+  auto input_bits_b = &mem->bits_mem->tmp_input_bits_b;
   auto mux_lut = mem->bits_mem->mux_lut;
-  auto mux_inputs = mem->bits_mem->tmp_mux_inputs;
+  auto mux_inputs = &mem->bits_mem->tmp_mux_inputs;
 
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      input_bits_a, bits);
