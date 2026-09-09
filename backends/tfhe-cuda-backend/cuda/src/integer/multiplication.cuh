@@ -12,6 +12,7 @@
 #include "integer/cmux.cuh"
 #include "integer/integer.cuh"
 #include "integer/integer_utilities.h"
+#include "integer/mul_add_fixed_point.h"
 #include "integer/multiplication.h"
 #include "utils/helper.cuh"
 #include <fstream>
@@ -633,6 +634,295 @@ __host__ uint64_t scratch_cuda_integer_mult_radix_ciphertext(
   *mem_ptr = new int_mul_memory<Torus>(streams, params, is_boolean_left,
                                        is_boolean_right, num_radix_blocks,
                                        allocate_gpu_memory, size_tracker);
+  POP_RANGE()
+  return size_tracker;
+}
+
+// ---------------------------------------------------------------------------
+// Fixed-point fused multiply-add with an asymmetric right operand
+// ---------------------------------------------------------------------------
+
+/// @brief Packs the surviving (lhs block, rhs block) pairs into two compact
+/// arrays, so that a single bivariate bootstrap covers the whole block-product
+/// matrix. The index maps come from int_mul_add_fixed_point_memory and depend
+/// only on the shape, never on the data.
+/// @param lhs_out Gathered left operand blocks, one per pair.
+/// @param rhs_out Gathered right operand blocks, one per pair.
+/// @param lhs Left operand.
+/// @param rhs Right operand.
+/// @param lhs_idx Left operand block index of each pair.
+/// @param rhs_idx Right operand block index of each pair.
+/// @param block_size Torus elements per LWE block.
+template <typename Torus>
+__global__ void mul_add_gather_pairs(Torus *__restrict__ lhs_out,
+                                     Torus *__restrict__ rhs_out,
+                                     const Torus *__restrict__ lhs,
+                                     const Torus *__restrict__ rhs,
+                                     const uint32_t *__restrict__ lhs_idx,
+                                     const uint32_t *__restrict__ rhs_idx,
+                                     uint32_t block_size) {
+  const size_t pair_id = blockIdx.x;
+  const Torus *src_lhs = &lhs[(size_t)lhs_idx[pair_id] * block_size];
+  const Torus *src_rhs = &rhs[(size_t)rhs_idx[pair_id] * block_size];
+  Torus *dst_lhs = &lhs_out[pair_id * block_size];
+  Torus *dst_rhs = &rhs_out[pair_id * block_size];
+
+  for (uint32_t tid = threadIdx.x; tid < block_size; tid += blockDim.x) {
+    dst_lhs[tid] = src_lhs[tid];
+    dst_rhs[tid] = src_rhs[tid];
+  }
+}
+
+/// @brief Places each bootstrapped block product at its shifted position in
+/// the dense term vector the column sum consumes.
+///
+/// Blocks nobody writes keep whatever they held, which is safe because the sum
+/// reads a block only when its degree is non-zero, and empty columns are
+/// emitted as zero by calculate_final_chunk_into_radix. The degrees are reset
+/// separately, by host_mul_add_scatter_products.
+/// @param terms Term matrix written in place.
+/// @param products Bootstrapped block products, one per pair.
+/// @param dst_idx Destination slot in the term matrix for each pair.
+/// @param block_size Torus elements per LWE block.
+template <typename Torus>
+__global__ void mul_add_scatter_products(Torus *__restrict__ terms,
+                                         const Torus *__restrict__ products,
+                                         const uint32_t *__restrict__ dst_idx,
+                                         uint32_t block_size) {
+  const size_t pair_id = blockIdx.x;
+  const Torus *src = &products[pair_id * block_size];
+  Torus *dst = &terms[(size_t)dst_idx[pair_id] * block_size];
+
+  for (uint32_t tid = threadIdx.x; tid < block_size; tid += blockDim.x)
+    dst[tid] = src[tid];
+}
+
+/// @brief Gathers the two operand blocks of every surviving pair into the
+/// contiguous pair buffers the bivariate LUT consumes, carrying each block's
+/// degree and noise level across with it.
+/// @param gpu_index GPU the gather runs on.
+/// @param mem Scratch holding the index maps and the pair buffers.
+/// @param lhs Left operand.
+/// @param rhs Right operand.
+/// @param block_size Torus elements per LWE block.
+template <typename Torus>
+__host__ void
+host_mul_add_gather_pairs(cudaStream_t stream, uint32_t gpu_index,
+                          int_mul_add_fixed_point_memory<Torus> *mem,
+                          CudaRadixCiphertextFFI const *lhs,
+                          CudaRadixCiphertextFFI const *rhs,
+                          uint32_t block_size) {
+  cuda_set_device(gpu_index);
+  mul_add_gather_pairs<Torus><<<mem->num_pairs, 256, 0, stream>>>(
+      (Torus *)mem->pair_lhs->ptr, (Torus *)mem->pair_products->ptr,
+      (Torus const *)lhs->ptr, (Torus const *)rhs->ptr, mem->d_pair_lhs_idx,
+      mem->d_pair_rhs_idx, block_size);
+  check_cuda_error(cudaGetLastError());
+
+  for (uint32_t j = 0; j < mem->num_pairs; j++) {
+    mem->pair_lhs->degrees[j] = lhs->degrees[mem->h_pair_lhs_idx[j]];
+    mem->pair_lhs->noise_levels[j] = lhs->noise_levels[mem->h_pair_lhs_idx[j]];
+    mem->pair_products->degrees[j] = rhs->degrees[mem->h_pair_rhs_idx[j]];
+    mem->pair_products->noise_levels[j] =
+        rhs->noise_levels[mem->h_pair_rhs_idx[j]];
+  }
+}
+
+/// @brief Scatters each bootstrapped pair product into its slot of the term
+/// matrix and resets the whole term metadata: slots holding a product take the
+/// degree their bootstrap guarantees, every other slot goes back to a trivial
+/// zero. Resetting all of it matters because the term buffer is reused across
+/// calls, and a slot that held an accumulator or an extra term last time must
+/// not keep that degree when this call leaves it empty.
+/// @param gpu_index GPU the scatter runs on.
+/// @param mem Scratch holding the index map, the products and the term matrix.
+/// @param block_size Torus elements per LWE block.
+template <typename Torus>
+__host__ void
+host_mul_add_scatter_products(cudaStream_t stream, uint32_t gpu_index,
+                              int_mul_add_fixed_point_memory<Torus> *mem,
+                              uint32_t block_size) {
+  cuda_set_device(gpu_index);
+  mul_add_scatter_products<Torus><<<mem->num_pairs, 256, 0, stream>>>(
+      (Torus *)mem->terms->ptr, (Torus const *)mem->pair_products->ptr,
+      mem->d_pair_dst_idx, block_size);
+  check_cuda_error(cudaGetLastError());
+
+  size_t term_blocks = (size_t)mem->num_terms * mem->window;
+  std::memcpy(mem->terms->degrees, mem->h_product_degrees,
+              safe_mul_sizeof<uint64_t>(term_blocks));
+  std::memcpy(mem->terms->noise_levels, mem->h_product_noise_levels,
+              safe_mul_sizeof<uint64_t>(term_blocks));
+}
+
+/// @brief Computes
+/// result[L] = trunc( lhs[L] * rhs[R] + added[L] * beta^s + sum(extra_terms) ).
+///
+/// See int_mul_add_fixed_point_memory for the two supported shapes.
+/// @param result Output, L blocks.
+/// @param lhs Left operand, at least L blocks.
+/// @param rhs Right operand, at least R blocks.
+/// @param added Accumulator addend, or null.
+/// @param extra_terms Radix list of num_extra_terms * L blocks, or null.
+/// @param num_extra_terms Number of addends in extra_terms.
+/// @param propagate_carries When false the result is the raw column sum, which
+/// is what the Goldschmidt remainder step wants since it inverts message and
+/// carry itself.
+/// @param mem Scratch scratched for this exact shape.
+template <typename Torus>
+__host__ void host_mul_add_fixed_point_core(
+    CudaStreams streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *added,
+    CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
+    bool propagate_carries, int_mul_add_fixed_point_memory<Torus> *mem,
+    void *const *bsks, uint64_t *const *ksks) {
+  PUSH_RANGE("mul_add_fixed_point")
+
+  auto stream = streams.stream(0);
+  auto gpu_index = streams.gpu_index(0);
+  auto message_modulus = mem->params.message_modulus;
+  uint32_t L = mem->lhs_blocks;
+  uint32_t R = mem->rhs_blocks;
+  uint32_t window = mem->window;
+
+  PANIC_IF_FALSE(lhs->num_radix_blocks >= L,
+                 "Cuda error (mul_add_fixed_point): left operand is narrower "
+                 "than the shape this buffer was scratched for");
+  PANIC_IF_FALSE(rhs->num_radix_blocks >= R,
+                 "Cuda error (mul_add_fixed_point): right operand is narrower "
+                 "than the shape this buffer was scratched for");
+  PANIC_IF_FALSE(result->num_radix_blocks >= L,
+                 "Cuda error (mul_add_fixed_point): output is narrower than "
+                 "the left operand");
+  PANIC_IF_FALSE(num_extra_terms <= mem->max_extra_terms,
+                 "Cuda error (mul_add_fixed_point): more extra terms than the "
+                 "buffer was scratched for");
+  PANIC_IF_FALSE(num_extra_terms == 0 || extra_terms != nullptr,
+                 "Cuda error (mul_add_fixed_point): extra term count is "
+                 "non-zero but no extra terms were given");
+  if (mem->mode == MUL_ADD_MODE_MUL_LOW)
+    PANIC_IF_FALSE(added == nullptr,
+                   "Cuda error (mul_add_fixed_point): the mul-low shape takes "
+                   "its addends through extra_terms");
+
+  // Both operands feed one bivariate LUT, so their degrees have to fit the
+  // packing lhs_degree + message_modulus * rhs_degree.
+  for (uint32_t a = 0; a < L; a++)
+    PANIC_IF_FALSE(lhs->degrees[a] < message_modulus,
+                   "Cuda error (mul_add_fixed_point): left operand carries a "
+                   "block with a non-empty carry");
+  for (uint32_t r = 0; r < R; r++)
+    PANIC_IF_FALSE(rhs->degrees[r] < message_modulus,
+                   "Cuda error (mul_add_fixed_point): right operand carries a "
+                   "block with a non-empty carry");
+
+  // ---- block products: gather, one bootstrap per surviving pair, scatter ----
+  uint32_t block_size = mem->params.big_lwe_dimension + 1;
+  host_mul_add_gather_pairs<Torus>(stream, gpu_index, mem, lhs, rhs,
+                                   block_size);
+
+  integer_radix_apply_bivariate_lookup_table<Torus>(
+      streams, mem->pair_products, mem->pair_products, mem->pair_lhs, bsks,
+      ksks, mem->luts_array, mem->num_pairs, message_modulus);
+
+  host_mul_add_scatter_products<Torus>(stream, gpu_index, mem, block_size);
+
+  // ---- the accumulator term and any caller-supplied terms ----
+  uint32_t extra_base = 2 * R;
+  if (mem->mode == MUL_ADD_MODE_FIXED_POINT) {
+    uint32_t added_slot = 2 * R * window + (mem->out_shift - mem->skip);
+    extra_base = 2 * R + 1;
+    if (added != nullptr) {
+      PANIC_IF_FALSE(added->num_radix_blocks >= L,
+                     "Cuda error (mul_add_fixed_point): accumulator operand is "
+                     "narrower than the left operand");
+      copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, mem->terms,
+                                               added_slot, added_slot + L,
+                                               added, 0, L);
+    }
+  }
+  for (uint32_t e = 0; e < num_extra_terms; e++) {
+    uint32_t slot = (extra_base + e) * window;
+    copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, mem->terms,
+                                             slot, slot + L, extra_terms, e * L,
+                                             (e + 1) * L);
+  }
+
+  // ---- column sum, then optionally finish the carries ----
+  host_integer_partial_sum_ciphertexts_vec<Torus>(
+      streams, mem->sum_result, mem->terms, bsks, ksks, mem->sum_mem, window,
+      mem->num_terms);
+
+  if (propagate_carries) {
+    host_propagate_single_carry<Torus>(streams, mem->sum_result, nullptr,
+                                       nullptr, mem->sc_prop_mem, bsks, ksks,
+                                       outputFlag::FLAG_NONE, 0);
+  }
+
+  uint32_t out_start = mem->out_shift - mem->skip;
+  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, result, 0, L,
+                                           mem->sum_result, out_start,
+                                           out_start + L);
+  POP_RANGE()
+}
+
+/// @brief Computes
+/// result[L] = trunc_beta^(R+|rescaling|)( lhs[L] * rhs[R] ) + added[L].
+/// @param result Output, L blocks.
+/// @param lhs Left operand, at least L blocks.
+/// @param rhs Right operand, at least R blocks.
+/// @param added Accumulator addend, or null.
+/// @param mem Scratch scratched for the fixed-point shape.
+template <typename Torus>
+__host__ void host_mul_add_fixed_point_with_rescaling(
+    CudaStreams streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *added,
+    int_mul_add_fixed_point_memory<Torus> *mem, void *const *bsks,
+    uint64_t *const *ksks) {
+  PANIC_IF_FALSE(mem->mode == MUL_ADD_MODE_FIXED_POINT,
+                 "Cuda error (mul_add_fixed_point): buffer was scratched for "
+                 "the mul-low shape");
+  host_mul_add_fixed_point_core<Torus>(streams, result, lhs, rhs, added,
+                                       nullptr, 0, true, mem, bsks, ksks);
+}
+
+/// @brief Low half of lhs[n] * rhs[n], plus num_extra_terms addends of n
+/// blocks each.
+/// @param result Output, n blocks.
+/// @param lhs Left operand.
+/// @param rhs Right operand.
+/// @param extra_terms Radix list of num_extra_terms * n blocks, or null.
+/// @param num_extra_terms Number of addends in extra_terms.
+/// @param propagate_carries Leaves the carries alone unless set.
+/// @param mem Scratch scratched for the mul-low shape.
+template <typename Torus>
+__host__ void host_mul_low_partial_sum(
+    CudaStreams streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
+    bool propagate_carries, int_mul_add_fixed_point_memory<Torus> *mem,
+    void *const *bsks, uint64_t *const *ksks) {
+  PANIC_IF_FALSE(mem->mode == MUL_ADD_MODE_MUL_LOW,
+                 "Cuda error (mul_add_fixed_point): buffer was scratched for "
+                 "the fixed-point shape");
+  host_mul_add_fixed_point_core<Torus>(streams, result, lhs, rhs, nullptr,
+                                       extra_terms, num_extra_terms,
+                                       propagate_carries, mem, bsks, ksks);
+}
+
+template <typename Torus>
+__host__ uint64_t scratch_cuda_mul_add_fixed_point(
+    CudaStreams streams, int_mul_add_fixed_point_memory<Torus> **mem_ptr,
+    uint32_t mode, uint32_t lhs_blocks, uint32_t rhs_blocks, uint32_t rescaling,
+    uint32_t precision, uint32_t max_extra_terms, int_radix_params params,
+    bool allocate_gpu_memory) {
+  PUSH_RANGE("scratch mul_add_fixed_point")
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_mul_add_fixed_point_memory<Torus>(
+      streams, params, mode, lhs_blocks, rhs_blocks, rescaling, precision,
+      max_extra_terms, allocate_gpu_memory, size_tracker);
   POP_RANGE()
   return size_tracker;
 }

@@ -7,6 +7,7 @@
 
 mod cuda_keyswitch;
 mod fhe_type;
+mod mul_add_shape;
 mod precision;
 mod shuffle;
 mod zk_pke;
@@ -18,6 +19,7 @@ use crate::error::SpecParseError;
 
 pub use cuda_keyswitch::CudaKeyswitchConfig;
 pub use fhe_type::FheType;
+pub use mul_add_shape::MulAddShapeConfig;
 pub use precision::PrecisionTag;
 pub use shuffle::ShuffleConfig;
 pub use zk_pke::{ComputeLoad, ZkPkeConfig, ZkScheme};
@@ -40,6 +42,9 @@ pub enum TypeTag {
     /// `{n}_bits_packed::{n}_bits_crs::compute_load_{load}::zk_{version}`, for
     /// the proven compact list benches.
     ZkPke(ZkPkeConfig),
+    /// `{l}_bits_x_{r}_bits_rescaling_{s}`, for the asymmetric fixed-point
+    /// multiply-add benches.
+    MulAddShape(MulAddShapeConfig),
 }
 
 impl fmt::Display for TypeTag {
@@ -52,6 +57,7 @@ impl fmt::Display for TypeTag {
             Self::Shuffle(config) => config.fmt(f),
             Self::Bound(n) => write!(f, "bound_{n}"),
             Self::ZkPke(config) => config.fmt(f),
+            Self::MulAddShape(config) => config.fmt(f),
         }
     }
 }
@@ -80,6 +86,10 @@ impl FromStr for TypeTag {
         // marker commits to it: a malformed rest is an error, not another shape.
         if s.contains("_bits_crs") {
             return Ok(Self::ZkPke(s.parse()?));
+        }
+        // Same reasoning: no other shape contains this marker.
+        if s.contains("_bits_x_") {
+            return Ok(Self::MulAddShape(s.parse()?));
         }
         if let Ok(config) = s.parse::<ShuffleConfig>() {
             return Ok(Self::Shuffle(config));
@@ -115,6 +125,12 @@ impl From<CudaKeyswitchConfig> for TypeTag {
 impl From<ShuffleConfig> for TypeTag {
     fn from(config: ShuffleConfig) -> Self {
         Self::Shuffle(config)
+    }
+}
+
+impl From<MulAddShapeConfig> for TypeTag {
+    fn from(config: MulAddShapeConfig) -> Self {
+        Self::MulAddShape(config)
     }
 }
 
@@ -166,6 +182,11 @@ mod tests {
                 compute_load: None,
                 scheme: ZkScheme::V1,
             }),
+            TypeTag::MulAddShape(MulAddShapeConfig {
+                lhs_bits: 68,
+                rhs_bits: 10,
+                rescaling_bits: 8,
+            }),
         ];
 
         for tag in tags {
@@ -180,7 +201,14 @@ mod tests {
     /// The tag set is closed: an unknown shape is an error, not a fallback.
     #[test]
     fn unknown_shapes_are_rejected() {
-        for s in ["", "whatever", "32b::nonsense", "key_x::not_a_value"] {
+        for s in [
+            "",
+            "whatever",
+            "32b::nonsense",
+            "key_x::not_a_value",
+            "68_bits_x_10_bits",
+            "68_bits_x_ten_bits_rescaling_0",
+        ] {
             assert!(s.parse::<TypeTag>().is_err(), "{s:?} should not parse");
         }
     }
