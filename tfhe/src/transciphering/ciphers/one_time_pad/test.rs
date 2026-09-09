@@ -16,8 +16,8 @@ use crate::transciphering::ciphers::one_time_pad::{
     OneTimePadPlainSecretMask, OneTimePadPlainState,
 };
 use crate::transciphering::{
-    InsufficientKeystream, StreamCipher, StreamCipherKind, TranscipherError, Transcipherer,
-    TranscipheringPrivateKey, TranscipheringServerKey,
+    FheKeyStreamError, InsufficientKeystream, StreamCipher, StreamCipherKind, TranscipherError,
+    Transcipherer, TranscipheringOutputLayout, TranscipheringPrivateKey, TranscipheringServerKey,
 };
 
 /// Reference implementation: LSB-first bit `first_bit + i` of `mask` becomes LSB-first bit
@@ -254,7 +254,8 @@ fn one_time_pad_fhe_keystream_matches_plain_all_offsets_and_lengths() {
                 let fhe_bits = fhe_otp
                     .next_keystream_bits(&sks, output_bit_count)
                     .unwrap()
-                    .into_raw_parts();
+                    .into_raw_parts()
+                    .0;
 
                 assert_fhe_keystream_matches_plain(
                     &cks,
@@ -292,7 +293,8 @@ fn one_time_pad_fhe_sequential_draws_advance_counter() {
     let first_fhe = fhe_otp
         .next_keystream_bits(&sks, 24)
         .unwrap()
-        .into_raw_parts();
+        .into_raw_parts()
+        .0;
     let first_plain = plain_otp.next_keystream_bits(24).unwrap();
     assert_eq!(
         fhe_otp.current_counter(),
@@ -307,13 +309,15 @@ fn one_time_pad_fhe_sequential_draws_advance_counter() {
         .next_keystream_bits(&sks, 0)
         .unwrap()
         .into_raw_parts()
+        .0
         .is_empty());
     assert_eq!(fhe_otp.current_counter(), 24);
 
     let second_fhe = fhe_otp
         .next_keystream_bits(&sks, 40)
         .unwrap()
-        .into_raw_parts();
+        .into_raw_parts()
+        .0;
     let second_plain = plain_otp.next_keystream_bits(40).unwrap();
     assert_eq!(fhe_otp.current_counter(), 64);
     assert_eq!(fhe_otp.remaining_bits(), 0);
@@ -326,7 +330,8 @@ fn one_time_pad_fhe_sequential_draws_advance_counter() {
     let second_again = fhe_otp
         .next_keystream_bits(&sks, 40)
         .unwrap()
-        .into_raw_parts();
+        .into_raw_parts()
+        .0;
     assert_fhe_keystream_matches_plain(&cks, &second_again, &second_plain, 40, "re-drawn second");
 
     // Seeking to the exact end of the mask is allowed and leaves nothing to
@@ -337,6 +342,7 @@ fn one_time_pad_fhe_sequential_draws_advance_counter() {
         .next_keystream_bits(&sks, 0)
         .unwrap()
         .into_raw_parts()
+        .0
         .is_empty());
 }
 
@@ -368,9 +374,10 @@ fn one_time_pad_fhe_transcipher_round_trip_impl(params: ClassicPBSParameters) {
     let msg_c: (Vec<u8>, usize) = (rng.gen_range(0u16..(1 << 13)).to_le_bytes().to_vec(), 13);
 
     for (i, (message, n_bits)) in [msg_a, msg_b, msg_c].into_iter().enumerate() {
+        let layout = TranscipheringOutputLayout::radix(n_bits, sks.message_modulus);
         let sym_cipher = plain_otp.encrypt_bits(&message, n_bits).unwrap();
         let transciphered = fhe_otp
-            .transcipher(&sks, &sym_cipher)
+            .transcipher(&sks, &sym_cipher, &layout)
             .unwrap_or_else(|e| panic!("transcipher failed for message {i} (seed={seed}): {e:?}"));
 
         let recovered = decrypt_transciphered_bytes(&cks, &transciphered, n_bits);
@@ -387,9 +394,6 @@ fn one_time_pad_fhe_transcipher_round_trip() {
     );
 }
 
-/// Non-2_2 parameters fall back to `apply_keystream_naive`; the OTP is the
-/// cheapest cipher to round-trip that path with (the Kreyvium 1_1/3_3 tests
-/// stop at the raw keystream).
 #[test]
 fn one_time_pad_fhe_transcipher_round_trip_1_1() {
     one_time_pad_fhe_transcipher_round_trip_impl(
@@ -434,8 +438,9 @@ fn one_time_pad_fhe_transcipher_error_paths() {
     let kreyvium_ct = KreyviumPlainState::new(key_bits, iv_bits)
         .encrypt(&[0u8; 4])
         .unwrap();
+    let layout = TranscipheringOutputLayout::radix(kreyvium_ct.n_bits(), sks.message_modulus);
     let err = fhe_otp
-        .transcipher(&sks, &kreyvium_ct)
+        .transcipher(&sks, &kreyvium_ct, &layout)
         .map(|_| ())
         .unwrap_err();
     assert_eq!(
@@ -450,9 +455,14 @@ fn one_time_pad_fhe_transcipher_error_paths() {
     let msg_1: Vec<u8> = (0..3).map(|_| rng.gen()).collect();
     let msg_2: Vec<u8> = (0..4).map(|_| rng.gen()).collect();
     let ct_1 = plain_otp.encrypt(&msg_1).unwrap(); // bits 0..24
+    let layout_1 = TranscipheringOutputLayout::radix(ct_1.n_bits(), sks.message_modulus);
     let ct_2 = plain_otp.encrypt(&msg_2).unwrap(); // bits 24..56
+    let layout_2 = TranscipheringOutputLayout::radix(ct_2.n_bits(), sks.message_modulus);
 
-    let err = fhe_otp.transcipher(&sks, &ct_2).map(|_| ()).unwrap_err();
+    let err = fhe_otp
+        .transcipher(&sks, &ct_2, &layout_2)
+        .map(|_| ())
+        .unwrap_err();
     assert_eq!(
         err,
         TranscipherError::CounterMismatch {
@@ -471,7 +481,7 @@ fn one_time_pad_fhe_transcipher_error_paths() {
 
     // Documented recovery: seek to the ciphertext's counter and retry.
     fhe_otp.seek(&sks, ct_2.encryption_counter());
-    let out_2 = fhe_otp.transcipher(&sks, &ct_2).unwrap();
+    let out_2 = fhe_otp.transcipher(&sks, &ct_2, &layout_2).unwrap();
     assert_eq!(
         decrypt_transciphered_bytes(&cks, &out_2, 32),
         msg_2,
@@ -480,7 +490,10 @@ fn one_time_pad_fhe_transcipher_error_paths() {
 
     // The session (56) can also be ahead of a ciphertext (0): same error, and
     // the hint must still point at the ciphertext's counter.
-    let err = fhe_otp.transcipher(&sks, &ct_1).map(|_| ()).unwrap_err();
+    let err = fhe_otp
+        .transcipher(&sks, &ct_1, &layout_1)
+        .map(|_| ())
+        .unwrap_err();
     assert_eq!(
         err,
         TranscipherError::CounterMismatch {
@@ -496,12 +509,56 @@ fn one_time_pad_fhe_transcipher_error_paths() {
 
     // Backward seek gives random access to the skipped first message.
     fhe_otp.seek(&sks, ct_1.encryption_counter());
-    let out_1 = fhe_otp.transcipher(&sks, &ct_1).unwrap();
+    let out_1 = fhe_otp.transcipher(&sks, &ct_1, &layout_1).unwrap();
     assert_eq!(
         decrypt_transciphered_bytes(&cks, &out_1, 24),
         msg_1,
         "seed={seed}"
     );
+}
+
+/// A stream ciphertext whose byte buffer does not match its bit count is refused before any
+/// keystream is drawn.
+#[test]
+fn one_time_pad_fhe_transcipher_invalid_stream_ciphertext() {
+    #[derive(serde::Serialize)]
+    struct Tampered {
+        kind: StreamCipherKind,
+        encryption_counter: u64,
+        n_bits: usize,
+        bytes: Vec<u8>,
+    }
+
+    let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+
+    let fhe_mask = OneTimePadPlainSecretMask::new(vec![0u8; 16], 128).encrypt(&cks);
+    let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
+    let layout = TranscipheringOutputLayout::radix(64, sks.message_modulus);
+
+    // Too short and too long buffers for 64 bits
+    for n_bytes in [4, 9] {
+        let tampered = bincode::serialize(&Tampered {
+            kind: StreamCipherKind::OneTimePad,
+            encryption_counter: 0,
+            n_bits: 64,
+            bytes: vec![0; n_bytes],
+        })
+        .unwrap();
+        let tampered: crate::transciphering::StreamCiphertext =
+            bincode::deserialize(&tampered).unwrap();
+
+        let err = fhe_otp
+            .transcipher(&sks, &tampered, &layout)
+            .map(|_| ())
+            .unwrap_err();
+        assert_eq!(
+            err,
+            TranscipherError::InvalidStreamCiphertext,
+            "n_bytes {n_bytes}"
+        );
+        // A refused transcipher must not consume keystream.
+        assert_eq!(fhe_otp.current_counter(), 0, "n_bytes {n_bytes}");
+    }
 }
 
 /// Mask constructors validate their inputs: plain masks take
@@ -531,7 +588,7 @@ fn one_time_pad_mask_validation() {
     noisy_cts[3].set_noise_level(NoiseLevel::NOMINAL * 2, cks.parameters().max_noise_level());
     assert_eq!(
         OneTimePadFheSecretMask::try_new(noisy_cts).map(|_| ()),
-        Err("Mask ciphertexts must have at most nominal noise.")
+        Err("Mask ciphertexts must have nominal noise.")
     );
 }
 
@@ -546,7 +603,7 @@ fn one_time_pad_fhe_next_bits_beyond_remaining_errors() {
     let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
     assert!(matches!(
         fhe_otp.next_keystream_bits(&sks, 17),
-        Err(InsufficientKeystream)
+        Err(FheKeyStreamError::Insufficient(_))
     ));
 }
 
