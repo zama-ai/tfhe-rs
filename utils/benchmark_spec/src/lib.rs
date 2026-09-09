@@ -28,8 +28,8 @@ pub use tfhe::{
     TranscipheringBench, VectorFindOp, ZkPkeBench,
 };
 pub use type_tag::{
-    ComputeLoad, CudaKeyswitchConfig, FheType, PrecisionTag, ShuffleConfig, TypeTag, ZkPkeConfig,
-    ZkScheme,
+    ComputeLoad, CudaKeyswitchConfig, FheType, MulAddShapeConfig, PrecisionTag, ShuffleConfig,
+    TypeTag, ZkPkeConfig, ZkScheme,
 };
 
 use crate::segment::OptionalSegment;

@@ -1,6 +1,7 @@
 #pragma once
 #include "cmux.h"
 #include "integer_utilities.h"
+#include <cstring>
 
 template <typename Torus> struct int_mul_memory {
   CudaRadixCiphertextFFI *vector_result_sb;
