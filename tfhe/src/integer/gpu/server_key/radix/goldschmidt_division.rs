@@ -13,10 +13,10 @@
 
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+use crate::integer::gpu::cuda_backend_goldschmidt_division;
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
-use crate::integer::gpu::cuda_backend_goldschmidt_division;
 
 impl CudaServerKey {
     /// Computes the quotient and remainder of `numerator / denominator`.
@@ -30,8 +30,8 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -179,11 +179,11 @@ mod tests {
 
         for (n, d) in [
             (1003u64, 7u64),
-            (1024, 16),        // exact
-            (0, 123),          // zero numerator
+            (1024, 16), // exact
+            (0, 123),   // zero numerator
             (3, 2),
-            (2, 3),            // quotient zero
-            (12345, 12345),    // equal
+            (2, 3),         // quotient zero
+            (12345, 12345), // equal
             (42, 1),
             (u64::MAX, 1),
             (u64::MAX, 2),

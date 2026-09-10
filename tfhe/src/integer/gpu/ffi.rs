@@ -5595,11 +5595,8 @@ pub(crate) unsafe fn cuda_backend_goldschmidt_division<T: UnsignedInteger, B: Nu
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-    let mut cuda_ffi_quotient = prepare_cuda_radix_ffi(
-        quotient,
-        &mut quotient_degrees,
-        &mut quotient_noise_levels,
-    );
+    let mut cuda_ffi_quotient =
+        prepare_cuda_radix_ffi(quotient, &mut quotient_degrees, &mut quotient_noise_levels);
     let mut remainder_degrees = remainder.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut remainder_noise_levels = remainder
         .info

@@ -2,6 +2,8 @@
 
 mod aes;
 mod aes256;
+#[cfg(feature = "gpu")]
+mod goldschmidt_division;
 mod kreyvium;
 #[cfg(feature = "gpu")]
 mod mul_add_fixed_point;
@@ -3511,6 +3513,12 @@ criterion_group!(vector_find, vector_find::match_value);
 
 #[cfg(feature = "gpu")]
 criterion_group!(
+    cuda_goldschmidt_division_ops,
+    goldschmidt_division::cuda::cuda_goldschmidt_division,
+);
+
+#[cfg(feature = "gpu")]
+criterion_group!(
     cuda_mul_add_fixed_point_ops,
     mul_add_fixed_point::cuda::cuda_mul_add_fixed_point,
     mul_add_fixed_point::cuda::cuda_mul_low_partial_sum,
@@ -3533,6 +3541,9 @@ fn go_through_gpu_bench_groups(val: &str) {
         }
         "mul_add_fixed_point" => {
             cuda_mul_add_fixed_point_ops();
+        }
+        "goldschmidt_division" => {
+            cuda_goldschmidt_division_ops();
         }
         _ => panic!("unknown benchmark operations flavor"),
     };
