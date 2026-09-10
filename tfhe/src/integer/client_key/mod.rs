@@ -146,6 +146,14 @@ impl ClientKey {
         self.key.parameters().ap_parameters().unwrap()
     }
 
+    /// Is this client key compatible with the "strings" feature?
+    pub fn is_compatible_with_strings(&self) -> bool {
+        self.key
+            .parameters()
+            .message_modulus()
+            .is_compatible_with_strings(self.key.parameters().carry_modulus())
+    }
+
     #[cfg(test)]
     pub fn create_trivial_radix<T, C>(&self, value: T, num_blocks: usize) -> C
     where

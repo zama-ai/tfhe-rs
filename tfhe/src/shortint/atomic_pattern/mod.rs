@@ -613,6 +613,11 @@ impl AtomicPatternParameters {
             Self::KeySwitch32(parameters) => parameters.is_compatible_with_oprf_params(oprf_params),
         }
     }
+
+    pub fn is_compatible_with_strings(&self) -> bool {
+        self.message_modulus()
+            .is_compatible_with_strings(self.carry_modulus())
+    }
 }
 
 impl ParameterSetConformant for AtomicPatternServerKey {
