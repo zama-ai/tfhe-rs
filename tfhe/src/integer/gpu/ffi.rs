@@ -5552,6 +5552,118 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Num
     update_noise_degree(result, &cuda_ffi_result);
 }
 
+/// Iterations and seed precision the CUDA backend's truncation schedule is
+/// proved for; `scratch` rejects anything else.
+pub(crate) const GOLDSCHMIDT_ITERATIONS: u32 = 3;
+pub(crate) const GOLDSCHMIDT_LUT_PRECISION: u32 = 9;
+
+#[allow(clippy::too_many_arguments)]
+/// Quotient and remainder of two unsigned radix integers, by Goldschmidt
+/// division: a fixed-point reciprocal iterated three times from a 9-bit seed
+/// rather than one long-division step per bit.
+///
+/// A zero denominator yields an all-ones quotient and the numerator as
+/// remainder, matching `div_rem`'s contract.
+///
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_goldschmidt_division<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    quotient: &mut CudaRadixCiphertext,
+    remainder: &mut CudaRadixCiphertext,
+    numerator: &CudaRadixCiphertext,
+    denominator: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut quotient_noise_levels = quotient
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_quotient =
+        prepare_cuda_radix_ffi(quotient, &mut quotient_degrees, &mut quotient_noise_levels);
+    let mut remainder_degrees = remainder.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut remainder_noise_levels = remainder
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_remainder = prepare_cuda_radix_ffi(
+        remainder,
+        &mut remainder_degrees,
+        &mut remainder_noise_levels,
+    );
+    let mut numerator_degrees = numerator.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut numerator_noise_levels = numerator
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_numerator = prepare_cuda_radix_ffi(
+        numerator,
+        &mut numerator_degrees,
+        &mut numerator_noise_levels,
+    );
+    let mut denominator_degrees = denominator.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut denominator_noise_levels = denominator
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_denominator = prepare_cuda_radix_ffi(
+        denominator,
+        &mut denominator_degrees,
+        &mut denominator_noise_levels,
+    );
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_goldschmidt_division_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        num_blocks,
+        GOLDSCHMIDT_ITERATIONS,
+        GOLDSCHMIDT_LUT_PRECISION,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        bsk_params,
+        ksk_params,
+        true,
+        noise_reduction_type as u32,
+    );
+    cuda_goldschmidt_division_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_quotient,
+        &raw mut cuda_ffi_remainder,
+        &raw const cuda_ffi_numerator,
+        &raw const cuda_ffi_denominator,
+        GOLDSCHMIDT_ITERATIONS,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+    cleanup_cuda_goldschmidt_division_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    update_noise_degree(quotient, &cuda_ffi_quotient);
+    update_noise_degree(remainder, &cuda_ffi_remainder);
+}
+
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///

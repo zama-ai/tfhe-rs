@@ -475,6 +475,27 @@ void cuda_mul_low_partial_sum_64_async(
 void cleanup_cuda_mul_add_fixed_point_64(CudaStreamsFFI streams,
                                          int8_t **mem_ptr_void);
 
+// Goldschmidt division: quotient and remainder of two unsigned radix integers,
+// computed by iterating a fixed-point reciprocal rather than by long division.
+// Only 64-bit operands at 2 bits per block, 3 iterations and a 9-bit seed are
+// supported - that is the shape the truncation schedule is proved for. A zero
+// denominator returns an all-ones quotient and the numerator as remainder.
+uint64_t scratch_cuda_goldschmidt_division_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t num_blocks,
+    uint32_t iterations, uint32_t lut_precision, uint32_t message_modulus,
+    uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_goldschmidt_division_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient,
+    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
+    CudaRadixCiphertextFFI const *denominator, uint32_t iterations,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks);
+
+void cleanup_cuda_goldschmidt_division_64(CudaStreamsFFI streams,
+                                          int8_t **mem_ptr_void);
+
 uint64_t scratch_cuda_integer_scalar_mul_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
