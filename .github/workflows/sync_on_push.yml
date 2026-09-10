@@ -1,6 +1,13 @@
 # Sync repos
 name: sync_on_push
 
+env:
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+
 on:
   push:
     branches:
@@ -48,3 +55,10 @@ jobs:
           git push destination "${SOURCE_TAGS}:${DESTINATION_TAGS}" -f
 
           shred --remove .git/config
+
+      - name: Slack Notification
+        if: ${{ always() && !success() }}
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "sync_on_push finished with status: ${{ job.status }}. ([action run](${{ env.ACTION_RUN_URL }}))"
