@@ -489,8 +489,7 @@ uint64_t scratch_cuda_goldschmidt_division_64_async(
 
 void cuda_goldschmidt_division_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient,
-    CudaRadixCiphertextFFI *remainder,
-    CudaRadixCiphertextFFI const *numerator,
+    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
     CudaRadixCiphertextFFI const *denominator, uint32_t iterations,
     int8_t *mem_ptr, void *const *bsks, void *const *ksks);
 

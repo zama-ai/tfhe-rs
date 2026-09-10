@@ -35,10 +35,10 @@
 //     d <- d * (1 + x),   n <- n * (1 + x)     with x = 1 - d
 //
 // so that d becomes 1 - x^2 and the number of correct bits doubles each round.
-// Three rounds after a 9-bit seed cover 64 bits. The seed comes from a 512-entry
-// lookup table on d's top 10 bits, chosen so that (1 + x0) * d < 1 -- keeping
-// every intermediate below 1 means the quotient only ever approaches the true
-// value from below, so a single +1 correction at the end suffices.
+// Three rounds after a 9-bit seed cover 64 bits. The seed comes from a
+// 512-entry lookup table on d's top 10 bits, chosen so that (1 + x0) * d < 1 --
+// keeping every intermediate below 1 means the quotient only ever approaches
+// the true value from below, so a single +1 correction at the end suffices.
 //
 // The per-round truncation schedule is the one the correctness proof pins down:
 // round i takes x from `s` significant blocks whose LSB weighs beta^-t, and the
@@ -63,9 +63,9 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
   int_radix_params params;
   bool gpu_memory_allocated;
 
-  uint32_t num_blocks;   // operand width, 32 for a 64-bit division
-  uint32_t fp_blocks;    // fixed point width, num_blocks + 2
-  uint32_t x0_blocks;    // significant blocks of the seed factor
+  uint32_t num_blocks; // operand width, 32 for a 64-bit division
+  uint32_t fp_blocks;  // fixed point width, num_blocks + 2
+  uint32_t x0_blocks;  // significant blocks of the seed factor
   uint32_t counter_blocks;
 
   // Per-round (significant blocks of x, leading zero blocks of x). The LSB of x
@@ -84,13 +84,16 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
   CudaRadixCiphertextFFI *shifted_d;
   CudaRadixCiphertextFFI *wide_n;
   CudaRadixCiphertextFFI *leading_zeros;
-  CudaRadixCiphertextFFI *shift_amount; // leading_zeros padded to the shifted width
+  // leading_zeros padded to each shifted value's width. Two buffers, not one
+  // sliced twice, because the two shifts run concurrently.
+  CudaRadixCiphertextFFI *shift_amount;
+  CudaRadixCiphertextFFI *shift_amount_narrow;
   CudaRadixCiphertextFFI *d_is_zero;
 
   // Seed and iteration factors.
-  CudaRadixCiphertextFFI *seed_factor;  // x0
-  CudaRadixCiphertextFFI *seed_found;   // match flag, unused but required
-  CudaRadixCiphertextFFI *factor_x;     // x, at most x_blocks[2] blocks
+  CudaRadixCiphertextFFI *seed_factor; // x0
+  CudaRadixCiphertextFFI *seed_found;  // match flag, unused but required
+  CudaRadixCiphertextFFI *factor_x;    // x, at most x_blocks[2] blocks
 
   // Finalisation. `q_and_r` pairs the quotient and remainder so one cmux
   // corrects both.
@@ -119,15 +122,27 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
   int_shift_and_rotate_buffer<Torus> *shift_d_mem;
   int_shift_and_rotate_buffer<Torus> *shift_n_mem;
   int_unchecked_match_buffer<Torus> *seed_lut_mem;
-  // One per multiplication shape: the seed step plus the three rounds. Each is
-  // used twice (numerator and denominator) except the last, which only updates
-  // the numerator.
-  int_mul_add_fixed_point_memory<Torus> *mul_add_mem[1 + GOLDSCHMIDT_ITERATIONS];
+  // One per multiplication shape: the seed step plus the three rounds. The
+  // numerator and denominator updates of a step have the same shape but run on
+  // different streams, so each shape that touches both needs its own scratch -
+  // hence the second set, one shorter since the last round leaves d alone.
+  int_mul_add_fixed_point_memory<Torus>
+      *mul_add_mem[1 + GOLDSCHMIDT_ITERATIONS];
+  int_mul_add_fixed_point_memory<Torus> *mul_add_mem_d[GOLDSCHMIDT_ITERATIONS];
   int_mul_add_fixed_point_memory<Torus> *mul_low_mem;
   int_radix_lut<Torus> *invert_lut; // {!message, !carry}
   int_sc_prop_memory<Torus> *sc_prop_mem;
+  // q + 1 is computed alongside the remainder, so it cannot share the
+  // remainder's propagation scratch.
+  int_sc_prop_memory<Torus> *sc_prop_mem_q;
   int_borrow_prop_memory<Torus> *borrow_mem;
   int_cmux_buffer<Torus> *cmux_mem;
+
+  // Second stream set on the same GPUs. The numerator and denominator sides of
+  // a round are independent, as are the two normalisation shifts and the
+  // q + 1 / remainder pair, so each of those pairs is issued one branch per
+  // stream and joined afterwards.
+  CudaStreams sub_streams;
 
   int_goldschmidt_division_buffer(CudaStreams streams, int_radix_params params,
                                   uint32_t num_blocks, uint32_t iterations,
@@ -158,10 +173,9 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
 
     this->fp_blocks = num_blocks + 2;
     this->x0_blocks = (lut_precision + 1) / bits_per_block;
-    this->counter_blocks =
-        ((uint32_t)std::log2(num_blocks * bits_per_block) + 1 +
-         bits_per_block - 1) /
-        bits_per_block;
+    this->counter_blocks = ((uint32_t)std::log2(num_blocks * bits_per_block) +
+                            1 + bits_per_block - 1) /
+                           bits_per_block;
 
     uint32_t schedule_x_blocks[GOLDSCHMIDT_ITERATIONS] = {5, 9, 16};
     uint32_t schedule_x_zero_blocks[GOLDSCHMIDT_ITERATIONS] = {4, 8, 16};
@@ -184,6 +198,7 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
     new_ct(wide_n, 2 * num_blocks);
     new_ct(leading_zeros, counter_blocks);
     new_ct(shift_amount, 2 * num_blocks);
+    new_ct(shift_amount_narrow, num_blocks);
     new_ct(d_is_zero, 1);
     new_ct(seed_factor, x0_blocks);
     new_ct(seed_found, 1);
@@ -222,9 +237,8 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
           streams.stream(0), streams.gpu_index(0), trivial_max, d_max,
           h_max.data(), num_blocks, message_modulus, params.carry_modulus);
       cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-      cuda_drop_with_size_tracking_async(d_max, streams.stream(0),
-                                         streams.gpu_index(0),
-                                         allocate_gpu_memory);
+      cuda_drop_with_size_tracking_async(
+          d_max, streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
     }
 
     // The scalar the denominator is compared against, all-zero blocks.
@@ -248,8 +262,8 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
         streams, LEFT_SHIFT, false, params, num_blocks, allocate_gpu_memory,
         size_tracker);
     shift_n_mem = new int_shift_and_rotate_buffer<Torus>(
-        streams, LEFT_SHIFT, false, params, 2 * num_blocks,
-        allocate_gpu_memory, size_tracker);
+        streams, LEFT_SHIFT, false, params, 2 * num_blocks, allocate_gpu_memory,
+        size_tracker);
 
     // Seed table: for d's top (lut_precision + 1) bits, x0 such that
     // (1 + x0) * d < 1 and 1 + x0 approximates 1/d to lut_precision bits.
@@ -289,6 +303,19 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
           x_zero_blocks[i], bits_per_block * t, 0, allocate_gpu_memory,
           size_tracker);
     }
+    // The denominator side of the first three steps, same shapes on its own
+    // scratch so it can run concurrently with the numerator side.
+    mul_add_mem_d[0] = new int_mul_add_fixed_point_memory<Torus>(
+        streams, params, MUL_ADD_MODE_FIXED_POINT, fp_blocks, x0_blocks, 0,
+        bits_per_block * x0_blocks, 0, allocate_gpu_memory, size_tracker);
+    for (uint32_t i = 0; i + 1 < iterations; i++) {
+      uint32_t t = x_zero_blocks[i] + x_blocks[i];
+      mul_add_mem_d[1 + i] = new int_mul_add_fixed_point_memory<Torus>(
+          streams, params, MUL_ADD_MODE_FIXED_POINT, fp_blocks, x_blocks[i],
+          x_zero_blocks[i], bits_per_block * t, 0, allocate_gpu_memory,
+          size_tracker);
+    }
+
     // The remainder needs q * d plus two addends, and keeps the carries so the
     // message/carry inversion below can negate the sum in place.
     mul_low_mem = new int_mul_add_fixed_point_memory<Torus>(
@@ -319,8 +346,11 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
                                            invert_index_generator);
 
     sc_prop_mem = new int_sc_prop_memory<Torus>(
-        streams, params, num_blocks, outputFlag::FLAG_NONE,
-        allocate_gpu_memory, size_tracker);
+        streams, params, num_blocks, outputFlag::FLAG_NONE, allocate_gpu_memory,
+        size_tracker);
+    sc_prop_mem_q = new int_sc_prop_memory<Torus>(
+        streams, params, num_blocks, outputFlag::FLAG_NONE, allocate_gpu_memory,
+        size_tracker);
     borrow_mem = new int_borrow_prop_memory<Torus>(
         streams, params, num_blocks, outputFlag::FLAG_OVERFLOW,
         allocate_gpu_memory, size_tracker);
@@ -330,6 +360,8 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
     cmux_mem = new int_cmux_buffer<Torus>(streams, cmux_predicate_f, params,
                                           2 * num_blocks, allocate_gpu_memory,
                                           size_tracker);
+
+    sub_streams.create_on_same_gpus(streams);
   }
 
   void release(CudaStreams streams) {
@@ -346,6 +378,7 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
     drop_ct(wide_n);
     drop_ct(leading_zeros);
     drop_ct(shift_amount);
+    drop_ct(shift_amount_narrow);
     drop_ct(d_is_zero);
     drop_ct(seed_factor);
     drop_ct(seed_found);
@@ -377,9 +410,14 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
       mul_add_mem[i]->release(streams);
       delete mul_add_mem[i];
     }
+    for (uint32_t i = 0; i < GOLDSCHMIDT_ITERATIONS; i++) {
+      mul_add_mem_d[i]->release(streams);
+      delete mul_add_mem_d[i];
+    }
     mul_low_mem->release(streams);
     invert_lut->release(streams);
     sc_prop_mem->release(streams);
+    sc_prop_mem_q->release(streams);
     borrow_mem->release(streams);
     cmux_mem->release(streams);
 
@@ -391,10 +429,12 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
     delete mul_low_mem;
     delete invert_lut;
     delete sc_prop_mem;
+    delete sc_prop_mem_q;
     delete borrow_mem;
     delete cmux_mem;
     delete[] h_lut_inputs;
     delete[] h_lut_outputs;
+    sub_streams.release();
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };

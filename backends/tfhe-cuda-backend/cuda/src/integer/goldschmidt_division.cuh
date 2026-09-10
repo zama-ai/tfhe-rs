@@ -14,6 +14,18 @@
 #include "integer/vector_find.cuh"
 #include "radix_ciphertext.cuh"
 
+// Blocks the host until every stream in the set has drained. Used both to
+// publish a result to the other stream before forking and to join afterwards.
+static inline void goldschmidt_sync(CudaStreams streams) {
+  for (uint32_t i = 0; i < streams.count(); i++)
+    cuda_synchronize_stream(streams.stream(i), streams.gpu_index(i));
+}
+
+static inline void goldschmidt_join(CudaStreams a, CudaStreams b) {
+  goldschmidt_sync(a);
+  goldschmidt_sync(b);
+}
+
 // Copies `input` into `output` scaled by beta^shift, i.e. shifted left by
 // `shift` blocks for a positive shift and right for a negative one. Blocks that
 // fall outside `output` are dropped and the rest is zero filled; no bootstraps.
@@ -56,45 +68,54 @@ goldschmidt_blockshift(CudaStreams streams, CudaRadixCiphertextFFI *output,
 // The numerator is widened to twice the operand width before shifting so the
 // shift cannot lose its top bits, then narrowed back down to the fixed point.
 template <typename Torus, typename KSTorus>
-__host__ void goldschmidt_normalize(
-    CudaStreams streams, const CudaRadixCiphertextFFI *numerator,
-    const CudaRadixCiphertextFFI *denominator,
-    int_goldschmidt_division_buffer<Torus> *mem, void *const *bsks,
-    KSTorus *const *ksks) {
+__host__ void goldschmidt_normalize(CudaStreams streams,
+                                    const CudaRadixCiphertextFFI *numerator,
+                                    const CudaRadixCiphertextFFI *denominator,
+                                    int_goldschmidt_division_buffer<Torus> *mem,
+                                    void *const *bsks, KSTorus *const *ksks) {
   PUSH_RANGE("goldschmidt normalize")
   auto stream = streams.stream(0);
   auto gpu_index = streams.gpu_index(0);
   uint32_t num_blocks = mem->num_blocks;
   uint32_t fp_blocks = mem->fp_blocks;
 
+  // The zero test only feeds the very last cmux, so it runs beside the
+  // leading-zero count rather than after it.
   host_integer_count_of_consecutive_bits<Torus, KSTorus>(
       streams, mem->leading_zeros, denominator, mem->leading_zeros_mem, bsks,
       ksks);
   host_scalar_equality_check<Torus, KSTorus>(
-      streams, mem->d_is_zero, denominator, mem->d_zero_scalar,
+      mem->sub_streams, mem->d_is_zero, denominator, mem->d_zero_scalar,
       mem->is_zero_mem, bsks, ksks, num_blocks, num_blocks);
+  goldschmidt_join(streams, mem->sub_streams);
 
   // The barrel shifter wants the amount at the same width as the value, so the
-  // counter is zero extended for each of the two shifts.
-  CudaRadixCiphertextFFI narrow_amount;
-  as_radix_ciphertext_slice<Torus>(&narrow_amount, mem->shift_amount, 0,
-                                   num_blocks);
-  goldschmidt_blockshift<Torus>(streams, &narrow_amount, mem->leading_zeros, 0);
-  copy_radix_ciphertext_async<Torus>(stream, gpu_index, mem->shifted_d,
-                                     denominator);
-  host_shift_and_rotate_inplace<Torus, KSTorus>(
-      streams, mem->shifted_d, &narrow_amount, mem->shift_d_mem, bsks, ksks);
-  goldschmidt_blockshift<Torus>(streams, mem->current_d, mem->shifted_d,
-                                (int32_t)(fp_blocks - num_blocks));
-
-  goldschmidt_blockshift<Torus>(streams, mem->wide_n, numerator, 0);
+  // counter is zero extended once per shift.
+  goldschmidt_blockshift<Torus>(streams, mem->shift_amount_narrow,
+                                mem->leading_zeros, 0);
   goldschmidt_blockshift<Torus>(streams, mem->shift_amount, mem->leading_zeros,
                                 0);
-  host_shift_and_rotate_inplace<Torus, KSTorus>(
-      streams, mem->wide_n, mem->shift_amount, mem->shift_n_mem, bsks, ksks);
-  goldschmidt_blockshift<Torus>(
-      streams, mem->current_n, mem->wide_n,
-      (int32_t)fp_blocks - 2 * (int32_t)num_blocks);
+  copy_radix_ciphertext_async<Torus>(stream, gpu_index, mem->shifted_d,
+                                     denominator);
+  goldschmidt_blockshift<Torus>(streams, mem->wide_n, numerator, 0);
+  // Publish the shift amounts and both operands before the other stream reads
+  // them.
+  goldschmidt_sync(streams);
+
+  // Both shifts wait on the same count but not on each other, and the wide one
+  // is more than twice the work, so overlapping hides the narrow one entirely.
+  host_shift_and_rotate_inplace<Torus, KSTorus>(streams, mem->shifted_d,
+                                                mem->shift_amount_narrow,
+                                                mem->shift_d_mem, bsks, ksks);
+  host_shift_and_rotate_inplace<Torus, KSTorus>(mem->sub_streams, mem->wide_n,
+                                                mem->shift_amount,
+                                                mem->shift_n_mem, bsks, ksks);
+  goldschmidt_join(streams, mem->sub_streams);
+
+  goldschmidt_blockshift<Torus>(streams, mem->current_d, mem->shifted_d,
+                                (int32_t)(fp_blocks - num_blocks));
+  goldschmidt_blockshift<Torus>(streams, mem->current_n, mem->wide_n,
+                                (int32_t)fp_blocks - 2 * (int32_t)num_blocks);
   POP_RANGE()
 }
 
@@ -109,22 +130,23 @@ __host__ void goldschmidt_seed(CudaStreams streams,
 
   // d's top x0_blocks blocks are the table's index.
   CudaRadixCiphertextFFI d_msb;
-  as_radix_ciphertext_slice<Torus>(&d_msb, mem->current_d,
-                                   mem->fp_blocks - mem->x0_blocks,
-                                   mem->fp_blocks);
-  host_unchecked_match_value<Torus>(streams, mem->seed_factor, mem->seed_found,
-                                    &d_msb, mem->h_lut_inputs,
-                                    mem->h_lut_outputs, mem->seed_lut_mem, bsks,
-                                    (Torus *const *)ksks);
+  as_radix_ciphertext_slice<Torus>(
+      &d_msb, mem->current_d, mem->fp_blocks - mem->x0_blocks, mem->fp_blocks);
+  host_unchecked_match_value<Torus>(
+      streams, mem->seed_factor, mem->seed_found, &d_msb, mem->h_lut_inputs,
+      mem->h_lut_outputs, mem->seed_lut_mem, bsks, (Torus *const *)ksks);
 
   // x0 is a fraction with x0_blocks blocks below the point, so the product is
   // truncated by exactly that much and the accumulator term carries the `+ 1`.
+  // Both updates read x0 and write different operands, so they fork here.
+  goldschmidt_sync(streams);
   host_mul_add_fixed_point_with_rescaling<Torus>(
       streams, mem->next_n, mem->current_n, mem->seed_factor, mem->current_n,
       mem->mul_add_mem[0], bsks, ksks);
   host_mul_add_fixed_point_with_rescaling<Torus>(
-      streams, mem->next_d, mem->current_d, mem->seed_factor, mem->current_d,
-      mem->mul_add_mem[0], bsks, ksks);
+      mem->sub_streams, mem->next_d, mem->current_d, mem->seed_factor,
+      mem->current_d, mem->mul_add_mem_d[0], bsks, ksks);
+  goldschmidt_join(streams, mem->sub_streams);
   std::swap(mem->current_n, mem->next_n);
   std::swap(mem->current_d, mem->next_d);
   POP_RANGE()
@@ -134,10 +156,9 @@ __host__ void goldschmidt_seed(CudaStreams streams,
 // n <- n * (1 + x) and d <- d * (1 + x). The last round skips d, which is not
 // read again.
 template <typename Torus>
-__host__ void goldschmidt_iterations(CudaStreams streams,
-                                     int_goldschmidt_division_buffer<Torus> *mem,
-                                     uint32_t iterations, void *const *bsks,
-                                     uint64_t *const *ksks) {
+__host__ void goldschmidt_iterations(
+    CudaStreams streams, int_goldschmidt_division_buffer<Torus> *mem,
+    uint32_t iterations, void *const *bsks, uint64_t *const *ksks) {
   PUSH_RANGE("goldschmidt iterations")
   auto stream = streams.stream(0);
   auto gpu_index = streams.gpu_index(0);
@@ -163,13 +184,17 @@ __host__ void goldschmidt_iterations(CudaStreams streams,
     host_bitnot<Torus>(streams, &x_view, params.message_modulus,
                        params.message_modulus, params.carry_modulus);
 
+    // The numerator side never feeds the denominator side, so the only thing
+    // the two updates share is x: publish it, then run one per stream.
+    goldschmidt_sync(streams);
     host_mul_add_fixed_point_with_rescaling<Torus>(
         streams, mem->next_n, mem->current_n, &x_view, mem->current_n,
         mem->mul_add_mem[1 + i], bsks, ksks);
     if (i + 1 < iterations) {
       host_mul_add_fixed_point_with_rescaling<Torus>(
-          streams, mem->next_d, mem->current_d, &x_view, mem->current_d,
-          mem->mul_add_mem[1 + i], bsks, ksks);
+          mem->sub_streams, mem->next_d, mem->current_d, &x_view,
+          mem->current_d, mem->mul_add_mem_d[1 + i], bsks, ksks);
+      goldschmidt_join(streams, mem->sub_streams);
       std::swap(mem->current_d, mem->next_d);
     }
     std::swap(mem->current_n, mem->next_n);
@@ -189,12 +214,13 @@ __host__ void goldschmidt_iterations(CudaStreams streams,
 // half C, and -(M + C) = !M + !C + 2, so two lookups and an addition give the
 // remainder directly.
 template <typename Torus, typename KSTorus>
-__host__ void goldschmidt_finalize(
-    CudaStreams streams, CudaRadixCiphertextFFI *quotient,
-    CudaRadixCiphertextFFI *remainder, const CudaRadixCiphertextFFI *numerator,
-    const CudaRadixCiphertextFFI *denominator,
-    int_goldschmidt_division_buffer<Torus> *mem, void *const *bsks,
-    KSTorus *const *ksks) {
+__host__ void goldschmidt_finalize(CudaStreams streams,
+                                   CudaRadixCiphertextFFI *quotient,
+                                   CudaRadixCiphertextFFI *remainder,
+                                   const CudaRadixCiphertextFFI *numerator,
+                                   const CudaRadixCiphertextFFI *denominator,
+                                   int_goldschmidt_division_buffer<Torus> *mem,
+                                   void *const *bsks, KSTorus *const *ksks) {
   PUSH_RANGE("goldschmidt finalize")
   auto stream = streams.stream(0);
   auto gpu_index = streams.gpu_index(0);
@@ -215,9 +241,9 @@ __host__ void goldschmidt_finalize(
                                            num_blocks);
   host_bitnot<Torus>(streams, &not_numerator, params.message_modulus,
                      params.message_modulus, params.carry_modulus);
-  copy_radix_ciphertext_slice_async<Torus>(
-      stream, gpu_index, mem->extra_terms, num_blocks, 2 * num_blocks,
-      mem->trivial_one, 0, num_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, mem->extra_terms,
+                                           num_blocks, 2 * num_blocks,
+                                           mem->trivial_one, 0, num_blocks);
 
   host_mul_low_partial_sum<Torus>(streams, mem->term_sum, mem->quotient_tmp,
                                   denominator, mem->extra_terms, 2, false,
@@ -231,9 +257,8 @@ __host__ void goldschmidt_finalize(
   copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, mem->inverted,
                                            num_blocks, 2 * num_blocks,
                                            mem->term_sum, 0, num_blocks);
-  host_apply_univariate_lut<Torus, KSTorus>(streams, mem->inverted,
-                                            mem->inverted, mem->invert_lut,
-                                            ksks, bsks);
+  host_apply_univariate_lut<Torus, KSTorus>(
+      streams, mem->inverted, mem->inverted, mem->invert_lut, ksks, bsks);
 
   // C's blocks sit one position up; its lowest block is the complement of a
   // zero carry, i.e. message_modulus - 1.
@@ -262,12 +287,12 @@ __host__ void goldschmidt_finalize(
   copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, &remainder_terms,
                                            0, num_blocks, &inverted_message, 0,
                                            num_blocks);
-  copy_radix_ciphertext_slice_async<Torus>(
-      stream, gpu_index, &remainder_terms, num_blocks, 2 * num_blocks,
-      mem->carry_shifted, 0, num_blocks);
-  copy_radix_ciphertext_slice_async<Torus>(
-      stream, gpu_index, &remainder_terms, 2 * num_blocks, 3 * num_blocks,
-      mem->trivial_two, 0, num_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, &remainder_terms,
+                                           num_blocks, 2 * num_blocks,
+                                           mem->carry_shifted, 0, num_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, &remainder_terms,
+                                           2 * num_blocks, 3 * num_blocks,
+                                           mem->trivial_two, 0, num_blocks);
   host_integer_partial_sum_ciphertexts_vec<Torus>(
       streams, mem->remainder_tmp, mem->mul_low_mem->terms, bsks, ksks,
       mem->mul_low_mem->sum_mem, num_blocks, 3);
@@ -291,12 +316,16 @@ __host__ void goldschmidt_finalize(
                                      mem->remainder_tmp);
   copy_radix_ciphertext_async<Torus>(stream, gpu_index, &false_q,
                                      mem->quotient_tmp);
+  goldschmidt_sync(streams);
+  // q + 1 only needs q, so its carry propagation overlaps the subtraction that
+  // decides whether it is the one we keep.
   host_add_and_propagate_single_carry<Torus, KSTorus>(
-      streams, &false_q, mem->trivial_one, nullptr, nullptr, mem->sc_prop_mem,
-      bsks, ksks, outputFlag::FLAG_NONE, 0);
+      mem->sub_streams, &false_q, mem->trivial_one, nullptr, nullptr,
+      mem->sc_prop_mem_q, bsks, ksks, outputFlag::FLAG_NONE, 0);
   host_integer_overflowing_sub<Torus>(
       streams, &false_r, mem->remainder_tmp, denominator, mem->overflow_block,
       nullptr, mem->borrow_mem, bsks, ksks, outputFlag::FLAG_OVERFLOW, 0);
+  goldschmidt_join(streams, mem->sub_streams);
 
   host_cmux<Torus, KSTorus>(streams, mem->cmux_result, mem->overflow_block,
                             mem->cmux_true, mem->cmux_false, mem->cmux_mem,
@@ -306,9 +335,8 @@ __host__ void goldschmidt_finalize(
   // the CPU backend's contract.
   copy_radix_ciphertext_async<Torus>(stream, gpu_index, &true_q,
                                      mem->trivial_max);
-  copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index, &true_r, 0,
-                                           num_blocks, numerator, 0,
-                                           num_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(
+      stream, gpu_index, &true_r, 0, num_blocks, numerator, 0, num_blocks);
   host_cmux<Torus, KSTorus>(streams, mem->cmux_false, mem->d_is_zero,
                             mem->cmux_true, mem->cmux_result, mem->cmux_mem,
                             bsks, ksks);
