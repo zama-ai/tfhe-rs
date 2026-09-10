@@ -6,10 +6,7 @@ use crate::high_level_api::kv_store::KVStore as HlKVStore;
 use crate::integer::prelude::*;
 use crate::integer::server_key::KVStore;
 use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
-use crate::{
-    CompressedCiphertextList, FheBool, FheInt, FheIntId, FheUint, FheUintId,
-    ReRandomizationMetadata, Tag,
-};
+use crate::{FheBool, FheInt, FheIntId, FheUint, FheUintId, ReRandomizationMetadata, Tag};
 
 /// Possible runtime values to execute an HLAPI dialect program
 #[derive(Clone)]
@@ -26,12 +23,26 @@ pub enum RuntimeValue {
     FheInt(SignedRadixCiphertext),
     FheUintKVStore(KVStore<u128, RadixCiphertext>),
     FheIntKVStore(KVStore<u128, SignedRadixCiphertext>),
-    CompressedList(CompressedCiphertextList),
     /// Clear OPRF seed bytes
     Seed(Vec<u8>),
 }
 
 impl RuntimeValue {
+    /// Name of the variant, for error messages.
+    pub(super) fn variant_name(&self) -> &'static str {
+        match self {
+            Self::ClearBool(_) => "ClearBool",
+            Self::ClearUint(_) => "ClearUint",
+            Self::ClearInt(_) => "ClearInt",
+            Self::FheBool(_) => "FheBool",
+            Self::FheUint(_) => "FheUint",
+            Self::FheInt(_) => "FheInt",
+            Self::FheUintKVStore(_) => "FheUintKVStore",
+            Self::FheIntKVStore(_) => "FheIntKVStore",
+            Self::Seed(_) => "Seed",
+        }
+    }
+
     /// Recover the clear [`ScalarValue`] payload from a clear `RuntimeValue`
     /// (`ClearBool`/`ClearUint`/`ClearInt`).  
     ///
@@ -51,13 +62,13 @@ impl RuntimeValue {
     /// as the `input_index`-th input.
     pub(in crate::high_level_api::circuit::backends) fn check_input(
         &self,
-        input_index: usize,
+        input_index: u32,
         expected: &ValueKind,
         sks: &crate::integer::ServerKey,
     ) -> Result<(), super::CpuError> {
         let message_modulus = sks.message_modulus();
         let carry_modulus = sks.carry_modulus();
-        let bits_per_block = message_modulus.0.ilog2() as usize;
+        let bits_per_block = message_modulus.0.ilog2();
 
         // 1. Parameter compatibility.
         let check_blocks_params = |blocks: &[crate::shortint::Ciphertext]| {
@@ -88,34 +99,35 @@ impl RuntimeValue {
                     check_blocks_params(v.blocks())?;
                 }
             }
-            // Clear values and seeds carry no parameters; a CompressedList
-            // embeds its own and is validated by the decompression key
-            // when unpacked.
-            Self::ClearBool(_)
-            | Self::ClearUint(_)
-            | Self::ClearInt(_)
-            | Self::CompressedList(_)
-            | Self::Seed(_) => {}
+            // Clear values and seeds carry no parameters.
+            Self::ClearBool(_) | Self::ClearUint(_) | Self::ClearInt(_) | Self::Seed(_) => {}
         }
 
         // 2. Kind compatibility.
         let got = match self {
             Self::ClearBool(_) => ValueKind::Bool,
             // Clear integers carry no declared width: report the minimal
-            // width that holds the value.
-            Self::ClearUint(v) => ValueKind::Uint((128 - v.leading_zeros()).max(1) as usize),
+            // width that holds the value, i.e. its bit length
+            // (`BITS - leading_zeros` = `ilog2 + 1` for non-zero values).
+            // Not `ceil_ilog2`: that is one short on powers of two (8 needs
+            // 4 bits, `ceil_ilog2(8)` is 3) and would let out-of-range
+            // inputs through.
+            Self::ClearUint(v) => ValueKind::Uint((u128::BITS - v.leading_zeros()).max(1)),
             Self::ClearInt(v) => {
+                // Two's complement: the magnitude's bit length (counted via
+                // leading ones for negatives), plus one sign bit.
                 let magnitude_bits = if *v < 0 {
-                    128 - v.leading_ones()
+                    i128::BITS - v.leading_ones()
                 } else {
-                    128 - v.leading_zeros()
+                    i128::BITS - v.leading_zeros()
                 };
-                ValueKind::Int((magnitude_bits + 1) as usize)
+                ValueKind::Int(magnitude_bits + 1)
             }
             Self::FheBool(_) => ValueKind::FheBool,
-            Self::FheUint(radix) => ValueKind::FheUint(radix.blocks().len() * bits_per_block),
-            Self::FheInt(radix) => ValueKind::FheInt(radix.blocks().len() * bits_per_block),
-            Self::CompressedList(_) => ValueKind::CompressedList,
+            Self::FheUint(radix) => {
+                ValueKind::FheUint(radix.blocks().len() as u32 * bits_per_block)
+            }
+            Self::FheInt(radix) => ValueKind::FheInt(radix.blocks().len() as u32 * bits_per_block),
             Self::Seed(_) => ValueKind::Seed,
             // A store's key kind is not observable from its runtime keys
             // (they are stored widened to u128) and an empty store has no
@@ -126,14 +138,14 @@ impl RuntimeValue {
                 key: KvKeyKind::U32,
                 value: FheIntKind::Uint(
                     kv.blocks_per_radix()
-                        .map_or(0, |n| (n.get() * bits_per_block) as u32),
+                        .map_or(0, |n| n.get() as u32 * bits_per_block),
                 ),
             },
             Self::FheIntKVStore(kv) => ValueKind::KVStore {
                 key: KvKeyKind::U32,
                 value: FheIntKind::Int(
                     kv.blocks_per_radix()
-                        .map_or(0, |n| (n.get() * bits_per_block) as u32),
+                        .map_or(0, |n| n.get() as u32 * bits_per_block),
                 ),
             },
         };
@@ -181,10 +193,10 @@ impl RuntimeValue {
             let key_bits = key_kind.bits();
             for key in keys {
                 if key_bits < 128 && (key >> key_bits) != 0 {
-                    return Err(super::CpuError::InputValueOutOfRange {
+                    return Err(super::CpuError::KvStoreKeyOutOfRange {
                         input_index,
-                        expected: *expected,
-                        value: ScalarValue::Unsigned(key),
+                        expected: key_kind,
+                        key,
                     });
                 }
             }
@@ -221,7 +233,6 @@ impl std::fmt::Debug for RuntimeValue {
                 Ok(val) => write!(f, "RuntimeValue::FheInt({val})"),
                 Err(_) => write!(f, "RuntimeValue::FheInt(<encrypted>)"),
             },
-            Self::CompressedList(_) => write!(f, "RuntimeValue::CompressedList(?)"),
             Self::FheUintKVStore(kv) => {
                 write!(f, "RuntimeValue::FheUintKVStore(<{} entries>)", kv.len())
             }
@@ -239,7 +250,7 @@ impl From<bool> for RuntimeValue {
     }
 }
 
-macro_rules! impl_exec_value_from_unsigned {
+macro_rules! impl_runtime_value_from_unsigned {
     ($($ty:ty),*) => {
         $(
             impl From<$ty> for RuntimeValue {
@@ -250,9 +261,9 @@ macro_rules! impl_exec_value_from_unsigned {
         )*
     };
 }
-impl_exec_value_from_unsigned!(u8, u16, u32, u64, u128);
+impl_runtime_value_from_unsigned!(u8, u16, u32, u64, u128);
 
-macro_rules! impl_exec_value_from_signed {
+macro_rules! impl_runtime_value_from_signed {
     ($($ty:ty),*) => {
         $(
             impl From<$ty> for RuntimeValue {
@@ -263,31 +274,36 @@ macro_rules! impl_exec_value_from_signed {
         )*
     };
 }
-impl_exec_value_from_signed!(i8, i16, i32, i64, i128);
+impl_runtime_value_from_signed!(i8, i16, i32, i64, i128);
 
 /// Failure of `TryFrom<RuntimeValue>` for one of the output types (`FheUint<Id>`,
-/// `FheInt<Id>`, `FheBool`, `CompressedCiphertextList`, and clear scalars).
+/// `FheInt<Id>`, `FheBool`, and clear scalars).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum RuntimeValueConversionError {
     /// The `RuntimeValue` variant doesn't match the requested type.
     /// `expected_variant` is a short tag for the destination type
-    /// (e.g. `"FheUint"`, `"FheBool"`).
-    WrongVariant { expected_variant: &'static str },
+    /// (e.g. `"FheUint"`, `"FheBool"`), `got_variant` the name of the
+    /// variant actually held.
+    WrongVariant {
+        expected_variant: &'static str,
+        got_variant: &'static str,
+    },
     /// Radix block count doesn't match the target `FheUintId` / `FheIntId`
     /// for the active `message_modulus`.
     BlockCountMismatch {
         type_name: &'static str,
-        expected_blocks: usize,
-        expected_bits: usize,
-        actual_blocks: usize,
+        expected_blocks: u32,
+        expected_bits: u32,
+        actual_blocks: u32,
+        actual_bits: u32,
     },
     /// Radix ciphertext is empty — defensive, shouldn't happen in well-formed
     /// programs
     EmptyRadix,
     /// A retrieved KVStore contains a key that does not fit the requested
-    /// clear key type.
-    KvKeyOutOfRange { key: u128 },
+    /// clear key type `key_type`.
+    KvKeyOutOfRange { key: u128, key_type: &'static str },
     /// A clear integer output does not fit the requested Rust integer type.
     ClearIntegerOutOfRange {
         value: ScalarValue,
@@ -298,8 +314,14 @@ pub enum RuntimeValueConversionError {
 impl std::fmt::Display for RuntimeValueConversionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::WrongVariant { expected_variant } => {
-                write!(f, "RuntimeValue is not a {expected_variant}")
+            Self::WrongVariant {
+                expected_variant,
+                got_variant,
+            } => {
+                write!(
+                    f,
+                    "RuntimeValue is a {got_variant}, not a {expected_variant}"
+                )
             }
             Self::EmptyRadix => write!(f, "RuntimeValue radix has no blocks"),
             Self::BlockCountMismatch {
@@ -307,14 +329,16 @@ impl std::fmt::Display for RuntimeValueConversionError {
                 expected_blocks,
                 expected_bits,
                 actual_blocks,
+                actual_bits,
             } => write!(
                 f,
                 "RuntimeValue block count mismatch for {type_name}: \
-                 expected {expected_blocks} blocks ({expected_bits} bits), got {actual_blocks}"
+                 expected {expected_blocks} blocks ({expected_bits} bits), \
+                 got {actual_blocks} blocks ({actual_bits} bits)"
             ),
-            Self::KvKeyOutOfRange { key } => write!(
+            Self::KvKeyOutOfRange { key, key_type } => write!(
                 f,
-                "KVStore key {key} does not fit the requested clear key type"
+                "KVStore key {key} does not fit the requested clear key type {key_type}"
             ),
             Self::ClearIntegerOutOfRange { value, type_name } => {
                 write!(f, "clear integer {value:?} does not fit {type_name}")
@@ -330,8 +354,9 @@ impl TryFrom<RuntimeValue> for bool {
     fn try_from(value: RuntimeValue) -> Result<Self, Self::Error> {
         match value {
             RuntimeValue::ClearBool(v) => Ok(v),
-            _ => Err(RuntimeValueConversionError::WrongVariant {
+            other => Err(RuntimeValueConversionError::WrongVariant {
                 expected_variant: "bool",
+                got_variant: other.variant_name(),
             }),
         }
     }
@@ -351,8 +376,9 @@ macro_rules! impl_clear_unsigned_try_from {
                                 type_name: std::any::type_name::<$ty>(),
                             }
                         }),
-                        _ => Err(RuntimeValueConversionError::WrongVariant {
+                        other => Err(RuntimeValueConversionError::WrongVariant {
                             expected_variant: "ClearUint",
+                            got_variant: other.variant_name(),
                         }),
                     }
                 }
@@ -376,8 +402,9 @@ macro_rules! impl_clear_signed_try_from {
                                 type_name: std::any::type_name::<$ty>(),
                             }
                         }),
-                        _ => Err(RuntimeValueConversionError::WrongVariant {
+                        other => Err(RuntimeValueConversionError::WrongVariant {
                             expected_variant: "ClearInt",
+                            got_variant: other.variant_name(),
                         }),
                     }
                 }
@@ -407,14 +434,15 @@ where
                     .first()
                     .ok_or(RuntimeValueConversionError::EmptyRadix)?
                     .message_modulus;
-                let expected_blocks = Id::num_blocks(message_modulus);
-                let actual_blocks = radix.blocks().len();
+                let expected_blocks = Id::num_blocks(message_modulus) as u32;
+                let actual_blocks = radix.blocks().len() as u32;
                 if actual_blocks != expected_blocks {
                     return Err(RuntimeValueConversionError::BlockCountMismatch {
                         type_name: std::any::type_name::<Id>(),
                         expected_blocks,
-                        expected_bits: Id::num_bits(),
+                        expected_bits: Id::num_bits() as u32,
                         actual_blocks,
+                        actual_bits: actual_blocks * message_modulus.0.ilog2(),
                     });
                 }
                 Ok(Self::from_raw_parts(
@@ -424,23 +452,10 @@ where
                     ReRandomizationMetadata::default(),
                 ))
             }
-            _ => Err(RuntimeValueConversionError::WrongVariant {
+            other => Err(RuntimeValueConversionError::WrongVariant {
                 expected_variant: "FheUint",
+                got_variant: other.variant_name(),
             }),
-        }
-    }
-}
-
-impl TryFrom<RuntimeValue> for CompressedCiphertextList {
-    type Error = RuntimeValueConversionError;
-
-    fn try_from(value: RuntimeValue) -> Result<Self, Self::Error> {
-        if let RuntimeValue::CompressedList(list) = value {
-            Ok(list)
-        } else {
-            Err(RuntimeValueConversionError::WrongVariant {
-                expected_variant: "CompressedCiphertextList",
-            })
         }
     }
 }
@@ -462,8 +477,9 @@ impl TryFrom<RuntimeValue> for FheBool {
                 Tag::default(),
                 ReRandomizationMetadata::default(),
             )),
-            _ => Err(RuntimeValueConversionError::WrongVariant {
+            other => Err(RuntimeValueConversionError::WrongVariant {
                 expected_variant: "FheBool",
+                got_variant: other.variant_name(),
             }),
         }
     }
@@ -478,12 +494,6 @@ impl From<RadixCiphertext> for RuntimeValue {
 impl From<BooleanBlock> for RuntimeValue {
     fn from(value: BooleanBlock) -> Self {
         Self::FheBool(value)
-    }
-}
-
-impl From<CompressedCiphertextList> for RuntimeValue {
-    fn from(value: CompressedCiphertextList) -> Self {
-        Self::CompressedList(value)
     }
 }
 
@@ -508,8 +518,8 @@ where
 fn kv_store_narrow_keys<Key, Ct>(
     store: KVStore<u128, Ct>,
     type_name: &'static str,
-    expected_blocks_of: impl Fn(crate::shortint::MessageModulus) -> usize,
-    expected_bits: usize,
+    expected_blocks_of: impl Fn(crate::shortint::MessageModulus) -> u32,
+    expected_bits: u32,
 ) -> Result<KVStore<Key, Ct>, RuntimeValueConversionError>
 where
     Key: TryFrom<u128> + Ord,
@@ -522,33 +532,29 @@ where
             .ok_or(RuntimeValueConversionError::EmptyRadix)?
             .message_modulus;
         let expected_blocks = expected_blocks_of(message_modulus);
-        let actual_blocks = v.blocks().len();
+        let actual_blocks = v.blocks().len() as u32;
         if actual_blocks != expected_blocks {
             return Err(RuntimeValueConversionError::BlockCountMismatch {
                 type_name,
                 expected_blocks,
                 expected_bits,
                 actual_blocks,
+                actual_bits: actual_blocks * message_modulus.0.ilog2(),
             });
         }
     }
     let mut out = KVStore::new();
     for (k, v) in store {
-        let key = Key::try_from(k)
-            .map_err(|_| RuntimeValueConversionError::KvKeyOutOfRange { key: k })?;
+        let key = Key::try_from(k).map_err(|_| RuntimeValueConversionError::KvKeyOutOfRange {
+            key: k,
+            key_type: std::any::type_name::<Key>(),
+        })?;
         out.insert(key, v);
     }
     Ok(out)
 }
 
-/// Lets a [`KVStore`](crate::KVStore) (e.g. one retrieved from a previous
-/// execution via [`CpuOutputList::try_get`]) be supplied through
-/// [`CpuInputList::push`] for a circuit input declared as
-/// `ValueKind::KVStore`.
-///
-/// A GPU-resident store is copied back to the CPU first, which (like other
-/// KVStore operations) requires a cuda server key to be set and panics
-/// otherwise.
+// Allows to `.get` a KVStore from a [`CpuOutputList`]
 impl<Key, Id> From<HlKVStore<Key, FheUint<Id>>> for RuntimeValue
 where
     Key: Clone + Into<u128> + Ord,
@@ -596,14 +602,15 @@ where
                     .first()
                     .ok_or(RuntimeValueConversionError::EmptyRadix)?
                     .message_modulus;
-                let expected_blocks = Id::num_blocks(message_modulus);
-                let actual_blocks = radix.blocks().len();
+                let expected_blocks = Id::num_blocks(message_modulus) as u32;
+                let actual_blocks = radix.blocks().len() as u32;
                 if actual_blocks != expected_blocks {
                     return Err(RuntimeValueConversionError::BlockCountMismatch {
                         type_name: std::any::type_name::<Id>(),
                         expected_blocks,
-                        expected_bits: Id::num_bits(),
+                        expected_bits: Id::num_bits() as u32,
                         actual_blocks,
+                        actual_bits: actual_blocks * message_modulus.0.ilog2(),
                     });
                 }
                 Ok(Self::from_raw_parts(
@@ -613,8 +620,9 @@ where
                     ReRandomizationMetadata::default(),
                 ))
             }
-            _ => Err(RuntimeValueConversionError::WrongVariant {
+            other => Err(RuntimeValueConversionError::WrongVariant {
                 expected_variant: "FheInt",
+                got_variant: other.variant_name(),
             }),
         }
     }
@@ -637,13 +645,14 @@ where
                 let inner = kv_store_narrow_keys(
                     store,
                     std::any::type_name::<Id>(),
-                    Id::num_blocks,
-                    Id::num_bits(),
+                    |m| Id::num_blocks(m) as u32,
+                    Id::num_bits() as u32,
                 )?;
                 Ok(Self::from_cpu_inner(inner))
             }
-            _ => Err(RuntimeValueConversionError::WrongVariant {
+            other => Err(RuntimeValueConversionError::WrongVariant {
                 expected_variant: "FheUintKVStore",
+                got_variant: other.variant_name(),
             }),
         }
     }
@@ -663,13 +672,14 @@ where
                 let inner = kv_store_narrow_keys(
                     store,
                     std::any::type_name::<Id>(),
-                    Id::num_blocks,
-                    Id::num_bits(),
+                    |m| Id::num_blocks(m) as u32,
+                    Id::num_bits() as u32,
                 )?;
                 Ok(Self::from_cpu_inner(inner))
             }
-            _ => Err(RuntimeValueConversionError::WrongVariant {
+            other => Err(RuntimeValueConversionError::WrongVariant {
                 expected_variant: "FheIntKVStore",
+                got_variant: other.variant_name(),
             }),
         }
     }
@@ -695,7 +705,7 @@ impl CpuInputList {
 
     /// Push an OPRF seed input.
     pub fn push_seed(&mut self, seed: impl crate::shortint::OprfSeed) -> &mut Self {
-        self.inputs.push(RuntimeValue::Seed(seed.to_vec()));
+        self.inputs.push(RuntimeValue::Seed(seed.into_vec()));
         self
     }
 }
@@ -719,11 +729,11 @@ pub struct CpuOutputList {
 #[non_exhaustive]
 pub enum CpuOutputError {
     OutOfBounds {
-        index: usize,
-        len: usize,
+        index: u32,
+        len: u32,
     },
     WrongType {
-        index: usize,
+        index: u32,
         source: RuntimeValueConversionError,
     },
 }
@@ -779,7 +789,7 @@ impl CpuOutputList {
     ///
     /// Panics if the value stored in the slot is not type `T`,
     /// see [Self::try_get] for erroring variant
-    pub fn get<T>(&self, index: usize) -> T
+    pub fn get<T>(&self, index: u32) -> T
     where
         T: TryFrom<RuntimeValue, Error = RuntimeValueConversionError> + crate::prelude::Tagged,
     {
@@ -787,42 +797,46 @@ impl CpuOutputList {
     }
 
     /// Gets the result at `index`, tagged with [`Self::tag`]
-    pub fn try_get<T>(&self, index: usize) -> Result<T, CpuOutputError>
+    pub fn try_get<T>(&self, index: u32) -> Result<T, CpuOutputError>
     where
         T: TryFrom<RuntimeValue, Error = RuntimeValueConversionError> + crate::prelude::Tagged,
     {
-        let mut value = self.try_get_clear::<T>(index)?;
+        let mut value = self.try_get_untagged::<T>(index)?;
         *value.tag_mut() = self.tag.clone();
         Ok(value)
     }
 
-    /// Gets a clear (non-encrypted) result at `index`, e.g. the clear
-    /// `bool` produced by a clear-key KVStore lookup. Clear values carry
-    /// no tag, so unlike [`Self::try_get`] this has no `Tagged` bound.
+    /// Gets the result at `index` without stamping it with [`Self::tag`].
+    ///
+    /// Unlike [`Self::get`] this has no `Tagged` bound, so it is the way to
+    /// retrieve clear (non-encrypted) results such as the `bool` produced by
+    /// a clear-key KVStore lookup. It also works for encrypted results when
+    /// the caller does not want the server key's tag applied.
     ///
     /// # Panics
     ///
     /// Panics if the value stored in the slot is not type `T`,
-    /// see [Self::try_get_clear] for erroring variant
-    pub fn get_clear<T>(&self, index: usize) -> T
+    /// see [Self::try_get_untagged] for erroring variant
+    pub fn get_untagged<T>(&self, index: u32) -> T
     where
         T: TryFrom<RuntimeValue, Error = RuntimeValueConversionError>,
     {
-        self.try_get_clear(index).unwrap_or_else(|e| panic!("{e}"))
+        self.try_get_untagged(index)
+            .unwrap_or_else(|e| panic!("{e}"))
     }
 
-    /// Gets a clear (non-encrypted) result at `index`.
-    /// See [`Self::get_clear`].
-    pub fn try_get_clear<T>(&self, index: usize) -> Result<T, CpuOutputError>
+    /// Gets the result at `index` without stamping it with [`Self::tag`].
+    /// See [`Self::get_untagged`].
+    pub fn try_get_untagged<T>(&self, index: u32) -> Result<T, CpuOutputError>
     where
         T: TryFrom<RuntimeValue, Error = RuntimeValueConversionError>,
     {
         let value = self
             .outputs
-            .get(index)
+            .get(index as usize)
             .ok_or(CpuOutputError::OutOfBounds {
                 index,
-                len: self.outputs.len(),
+                len: self.outputs.len() as u32,
             })?
             .clone();
         T::try_from(value).map_err(|source| CpuOutputError::WrongType { index, source })

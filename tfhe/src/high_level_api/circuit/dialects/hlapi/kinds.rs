@@ -4,7 +4,7 @@
 //!
 //! - [`FheIntKind`]: integer types (`Uint`, `Int`). Used by arithmetic, ordering, shift-lhs,
 //!   negation, scalar-arith, scalar-shift.
-//! - [`FheKind`]: any non-compressed FHE type (`Uint`, `Int`, `Bool`). Used by bitwise, equality,
+//! - [`FheKind`]: any FHE ciphertext type (`Uint`, `Int`, `Bool`). Used by bitwise, equality,
 //!   scalar-bitwise, scalar-eq.
 //! - [`ClearKind`]: any clear (non-encrypted) value type (`Uint`, `Int`, `Bool`). Used by
 //!   `Constant` ops and as the "scalar-side" operand kind of every `*Scalar*` op family.
@@ -24,8 +24,8 @@ impl FheIntKind {
     /// `Constant` to feed a `*Scalar*` op's clear-side operand.
     pub fn as_clear_value_kind(self) -> ValueKind {
         match self {
-            Self::Uint(n) => ValueKind::Uint(n as usize),
-            Self::Int(n) => ValueKind::Int(n as usize),
+            Self::Uint(n) => ValueKind::Uint(n),
+            Self::Int(n) => ValueKind::Int(n),
         }
     }
 
@@ -50,12 +50,12 @@ impl FheIntKind {
     /// `ValueKind` counterpart of [`Self::as_unsigned_clear_kind`].
     pub fn as_unsigned_clear_value_kind(self) -> ValueKind {
         match self {
-            Self::Uint(n) | Self::Int(n) => ValueKind::Uint(n as usize),
+            Self::Uint(n) | Self::Int(n) => ValueKind::Uint(n),
         }
     }
 }
 
-/// Kinds that support bitwise ops and equality. Excludes `CompressedList`.
+/// FHE ciphertext kinds: the ones that support bitwise ops and equality.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum FheKind {
@@ -67,11 +67,11 @@ pub enum FheKind {
 impl FheKind {
     /// Returns the matching clear `ValueKind` (e.g. `FheKind::Bool`
     /// → `ValueKind::Bool`). Used by the builder for `EncryptTrivial` and
-    /// other ops that consume a clear operand sized to a non-compressed kind.
+    /// other ops that consume a clear operand sized to an FHE kind.
     pub fn as_clear_value_kind(self) -> ValueKind {
         match self {
-            Self::Uint(n) => ValueKind::Uint(n as usize),
-            Self::Int(n) => ValueKind::Int(n as usize),
+            Self::Uint(n) => ValueKind::Uint(n),
+            Self::Int(n) => ValueKind::Int(n),
             Self::Bool => ValueKind::Bool,
         }
     }
@@ -107,8 +107,8 @@ pub struct KindConvertError {
 impl From<FheIntKind> for ValueKind {
     fn from(k: FheIntKind) -> Self {
         match k {
-            FheIntKind::Uint(n) => Self::FheUint(n as usize),
-            FheIntKind::Int(n) => Self::FheInt(n as usize),
+            FheIntKind::Uint(n) => Self::FheUint(n),
+            FheIntKind::Int(n) => Self::FheInt(n),
         }
     }
 }
@@ -117,15 +117,9 @@ impl TryFrom<ValueKind> for FheIntKind {
     type Error = KindConvertError;
 
     fn try_from(k: ValueKind) -> Result<Self, Self::Error> {
-        // Widths above u32::MAX are unrepresentable in the sub-enum;
-        // reject rather than silently truncate.
         match k {
-            ValueKind::FheUint(n) => u32::try_from(n)
-                .map(Self::Uint)
-                .map_err(|_| KindConvertError { from: k }),
-            ValueKind::FheInt(n) => u32::try_from(n)
-                .map(Self::Int)
-                .map_err(|_| KindConvertError { from: k }),
+            ValueKind::FheUint(n) => Ok(Self::Uint(n)),
+            ValueKind::FheInt(n) => Ok(Self::Int(n)),
             _ => Err(KindConvertError { from: k }),
         }
     }
@@ -134,8 +128,8 @@ impl TryFrom<ValueKind> for FheIntKind {
 impl From<FheKind> for ValueKind {
     fn from(k: FheKind) -> Self {
         match k {
-            FheKind::Uint(n) => Self::FheUint(n as usize),
-            FheKind::Int(n) => Self::FheInt(n as usize),
+            FheKind::Uint(n) => Self::FheUint(n),
+            FheKind::Int(n) => Self::FheInt(n),
             FheKind::Bool => Self::FheBool,
         }
     }
@@ -146,12 +140,8 @@ impl TryFrom<ValueKind> for FheKind {
 
     fn try_from(k: ValueKind) -> Result<Self, Self::Error> {
         match k {
-            ValueKind::FheUint(n) => u32::try_from(n)
-                .map(Self::Uint)
-                .map_err(|_| KindConvertError { from: k }),
-            ValueKind::FheInt(n) => u32::try_from(n)
-                .map(Self::Int)
-                .map_err(|_| KindConvertError { from: k }),
+            ValueKind::FheUint(n) => Ok(Self::Uint(n)),
+            ValueKind::FheInt(n) => Ok(Self::Int(n)),
             ValueKind::FheBool => Ok(Self::Bool),
             _ => Err(KindConvertError { from: k }),
         }
@@ -161,8 +151,8 @@ impl TryFrom<ValueKind> for FheKind {
 impl From<ClearKind> for ValueKind {
     fn from(k: ClearKind) -> Self {
         match k {
-            ClearKind::Uint(n) => Self::Uint(n as usize),
-            ClearKind::Int(n) => Self::Int(n as usize),
+            ClearKind::Uint(n) => Self::Uint(n),
+            ClearKind::Int(n) => Self::Int(n),
             ClearKind::Bool => Self::Bool,
         }
     }
@@ -173,12 +163,8 @@ impl TryFrom<ValueKind> for ClearKind {
 
     fn try_from(k: ValueKind) -> Result<Self, Self::Error> {
         match k {
-            ValueKind::Uint(n) => u32::try_from(n)
-                .map(Self::Uint)
-                .map_err(|_| KindConvertError { from: k }),
-            ValueKind::Int(n) => u32::try_from(n)
-                .map(Self::Int)
-                .map_err(|_| KindConvertError { from: k }),
+            ValueKind::Uint(n) => Ok(Self::Uint(n)),
+            ValueKind::Int(n) => Ok(Self::Int(n)),
             ValueKind::Bool => Ok(Self::Bool),
             _ => Err(KindConvertError { from: k }),
         }
@@ -199,7 +185,7 @@ mod tests {
     }
 
     #[test]
-    fn non_compressed_kind_round_trips() {
+    fn fhe_kind_round_trips() {
         for k in [FheKind::Uint(32), FheKind::Int(64), FheKind::Bool] {
             let v: ValueKind = k.into();
             let back: FheKind = v.try_into().unwrap();
@@ -208,14 +194,8 @@ mod tests {
     }
 
     #[test]
-    fn int_kind_rejects_bool_and_compressed() {
+    fn int_kind_rejects_bool() {
         assert!(FheIntKind::try_from(ValueKind::FheBool).is_err());
-        assert!(FheIntKind::try_from(ValueKind::CompressedList).is_err());
-    }
-
-    #[test]
-    fn non_compressed_kind_rejects_compressed() {
-        assert!(FheKind::try_from(ValueKind::CompressedList).is_err());
     }
 
     #[test]
@@ -228,10 +208,9 @@ mod tests {
     }
 
     #[test]
-    fn clear_kind_rejects_fhe_and_compressed() {
+    fn clear_kind_rejects_fhe() {
         assert!(ClearKind::try_from(ValueKind::FheUint(32)).is_err());
         assert!(ClearKind::try_from(ValueKind::FheBool).is_err());
-        assert!(ClearKind::try_from(ValueKind::CompressedList).is_err());
     }
 
     #[test]
@@ -247,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn non_compressed_kind_as_clear_value_kind() {
+    fn fhe_kind_as_clear_value_kind() {
         assert_eq!(FheKind::Uint(32).as_clear_value_kind(), ValueKind::Uint(32));
         assert_eq!(FheKind::Int(64).as_clear_value_kind(), ValueKind::Int(64));
         assert_eq!(FheKind::Bool.as_clear_value_kind(), ValueKind::Bool);

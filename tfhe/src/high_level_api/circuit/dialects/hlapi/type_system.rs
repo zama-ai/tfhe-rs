@@ -9,19 +9,17 @@ use zhc_ir::DialectTypeSystem;
 #[non_exhaustive]
 pub enum ValueKind {
     /// Encrypted unsigned integer with n bits
-    FheUint(usize),
+    FheUint(u32),
     /// Encrypted signed integer with n bits
-    FheInt(usize),
+    FheInt(u32),
     /// A boolean
     FheBool,
     /// A clear boolean
     Bool,
     /// A clear unsigned integer with n bits
-    Uint(usize),
+    Uint(u32),
     /// A clear signed integer with n bits
-    Int(usize),
-    /// A Compressed ciphertext list
-    CompressedList,
+    Int(u32),
     /// A KVStore is a sort of HashMap, it associates clear keys to encrypted values
     /// and allows to do queries using encrypted keys
     KVStore { key: KvKeyKind, value: FheIntKind },
@@ -39,7 +37,7 @@ pub enum KvKeyKind {
 
 impl KvKeyKind {
     /// Returns the number of bits necessary
-    pub fn bits(self) -> usize {
+    pub fn bits(self) -> u32 {
         match self {
             Self::U32 => 32,
             Self::U64 => 64,
@@ -281,7 +279,7 @@ impl ScalarValue {
 }
 
 /// Does the `value` fit in an unsigned type that has `bits` bits?
-fn unsigned_fits_bits(value: u128, bits: usize) -> bool {
+fn unsigned_fits_bits(value: u128, bits: u32) -> bool {
     match bits {
         0 => false,
         128.. => true,
@@ -290,15 +288,47 @@ fn unsigned_fits_bits(value: u128, bits: usize) -> bool {
 }
 
 /// Does the `value` fit in a signed type that has `bits` bits?
-fn signed_fits_bits(value: i128, bits: usize) -> bool {
+fn signed_fits_bits(value: i128, bits: u32) -> bool {
     match bits {
         0 => false,
-        1 => (-1..=0).contains(&value),
         128.. => true,
         _ => {
             let min = -(1i128 << (bits - 1));
             let max = (1i128 << (bits - 1)) - 1;
             (min..=max).contains(&value)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signed_fits_bits_edges() {
+        assert!(!signed_fits_bits(0, 0));
+        // 1 bit: only -1 and 0 are representable.
+        assert!(signed_fits_bits(-1, 1));
+        assert!(signed_fits_bits(0, 1));
+        assert!(!signed_fits_bits(1, 1));
+        assert!(!signed_fits_bits(-2, 1));
+        // 8 bits.
+        assert!(signed_fits_bits(i128::from(i8::MIN), 8));
+        assert!(signed_fits_bits(i128::from(i8::MAX), 8));
+        assert!(!signed_fits_bits(i128::from(i8::MAX) + 1, 8));
+        assert!(!signed_fits_bits(i128::from(i8::MIN) - 1, 8));
+        // >= 128 bits: everything fits.
+        assert!(signed_fits_bits(i128::MIN, 128));
+        assert!(signed_fits_bits(i128::MAX, 200));
+    }
+
+    #[test]
+    fn unsigned_fits_bits_edges() {
+        assert!(!unsigned_fits_bits(0, 0));
+        assert!(unsigned_fits_bits(1, 1));
+        assert!(!unsigned_fits_bits(2, 1));
+        assert!(unsigned_fits_bits(u128::from(u8::MAX), 8));
+        assert!(!unsigned_fits_bits(u128::from(u8::MAX) + 1, 8));
+        assert!(unsigned_fits_bits(u128::MAX, 128));
     }
 }

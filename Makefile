@@ -1390,7 +1390,7 @@ test_circuit_api:
 .PHONY: test_high_level_api # Run all the tests for high_level_api, including the Circuit API
 test_high_level_api: test_circuit_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental -p tfhe \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
 		-- high_level_api:: --skip test_noise_check
 
 test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for high_level_api except test_uniformity for oprf which is too long

@@ -157,21 +157,6 @@ impl ServerKey {
         )
     }
 
-    // Only used by the experimental circuit API (Compress / Decompress ops).
-    #[cfg(feature = "experimental")]
-    pub(in crate::high_level_api) fn compression_key(
-        &self,
-    ) -> Option<&crate::integer::compression_keys::CompressionKey> {
-        self.key.compression_key.as_ref()
-    }
-
-    #[cfg(feature = "experimental")]
-    pub(in crate::high_level_api) fn decompression_key(
-        &self,
-    ) -> Option<&crate::integer::compression_keys::DecompressionKey> {
-        self.key.decompression_key.as_ref()
-    }
-
     #[cfg(feature = "strings")]
     pub(in crate::high_level_api) fn string_key(&self) -> crate::strings::ServerKeyRef<'_> {
         crate::strings::ServerKeyRef::new(self.key.pbs_key())
@@ -743,6 +728,17 @@ impl<'a> From<&'a CudaServerKey> for InternalServerKeyRef<'a> {
 }
 
 impl InternalServerKey {
+    /// The tag ciphertexts produced with this key are stamped with
+    pub(crate) fn tag(&self) -> &Tag {
+        match self {
+            Self::Cpu(key) => &key.tag,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(key) => &key.tag,
+            #[cfg(feature = "hpu")]
+            Self::Hpu(device) => &device.tag,
+        }
+    }
+
     pub(crate) fn device(&self) -> Device {
         match self {
             Self::Cpu(_) => Device::Cpu,

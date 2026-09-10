@@ -1,7 +1,7 @@
 //! Backend-generic test cases for the dialect executor.
 //!
 //! Each function builds a circuit, runs it through an `impl ExecutionBackend`
-//! (via `execute_cpu_io`), and checks decrypted outputs. They are parameterised
+//! (via `execute`), and checks decrypted outputs. They are parameterised
 //! over the backend so the same cases can be re-run against any backend (e.g. a
 //! future GPU backend) by passing a different `ExecutionBackend` implementation.
 use rand::rngs::ThreadRng;
@@ -54,7 +54,7 @@ fn rand_i32_nonzero(rng: &mut ThreadRng) -> i32 {
 
 fn check_uint32_binary<B: ExecutionBackend, F, G, R>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -83,11 +83,11 @@ fn check_uint32_binary<B: ExecutionBackend, F, G, R>(
         inputs.push(FheUint32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
-        let dec: u32 = outputs.get::<FheUint32>(i).decrypt(ck);
+        let dec: u32 = outputs.get::<FheUint32>(i as u32).decrypt(ck);
         let expected = clear(a, c);
         assert_eq!(
             dec, expected,
@@ -98,7 +98,7 @@ fn check_uint32_binary<B: ExecutionBackend, F, G, R>(
 
 fn check_uint32_compare<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -123,11 +123,11 @@ fn check_uint32_compare<B: ExecutionBackend, F, G>(
         inputs.push(FheUint32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
-        let dec: bool = outputs.get::<FheBool>(i).decrypt(ck);
+        let dec: bool = outputs.get::<FheBool>(i as u32).decrypt(ck);
         let expected = clear(a, c);
         assert_eq!(
             dec, expected,
@@ -138,7 +138,7 @@ fn check_uint32_compare<B: ExecutionBackend, F, G>(
 
 fn check_uint32_unary<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -161,11 +161,11 @@ fn check_uint32_unary<B: ExecutionBackend, F, G>(
         b.output(r).unwrap();
         inputs.push(FheUint32::encrypt(a, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &a) in cases.iter().enumerate() {
-        let dec: u32 = outputs.get::<FheUint32>(i).decrypt(ck);
+        let dec: u32 = outputs.get::<FheUint32>(i as u32).decrypt(ck);
         let expected = clear(a);
         assert_eq!(dec, expected, "{name}({a}) = {dec}, expected {expected}");
     }
@@ -173,7 +173,7 @@ fn check_uint32_unary<B: ExecutionBackend, F, G>(
 
 fn check_uint32_overflowing<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -200,12 +200,12 @@ fn check_uint32_overflowing<B: ExecutionBackend, F, G>(
         inputs.push(FheUint32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
-        let dec_val: u32 = outputs.get::<FheUint32>(2 * i).decrypt(ck);
-        let dec_ovf: bool = outputs.get::<FheBool>(2 * i + 1).decrypt(ck);
+        let dec_val: u32 = outputs.get::<FheUint32>(2 * i as u32).decrypt(ck);
+        let dec_ovf: bool = outputs.get::<FheBool>(2 * i as u32 + 1).decrypt(ck);
         let (exp_val, exp_ovf) = clear(a, c);
         assert_eq!((dec_val, dec_ovf), (exp_val, exp_ovf), "{name}({a}, {c})");
     }
@@ -216,7 +216,7 @@ fn check_uint32_overflowing<B: ExecutionBackend, F, G>(
 /// (which encodes the direction) and the scalar baked in.
 fn check_uint32_scalar<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -239,11 +239,11 @@ fn check_uint32_scalar<B: ExecutionBackend, F, G>(
         b.output(r).unwrap();
         inputs.push(FheUint32::encrypt(a, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &a) in cases.iter().enumerate() {
-        let dec: u32 = outputs.get::<FheUint32>(i).decrypt(ck);
+        let dec: u32 = outputs.get::<FheUint32>(i as u32).decrypt(ck);
         let expected = clear(a);
         assert_eq!(dec, expected, "{name}({a}) = {dec}, expected {expected}");
     }
@@ -251,7 +251,7 @@ fn check_uint32_scalar<B: ExecutionBackend, F, G>(
 
 fn check_uint32_scalar_compare<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -274,11 +274,11 @@ fn check_uint32_scalar_compare<B: ExecutionBackend, F, G>(
         b.output(r).unwrap();
         inputs.push(FheUint32::encrypt(a, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &a) in cases.iter().enumerate() {
-        let dec: bool = outputs.get::<FheBool>(i).decrypt(ck);
+        let dec: bool = outputs.get::<FheBool>(i as u32).decrypt(ck);
         let expected = clear(a);
         assert_eq!(dec, expected, "{name}({a}) = {dec}, expected {expected}");
     }
@@ -290,7 +290,7 @@ fn check_uint32_scalar_compare<B: ExecutionBackend, F, G>(
 
 fn check_int32_binary<B: ExecutionBackend, F, G, R>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -317,11 +317,11 @@ fn check_int32_binary<B: ExecutionBackend, F, G, R>(
         inputs.push(FheInt32::encrypt(a, ck));
         inputs.push(FheInt32::encrypt(c, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
-        let dec: i32 = outputs.get::<FheInt32>(i).decrypt(ck);
+        let dec: i32 = outputs.get::<FheInt32>(i as u32).decrypt(ck);
         let expected = clear(a, c);
         assert_eq!(
             dec, expected,
@@ -332,7 +332,7 @@ fn check_int32_binary<B: ExecutionBackend, F, G, R>(
 
 fn check_int32_compare<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -357,11 +357,11 @@ fn check_int32_compare<B: ExecutionBackend, F, G>(
         inputs.push(FheInt32::encrypt(a, ck));
         inputs.push(FheInt32::encrypt(c, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
-        let dec: bool = outputs.get::<FheBool>(i).decrypt(ck);
+        let dec: bool = outputs.get::<FheBool>(i as u32).decrypt(ck);
         let expected = clear(a, c);
         assert_eq!(
             dec, expected,
@@ -372,7 +372,7 @@ fn check_int32_compare<B: ExecutionBackend, F, G>(
 
 fn check_int32_unary<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -395,11 +395,11 @@ fn check_int32_unary<B: ExecutionBackend, F, G>(
         b.output(r).unwrap();
         inputs.push(FheInt32::encrypt(a, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &a) in cases.iter().enumerate() {
-        let dec: i32 = outputs.get::<FheInt32>(i).decrypt(ck);
+        let dec: i32 = outputs.get::<FheInt32>(i as u32).decrypt(ck);
         let expected = clear(a);
         assert_eq!(dec, expected, "{name}({a}) = {dec}, expected {expected}");
     }
@@ -407,7 +407,7 @@ fn check_int32_unary<B: ExecutionBackend, F, G>(
 
 fn check_int32_overflowing<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -434,62 +434,62 @@ fn check_int32_overflowing<B: ExecutionBackend, F, G>(
         inputs.push(FheInt32::encrypt(a, ck));
         inputs.push(FheInt32::encrypt(c, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
-        let dec_val: i32 = outputs.get::<FheInt32>(2 * i).decrypt(ck);
-        let dec_ovf: bool = outputs.get::<FheBool>(2 * i + 1).decrypt(ck);
+        let dec_val: i32 = outputs.get::<FheInt32>(2 * i as u32).decrypt(ck);
+        let dec_ovf: bool = outputs.get::<FheBool>(2 * i as u32 + 1).decrypt(ck);
         let (exp_val, exp_ovf) = clear(a, c);
         assert_eq!((dec_val, dec_ovf), (exp_val, exp_ovf), "{name}({a}, {c})");
     }
 }
 
-pub(crate) fn fheuint32_is_even_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_is_even_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_is_even(v).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     for a in [0u32, 1, 2, 3, u32::MAX, 0xDEAD_BEEF] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
         assert_eq!(dec, a % 2 == 0, "is_even({a}) = {dec}");
     }
 }
 
-pub(crate) fn fheuint32_is_odd_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_is_odd_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_is_odd(v).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     for a in [0u32, 1, 2, 3, u32::MAX, 0xDEAD_BEEF] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
         assert_eq!(dec, a % 2 == 1, "is_odd({a}) = {dec}");
     }
 }
 
-pub(crate) fn fheuint32_checked_ilog2_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_checked_ilog2_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let (log, present) = b.fhe_checked_ilog2(v).unwrap();
     b.output(log).unwrap();
     b.output(present).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     // Include 0 — `checked_ilog2(0)` should return present=false.
     for a in [0u32, 1, 2, 3, 7, u32::MAX, 0xDEAD_BEEF] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec_log: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_present: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let expected_present = a > 0;
@@ -500,18 +500,18 @@ pub(crate) fn fheuint32_checked_ilog2_case<B: ExecutionBackend>(ck: &ClientKey, 
     }
 }
 
-pub(crate) fn fheuint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let (r, o) = b.fhe_overflowing_neg(v).unwrap();
     b.output(r).unwrap();
     b.output(o).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     for a in [0u32, 1, u32::MAX, 0xDEAD_BEEF] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec_val: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_ovf: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let (exp_val, exp_ovf) = a.overflowing_neg();
@@ -523,18 +523,18 @@ pub(crate) fn fheuint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey
     }
 }
 
-pub(crate) fn fheint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let v = b.input(ValueKind::FheInt(32)).unwrap();
     let (r, o) = b.fhe_overflowing_neg(v).unwrap();
     b.output(r).unwrap();
     b.output(o).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     for a in [0i32, 1, -1, i32::MIN, i32::MAX] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheInt32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec_val: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         let dec_ovf: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let (exp_val, exp_ovf) = a.overflowing_neg();
@@ -546,20 +546,20 @@ pub(crate) fn fheint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey,
     }
 }
 
-pub(crate) fn fheuint32_div_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_div_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let l = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.input(ValueKind::FheUint(32)).unwrap();
     let (q, m) = b.fhe_div_rem(l, r).unwrap();
     b.output(q).unwrap();
     b.output(m).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     for (a, c) in [(42u32, 5), (100, 7), (u32::MAX, 1), (0, 12345)] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec_q: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_m: u32 = outputs.get::<FheUint32>(1).decrypt(ck);
         assert_eq!(dec_q, a / c, "div_rem({a}, {c}).0");
@@ -569,7 +569,7 @@ pub(crate) fn fheuint32_div_rem_case<B: ExecutionBackend>(ck: &ClientKey, backen
 
 pub(crate) fn fheuint32_scalar_overflowing_add_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     const S: u32 = 42;
     let mut b = CircuitBuilder::new();
@@ -577,12 +577,12 @@ pub(crate) fn fheuint32_scalar_overflowing_add_case<B: ExecutionBackend>(
     let (r, o) = b.fhe_overflowing_add(v, S).unwrap();
     b.output(r).unwrap();
     b.output(o).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     for a in [0u32, 1, u32::MAX - 10, u32::MAX] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec_val: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_ovf: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let (exp_val, exp_ovf) = a.overflowing_add(S);
@@ -596,7 +596,7 @@ pub(crate) fn fheuint32_scalar_overflowing_add_case<B: ExecutionBackend>(
 
 pub(crate) fn fheuint32_scalar_overflowing_sub_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     const S: u32 = 42;
     let mut b = CircuitBuilder::new();
@@ -604,12 +604,12 @@ pub(crate) fn fheuint32_scalar_overflowing_sub_case<B: ExecutionBackend>(
     let (r, o) = b.fhe_overflowing_sub(v, S).unwrap();
     b.output(r).unwrap();
     b.output(o).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     for a in [0u32, 1, S, S + 1, u32::MAX] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec_val: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_ovf: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let (exp_val, exp_ovf) = a.overflowing_sub(S);
@@ -621,7 +621,10 @@ pub(crate) fn fheuint32_scalar_overflowing_sub_case<B: ExecutionBackend>(
     }
 }
 
-pub(crate) fn fheuint8_fused_mul_scalar_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint8_fused_mul_scalar_div_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     use crate::FheUint8;
 
     // (a * b) / div_scalar with widening; FheUint8 -> wide FheUint16.
@@ -632,14 +635,14 @@ pub(crate) fn fheuint8_fused_mul_scalar_div_case<B: ExecutionBackend>(ck: &Clien
     // ScalarValue::Unsigned holds u128; we feed via u32 (any unsigned works).
     let result = b.fhe_fused_mul_scalar_div(l, r, DIV as u128).unwrap();
     b.output(result).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     // Widened arithmetic prevents the mul from overflowing u8 before the div.
     for (a, c) in [(7u8, 9u8), (200, 200), (255, 255), (1, 1), (0, 200)] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint8::encrypt(a, ck));
         inputs.push(FheUint8::encrypt(c, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: u8 = outputs.get::<FheUint8>(0).decrypt(ck);
         let expected = ((a as u16 * c as u16) / DIV as u16) as u8;
         assert_eq!(dec, expected, "fused_mul_scalar_div({a}, {c}, /{DIV})");
@@ -648,7 +651,7 @@ pub(crate) fn fheuint8_fused_mul_scalar_div_case<B: ExecutionBackend>(ck: &Clien
 
 pub(crate) fn fheuint8_fused_scalar_mul_scalar_div_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     use crate::FheUint8;
 
@@ -661,12 +664,12 @@ pub(crate) fn fheuint8_fused_scalar_mul_scalar_div_case<B: ExecutionBackend>(
         .fhe_fused_scalar_mul_scalar_div(v, MUL as u128, DIV as u128)
         .unwrap();
     b.output(result).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     for a in [0u8, 1, 100, 200, 255] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint8::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: u8 = outputs.get::<FheUint8>(0).decrypt(ck);
         let expected = ((a as u16 * MUL as u16) / DIV as u16) as u8;
         assert_eq!(
@@ -682,7 +685,7 @@ pub(crate) fn fheuint8_fused_scalar_mul_scalar_div_case<B: ExecutionBackend>(
 
 fn check_int32_shift<B: ExecutionBackend, F, G, R>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
     name: &str,
     build: F,
     clear: G,
@@ -709,11 +712,11 @@ fn check_int32_shift<B: ExecutionBackend, F, G, R>(
         inputs.push(FheInt32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
     }
-    let circuit = b.build();
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let circuit = b.build().unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
-        let dec: i32 = outputs.get::<FheInt32>(i).decrypt(ck);
+        let dec: i32 = outputs.get::<FheInt32>(i as u32).decrypt(ck);
         let expected = clear(a, c);
         assert_eq!(
             dec, expected,
@@ -722,50 +725,56 @@ fn check_int32_shift<B: ExecutionBackend, F, G, R>(
     }
 }
 
-pub(crate) fn cast_fheuint32_to_fheint32_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn cast_fheuint32_to_fheint32_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     let mut b = CircuitBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_cast(v, FheKind::Int(32)).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
         let a: u32 = rng.gen();
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         assert_eq!(dec, a as i32);
     }
 }
 
-pub(crate) fn cast_fheint32_to_fheuint32_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn cast_fheint32_to_fheuint32_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     let mut b = CircuitBuilder::new();
     let v = b.input(ValueKind::FheInt(32)).unwrap();
     let r = b.fhe_cast(v, FheKind::Uint(32)).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
         let a: i32 = rng.gen();
         let mut inputs = CpuInputList::new();
         inputs.push(FheInt32::encrypt(a, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, a as u32);
     }
 }
 
-pub(crate) fn cmux_fheuint32_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn cmux_fheuint32_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     let if_true = b.input(ValueKind::FheUint(32)).unwrap();
     let if_false = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_select(cond, if_true, if_false).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -776,42 +785,45 @@ pub(crate) fn cmux_fheuint32_case<B: ExecutionBackend>(ck: &ClientKey, backend: 
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheUint32::encrypt(t, ck));
         inputs.push(FheUint32::encrypt(f, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, if c { t } else { f });
     }
 }
 
-pub(crate) fn oprf_fheuint32_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn oprf_fheuint32_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf(ValueKind::FheUint(32), seed).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(0));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let _dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
     // No bound to check — any u32 is valid. The fact that decryption succeeds
     // and the value typechecks as u32 is the test.
 }
 
-pub(crate) fn oprf_fheuint32_bounded_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn oprf_fheuint32_bounded_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf_bounded(ValueKind::FheUint(32), seed, 5).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(42));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
     assert!(dec < (1 << 5), "bounded result {dec} must be < 2^5");
 }
 
-pub(crate) fn oprf_fheuint32_custom_range_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn oprf_fheuint32_custom_range_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     let upper = std::num::NonZeroU64::new(7).unwrap();
     let mut b = CircuitBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
@@ -819,11 +831,11 @@ pub(crate) fn oprf_fheuint32_custom_range_case<B: ExecutionBackend>(ck: &ClientK
         .oprf_custom_range(ValueKind::FheUint(32), seed, upper, None)
         .unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(123));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
     assert!(
         (dec as u64) < upper.get(),
@@ -831,30 +843,30 @@ pub(crate) fn oprf_fheuint32_custom_range_case<B: ExecutionBackend>(ck: &ClientK
     );
 }
 
-pub(crate) fn oprf_fheint32_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn oprf_fheint32_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf(ValueKind::FheInt(32), seed).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(7));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let _dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
     // Any i32 is valid.
 }
 
-pub(crate) fn oprf_fheint32_bounded_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn oprf_fheint32_bounded_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf_bounded(ValueKind::FheInt(32), seed, 4).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(99));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
     // Signed bounded is uniform in [0, 2^bits).
     assert!(
@@ -863,27 +875,27 @@ pub(crate) fn oprf_fheint32_bounded_case<B: ExecutionBackend>(ck: &ClientKey, ba
     );
 }
 
-pub(crate) fn oprf_fhebool_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn oprf_fhebool_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf(ValueKind::FheBool, seed).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(13));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let _dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     // Any bool is valid.
 }
 
-pub(crate) fn oprf_is_deterministic_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn oprf_is_deterministic_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let build_circuit = || {
         let mut b = CircuitBuilder::new();
         let seed = b.input(ValueKind::Seed).unwrap();
         let r = b.oprf_bounded(ValueKind::FheUint(32), seed, 8).unwrap();
         b.output(r).unwrap();
-        b.build()
+        b.build().unwrap()
     };
     let circuit_a = build_circuit();
     let circuit_b = build_circuit();
@@ -893,8 +905,8 @@ pub(crate) fn oprf_is_deterministic_case<B: ExecutionBackend>(ck: &ClientKey, ba
         inputs.push_seed(Seed(2024));
         inputs
     };
-    let out_a = backend.execute_cpu_io(&circuit_a, make_inputs()).unwrap();
-    let out_b = backend.execute_cpu_io(&circuit_b, make_inputs()).unwrap();
+    let out_a = backend.execute(&circuit_a, make_inputs()).unwrap();
+    let out_b = backend.execute(&circuit_b, make_inputs()).unwrap();
 
     let dec_a: u32 = out_a.get::<FheUint32>(0).decrypt(ck);
     let dec_b: u32 = out_b.get::<FheUint32>(0).decrypt(ck);
@@ -903,7 +915,7 @@ pub(crate) fn oprf_is_deterministic_case<B: ExecutionBackend>(ck: &ClientKey, ba
 
 pub(crate) fn select_fheuint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     let mut b = CircuitBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
@@ -911,7 +923,7 @@ pub(crate) fn select_fheuint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
     const FALSE_SCALAR: u32 = 0xDEAD_BEEF;
     let r = b.fhe_select(cond, if_true, FALSE_SCALAR).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -920,7 +932,7 @@ pub(crate) fn select_fheuint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheUint32::encrypt(t, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, if c { t } else { FALSE_SCALAR });
     }
@@ -928,7 +940,7 @@ pub(crate) fn select_fheuint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
 
 pub(crate) fn select_fheuint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     let mut b = CircuitBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
@@ -936,7 +948,7 @@ pub(crate) fn select_fheuint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
     const TRUE_SCALAR: u32 = 0xCAFE_BABE;
     let r = b.fhe_select(cond, TRUE_SCALAR, if_false).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -945,13 +957,16 @@ pub(crate) fn select_fheuint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheUint32::encrypt(f, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, if c { TRUE_SCALAR } else { f });
     }
 }
 
-pub(crate) fn select_fheuint32_both_scalar_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn select_fheuint32_both_scalar_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     let mut b = CircuitBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     const TRUE_SCALAR: u32 = 0x1234_5678;
@@ -960,14 +975,14 @@ pub(crate) fn select_fheuint32_both_scalar_case<B: ExecutionBackend>(ck: &Client
         .fhe_select_const(cond, TRUE_SCALAR, FALSE_SCALAR, FheIntKind::Uint(32))
         .unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
         let c: bool = rng.gen();
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, if c { TRUE_SCALAR } else { FALSE_SCALAR });
     }
@@ -975,7 +990,7 @@ pub(crate) fn select_fheuint32_both_scalar_case<B: ExecutionBackend>(ck: &Client
 
 pub(crate) fn select_fheint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     let mut b = CircuitBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
@@ -983,7 +998,7 @@ pub(crate) fn select_fheint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
     const FALSE_SCALAR: i32 = -123_456;
     let r = b.fhe_select(cond, if_true, FALSE_SCALAR).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -992,7 +1007,7 @@ pub(crate) fn select_fheint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheInt32::encrypt(t, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         assert_eq!(dec, if c { t } else { FALSE_SCALAR });
     }
@@ -1000,7 +1015,7 @@ pub(crate) fn select_fheint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
 
 pub(crate) fn select_fheint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     let mut b = CircuitBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
@@ -1008,7 +1023,7 @@ pub(crate) fn select_fheint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
     const TRUE_SCALAR: i32 = i32::MAX;
     let r = b.fhe_select(cond, TRUE_SCALAR, if_false).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -1017,13 +1032,16 @@ pub(crate) fn select_fheint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheInt32::encrypt(f, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         assert_eq!(dec, if c { TRUE_SCALAR } else { f });
     }
 }
 
-pub(crate) fn select_fheint32_both_scalar_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn select_fheint32_both_scalar_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     let mut b = CircuitBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     const TRUE_SCALAR: i32 = i32::MIN;
@@ -1032,20 +1050,20 @@ pub(crate) fn select_fheint32_both_scalar_case<B: ExecutionBackend>(ck: &ClientK
         .fhe_select_const(cond, TRUE_SCALAR, FALSE_SCALAR, FheIntKind::Int(32))
         .unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
         let c: bool = rng.gen();
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         assert_eq!(dec, if c { TRUE_SCALAR } else { FALSE_SCALAR });
     }
 }
 
-pub(crate) fn contains_fheuint32_found_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn contains_fheuint32_found_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let needle = b.input(ValueKind::FheUint(32)).unwrap();
     let h0 = b.input(ValueKind::FheUint(32)).unwrap();
@@ -1053,7 +1071,7 @@ pub(crate) fn contains_fheuint32_found_case<B: ExecutionBackend>(ck: &ClientKey,
     let h2 = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_contains(&[h0, h1, h2], needle).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -1065,32 +1083,35 @@ pub(crate) fn contains_fheuint32_found_case<B: ExecutionBackend>(ck: &ClientKey,
         for h in haystack {
             inputs.push(FheUint32::encrypt(h, ck));
         }
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
         assert!(dec, "needle {needle_val} should be in {haystack:?}");
     }
 }
 
-pub(crate) fn contains_fheuint32_not_found_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn contains_fheuint32_not_found_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     let mut b = CircuitBuilder::new();
     let needle = b.input(ValueKind::FheUint(32)).unwrap();
     let h0 = b.input(ValueKind::FheUint(32)).unwrap();
     let h1 = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_contains(&[h0, h1], needle).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     // Fixed haystack {10, 20}; query for 30.
     let mut inputs = CpuInputList::new();
     inputs.push(FheUint32::encrypt(30u32, ck));
     inputs.push(FheUint32::encrypt(10u32, ck));
     inputs.push(FheUint32::encrypt(20u32, ck));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     assert!(!dec, "30 should not be in {{10, 20}}");
 }
 
-pub(crate) fn contains_fheint32_found_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn contains_fheint32_found_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     let mut b = CircuitBuilder::new();
     let needle = b.input(ValueKind::FheInt(32)).unwrap();
     let h0 = b.input(ValueKind::FheInt(32)).unwrap();
@@ -1098,21 +1119,21 @@ pub(crate) fn contains_fheint32_found_case<B: ExecutionBackend>(ck: &ClientKey, 
     let h2 = b.input(ValueKind::FheInt(32)).unwrap();
     let r = b.fhe_contains(&[h0, h1, h2], needle).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push(FheInt32::encrypt(-7i32, ck));
     inputs.push(FheInt32::encrypt(1i32, ck));
     inputs.push(FheInt32::encrypt(-7i32, ck));
     inputs.push(FheInt32::encrypt(42i32, ck));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     assert!(dec, "-7 should be in {{1, -7, 42}}");
 }
 
 pub(crate) fn contains_scalar_fheuint32_found_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     let mut b = CircuitBuilder::new();
     let h0 = b.input(ValueKind::FheUint(32)).unwrap();
@@ -1121,20 +1142,20 @@ pub(crate) fn contains_scalar_fheuint32_found_case<B: ExecutionBackend>(
     const NEEDLE: u32 = 0xDEAD_BEEF;
     let r = b.fhe_contains(&[h0, h1, h2], NEEDLE).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push(FheUint32::encrypt(0u32, ck));
     inputs.push(FheUint32::encrypt(NEEDLE, ck));
     inputs.push(FheUint32::encrypt(0xFFFFu32, ck));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     assert!(dec, "clear needle 0xDEADBEEF should be in haystack");
 }
 
 pub(crate) fn contains_scalar_fheint32_not_found_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     let mut b = CircuitBuilder::new();
     let h0 = b.input(ValueKind::FheInt(32)).unwrap();
@@ -1142,28 +1163,26 @@ pub(crate) fn contains_scalar_fheint32_not_found_case<B: ExecutionBackend>(
     const NEEDLE: i32 = -99;
     let r = b.fhe_contains(&[h0, h1], NEEDLE).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push(FheInt32::encrypt(1i32, ck));
     inputs.push(FheInt32::encrypt(2i32, ck));
-    let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&circuit, inputs).unwrap();
     let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     assert!(!dec, "-99 should not be in {{1, 2}}");
 }
 
-pub(crate) fn constant_op_round_trip_case<B: ExecutionBackend>(backend: &B) {
+pub(crate) fn constant_op_round_trip_case<B: ExecutionBackend>(backend: &mut B) {
     // A standalone Constant op feeds straight into an Output of clear kind.
     // Validates: builder accepts clear-typed Output, executor materializes
     // RuntimeValue::ClearUint, scheduler passes it through unchanged.
     let mut b = CircuitBuilder::new();
     let c = b.constant(42u32, ClearKind::Uint(32)).unwrap();
     b.output(c).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
-    let outputs = backend
-        .execute_cpu_io(&circuit, CpuInputList::new())
-        .unwrap();
+    let outputs = backend.execute(&circuit, CpuInputList::new()).unwrap();
     match &outputs.outputs[0] {
         RuntimeValue::ClearUint(v) => assert_eq!(*v, 42),
         other => panic!("expected ClearUint(42), got {other:?}"),
@@ -1172,7 +1191,7 @@ pub(crate) fn constant_op_round_trip_case<B: ExecutionBackend>(backend: &B) {
 
 pub(crate) fn runtime_clear_input_via_fhe_add_case<B: ExecutionBackend>(
     ck: &ClientKey,
-    backend: &B,
+    backend: &mut B,
 ) {
     // Circuit with one FHE input + one runtime clear input, fed into
     // fhe_add. The clear value isn't baked into the IR — it flows through
@@ -1182,7 +1201,7 @@ pub(crate) fn runtime_clear_input_via_fhe_add_case<B: ExecutionBackend>(
     let clear = b.input(ValueKind::Uint(32)).unwrap();
     let r = b.fhe_add(fhe, clear).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     // Sanity check: the second arg of the FheScalarAdd op was *not* lowered
     // to a Constant — it must remain an Input-produced value.
@@ -1205,7 +1224,7 @@ pub(crate) fn runtime_clear_input_via_fhe_add_case<B: ExecutionBackend>(
         inputs.push(FheUint32::encrypt(a, ck));
         // `From<u32> for RuntimeValue` → `ClearUint(u128)`.
         inputs.push(c);
-        let outputs = backend.execute_cpu_io(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&circuit, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, a.wrapping_add(c), "fhe_add({a}, {c}) = {dec}");
     }
@@ -1215,7 +1234,7 @@ pub(crate) fn runtime_clear_input_via_fhe_add_case<B: ExecutionBackend>(
 // Operation cases delegating to the parametrised `check_*` helpers.
 // -----------------------------------------------------------------
 
-pub(crate) fn fheuint32_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1227,7 +1246,7 @@ pub(crate) fn fheuint32_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1239,7 +1258,7 @@ pub(crate) fn fheuint32_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1251,7 +1270,7 @@ pub(crate) fn fheuint32_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1263,7 +1282,7 @@ pub(crate) fn fheuint32_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1275,7 +1294,7 @@ pub(crate) fn fheuint32_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_bitand_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_bitand_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1287,7 +1306,7 @@ pub(crate) fn fheuint32_bitand_case<B: ExecutionBackend>(ck: &ClientKey, backend
     );
 }
 
-pub(crate) fn fheuint32_bitor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_bitor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1299,7 +1318,7 @@ pub(crate) fn fheuint32_bitor_case<B: ExecutionBackend>(ck: &ClientKey, backend:
     );
 }
 
-pub(crate) fn fheuint32_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1311,7 +1330,7 @@ pub(crate) fn fheuint32_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, backend
     );
 }
 
-pub(crate) fn fheuint32_min_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_min_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1323,7 +1342,7 @@ pub(crate) fn fheuint32_min_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_max_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_max_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1335,7 +1354,7 @@ pub(crate) fn fheuint32_max_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_shl_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_shl_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1347,7 +1366,7 @@ pub(crate) fn fheuint32_shl_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_shr_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_shr_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1359,7 +1378,7 @@ pub(crate) fn fheuint32_shr_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_rotate_left_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_rotate_left_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1371,7 +1390,7 @@ pub(crate) fn fheuint32_rotate_left_case<B: ExecutionBackend>(ck: &ClientKey, ba
     );
 }
 
-pub(crate) fn fheuint32_rotate_right_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_rotate_right_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_binary(
         ck,
         backend,
@@ -1383,7 +1402,7 @@ pub(crate) fn fheuint32_rotate_right_case<B: ExecutionBackend>(ck: &ClientKey, b
     );
 }
 
-pub(crate) fn fheuint32_eq_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_eq_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_compare(
         ck,
         backend,
@@ -1394,7 +1413,7 @@ pub(crate) fn fheuint32_eq_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheuint32_ne_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_ne_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_compare(
         ck,
         backend,
@@ -1405,7 +1424,7 @@ pub(crate) fn fheuint32_ne_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheuint32_lt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_lt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_compare(
         ck,
         backend,
@@ -1416,7 +1435,7 @@ pub(crate) fn fheuint32_lt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheuint32_le_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_le_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_compare(
         ck,
         backend,
@@ -1427,7 +1446,7 @@ pub(crate) fn fheuint32_le_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheuint32_gt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_gt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_compare(
         ck,
         backend,
@@ -1438,7 +1457,7 @@ pub(crate) fn fheuint32_gt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheuint32_ge_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_ge_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_compare(
         ck,
         backend,
@@ -1449,7 +1468,7 @@ pub(crate) fn fheuint32_ge_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheuint32_not_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_not_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_unary(
         ck,
         backend,
@@ -1460,7 +1479,7 @@ pub(crate) fn fheuint32_not_case<B: ExecutionBackend>(ck: &ClientKey, backend: &
     );
 }
 
-pub(crate) fn fheuint32_leading_zeros_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_leading_zeros_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_unary(
         ck,
         backend,
@@ -1471,7 +1490,7 @@ pub(crate) fn fheuint32_leading_zeros_case<B: ExecutionBackend>(ck: &ClientKey, 
     );
 }
 
-pub(crate) fn fheuint32_leading_ones_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_leading_ones_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_unary(
         ck,
         backend,
@@ -1482,7 +1501,7 @@ pub(crate) fn fheuint32_leading_ones_case<B: ExecutionBackend>(ck: &ClientKey, b
     );
 }
 
-pub(crate) fn fheuint32_trailing_zeros_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_trailing_zeros_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_unary(
         ck,
         backend,
@@ -1493,7 +1512,7 @@ pub(crate) fn fheuint32_trailing_zeros_case<B: ExecutionBackend>(ck: &ClientKey,
     );
 }
 
-pub(crate) fn fheuint32_trailing_ones_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_trailing_ones_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_unary(
         ck,
         backend,
@@ -1504,7 +1523,7 @@ pub(crate) fn fheuint32_trailing_ones_case<B: ExecutionBackend>(ck: &ClientKey, 
     );
 }
 
-pub(crate) fn fheuint32_count_ones_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_count_ones_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_unary(
         ck,
         backend,
@@ -1515,7 +1534,7 @@ pub(crate) fn fheuint32_count_ones_case<B: ExecutionBackend>(ck: &ClientKey, bac
     );
 }
 
-pub(crate) fn fheuint32_count_zeros_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_count_zeros_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_unary(
         ck,
         backend,
@@ -1526,7 +1545,7 @@ pub(crate) fn fheuint32_count_zeros_case<B: ExecutionBackend>(ck: &ClientKey, ba
     );
 }
 
-pub(crate) fn fheuint32_reverse_bits_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_reverse_bits_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_unary(
         ck,
         backend,
@@ -1537,7 +1556,7 @@ pub(crate) fn fheuint32_reverse_bits_case<B: ExecutionBackend>(ck: &ClientKey, b
     );
 }
 
-pub(crate) fn fheint32_reverse_bits_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_reverse_bits_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_unary(
         ck,
         backend,
@@ -1548,7 +1567,7 @@ pub(crate) fn fheint32_reverse_bits_case<B: ExecutionBackend>(ck: &ClientKey, ba
     );
 }
 
-pub(crate) fn fheint32_abs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_abs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_unary(
         ck,
         backend,
@@ -1559,7 +1578,7 @@ pub(crate) fn fheint32_abs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheuint32_overflowing_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_overflowing_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_overflowing(
         ck,
         backend,
@@ -1570,7 +1589,7 @@ pub(crate) fn fheuint32_overflowing_add_case<B: ExecutionBackend>(ck: &ClientKey
     );
 }
 
-pub(crate) fn fheuint32_overflowing_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_overflowing_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_overflowing(
         ck,
         backend,
@@ -1581,7 +1600,7 @@ pub(crate) fn fheuint32_overflowing_sub_case<B: ExecutionBackend>(ck: &ClientKey
     );
 }
 
-pub(crate) fn fheuint32_overflowing_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_overflowing_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_overflowing(
         ck,
         backend,
@@ -1592,7 +1611,7 @@ pub(crate) fn fheuint32_overflowing_mul_case<B: ExecutionBackend>(ck: &ClientKey
     );
 }
 
-pub(crate) fn fheint32_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1604,7 +1623,7 @@ pub(crate) fn fheint32_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1616,7 +1635,7 @@ pub(crate) fn fheint32_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1628,7 +1647,7 @@ pub(crate) fn fheint32_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1640,7 +1659,7 @@ pub(crate) fn fheint32_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1652,7 +1671,7 @@ pub(crate) fn fheint32_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_bitand_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_bitand_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1664,7 +1683,7 @@ pub(crate) fn fheint32_bitand_case<B: ExecutionBackend>(ck: &ClientKey, backend:
     );
 }
 
-pub(crate) fn fheint32_bitor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_bitor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1676,7 +1695,7 @@ pub(crate) fn fheint32_bitor_case<B: ExecutionBackend>(ck: &ClientKey, backend: 
     );
 }
 
-pub(crate) fn fheint32_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1688,7 +1707,7 @@ pub(crate) fn fheint32_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, backend:
     );
 }
 
-pub(crate) fn fheint32_min_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_min_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1700,7 +1719,7 @@ pub(crate) fn fheint32_min_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_max_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_max_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_binary(
         ck,
         backend,
@@ -1712,7 +1731,7 @@ pub(crate) fn fheint32_max_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_eq_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_eq_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_compare(
         ck,
         backend,
@@ -1723,7 +1742,7 @@ pub(crate) fn fheint32_eq_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B)
     );
 }
 
-pub(crate) fn fheint32_ne_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_ne_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_compare(
         ck,
         backend,
@@ -1734,7 +1753,7 @@ pub(crate) fn fheint32_ne_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B)
     );
 }
 
-pub(crate) fn fheint32_lt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_lt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_compare(
         ck,
         backend,
@@ -1745,7 +1764,7 @@ pub(crate) fn fheint32_lt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B)
     );
 }
 
-pub(crate) fn fheint32_le_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_le_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_compare(
         ck,
         backend,
@@ -1756,7 +1775,7 @@ pub(crate) fn fheint32_le_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B)
     );
 }
 
-pub(crate) fn fheint32_gt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_gt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_compare(
         ck,
         backend,
@@ -1767,7 +1786,7 @@ pub(crate) fn fheint32_gt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B)
     );
 }
 
-pub(crate) fn fheint32_ge_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_ge_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_compare(
         ck,
         backend,
@@ -1778,7 +1797,7 @@ pub(crate) fn fheint32_ge_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B)
     );
 }
 
-pub(crate) fn fheint32_not_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_not_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_unary(
         ck,
         backend,
@@ -1789,7 +1808,7 @@ pub(crate) fn fheint32_not_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_unary(
         ck,
         backend,
@@ -1800,7 +1819,7 @@ pub(crate) fn fheint32_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_overflowing_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_overflowing_add_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_overflowing(
         ck,
         backend,
@@ -1811,7 +1830,7 @@ pub(crate) fn fheint32_overflowing_add_case<B: ExecutionBackend>(ck: &ClientKey,
     );
 }
 
-pub(crate) fn fheint32_overflowing_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_overflowing_sub_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_overflowing(
         ck,
         backend,
@@ -1822,7 +1841,7 @@ pub(crate) fn fheint32_overflowing_sub_case<B: ExecutionBackend>(ck: &ClientKey,
     );
 }
 
-pub(crate) fn fheint32_overflowing_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_overflowing_mul_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_overflowing(
         ck,
         backend,
@@ -1833,7 +1852,7 @@ pub(crate) fn fheint32_overflowing_mul_case<B: ExecutionBackend>(ck: &ClientKey,
     );
 }
 
-pub(crate) fn fheint32_shl_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_shl_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_shift(
         ck,
         backend,
@@ -1845,7 +1864,7 @@ pub(crate) fn fheint32_shl_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_shr_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_shr_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_shift(
         ck,
         backend,
@@ -1857,7 +1876,7 @@ pub(crate) fn fheint32_shr_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B
     );
 }
 
-pub(crate) fn fheint32_rotate_left_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_rotate_left_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_shift(
         ck,
         backend,
@@ -1869,7 +1888,7 @@ pub(crate) fn fheint32_rotate_left_case<B: ExecutionBackend>(ck: &ClientKey, bac
     );
 }
 
-pub(crate) fn fheint32_rotate_right_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheint32_rotate_right_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_int32_shift(
         ck,
         backend,
@@ -1881,7 +1900,10 @@ pub(crate) fn fheint32_rotate_right_case<B: ExecutionBackend>(ck: &ClientKey, ba
     );
 }
 
-pub(crate) fn fheuint32_scalar_add_fhe_lhs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_add_fhe_lhs_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1892,7 +1914,10 @@ pub(crate) fn fheuint32_scalar_add_fhe_lhs_case<B: ExecutionBackend>(ck: &Client
     );
 }
 
-pub(crate) fn fheuint32_scalar_add_fhe_rhs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_add_fhe_rhs_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1903,7 +1928,10 @@ pub(crate) fn fheuint32_scalar_add_fhe_rhs_case<B: ExecutionBackend>(ck: &Client
     );
 }
 
-pub(crate) fn fheuint32_scalar_sub_fhe_lhs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_sub_fhe_lhs_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1914,7 +1942,10 @@ pub(crate) fn fheuint32_scalar_sub_fhe_lhs_case<B: ExecutionBackend>(ck: &Client
     );
 }
 
-pub(crate) fn fheuint32_scalar_sub_fhe_rhs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_sub_fhe_rhs_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1925,7 +1956,10 @@ pub(crate) fn fheuint32_scalar_sub_fhe_rhs_case<B: ExecutionBackend>(ck: &Client
     );
 }
 
-pub(crate) fn fheuint32_scalar_mul_fhe_lhs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_mul_fhe_lhs_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1936,7 +1970,10 @@ pub(crate) fn fheuint32_scalar_mul_fhe_lhs_case<B: ExecutionBackend>(ck: &Client
     );
 }
 
-pub(crate) fn fheuint32_scalar_mul_fhe_rhs_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_mul_fhe_rhs_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1947,7 +1984,7 @@ pub(crate) fn fheuint32_scalar_mul_fhe_rhs_case<B: ExecutionBackend>(ck: &Client
     );
 }
 
-pub(crate) fn fheuint32_scalar_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_div_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1958,7 +1995,7 @@ pub(crate) fn fheuint32_scalar_div_case<B: ExecutionBackend>(ck: &ClientKey, bac
     );
 }
 
-pub(crate) fn fheuint32_scalar_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1969,7 +2006,7 @@ pub(crate) fn fheuint32_scalar_rem_case<B: ExecutionBackend>(ck: &ClientKey, bac
     );
 }
 
-pub(crate) fn fheuint32_scalar_min_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_min_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1980,7 +2017,7 @@ pub(crate) fn fheuint32_scalar_min_case<B: ExecutionBackend>(ck: &ClientKey, bac
     );
 }
 
-pub(crate) fn fheuint32_scalar_max_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_max_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -1991,7 +2028,7 @@ pub(crate) fn fheuint32_scalar_max_case<B: ExecutionBackend>(ck: &ClientKey, bac
     );
 }
 
-pub(crate) fn fheuint32_scalar_bitand_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_bitand_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -2002,7 +2039,7 @@ pub(crate) fn fheuint32_scalar_bitand_case<B: ExecutionBackend>(ck: &ClientKey, 
     );
 }
 
-pub(crate) fn fheuint32_scalar_bitor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_bitor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -2013,7 +2050,7 @@ pub(crate) fn fheuint32_scalar_bitor_case<B: ExecutionBackend>(ck: &ClientKey, b
     );
 }
 
-pub(crate) fn fheuint32_scalar_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -2024,7 +2061,7 @@ pub(crate) fn fheuint32_scalar_bitxor_case<B: ExecutionBackend>(ck: &ClientKey, 
     );
 }
 
-pub(crate) fn fheuint32_scalar_eq_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_eq_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar_compare(
         ck,
         backend,
@@ -2035,7 +2072,7 @@ pub(crate) fn fheuint32_scalar_eq_case<B: ExecutionBackend>(ck: &ClientKey, back
     );
 }
 
-pub(crate) fn fheuint32_scalar_ne_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_ne_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar_compare(
         ck,
         backend,
@@ -2046,7 +2083,7 @@ pub(crate) fn fheuint32_scalar_ne_case<B: ExecutionBackend>(ck: &ClientKey, back
     );
 }
 
-pub(crate) fn fheuint32_scalar_lt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_lt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar_compare(
         ck,
         backend,
@@ -2057,7 +2094,7 @@ pub(crate) fn fheuint32_scalar_lt_case<B: ExecutionBackend>(ck: &ClientKey, back
     );
 }
 
-pub(crate) fn fheuint32_scalar_le_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_le_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar_compare(
         ck,
         backend,
@@ -2068,7 +2105,7 @@ pub(crate) fn fheuint32_scalar_le_case<B: ExecutionBackend>(ck: &ClientKey, back
     );
 }
 
-pub(crate) fn fheuint32_scalar_gt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_gt_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar_compare(
         ck,
         backend,
@@ -2079,7 +2116,7 @@ pub(crate) fn fheuint32_scalar_gt_case<B: ExecutionBackend>(ck: &ClientKey, back
     );
 }
 
-pub(crate) fn fheuint32_scalar_ge_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_ge_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar_compare(
         ck,
         backend,
@@ -2090,7 +2127,7 @@ pub(crate) fn fheuint32_scalar_ge_case<B: ExecutionBackend>(ck: &ClientKey, back
     );
 }
 
-pub(crate) fn fheuint32_scalar_shl_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_shl_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -2101,7 +2138,7 @@ pub(crate) fn fheuint32_scalar_shl_case<B: ExecutionBackend>(ck: &ClientKey, bac
     );
 }
 
-pub(crate) fn fheuint32_scalar_shr_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_shr_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     check_uint32_scalar(
         ck,
         backend,
@@ -2112,7 +2149,10 @@ pub(crate) fn fheuint32_scalar_shr_case<B: ExecutionBackend>(ck: &ClientKey, bac
     );
 }
 
-pub(crate) fn fheuint32_scalar_rotate_left_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_rotate_left_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     check_uint32_scalar(
         ck,
         backend,
@@ -2123,7 +2163,10 @@ pub(crate) fn fheuint32_scalar_rotate_left_case<B: ExecutionBackend>(ck: &Client
     );
 }
 
-pub(crate) fn fheuint32_scalar_rotate_right_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_scalar_rotate_right_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
     check_uint32_scalar(
         ck,
         backend,
@@ -2134,7 +2177,7 @@ pub(crate) fn fheuint32_scalar_rotate_right_case<B: ExecutionBackend>(ck: &Clien
     );
 }
 
-pub(crate) fn fheuint32_ilog2_case<B: ExecutionBackend>(ck: &ClientKey, backend: &B) {
+pub(crate) fn fheuint32_ilog2_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
     // Skip 0: `u32::ilog2(0)` panics in std.
     check_uint32_unary(
         ck,

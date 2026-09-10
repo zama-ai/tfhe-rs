@@ -2,15 +2,31 @@
 use std::sync::Arc;
 
 use super::value::RuntimeValue;
-use super::CpuError;
 use crate::circuit::dialects::hlapi::{
-    FheIntKind, FheKind, HlInstructionSet, NonNanF64, OprfMode, ScalarValue, ValueKind,
+    ClearKind, FheIntKind, FheKind, HlInstructionSet, NonNanF64, OprfMode, ScalarValue, ValueKind,
 };
 use crate::high_level_api::integers::oprf::num_input_random_bits_for_max_distance;
 use crate::integer::server_key::radix_parallel::cmux::ServerKeyDefaultCMux;
 use crate::integer::server_key::KVStore;
 use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
-use crate::{ReRandomizationMetadata, Tag};
+
+/// Number of radix blocks needed to hold `bits` bits under `sks`'s message
+/// modulus. Integer-layer APIs take block counts as `usize`.
+///
+/// The division is strict: `bits` must be a multiple of the bits per block.
+/// The builder and `CpuBackend::check_circuit_compatibility` guarantee this,
+/// so a non-aligned width here means an invariant was broken upstream.
+/// Rounding would silently change the value's modulus (e.g. a 3-bit width
+/// executed as 4 bits under 2_2 parameters), so panic instead; the worker's
+/// `catch_unwind` surfaces it as a `CpuError::ExecutionError`.
+fn num_blocks_for(bits: u32, sks: &crate::ServerKey) -> usize {
+    let bits_per_block = sks.message_modulus().0.ilog2();
+    assert!(
+        bits.is_multiple_of(bits_per_block),
+        "bit-width {bits} is not a multiple of the {bits_per_block} message bits per block"
+    );
+    (bits / bits_per_block) as usize
+}
 
 // =========================================================================
 // Closure-based dispatch helpers.
@@ -220,17 +236,16 @@ fn exec_if_then_else_scalar_scalar(
     let RuntimeValue::FheBool(cond) = inputs[0] else {
         panic!("wrong input type for SelectScalarScalar condition");
     };
-    let bits_per_block = sks.message_modulus().0.ilog2() as usize;
     let pbs = sks.pbs_key();
     match (kind, inputs[1], inputs[2]) {
         (FheIntKind::Uint(bits), RuntimeValue::ClearUint(t), RuntimeValue::ClearUint(f)) => {
-            let n_blocks = (bits as usize).div_ceil(bits_per_block);
+            let n_blocks = num_blocks_for(bits, sks);
             let ct: crate::integer::RadixCiphertext =
                 pbs.scalar_if_then_else_parallelized(cond, *t, *f, n_blocks);
             RuntimeValue::FheUint(ct)
         }
         (FheIntKind::Int(bits), RuntimeValue::ClearInt(t), RuntimeValue::ClearInt(f)) => {
-            let n_blocks = (bits as usize).div_ceil(bits_per_block);
+            let n_blocks = num_blocks_for(bits, sks);
             let ct: crate::integer::SignedRadixCiphertext =
                 pbs.scalar_if_then_else_parallelized(cond, *t, *f, n_blocks);
             RuntimeValue::FheInt(ct)
@@ -276,43 +291,38 @@ fn exec_if_then_else_scalar_fhe(inputs: &[&RuntimeValue], sks: &crate::ServerKey
 /// Execute a cast between FHE types.
 fn exec_cast(input: &RuntimeValue, target: FheKind, sks: &crate::ServerKey) -> RuntimeValue {
     let pbs = sks.pbs_key();
-    let bits_per_block = sks.message_modulus().0.ilog2() as usize;
-    // `div_ceil`: the builder normally guarantees widths are multiples of
-    // `bits_per_block`, but round up defensively so a non-aligned width can't
-    // silently drop the high partial block.
     match (input, target) {
         (RuntimeValue::FheBool(b), FheKind::Uint(bits)) => {
-            let num_blocks = (bits as usize).div_ceil(bits_per_block);
+            let num_blocks = num_blocks_for(bits, sks);
             RuntimeValue::FheUint(b.clone().into_radix(num_blocks, pbs))
         }
         (RuntimeValue::FheBool(b), FheKind::Int(bits)) => {
-            let num_blocks = (bits as usize).div_ceil(bits_per_block);
+            let num_blocks = num_blocks_for(bits, sks);
             RuntimeValue::FheInt(b.clone().into_radix(num_blocks, pbs))
         }
         (RuntimeValue::FheUint(r), FheKind::Uint(bits)) => {
-            let num_blocks = (bits as usize).div_ceil(bits_per_block);
+            let num_blocks = num_blocks_for(bits, sks);
             RuntimeValue::FheUint(pbs.cast_to_unsigned(r.clone(), num_blocks))
         }
         (RuntimeValue::FheUint(r), FheKind::Int(bits)) => {
-            let num_blocks = (bits as usize).div_ceil(bits_per_block);
+            let num_blocks = num_blocks_for(bits, sks);
             RuntimeValue::FheInt(pbs.cast_to_signed(r.clone(), num_blocks))
         }
         (RuntimeValue::FheInt(r), FheKind::Uint(bits)) => {
-            let num_blocks = (bits as usize).div_ceil(bits_per_block);
+            let num_blocks = num_blocks_for(bits, sks);
             RuntimeValue::FheUint(pbs.cast_to_unsigned(r.clone(), num_blocks))
         }
         (RuntimeValue::FheInt(r), FheKind::Int(bits)) => {
-            let num_blocks = (bits as usize).div_ceil(bits_per_block);
+            let num_blocks = num_blocks_for(bits, sks);
             RuntimeValue::FheInt(pbs.cast_to_signed(r.clone(), num_blocks))
         }
-        (RuntimeValue::FheUint(r), FheKind::Bool) => {
-            RuntimeValue::FheBool(pbs.scalar_ne_parallelized(r, 0u64))
-        }
-        (RuntimeValue::FheInt(r), FheKind::Bool) => {
-            RuntimeValue::FheBool(pbs.scalar_ne_parallelized(r, 0i64))
-        }
         (RuntimeValue::FheBool(b), FheKind::Bool) => RuntimeValue::FheBool(b.clone()),
-        // CompressedList / KVStore / ClearBool inputs are rejected by the
+        // Integer -> bool is an invalid cast, the builder should have rejected it
+        (RuntimeValue::FheUint(_) | RuntimeValue::FheInt(_), FheKind::Bool) => panic!(
+            "FheCast from an encrypted integer to FheBool is not supported; \
+             use an explicit comparison (FheScalarNe with 0) instead"
+        ),
+        // KVStore / ClearBool inputs are rejected by the
         // dialect signature (`from` is `FheKind`).
         _ => panic!("invalid input variant for FheCast: {input:?}"),
     }
@@ -326,17 +336,16 @@ pub(super) fn exec_trivial(
     sks: &crate::ServerKey,
 ) -> RuntimeValue {
     let pbs = sks.pbs_key();
-    let bits_per_block = sks.message_modulus().0.ilog2() as usize;
     match (clear, kind) {
         (RuntimeValue::ClearBool(v), FheKind::Bool) => {
             RuntimeValue::FheBool(pbs.create_trivial_boolean_block(*v))
         }
-        (RuntimeValue::ClearUint(v), FheKind::Uint(bits)) => RuntimeValue::FheUint(
-            pbs.create_trivial_radix(*v, (bits as usize).div_ceil(bits_per_block)),
-        ),
-        (RuntimeValue::ClearInt(v), FheKind::Int(bits)) => RuntimeValue::FheInt(
-            pbs.create_trivial_radix(*v, (bits as usize).div_ceil(bits_per_block)),
-        ),
+        (RuntimeValue::ClearUint(v), FheKind::Uint(bits)) => {
+            RuntimeValue::FheUint(pbs.create_trivial_radix(*v, num_blocks_for(bits, sks)))
+        }
+        (RuntimeValue::ClearInt(v), FheKind::Int(bits)) => {
+            RuntimeValue::FheInt(pbs.create_trivial_radix(*v, num_blocks_for(bits, sks)))
+        }
         _ => panic!("unsupported trivial encrypt combination: {clear:?} as {kind:?}"),
     }
 }
@@ -345,9 +354,7 @@ pub(super) fn exec_trivial(
 /// bit-counting / log op to the `FheUint32`-sized radix that HL surfaces use.
 /// Centralizes the `cast_to_unsigned(_, 32-bits-worth-of-blocks)` pattern.
 fn cast_to_fhe_uint32(sks: &crate::ServerKey, raw: RadixCiphertext) -> RadixCiphertext {
-    let bits_per_block = sks.message_modulus().0.ilog2() as usize;
-    let num_blocks = 32usize.div_ceil(bits_per_block);
-    sks.pbs_key().cast_to_unsigned(raw, num_blocks)
+    sks.pbs_key().cast_to_unsigned(raw, num_blocks_for(32, sks))
 }
 
 /// Execute a scalar equality op (eq/ne) returning a `Bool`. Like
@@ -368,131 +375,20 @@ fn exec_scalar_eq(
     RuntimeValue::FheBool(block)
 }
 
-fn exec_compress(
-    inputs: &[&RuntimeValue],
-    sks: &crate::ServerKey,
-) -> Result<crate::CompressedCiphertextList, CpuError> {
-    let compression_key = sks
-        .compression_key()
-        .ok_or(CpuError::MissingCompressionKey)?;
-
-    let mut builder = crate::integer::ciphertext::CompressedCiphertextListBuilder::new();
-    for input in inputs {
-        match input {
-            RuntimeValue::FheBool(b) => builder.push(b.clone()),
-            RuntimeValue::FheUint(r) => builder.push(r.clone()),
-            RuntimeValue::FheInt(r) => builder.push(r.clone()),
-            _ => {
-                return Err(CpuError::CompressionError(format!(
-                    "cannot compress a {input:?} into a CompressedList"
-                )));
-            }
-        };
-    }
-
-    let list = builder.build(compression_key);
-    let len = list.len();
-    let list = crate::CompressedCiphertextList::from_raw_parts(
-        list,
-        Tag::default(),
-        vec![ReRandomizationMetadata::default(); len],
-    );
-    Ok(list)
-}
-
-fn exec_decompress(
-    sks: &crate::ServerKey,
-    inputs: &[&RuntimeValue],
-    picks: &[(u32, FheKind)],
-    outputs: &mut Vec<RuntimeValue>,
-) -> Result<(), CpuError> {
-    let decompression_key = sks
-        .decompression_key()
-        .ok_or(CpuError::MissingDecompressionKey)?;
-
-    let RuntimeValue::CompressedList(list) = inputs[0] else {
-        return Err(CpuError::DecompressionError(
-            "invalid exec value, expected a compressed list".to_string(),
-        ));
-    };
-
-    let integer_list = list.clone().into_raw_parts().0;
-
-    for &(index, output_type) in picks {
-        let idx = index as usize;
-        match output_type {
-            FheKind::Uint(n_bits) => {
-                let radix = integer_list
-                    .get::<RadixCiphertext>(idx, decompression_key)
-                    .map_err(|e| {
-                        CpuError::DecompressionError(format!(
-                            "failed to decompress unsigned value at index {idx}: {e:?}"
-                        ))
-                    })?
-                    .ok_or_else(|| {
-                        CpuError::DecompressionError(format!("no value at index {idx}"))
-                    })?;
-
-                let actual_n_bits = radix.blocks.len() as u32 * sks.message_modulus().0.ilog2();
-                if actual_n_bits != n_bits {
-                    return Err(CpuError::DecompressionError(format!(
-                        "Mismatched number of bits, expected {n_bits}, got {actual_n_bits}",
-                    )));
-                }
-
-                outputs.push(radix.into());
-            }
-            FheKind::Int(n_bits) => {
-                let radix = integer_list
-                    .get::<SignedRadixCiphertext>(idx, decompression_key)
-                    .map_err(|e| {
-                        CpuError::DecompressionError(format!(
-                            "failed to decompress signed value at index {idx}: {e:?}"
-                        ))
-                    })?
-                    .ok_or_else(|| {
-                        CpuError::DecompressionError(format!("no value at index {idx}"))
-                    })?;
-                let actual_n_bits = radix.blocks.len() as u32 * sks.message_modulus().0.ilog2();
-                if actual_n_bits != n_bits {
-                    return Err(CpuError::DecompressionError(format!(
-                        "Mismatched number of bits, expected {n_bits}, got {actual_n_bits}",
-                    )));
-                }
-                outputs.push(radix.into());
-            }
-            FheKind::Bool => {
-                let block = integer_list
-                    .get::<BooleanBlock>(idx, decompression_key)
-                    .map_err(|e| {
-                        CpuError::DecompressionError(format!(
-                            "failed to decompress bool value at index {idx}: {e:?}"
-                        ))
-                    })?
-                    .ok_or_else(|| {
-                        CpuError::DecompressionError(format!("missing bool value at index {idx}"))
-                    })?;
-                outputs.push(block.into());
-            }
-        }
-    }
-
-    Ok(())
-}
-
 // =========================================================================
 
 /// Dispatch one op against the dialect.
 ///
 /// Workers wrap this in `catch_unwind` so any internal `panic!` (type-mismatch invariants, FHE
 /// bugs) surfaces as a `CpuError::ExecutionError` instead of taking down
-/// the whole executor.
+/// the whole executor. This is the only failure path: ops that can fail
+/// for a legitimate reason don't exist yet.
 pub(super) fn exec_dialect_op(
     sks: &crate::ServerKey,
     op: &HlInstructionSet,
     inputs_arc: &mut Vec<Arc<RuntimeValue>>,
     outputs: &mut Vec<RuntimeValue>,
-) -> Result<(), CpuError> {
+) {
     // Mutating KVStore arms run first so they can take Arc ownership.
     // The read-only `inputs` view built below borrows `inputs_arc`, which
     // would block the move.
@@ -504,15 +400,15 @@ pub(super) fn exec_dialect_op(
     // keeps a reference for the whole run); cloning then preserves the
     // output's snapshot while this op mutates its own copy.
     fn take_store(store_arc: Arc<RuntimeValue>) -> RuntimeValue {
-        Arc::try_unwrap(store_arc).unwrap_or_else(|shared| (*shared).clone())
+        Arc::unwrap_or_clone(store_arc)
     }
     match op {
         HlInstructionSet::KVStoreInsertWithClearKey { clear_key, .. } => {
             let value_arc = inputs_arc.pop().unwrap();
             let store_arc = inputs_arc.pop().unwrap();
-            let store_ev = take_store(store_arc);
+            let store = take_store(store_arc);
             let key_u128 = clear_key.as_u128();
-            let new_store_ev = match store_ev {
+            let new_store = match store {
                 RuntimeValue::FheUintKVStore(mut kv) => {
                     let RuntimeValue::FheUint(v) = &*value_arc else {
                         panic!("KVStoreInsertWithClearKey: expected FheUint value")
@@ -529,14 +425,14 @@ pub(super) fn exec_dialect_op(
                 }
                 _ => panic!("KVStoreInsertWithClearKey: expected KVStore as first input"),
             };
-            outputs.push(new_store_ev);
-            return Ok(());
+            outputs.push(new_store);
+            return;
         }
         HlInstructionSet::KVStoreRemoveWithClearKey { clear_key, .. } => {
             let store_arc = inputs_arc.pop().unwrap();
-            let store_ev = take_store(store_arc);
+            let store = take_store(store_arc);
             let key_u128 = clear_key.as_u128();
-            let new_store_ev = match store_ev {
+            let new_store = match store {
                 RuntimeValue::FheUintKVStore(mut kv) => {
                     kv.remove(&key_u128);
                     RuntimeValue::FheUintKVStore(kv)
@@ -547,18 +443,18 @@ pub(super) fn exec_dialect_op(
                 }
                 _ => panic!("KVStoreRemoveWithClearKey: expected KVStore as first input"),
             };
-            outputs.push(new_store_ev);
-            return Ok(());
+            outputs.push(new_store);
+            return;
         }
         HlInstructionSet::KVStoreUpdate { .. } => {
             let new_value_arc = inputs_arc.pop().unwrap();
             let encrypted_key_arc = inputs_arc.pop().unwrap();
             let store_arc = inputs_arc.pop().unwrap();
-            let store_ev = take_store(store_arc);
+            let store = take_store(store_arc);
             let RuntimeValue::FheUint(encrypted_key) = &*encrypted_key_arc else {
                 panic!("KVStoreUpdate: expected FheUint encrypted key")
             };
-            let (new_store_ev, present) = match store_ev {
+            let (new_store, present) = match store {
                 RuntimeValue::FheUintKVStore(mut kv) => {
                     let RuntimeValue::FheUint(new_value) = &*new_value_arc else {
                         panic!("KVStoreUpdate: expected FheUint value")
@@ -585,9 +481,9 @@ pub(super) fn exec_dialect_op(
                 }
                 _ => panic!("KVStoreUpdate: expected KVStore as first input"),
             };
-            outputs.push(new_store_ev);
+            outputs.push(new_store);
             outputs.push(RuntimeValue::FheBool(present));
-            return Ok(());
+            return;
         }
         _ => {}
     }
@@ -596,17 +492,25 @@ pub(super) fn exec_dialect_op(
     let inputs_owned: Vec<&RuntimeValue> = inputs_arc.iter().map(|a| a.as_ref()).collect();
     let inputs: &[&RuntimeValue] = &inputs_owned;
     match op {
-        HlInstructionSet::Input { .. } | HlInstructionSet::Output { .. } => {
-            unreachable!("Input/Output ops are handled by the coordinator, not workers")
+        HlInstructionSet::Input { .. } => {
+            unreachable!("Input ops are handled by the coordinator, not workers")
+        }
+        HlInstructionSet::Output { .. } => {
+            unreachable!("Output ops are handled by the coordinator, not workers")
         }
         HlInstructionSet::EncryptTrivial { kind } => {
             outputs.push(exec_trivial(inputs[0], *kind, sks));
-            Ok(())
         }
-        HlInstructionSet::Constant { .. } => {
-            unreachable!(
-                "Constant ops are materialized by the coordinator's seed phase, not workers"
-            )
+        HlInstructionSet::Constant { kind, value } => {
+            // The builder normalizes constants (`HlInstructionSet::constant`),
+            // so a mismatch here means the IR was not produced by it.
+            let clear = match (kind, value) {
+                (ClearKind::Bool, ScalarValue::Bool(v)) => RuntimeValue::ClearBool(*v),
+                (ClearKind::Uint(_), ScalarValue::Unsigned(v)) => RuntimeValue::ClearUint(*v),
+                (ClearKind::Int(_), ScalarValue::Signed(v)) => RuntimeValue::ClearInt(*v),
+                _ => panic!("Constant: kind/value mismatch ({kind:?} vs {value:?})"),
+            };
+            outputs.push(clear);
         }
         HlInstructionSet::FheAdd { kind: _ } => {
             outputs.push(exec_binary_op(
@@ -614,7 +518,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().add_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().add_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheSub { kind: _ } => {
             outputs.push(exec_binary_op(
@@ -622,7 +525,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().sub_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().sub_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheGe { kind: _ } => {
             outputs.push(exec_binary_cmp(
@@ -630,11 +532,9 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().ge_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().ge_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::Select { kind: _ } => {
             outputs.push(exec_if_then_else(inputs, sks));
-            Ok(())
         }
         HlInstructionSet::FheFlip { kind: _ } => {
             let RuntimeValue::FheBool(cond) = inputs[0] else {
@@ -653,19 +553,15 @@ pub(super) fn exec_dialect_op(
                 }
                 _ => panic!("mismatched or invalid input types for FheFlip"),
             }
-            Ok(())
         }
         HlInstructionSet::SelectScalarScalar { kind } => {
             outputs.push(exec_if_then_else_scalar_scalar(inputs, *kind, sks));
-            Ok(())
         }
         HlInstructionSet::SelectFheScalar { kind: _ } => {
             outputs.push(exec_if_then_else_fhe_scalar(inputs, sks));
-            Ok(())
         }
         HlInstructionSet::SelectScalarFhe { kind: _ } => {
             outputs.push(exec_if_then_else_scalar_fhe(inputs, sks));
-            Ok(())
         }
         HlInstructionSet::FheMul { kind: _ } => {
             outputs.push(exec_binary_op(
@@ -673,7 +569,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().mul_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().mul_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheBitOr { kind: _ } => {
             outputs.push(exec_binary_bitwise_op(
@@ -682,7 +577,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().bitor_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().boolean_bitor(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheNot { kind: _ } => {
             let result = match inputs[0] {
@@ -692,11 +586,9 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheNot not supported on this kind"),
             };
             outputs.push(result);
-            Ok(())
         }
         HlInstructionSet::FheCast { from: _, to } => {
             outputs.push(exec_cast(inputs[0], *to, sks));
-            Ok(())
         }
         HlInstructionSet::FheOverflowingAdd { kind: _ } => {
             let (result, overflow) = exec_overflowing_op(
@@ -706,7 +598,6 @@ pub(super) fn exec_dialect_op(
             );
             outputs.push(result);
             outputs.push(overflow);
-            Ok(())
         }
         HlInstructionSet::FheOverflowingSub { kind: _ } => {
             let (result, overflow) = exec_overflowing_op(
@@ -719,7 +610,6 @@ pub(super) fn exec_dialect_op(
             );
             outputs.push(result);
             outputs.push(overflow);
-            Ok(())
         }
         HlInstructionSet::FheOverflowingMul { kind: _ } => {
             let (result, overflow) = exec_overflowing_op(
@@ -732,7 +622,6 @@ pub(super) fn exec_dialect_op(
             );
             outputs.push(result);
             outputs.push(overflow);
-            Ok(())
         }
         HlInstructionSet::FheOverflowingNeg { kind: _ } => {
             let (result, overflow) = match inputs[0] {
@@ -748,7 +637,6 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(result);
             outputs.push(overflow);
-            Ok(())
         }
         HlInstructionSet::FheScalarOverflowingAdd { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -769,7 +657,6 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(result);
             outputs.push(overflow);
-            Ok(())
         }
         HlInstructionSet::FheScalarOverflowingSub { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -790,7 +677,6 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(result);
             outputs.push(overflow);
-            Ok(())
         }
         HlInstructionSet::FheDivRem { kind: _ } => {
             let (q, r) = match (inputs[0], inputs[1]) {
@@ -806,7 +692,6 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(q);
             outputs.push(r);
-            Ok(())
         }
         HlInstructionSet::FheDiv { kind: _ } => {
             outputs.push(exec_binary_op(
@@ -814,7 +699,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().div_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().div_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheRem { kind: _ } => {
             outputs.push(exec_binary_op(
@@ -822,7 +706,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().rem_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().rem_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheMin { kind: _ } => {
             outputs.push(exec_binary_op(
@@ -830,7 +713,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().min_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().min_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheMax { kind: _ } => {
             outputs.push(exec_binary_op(
@@ -838,7 +720,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().max_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().max_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheNeg { kind: _ } => {
             let result = match inputs[0] {
@@ -849,7 +730,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheNeg only supports integer types"),
             };
             outputs.push(result);
-            Ok(())
         }
         HlInstructionSet::FheIsEven { kind: _ } => {
             let bb = match inputs[0] {
@@ -858,7 +738,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheIsEven only supports integer types"),
             };
             outputs.push(RuntimeValue::FheBool(bb));
-            Ok(())
         }
         HlInstructionSet::FheIsOdd { kind: _ } => {
             let bb = match inputs[0] {
@@ -867,7 +746,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheIsOdd only supports integer types"),
             };
             outputs.push(RuntimeValue::FheBool(bb));
-            Ok(())
         }
         HlInstructionSet::FheLeadingZeros { kind: _ } => {
             let raw = match inputs[0] {
@@ -876,7 +754,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheLeadingZeros only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
-            Ok(())
         }
         HlInstructionSet::FheLeadingOnes { kind: _ } => {
             let raw = match inputs[0] {
@@ -885,7 +762,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheLeadingOnes only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
-            Ok(())
         }
         HlInstructionSet::FheTrailingZeros { kind: _ } => {
             let raw = match inputs[0] {
@@ -894,7 +770,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheTrailingZeros only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
-            Ok(())
         }
         HlInstructionSet::FheTrailingOnes { kind: _ } => {
             let raw = match inputs[0] {
@@ -903,7 +778,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheTrailingOnes only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
-            Ok(())
         }
         HlInstructionSet::FheCountOnes { kind: _ } => {
             let raw = match inputs[0] {
@@ -912,7 +786,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheCountOnes only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
-            Ok(())
         }
         HlInstructionSet::FheCountZeros { kind: _ } => {
             let raw = match inputs[0] {
@@ -921,7 +794,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheCountZeros only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
-            Ok(())
         }
         HlInstructionSet::FheIlog2 { kind: _ } => {
             let raw = match inputs[0] {
@@ -930,7 +802,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheIlog2 only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
-            Ok(())
         }
         HlInstructionSet::FheCheckedIlog2 { kind: _ } => {
             let (raw, bb) = match inputs[0] {
@@ -940,7 +811,6 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
             outputs.push(RuntimeValue::FheBool(bb));
-            Ok(())
         }
         HlInstructionSet::FheReverseBits { kind: _ } => {
             let result = match inputs[0] {
@@ -953,7 +823,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheReverseBits only supports integer types"),
             };
             outputs.push(result);
-            Ok(())
         }
         HlInstructionSet::FheAbs { kind: _ } => {
             // Builder rejects Uint(_); executor defensively checks anyway since
@@ -963,7 +832,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheAbs only supports signed integer types"),
             };
             outputs.push(result);
-            Ok(())
         }
         HlInstructionSet::FheSum { kind, n: _ } => {
             // Dispatch on the dialect's `kind` (FheIntKind) — no need to look at
@@ -993,7 +861,6 @@ pub(super) fn exec_dialect_op(
                 }
             };
             outputs.push(result);
-            Ok(())
         }
         HlInstructionSet::FheBitAnd { kind: _ } => {
             outputs.push(exec_binary_bitwise_op(
@@ -1002,7 +869,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().bitand_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().boolean_bitand(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheBitXor { kind: _ } => {
             outputs.push(exec_binary_bitwise_op(
@@ -1011,7 +877,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().bitxor_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().boolean_bitxor(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheEq { kind: _ } => {
             outputs.push(exec_binary_eq(
@@ -1024,7 +889,6 @@ pub(super) fn exec_dialect_op(
                     sks.pbs_key().boolean_bitnot(&xor)
                 },
             ));
-            Ok(())
         }
         HlInstructionSet::FheNe { kind: _ } => {
             outputs.push(exec_binary_eq(
@@ -1034,7 +898,6 @@ pub(super) fn exec_dialect_op(
                 // bool ne = XOR
                 |lhs, rhs| sks.pbs_key().boolean_bitxor(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheLt { kind: _ } => {
             outputs.push(exec_binary_cmp(
@@ -1042,7 +905,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().lt_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().lt_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheLe { kind: _ } => {
             outputs.push(exec_binary_cmp(
@@ -1050,7 +912,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().le_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().le_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheGt { kind: _ } => {
             outputs.push(exec_binary_cmp(
@@ -1058,7 +919,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().gt_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().gt_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheShl {
             lhs_kind: _,
@@ -1069,7 +929,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().left_shift_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().left_shift_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheShr {
             lhs_kind: _,
@@ -1080,7 +939,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().right_shift_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().right_shift_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheRotateLeft {
             lhs_kind: _,
@@ -1091,7 +949,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().rotate_left_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().rotate_left_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheRotateRight {
             lhs_kind: _,
@@ -1102,7 +959,6 @@ pub(super) fn exec_dialect_op(
                 |lhs, rhs| sks.pbs_key().rotate_right_parallelized(lhs, rhs),
                 |lhs, rhs| sks.pbs_key().rotate_right_parallelized(lhs, rhs),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarAdd { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1112,7 +968,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_add_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_add_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarSub { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1122,7 +977,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_sub_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_sub_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::ScalarFheSub { kind: _ } => {
             // clear - fhe = (-fhe) + clear
@@ -1140,7 +994,6 @@ pub(super) fn exec_dialect_op(
                     sks.pbs_key().scalar_add_parallelized(&neg, s)
                 },
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarMul { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1150,7 +1003,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_mul_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_mul_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarDiv { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1160,7 +1012,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_div_parallelized(v, s),
                 |v, s| sks.pbs_key().signed_scalar_div_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarRem { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1170,7 +1021,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_rem_parallelized(v, s),
                 |v, s| sks.pbs_key().signed_scalar_rem_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarMin { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1180,7 +1030,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_min_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_min_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarMax { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1190,7 +1039,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_max_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_max_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarShl { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1200,7 +1048,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_left_shift_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_left_shift_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarShr { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1210,7 +1057,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_right_shift_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_right_shift_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarRotateLeft { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1220,7 +1066,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_rotate_left_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_rotate_left_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarRotateRight { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1230,7 +1075,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_rotate_right_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_rotate_right_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarBitAnd { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1248,7 +1092,6 @@ pub(super) fn exec_dialect_op(
                     }
                 },
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarBitOr { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1266,7 +1109,6 @@ pub(super) fn exec_dialect_op(
                     }
                 },
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarBitXor { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1284,7 +1126,6 @@ pub(super) fn exec_dialect_op(
                     }
                 },
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarEq { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1302,7 +1143,6 @@ pub(super) fn exec_dialect_op(
                     }
                 },
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarNe { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1320,7 +1160,6 @@ pub(super) fn exec_dialect_op(
                     }
                 },
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarLt { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1330,7 +1169,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_lt_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_lt_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarLe { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1340,7 +1178,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_le_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_le_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarGt { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1350,7 +1187,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_gt_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_gt_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::FheScalarGe { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
@@ -1360,7 +1196,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_ge_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_ge_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::ScalarFheLt { kind: _ } => {
             // clear < fhe ≡ fhe > clear. Clear is inputs[0], fhe is inputs[1].
@@ -1371,7 +1206,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_gt_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_gt_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::ScalarFheLe { kind: _ } => {
             // clear <= fhe ≡ fhe >= clear
@@ -1382,7 +1216,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_ge_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_ge_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::ScalarFheGt { kind: _ } => {
             // clear > fhe ≡ fhe < clear
@@ -1393,7 +1226,6 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_lt_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_lt_parallelized(v, s),
             ));
-            Ok(())
         }
         HlInstructionSet::ScalarFheGe { kind: _ } => {
             // clear >= fhe ≡ fhe <= clear
@@ -1404,20 +1236,12 @@ pub(super) fn exec_dialect_op(
                 |v, s| sks.pbs_key().scalar_le_parallelized(v, s),
                 |v, s| sks.pbs_key().scalar_le_parallelized(v, s),
             ));
-            Ok(())
         }
-        HlInstructionSet::Compress { input_kinds: _ } => {
-            let r = exec_compress(inputs, sks)?;
-            outputs.push(r.into());
-            Ok(())
-        }
-        HlInstructionSet::Decompress { picks } => exec_decompress(sks, inputs, picks, outputs),
         HlInstructionSet::MatchValue { lut, .. } => match &inputs[0] {
             RuntimeValue::FheUint(ct) => {
                 let (result, matched) = sks.pbs_key().match_value_parallelized(ct, lut);
                 outputs.push(result.into());
                 outputs.push(matched.into());
-                Ok(())
             }
             _ => panic!("Invalid inputs for match value"),
         },
@@ -1428,10 +1252,9 @@ pub(super) fn exec_dialect_op(
             let oprf = sks.oprf_key();
             let pbs = sks.pbs_key();
             let message_modulus = sks.message_modulus();
-            let bits_per_block = message_modulus.0.ilog2() as usize;
             let result = match (value_kind, mode) {
                 (ValueKind::FheUint(n), OprfMode::Full) => {
-                    let num_blocks = n.div_ceil(bits_per_block) as u64;
+                    let num_blocks = num_blocks_for(*n, sks) as u64;
                     let ct = oprf.par_generate_oblivious_pseudo_random_unsigned_integer(
                         seed.clone(),
                         num_blocks,
@@ -1440,7 +1263,7 @@ pub(super) fn exec_dialect_op(
                     RuntimeValue::FheUint(ct)
                 }
                 (ValueKind::FheUint(n), OprfMode::Bounded { bits }) => {
-                    let num_blocks = n.div_ceil(bits_per_block) as u64;
+                    let num_blocks = num_blocks_for(*n, sks) as u64;
                     let ct = oprf.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                         seed.clone(),
                         *bits,
@@ -1456,7 +1279,7 @@ pub(super) fn exec_dialect_op(
                         max_distance,
                     },
                 ) => {
-                    let num_blocks = n.div_ceil(bits_per_block) as u64;
+                    let num_blocks = num_blocks_for(*n, sks) as u64;
                     let num_input_random_bits = num_input_random_bits_for_max_distance(
                         *upper,
                         max_distance.map_or(2_f64.powi(-128), NonNanF64::get),
@@ -1472,7 +1295,7 @@ pub(super) fn exec_dialect_op(
                     RuntimeValue::FheUint(ct)
                 }
                 (ValueKind::FheInt(n), OprfMode::Full) => {
-                    let num_blocks = n.div_ceil(bits_per_block) as u64;
+                    let num_blocks = num_blocks_for(*n, sks) as u64;
                     let ct = oprf.par_generate_oblivious_pseudo_random_signed_integer(
                         seed.clone(),
                         num_blocks,
@@ -1481,7 +1304,7 @@ pub(super) fn exec_dialect_op(
                     RuntimeValue::FheInt(ct)
                 }
                 (ValueKind::FheInt(n), OprfMode::Bounded { bits }) => {
-                    let num_blocks = n.div_ceil(bits_per_block) as u64;
+                    let num_blocks = num_blocks_for(*n, sks) as u64;
                     let ct = oprf.par_generate_oblivious_pseudo_random_signed_integer_bounded(
                         seed.clone(),
                         *bits,
@@ -1516,7 +1339,6 @@ pub(super) fn exec_dialect_op(
                 }
             };
             outputs.push(result);
-            Ok(())
         }
         HlInstructionSet::FheContains { kind, n: _ } => {
             let needle = inputs[0];
@@ -1553,7 +1375,6 @@ pub(super) fn exec_dialect_op(
                 }
             };
             outputs.push(RuntimeValue::FheBool(result));
-            Ok(())
         }
         HlInstructionSet::FheContainsScalar { kind, n: _ } => {
             let pbs = sks.pbs_key();
@@ -1590,7 +1411,6 @@ pub(super) fn exec_dialect_op(
                 _ => panic!("FheContainsScalar mismatched kind/scalar"),
             };
             outputs.push(RuntimeValue::FheBool(result));
-            Ok(())
         }
         HlInstructionSet::KVStoreCreate {
             key_kind: _,
@@ -1601,7 +1421,6 @@ pub(super) fn exec_dialect_op(
                 FheIntKind::Int(_) => RuntimeValue::FheIntKVStore(KVStore::new()),
             };
             outputs.push(store);
-            Ok(())
         }
         HlInstructionSet::KVStoreInsertWithClearKey { .. }
         | HlInstructionSet::KVStoreRemoveWithClearKey { .. }
@@ -1614,7 +1433,7 @@ pub(super) fn exec_dialect_op(
             ..
         } => {
             let key_u128 = clear_key.as_u128();
-            let (value_ev, present) = match (inputs[0], value_kind) {
+            let (value, present) = match (inputs[0], value_kind) {
                 (RuntimeValue::FheUintKVStore(kv), FheIntKind::Uint(bits)) => {
                     kv.get(&key_u128).map_or_else(
                         || {
@@ -1640,12 +1459,11 @@ pub(super) fn exec_dialect_op(
                 }
                 _ => panic!("KVStoreGetWithClearKey: KVStore variant / value_kind mismatch"),
             };
-            outputs.push(value_ev);
+            outputs.push(value);
             outputs.push(RuntimeValue::ClearBool(present));
-            Ok(())
         }
         HlInstructionSet::KVStoreGet { .. } => {
-            let (value_ev, present_ev) = match (inputs[0], inputs[1]) {
+            let (value, present) = match (inputs[0], inputs[1]) {
                 (RuntimeValue::FheUintKVStore(kv), RuntimeValue::FheUint(ek)) => {
                     let (v, p) = sks.pbs_key().kv_store_get(kv, ek);
                     (RuntimeValue::FheUint(v), RuntimeValue::FheBool(p))
@@ -1660,9 +1478,8 @@ pub(super) fn exec_dialect_op(
                 }
                 _ => panic!("KVStoreGet: expected (KVStore, FheUint encrypted_key)"),
             };
-            outputs.push(value_ev);
-            outputs.push(present_ev);
-            Ok(())
+            outputs.push(value);
+            outputs.push(present);
         }
     }
 }

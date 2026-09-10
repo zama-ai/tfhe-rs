@@ -1,6 +1,6 @@
 //! CPU backend for circuit execution
 mod ops;
-pub mod scheduler;
+mod scheduler;
 #[cfg(test)]
 mod tests;
 pub mod value;
@@ -9,8 +9,9 @@ pub use value::{
     CpuInputList, CpuOutputError, CpuOutputList, RuntimeValue, RuntimeValueConversionError,
 };
 
-use crate::circuit::dialects::hlapi::{FheIntKind, ScalarValue, ValueKind};
+use crate::circuit::dialects::hlapi::{FheIntKind, KvKeyKind, ValueKind};
 use crate::circuit::Circuit;
+use std::num::NonZeroUsize;
 
 /// Circuit executor that executes a circuit on the CPU
 pub struct CpuBackend {
@@ -18,7 +19,7 @@ pub struct CpuBackend {
     /// Upper bound on the worker pool size.
     /// The actual number of workers used depends on the circuit,
     /// it may be less than this, but never greater
-    pub(crate) max_num_workers: usize,
+    pub(crate) max_num_workers: NonZeroUsize,
 }
 
 impl CpuBackend {
@@ -28,19 +29,14 @@ impl CpuBackend {
     /// The actual worker count per execution is further capped by
     /// `circuit.max_concurrent_ops()`.
     pub fn new(sk: crate::ServerKey) -> Self {
-        let cpu_threads = std::thread::available_parallelism().map_or(4, |n| n.get());
+        let cpu_threads = std::thread::available_parallelism().map_or(4, NonZeroUsize::get);
         // Leave one logical core for the coordinator thread
-        let max = cpu_threads.saturating_sub(1).max(1);
+        let max = NonZeroUsize::new(cpu_threads.saturating_sub(1)).unwrap_or(NonZeroUsize::MIN);
         Self::with_max_num_workers(sk, max)
     }
 
     /// Creates a CPU backend with the specified number of `max_num_workers`
-    ///
-    /// # Panics
-    ///
-    /// If `max_num_workers` == 0
-    pub fn with_max_num_workers(sk: crate::ServerKey, max_num_workers: usize) -> Self {
-        assert!(max_num_workers >= 1, "max_num_workers must be at least 1");
+    pub fn with_max_num_workers(sk: crate::ServerKey, max_num_workers: NonZeroUsize) -> Self {
         Self {
             sk,
             max_num_workers,
@@ -52,7 +48,8 @@ impl CpuBackend {
     /// Take the structural width of the circuit, clamped to the configured maximum
     fn pick_num_workers(&self, circuit: &Circuit) -> usize {
         self.max_num_workers
-            .min(circuit.max_concurrent_ops())
+            .get()
+            .min(circuit.max_concurrent_ops() as usize)
             .max(1)
     }
 
@@ -70,7 +67,7 @@ impl CpuBackend {
         };
         for val in circuit.ir().walk_vals_linear() {
             match val.get_type() {
-                ValueKind::FheUint(n) | ValueKind::FheInt(n) => check(n as u64)?,
+                ValueKind::FheUint(n) | ValueKind::FheInt(n) => check(u64::from(n))?,
                 ValueKind::KVStore { key: _, value } => {
                     let bits = match value {
                         FheIntKind::Uint(n) | FheIntKind::Int(n) => n,
@@ -85,23 +82,13 @@ impl CpuBackend {
 }
 
 impl super::ExecutionBackend for CpuBackend {
-    type InputList = CpuInputList;
-    type OutputList = CpuOutputList;
     type Error = CpuError;
 
-    fn convert_inputs(&self, inputs: CpuInputList) -> Result<Self::InputList, Self::Error> {
-        Ok(inputs)
-    }
-
-    fn convert_outputs(&self, outputs: Self::OutputList) -> Result<CpuOutputList, Self::Error> {
-        Ok(outputs)
-    }
-
     fn execute(
-        &self,
+        &mut self,
         circuit: &Circuit,
-        inputs: Self::InputList,
-    ) -> Result<Self::OutputList, Self::Error> {
+        inputs: CpuInputList,
+    ) -> Result<CpuOutputList, Self::Error> {
         self.check_circuit_compatibility(circuit)?;
         let n = self.pick_num_workers(circuit);
         scheduler::execute_circuit(&self.sk, circuit, inputs, n)
@@ -113,28 +100,28 @@ impl super::ExecutionBackend for CpuBackend {
 #[non_exhaustive]
 pub enum CpuError {
     InputCountMismatch {
-        expected: usize,
-        got: usize,
+        expected: u32,
+        got: u32,
     },
     /// An input does not have the type it was expected to have.
     InputTypeMismatch {
-        input_index: usize,
+        input_index: u32,
         expected: ValueKind,
         got: ValueKind,
     },
-    /// A KVStore input contains a key that does not fit the declared key
-    /// kind. (Out-of-range *clear integer* inputs surface as
+    /// A KVStore input contains a key that does not fit the store's declared
+    /// key kind. (Out-of-range *clear integer* inputs surface as
     /// `InputTypeMismatch`: the observed kind of a clear integer is the
     /// minimal width holding its value.)
-    InputValueOutOfRange {
-        input_index: usize,
-        expected: ValueKind,
-        value: ScalarValue,
+    KvStoreKeyOutOfRange {
+        input_index: u32,
+        expected: KvKeyKind,
+        key: u128,
     },
     /// An FHE input was encrypted under different parameters than the
     /// executing server key (message/carry modulus mismatch).
     InputParamsMismatch {
-        input_index: usize,
+        input_index: u32,
         expected_message_modulus: crate::shortint::MessageModulus,
         expected_carry_modulus: crate::shortint::CarryModulus,
         got_message_modulus: crate::shortint::MessageModulus,
@@ -147,13 +134,15 @@ pub enum CpuError {
         bits: u64,
         message_bits: u64,
     },
-    MissingCompressionKey,
-    MissingDecompressionKey,
-    CompressionError(String),
-    DecompressionError(String),
+    /// The execution ended without producing the circuit output at `pos`.
+    /// This means the worker threads exited before the circuit completed,
+    /// which is an internal error of the executor.
+    MissingOutput {
+        pos: u32,
+    },
     /// Generic something went wrong error
     ExecutionError {
-        node_index: usize,
+        node_index: u32,
         op: &'static str,
         message: String,
     },
@@ -173,13 +162,13 @@ impl std::fmt::Display for CpuError {
                 f,
                 "invalid type for input {input_index}: expected {expected:?}, got {got:?}"
             ),
-            Self::InputValueOutOfRange {
+            Self::KvStoreKeyOutOfRange {
                 input_index,
                 expected,
-                value,
+                key,
             } => write!(
                 f,
-                "clear value {value:?} for input {input_index} does not fit expected type {expected:?}"
+                "KVStore input {input_index} contains key {key} which does not fit its declared key kind {expected:?}"
             ),
             Self::InputParamsMismatch {
                 input_index,
@@ -201,10 +190,10 @@ impl std::fmt::Display for CpuError {
                 "circuit contains a {bits}-bit integer value, which is not representable \
                  with this key's radix encoding ({message_bits} message bits per block)"
             ),
-            Self::MissingCompressionKey => write!(f, "compression key required"),
-            Self::MissingDecompressionKey => write!(f, "decompression key required"),
-            Self::CompressionError(message) => write!(f, "compression failed: {message}"),
-            Self::DecompressionError(message) => write!(f, "decompression failed: {message}"),
+            Self::MissingOutput { pos } => write!(
+                f,
+                "execution ended without producing circuit output {pos} (workers exited early)"
+            ),
             Self::ExecutionError {
                 node_index,
                 op,

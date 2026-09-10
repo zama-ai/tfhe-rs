@@ -5,7 +5,7 @@
 //! (no-execution) error/shape tests that don't need a backend.
 use crate::circuit::backends::cpu::{CpuBackend, CpuInputList};
 use crate::circuit::backends::ExecutionBackend;
-use crate::circuit::dialects::hlapi::FheIntKind;
+use crate::circuit::dialects::hlapi::{FheIntKind, FheKind};
 use crate::circuit::{
     BuilderError, BuilderErrorKind, CircuitBuilder, ClearKind, HlInstructionSet, KvKey, KvKeyKind,
     OprfMode, ScalarValue, ValueKind,
@@ -35,228 +35,228 @@ fn cpu_backend() -> (ClientKey, CpuBackend) {
 
 #[test]
 fn fheuint32_add() {
-    let (ck, be) = cpu_backend();
-    fheuint32_add_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_add_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_sub() {
-    let (ck, be) = cpu_backend();
-    fheuint32_sub_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_sub_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_mul() {
-    let (ck, be) = cpu_backend();
-    fheuint32_mul_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_mul_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_div() {
-    let (ck, be) = cpu_backend();
-    fheuint32_div_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_div_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_rem() {
-    let (ck, be) = cpu_backend();
-    fheuint32_rem_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_rem_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_bitand() {
-    let (ck, be) = cpu_backend();
-    fheuint32_bitand_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_bitand_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_bitor() {
-    let (ck, be) = cpu_backend();
-    fheuint32_bitor_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_bitor_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_bitxor() {
-    let (ck, be) = cpu_backend();
-    fheuint32_bitxor_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_bitxor_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_min() {
-    let (ck, be) = cpu_backend();
-    fheuint32_min_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_min_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_max() {
-    let (ck, be) = cpu_backend();
-    fheuint32_max_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_max_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_shl() {
-    let (ck, be) = cpu_backend();
-    fheuint32_shl_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_shl_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_shr() {
-    let (ck, be) = cpu_backend();
-    fheuint32_shr_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_shr_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_rotate_left() {
-    let (ck, be) = cpu_backend();
-    fheuint32_rotate_left_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_rotate_left_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_rotate_right() {
-    let (ck, be) = cpu_backend();
-    fheuint32_rotate_right_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_rotate_right_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_eq() {
-    let (ck, be) = cpu_backend();
-    fheuint32_eq_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_eq_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_ne() {
-    let (ck, be) = cpu_backend();
-    fheuint32_ne_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_ne_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_lt() {
-    let (ck, be) = cpu_backend();
-    fheuint32_lt_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_lt_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_le() {
-    let (ck, be) = cpu_backend();
-    fheuint32_le_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_le_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_gt() {
-    let (ck, be) = cpu_backend();
-    fheuint32_gt_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_gt_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_ge() {
-    let (ck, be) = cpu_backend();
-    fheuint32_ge_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_ge_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_not() {
-    let (ck, be) = cpu_backend();
-    fheuint32_not_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_not_case(&ck, &mut be);
 }
 
 // -- Unary bit-count / log / reverse on FheUint32 (output is FheUint32) --
 
 #[test]
 fn fheuint32_leading_zeros() {
-    let (ck, be) = cpu_backend();
-    fheuint32_leading_zeros_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_leading_zeros_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_leading_ones() {
-    let (ck, be) = cpu_backend();
-    fheuint32_leading_ones_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_leading_ones_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_trailing_zeros() {
-    let (ck, be) = cpu_backend();
-    fheuint32_trailing_zeros_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_trailing_zeros_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_trailing_ones() {
-    let (ck, be) = cpu_backend();
-    fheuint32_trailing_ones_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_trailing_ones_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_count_ones() {
-    let (ck, be) = cpu_backend();
-    fheuint32_count_ones_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_count_ones_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_count_zeros() {
-    let (ck, be) = cpu_backend();
-    fheuint32_count_zeros_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_count_zeros_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_ilog2() {
-    let (ck, be) = cpu_backend();
-    fheuint32_ilog2_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_ilog2_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_reverse_bits() {
-    let (ck, be) = cpu_backend();
-    fheuint32_reverse_bits_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_reverse_bits_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_reverse_bits() {
-    let (ck, be) = cpu_backend();
-    fheint32_reverse_bits_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_reverse_bits_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_abs() {
-    let (ck, be) = cpu_backend();
-    fheint32_abs_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_abs_case(&ck, &mut be);
 }
 
 // -- Predicates / checked_ilog2 — inline because output shape differs --
 
 #[test]
 fn fheuint32_is_even() {
-    let (ck, be) = cpu_backend();
-    fheuint32_is_even_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_is_even_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_is_odd() {
-    let (ck, be) = cpu_backend();
-    fheuint32_is_odd_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_is_odd_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_checked_ilog2() {
-    let (ck, be) = cpu_backend();
-    fheuint32_checked_ilog2_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_checked_ilog2_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_overflowing_add() {
-    let (ck, be) = cpu_backend();
-    fheuint32_overflowing_add_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_overflowing_add_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_overflowing_sub() {
-    let (ck, be) = cpu_backend();
-    fheuint32_overflowing_sub_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_overflowing_sub_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_overflowing_mul() {
-    let (ck, be) = cpu_backend();
-    fheuint32_overflowing_mul_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_overflowing_mul_case(&ck, &mut be);
 }
 
 // ============================================================
@@ -265,128 +265,128 @@ fn fheuint32_overflowing_mul() {
 
 #[test]
 fn fheint32_add() {
-    let (ck, be) = cpu_backend();
-    fheint32_add_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_add_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_sub() {
-    let (ck, be) = cpu_backend();
-    fheint32_sub_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_sub_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_mul() {
-    let (ck, be) = cpu_backend();
-    fheint32_mul_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_mul_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_div() {
-    let (ck, be) = cpu_backend();
-    fheint32_div_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_div_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_rem() {
-    let (ck, be) = cpu_backend();
-    fheint32_rem_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_rem_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_bitand() {
-    let (ck, be) = cpu_backend();
-    fheint32_bitand_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_bitand_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_bitor() {
-    let (ck, be) = cpu_backend();
-    fheint32_bitor_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_bitor_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_bitxor() {
-    let (ck, be) = cpu_backend();
-    fheint32_bitxor_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_bitxor_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_min() {
-    let (ck, be) = cpu_backend();
-    fheint32_min_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_min_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_max() {
-    let (ck, be) = cpu_backend();
-    fheint32_max_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_max_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_eq() {
-    let (ck, be) = cpu_backend();
-    fheint32_eq_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_eq_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_ne() {
-    let (ck, be) = cpu_backend();
-    fheint32_ne_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_ne_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_lt() {
-    let (ck, be) = cpu_backend();
-    fheint32_lt_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_lt_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_le() {
-    let (ck, be) = cpu_backend();
-    fheint32_le_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_le_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_gt() {
-    let (ck, be) = cpu_backend();
-    fheint32_gt_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_gt_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_ge() {
-    let (ck, be) = cpu_backend();
-    fheint32_ge_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_ge_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_not() {
-    let (ck, be) = cpu_backend();
-    fheint32_not_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_not_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_neg() {
-    let (ck, be) = cpu_backend();
-    fheint32_neg_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_neg_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_overflowing_add() {
-    let (ck, be) = cpu_backend();
-    fheint32_overflowing_add_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_overflowing_add_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_overflowing_sub() {
-    let (ck, be) = cpu_backend();
-    fheint32_overflowing_sub_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_overflowing_sub_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_overflowing_mul() {
-    let (ck, be) = cpu_backend();
-    fheint32_overflowing_mul_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_overflowing_mul_case(&ck, &mut be);
 }
 
 // ============================================================
@@ -395,68 +395,68 @@ fn fheint32_overflowing_mul() {
 
 #[test]
 fn fheuint32_overflowing_neg() {
-    let (ck, be) = cpu_backend();
-    fheuint32_overflowing_neg_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_overflowing_neg_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_overflowing_neg() {
-    let (ck, be) = cpu_backend();
-    fheint32_overflowing_neg_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_overflowing_neg_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_div_rem() {
-    let (ck, be) = cpu_backend();
-    fheuint32_div_rem_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_div_rem_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_overflowing_add() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_overflowing_add_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_overflowing_add_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_overflowing_sub() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_overflowing_sub_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_overflowing_sub_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint8_fused_mul_scalar_div() {
-    let (ck, be) = cpu_backend();
-    fheuint8_fused_mul_scalar_div_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint8_fused_mul_scalar_div_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint8_fused_scalar_mul_scalar_div() {
-    let (ck, be) = cpu_backend();
-    fheuint8_fused_scalar_mul_scalar_div_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint8_fused_scalar_mul_scalar_div_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_shl() {
-    let (ck, be) = cpu_backend();
-    fheint32_shl_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_shl_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_shr() {
-    let (ck, be) = cpu_backend();
-    fheint32_shr_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_shr_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_rotate_left() {
-    let (ck, be) = cpu_backend();
-    fheint32_rotate_left_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_rotate_left_case(&ck, &mut be);
 }
 
 #[test]
 fn fheint32_rotate_right() {
-    let (ck, be) = cpu_backend();
-    fheint32_rotate_right_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheint32_rotate_right_case(&ck, &mut be);
 }
 
 // ============================================================
@@ -465,14 +465,14 @@ fn fheint32_rotate_right() {
 
 #[test]
 fn cast_fheuint32_to_fheint32() {
-    let (ck, be) = cpu_backend();
-    cast_fheuint32_to_fheint32_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    cast_fheuint32_to_fheint32_case(&ck, &mut be);
 }
 
 #[test]
 fn cast_fheint32_to_fheuint32() {
-    let (ck, be) = cpu_backend();
-    cast_fheint32_to_fheuint32_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    cast_fheint32_to_fheuint32_case(&ck, &mut be);
 }
 
 // ============================================================
@@ -481,8 +481,8 @@ fn cast_fheint32_to_fheuint32() {
 
 #[test]
 fn cmux_fheuint32() {
-    let (ck, be) = cpu_backend();
-    cmux_fheuint32_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    cmux_fheuint32_case(&ck, &mut be);
 }
 
 // ============================================================
@@ -491,140 +491,140 @@ fn cmux_fheuint32() {
 
 #[test]
 fn fheuint32_scalar_add_fhe_lhs() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_add_fhe_lhs_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_add_fhe_lhs_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_add_fhe_rhs() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_add_fhe_rhs_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_add_fhe_rhs_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_sub_fhe_lhs() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_sub_fhe_lhs_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_sub_fhe_lhs_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_sub_fhe_rhs() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_sub_fhe_rhs_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_sub_fhe_rhs_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_mul_fhe_lhs() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_mul_fhe_lhs_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_mul_fhe_lhs_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_mul_fhe_rhs() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_mul_fhe_rhs_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_mul_fhe_rhs_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_div() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_div_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_div_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_rem() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_rem_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_rem_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_min() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_min_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_min_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_max() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_max_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_max_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_bitand() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_bitand_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_bitand_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_bitor() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_bitor_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_bitor_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_bitxor() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_bitxor_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_bitxor_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_eq() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_eq_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_eq_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_ne() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_ne_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_ne_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_lt() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_lt_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_lt_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_le() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_le_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_le_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_gt() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_gt_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_gt_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_ge() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_ge_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_ge_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_shl() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_shl_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_shl_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_shr() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_shr_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_shr_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_rotate_left() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_rotate_left_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_rotate_left_case(&ck, &mut be);
 }
 
 #[test]
 fn fheuint32_scalar_rotate_right() {
-    let (ck, be) = cpu_backend();
-    fheuint32_scalar_rotate_right_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    fheuint32_scalar_rotate_right_case(&ck, &mut be);
 }
 
 // ============================================================
@@ -655,17 +655,6 @@ fn clear_integer_kinds_reject_invalid_bit_widths() {
             BuilderError {
                 kind: BuilderErrorKind::InvalidBitWidth { bits: 0 },
                 op: "constant",
-            }
-        ));
-    }
-
-    if let Ok(too_wide) = usize::try_from(u64::from(u32::MAX) + 1) {
-        let err = new_bld().input(ValueKind::Uint(too_wide)).unwrap_err();
-        assert!(matches!(
-            err,
-            BuilderError {
-                kind: BuilderErrorKind::InvalidBitWidth { .. },
-                op: "input",
             }
         ));
     }
@@ -827,14 +816,14 @@ fn clear_integer_output_round_trip() {
     b.output(signed).unwrap();
     b.output(too_large_for_u8).unwrap();
 
-    let (_, backend) = cpu_backend();
+    let (_, mut backend) = cpu_backend();
     let mut inputs = CpuInputList::new();
     inputs.push(42u32).push(-42i32).push(300u16);
-    let outputs = backend.execute(&b.build(), inputs).unwrap();
+    let outputs = backend.execute(&b.build().unwrap(), inputs).unwrap();
 
-    assert_eq!(outputs.get_clear::<u32>(0), 42);
-    assert_eq!(outputs.get_clear::<i32>(1), -42);
-    assert!(outputs.try_get_clear::<u8>(2).is_err());
+    assert_eq!(outputs.get_untagged::<u32>(0), 42);
+    assert_eq!(outputs.get_untagged::<i32>(1), -42);
+    assert!(outputs.try_get_untagged::<u8>(2).is_err());
 }
 
 #[test]
@@ -896,7 +885,7 @@ fn test_kv_store() {
     bld.output(val_b_after).unwrap(); // 7
     bld.output(present_b_after).unwrap(); // 8
 
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
 
@@ -913,7 +902,7 @@ fn test_kv_store() {
     inputs.push(FheUint32::encrypt(kb, &cks));
     inputs.push(FheUint8::encrypt(na, &cks));
 
-    let cpu = CpuBackend::new(sks);
+    let mut cpu = CpuBackend::new(sks);
     let outputs = cpu.execute(&circuit, inputs).unwrap();
 
     let val_a_before: u8 = outputs.get::<FheUint8>(0).decrypt(&cks);
@@ -965,7 +954,7 @@ fn test_kv_store_get_missing_encrypted_key() {
     let (val, present) = bld.kv_store_get(store, in_ek_missing).unwrap();
     bld.output(val).unwrap();
     bld.output(present).unwrap();
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
@@ -1004,7 +993,7 @@ fn test_kv_store_get_with_clear_key_paths() {
     bld.output(present_hit).unwrap(); // 1 — ClearBool
     bld.output(val_miss).unwrap(); // 2
     bld.output(present_miss).unwrap(); // 3 — ClearBool
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
@@ -1012,9 +1001,9 @@ fn test_kv_store_get_with_clear_key_paths() {
     let outputs = CpuBackend::new(sks).execute(&circuit, inputs).unwrap();
 
     let val_hit: u8 = outputs.get::<FheUint8>(0).decrypt(&cks);
-    let present_hit: bool = outputs.get_clear::<bool>(1); // ClearBool: no decrypt needed
+    let present_hit: bool = outputs.get_untagged::<bool>(1); // ClearBool: no decrypt needed
     let val_miss: u8 = outputs.get::<FheUint8>(2).decrypt(&cks);
-    let present_miss: bool = outputs.get_clear::<bool>(3);
+    let present_miss: bool = outputs.get_untagged::<bool>(3);
 
     assert_eq!(val_hit, 55);
     assert!(present_hit, "clear-key hit should report present=true");
@@ -1049,7 +1038,7 @@ fn test_kv_store_remove() {
     bld.output(present_a).unwrap(); // 1
     bld.output(val_b).unwrap(); // 2
     bld.output(present_b).unwrap(); // 3
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
@@ -1089,7 +1078,7 @@ fn test_kv_store_update_missing_key() {
     bld.output(present_update).unwrap(); // 0
     bld.output(val_after).unwrap(); // 1
     bld.output(present_after).unwrap(); // 2
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
@@ -1140,7 +1129,7 @@ fn test_kv_store_signed_end_to_end() {
     bld.output(present_update).unwrap(); // 1
     bld.output(val_a_after).unwrap(); // 2
     bld.output(val_b_after).unwrap(); // 3
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let a: i8 = -42;
@@ -1188,7 +1177,7 @@ fn test_kv_store_signed_get_missing() {
     let (val, present) = bld.kv_store_get(store, in_ek_missing).unwrap();
     bld.output(val).unwrap();
     bld.output(present).unwrap();
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
@@ -1208,20 +1197,20 @@ fn test_kv_store_signed_get_missing() {
 
 #[test]
 fn oprf_fheuint32_full() {
-    let (ck, be) = cpu_backend();
-    oprf_fheuint32_full_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    oprf_fheuint32_full_case(&ck, &mut be);
 }
 
 #[test]
 fn oprf_fheuint32_bounded() {
-    let (ck, be) = cpu_backend();
-    oprf_fheuint32_bounded_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    oprf_fheuint32_bounded_case(&ck, &mut be);
 }
 
 #[test]
 fn oprf_fheuint32_custom_range() {
-    let (ck, be) = cpu_backend();
-    oprf_fheuint32_custom_range_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    oprf_fheuint32_custom_range_case(&ck, &mut be);
 }
 
 #[test]
@@ -1238,7 +1227,7 @@ fn oprf_power_of_two_custom_range_uses_bounded_mode() {
         .unwrap();
     b.output(result).unwrap();
     b.output(singleton).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     assert!(circuit.ir().walk_ops_topological().any(|op| matches!(
         op.get_instruction(),
@@ -1287,28 +1276,28 @@ fn oprf_custom_range_rejects_upper_bound_that_does_not_fit() {
 
 #[test]
 fn oprf_fheint32_full() {
-    let (ck, be) = cpu_backend();
-    oprf_fheint32_full_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    oprf_fheint32_full_case(&ck, &mut be);
 }
 
 #[test]
 fn oprf_fheint32_bounded() {
-    let (ck, be) = cpu_backend();
-    oprf_fheint32_bounded_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    oprf_fheint32_bounded_case(&ck, &mut be);
 }
 
 #[test]
 fn oprf_fhebool_full() {
-    let (ck, be) = cpu_backend();
-    oprf_fhebool_full_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    oprf_fhebool_full_case(&ck, &mut be);
 }
 
 /// Two independent executions with the same seed must yield the same decrypted
 /// value — that's the whole point of OPRF being deterministic.
 #[test]
 fn oprf_is_deterministic() {
-    let (ck, be) = cpu_backend();
-    oprf_is_deterministic_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    oprf_is_deterministic_case(&ck, &mut be);
 }
 
 #[test]
@@ -1403,38 +1392,38 @@ fn oprf_rejects_nan_max_distance() {
 
 #[test]
 fn select_fheuint32_then_fhe_else_scalar() {
-    let (ck, be) = cpu_backend();
-    select_fheuint32_then_fhe_else_scalar_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    select_fheuint32_then_fhe_else_scalar_case(&ck, &mut be);
 }
 
 #[test]
 fn select_fheuint32_then_scalar_else_fhe() {
-    let (ck, be) = cpu_backend();
-    select_fheuint32_then_scalar_else_fhe_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    select_fheuint32_then_scalar_else_fhe_case(&ck, &mut be);
 }
 
 #[test]
 fn select_fheuint32_both_scalar() {
-    let (ck, be) = cpu_backend();
-    select_fheuint32_both_scalar_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    select_fheuint32_both_scalar_case(&ck, &mut be);
 }
 
 #[test]
 fn select_fheint32_then_fhe_else_scalar() {
-    let (ck, be) = cpu_backend();
-    select_fheint32_then_fhe_else_scalar_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    select_fheint32_then_fhe_else_scalar_case(&ck, &mut be);
 }
 
 #[test]
 fn select_fheint32_then_scalar_else_fhe() {
-    let (ck, be) = cpu_backend();
-    select_fheint32_then_scalar_else_fhe_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    select_fheint32_then_scalar_else_fhe_case(&ck, &mut be);
 }
 
 #[test]
 fn select_fheint32_both_scalar() {
-    let (ck, be) = cpu_backend();
-    select_fheint32_both_scalar_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    select_fheint32_both_scalar_case(&ck, &mut be);
 }
 
 #[test]
@@ -1474,7 +1463,49 @@ fn fhe_select_const_rejects_invalid_scalar() {
         "expected InvalidConstantValue, got {err:?}"
     );
     b.output(cond).unwrap();
-    assert_eq!(b.build().ir().n_ops(), 2, "failed select left orphan ops");
+    assert_eq!(
+        b.build().unwrap().ir().n_ops(),
+        2,
+        "failed select left orphan ops"
+    );
+}
+
+#[test]
+fn fhe_cast_rejects_integer_to_bool() {
+    // Like Rust's `as` and the regular HLAPI, integer -> bool is not a cast:
+    // users must write `fhe_ne(value, 0)` explicitly.
+    for kind in [ValueKind::FheUint(32), ValueKind::FheInt(32)] {
+        let mut b = CircuitBuilder::new();
+        let v = b.input(kind).unwrap();
+        let err = b.fhe_cast(v, FheKind::Bool).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                BuilderError {
+                    kind: BuilderErrorKind::InvalidCast {
+                        to: FheKind::Bool,
+                        ..
+                    },
+                    op: "fhe_cast",
+                }
+            ),
+            "expected InvalidCast for {kind:?} -> FheBool, got {err:?}"
+        );
+        // The rejected cast must not have left an op behind.
+        b.output(v).unwrap();
+        assert_eq!(
+            b.build().unwrap().ir().n_ops(),
+            2,
+            "expected only Input + Output ops"
+        );
+    }
+
+    // Bool -> bool is a no-op, bool -> integer is still allowed.
+    let mut b = CircuitBuilder::new();
+    let v = b.input(ValueKind::FheBool).unwrap();
+    assert_eq!(b.fhe_cast(v, FheKind::Bool).unwrap(), v);
+    b.fhe_cast(v, FheKind::Uint(32)).unwrap();
+    b.fhe_cast(v, FheKind::Int(32)).unwrap();
 }
 
 #[test]
@@ -1492,7 +1523,7 @@ fn fhe_select_rejects_invalid_condition_without_mutation() {
     ));
     b.output(value).unwrap();
     assert_eq!(
-        b.build().ir().n_ops(),
+        b.build().unwrap().ir().n_ops(),
         3,
         "failed select left an orphan scalar Constant"
     );
@@ -1519,32 +1550,32 @@ fn fhe_flip_reports_unsupported_mixed_operands() {
 
 #[test]
 fn contains_fheuint32_found() {
-    let (ck, be) = cpu_backend();
-    contains_fheuint32_found_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    contains_fheuint32_found_case(&ck, &mut be);
 }
 
 #[test]
 fn contains_fheuint32_not_found() {
-    let (ck, be) = cpu_backend();
-    contains_fheuint32_not_found_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    contains_fheuint32_not_found_case(&ck, &mut be);
 }
 
 #[test]
 fn contains_fheint32_found() {
-    let (ck, be) = cpu_backend();
-    contains_fheint32_found_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    contains_fheint32_found_case(&ck, &mut be);
 }
 
 #[test]
 fn contains_scalar_fheuint32_found() {
-    let (ck, be) = cpu_backend();
-    contains_scalar_fheuint32_found_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    contains_scalar_fheuint32_found_case(&ck, &mut be);
 }
 
 #[test]
 fn contains_scalar_fheint32_not_found() {
-    let (ck, be) = cpu_backend();
-    contains_scalar_fheint32_not_found_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    contains_scalar_fheint32_not_found_case(&ck, &mut be);
 }
 
 #[test]
@@ -1608,7 +1639,7 @@ fn contains_errors_on_empty_haystack() {
 #[test]
 fn max_concurrent_ops_empty_circuit() {
     let b = CircuitBuilder::new();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
     // Empty circuits return the floor of 1 (one worker is always sensible).
     assert_eq!(circuit.max_concurrent_ops(), 1);
 }
@@ -1622,7 +1653,7 @@ fn max_concurrent_ops_linear_chain() {
     let r2 = b.fhe_add(r1, 2u32).unwrap();
     let r3 = b.fhe_add(r2, 3u32).unwrap();
     b.output(r3).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
     assert_eq!(circuit.max_concurrent_ops(), 1);
 }
 
@@ -1637,7 +1668,7 @@ fn max_concurrent_ops_wide_layer() {
     let r4 = b.fhe_add(a, 4u32).unwrap();
     let s = b.fhe_sum(&[r1, r2, r3, r4]).unwrap();
     b.output(s).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
     assert_eq!(circuit.max_concurrent_ops(), 4);
 }
 
@@ -1650,7 +1681,7 @@ fn max_concurrent_ops_diamond() {
     let r = b.fhe_add(a, 2u32).unwrap();
     let m = b.fhe_mul(l, r).unwrap();
     b.output(m).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
     assert_eq!(circuit.max_concurrent_ops(), 2);
 }
 
@@ -1662,7 +1693,7 @@ fn max_concurrent_ops_input_output_only() {
     let mut b = CircuitBuilder::new();
     let a = b.input(ValueKind::FheUint(32)).unwrap();
     b.output(a).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
     assert_eq!(circuit.max_concurrent_ops(), 1);
 }
 
@@ -1672,8 +1703,8 @@ fn max_concurrent_ops_input_output_only() {
 
 #[test]
 fn constant_op_round_trip() {
-    let (_ck, be) = cpu_backend();
-    constant_op_round_trip_case(&be);
+    let (_ck, mut be) = cpu_backend();
+    constant_op_round_trip_case(&mut be);
 }
 
 #[test]
@@ -1685,7 +1716,7 @@ fn clear_value_at_recognizes_literal_in_polymorphic_add() {
     let a = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_add(a, 7u32).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build();
+    let circuit = b.build().unwrap();
 
     // Walk the IR to find the FheScalarAdd op and check its operands.
     let ir = circuit.ir();
@@ -1711,8 +1742,8 @@ fn clear_value_at_recognizes_literal_in_polymorphic_add() {
 
 #[test]
 fn runtime_clear_input_via_fhe_add() {
-    let (ck, be) = cpu_backend();
-    runtime_clear_input_via_fhe_add_case(&ck, &be);
+    let (ck, mut be) = cpu_backend();
+    runtime_clear_input_via_fhe_add_case(&ck, &mut be);
 }
 
 // ============================================================
@@ -1767,7 +1798,7 @@ fn test_kv_store_output_then_mutate() {
     bld.output(val).unwrap(); // 1
     bld.output(present).unwrap(); // 2
 
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
 
@@ -1777,7 +1808,7 @@ fn test_kv_store_output_then_mutate() {
     inputs.push(FheUint8::encrypt(v, &cks));
     inputs.push(FheUint32::encrypt(2u32, &cks));
 
-    let cpu = CpuBackend::new(sks);
+    let mut cpu = CpuBackend::new(sks);
     let outputs = cpu.execute(&circuit, inputs).unwrap();
 
     let val: u8 = outputs.get::<FheUint8>(1).decrypt(&cks);
@@ -1788,66 +1819,17 @@ fn test_kv_store_output_then_mutate() {
         "get(key=2) on the mutated store should see the value"
     );
     assert!(present, "key 2 should be present in the mutated store");
-}
 
-// ============================================================
-// Compression — compress → decompress round trip (executor)
-// ============================================================
-
-#[test]
-fn test_compress_decompress_round_trip() {
-    use crate::shortint::parameters::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-    let mut bld = CircuitBuilder::new();
-    let in_a = bld.input(ValueKind::FheUint(32)).unwrap();
-    let in_b = bld.input(ValueKind::FheInt(8)).unwrap();
-    let in_c = bld.input(ValueKind::FheBool).unwrap();
-
-    let list = bld.compress(&[in_a, in_b, in_c]).unwrap();
-    let vals = bld
-        .decompress_in_order(
-            list,
-            &[
-                ValueKind::FheUint(32),
-                ValueKind::FheInt(8),
-                ValueKind::FheBool,
-            ],
-        )
-        .unwrap();
-    for v in vals {
-        bld.output(v).unwrap();
-    }
-    let circuit = bld.build();
-
-    let config = ConfigBuilder::default()
-        .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
-        .build();
-    let (cks, sks) = generate_keys(config);
-
-    let a: u32 = 0xDEAD_BEEF;
-    let b: i8 = -42;
-    let c = true;
-
-    let mut inputs = CpuInputList::new();
-    inputs.push(FheUint32::encrypt(a, &cks));
-    inputs.push(FheInt8::encrypt(b, &cks));
-    inputs.push(FheBool::encrypt(c, &cks));
-
-    let cpu = CpuBackend::new(sks);
-    let outputs = cpu.execute(&circuit, inputs).unwrap();
-
-    let out_a: u32 = outputs.get::<FheUint32>(0).decrypt(&cks);
-    let out_b: i8 = outputs.get::<FheInt8>(1).decrypt(&cks);
-    let out_c: bool = outputs.get::<FheBool>(2).decrypt(&cks);
-
-    assert_eq!(
-        out_a, a,
-        "u32 should round-trip through compress/decompress"
-    );
-    assert_eq!(out_b, b, "i8 should round-trip through compress/decompress");
-    assert_eq!(
-        out_c, c,
-        "bool should round-trip through compress/decompress"
+    // The output taken *before* the second insert must be a snapshot of
+    // store_v1: key 1 present, key 2 absent. This is what guarantees that a
+    // mutating op never mutates a store version still referenced by an
+    // `Output` (the executor clones instead of mutating in place).
+    let snapshot: crate::KVStore<u32, FheUint8> = outputs.get(0);
+    assert_eq!(snapshot.len(), 1, "output 0 must be the pre-mutation store");
+    assert!(snapshot.contains_clear_key(&1));
+    assert!(
+        !snapshot.contains_clear_key(&2),
+        "the later insert must not be visible in the earlier output"
     );
 }
 
@@ -1924,7 +1906,7 @@ fn div_rejects_zero_scalar_without_mutation() {
     ));
     b.output(x).unwrap();
     assert_eq!(
-        b.build().ir().n_ops(),
+        b.build().unwrap().ir().n_ops(),
         2,
         "failed division left an orphan zero Constant"
     );
@@ -1962,7 +1944,7 @@ fn fused_mul_scalar_div_rejects_zero_divisor() {
     b.output(x).unwrap();
     b.output(y).unwrap();
     assert_eq!(
-        b.build().ir().n_ops(),
+        b.build().unwrap().ir().n_ops(),
         4,
         "failed fused expansions left orphan ops"
     );
@@ -1987,7 +1969,7 @@ fn fused_mul_scalar_div_rejects_mismatched_operand_kinds_without_mutation() {
     b.output(lhs).unwrap();
     b.output(rhs).unwrap();
     assert_eq!(
-        b.build().ir().n_ops(),
+        b.build().unwrap().ir().n_ops(),
         4,
         "mismatched fused operands left orphan ops"
     );
@@ -2081,7 +2063,7 @@ fn test_outputs_carry_server_key_tag() {
     let b = bld.input(ValueKind::FheUint(32)).unwrap();
     let sum = bld.fhe_add(a, b).unwrap();
     bld.output(sum).unwrap();
-    let circuit = bld.build();
+    let circuit = bld.build().unwrap();
 
     let (cks, mut sks) = generate_keys(ConfigBuilder::default());
     sks.tag_mut().set_u64(0xDEAD);
@@ -2090,7 +2072,7 @@ fn test_outputs_carry_server_key_tag() {
     inputs.push(FheUint32::encrypt(1u32, &cks));
     inputs.push(FheUint32::encrypt(2u32, &cks));
 
-    let cpu = CpuBackend::new(sks);
+    let mut cpu = CpuBackend::new(sks);
     let outputs = cpu.execute(&circuit, inputs).unwrap();
 
     assert_eq!(outputs.tag().as_u64(), 0xDEAD);
@@ -2120,7 +2102,7 @@ fn test_kv_store_across_circuit_boundary() {
         .kv_store_insert_with_clear_key(store, KvKey::U32(7), in_v)
         .unwrap();
     bld.output(store).unwrap();
-    let circuit_a = bld.build();
+    let circuit_a = bld.build().unwrap();
 
     // Circuit B: take a store as input, get with an encrypted key.
     let mut bld = CircuitBuilder::new();
@@ -2134,10 +2116,10 @@ fn test_kv_store_across_circuit_boundary() {
     let (val, present) = bld.kv_store_get(store_in, in_ek).unwrap();
     bld.output(val).unwrap(); // 0
     bld.output(present).unwrap(); // 1
-    let circuit_b = bld.build();
+    let circuit_b = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
-    let cpu = CpuBackend::new(sks);
+    let mut cpu = CpuBackend::new(sks);
     let v: u8 = 42;
 
     let mut inputs = CpuInputList::new();

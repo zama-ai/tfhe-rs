@@ -42,7 +42,7 @@ pub trait OprfSeed {
 
     fn into_bytes(self) -> Self::Bytes;
 
-    fn to_vec(self) -> Vec<u8>
+    fn into_vec(self) -> Vec<u8>
     where
         Self: Sized,
     {
@@ -81,7 +81,7 @@ impl OprfSeed for Vec<u8> {
         self
     }
 
-    fn to_vec(self) -> Vec<u8>
+    fn into_vec(self) -> Vec<u8>
     where
         Self: Sized,
     {

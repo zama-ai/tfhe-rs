@@ -25,7 +25,7 @@ pub enum HlInstructionSet {
         kind: ValueKind,
     },
     /// Create a trivial encryption of the input clear value into the desired
-    /// type.  
+    /// type.
     ///
     /// Signature: `(clear-kind-of(kind)) -> kind`. The clear operand is
     /// typically produced by a [`Self::Constant`] op for compile-time
@@ -274,14 +274,18 @@ pub enum HlInstructionSet {
         kind: FheIntKind,
     },
 
-    // Cast / control / compression — flexible types
-    /// Cast between FHE types. Excludes `CompressedList` / `KVStore`
-    /// (which aren't FHE ciphertexts you can cast between).
+    // Cast / control — flexible types
+    /// Cast between FHE types. Excludes `KVStore` (not an FHE ciphertext you
+    /// can cast).
+    ///
+    /// Casting an integer to `FheBool` is not a cast (as in Rust and the
+    /// HLAPI); the builder rejects it and executors treat it as an invariant
+    /// violation. `FheBool` -> integer is allowed and yields 0 or 1.
     FheCast {
         from: FheKind,
         to: FheKind,
     },
-    /// Branch values must be integer (builder rejects Bool/CompressedList branches).
+    /// Branch values must be integer (builder rejects Bool branches).
     Select {
         kind: FheIntKind,
     },
@@ -311,15 +315,6 @@ pub enum HlInstructionSet {
     /// `ServerKey::if_then_else_parallelized(cond, true_scalar, false_ct)`.
     SelectScalarFhe {
         kind: FheIntKind,
-    },
-    Compress {
-        input_kinds: Vec<FheKind>,
-    },
-    /// Decompress specific items from a `CompressedList` into individual
-    /// FHE values. Each pick is `(index_in_list, output_kind)`. Outputs
-    /// are produced in the order `picks` are listed;
-    Decompress {
-        picks: Vec<(u32, FheKind)>,
     },
 
     // Scalar arithmetic / shift / rotate / min-max — FheIntKind. The clear
@@ -423,8 +418,8 @@ pub enum HlInstructionSet {
     MatchValue {
         // u128 should be enough; more than 2**10 LUT entries is impractical anyway.
         lut: MatchValues<u128>,
-        input_bits: usize,
-        output_bits: usize,
+        input_bits: u32,
+        output_bits: u32,
     },
 
     /// Oblivious pseudo-random generation: arity-1 op producing a random
@@ -513,6 +508,21 @@ pub enum HlInstructionSet {
 }
 
 impl HlInstructionSet {
+    /// Whether this op consumes a KVStore and produces a new version of it.
+    ///
+    /// The IR is functional: mutating ops (insert/remove/update) take the
+    /// store as first argument and return a new store `ValueId`. The builder
+    /// uses this to reject reuse of a superseded store, and executors use it
+    /// to order such ops after every reader of the same store version.
+    pub fn mutates_kv_store(&self) -> bool {
+        matches!(
+            self,
+            Self::KVStoreInsertWithClearKey { .. }
+                | Self::KVStoreRemoveWithClearKey { .. }
+                | Self::KVStoreUpdate { .. }
+        )
+    }
+
     /// Construct a [`HlInstructionSet::Constant`] op, normalizing `value`
     /// for the requested clear `kind`.
     ///
@@ -583,8 +593,6 @@ impl HlInstructionSet {
             SelectScalarScalar { .. } => "SelectScalarScalar",
             SelectFheScalar { .. } => "SelectFheScalar",
             SelectScalarFhe { .. } => "SelectScalarFhe",
-            Compress { .. } => "Compress",
-            Decompress { .. } => "Decompress",
             FheScalarAdd { .. } => "FheScalarAdd",
             FheScalarSub { .. } => "FheScalarSub",
             ScalarFheSub { .. } => "ScalarFheSub",
@@ -726,7 +734,7 @@ impl DialectInstructionSet for HlInstructionSet {
             | FheRotateLeft { lhs_kind, rhs_bits }
             | FheRotateRight { lhs_kind, rhs_bits } => {
                 let t: ValueKind = (*lhs_kind).into();
-                let rhs = ValueKind::FheUint(*rhs_bits as usize);
+                let rhs = ValueKind::FheUint(*rhs_bits);
                 sig![(t, rhs) -> (t)]
             }
 
@@ -787,22 +795,6 @@ impl DialectInstructionSet for HlInstructionSet {
                 let t: ValueKind = (*kind).into();
                 let c: ValueKind = kind.as_clear_value_kind();
                 sig![(ValueKind::FheBool, c, t) -> (t)]
-            }
-
-            // Compress — N inputs → CompressedList
-            Compress { input_kinds } => {
-                let args: zhc_utils::small::SmallVec<ValueKind> =
-                    input_kinds.iter().map(|k| (*k).into()).collect();
-                let rets = svec![ValueKind::CompressedList];
-                Signature(args, rets)
-            }
-
-            // Decompress — CompressedList → N outputs (one per pick)
-            Decompress { picks } => {
-                let args = svec![ValueKind::CompressedList];
-                let rets: zhc_utils::small::SmallVec<ValueKind> =
-                    picks.iter().map(|(_, k)| (*k).into()).collect();
-                Signature(args, rets)
             }
 
             // Scalar arithmetic / shift / rotate / min-max — (fhe, clear) → fhe
@@ -974,7 +966,6 @@ impl Format for ValueKind {
             Self::Bool => write!(f, "Bool"),
             Self::Uint(bits) => write!(f, "Uint<{bits}>"),
             Self::Int(bits) => write!(f, "Int<{bits}>"),
-            Self::CompressedList => write!(f, "CompressedList"),
             Self::KVStore { key, value } => write!(f, "KVStore<{key:?}, {value:?}>"),
             Self::Seed => write!(f, "Seed"),
         }
@@ -1121,32 +1112,6 @@ impl Format for HlInstructionSet {
                 Format::fmt(from, f, ctx)?;
                 write!(f, " -> ")?;
                 Format::fmt(to, f, ctx)?;
-                write!(f, ">")
-            }
-
-            Compress { input_kinds } => {
-                write!(f, "{name}<")?;
-                let mut first = true;
-                for k in input_kinds {
-                    if !first {
-                        write!(f, ", ")?;
-                    }
-                    first = false;
-                    Format::fmt(k, f, ctx)?;
-                }
-                write!(f, ">")
-            }
-            Decompress { picks } => {
-                write!(f, "{name}<")?;
-                let mut first = true;
-                for (idx, k) in picks {
-                    if !first {
-                        write!(f, ", ")?;
-                    }
-                    first = false;
-                    write!(f, "{idx}:")?;
-                    Format::fmt(k, f, ctx)?;
-                }
                 write!(f, ">")
             }
 
@@ -1358,31 +1323,6 @@ mod tests {
         assert_eq!(sig.get_returns_arity(), 1);
         assert!(sig.get_args().iter().all(|t| *t == ValueKind::FheInt(16)));
         assert_eq!(sig.get_returns()[0], ValueKind::FheInt(16));
-    }
-
-    #[test]
-    fn compress_signature() {
-        let op = HlInstructionSet::Compress {
-            input_kinds: vec![FheKind::Uint(32), FheKind::Bool],
-        };
-        let sig = op.get_signature();
-        assert_eq!(
-            sig,
-            sig![(ValueKind::FheUint(32), ValueKind::FheBool) -> (ValueKind::CompressedList)]
-        );
-    }
-
-    #[test]
-    fn decompress_signature() {
-        // Pick item 0 as Bool, item 3 as Int(16); outputs are produced in pick order.
-        let op = HlInstructionSet::Decompress {
-            picks: vec![(0, FheKind::Bool), (3, FheKind::Int(16))],
-        };
-        let sig = op.get_signature();
-        assert_eq!(
-            sig,
-            sig![(ValueKind::CompressedList) -> (ValueKind::FheBool, ValueKind::FheInt(16))]
-        );
     }
 
     #[test]

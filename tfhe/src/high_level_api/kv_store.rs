@@ -65,10 +65,11 @@ where
 /// Even operations that do not require FHE operations will require
 /// a server key to be set in order to set the tag
 ///
-/// The store itself also carries a [`Tag`] (defaulted on creation),
-/// accessible via the [`Tagged`](crate::prelude::Tagged) trait; the
-/// experimental circuit API stamps it with the executing server key's tag
-/// when a store is retrieved from a circuit's outputs.
+/// The store itself also carries a [`Tag`], accessible via the
+/// [`Tagged`](crate::prelude::Tagged) trait. It is set from the currently set
+/// server key when the store is created or decompressed (and defaults when no
+/// key is set); the experimental circuit API stamps it with the executing
+/// server key's tag when a store is retrieved from a circuit's outputs.
 pub struct KVStore<Key, T>
 where
     T: FheIntegerType,
@@ -110,10 +111,10 @@ impl<Key, T> KVStore<Key, T>
 where
     T: FheIntegerType,
 {
-    /// Extract the inner store as a CPU-resident one. A GPU-resident store
-    /// is copied back to the CPU using the streams of the currently set
-    /// cuda server key (like other KVStore operations, this requires a
-    /// server key to be set and panics otherwise).
+    /// Extract the inner store to CPU.
+    ///
+    /// A GPU store is copied back to the CPU using the streams of the currently set
+    /// cuda server key
     pub(in crate::high_level_api) fn into_cpu_inner(
         self,
     ) -> IntegerCpuKVStore<Key, <T::Id as IntegerId>::InnerCpu>
@@ -146,16 +147,19 @@ where
 {
     /// Creates a new empty `KVStore`.
     ///
-    /// Defaults to the CPU variant when no server key is set.
+    /// The store lives on the device of the currently set server key and
+    /// takes its tag. Defaults to the CPU variant with a default tag when no
+    /// server key is set.
     pub fn new() -> Self {
-        Self {
-            tag: Tag::default(),
-            inner: global_state::try_with_internal_keys(|server_key| match server_key {
+        global_state::try_with_internal_keys(|server_key| {
+            let tag = server_key.map_or_else(Tag::default, |key| key.tag().clone());
+            let inner = match server_key {
                 #[cfg(feature = "gpu")]
                 Some(InternalServerKey::Cuda(_)) => InnerKVStore::Cuda(IntegerGpuKVStore::new()),
                 _ => InnerKVStore::Cpu(IntegerCpuKVStore::new()),
-            }),
-        }
+            };
+            Self { inner, tag }
+        })
     }
 
     /// Returns the number of key-value pairs in the store.
@@ -790,6 +794,7 @@ where
                 let compressed_inner = inner_store.compress(comp_key);
                 Ok(CompressedKVStore {
                     inner: compressed_inner,
+                    tag: cpu_key.tag.clone(),
                 })
             }
             #[cfg(feature = "gpu")]
@@ -807,6 +812,7 @@ where
                 let compressed_inner = inner_store.compress(comp_key, streams);
                 Ok(CompressedKVStore {
                     inner: compressed_inner,
+                    tag: cuda_key.tag.clone(),
                 })
             }
             #[cfg(feature = "hpu")]
@@ -821,13 +827,32 @@ where
 /// Compressed KVStore
 ///
 /// This type is the serializable and deserializable form of a KVStore
+///
+/// It carries the [`Tag`] of the server key that compressed it (like
+/// [`CompressedCiphertextList`](crate::CompressedCiphertextList)). Decompressing
+/// it yields a [`KVStore`] tagged with the *decompressing* server key's tag.
 #[derive(Serialize, Deserialize, Versionize)]
 #[versionize(CompressedKVStoreVersions)]
 pub struct CompressedKVStore<Key, Value>
 where
     Value: FheIntegerType,
 {
-    inner: CompressedIntegerKVStore<Key, <Value::Id as IntegerId>::InnerCpu>,
+    pub(in crate::high_level_api) inner:
+        CompressedIntegerKVStore<Key, <Value::Id as IntegerId>::InnerCpu>,
+    pub(in crate::high_level_api) tag: Tag,
+}
+
+impl<Key, Value> crate::prelude::Tagged for CompressedKVStore<Key, Value>
+where
+    Value: FheIntegerType,
+{
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
 }
 
 macro_rules! impl_named_for_kv_store {
@@ -906,7 +931,7 @@ where
 
                 Ok(KVStore {
                     inner: InnerKVStore::Cpu(inner_kv_store),
-                    tag: Tag::default(),
+                    tag: cpu_key.tag.clone(),
                 })
             }
             #[cfg(feature = "gpu")]
@@ -931,7 +956,7 @@ where
 
                 Ok(KVStore {
                     inner: InnerKVStore::Cuda(inner_kv_store),
-                    tag: Tag::default(),
+                    tag: cuda_key.tag.clone(),
                 })
             }
             #[cfg(feature = "hpu")]
