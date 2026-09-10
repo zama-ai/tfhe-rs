@@ -9,9 +9,12 @@ use rayon::prelude::*;
 use std::cell::LazyCell;
 use std::cmp::max;
 use std::env;
+use tfhe::core_crypto::prelude::CastFrom;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
-use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
+use tfhe::integer::{
+    IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256, U256,
+};
 use tfhe::keycache::NamedParam;
 use tfhe::{get_pbs_count, reset_pbs_count};
 
@@ -1130,6 +1133,18 @@ fn signed_flip_parallelized(c: &mut Criterion) {
 }
 
 macro_rules! define_server_key_bench_binary_scalar_clean_inputs_fn (
+    // Shift and rotate amounts are unsigned, the drawn scalar is converted
+    (method_name: $server_key_method:ident, display_name:$name:ident, shift_rng_func:$rng_fn:ident) => {
+        fn $server_key_method(c: &mut Criterion) {
+            bench_server_key_binary_scalar_function_clean_inputs(
+                c,
+                concat!("integer::signed::", stringify!($server_key_method)),
+                stringify!($name),
+                |server_key, lhs, rhs| {
+                    server_key.$server_key_method(lhs, U256::cast_from(rhs));
+                }, $rng_fn)
+        }
+    };
     (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
         fn $server_key_method(c: &mut Criterion) {
             bench_server_key_binary_scalar_function_clean_inputs(
@@ -1202,22 +1217,22 @@ define_server_key_bench_binary_scalar_clean_inputs_fn!(
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: scalar_left_shift_parallelized,
     display_name: left_shift,
-    rng_func: shift_scalar
+    shift_rng_func: shift_scalar
 );
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: scalar_right_shift_parallelized,
     display_name: right_shift,
-    rng_func: shift_scalar
+    shift_rng_func: shift_scalar
 );
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: scalar_rotate_left_parallelized,
     display_name: rotate_left,
-    rng_func: shift_scalar
+    shift_rng_func: shift_scalar
 );
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: scalar_rotate_right_parallelized,
     display_name: rotate_right,
-    rng_func: shift_scalar
+    shift_rng_func: shift_scalar
 );
 
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
@@ -1295,25 +1310,25 @@ criterion_group!(
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: unchecked_scalar_left_shift_parallelized,
     display_name: left_shift,
-    rng_func: shift_scalar
+    shift_rng_func: shift_scalar
 );
 
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: unchecked_scalar_right_shift_parallelized,
     display_name: right_shift,
-    rng_func: shift_scalar
+    shift_rng_func: shift_scalar
 );
 
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: unchecked_scalar_rotate_right_parallelized,
     display_name: rotate_right,
-    rng_func: shift_scalar
+    shift_rng_func: shift_scalar
 );
 
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
     method_name: unchecked_scalar_rotate_left_parallelized,
     display_name: rotate_left,
-    rng_func: shift_scalar
+    shift_rng_func: shift_scalar
 );
 
 define_server_key_bench_binary_scalar_clean_inputs_fn!(
@@ -1970,6 +1985,25 @@ mod cuda {
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_scalar_signed_fn (
+        // Shift and rotate amounts are unsigned, the drawn scalar is converted
+        (method_name: $server_key_method:ident, method_name_cpu: $server_key_method_cpu:ident, display_name:$name:ident, shift_rng_func:$rng_fn:ident) => {
+            ::paste::paste!{
+                fn [<cuda_ $server_key_method>](c: &mut Criterion) {
+                    bench_cuda_server_key_binary_scalar_signed_function_clean_inputs(
+                        c,
+                        concat!("integer::cuda::signed::", stringify!($server_key_method)),
+                        stringify!($name),
+                        |server_key, lhs, rhs, stream| {
+                            server_key.$server_key_method(lhs, U256::cast_from(rhs), stream);
+                        },
+                        |server_key_cpu, lhs, rhs| {
+                            server_key_cpu.$server_key_method_cpu(lhs, U256::cast_from(rhs));
+                        },
+                        $rng_fn
+                    )
+                }
+            }
+        };
         (method_name: $server_key_method:ident, method_name_cpu: $server_key_method_cpu:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
             ::paste::paste!{
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
@@ -2522,28 +2556,28 @@ mod cuda {
         method_name: unchecked_scalar_right_shift,
         method_name_cpu: unchecked_scalar_right_shift_parallelized,
         display_name: right_shift,
-        rng_func: default_signed_scalar
+        shift_rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_left_shift,
         method_name_cpu: unchecked_scalar_left_shift_parallelized,
         display_name: left_shift,
-        rng_func: shift_scalar
+        shift_rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_rotate_right,
         method_name_cpu: unchecked_scalar_rotate_right_parallelized,
         display_name: rotate_right,
-        rng_func: shift_scalar
+        shift_rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_rotate_left,
         method_name_cpu: unchecked_scalar_rotate_left_parallelized,
         display_name: rotate_left,
-        rng_func: shift_scalar
+        shift_rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
@@ -2817,28 +2851,28 @@ mod cuda {
         method_name: scalar_left_shift,
         method_name_cpu: scalar_left_shift_parallelized,
         display_name: left_shift,
-        rng_func: shift_scalar
+        shift_rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_right_shift,
         method_name_cpu: scalar_right_shift_parallelized,
         display_name: right_shift,
-        rng_func: shift_scalar
+        shift_rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_rotate_left,
         method_name_cpu: scalar_rotate_left_parallelized,
         display_name: rotate_left,
-        rng_func: shift_scalar
+        shift_rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_rotate_right,
         method_name_cpu: scalar_rotate_right_parallelized,
         display_name: rotate_right,
-        rng_func: shift_scalar
+        shift_rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
