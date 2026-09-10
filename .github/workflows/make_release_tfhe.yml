@@ -91,9 +91,19 @@ jobs:
           make install_aikido_safe_chain_ci
 
       - name: Create NPM version tag
-        if: ${{ inputs.npm_latest_tag }}
+        env:
+          NPM_LATEST_TAG: ${{ inputs.npm_latest_tag }}
         run: |
-          echo "NPM_TAG=latest" >> "${GITHUB_ENV}"
+          if [[ "${NPM_LATEST_TAG}" == "true" ]]; then
+            echo "NPM_TAG=latest" >> "${GITHUB_ENV}"
+          else
+            # We need to explicitly set a tag or npm will try to apply "latest",
+            # which would fail in case of a backport
+            VERSION="$(cargo metadata --no-deps --format-version 1 \
+              --manifest-path tfhe/Cargo.toml \
+              | jq -er '.packages[] | select(.name == "tfhe") | .version')"
+            echo "NPM_TAG=v${VERSION%.*}" >> "${GITHUB_ENV}"
+          fi
 
       - name: Build web package
         if: ${{ inputs.push_web_package }}
