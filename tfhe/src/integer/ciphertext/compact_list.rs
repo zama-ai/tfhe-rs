@@ -16,23 +16,23 @@ use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
 use crate::shortint::ciphertext::{
     Degree, ExpandedCiphertextList, ExpandedCiphertextListConformanceParams,
 };
+#[cfg(feature = "zk-pok")]
+use crate::shortint::parameters::{
+    CarryModulus, CiphertextModulus, CompactCiphertextListExpansionKind,
+    CompactPublicKeyEncryptionParameters, LweDimension,
+};
 use crate::shortint::parameters::{
     CastingFunctionsOwned, CiphertextListConformanceParams,
     ShortintCompactCiphertextListCastingMode,
 };
-#[cfg(feature = "zk-pok")]
-use crate::shortint::parameters::{
-    CiphertextModulus, CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
-    LweDimension,
-};
 use crate::shortint::server_key::LookupTableOwned;
-use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
+use crate::shortint::{Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use crate::zk::{
     CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2SupportedHashConfig,
     ZkVerificationOutcome,
 };
-use std::num::NonZero;
+use std::num::{NonZero, NonZeroUsize};
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -60,11 +60,8 @@ fn unpack_and_sanitize(
             packed_blocks.len()
         ));
     }
-    let functions = IntegerUnpackingToShortintCastingModeHelper::new(
-        sks.message_modulus(),
-        sks.carry_modulus(),
-    )
-    .generate_unpacked_and_sanitize_luts(infos, sks);
+    let functions = IntegerUnpackingToShortintCastingModeHelper::new(sks.message_modulus())
+        .generate_unpacked_and_sanitize_luts(infos, sks)?;
 
     // Create a new vec with the input blocks doubled
     let mut unpacked = Vec::with_capacity(functions.len());
@@ -94,14 +91,18 @@ fn sanitize_blocks(
     mut expanded_blocks: Vec<Ciphertext>,
     sks: &ServerKey,
     infos: &[DataKind],
-) -> Vec<Ciphertext> {
-    let functions = IntegerUnpackingToShortintCastingModeHelper::new(
-        sks.message_modulus(),
-        sks.carry_modulus(),
-    )
-    .generate_sanitize_without_unpacking_luts(infos, sks);
+) -> Result<Vec<Ciphertext>, crate::Error> {
+    let functions = IntegerUnpackingToShortintCastingModeHelper::new(sks.message_modulus())
+        .generate_sanitize_without_unpacking_luts(infos, sks)?;
 
-    assert_eq!(functions.len(), expanded_blocks.len());
+    if functions.len() != expanded_blocks.len() {
+        return Err(crate::error!(
+            "Invalid blocks count during sanitization of a compact ciphertext list: \
+             expected {}, got {}",
+            functions.len(),
+            expanded_blocks.len()
+        ));
+    }
     expanded_blocks
         .par_iter_mut()
         .zip(functions.par_iter())
@@ -109,7 +110,7 @@ fn sanitize_blocks(
             sks.key.apply_lookup_table_assign(block, sanitize_acc);
         });
 
-    expanded_blocks
+    Ok(expanded_blocks)
 }
 
 pub trait Compactable {
@@ -529,6 +530,9 @@ impl ParameterSetConformant for CompactCiphertextList {
     }
 }
 
+/// Number of bits needed to store one ASCII char, according to the spec
+const ASCII_USEFUL_BITS: u32 = 7;
+
 pub const WRONG_UNPACKING_MODE_ERR_MSG: &str =
     "Cannot expand a CompactCiphertextList that requires unpacking without \
     a server key, please provide a integer::ServerKey passing it with the \
@@ -541,45 +545,51 @@ struct IntegerUnpackingToShortintCastingModeHelper {
     carry_extract: Box<dyn Fn(u64) -> u64 + Sync>,
     msg_extract_bool: Box<dyn Fn(u64) -> u64 + Sync>,
     carry_extract_bool: Box<dyn Fn(u64) -> u64 + Sync>,
+    message_modulus: MessageModulus,
+    strings_helper: Option<StringsUnpackingToShortintCastingModeHelper>,
+}
+
+struct StringsUnpackingToShortintCastingModeHelper {
     msg_extract_last_char_block: Box<dyn Fn(u64) -> u64 + Sync>,
     carry_extract_last_char_block: Box<dyn Fn(u64) -> u64 + Sync>,
-    message_modulus: MessageModulus,
+    blocks_per_char: NonZeroUsize,
 }
 
 impl IntegerUnpackingToShortintCastingModeHelper {
-    pub fn new(message_modulus: MessageModulus, carry_modulus: CarryModulus) -> Self {
+    pub fn new(message_modulus: MessageModulus) -> Self {
+        let blocks_per_char = message_modulus.num_blocks_per_ascii_char().ok();
         let message_modulus = message_modulus.0;
-        let carry_modulus = carry_modulus.0;
+
         let msg_extract = Box::new(move |x: u64| x % message_modulus);
-        let carry_extract = Box::new(move |x: u64| (x / carry_modulus) % message_modulus);
+        let carry_extract = Box::new(move |x: u64| (x / message_modulus) % message_modulus);
         let msg_extract_bool = Box::new(move |x: u64| {
             let tmp = x % message_modulus;
             u64::from(tmp != 0)
         });
         let carry_extract_bool = Box::new(move |x: u64| {
-            let tmp = (x / carry_modulus) % message_modulus;
+            let tmp = (x / message_modulus) % message_modulus;
             u64::from(tmp != 0)
         });
-        let msg_extract_last_char_block = Box::new(move |x: u64| {
-            let bits_of_last_char_block = 7u32 % message_modulus.ilog2();
-            if bits_of_last_char_block == 0 {
-                // The full msg_mod of last block of the char is needed
-                x % message_modulus
-            } else {
-                // Only part of the msg_mod is needed
-                x % (1 << bits_of_last_char_block)
-            }
-        });
 
-        let carry_extract_last_char_block = Box::new(move |x: u64| {
-            let x = x / message_modulus;
-            let bits_of_last_char_block = 7u32 % message_modulus.ilog2();
-            if bits_of_last_char_block == 0 {
-                // The full msg_mod of last block of the char is needed
-                x % message_modulus
-            } else {
-                // Only part of the msg_mod is needed
+        let strings_helper = blocks_per_char.map(|blocks_per_char| {
+            // Number of meaningful bits in the most significant block of a char: the char is a 7
+            // bits value stored in ASCII_CHAR_BITS bits (currently 8), so the upper
+            // bits of the last block must be sanitized to 0.
+            let bits_of_last_char_block = ASCII_USEFUL_BITS
+                .saturating_sub((blocks_per_char.get() as u32 - 1) * message_modulus.ilog2());
+
+            let msg_extract_last_char_block =
+                Box::new(move |x: u64| x % (1 << bits_of_last_char_block));
+
+            let carry_extract_last_char_block = Box::new(move |x: u64| {
+                let x = x / message_modulus;
                 x % (1 << bits_of_last_char_block)
+            });
+
+            StringsUnpackingToShortintCastingModeHelper {
+                msg_extract_last_char_block,
+                carry_extract_last_char_block,
+                blocks_per_char,
             }
         });
 
@@ -588,16 +598,25 @@ impl IntegerUnpackingToShortintCastingModeHelper {
             carry_extract,
             msg_extract_bool,
             carry_extract_bool,
-            msg_extract_last_char_block,
-            carry_extract_last_char_block,
             message_modulus: MessageModulus(message_modulus),
+            strings_helper,
         }
+    }
+
+    fn strings_helper(&self) -> crate::Result<&StringsUnpackingToShortintCastingModeHelper> {
+        self.strings_helper.as_ref().ok_or_else(|| {
+            crate::error!(
+                "The compact ciphertext list contains a string but the parameters of the server \
+                key (message modulus {}) are not compatible with strings",
+                self.message_modulus.0
+            )
+        })
     }
 
     pub fn generate_unpack_and_sanitize_functions<'a>(
         &'a self,
         infos: &[DataKind],
-    ) -> CastingFunctionsOwned<'a> {
+    ) -> crate::Result<CastingFunctionsOwned<'a>> {
         let block_count: usize = infos
             .iter()
             .map(|x| x.num_blocks(self.message_modulus))
@@ -636,17 +655,21 @@ impl IntegerUnpackingToShortintCastingModeHelper {
                     );
                 }
                 DataKind::String { n_chars, .. } => {
-                    let blocks_per_char = 7u32.div_ceil(self.message_modulus.0.ilog2());
+                    let StringsUnpackingToShortintCastingModeHelper {
+                        msg_extract_last_char_block,
+                        carry_extract_last_char_block,
+                        blocks_per_char,
+                    } = self.strings_helper()?;
                     for _ in 0..*n_chars {
                         push_functions(
-                            blocks_per_char as usize - 1,
+                            blocks_per_char.get() - 1,
                             &self.msg_extract,
                             &self.carry_extract,
                         );
                         push_functions(
                             1,
-                            &self.msg_extract_last_char_block,
-                            &self.carry_extract_last_char_block,
+                            msg_extract_last_char_block,
+                            carry_extract_last_char_block,
                         );
                     }
                 }
@@ -656,13 +679,13 @@ impl IntegerUnpackingToShortintCastingModeHelper {
             }
         }
 
-        functions
+        Ok(functions)
     }
 
     pub fn generate_sanitize_without_unpacking_functions<'a>(
         &'a self,
         infos: &[DataKind],
-    ) -> CastingFunctionsOwned<'a> {
+    ) -> crate::Result<CastingFunctionsOwned<'a>> {
         let total_block_count: usize = infos
             .iter()
             .map(|x| x.num_blocks(self.message_modulus))
@@ -682,10 +705,14 @@ impl IntegerUnpackingToShortintCastingModeHelper {
                     push_functions(block_count, self.msg_extract_bool.as_ref());
                 }
                 DataKind::String { n_chars, .. } => {
-                    let blocks_per_char = 7u32.div_ceil(self.message_modulus.0.ilog2());
+                    let StringsUnpackingToShortintCastingModeHelper {
+                        msg_extract_last_char_block,
+                        carry_extract_last_char_block: _,
+                        blocks_per_char,
+                    } = self.strings_helper()?;
                     for _ in 0..*n_chars {
-                        push_functions(blocks_per_char as usize - 1, self.msg_extract.as_ref());
-                        push_functions(1, self.msg_extract_last_char_block.as_ref());
+                        push_functions(blocks_per_char.get() - 1, self.msg_extract.as_ref());
+                        push_functions(1, msg_extract_last_char_block);
                     }
                 }
                 _ => {
@@ -694,14 +721,14 @@ impl IntegerUnpackingToShortintCastingModeHelper {
             }
         }
 
-        functions
+        Ok(functions)
     }
 
     pub fn generate_sanitize_without_unpacking_luts(
         &self,
         infos: &[DataKind],
         sks: &ServerKey,
-    ) -> Vec<LookupTableOwned> {
+    ) -> crate::Result<Vec<LookupTableOwned>> {
         let total_block_count: usize = infos
             .iter()
             .map(|x| x.num_blocks(self.message_modulus))
@@ -722,13 +749,17 @@ impl IntegerUnpackingToShortintCastingModeHelper {
                     push_luts_for_function(block_count, self.msg_extract_bool.as_ref());
                 }
                 DataKind::String { n_chars, .. } => {
-                    let blocks_per_char = 7u32.div_ceil(self.message_modulus.0.ilog2());
+                    let StringsUnpackingToShortintCastingModeHelper {
+                        msg_extract_last_char_block,
+                        carry_extract_last_char_block: _,
+                        blocks_per_char,
+                    } = self.strings_helper()?;
                     for _ in 0..*n_chars {
                         push_luts_for_function(
-                            blocks_per_char as usize - 1,
+                            blocks_per_char.get() - 1,
                             self.msg_extract.as_ref(),
                         );
-                        push_luts_for_function(1, self.msg_extract_last_char_block.as_ref());
+                        push_luts_for_function(1, msg_extract_last_char_block);
                     }
                 }
                 _ => {
@@ -737,7 +768,7 @@ impl IntegerUnpackingToShortintCastingModeHelper {
             }
         }
 
-        functions
+        Ok(functions)
     }
 
     /// Generates a vec of LUTs to apply to both unpack an sanitize data
@@ -748,7 +779,7 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         &self,
         infos: &[DataKind],
         sks: &ServerKey,
-    ) -> Vec<LookupTableOwned> {
+    ) -> crate::Result<Vec<LookupTableOwned>> {
         let block_count: usize = infos
             .iter()
             .map(|x| x.num_blocks(self.message_modulus))
@@ -783,17 +814,21 @@ impl IntegerUnpackingToShortintCastingModeHelper {
                     );
                 }
                 DataKind::String { n_chars, .. } => {
-                    let blocks_per_char = 7u32.div_ceil(self.message_modulus.0.ilog2());
+                    let StringsUnpackingToShortintCastingModeHelper {
+                        msg_extract_last_char_block,
+                        carry_extract_last_char_block,
+                        blocks_per_char,
+                    } = self.strings_helper()?;
                     for _ in 0..*n_chars {
                         push_functions(
-                            blocks_per_char as usize - 1,
+                            blocks_per_char.get() - 1,
                             &self.msg_extract,
                             &self.carry_extract,
                         );
                         push_functions(
                             1,
-                            &self.msg_extract_last_char_block,
-                            &self.carry_extract_last_char_block,
+                            msg_extract_last_char_block,
+                            carry_extract_last_char_block,
                         );
                     }
                 }
@@ -803,7 +838,7 @@ impl IntegerUnpackingToShortintCastingModeHelper {
             }
         }
 
-        functions
+        Ok(functions)
     }
 }
 
@@ -836,14 +871,12 @@ fn expansion_post_process(
             key_switching_key_view,
         ) => {
             let dest_sks = &key_switching_key_view.key.dest_server_key;
-            let function_helper = IntegerUnpackingToShortintCastingModeHelper::new(
-                dest_sks.message_modulus,
-                dest_sks.carry_modulus,
-            );
+            let function_helper =
+                IntegerUnpackingToShortintCastingModeHelper::new(dest_sks.message_modulus);
             let functions = if is_packed {
-                function_helper.generate_unpack_and_sanitize_functions(info)
+                function_helper.generate_unpack_and_sanitize_functions(info)?
             } else {
-                function_helper.generate_sanitize_without_unpacking_functions(info)
+                function_helper.generate_sanitize_without_unpacking_functions(info)?
             };
 
             expanded_list.cast_and_sanitize_if_needed(
@@ -879,7 +912,7 @@ fn expansion_post_process(
             if is_packed {
                 unpack_and_sanitize(expanded_blocks, sks, info)
             } else {
-                Ok(sanitize_blocks(expanded_blocks, sks, info))
+                sanitize_blocks(expanded_blocks, sks, info)
             }
         }
         IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking => expanded_list
@@ -1371,6 +1404,60 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
         };
 
         ct_list.is_conformant(&a)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::integer::ClientKey;
+    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
+
+    /// A compact list may claim to contain strings while the server key parameters do not support
+    /// them. As the list is untrusted, this must be an error and not a panic.
+    #[test]
+    fn test_string_in_list_with_params_incompatible_with_strings() {
+        let params = TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
+        assert!(params.message_modulus.num_blocks_per_ascii_char().is_err());
+
+        let infos = [
+            DataKind::Unsigned(NonZero::new(2).unwrap()),
+            DataKind::String {
+                n_chars: 3,
+                padded: false,
+            },
+        ];
+
+        let helper = IntegerUnpackingToShortintCastingModeHelper::new(params.message_modulus);
+        assert!(helper
+            .generate_unpack_and_sanitize_functions(&infos)
+            .is_err());
+        assert!(helper
+            .generate_sanitize_without_unpacking_functions(&infos)
+            .is_err());
+
+        // Without strings, the same parameters work
+        assert!(helper
+            .generate_unpack_and_sanitize_functions(&infos[..1])
+            .is_ok());
+        assert!(helper
+            .generate_sanitize_without_unpacking_functions(&infos[..1])
+            .is_ok());
+
+        let cks = ClientKey::new(params);
+        let sks = ServerKey::new_radix_server_key(&cks);
+
+        assert!(helper
+            .generate_unpacked_and_sanitize_luts(&infos, &sks)
+            .is_err());
+        assert!(helper
+            .generate_sanitize_without_unpacking_luts(&infos, &sks)
+            .is_err());
+
+        let blocks = vec![sks.key.create_trivial(0); 2];
+        assert!(sanitize_blocks(blocks.clone(), &sks, &infos).is_err());
+        assert!(unpack_and_sanitize(blocks.clone(), &sks, &infos).is_err());
+        assert!(sanitize_blocks(blocks, &sks, &infos[..1]).is_ok());
     }
 }
 

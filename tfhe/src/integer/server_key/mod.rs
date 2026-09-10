@@ -248,6 +248,12 @@ impl ServerKey {
 
         max_sum_to_full_carry.min(self.key.max_noise_level.get()) as usize
     }
+
+    /// Is this server key compatible with the "strings" feature?
+    pub fn is_compatible_with_strings(&self) -> bool {
+        self.message_modulus()
+            .is_compatible_with_strings(self.carry_modulus())
+    }
 }
 
 impl AsRef<crate::shortint::ServerKey> for ServerKey {
