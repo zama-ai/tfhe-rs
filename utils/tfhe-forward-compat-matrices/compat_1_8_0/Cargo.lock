@@ -1190,6 +1190,7 @@ dependencies = [
 [[package]]
 name = "tfhe"
 version = "1.8.0"
+source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "aligned-vec",
  "bincode",
@@ -1215,6 +1216,7 @@ dependencies = [
 [[package]]
 name = "tfhe-csprng"
 version = "0.10.0"
+source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "aes",
  "getrandom",
@@ -1227,6 +1229,7 @@ dependencies = [
 [[package]]
 name = "tfhe-fft"
 version = "0.10.1"
+source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "aligned-vec",
  "bytemuck",
@@ -1240,6 +1243,7 @@ dependencies = [
 [[package]]
 name = "tfhe-ntt"
 version = "0.7.1"
+source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "aligned-vec",
  "bytemuck",
@@ -1249,6 +1253,7 @@ dependencies = [
 [[package]]
 name = "tfhe-safe-serialize"
 version = "0.1.1"
+source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "bincode",
  "serde",
@@ -1258,6 +1263,7 @@ dependencies = [
 [[package]]
 name = "tfhe-versionable"
 version = "0.8.0"
+source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "aligned-vec",
  "num-complex",
@@ -1268,6 +1274,7 @@ dependencies = [
 [[package]]
 name = "tfhe-versionable-derive"
 version = "0.8.0"
+source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1277,6 +1284,7 @@ dependencies = [
 [[package]]
 name = "tfhe-zk-pok"
 version = "0.9.0"
+source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
