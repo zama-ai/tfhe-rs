@@ -1727,6 +1727,10 @@ check_md_docs_are_tested:
 check_local_workspace_version:
 	RUSTFLAGS="" cargo xtask check-local-workspace-version
 
+.PHONY: release_status # Show which released crates need a version bump, a tag or a publish
+release_status:
+	python3 ./scripts/release_status.py
+
 .PHONY: check_intra_md_links # Checks broken internal links in Markdown docs
 check_intra_md_links: install_mlc
 	mlc --offline --match-file-extension tfhe/docs
