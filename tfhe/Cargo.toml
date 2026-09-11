@@ -83,6 +83,10 @@ strum = { version = "0.27", features = ["derive"], optional = true }
 tfhe-zk-pok = { version = "0.9.0", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.8.0", path = "../utils/tfhe-versionable" }
 tfhe-safe-serialize = { version = "0.1.1", path = "../utils/tfhe-safe-serialize" }
+# Only used by the experimental circuit API
+crossbeam = { version = "0.8.4", optional = true }
+zhc_ir = { version = "0.8.3", optional = true }
+zhc_utils = { version = "0.8.3", optional = true }
 
 # wasm deps
 wasm-bindgen = { workspace = true, features = [
@@ -133,7 +137,7 @@ pbs-stats = []
 noise-asserts = []
 
 # Experimental section
-experimental = []
+experimental = ["dep:crossbeam", "dep:zhc_ir", "dep:zhc_utils"]
 experimental-force_fft_algo_dif4 = []
 # End experimental section
 

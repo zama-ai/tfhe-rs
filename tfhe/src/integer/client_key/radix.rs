@@ -36,7 +36,7 @@ use tfhe_versionable::Versionize;
 ///
 /// let ct = cks.encrypt(msg);
 ///
-/// let dec = cks.decrypt(&ct);
+/// let dec: u64 = cks.decrypt(&ct);
 /// assert_eq!(msg, dec);
 /// ```
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Versionize)]

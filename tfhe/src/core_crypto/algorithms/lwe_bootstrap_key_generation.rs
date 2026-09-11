@@ -41,8 +41,10 @@ use rayon::prelude::*;
 /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
-/// let input_lwe_secret_key =
-///     allocate_and_generate_new_binary_lwe_secret_key(input_lwe_dimension, &mut secret_generator);
+/// let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key::<u64, _>(
+///     input_lwe_dimension,
+///     &mut secret_generator,
+/// );
 /// let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
 ///     glwe_dimension,
 ///     polynomial_size,

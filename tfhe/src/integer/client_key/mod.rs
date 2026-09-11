@@ -176,7 +176,7 @@ impl ClientKey {
     /// // 2 * 4 = 8 bits of message
     /// let ct = cks.encrypt_radix(msg, num_block);
     ///
-    /// let dec = cks.decrypt_radix(&ct);
+    /// let dec: u64 = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
     pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
@@ -202,7 +202,7 @@ impl ClientKey {
     /// // 2 * 4 = 8 bits of message
     /// let ct = cks.encrypt_radix_without_padding(msg, num_block);
     ///
-    /// let dec = cks.decrypt_radix_without_padding(&ct);
+    /// let dec: u64 = cks.decrypt_radix_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
     pub fn encrypt_radix_without_padding<T: DecomposableInto<u64> + UnsignedNumeric>(
@@ -276,7 +276,7 @@ impl ClientKey {
     ///
     /// let ct = cks.encrypt_radix(msg, num_block);
     ///
-    /// let dec = cks.decrypt_radix(&ct);
+    /// let dec: u64 = cks.decrypt_radix(&ct);
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_radix<T>(&self, ctxt: &RadixCiphertext) -> T
@@ -304,7 +304,7 @@ impl ClientKey {
     ///
     /// let ct = cks.encrypt_radix_without_padding(msg, num_block);
     ///
-    /// let dec = cks.decrypt_radix_without_padding(&ct);
+    /// let dec: u64 = cks.decrypt_radix_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
     pub fn decrypt_radix_without_padding<T>(&self, ctxt: &RadixCiphertext) -> T

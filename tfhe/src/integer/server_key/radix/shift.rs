@@ -30,7 +30,7 @@ impl ServerKey {
     /// let div = cks.parameters().message_modulus().0.pow(shift as u32);
     ///
     /// // Decrypt:
-    /// let clear = cks.decrypt(&ct_res);
+    /// let clear: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg / div, clear);
     /// ```
     pub fn blockshift_right(&self, ctxt: &RadixCiphertext, shift: usize) -> RadixCiphertext {
@@ -75,7 +75,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_scalar_right_shift(&ct, shift);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn unchecked_scalar_right_shift<T>(&self, ct: &RadixCiphertext, shift: T) -> RadixCiphertext
@@ -111,7 +111,7 @@ impl ServerKey {
     /// sks.unchecked_scalar_right_shift_assign(&mut ct, shift);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct);
+    /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg >> shift, dec);
     /// ```
     pub fn unchecked_scalar_right_shift_assign<T>(&self, ct: &mut RadixCiphertext, shift: T)
@@ -220,7 +220,7 @@ impl ServerKey {
     /// let ct_res = sks.unchecked_scalar_left_shift(&ct1, shift);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct_res);
+    /// let dec: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(msg << shift, dec);
     /// ```
     pub fn unchecked_scalar_left_shift<T>(
@@ -269,7 +269,7 @@ impl ServerKey {
     /// sks.unchecked_scalar_left_shift_assign(&mut ct, shift);
     ///
     /// // Decrypt:
-    /// let dec = cks.decrypt(&ct);
+    /// let dec: u64 = cks.decrypt(&ct);
     /// assert_eq!(msg << shift, dec);
     /// ```
     pub fn unchecked_scalar_left_shift_assign<T>(&self, ct: &mut RadixCiphertext, shift: T)
