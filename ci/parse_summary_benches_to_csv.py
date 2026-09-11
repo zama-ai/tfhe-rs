@@ -92,10 +92,10 @@ RULES = [
         "Decompress",
         lambda p: "packing_compression" in p["id"] and "unpack_u64" in p["id"],
     ),
-    ("ZKPoK Proof (server)", lambda p: "pke_zk_proof" in p["id"]),
+    ("ZKPoK Proof (server)", lambda p: "::zk::proof::" in p["id"]),
     (
         "ZKPoK Proof (verification)",
-        lambda p: "pke_zk_verify_and_expand" in p["id"],
+        lambda p: "::zk::verify_and_expand::" in p["id"],
     ),
     *[
         (
