@@ -5,7 +5,8 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     random_non_zero_value, signed_add_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, CpuFunctionExecutor,
+    nb_tests_smaller_for_params, panic_if_boolean_block_is_not_clean, panic_if_radix_is_not_clean,
+    CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
@@ -145,7 +146,9 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
         let ctxt = cks.encrypt_signed(clear);
 
         let ct_res = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let tmp = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&tmp, &cks);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(
             ct_res, tmp,
@@ -172,6 +175,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
             assert_eq!(d0, clear, "Failed sanity decryption check");
 
             let ct_res = executor.execute(&ctxt);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             assert!(ct_res.block_carries_are_empty());
 
             let expected_result = compute_expected_clear(clear);
@@ -193,6 +197,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
         let ctxt = sks.create_trivial_radix(clear, NB_CTXT);
 
         let ct_res = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         assert!(ct_res.block_carries_are_empty());
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);
@@ -269,6 +274,7 @@ where
             let ctxt = cks.encrypt_signed(clear);
 
             let ct_res = executor.execute(&ctxt);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             assert!(ct_res.block_carries_are_empty());
 
             let decrypted_result: u32 = cks.decrypt(&ct_res);
@@ -301,7 +307,9 @@ where
         let ctxt = cks.encrypt_signed(clear);
 
         let ct_res = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let tmp = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&tmp, &cks);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(
             ct_res, tmp,
@@ -334,6 +342,7 @@ where
             assert_eq!(d0, clear, "Failed sanity decryption check");
 
             let ct_res = executor.execute(&ctxt);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             assert!(ct_res.block_carries_are_empty());
 
             let expected_result = clear.ilog2();
@@ -359,7 +368,9 @@ where
         let ctxt: SignedRadixCiphertext = sks.create_trivial_radix(clear, NB_CTXT);
 
         let ct_res = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let tmp = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&tmp, &cks);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(
             ct_res, tmp,
@@ -404,6 +415,8 @@ where
             let ctxt = cks.encrypt_signed(clear);
 
             let (ct_res, is_ok) = executor.execute(&ctxt);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&is_ok, &cks);
             assert!(ct_res.block_carries_are_empty());
 
             let decrypted_result: u32 = cks.decrypt(&ct_res);
@@ -438,7 +451,11 @@ where
         let ctxt = cks.encrypt_signed(clear);
 
         let (ct_res, is_ok) = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
+        panic_if_boolean_block_is_not_clean(&is_ok, &cks);
         let (tmp, tmp_is_ok) = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&tmp, &cks);
+        panic_if_boolean_block_is_not_clean(&tmp_is_ok, &cks);
         assert!(ct_res.block_carries_are_empty());
         assert_eq!(
             ct_res, tmp,
@@ -474,8 +491,9 @@ where
             assert_eq!(d0, clear, "Failed sanity decryption check");
 
             let (ct_res, is_ok) = executor.execute(&ctxt);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
+            panic_if_boolean_block_is_not_clean(&is_ok, &cks);
             assert!(ct_res.block_carries_are_empty());
-            assert_eq!(is_ok.as_ref().degree.get(), 1);
 
             let expected_result = clear.ilog2();
 
@@ -502,6 +520,8 @@ where
         let ctxt: SignedRadixCiphertext = sks.create_trivial_radix(clear, NB_CTXT);
 
         let (ct_res, is_ok) = executor.execute(&ctxt);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
+        panic_if_boolean_block_is_not_clean(&is_ok, &cks);
         assert!(ct_res.block_carries_are_empty());
 
         let decrypted_result: u32 = cks.decrypt(&ct_res);

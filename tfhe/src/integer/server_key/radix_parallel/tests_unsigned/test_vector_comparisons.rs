@@ -1,7 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, unsigned_modulus, CpuFunctionExecutor, MAX_VEC_LEN, NB_CTXT,
+    nb_tests_for_params, panic_if_boolean_block_is_not_clean, unsigned_modulus,
+    CpuFunctionExecutor, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey,
@@ -154,6 +155,7 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
     // empty slice test
     {
         let result = executor.execute((&[], &[]));
+        panic_if_boolean_block_is_not_clean(&result, cks);
 
         assert_eq!(result.decrypt_trivial(), Ok(true));
     }
@@ -198,10 +200,12 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
         );
 
         let encrypted_result = executor.execute((&values, &values2));
+        panic_if_boolean_block_is_not_clean(&encrypted_result, cks);
         let result = cks.decrypt_bool(&encrypted_result);
         assert!(!result);
 
         let encrypted_result2 = executor.execute((&values, &values2));
+        panic_if_boolean_block_is_not_clean(&encrypted_result2, cks);
         assert_eq!(
             encrypted_result2, encrypted_result,
             "Failed determinism check"
@@ -216,6 +220,7 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
             .collect::<Vec<_>>();
 
         let result = executor.execute((&values, &values));
+        panic_if_boolean_block_is_not_clean(&result, cks);
         let result = cks.decrypt_bool(&result);
         assert!(result);
     }

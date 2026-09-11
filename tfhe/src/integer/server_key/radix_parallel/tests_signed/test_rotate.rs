@@ -5,7 +5,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_radix_is_not_clean,
     CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
@@ -72,7 +72,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = rotate_left_helper(clear, clear_shift, nb_bits);
             assert_eq!(
@@ -97,7 +97,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // When nb_bits is not a power of two
             // then the behaviour is not the same
@@ -168,7 +168,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = rotate_right_helper(clear, clear_shift, nb_bits);
             assert_eq!(
@@ -193,7 +193,7 @@ where
             assert!(!shift.block_carries_are_empty());
 
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // When nb_bits is not a power of two
             // then the behaviour is not the same
@@ -262,7 +262,7 @@ where
             let clear_shift = clear_shift.saturating_add(nb_bits);
             let shift = cks.encrypt(clear_shift as u64);
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // When nb_bits is not a power of two
             // then the behaviour is not the same
@@ -322,7 +322,7 @@ where
             let clear_shift = clear_shift.saturating_add(nb_bits);
             let shift = cks.encrypt(clear_shift as u64);
             let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
+            panic_if_radix_is_not_clean(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // When nb_bits is not a power of two
             // then the behaviour is not the same

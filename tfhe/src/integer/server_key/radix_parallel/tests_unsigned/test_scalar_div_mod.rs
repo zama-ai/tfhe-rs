@@ -2,7 +2,7 @@ use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, panic_if_radix_is_not_clean, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
@@ -60,6 +60,8 @@ where
         let ct = cks.encrypt(clear);
 
         let (q, r) = executor.execute((&ct, divisor));
+        panic_if_radix_is_not_clean(&q, &cks);
+        panic_if_radix_is_not_clean(&r, &cks);
 
         let q_res: u64 = cks.decrypt(&q);
         let r_res: u64 = cks.decrypt(&r);
@@ -75,7 +77,11 @@ where
 
         {
             let (q, r) = executor.execute((&ct, scalar));
+            panic_if_radix_is_not_clean(&q, &cks);
+            panic_if_radix_is_not_clean(&r, &cks);
             let (q2, r2) = executor.execute((&ct, scalar));
+            panic_if_radix_is_not_clean(&q2, &cks);
+            panic_if_radix_is_not_clean(&r2, &cks);
             assert!(q.block_carries_are_empty());
             assert!(r.block_carries_are_empty());
             assert_eq!(q, q2);
@@ -93,7 +99,11 @@ where
             let scalar = rng.gen_range(u32::MAX as u64 + 1..=u64::MAX);
 
             let (q, r) = executor.execute((&ct, scalar));
+            panic_if_radix_is_not_clean(&q, &cks);
+            panic_if_radix_is_not_clean(&r, &cks);
             let (q2, r2) = executor.execute((&ct, scalar));
+            panic_if_radix_is_not_clean(&q2, &cks);
+            panic_if_radix_is_not_clean(&r2, &cks);
             assert!(q.block_carries_are_empty());
             assert!(r.block_carries_are_empty());
             assert_eq!(q, q2);

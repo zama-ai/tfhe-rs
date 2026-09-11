@@ -5,7 +5,8 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_unchecked_tests_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, nb_unchecked_tests_for_params, panic_if_radix_is_not_clean,
+    CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
@@ -202,7 +203,9 @@ where
         let ctxt_0 = cks.encrypt_signed(clear_0);
 
         let ct_res = executor.execute(&ctxt_0);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let ct_res2 = executor.execute(&ctxt_0);
+        panic_if_radix_is_not_clean(&ct_res2, &cks);
         assert_eq!(ct_res, ct_res2);
 
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
@@ -240,7 +243,9 @@ where
         let mut ctxt_1 = cks.encrypt_signed(clear_1);
 
         let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let ct_res2 = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res2, &cks);
         assert_eq!(ct_res, ct_res2);
 
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
@@ -260,6 +265,7 @@ where
         clear_1 = signed_add_under_modulus(clear_1, clear_3, modulus);
 
         let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         assert!(ct_res.block_carries_are_empty());
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
 
@@ -297,7 +303,9 @@ where
         let mut ctxt_1 = cks.encrypt_signed(clear_1);
 
         let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let ct_res2 = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res2, &cks);
         assert_eq!(ct_res, ct_res2);
 
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
@@ -317,6 +325,7 @@ where
         clear_1 = signed_add_under_modulus(clear_1, clear_3, modulus);
 
         let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         assert!(ct_res.block_carries_are_empty());
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
 
@@ -354,7 +363,9 @@ where
         let mut ctxt_1 = cks.encrypt_signed(clear_1);
 
         let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let ct_res2 = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res2, &cks);
         assert_eq!(ct_res, ct_res2);
 
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
@@ -374,6 +385,7 @@ where
         clear_1 = signed_add_under_modulus(clear_1, clear_3, modulus);
 
         let ct_res = executor.execute((&ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         assert!(ct_res.block_carries_are_empty());
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
 

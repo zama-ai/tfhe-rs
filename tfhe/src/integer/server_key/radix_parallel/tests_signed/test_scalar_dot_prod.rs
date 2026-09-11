@@ -2,8 +2,8 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::signed_add_under_modulus;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, unsigned_modulus, CpuFunctionExecutor, MAX_NB_CTXT, MAX_VEC_LEN,
-    NB_CTXT,
+    nb_tests_smaller_for_params, panic_if_radix_is_not_clean, unsigned_modulus,
+    CpuFunctionExecutor, MAX_NB_CTXT, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
@@ -235,6 +235,7 @@ pub(crate) fn signed_default_boolean_scalar_dot_prod_test_case<P, E>(
 
             let e_result =
                 dot_prod_executor.execute((&e_booleans, &clear_values, num_blocks as u32));
+            panic_if_radix_is_not_clean(&e_result, &cks);
 
             let result: i64 = cks.decrypt_signed(&e_result);
             let expected_result = boolean_dot_prod(&clear_booleans, &clear_values, half_modulus);
@@ -250,6 +251,7 @@ pub(crate) fn signed_default_boolean_scalar_dot_prod_test_case<P, E>(
 
             let e_result2 =
                 dot_prod_executor.execute((&e_booleans, &clear_values, num_blocks as u32));
+            panic_if_radix_is_not_clean(&e_result2, &cks);
             assert_eq!(e_result2, e_result, "Failed determinism check");
         }
     }
