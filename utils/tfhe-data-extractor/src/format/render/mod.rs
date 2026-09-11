@@ -8,6 +8,27 @@ pub mod svg;
 /// Cell shown when a column was not measured for a row that has data.
 const MISSING: &str = "N/A";
 
+/// One RFC 4180 record. Quoting is not optional: row labels hold commas
+/// (`Comparisons (ge, gt, le, lt)`), and so does the archive's `note` column.
+///
+/// Lives here rather than in [`csv`] because the archive writes records without
+/// ever building a [`Grid`](crate::format::Grid).
+pub(crate) fn write_record<'a>(out: &mut String, fields: impl Iterator<Item = &'a str>) {
+    for (index, field) in fields.enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        if field.contains([',', '"', '\n']) {
+            out.push('"');
+            out.push_str(&field.replace('"', "\"\""));
+            out.push('"');
+        } else {
+            out.push_str(field);
+        }
+    }
+    out.push('\n');
+}
+
 #[cfg(test)]
 mod tests {
     use crate::format::{Grid, Row};

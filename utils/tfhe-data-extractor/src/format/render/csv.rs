@@ -1,7 +1,6 @@
-//! RFC 4180 CSV. Quoting is not optional here: row labels contain commas
-//! (`Comparisons (ge, gt, le, lt)`).
+//! RFC 4180 CSV.
 
-use super::MISSING;
+use super::{MISSING, write_record};
 use crate::format::Grid;
 
 pub fn table(grid: &Grid) -> String {
@@ -18,20 +17,4 @@ pub fn table(grid: &Grid) -> String {
         );
     }
     out
-}
-
-fn write_record<'a>(out: &mut String, fields: impl Iterator<Item = &'a str>) {
-    for (index, field) in fields.enumerate() {
-        if index > 0 {
-            out.push(',');
-        }
-        if field.contains([',', '"', '\n']) {
-            out.push('"');
-            out.push_str(&field.replace('"', "\"\""));
-            out.push('"');
-        } else {
-            out.push_str(field);
-        }
-    }
-    out.push('\n');
 }

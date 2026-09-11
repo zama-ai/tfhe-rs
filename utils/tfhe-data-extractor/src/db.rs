@@ -91,12 +91,16 @@ impl DbConfig {
 /// name     = "<bench path>::<param set>::<type>_mean_avx512"
 /// bit_size = 64
 /// value    = 2310000.0     // nanoseconds, for a latency bench
+/// machine  = "n3-H100-SXM5x8"
 /// ```
 #[derive(Debug, sqlx::FromRow)]
 pub struct BenchRow {
     pub name: String,
     pub bit_size: i64,
     pub value: f64,
+    /// As the runner registers it. Selected, not just filtered on: the archive
+    /// elects a machine per operation rather than being told one.
+    pub machine: String,
 }
 
 /// Escapes the `LIKE` metacharacters. Bench ids and parameter aliases are full
@@ -129,8 +133,13 @@ pub enum PbsKind {
 
 /// Dynamic filters for the benchmark fetch query.
 pub struct FetchQuery<'a> {
-    pub hardware: &'a str,
-    pub backend: &'a str,
+    /// One for the tables, the whole fleet for the archive.
+    pub machines: &'a [String],
+    /// `None` = no backend filter. A spec id already carries the backend as one
+    /// of its segments (`::cuda::`), so the column is redundant, and the two
+    /// have drifted apart: the June 2026 runs read `cuda` in the id and `gpu`
+    /// in the column. Of the two, the id is what the patterns match on.
+    pub backend: Option<&'a str>,
     pub branch: &'a str,
     /// SQL `LIKE` patterns for the id; a row matching any of them is kept.
     /// Either one broad layer pattern, or one exact prefix per bench path when
@@ -181,6 +190,17 @@ impl<'a> Filters<'a> {
         self
     }
 
+    /// `col = ANY($n)`: an allow-list, in one bind.
+    fn eq_any(&mut self, col: &str, values: &'a [String]) -> &mut Self {
+        self.0
+            .push(" AND ")
+            .push(col)
+            .push(" = ANY(")
+            .push_bind(values)
+            .push(")");
+        self
+    }
+
     /// `col LIKE ANY($n)`: one round-trip whatever the number of patterns.
     fn like_any(&mut self, col: &str, patterns: &'a [String]) -> &mut Self {
         self.0
@@ -199,9 +219,16 @@ impl<'a> Filters<'a> {
     }
 }
 
+// `DISTINCT ON` keys on the machine as well as the id, because the two are
+// independent: an id names its backend (`::cuda::`) but not the box, so two
+// GPU machines running the same benchmark store the very same id. Keying on the
+// id alone would keep whichever ran last and hide the other, which is fatal to
+// a report electing a machine. For the reports pinned to one machine, the extra
+// key changes nothing.
 const BASE_QUERY: &str = "\
-    SELECT DISTINCT ON (test.name) \
-        test.name AS name, p.bit_size AS bit_size, m.value AS value \
+    SELECT DISTINCT ON (test.name, h.name) \
+        test.name AS name, p.bit_size AS bit_size, m.value AS value, \
+        h.name AS machine \
     FROM benchmark.metrics AS m \
     LEFT JOIN benchmark.hardware        AS h  ON m.hardware_id        = h.id \
     LEFT JOIN benchmark.backend         AS bk ON m.backend_id         = bk.id \
@@ -214,10 +241,13 @@ const BASE_QUERY: &str = "\
 /// Latest value per `test.name` matching the filters.
 pub async fn fetch_bench_rows(pool: &PgPool, q: &FetchQuery<'_>) -> anyhow::Result<Vec<BenchRow>> {
     let mut f = Filters::new(BASE_QUERY);
-    f.eq("h.name", q.hardware)
-        .eq("bk.name", q.backend)
-        .eq("b.name", q.branch)
-        .like_any("test.name", q.like_patterns);
+    f.eq("b.name", q.branch)
+        .like_any("test.name", q.like_patterns)
+        .eq_any("h.name", q.machines);
+
+    if let Some(backend) = q.backend {
+        f.eq("bk.name", backend);
+    }
 
     if let Some(version) = q.project_version {
         f.eq("pv.name", version);
@@ -276,7 +306,9 @@ pub async fn fetch_bench_rows(pool: &PgPool, q: &FetchQuery<'_>) -> anyhow::Resu
         }
     }
 
-    f.0.push(" ORDER BY test.name, m.insert_time DESC");
+    // Must open with the `DISTINCT ON` expressions; the trailing key is what
+    // makes it "the most recent value of each id on each machine".
+    f.0.push(" ORDER BY test.name, h.name, m.insert_time DESC");
 
     let rows = f.0.build_query_as::<BenchRow>().fetch_all(pool).await?;
     Ok(rows)
