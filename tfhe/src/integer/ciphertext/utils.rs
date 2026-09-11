@@ -25,14 +25,12 @@ impl DataKind {
             Self::Unsigned(n) | Self::Signed(n) => n.get(),
             Self::Boolean => 1,
             Self::String { n_chars, .. } => {
-                if message_modulus.0 == 0 || message_modulus.0 == 1 {
+                let Ok(blocks_per_char) = message_modulus.num_blocks_per_ascii_char() else {
                     return 0;
-                }
-
-                let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+                };
                 // Use saturating mul to avoid panic here, maybe on the long run this function
                 // should return a Result
-                n_chars.saturating_mul(blocks_per_char) as usize
+                (n_chars as usize).saturating_mul(blocks_per_char)
             }
         }
     }
@@ -114,12 +112,14 @@ mod test {
             padded: true,
         };
 
+        // Unsupported parameters (possibly coming from untrusted data) must not panic
         let num_blocks = kind.num_blocks(MessageModulus(0));
-
         assert_eq!(num_blocks, 0);
 
         let num_blocks = kind.num_blocks(MessageModulus(1));
+        assert_eq!(num_blocks, 0);
 
+        let num_blocks = kind.num_blocks(MessageModulus(8));
         assert_eq!(num_blocks, 0);
 
         let kind = DataKind::String {

@@ -119,9 +119,42 @@ pub enum Backend {
 #[versionize(MessageModulusVersions)]
 pub struct MessageModulus(pub u64);
 
+/// Number of bits used to store one ASCII char.
+pub const ASCII_CHAR_BITS: u32 = 8;
+
 impl MessageModulus {
     pub fn corresponding_max_degree(&self) -> MaxDegree {
         MaxDegree::new(self.0.saturating_sub(1))
+    }
+
+    /// Returns the number of radix blocks used to store one ASCII char with the given
+    /// message modulus.
+    pub fn num_blocks_per_ascii_char(self) -> crate::Result<usize> {
+        let message_modulus = self.0;
+
+        if message_modulus < 2 || !message_modulus.is_power_of_two() {
+            return Err(crate::error!(
+                "Invalid message modulus {message_modulus} for ASCII chars: \
+                it must be a power of two >= 2"
+            ));
+        }
+
+        let bits_per_block = message_modulus.ilog2();
+
+        if !ASCII_CHAR_BITS.is_multiple_of(bits_per_block) {
+            return Err(crate::error!(
+                "Invalid message modulus {message_modulus} for ASCII chars: \
+                the number of bits per block ({bits_per_block}) must divide {ASCII_CHAR_BITS}"
+            ));
+        }
+
+        // Floor division since we checked it's a divisor
+        Ok((ASCII_CHAR_BITS / bits_per_block) as usize)
+    }
+
+    /// Returns true if parameters with the given moduli can be used with the "strings" feature.
+    pub fn is_compatible_with_strings(self, carry_modulus: CarryModulus) -> bool {
+        self.0 == carry_modulus.0 && self.num_blocks_per_ascii_char().is_ok()
     }
 }
 
@@ -881,5 +914,40 @@ impl OprfParameters {
         Self {
             lwe_dimension: compute_params.lwe_dimension(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_num_blocks_per_ascii_char() {
+        // Supported: bit width of the message modulus divides the size of a char
+        assert_eq!(MessageModulus(2).num_blocks_per_ascii_char().unwrap(), 8);
+        assert_eq!(MessageModulus(4).num_blocks_per_ascii_char().unwrap(), 4);
+        assert_eq!(MessageModulus(16).num_blocks_per_ascii_char().unwrap(), 2);
+        assert_eq!(MessageModulus(256).num_blocks_per_ascii_char().unwrap(), 1);
+
+        // Degenerate moduli, must not panic
+        assert!(MessageModulus(0).num_blocks_per_ascii_char().is_err());
+        assert!(MessageModulus(1).num_blocks_per_ascii_char().is_err());
+        // Not a power of two
+        assert!(MessageModulus(3).num_blocks_per_ascii_char().is_err());
+        assert!(MessageModulus(6).num_blocks_per_ascii_char().is_err());
+        // Power of two but the bit width does not divide 8
+        assert!(MessageModulus(8).num_blocks_per_ascii_char().is_err());
+        assert!(MessageModulus(32).num_blocks_per_ascii_char().is_err());
+        assert!(MessageModulus(1 << 9).num_blocks_per_ascii_char().is_err());
+    }
+
+    #[test]
+    fn test_are_parameters_compatible_with_strings() {
+        assert!(MessageModulus(2).is_compatible_with_strings(CarryModulus(2)));
+        assert!(MessageModulus(4).is_compatible_with_strings(CarryModulus(4)));
+        // carry != message
+        assert!(!MessageModulus(4).is_compatible_with_strings(CarryModulus(2)));
+        // 3 bits per block
+        assert!(!MessageModulus(8).is_compatible_with_strings(CarryModulus(8)));
     }
 }
