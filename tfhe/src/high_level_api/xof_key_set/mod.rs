@@ -508,6 +508,11 @@ impl CompressedXofKeySet {
     pub fn has_oprf_key(&self) -> bool {
         self.compressed_server_key.has_oprf_key()
     }
+
+    /// Returns whether the inner [`CompressedServerKey`] carries a transciphering key.
+    pub fn has_transciphering_key(&self) -> bool {
+        self.compressed_server_key.has_transciphering_key()
+    }
 }
 
 impl ParameterSetConformant for CompressedXofKeySet {
@@ -616,6 +621,11 @@ impl XofKeySet {
     /// Returns whether the inner [`ServerKey`] carries a dedicated OPRF key.
     pub fn has_oprf_key(&self) -> bool {
         self.server_key.has_oprf_key()
+    }
+
+    /// Returns whether the inner [`ServerKey`] carries a transciphering key.
+    pub fn has_transciphering_key(&self) -> bool {
+        self.server_key.has_transciphering_key()
     }
 }
 
