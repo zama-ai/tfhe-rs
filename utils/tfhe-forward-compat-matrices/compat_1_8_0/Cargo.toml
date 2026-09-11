@@ -8,8 +8,12 @@ license = "BSD-3-Clause-Clear"
 [workspace]
 
 [dependencies]
-tfhe = { path = "../../../tfhe", features = ["shortint", "integer", "zk-pok"] }
-tfhe-csprng = { path = "../../../tfhe-csprng" }
-tfhe-versionable = { path = "../../tfhe-versionable" }
-tfhe-zk-pok = { path = "../../../tfhe-zk-pok" }
+tfhe = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.8.0", features = [
+    "shortint",
+    "integer",
+    "zk-pok",
+] }
+tfhe-csprng = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.8.0" }
+tfhe-versionable = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.8.0" }
+tfhe-zk-pok = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.8.0" }
 forward-common = { path = "../forward-common" }
