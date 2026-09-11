@@ -1148,7 +1148,7 @@ mod tests {
     #[cfg(feature = "gpu")]
     #[test]
     fn test_compressed_ct_list_gpu_many_sizes() {
-        let is_sanitizer_run = std::env::var("TFHE_RS_COMPUTE_SANITIZER").is_ok_and(|v| v == "1");
+        let is_sanitizer_run = crate::core_crypto::gpu::algorithms::test::is_sanitizer_run();
 
         let sizes: Vec<usize> = if is_sanitizer_run {
             vec![1, 2]
