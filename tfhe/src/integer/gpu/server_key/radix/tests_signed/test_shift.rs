@@ -9,10 +9,28 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_shift::{
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
-create_gpu_parameterized_test!(integer_signed_unchecked_left_shift);
-create_gpu_parameterized_test!(integer_signed_unchecked_right_shift);
-create_gpu_parameterized_test!(integer_signed_left_shift);
-create_gpu_parameterized_test!(integer_signed_right_shift);
+// 2_2 goes through the block-level barrel shifter, 3_3 through the bit-level
+// one, so both paths of the CUDA backend are covered.
+create_gpu_parameterized_test!(integer_signed_unchecked_left_shift {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_signed_unchecked_right_shift {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_signed_left_shift {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_signed_right_shift {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
 
 fn integer_signed_unchecked_right_shift<P>(param: P)
 where

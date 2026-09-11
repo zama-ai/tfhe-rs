@@ -83,23 +83,251 @@ host_compute_overshift_condition(CudaStreams streams,
  * mem->tmp_overshift to every block and runs the overshift cleanup LUT, which
  * both refreshes the noise and selects the overshift result (0 / the sign) in a
  * single PBS.
- * @param shifted_ct Shift result, updated in place with the selection.
+ * @param output Destination of the selection; may alias shifted_ct.
+ * @param shifted_ct Shift result, updated in place by the condition addition.
  * @param mem Scratch buffer holding tmp_overshift and the cleanup LUT.
  */
 template <typename Torus, typename KSTorus>
-__host__ void
-host_apply_overshift_cleanup(CudaStreams streams,
-                             CudaRadixCiphertextFFI *shifted_ct,
-                             int_shift_and_rotate_buffer<Torus> *mem,
-                             void *const *bsks, KSTorus *const *ksks) {
-  auto num_radix_blocks = shifted_ct->num_radix_blocks;
+__host__ void host_apply_overshift_cleanup(
+    CudaStreams streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI *shifted_ct, int_shift_and_rotate_buffer<Torus> *mem,
+    void *const *bsks, KSTorus *const *ksks) {
+  auto num_radix_blocks = output->num_radix_blocks;
   host_add_the_same_block_to_all_blocks<Torus>(
       streams.stream(0), streams.gpu_index(0), shifted_ct, shifted_ct,
       mem->tmp_overshift, mem->params.message_modulus,
       mem->params.carry_modulus);
   integer_radix_apply_univariate_lookup_table<Torus>(
-      streams, shifted_ct, shifted_ct, bsks, ksks, mem->overshift_cleanup_lut,
+      streams, output, shifted_ct, bsks, ksks, mem->overshift_cleanup_lut,
       num_radix_blocks);
+}
+
+/**
+ * @brief Block-level barrel shifter: shift/rotate by an encrypted amount
+ * without ever splitting the ciphertext into one-bit ciphertexts.
+ *
+ * Writing the amount as `2*t + s + 4*rest` (for 2 message bits per block), the
+ * first round consumes `s` (the shift inside a block) and `t` (a shift by one
+ * block) at once with three bivariate LUTs, and the remaining rounds form a
+ * barrel shifter over blocks, each shifting by `1 << d` blocks.
+ *
+ * First round, for a left shift. Three bivariate LUTs read every block
+ * together with amount block 0, producing what each block keeps and what it
+ * hands over; the donor arrays are then rotated into place and summed. Only
+ * one of the three terms is non-zero for a given block, which is what keeps
+ * the sum inside the message space.
+ *
+ *      input       b0        b1        b2        b3
+ *                  |         |         |         |
+ *      msg        m0        m1        m2        m3         stays in place
+ *      next       n0 -.     n1 -.     n2 -.     n3 -x      +1 block
+ *      next_next  p0 --.    p1 --.    p2 -x     p3 -x      +2 blocks
+ *                      |         |         |         |
+ *      result     m0   m1+n0   m2+n1+p0  m3+n2+p1
+ *                      (n3, p2, p3 wrapped: dropped for a shift,
+ *                       kept for a rotation)
+ *
+ * Then, for d = 1 .. num_rounds, one many-LUT per block splits it into
+ * (message kept, carry handed `1 << d` blocks away), selected by that round's
+ * shift bit.
+ *
+ * This costs about half the PBS of host_shift_and_rotate_inplace; see
+ * int_shift_and_rotate_buffer::use_block_path for when it is selected.
+ *
+ * @param lwe_array Value to shift, overwritten with the result.
+ * @param lwe_shift Encrypted shift amount, same block count as lwe_array.
+ */
+template <typename Torus, typename KSTorus>
+__host__ void
+host_block_shift_and_rotate_inplace(CudaStreams streams,
+                                    CudaRadixCiphertextFFI *lwe_array,
+                                    CudaRadixCiphertextFFI const *lwe_shift,
+                                    int_shift_and_rotate_buffer<Torus> *mem,
+                                    void *const *bsks, KSTorus *const *ksks) {
+  cuda_set_device(streams.gpu_index(0));
+  auto params = mem->params;
+  auto message_modulus = params.message_modulus;
+  auto carry_modulus = params.carry_modulus;
+  auto stream = streams.stream(0);
+  auto gpu_index = streams.gpu_index(0);
+  uint32_t bits_per_block = log2_int(message_modulus);
+  auto num_blocks = lwe_array->num_radix_blocks;
+
+  if (lwe_array->num_radix_blocks != lwe_shift->num_radix_blocks)
+    PANIC("Cuda error: lwe_shift and lwe_array num radix blocks must be "
+          "the same")
+  if (lwe_array->lwe_dimension != lwe_shift->lwe_dimension)
+    PANIC("Cuda error: lwe_shift and lwe_array lwe_dimension must be "
+          "the same")
+
+  bool is_left =
+      (mem->shift_type == LEFT_SHIFT || mem->shift_type == LEFT_ROTATE);
+  bool is_rotate =
+      (mem->shift_type == LEFT_ROTATE || mem->shift_type == RIGHT_ROTATE);
+  // Only a right shift of a signed value pads with the sign instead of zeros.
+  bool arithmetic = mem->is_signed && (mem->shift_type == RIGHT_SHIFT);
+
+  // The input's sign bit feeds the overshift condition, so read it before
+  // lwe_array is overwritten.
+  if (arithmetic) {
+    CudaRadixCiphertextFFI top_block;
+    as_radix_ciphertext_slice<Torus>(&top_block, lwe_array, num_blocks - 1,
+                                     num_blocks);
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams, mem->blk_sign, &top_block, bsks, ksks, mem->blk_sign_lut, 1);
+  }
+
+  // ---- first round ----
+  // The three LUTs share the same bivariate input, so pack it once.
+  CudaRadixCiphertextFFI amount_block_0;
+  as_radix_ciphertext_slice<Torus>(&amount_block_0, lwe_shift, 0, 1);
+
+  auto packed = mem->blk_pack_tmp;
+  host_pack_bivariate_blocks_with_single_block<Torus>(
+      streams, packed, mem->blk_msg_lut->lwe_indexes_in, lwe_array,
+      &amount_block_0, mem->blk_msg_lut->lwe_indexes_in, message_modulus,
+      num_blocks);
+  for (uint32_t i = 0; i < num_blocks; i++) {
+    packed->degrees[i] =
+        lwe_array->degrees[i] * message_modulus + amount_block_0.degrees[0];
+    packed->noise_levels[i] = lwe_array->noise_levels[i] * message_modulus +
+                              amount_block_0.noise_levels[0];
+    CHECK_NOISE_LEVEL(packed->noise_levels[i], message_modulus, carry_modulus);
+  }
+
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, mem->blk_messages, packed, bsks, ksks, mem->blk_msg_lut,
+      num_blocks);
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, mem->blk_next, packed, bsks, ksks, mem->blk_next_lut,
+      num_blocks);
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, mem->blk_next_next, packed, bsks, ksks, mem->blk_next_next_lut,
+      num_blocks);
+
+  // Moves a donor array `rotations` blocks along and accumulates it into the
+  // result. Blocks are little endian, so a left shift of the value moves
+  // blocks towards higher indexes. The slots that wrap around are dropped for
+  // a shift; the sign extension of an arithmetic right shift is already baked
+  // into the LUTs of this round.
+  auto accumulate_donor = [&](CudaRadixCiphertextFFI *donor,
+                              uint32_t rotations) {
+    if (is_left)
+      host_radix_blocks_rotate_right<Torus>(streams, mem->blk_rotate_tmp, donor,
+                                            rotations, num_blocks);
+    else
+      host_radix_blocks_rotate_left<Torus>(streams, mem->blk_rotate_tmp, donor,
+                                           rotations, num_blocks);
+    if (!is_rotate) {
+      uint32_t start = is_left ? 0 : num_blocks - rotations;
+      uint32_t end = is_left ? rotations : num_blocks;
+      set_zero_radix_ciphertext_slice_async<Torus>(
+          stream, gpu_index, mem->blk_rotate_tmp, start, end);
+    }
+    host_addition<Torus>(stream, gpu_index, mem->blk_messages,
+                         mem->blk_messages, mem->blk_rotate_tmp, num_blocks,
+                         message_modulus, carry_modulus);
+  };
+  accumulate_donor(mem->blk_next, 1);
+  accumulate_donor(mem->blk_next_next, 2);
+  // At most one of the three contributions is non-zero for a given block, so
+  // the sum still fits in the message space.
+  for (uint32_t i = 0; i < num_blocks; i++)
+    mem->blk_messages->degrees[i] = message_modulus - 1;
+
+  // ---- remaining barrel rounds ----
+  if (mem->blk_num_rounds > 0) {
+    if (arithmetic) {
+      // The sign stays in the top block's MSB through every round, so this
+      // copy is a valid sign source for all of them.
+      copy_radix_ciphertext_slice_async<Torus>(
+          stream, gpu_index, mem->blk_saved_top, 0, 1, mem->blk_messages,
+          num_blocks - 1, num_blocks);
+    }
+
+    // Bits 0..1 of the amount were spent by the first round, so the rounds
+    // read theirs from amount block 1 onwards.
+    CudaRadixCiphertextFFI amount_high;
+    as_radix_ciphertext_slice<Torus>(&amount_high, lwe_shift, 1,
+                                     1 + mem->blk_num_amount_blocks);
+    extract_n_bits<Torus>(streams, mem->blk_shift_bits, &amount_high, bsks,
+                          ksks, mem->blk_num_rounds, mem->blk_num_amount_blocks,
+                          mem->bit_extract_luts_with_offset_2);
+  }
+
+  for (uint32_t d = 1; d <= mem->blk_num_rounds; d++) {
+    CudaRadixCiphertextFFI shift_bit;
+    as_radix_ciphertext_slice<Torus>(&shift_bit, mem->blk_shift_bits, d - 1, d);
+
+    if (arithmetic) {
+      // Sign-extension block for this round: the sign repeated, or 0 when this
+      // round does not shift.
+      host_addition<Torus>(stream, gpu_index, mem->blk_padding_in,
+                           mem->blk_saved_top, &shift_bit, 1, message_modulus,
+                           carry_modulus);
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, mem->blk_padding, mem->blk_padding_in, bsks, ksks,
+          mem->blk_padding_lut, 1);
+    }
+
+    // The shift bit sits on the control position, so a single many-LUT splits
+    // every block into "what it keeps" and "what it hands over".
+    host_add_the_same_block_to_all_blocks<Torus>(
+        stream, gpu_index, mem->blk_messages, mem->blk_messages, &shift_bit,
+        message_modulus, carry_modulus);
+    integer_radix_apply_many_univariate_lookup_table<Torus>(
+        streams, mem->blk_many_out, mem->blk_messages, bsks, ksks,
+        mem->blk_round_lut, 2, mem->blk_lut_stride);
+
+    copy_radix_ciphertext_slice_async<Torus>(stream, gpu_index,
+                                             mem->blk_messages, 0, num_blocks,
+                                             mem->blk_many_out, 0, num_blocks);
+    CudaRadixCiphertextFFI carries;
+    as_radix_ciphertext_slice<Torus>(&carries, mem->blk_many_out, num_blocks,
+                                     2 * num_blocks);
+
+    uint32_t rotations = 1u << d;
+    if (is_left)
+      host_radix_blocks_rotate_right<Torus>(streams, mem->blk_rotate_tmp,
+                                            &carries, rotations, num_blocks);
+    else
+      host_radix_blocks_rotate_left<Torus>(streams, mem->blk_rotate_tmp,
+                                           &carries, rotations, num_blocks);
+
+    if (!is_rotate) {
+      uint32_t start = is_left ? 0 : num_blocks - rotations;
+      uint32_t end = is_left ? rotations : num_blocks;
+      if (arithmetic) {
+        for (uint32_t i = start; i < end; i++)
+          copy_radix_ciphertext_slice_async<Torus>(
+              stream, gpu_index, mem->blk_rotate_tmp, i, i + 1,
+              mem->blk_padding, 0, 1);
+      } else {
+        set_zero_radix_ciphertext_slice_async<Torus>(
+            stream, gpu_index, mem->blk_rotate_tmp, start, end);
+      }
+    }
+
+    host_addition<Torus>(stream, gpu_index, mem->blk_messages,
+                         mem->blk_messages, mem->blk_rotate_tmp, num_blocks,
+                         message_modulus, carry_modulus);
+    for (uint32_t i = 0; i < num_blocks; i++)
+      mem->blk_messages->degrees[i] = message_modulus - 1;
+  }
+
+  // ---- finalize ----
+  // The result still carries the accumulated noise, so a cleaning PBS is due
+  // anyway; for a shift it also applies the overshift selection for free.
+  if (is_rotate) {
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams, lwe_array, mem->blk_messages, bsks, ksks, mem->cleaning_lut,
+        num_blocks);
+  } else {
+    host_compute_overshift_condition<Torus, KSTorus>(
+        streams, lwe_shift, mem->blk_sign, mem, bsks, ksks);
+    host_apply_overshift_cleanup<Torus, KSTorus>(
+        streams, lwe_array, mem->blk_messages, mem, bsks, ksks);
+  }
 }
 
 template <typename Torus, typename KSTorus>
@@ -109,6 +337,11 @@ host_shift_and_rotate_inplace(CudaStreams streams,
                               CudaRadixCiphertextFFI const *lwe_shift,
                               int_shift_and_rotate_buffer<Torus> *mem,
                               void *const *bsks, KSTorus *const *ksks) {
+  if (mem->use_block_path) {
+    host_block_shift_and_rotate_inplace<Torus, KSTorus>(
+        streams, lwe_array, lwe_shift, mem, bsks, ksks);
+    return;
+  }
   cuda_set_device(streams.gpu_index(0));
   // The barrel shifter packs three bits (control | previous | current) into a
   // single block for the mux LUT, so it needs the control bit at plaintext
@@ -288,8 +521,8 @@ host_shift_and_rotate_inplace(CudaStreams streams,
     // and use the overshift cleanup LUT, which both resets the noise and
     // selects the overshift result in a single PBS (no extra PBS round).
     if (i == 0 && mem->handle_overshift) {
-      host_apply_overshift_cleanup<Torus, KSTorus>(streams, lwe_array, mem,
-                                                   bsks, ksks);
+      host_apply_overshift_cleanup<Torus, KSTorus>(streams, lwe_array,
+                                                   lwe_array, mem, bsks, ksks);
     } else {
       auto cleaning_lut = mem->cleaning_lut;
       integer_radix_apply_univariate_lookup_table<Torus>(
@@ -302,8 +535,8 @@ host_shift_and_rotate_inplace(CudaStreams streams,
   // overshift selection could not be fused into a cleaning PBS; apply it as a
   // standalone step instead.
   if (bits_per_block == 1 && mem->handle_overshift) {
-    host_apply_overshift_cleanup<Torus, KSTorus>(streams, lwe_array, mem, bsks,
-                                                 ksks);
+    host_apply_overshift_cleanup<Torus, KSTorus>(streams, lwe_array, lwe_array,
+                                                 mem, bsks, ksks);
   }
 }
 #endif
