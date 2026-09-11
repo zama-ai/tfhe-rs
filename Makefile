@@ -1409,6 +1409,12 @@ test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/)"
 
+.PHONY: test_high_level_api_noise_squash_relaxed_pbs128_gpu # Run the GPU noise squashing tests of high_level_api with the experimental relaxed 128-bit PBS
+test_high_level_api_noise_squash_relaxed_pbs128_gpu: install_cargo_nextest
+	TFHE_RS_GPU_PBS128_RELAXED=1 RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
+		-E "test(/high_level_api::tests::noise_squashing::.*gpu.*/)"
+
 .PHONY: test_high_level_api_fake_multi_gpu
 test_high_level_api_fake_multi_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \

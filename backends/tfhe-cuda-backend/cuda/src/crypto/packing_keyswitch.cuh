@@ -162,10 +162,9 @@ __host__ void host_packing_keyswitch_lwe_list_to_glwe(
   // pre-zeroing and the decomposed masks never round-trip through global
   // memory. Only level counts 1..9 are dispatched; the library's maximum is 4.
   //
-  // 32x32 tile with BK=4, TM=8 (128 threads/block): keeps occupancy high and
-  // avoids wasting output rows at the modest batch sizes (num_lwes) typical
-  // of the packing keyswitch.
-  launch_packing_gemm_1d<Torus, 32, 32, 4, 8>(
+  // This tiling attains better performance for the packing ks params with
+  // level 2.
+  launch_packing_gemm_1d<Torus, 32, 32, 16, 2>(
       stream, num_lwes, glwe_accumulator_size, lwe_dimension, lwe_array_in,
       fp_ksk_array, stride_KSK_buffer, d_mem_1, base_log, level_count);
   check_cuda_error(cudaGetLastError());
