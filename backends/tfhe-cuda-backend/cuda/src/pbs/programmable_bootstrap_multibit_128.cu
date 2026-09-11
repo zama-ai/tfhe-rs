@@ -44,7 +44,7 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
       supports_cooperative_groups_on_multibit_programmable_bootstrap_128<
           __uint128_t>(glwe_dimension, polynomial_size, level_count,
                        input_lwe_ciphertext_count,
-                       cuda_get_max_shared_memory(gpu_index));
+                       cuda_get_max_shared_memory(gpu_index), gpu_index);
 
   if (supports_cg)
     return scratch_cuda_cg_multi_bit_programmable_bootstrap_128<uint64_t>(

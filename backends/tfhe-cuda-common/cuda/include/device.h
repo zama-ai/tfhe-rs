@@ -79,7 +79,7 @@ void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
                        void *stream, uint32_t gpu_index);
 
 int cuda_get_number_of_gpus();
-int cuda_get_number_of_sms();
+int cuda_get_number_of_sms(uint32_t gpu_index);
 
 void cuda_synchronize_device(uint32_t gpu_index);
 
@@ -130,11 +130,11 @@ uint32_t cuda_get_max_shared_memory(uint32_t gpu_index);
 
 uint32_t cuda_get_max_shared_memory_per_block(uint32_t gpu_index);
 
-bool cuda_check_support_cooperative_groups();
+bool cuda_check_support_cooperative_groups(uint32_t gpu_index);
 
 bool cuda_all_gpus_support_sm80();
 
-bool cuda_check_support_thread_block_clusters();
+bool cuda_check_support_thread_block_clusters(uint32_t gpu_index);
 
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,

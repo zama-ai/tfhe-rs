@@ -15,31 +15,34 @@ bool p2p_enabled = false;
 const int THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS = 12;
 const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128 = 12;
 
-// Returns the threshold for multi-GPU with classical params.
-// Computed once based on GPU 0's SM count.
+// Returns the threshold for multi-GPU with classical params for a given GPU.
+// Computed once per gpu_index (up to 8 GPUs supported).
 // We are assuming that 2_2 params are going to be used.
-int get_threshold_multi_gpu_classical() {
-  static int threshold = -1;
-  static std::once_flag init_flag;
+int get_threshold_multi_gpu_classical(uint32_t gpu_index) {
+  constexpr uint32_t MAX_GPUS = 8;
+  static int thresholds[MAX_GPUS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+  static std::once_flag init_flags[MAX_GPUS];
 
-  std::call_once(init_flag, []() {
+  GPU_ASSERT(gpu_index < MAX_GPUS,
+             "Cuda error: gpu_index exceeds MAX_GPUS (8) in "
+             "get_threshold_multi_gpu_classical");
+
+  std::call_once(init_flags[gpu_index], [gpu_index]() {
     cudaDeviceProp deviceProp{};
-    check_cuda_error(cudaGetDeviceProperties(&deviceProp, 0));
-    int num_sms = deviceProp.multiProcessorCount;
-
-    // The throughput-oriented 2_2 PBS uses one block per LWE, so we scale up to
-    // num_sms before splitting across GPUs.
-    threshold = num_sms + 1;
+    check_cuda_error(cudaGetDeviceProperties(&deviceProp, gpu_index));
+    // The throughput-oriented 2_2 PBS uses one block per LWE, so we scale up
+    // to num_sms before splitting across GPUs.
+    thresholds[gpu_index] = deviceProp.multiProcessorCount + 1;
   });
 
-  return threshold;
+  return thresholds[gpu_index];
 }
 
 uint32_t get_active_gpu_count(uint32_t num_inputs, uint32_t gpu_count,
-                              PBS_TYPE pbs_type) {
+                              PBS_TYPE pbs_type, uint32_t gpu_index) {
   int threshold = (pbs_type == MULTI_BIT)
                       ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
-                      : get_threshold_multi_gpu_classical();
+                      : get_threshold_multi_gpu_classical(gpu_index);
   uint32_t ceil_div_inputs =
       std::max((uint32_t)1, CEIL_DIV(num_inputs, (uint32_t)threshold));
   uint32_t active_gpu_count = std::min(ceil_div_inputs, gpu_count);
