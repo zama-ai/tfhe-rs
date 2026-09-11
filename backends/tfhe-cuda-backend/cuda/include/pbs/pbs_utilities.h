@@ -383,7 +383,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
 
       bool supports_dsm =
           supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-              __uint128_t>(polynomial_size, max_shared_memory);
+              __uint128_t>(polynomial_size, max_shared_memory, gpu_index);
 
       uint64_t full_sm =
           get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
