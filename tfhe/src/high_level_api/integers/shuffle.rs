@@ -124,6 +124,8 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    #[cfg(feature = "gpu")]
+    use crate::core_crypto::gpu::algorithms::test::is_sanitizer_run;
     use crate::core_crypto::prelude::new_seeder;
     #[cfg(feature = "gpu")]
     use crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN;
@@ -142,11 +144,6 @@ mod test {
     use rand::Rng;
     #[cfg(feature = "gpu")]
     use std::fmt::Debug;
-
-    #[cfg(feature = "gpu")]
-    fn is_sanitizer_run() -> bool {
-        std::env::var("TFHE_RS_COMPUTE_SANITIZER").is_ok_and(|v| v == "1")
-    }
 
     #[test]
     fn test_bitonic_shuffle_fheuint() {
