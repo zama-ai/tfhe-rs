@@ -57,6 +57,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      - name: Check the crate is ready to release
+        env:
+          PACKAGE: ${{ inputs.package-name }}
+          TAG: ${{ github.ref_name }}
+        run: make check_release_ready PACKAGE="${PACKAGE}" TAG="${TAG}"
       - name: Prepare package
         env:
           PACKAGE: ${{ inputs.package-name }}
