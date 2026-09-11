@@ -159,6 +159,7 @@ mod tests {
             spec: parsed.spec,
             bit_size: 64,
             value,
+            hardware: String::new(),
         }
     }
 

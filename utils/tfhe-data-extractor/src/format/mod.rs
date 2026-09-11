@@ -25,6 +25,7 @@ pub struct Measured {
     pub spec: BenchmarkSpec,
     pub bit_size: i64,
     pub value: f64,
+    pub hardware: String,
 }
 
 /// A table as data, before serialization. Cell values are already formatted;
@@ -196,6 +197,7 @@ pub fn parse_rows(rows: &[BenchRow]) -> (Vec<Measured>, usize) {
                 spec: id.spec,
                 bit_size: row.bit_size,
                 value: row.value,
+                hardware: row.machine.clone(),
             }),
             Err(_) => unparsed += 1,
         }
@@ -206,10 +208,13 @@ pub fn parse_rows(rows: &[BenchRow]) -> (Vec<Measured>, usize) {
 
 /// Renders a figure with three significant digits: `231`, `45.6`, `2.31`.
 ///
+/// Shared with the archive, which publishes raw figures but rounds its rates
+/// the same way the tables do.
+///
 /// At or above 100 the decimals disappear entirely; below it, trailing zeros go
 /// but one decimal always survives, so `1.0` does not become `1`. Hence the
 /// explicit precision rather than `Display`, which renders `1.0_f64` as `1`.
-fn three_significant_digits(value: f64) -> String {
+pub(crate) fn three_significant_digits(value: f64) -> String {
     // Zero shares the branch for want of a logarithm.
     if value >= 100.0 || value == 0.0 {
         return format!("{value:.0}");
