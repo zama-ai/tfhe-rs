@@ -3,6 +3,7 @@
 //! This module holds what all of them need: the [`Table`] result, cell
 //! collection, id parsing and value formatting.
 
+pub mod core_crypto;
 pub mod erc7984;
 pub mod integer;
 pub mod kv_store;
@@ -203,25 +204,128 @@ pub fn parse_rows(rows: &[BenchRow]) -> (Vec<Measured>, usize) {
     (parsed, unparsed)
 }
 
-/// Human-readable latency from a nanosecond figure.
-fn readable_latency(ns: f64) -> String {
-    if ns < 1e3 {
-        format!("{ns:.0} ns")
-    } else if ns < 1e6 {
-        format!("{:.2} us", ns / 1e3)
-    } else if ns < 1e9 {
-        format!("{:.2} ms", ns / 1e6)
-    } else {
-        format!("{:.2} s", ns / 1e9)
+/// Renders a figure with three significant digits: `231`, `45.6`, `2.31`.
+///
+/// At or above 100 the decimals disappear entirely; below it, trailing zeros go
+/// but one decimal always survives, so `1.0` does not become `1`. Hence the
+/// explicit precision rather than `Display`, which renders `1.0_f64` as `1`.
+fn three_significant_digits(value: f64) -> String {
+    // Zero shares the branch for want of a logarithm.
+    if value >= 100.0 || value == 0.0 {
+        return format!("{value:.0}");
     }
+
+    let decimals = (2 - value.abs().log10().floor() as i32).max(0) as usize;
+    let rendered = format!("{value:.decimals$}");
+
+    match rendered.trim_end_matches('0') {
+        trimmed if trimmed.ends_with('.') => format!("{trimmed}0"),
+        trimmed => trimmed.to_string(),
+    }
+}
+
+/// Human-readable latency from a nanosecond figure.
+///
+/// The thresholds are exclusive, so exactly 1e6 ns reads as `1000 us`, not
+/// `1.0 ms`: promoting it would lose the third significant digit.
+fn readable_latency(ns: f64) -> String {
+    let (scaled, unit) = if ns > 1e9 {
+        (ns / 1e9, "s")
+    } else if ns > 1e6 {
+        (ns / 1e6, "ms")
+    } else if ns > 1e3 {
+        (ns / 1e3, "us")
+    } else {
+        (ns, "ns")
+    };
+
+    format!("{} {unit}", three_significant_digits(scaled))
+}
+
+/// Human-readable throughput from a figure in elements per second.
+fn readable_throughput(per_second: f64) -> String {
+    let (scaled, unit) = if per_second > 1e6 {
+        (per_second / 1e6, "M.ops/s")
+    } else if per_second > 1e3 {
+        (per_second / 1e3, "k.ops/s")
+    } else {
+        (per_second, "ops/s")
+    };
+
+    format!("{} {unit}", three_significant_digits(scaled))
 }
 
 /// Renders a value with the unit implied by its metric.
 fn readable_value(metric: BenchmarkMetric, value: f64) -> String {
     match metric {
         BenchmarkMetric::Latency => readable_latency(value),
-        BenchmarkMetric::Throughput => format!("{value:.2} elem/s"),
+        BenchmarkMetric::Throughput => readable_throughput(value),
         // Counts and byte sizes are not durations.
         BenchmarkMetric::PbsCount | BenchmarkMetric::KeySize => format!("{value:.0}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{readable_latency, readable_throughput};
+
+    /// Expectations taken from the previous Python implementation, which wrote
+    /// the tables published today.
+    #[test]
+    fn latency_matches_the_published_spelling() {
+        for (ns, expected) in [
+            (0.5, "0.5 ns"),
+            (12.0, "12.0 ns"),
+            (850.0, "850 ns"),
+            (999.0, "999 ns"),
+            (1_000.0, "1000 ns"),
+            (1_000.5, "1.0 us"),
+            (2_310.0, "2.31 us"),
+            (45_600.0, "45.6 us"),
+            (100_000.0, "100 us"),
+            (231_000.0, "231 us"),
+            (999_999.0, "1000 us"),
+            (1_000_000.0, "1000 us"),
+            (1_000_001.0, "1.0 ms"),
+            (2_300_000.0, "2.3 ms"),
+            (2_310_000.0, "2.31 ms"),
+            (12_345_678.0, "12.3 ms"),
+            (999_999_999.0, "1000 ms"),
+            (1_000_000_000.0, "1000 ms"),
+            (2_500_000_000.0, "2.5 s"),
+        ] {
+            assert_eq!(readable_latency(ns), expected, "for {ns} ns");
+        }
+    }
+
+    #[test]
+    fn throughput_matches_the_published_spelling() {
+        for (per_second, expected) in [
+            (0.5, "0.5 ops/s"),
+            (12.0, "12.0 ops/s"),
+            (999.0, "999 ops/s"),
+            (1_000.0, "1000 ops/s"),
+            (1_001.0, "1.0 k.ops/s"),
+            (1_234.0, "1.23 k.ops/s"),
+            (45_600.0, "45.6 k.ops/s"),
+            (231_000.0, "231 k.ops/s"),
+            (1_000_000.0, "1000 k.ops/s"),
+            (1_000_001.0, "1.0 M.ops/s"),
+            (2_310_000.0, "2.31 M.ops/s"),
+            (12_345_678.0, "12.3 M.ops/s"),
+        ] {
+            assert_eq!(
+                readable_throughput(per_second),
+                expected,
+                "for {per_second}"
+            );
+        }
+    }
+
+    /// The previous tool raised a domain error on a stored zero.
+    #[test]
+    fn zero_does_not_panic() {
+        assert_eq!(readable_latency(0.0), "0 ns");
+        assert_eq!(readable_throughput(0.0), "0 ops/s");
     }
 }
