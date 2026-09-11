@@ -8,20 +8,18 @@
 #include <cstdio>
 
 template <typename Torus>
-bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
-                                                   uint32_t polynomial_size,
-                                                   uint32_t level_count,
-                                                   uint32_t num_samples,
-                                                   uint32_t max_shared_memory) {
+bool has_support_to_cuda_programmable_bootstrap_cg(
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t num_samples, uint32_t max_shared_memory, uint32_t gpu_index) {
   return supports_cooperative_groups_on_programmable_bootstrap<Torus>(
       glwe_dimension, polynomial_size, level_count, num_samples,
-      max_shared_memory);
+      max_shared_memory, gpu_index);
 }
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory) {
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index) {
 #if CUDA_ARCH >= 900
   if ((glwe_dimension + 1) * level_count > 8)
     return false;
@@ -29,8 +27,9 @@ bool has_support_to_cuda_programmable_bootstrap_tbc(
       polynomial_size, ClassicPBSDegreePolicy,
       return supports_thread_block_clusters_on_classic_programmable_bootstrap<
           Torus, Params>(num_samples, glwe_dimension, polynomial_size,
-                         level_count, max_shared_memory));
+                         level_count, max_shared_memory, gpu_index));
 #else
+  (void)gpu_index;
   return false;
 #endif
 }
@@ -143,7 +142,7 @@ uint64_t scratch_cuda_programmable_bootstrap_64_async(
 #if (CUDA_ARCH >= 900)
   if (has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          level_count, max_shared_memory))
+          level_count, max_shared_memory, gpu_index))
     return scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
@@ -152,7 +151,7 @@ uint64_t scratch_cuda_programmable_bootstrap_64_async(
 #endif
       if (has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
               glwe_dimension, polynomial_size, level_count,
-              input_lwe_ciphertext_count, max_shared_memory))
+              input_lwe_ciphertext_count, max_shared_memory, gpu_index))
     return scratch_cuda_programmable_bootstrap_cg<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
@@ -590,7 +589,7 @@ void cleanup_cuda_programmable_bootstrap_64(void *stream, uint32_t gpu_index,
 
 template bool has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples, uint32_t max_shared_memory);
+    uint32_t num_samples, uint32_t max_shared_memory, uint32_t gpu_index);
 
 template bool specialized_2_2_params_checker<uint64_t>(
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
@@ -666,10 +665,10 @@ template uint64_t scratch_cuda_programmable_bootstrap<uint32_t>(
 
 template bool has_support_to_cuda_programmable_bootstrap_tbc<uint32_t>(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory);
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index);
 template bool has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory);
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index);
 
 #if CUDA_ARCH >= 900
 template void
@@ -706,5 +705,6 @@ template uint64_t scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
     PBS_MS_REDUCTION_T noise_reduction_type);
 template bool
 supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-    __uint128_t>(uint32_t polynomial_size, uint32_t max_shared_memory);
+    __uint128_t>(uint32_t polynomial_size, uint32_t max_shared_memory,
+                 uint32_t gpu_index);
 #endif

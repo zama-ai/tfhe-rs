@@ -213,9 +213,9 @@ pub fn get_number_of_gpus() -> u32 {
     unsafe { cuda_get_number_of_gpus() as u32 }
 }
 
-/// Get the number of sms on the GPU
-pub fn get_number_of_sms() -> u32 {
-    unsafe { cuda_get_number_of_sms() as u32 }
+/// Get the number of SMs on the specified GPU
+pub fn get_number_of_sms(gpu_index: u32) -> u32 {
+    unsafe { cuda_get_number_of_sms(gpu_index) as u32 }
 }
 
 /// Synchronize device

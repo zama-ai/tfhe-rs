@@ -771,7 +771,7 @@ __host__ void execute_compute_keybundle_with_mode(
     bool supports_tbc =
         has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
             num_samples, glwe_dimension, polynomial_size, level_count,
-            cuda_get_max_shared_memory(gpu_index));
+            cuda_get_max_shared_memory(gpu_index), gpu_index);
 
     bool can_use_specialized = supports_tbc && polynomial_size == 2048 &&
                                grouping_factor == 4 && level_count == 1 &&

@@ -88,7 +88,7 @@ uint64_t get_buffer_size_full_sm_programmable_bootstrap_128_tbc(
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
-    uint32_t polynomial_size, uint32_t max_shared_memory);
+    uint32_t polynomial_size, uint32_t max_shared_memory, uint32_t gpu_index);
 
 struct pbs_buffer_base {
   virtual void release(cudaStream_t stream, uint32_t gpu_index) = 0;
@@ -205,7 +205,7 @@ struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> : public pbs_buffer_base {
 
       bool supports_dsm =
           supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-              Torus>(polynomial_size, max_shared_memory);
+              Torus>(polynomial_size, max_shared_memory, gpu_index);
 
       uint64_t full_sm =
           get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
@@ -383,7 +383,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
 
       bool supports_dsm =
           supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-              __uint128_t>(polynomial_size, max_shared_memory);
+              __uint128_t>(polynomial_size, max_shared_memory, gpu_index);
 
       uint64_t full_sm =
           get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
@@ -474,11 +474,9 @@ uint64_t get_buffer_size_programmable_bootstrap_cg(
 }
 
 template <typename Torus>
-bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
-                                                   uint32_t polynomial_size,
-                                                   uint32_t level_count,
-                                                   uint32_t num_samples,
-                                                   uint32_t max_shared_memory);
+bool has_support_to_cuda_programmable_bootstrap_cg(
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t num_samples, uint32_t max_shared_memory, uint32_t gpu_index);
 
 template <typename Torus>
 void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async(
@@ -537,19 +535,17 @@ uint64_t scratch_cuda_programmable_bootstrap(
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 template <typename Torus>
-bool has_support_to_cuda_programmable_bootstrap_tbc(uint32_t num_samples,
-                                                    uint32_t glwe_dimension,
-                                                    uint32_t polynomial_size,
-                                                    uint32_t level_count,
-                                                    uint32_t max_shared_memory);
+bool has_support_to_cuda_programmable_bootstrap_tbc(
+    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index);
 
 bool has_support_to_cuda_programmable_bootstrap_128_cg(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples, uint32_t max_shared_memory);
+    uint32_t num_samples, uint32_t max_shared_memory, uint32_t gpu_index);
 
 bool has_support_to_cuda_programmable_bootstrap_128_tbc(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory);
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index);
 
 #ifdef __CUDACC__
 __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,

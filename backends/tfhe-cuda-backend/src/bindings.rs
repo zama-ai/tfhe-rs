@@ -3187,6 +3187,7 @@ unsafe extern "C" {
         level_count: u32,
         num_samples: u32,
         max_shared_memory: u32,
+        gpu_index: u32,
     ) -> bool;
 }
 unsafe extern "C" {
