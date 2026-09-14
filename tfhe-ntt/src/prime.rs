@@ -1,5 +1,70 @@
 use crate::fastdiv::{Div32, Div64};
 
+pub(crate) struct BarrettInit {
+    pub(crate) big_q: u32,
+    pub(crate) p_barrett: u128,
+    pub(crate) requires_single_barrett_reduction_step: bool,
+}
+
+impl BarrettInit {
+    /// Applies the criterion that can be found in
+    /// implementation_notes/tfhe-ntt/gh_issue_2037_barrett_range.md to decide whether a prime is a
+    /// "fast" prime for Barrett
+    ///
+    /// # Panics
+    ///
+    /// Panics if $p < 2$, if `register_width` is $< 2$ or $> 64$ and if
+    /// $p >= 2^(register_width - 1)$
+    pub(crate) fn new(p: u64, register_width: u32) -> BarrettInit {
+        let w = register_width;
+        assert!(p >= 2);
+        assert!((2..=64).contains(&w));
+
+        // k == Q - 1
+        // where 2^k       <= p <= 2^(k + 1)
+        // or    2^(Q - 1) <= p <= 2^Q
+        let k = p.ilog2();
+        let big_q = k + 1;
+        let p = u128::from(p);
+
+        assert!(
+            p < (1u128 << register_width),
+            "Got prime larger than register"
+        );
+
+        // p larger than half the register, no way to have a single reduction without overflow
+        if p >= 1u128 << (w - 1) {
+            // Fine to return big_q and p_barrett set at 0 since we cannot fulfill the single
+            // reduction criterion, their values go unused in the ntt code
+            return BarrettInit {
+                big_q: 0,
+                p_barrett: 0,
+                requires_single_barrett_reduction_step: false,
+            };
+        }
+
+        // L = Q - 1 + w == k + w
+        // w <= 64 and k + 1 <= w - 1 <= 63 => k <= 62
+        let big_l = k + w;
+        let two_to_the_l = 1u128.checked_shl(big_l).expect("Should not fail");
+        // floor(2^L / p), 2^L mod p
+        let (p_barrett, beta) = (two_to_the_l / p, two_to_the_l % p);
+        // c1_max = floor(d_max / 2^k) where d_max product of two values mod p so d_max = (p - 1)^2
+        let c1_max = ((p - 1) * (p - 1)) >> k;
+
+        // 2^k
+        let two_pow_k = 1u128 << k;
+        // c1_max * beta < (p - 2^k + 1) * 2^w
+        let requires_single_barrett_reduction_step = c1_max * beta < (p - two_pow_k + 1) << w;
+
+        BarrettInit {
+            big_q,
+            p_barrett,
+            requires_single_barrett_reduction_step,
+        }
+    }
+}
+
 #[inline(always)]
 pub const fn mul_mod32(n: Div32, x: u32, y: u32) -> u32 {
     Div32::rem_u64(x as u64 * y as u64, n)
@@ -161,6 +226,11 @@ pub const fn largest_prime_in_arithmetic_progression64(
     }
 
     let x_hi = (hi - b) / a;
+
+    // No element of the progression falls in [lo, hi].
+    if x_hi < x_lo {
+        return None;
+    }
 
     let mut x = x_hi;
     let mut in_range = true;
