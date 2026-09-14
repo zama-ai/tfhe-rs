@@ -7,9 +7,12 @@ use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, CoreCryptoBench};
 use criterion::Criterion;
 use dyn_stack::{PodStack, StackReq};
 use std::hint::black_box;
+use tfhe::core_crypto::algorithms::lwe_half_product_bootstrap_key_conversion::par_allocate_and_convert_standard_half_product_lwe_bootstrap_key_to_fourier_128;
+use tfhe::core_crypto::algorithms::lwe_half_product_bootstrap_key_generation::par_allocate_and_generate_new_half_product_lwe_bootstrap_key;
 use tfhe::core_crypto::algorithms::lwe_half_rotate_bootstrap_key_conversion::par_convert_standard_half_rotate_lwe_bootstrap_key_to_fourier_128;
 use tfhe::core_crypto::algorithms::lwe_half_rotate_bootstrap_key_generation::par_allocate_and_generate_new_half_rotate_lwe_bootstrap_key;
 use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
+use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap_half_product::half_product_bootstrap_scratch;
 use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap_half_rotate::half_rotate_bootstrap_scratch;
 use tfhe::core_crypto::fft_impl::fft128::math::fft::Fft128View;
 use tfhe::core_crypto::prelude::*;
@@ -246,6 +249,46 @@ fn pbs_128_half_rotate(c: &mut Criterion) {
             par_allocate_and_convert_standard_half_rotate_lwe_bootstrap_key_to_fourier_128(&std_bsk)
         },
         half_rotate_bootstrap_scratch::<OutputScalar>,
+        |bsk, out, input, accumulator, fft, stack| {
+            bsk.bootstrap(out, input, accumulator, fft, stack);
+        },
+    );
+}
+
+/// Same as [`pbs_128`] but using the "half-product" 128-bit PBS: within each GGSW the mask GLev
+/// ciphertexts use (base log 24, 3 levels) while the body GLev uses (base log 31, 2 levels).
+fn pbs_128_half_product(c: &mut Criterion) {
+    let noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    let glwe_noise_distribution = noise_params.glwe_noise_distribution();
+    let output_ciphertext_modulus = noise_params.ciphertext_modulus();
+
+    let base_log_mask = DecompositionBaseLog(24);
+    let level_mask = DecompositionLevelCount(3);
+    let base_log_body = DecompositionBaseLog(31);
+    let level_body = DecompositionLevelCount(2);
+
+    bench_pbs_128_variant(
+        c,
+        CoreCryptoBench::Pbs128HalfProduct,
+        |input_lwe_secret_key, output_glwe_secret_key, encryption_generator| {
+            let std_bsk = par_allocate_and_generate_new_half_product_lwe_bootstrap_key(
+                input_lwe_secret_key,
+                output_glwe_secret_key,
+                base_log_mask,
+                level_mask,
+                base_log_body,
+                level_body,
+                glwe_noise_distribution,
+                output_ciphertext_modulus,
+                encryption_generator,
+            );
+
+            par_allocate_and_convert_standard_half_product_lwe_bootstrap_key_to_fourier_128(
+                &std_bsk,
+            )
+        },
+        half_product_bootstrap_scratch::<OutputScalar>,
         |bsk, out, input, accumulator, fft, stack| {
             bsk.bootstrap(out, input, accumulator, fft, stack);
         },
@@ -788,6 +831,7 @@ pub fn pbs128_group() {
     let mut criterion: Criterion<_> = Criterion::default().configure_from_args();
     pbs_128(&mut criterion);
     pbs_128_half_rotate(&mut criterion);
+    pbs_128_half_product(&mut criterion);
 }
 
 #[cfg(feature = "gpu")]

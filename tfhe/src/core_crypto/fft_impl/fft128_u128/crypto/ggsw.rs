@@ -566,7 +566,7 @@ pub(crate) fn collect_next_term_split_scalar(
     }
 }
 
-fn collect_next_term_split(
+pub(crate) fn collect_next_term_split(
     glwe_decomp_term_lo: &mut [u64],
     glwe_decomp_term_hi: &mut [u64],
     decomposition_states_lo: &mut [u64],
