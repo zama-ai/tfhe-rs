@@ -970,6 +970,7 @@ impl HpuNode {
                                 Some(&lut_remap),
                             );
                             // TODO kept track of CustIOp signature
+                            // TODO" use doplang passes to check custom iop validity
 
                             id_fw.push(((opcode.0 as usize, vid), dop_stream));
                         } else {
