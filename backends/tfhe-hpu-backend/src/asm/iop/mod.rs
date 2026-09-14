@@ -1,6 +1,5 @@
 //!
 //! IOp definition
-use super::dop::MAX_HPU_IN_CLUSTER;
 mod field;
 pub use field::{
     FwMode, HexParsingError, IOp, IOpMapping, IOpcode, Immediate, Operand, OperandKind,
@@ -16,6 +15,7 @@ pub use arg::{AsmIOpcode, ParsingError};
 // TODO find a proper way to let this runtime properties
 pub const MSG_WIDTH: u8 = 2;
 pub const CARRY_WIDTH: u8 = 2;
+pub const MAX_HPU_IN_CLUSTER: usize = 8;
 
 /// Enum used to define a variable size relative to current integer width
 #[derive(Debug, Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]

@@ -8,20 +8,13 @@ use crate::ffi;
 #[cfg(feature = "io-dump")]
 use crate::interface::io_dump;
 use crate::interface::memory;
-use crate::prelude::{HpuGlweLookuptableOwned, HpuParameters};
-use std::collections::{HashMap, VecDeque};
-use std::hash::{Hash, Hasher};
+use crate::prelude::HpuGlweLookuptableOwned;
+use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 
-// TODO must be repalaced by EmulatedCiphertextBlockStorge when merged in zhc
-use zhc::crypto::integer_semantics::EmulatedCiphertextBlock;
-
 use super::{Pool, PoolError, SlotId};
-use zhc::crypto::integer_semantics::{
-    lut::{LutId, RawLut},
-    EmulatedCiphertextBlockStorage,
-};
+use zhc::crypto::integer_semantics::lut::{LutId, RawLut};
 
 /// Keep track of uploaded LUT and associated properties
 pub struct LutCache {
