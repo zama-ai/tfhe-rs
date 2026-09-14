@@ -790,10 +790,7 @@ impl Plan {
             // They avoid overflows and allow the use of fast code paths.
             let init_ifma = if ifma_instructions_available && modulus < (1u64 << 52) {
                 let init_less_than_52_bits = BarrettInit64::new(modulus, 52);
-                if (modulus < 1501199875790166)
-                    || (init_less_than_52_bits.requires_single_reduction_step
-                        && modulus < (1 << 51))
-                {
+                if init_less_than_52_bits.requires_single_reduction_step && (modulus < (1 << 51)) {
                     // If we comply with the 52 bits code requirements return the init params
                     Some(init_less_than_52_bits)
                 } else {
@@ -812,9 +809,8 @@ impl Plan {
             } = init_ifma.unwrap_or_else(|| BarrettInit64::new(modulus, 64));
 
             let use_ifma = bits == 52;
-            let can_use_fast_reduction_code = use_ifma
-                || ((modulus < 6148914691236517206)
-                    || (requires_single_reduction_step && (modulus < (1 << 63))));
+            let can_use_fast_reduction_code =
+                use_ifma || (requires_single_reduction_step && (modulus < (1 << 63)));
 
             let mut twid = avec![0u64; polynomial_size].into_boxed_slice();
             let mut inv_twid = avec![0u64; polynomial_size].into_boxed_slice();
@@ -1555,17 +1551,28 @@ pub mod tests {
     }
 
     #[test]
-    fn test_plan_can_use_fast_reduction_code() {
-        use crate::primes52::{P0, P1, P2, P3, P4, P5};
+    fn test_barret_invalid_reduction_non_regression_requires_two_reductions() {
         const POLYNOMIAL_SIZE: usize = 32;
 
-        // First two primes are smaller than 6148914691236517206
-        // The other ones can be used for performant code, we want those to be fast
-        for p in [1062862849, 1431669377, P0, P1, P2, P3, P4, P5] {
-            let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+        let p: u64 = 4611686018429485057;
+        let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
 
-            assert!(plan.can_use_fast_reduction_code);
-        }
+        let acc_val = p - 1;
+        let mut acc = [acc_val; POLYNOMIAL_SIZE];
+        let lhs_value = 4611686018426735880;
+        // Essentially = [value, 0, 0, ...]
+        let lhs_input: [u64; POLYNOMIAL_SIZE] =
+            core::array::from_fn(|i| if i == 0 { lhs_value } else { 0 });
+
+        let rhs_value = 4611686018428520962;
+        let rhs_input: [u64; POLYNOMIAL_SIZE] =
+            core::array::from_fn(|i| if i == 0 { rhs_value } else { 0 });
+
+        plan.mul_accumulate(&mut acc, &lhs_input, &rhs_input);
+
+        let expected = ((u128::from(acc_val) + u128::from(lhs_value) * u128::from(rhs_value))
+            % u128::from(p)) as u64;
+        assert_eq!(acc[0], expected);
     }
 }
 
