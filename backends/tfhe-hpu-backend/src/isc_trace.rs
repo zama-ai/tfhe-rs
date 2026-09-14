@@ -2,14 +2,11 @@
 //! Rely on bitfield_struct that as a 128b limits
 use bitfield_struct::bitfield;
 
-use crate::asm::dop;
-
 // High-level view of the trace.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct IscTrace {
     pub pe_reserved: u16,
     pub state: IscPoolState,
-    pub insn: Option<dop::DOp>,
     pub insn_hex: u32,
     pub insn_asm: Option<String>,
     pub timestamp: u32,
@@ -62,8 +59,6 @@ pub enum TraceParsingError {
     EmptyStream,
     #[error("Incorrect value {0}")]
     IncorrectValue(String),
-    #[error("Incorrect insn {0}")]
-    IncorrectDOp(dop::ParsingError),
 }
 
 impl IscTrace {
@@ -85,17 +80,10 @@ impl IscTrace {
         let cmd = unsafe { std::mem::transmute::<u8, IscCommand>(flit0.cmd()) };
         let asm = match cmd {
             IscCommand::None => "Garbage".to_string(),
-            _ => dop::DOp::from_hex(flit0.insn())
-                .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?
-                .to_string(),
-        };
-
-        let insn = match cmd {
-            IscCommand::None => None,
             _ => {
-                let dop =
-                    dop::DOp::from_hex(flit0.insn()).map_err(TraceParsingError::IncorrectDOp)?;
-                Some(dop)
+                let dop = zhc::pipeline::passes::hpu_decode_dop_repr(flit0.insn(), None)
+                    .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?;
+                dop.to_string()
             }
         };
 
@@ -111,7 +99,6 @@ impl IscTrace {
                 sync_id: flit0.sync_id(),
             },
             pe_reserved: flit0.pe_reserved(),
-            insn,
             insn_hex: flit0.insn(),
             insn_asm: Some(asm),
             timestamp: flit0.timestamp(),
@@ -160,7 +147,6 @@ impl IscTraceStream {
                         println!("This event could occurred when the trace end is reached");
                         break;
                     }
-                    _ => panic!("{}", e),
                 },
             }
         }

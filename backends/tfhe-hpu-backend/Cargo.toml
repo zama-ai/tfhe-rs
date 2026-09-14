@@ -75,13 +75,6 @@ name = "hpu_archive_mgmt"
 path = "src/utils/hpu_archive_mgmt.rs"
 required-features = ["utils", "hw-v80"]
 
-# Binary for asm manipulation
-# Enable to convert back and forth between asm/hex format
-[[bin]]
-name = "dop_fmt"
-path = "src/utils/dop_fmt.rs"
-required-features = ["utils"]
-
 # Enable to convert back and forth between asm/hex format
 [[bin]]
 name = "iop_fmt"
@@ -92,11 +85,4 @@ required-features = ["utils"]
 [[bin]]
 name = "trace_fmt"
 path = "src/utils/trace_fmt.rs"
-required-features = ["utils"]
-
-# Firmware generation
-# Enable to expand IOp in list of Dop for inspection
-[[bin]]
-name = "fw"
-path = "src/utils/fw.rs"
 required-features = ["utils"]

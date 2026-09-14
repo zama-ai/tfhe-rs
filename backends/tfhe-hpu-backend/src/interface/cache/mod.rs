@@ -5,4 +5,4 @@ mod dyn_fw;
 pub use dyn_fw::{DynFwCache, DynFwEntry, DynFwError};
 
 mod lut;
-pub use lut::{LutCache, LutError};
+pub use lut::LutCache;
