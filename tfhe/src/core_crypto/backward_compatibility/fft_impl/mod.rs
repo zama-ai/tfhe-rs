@@ -5,6 +5,7 @@ use aligned_vec::ABox;
 use serde::{Deserialize, Serialize};
 use tfhe_fft::c64;
 
+use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_product::Fourier128HalfProductLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_rotate::Fourier128HalfRotateLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::FourierPolynomialList;
 use crate::core_crypto::prelude::{
@@ -107,4 +108,9 @@ pub enum Fourier128GgswCiphertextVersions<C: Container<Element = f64>> {
 #[derive(VersionsDispatch)]
 pub enum Fourier128HalfRotateLweBootstrapKeyVersions<C: Container<Element = f64>> {
     V0(Fourier128HalfRotateLweBootstrapKey<C>),
+}
+
+#[derive(VersionsDispatch)]
+pub enum Fourier128HalfProductLweBootstrapKeyVersions<C: Container<Element = f64>> {
+    V0(Fourier128HalfProductLweBootstrapKey<C>),
 }
