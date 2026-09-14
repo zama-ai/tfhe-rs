@@ -118,26 +118,28 @@ $p_{barrett}$ is computed as follows:
 
 $$
 \begin{align*}
-L &= Q + 31 \\
+L &= Q - 1 + w \\
 p_{barrett} &= \lfloor\frac{2^L}{p}\rfloor
 \end{align*}
 $$
 
+Where $w$ is the width of the registers we are working with (so 32, 52 or 64 for `tfhe-ntt`)
+
 Here we have a value $d$ we want to reduce modulo $p$. Following the computations of the `mul_accumulate_scalar` function from above we see the following for the $q_{barrett}$ value:
 
 $$
-c1 = \lfloor\frac{d}{2^{Q-1}}\rfloor \\
-c3 = \lfloor\frac{c1 \cdot p_{barrett}}{2^{32}}\rfloor
+c_1 = \lfloor\frac{d}{2^{Q-1}}\rfloor \\
+c_3 = \lfloor\frac{c_1 \cdot p_{barrett}}{2^{w}}\rfloor
 $$
 
-Given the usage of $c3$ we can see it is actually $q_{barrett}$.
+Given the usage of $c_3$ we can see it is actually $q_{barrett}$.
 
 The ZK Security blog then re arranges the formula to derive interesting properties, you can first read their derivation with $b = 2$, as the following is based on their method only adapted to our particular case.
 
 Now replacing the various terms by the way they were computed we get:
 
 $$
-q_{barrett} = c3 = \lfloor\frac{\lfloor\frac{d}{2^{Q-1}}\rfloor\lfloor\frac{2^L}{p}\rfloor}{2^{32}}\rfloor
+q_{barrett} = c_3 = \lfloor\frac{\lfloor\frac{d}{2^{Q-1}}\rfloor\lfloor\frac{2^L}{p}\rfloor}{2^{w}}\rfloor
 $$
 
 Let's define $\alpha \equiv d \mod {2^{Q-1}}$, let's write the euclidean division formula for d:
@@ -154,14 +156,14 @@ $$
 $$
 
 
-Recall $L = Q + 31$ and we have:
+We have:
 
 $$
 \begin{align*}
 q_{barrett}
- &= \lfloor \frac{\frac{d - \alpha}{2^{Q - 1}}\cdot\frac{2^{Q + 31} - \beta}{p}}{2^{32}}\rfloor \\
- &= \lfloor \frac{(d - \alpha)\cdot(2^{Q + 31} - \beta)}{p \cdot 2^{Q + 31}}\rfloor \\
- &= \lfloor \frac{d}{p} - {\color{red}{\frac{\alpha \cdot 2^{Q + 31} + \beta \cdot (d - \alpha)}{p \cdot 2^{Q + 31}}}} \rfloor
+ &= \lfloor \frac{\frac{d - \alpha}{2^{Q - 1}}\cdot\frac{2^{Q - 1 + w} - \beta}{p}}{2^{w}}\rfloor \\
+ &= \lfloor \frac{(d - \alpha)\cdot(2^{Q - 1 + w} - \beta)}{p \cdot 2^{Q - 1 + w}}\rfloor \\
+ &= \lfloor \frac{d}{p} - {\color{red}{\frac{\alpha \cdot 2^{Q - 1 + w} + \beta \cdot (d - \alpha)}{p \cdot 2^{Q - 1 + w}}}} \rfloor
 \end{align*}
 $$
 
@@ -170,7 +172,7 @@ Let's call the red part $z$.
 We have
 
 $$
-q_{barrett } = \lfloor \frac{d}{m} - {\color{red}{z}} \rfloor
+q_{barrett } = \lfloor \frac{d}{p} - {\color{red}{z}} \rfloor
 $$
 
 The floor function inequality gives us $\lfloor x \rfloor + \lfloor y \rfloor + 1 \ge \lfloor x + y \rfloor$
@@ -185,44 +187,28 @@ $$
 q_{barrett} + \lfloor z \rfloor + 1 \ge q
 $$
 
-If $0 \le z \lt 2$ then $\lfloor z \rfloor \le 1$ which then means $q_{barrett} + 2 \ge q_{barrett} + \lfloor z \rfloor + 1 \ge q$.
+We want $q_{barrett} + 1 \ge q$ for the `tfhe-ntt` code which means we want $\lfloor z \rfloor = 0 \iff z \lt 1$ 
 
-The code selects $p \lt 2^{31}$ as valid primes, meaning $Q = 31$
-
-Recall $\alpha \lt 2^{Q-1} = 2^{30}$ and observe that $d \lt 2^{62}$ because $d$ is a product of two values that are smaller than $p$.
+Recall $\alpha \le 2^{Q-1} - 1$ and $d - \alpha = c_1 \cdot 2^{Q - 1}$.
 
 Then:
 
 $$
 \begin{align*}
-z &= \frac{\alpha \cdot 2^{62} + \beta \cdot (d-\alpha)}{m \cdot 2^{62}} \\
-&\lt \frac{{\color{red}{2^{Q - 1}}} \cdot 2^{62} + \beta \cdot {\color{red}{2^{62}}}}{p\cdot 2^{62}} \\
-&= \frac{2^{Q - 1} + \beta}{p}
+z &= \frac{\alpha \cdot 2^{Q - 1 + w} + \beta \cdot (d - \alpha)}{p \cdot 2^{Q - 1 + w}} \\
+&\le \frac{{\color{red}{(2^{Q - 1} - 1})} \cdot 2^{Q - 1 + w} + \beta \cdot {\color{red}{c_1 \cdot 2^{Q - 1}}}}{p\cdot 2^{Q - 1 + w}} \\
+&\le \frac{(2^{Q - 1} - 1) \cdot 2^{w} + \beta \cdot c_1}{p \cdot 2^{w}} \\
+&\le \frac{(2^{Q - 1} - 1) \cdot 2^{w} + \beta \cdot c_{1,max}}{p \cdot 2^{w}}
 \end{align*}
 $$
 
-We know always have $2^{Q - 1} \lt p$ and $\beta$ is a value $\mod p$ so we have:
+We want $z \lt 1$:
 
 $$
-z \lt \frac{p + p}{p} \lt 2
+\begin{align*}
+(2^{Q - 1} - 1) \cdot 2^{w} + \beta \cdot c_{1,max} &\lt p \cdot 2^{w}
+\iff \beta \cdot c_{1,max} &\lt (p - 2^{Q - 1} + 1) \cdot 2^{w}
+\end{align*}
 $$
 
-Now assuming $Q \lt 31$ we know $z \lt 2$, let's go through the last derivation to find what the condition is to have $z \lt 1$.
-
-$$
-z \lt \frac{2^{Q - 1} + \beta}{p}
-$$
-
-So $z \lt 1$ holds if:
-
-$$
-\frac{2^{Q - 1} + \beta}{p} \le 1
-$$
-
-And finally:
-
-$$
-\beta \le p - 2^{Q-1}
-$$
-
-Recall $\beta \equiv 2^L \mod p$ and you have the formula used in this patch.
+Recall that $c_1 = \lfloor\frac{d}{2^{Q-1}}\rfloor$, $d$ is a product of two values $\lt p$ so we have $c_{1,max} = \lfloor\frac{(p - 1)^2}{2^{Q - 1}}\rfloor$. In that case since we are taking the floor division of a value by a power of two it corresponds to right shift by the power, so $Q - 1$, giving the criterion used in this patch.
