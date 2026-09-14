@@ -2,7 +2,6 @@
 //! Provide mechanism to load it from Toml-file
 
 use crate::ffi;
-use crate::fw::rtl::config::RtlCfg;
 use std::collections::{HashMap, HashSet};
 
 /// ShellString
@@ -140,19 +139,9 @@ pub struct FwConfig {
     /// NB: Currently only one width is supported at a time
     pub integer_w: HashSet<usize>,
 
-    /// Kogge config filename
-    /// Used to depicts best tradeoff for kogge Add/Sub algorithm
-    pub kogge_cfg: ShellString,
-
     /// List of custom iop to load
     /// IopName -> Iop asm file
     pub custom_iop: HashMap<String, HashMap<String, ShellString>>,
-
-    /// A per IOP configuration
-    pub op_cfg: RtlCfg,
-
-    /// Defines the firmware implementation to use
-    pub implementation: String,
 
     /// Defines the minimum batch size for an accurate FW simulation (use this
     /// while this information is not available as a register in the hardware)

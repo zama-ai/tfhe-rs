@@ -1,6 +1,5 @@
 //! Module containing the definition of the HpuGlweCiphertext.
 
-use hpu_asm::PbsLut;
 use tfhe_hpu_backend::prelude::*;
 
 use super::algorithms::{modswitch, order};

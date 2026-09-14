@@ -1,7 +1,8 @@
 //! Define instruction lifetime
 //! Used to refine raw isc trace in something more readable
 
-use crate::asm::dop;
+use zhc::langs::doplang;
+
 use crate::isc_trace::{IscCommand, IscTrace, IscTraceStream};
 use std::collections::LinkedList;
 
@@ -43,7 +44,6 @@ impl std::fmt::Display for InsnLifetime {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct InsnTrace {
     pub lifetime: InsnLifetime,
-    pub insn: dop::DOp,
     pub insn_hex: u32,
     pub insn_asm: String,
 }
@@ -122,9 +122,10 @@ impl From<&IscTraceStream> for InsnTraceStream {
             .next()
         {
             // Found & remove other matching item
-            let cmds = if dop::Opcode::from(dop::DOpRawHex::from_bits(refill.insn_hex).opcode())
-                .is_sync_inst()
-            {
+            let dop_insn = zhc::pipeline::passes::hpu_decode_dop_repr(refill.insn_hex, None)
+                .expect("Invalid Dop Hex code");
+
+            let cmds = if matches!(dop_insn.affinity(), doplang::Affinity::Ctl) {
                 // Sync instruction has != lifecycle
                 vec![IscCommand::Issue]
             } else {
@@ -143,8 +144,7 @@ impl From<&IscTraceStream> for InsnTraceStream {
                 println!("{refill:?} has incomplete lifecycle");
                 break;
             } else {
-                let insn = dop::DOp::from_hex(refill.insn_hex).expect("Invalid Dop Hex code");
-                let insn_asm = insn.to_string();
+                let insn_asm = dop_insn.to_string();
                 let insn_trace = InsnTrace {
                     lifetime: InsnLifetime {
                         refill: refill.timestamp,
@@ -153,7 +153,6 @@ impl From<&IscTraceStream> for InsnTraceStream {
                         retire: *timestamp.get(2).unwrap_or(&timestamp[0]),
                     },
                     insn_hex: refill.insn_hex,
-                    insn,
                     insn_asm,
                 };
                 insn_stream.push(insn_trace);

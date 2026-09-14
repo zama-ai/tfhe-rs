@@ -11,11 +11,11 @@ use std::fs::File;
 use std::io::BufReader;
 
 use serde_json::json;
-use tfhe_hpu_backend::asm::dop::ToAsm;
 use tfhe_hpu_backend::prelude::*;
 
 /// Define CLI arguments
 use clap::Parser;
+use zhc::langs::doplang;
 use zhc::utils::tracing::Scope;
 use zhc::utils::units::Microseconds;
 #[derive(Parser, Debug, Clone)]
@@ -170,12 +170,13 @@ fn main() -> Result<(), anyhow::Error> {
                 Scope::Thread,
             );
 
-            let opcode = insn.insn.opcode();
-            let target_tid = match opcode.optype() {
-                hpu_asm::dop::DOpType::ARITH => tid_pea,
-                hpu_asm::dop::DOpType::UCORE => tid_ucore,
-                hpu_asm::dop::DOpType::MEM => tid_pem,
-                hpu_asm::dop::DOpType::PBS => tid_pbs,
+            let dop_insn = zhc::pipeline::passes::hpu_decode_dop_repr(insn.insn_hex, None)
+                .expect("Error: Invalid instruction in trace");
+            let target_tid = match dop_insn.affinity() {
+                doplang::Affinity::Alu => tid_pea,
+                doplang::Affinity::Ctl => tid_ucore,
+                doplang::Affinity::Mem => tid_pem,
+                doplang::Affinity::Pbs => tid_pbs,
             };
             ptrace.new_complete(
                 Microseconds(insn.lifetime.issue as f64),
@@ -187,42 +188,39 @@ fn main() -> Result<(), anyhow::Error> {
             );
 
             // Handle side opcode effect
-            match opcode.optype() {
-                hpu_asm::dop::DOpType::PBS => {
-                    // Pbs also handle load counter
-                    // NB: Pbs could accept up-to 2 batch in issue mode. Thus to enhance counter
-                    // readability, rd_unlock event is used. => Only 1 full
-                    // batch could be between rd_unlock/retire state at a time
-                    pbs_cnt += 1;
+            if dop_insn.is_pbs() {
+                // Pbs also handle load counter
+                // NB: Pbs could accept up-to 2 batch in issue mode. Thus to enhance counter
+                // readability, rd_unlock event is used. => Only 1 full
+                // batch could be between rd_unlock/retire state at a time
+                pbs_cnt += 1;
+                ptrace.new_counter(
+                    Microseconds(insn.lifetime.rd_unlock as f64),
+                    cur_pid,
+                    tid_pbs,
+                    "Pbs_load",
+                    Some(json!({"pbs_in_batch": pbs_cnt})),
+                );
+
+                if dop_insn.is_pbs_flush() {
+                    pbs_cnt = 0;
                     ptrace.new_counter(
-                        Microseconds(insn.lifetime.rd_unlock as f64),
+                        Microseconds(insn.lifetime.retire as f64),
                         cur_pid,
                         tid_pbs,
                         "Pbs_load",
                         Some(json!({"pbs_in_batch": pbs_cnt})),
                     );
-
-                    if opcode.is_flush() {
-                        pbs_cnt = 0;
-                        ptrace.new_counter(
-                            Microseconds(insn.lifetime.retire as f64),
-                            cur_pid,
-                            tid_pbs,
-                            "Pbs_load",
-                            Some(json!({"pbs_in_batch": pbs_cnt})),
-                        );
-                        ptrace.new_instant(
-                            Microseconds(insn.lifetime.rd_unlock as f64),
-                            cur_pid,
-                            tid_pbs,
-                            "PbsFlush",
-                            Some(json!({"asm": insn.insn_asm})),
-                            Scope::Thread,
-                        );
-                    }
+                    ptrace.new_instant(
+                        Microseconds(insn.lifetime.rd_unlock as f64),
+                        cur_pid,
+                        tid_pbs,
+                        "PbsFlush",
+                        Some(json!({"asm": insn.insn_asm})),
+                        Scope::Thread,
+                    );
                 }
-                _ => { /*Nothing to do */ }
-            };
+            }
         }
     }
 

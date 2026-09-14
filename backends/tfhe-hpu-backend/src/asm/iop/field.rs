@@ -1,7 +1,6 @@
 //! List of IOp field
 //! Mainly thin wrapper over basic type to enforce correct used of asm fields
 use super::*;
-use crate::asm::dop::MAX_HPU_IN_CLUSTER;
 use crate::asm::{CtId, IOpId, PhysId, VirtId};
 
 use thiserror::Error;
