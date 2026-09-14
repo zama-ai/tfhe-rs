@@ -4,22 +4,18 @@ use crate::asm::dop::MAX_HPU_IN_CLUSTER;
 use crate::asm::iop::opcode::{USER_RANGE_LB, USER_RANGE_UB};
 use crate::asm::{IOpProto, PbsLut};
 use crate::entities::*;
-use crate::fw::isc_sim::PeConfigStore;
-use crate::fw::{Fw, FwParameters};
 use crate::interface::cache::{DynFwEntry, DynFwError};
 use crate::{asm, ffi};
 use bytemuck::{Pod, Zeroable};
 use rtl::FromRtl;
 
-use itertools::Itertools;
 use std::collections::VecDeque;
 use std::str::FromStr;
 use std::sync::{atomic, Arc, Mutex};
-use strum::VariantNames;
 use zhc::compat::Iop;
 use zhc::crypto::integer_semantics::lut::{LutId, LutRegistry};
 use zhc::ir::IR;
-use zhc::langs::doplang::DopLang;
+use zhc::langs::doplang;
 use zhc::prelude::Fingerprint;
 
 use zhc::builder::CiphertextSpec;
@@ -887,46 +883,9 @@ impl HpuNode {
         self.fw_mem.write_cut_at(0, 0, fw_cfg_raw_u32);
         tracing::debug!("[N{}] {fw_cfg}", self.hid);
 
-        // Create Asm architecture properties and Fw instantiation
-        let pe_cfg = PeConfigStore::from((&*params, config));
-        let fw_name =
-            crate::fw::FwName::from_str(&config.firmware.implementation).unwrap_or_else(|_| {
-                panic!(
-                    "Unknown firmware name {}, list of possible firmware names: {}",
-                    config.firmware.implementation,
-                    crate::fw::AvlblFw::VARIANTS.iter().join(",")
-                );
-            });
-        let fw = crate::fw::AvlblFw::new(&fw_name);
-
-        // TODO Add RTL register for the nu value
-        let mut fw_params = FwParameters {
-            register: params.regf_params.reg_nb,
-            isc_depth: params.isc_params.depth,
-            heap_size: config.board.heap_size,
-            min_iop_size: params.isc_params.min_iop_size,
-            min_pbs_batch_w: self
-                .params
-                .ntt_params
-                .min_pbs_nb
-                .unwrap_or(params.ntt_params.batch_pbs_nb),
-            pbs_batch_w: params.ntt_params.batch_pbs_nb,
-            total_pbs_nb: params.ntt_params.total_pbs_nb,
-            msg_w: params.pbs_params.message_width,
-            carry_w: params.pbs_params.carry_width,
-            nu: 5,
-            integer_w: 0,
-            use_ipip: !config.rtl.bpip_use,
-            kogge_cfg: config.firmware.kogge_cfg.expand(),
-            op_cfg: config.firmware.op_cfg.clone(),
-            cur_op_cfg: config.firmware.op_cfg.default(),
-            pe_cfg,
-            op_name: None,
-        };
-
         // Check that required number of integer_w don't overflow the lookup table space
         let integer_w_max = config.firmware.integer_w.iter().max().unwrap_or(&0);
-        let blk_w_max = integer_w_max / fw_params.msg_w;
+        let blk_w_max = integer_w_max / params.pbs_params.message_width;
         assert!(
             blk_w_max < FW_TABLE_ENTRY,
             "ERROR: requested {} fw configuration but current implementation only support {} entries",
@@ -951,13 +910,12 @@ impl HpuNode {
         for integer_w in config.firmware.integer_w.iter() {
             // Update fw parameters with concrete integer_width
             assert_eq!(
-                integer_w % fw_params.msg_w,
+                integer_w % params.pbs_params.message_width,
                 0,
                 "ERROR: requested integer_w {integer_w} isn't compliant with MSG_W {}",
-                fw_params.msg_w
+                params.pbs_params.message_width
             );
-            let blk_w = integer_w / fw_params.msg_w;
-            fw_params.integer_w = *integer_w;
+            let blk_w = integer_w / params.pbs_params.message_width;
 
             // Generate Fw for standard operation
             // -> All operation with an associated alias
@@ -981,48 +939,50 @@ impl HpuNode {
                 })
                 .collect::<Vec<_>>();
 
-            // // Load custom IOp from file
-            // // TODO enable back CustomIop loading
-            // // => Must define proto and used Lut in preamble
-            // if let Some(custom) = config
-            //     .firmware
-            //     .custom_iop
-            //     .get(&format!("integer_w_{integer_w}"))
-            // {
-            //     for (name, asm_base_file) in custom.iter() {
-            //         let iop = asm::AsmIOpcode::from_str(name)
-            //             .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
-            //         let opcode = iop.opcode();
-            //         let mut used_vid = 0;
-            //         if !(USER_RANGE_LB..=USER_RANGE_UB).contains(&opcode.0) {
-            //             panic!("Custom Iop [{integer_w}::{}] outside of USER_RANGE [{USER_RANGE_LB}; {USER_RANGE_UB}]", opcode.0);
-            //         }
+            // Load custom IOp from file
+            if let Some(custom) = config
+                .firmware
+                .custom_iop
+                .get(&format!("integer_w_{integer_w}"))
+            {
+                for (name, asm_base_file) in custom.iter() {
+                    let iop = asm::AsmIOpcode::from_str(name)
+                        .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
+                    let opcode = iop.opcode();
+                    let mut used_vid = 0;
+                    if !(USER_RANGE_LB..=USER_RANGE_UB).contains(&opcode.0) {
+                        panic!("Custom Iop [{integer_w}::{}] outside of USER_RANGE [{USER_RANGE_LB}; {USER_RANGE_UB}]", opcode.0);
+                    }
 
-            //         for vid in 0..MAX_HPU_IN_CLUSTER {
-            //             let asm_file = format!("{}_v{vid}.asm", asm_base_file.expand());
+                    for vid in 0..MAX_HPU_IN_CLUSTER {
+                        let asm_file = format!("{}_v{vid}.asm", asm_base_file.expand());
+                        if std::path::Path::new("path/to/file").exists() {
+                            let (preamble, cust_ir) = doplang::parse_assembly(&asm_file)
+                                .unwrap_or_else(|e| {
+                                    panic!(" Custom asm file {asm_file} contains error: {e}")
+                                });
+                            debug!("Read custom asm file: {asm_file}");
+                            used_vid += 1;
+                            // Upload required Lut if needed and generate relocation table
+                            let lut_remap = self.update_lut_registry(&preamble.luts, gen_lut);
+                            let dop_stream = zhc::pipeline::passes::hpu_generate_translation_table(
+                                &cust_ir,
+                                Some(&lut_remap),
+                            );
+                            // TODO kept track of CustIOp signature
 
-            //             match asm::Program::<asm::DOp>::read_asm(&asm_file) {
-            //                 Ok(prog) => {
-            //                     debug!("Read custom asm file: {asm_file}");
-            //                     used_vid += 1;
-            //                     id_fw.push(((opcode.0 as usize, vid), prog.tr_table()));
-            //                 }
-            //                 Err(e) => {
-            //                     if let Some(_io_err) = e.downcast_ref::<std::io::Error>() {
-            //                         trace!("Custom asm file: {asm_file} unavailable")
-            //                     } else {
-            //                         panic!("Custom iop parsing encountered an error: {e:?}");
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //         assert!(
-            //             used_vid > 0,
-            //             "Custom IOp: {opcode:?} failed. No file match given path {}_v{{[0-7]}}.asm",
-            //             asm_base_file.expand()
-            //         );
-            //     }
-            // }
+                            id_fw.push(((opcode.0 as usize, vid), dop_stream));
+                        } else {
+                            trace!("Custom asm file: {asm_file} unavailable")
+                        }
+                    }
+                    assert!(
+                        used_vid > 0,
+                        "Custom IOp: {opcode:?} failed. No file match given path {}_v{{[0-7]}}.asm",
+                        asm_base_file.expand()
+                    );
+                }
+            }
 
             // Sanity check
             let sync_opcode = asm::dop::DOpSync::opcode();
@@ -1102,7 +1062,7 @@ impl HpuNode {
         &mut self,
         fingerprint: Fingerprint,
         proto: IOpProto,
-        doplang: &Vec<IR<DopLang>>,
+        doplang: &Vec<IR<doplang::DopLang>>,
         lut_registry: &LutRegistry,
         gen_lut: &F,
     ) -> Result<Arc<DynFwEntry>, DynFwError>
