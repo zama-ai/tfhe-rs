@@ -250,7 +250,7 @@ pub struct Plan {
     p: u64,
     p_div: Div64,
     use_ifma: bool,
-    can_use_fast_reduction_code: bool,
+    can_use_fast_barrett_reduction_code: bool,
 
     // used for elementwise product
     p_barrett: u64,
@@ -727,7 +727,7 @@ struct BarrettInit64 {
     bits: u32,
     big_q: u64,
     p_barrett: u64,
-    requires_single_reduction_step: bool,
+    requires_single_barrett_reduction_step: bool,
 }
 
 impl BarrettInit64 {
@@ -747,13 +747,13 @@ impl BarrettInit64 {
         // Formula derived with https://blog.zksecurity.xyz/posts/barrett-tighter-bound/
         let single_reduction_threshold = m_as_u128 - (1 << (big_q - 1));
 
-        let requires_single_reduction_step = beta <= single_reduction_threshold;
+        let requires_single_barrett_reduction_step = beta <= single_reduction_threshold;
 
         Self {
             bits,
             big_q: big_q.into(),
             p_barrett,
-            requires_single_reduction_step,
+            requires_single_barrett_reduction_step,
         }
     }
 }
@@ -786,20 +786,8 @@ impl Plan {
                 has_ifma
             };
 
-            // See prime32 for the logic behind the checks performed here
-            // They avoid overflows and allow the use of fast code paths.
             let init_ifma = if ifma_instructions_available && modulus < (1u64 << 52) {
-                let init_less_than_52_bits = BarrettInit64::new(modulus, 52);
-                if (modulus < 1501199875790166)
-                    || (init_less_than_52_bits.requires_single_reduction_step
-                        && modulus < (1 << 51))
-                {
-                    // If we comply with the 52 bits code requirements return the init params
-                    Some(init_less_than_52_bits)
-                } else {
-                    // Otherwise we will need a 64 bits fallback
-                    None
-                }
+                Some(BarrettInit64::new(modulus, 52))
             } else {
                 None
             };
@@ -808,13 +796,15 @@ impl Plan {
                 bits,
                 big_q,
                 p_barrett,
-                requires_single_reduction_step,
+                requires_single_barrett_reduction_step,
             } = init_ifma.unwrap_or_else(|| BarrettInit64::new(modulus, 64));
 
             let use_ifma = bits == 52;
-            let can_use_fast_reduction_code = use_ifma
-                || ((modulus < 6148914691236517206)
-                    || (requires_single_reduction_step && (modulus < (1 << 63))));
+            // See prime32 for the logic behind the checks performed here.
+            // They avoid overflows and allow the use of fast Barrett reduction code in methods
+            // using it.
+            let can_use_fast_barrett_reduction_code =
+                requires_single_barrett_reduction_step && (modulus < (1 << (bits - 1)));
 
             let mut twid = avec![0u64; polynomial_size].into_boxed_slice();
             let mut inv_twid = avec![0u64; polynomial_size].into_boxed_slice();
@@ -852,7 +842,7 @@ impl Plan {
                 p: modulus,
                 p_div,
                 use_ifma,
-                can_use_fast_reduction_code,
+                can_use_fast_barrett_reduction_code,
                 p_barrett,
                 big_q,
                 n_inv_mod_p,
@@ -883,10 +873,21 @@ impl Plan {
         self.use_ifma
     }
 
-    /// Returns whether the negacyclic NTT plan can use fast reduction code.
+    /// See [`Self::can_use_fast_barrett_reduction_code`].
     #[inline]
+    #[deprecated(since = "0.7.2", note = "use can_use_fast_barrett_reduction_code")]
     pub fn can_use_fast_reduction_code(&self) -> bool {
-        self.can_use_fast_reduction_code
+        self.can_use_fast_barrett_reduction_code
+    }
+
+    /// Returns whether the negacyclic NTT plan can use fast Barrett reduction code.
+    ///
+    /// To avoid correctness issues linked to overflows the code has to make performance sacrifices
+    /// for certain primes and will not yield the best performance possible for them for some
+    /// methods relying on the Barrett reduction algorithm.
+    #[inline]
+    pub fn can_use_fast_barrett_reduction_code(&self) -> bool {
+        self.can_use_fast_barrett_reduction_code
     }
 
     /// Applies a forward negacyclic NTT transform in place to the given buffer.
@@ -1049,9 +1050,9 @@ impl Plan {
     /// polynomial modulo the NTT modulus, and stores the result in `lhs`.
     pub fn mul_assign_normalize(&self, lhs: &mut [u64], rhs: &[u64]) {
         let p = self.p;
-        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
+        let can_use_fast_barrett_reduction_code = self.can_use_fast_barrett_reduction_code;
 
-        if can_use_fast_reduction_code {
+        if can_use_fast_barrett_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if self.use_ifma {
@@ -1136,9 +1137,9 @@ impl Plan {
     /// the result in `values`.
     pub fn normalize(&self, values: &mut [u64]) {
         let p = self.p;
-        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
+        let can_use_fast_barrett_reduction_code = self.can_use_fast_barrett_reduction_code;
 
-        if can_use_fast_reduction_code {
+        if can_use_fast_barrett_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if self.use_ifma {
@@ -1181,9 +1182,9 @@ impl Plan {
     /// Computes the elementwise product of `lhs` and `rhs` and accumulates the result to `acc`.
     pub fn mul_accumulate(&self, acc: &mut [u64], lhs: &[u64], rhs: &[u64]) {
         let p = self.p;
-        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
+        let can_use_fast_barrett_reduction_code = self.can_use_fast_barrett_reduction_code;
 
-        if can_use_fast_reduction_code {
+        if can_use_fast_barrett_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if self.use_ifma {
@@ -1555,17 +1556,28 @@ pub mod tests {
     }
 
     #[test]
-    fn test_plan_can_use_fast_reduction_code() {
-        use crate::primes52::{P0, P1, P2, P3, P4, P5};
+    fn test_barret_invalid_reduction_non_regression_requires_two_reductions() {
         const POLYNOMIAL_SIZE: usize = 32;
 
-        // First two primes are smaller than 6148914691236517206
-        // The other ones can be used for performant code, we want those to be fast
-        for p in [1062862849, 1431669377, P0, P1, P2, P3, P4, P5] {
-            let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+        let p: u64 = 4611686018429485057;
+        let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
 
-            assert!(plan.can_use_fast_reduction_code);
-        }
+        let acc_val = p - 1;
+        let mut acc = [acc_val; POLYNOMIAL_SIZE];
+        let lhs_value = 4611686018426735880;
+        // Essentially = [value, 0, 0, ...]
+        let lhs_input: [u64; POLYNOMIAL_SIZE] =
+            core::array::from_fn(|i| if i == 0 { lhs_value } else { 0 });
+
+        let rhs_value = 4611686018428520962;
+        let rhs_input: [u64; POLYNOMIAL_SIZE] =
+            core::array::from_fn(|i| if i == 0 { rhs_value } else { 0 });
+
+        plan.mul_accumulate(&mut acc, &lhs_input, &rhs_input);
+
+        let expected = ((u128::from(acc_val) + u128::from(lhs_value) * u128::from(rhs_value))
+            % u128::from(p)) as u64;
+        assert_eq!(acc[0], expected);
     }
 }
 
