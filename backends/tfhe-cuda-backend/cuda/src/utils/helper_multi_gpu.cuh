@@ -66,9 +66,10 @@ void multi_gpu_alloc_lwe_async(CudaStreams streams, std::vector<Torus *> &dest,
                                PBS_TYPE pbs_type, bool allocate_gpu_memory) {
   PANIC_IF_FALSE(dest.empty(),
                  "Cuda error: Requested multi-GPU vector is already allocated");
-  int classical_threshold = sizeof(Torus) == 16
-                                ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
-                                : get_threshold_multi_gpu_classical();
+  int classical_threshold =
+      sizeof(Torus) == 16
+          ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
+          : get_threshold_multi_gpu_classical(streams.gpu_index(0));
   int threshold = (pbs_type == MULTI_BIT)
                       ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
                       : classical_threshold;
@@ -107,9 +108,10 @@ void multi_gpu_alloc_lwe_many_lut_output_async(
 
   PANIC_IF_FALSE(dest.empty(),
                  "Cuda error: Requested multi-GPU vector is already allocated");
-  int classical_threshold = sizeof(Torus) == 16
-                                ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
-                                : get_threshold_multi_gpu_classical();
+  int classical_threshold =
+      sizeof(Torus) == 16
+          ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
+          : get_threshold_multi_gpu_classical(streams.gpu_index(0));
   int threshold = (pbs_type == MULTI_BIT)
                       ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
                       : classical_threshold;

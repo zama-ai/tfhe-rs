@@ -198,9 +198,10 @@ template <typename Torus>
 __host__ bool supports_specialized_2_2_params(uint32_t polynomial_size,
                                               uint32_t glwe_dimension,
                                               uint32_t level_count,
-                                              uint32_t max_shared_memory) {
+                                              uint32_t max_shared_memory,
+                                              uint32_t gpu_index) {
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, 0);
+  cudaGetDeviceProperties(&deviceProp, gpu_index);
   check_cuda_error(cudaGetLastError());
   if (deviceProp.minor != 0 || deviceProp.major < 7) {
     return false;
@@ -1281,7 +1282,8 @@ __host__ void host_programmable_bootstrap_with_mode(
   } else {
     // In auto mode we also check the compute capability.
     use_specialized = supports_specialized_2_2_params<Torus>(
-        polynomial_size, glwe_dimension, level_count, max_shared_memory);
+        polynomial_size, glwe_dimension, level_count, max_shared_memory,
+        gpu_index);
   }
 
   if (use_specialized) {

@@ -255,7 +255,7 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
 
     #[cfg(feature = "gpu")]
     {
-        let num_sms_per_gpu = get_number_of_sms();
+        let num_sms_per_gpu = get_number_of_sms(0);
         let total_num_sm = num_sms_per_gpu * get_number_of_gpus();
 
         let total_blocks_per_sm = 4u64; // Assume each SM can handle 4 blocks concurrently

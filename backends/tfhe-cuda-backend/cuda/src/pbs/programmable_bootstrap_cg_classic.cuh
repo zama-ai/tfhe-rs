@@ -321,10 +321,10 @@ __host__ void host_programmable_bootstrap_cg(
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
     int glwe_dimension, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_index) {
 
   // If Cooperative Groups is not supported, no need to check anything else
-  if (!cuda_check_support_cooperative_groups())
+  if (!cuda_check_support_cooperative_groups(gpu_index))
     return false;
 
   // Calculate the dimension of the kernel
@@ -374,8 +374,8 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
-  check_cuda_error(
-      cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0));
+  check_cuda_error(cudaDeviceGetAttribute(
+      &number_of_sm, cudaDevAttrMultiProcessorCount, gpu_index));
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
 
@@ -383,11 +383,12 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
 template <typename Torus>
 __host__ bool supports_cooperative_groups_on_programmable_bootstrap(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_index) {
   // If specialized 2_2_params conditions are met, don't use CG (use classic
   // with specialized kernel, less restrictive and better performance)
   bool use_specialized_2_2_params = supports_specialized_2_2_params<Torus>(
-      polynomial_size, glwe_dimension, level_count, max_shared_memory);
+      polynomial_size, glwe_dimension, level_count, max_shared_memory,
+      gpu_index);
   if (use_specialized_2_2_params) {
     return false;
   }
@@ -395,7 +396,8 @@ __host__ bool supports_cooperative_groups_on_programmable_bootstrap(
   DISPATCH_POLY_SIZE(
       polynomial_size, AmortizedDegreePolicy,
       return verify_cuda_programmable_bootstrap_cg_grid_size<Torus, Params>(
-          glwe_dimension, level_count, num_samples, max_shared_memory));
+          glwe_dimension, level_count, num_samples, max_shared_memory,
+          gpu_index));
 }
 
 #endif // CG_PBS_H
