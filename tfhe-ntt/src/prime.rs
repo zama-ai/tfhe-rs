@@ -1,5 +1,65 @@
 use crate::fastdiv::{Div32, Div64};
 
+pub(crate) struct BarrettInit {
+    pub(crate) p_barrett: u128,
+    pub(crate) big_q: u32,
+}
+
+impl BarrettInit {
+    /// Applies the criterion that can be found in
+    /// implementation_notes/tfhe-ntt/gh_issue_2037_barrett_range.md to decide whether a prime is a
+    /// "fast" prime for Barrett
+    ///
+    /// Returns [`Option::None`] if $p \ge 2^{register_width}$ since one cannot use the Barrett
+    /// reduction without overflow.
+    ///
+    /// # Panics
+    ///
+    /// Panics if $p < 2$, if `register_width` is $< 2$ or $> 64$ and if
+    /// $p >= 2^{register_width}$
+    pub(crate) fn try_new(p: u64, register_width: u32) -> Option<BarrettInit> {
+        let w = register_width;
+        assert!((2..=64).contains(&w));
+        let p = u128::from(p);
+
+        assert!(
+            (2..1u128 << w).contains(&p),
+            "Prime not in range [2, 2^{w}["
+        );
+
+        // k == Q - 1
+        // where 2^k       <= p <= 2^(k + 1)
+        // or    2^(Q - 1) <= p <= 2^Q
+        let k = p.ilog2();
+        let big_q = k + 1;
+
+        // p larger than half the register, no way to have a single reduction without overflow
+        if p >= 1u128 << (w - 1) {
+            return None;
+        }
+
+        // L = Q - 1 + w == k + w
+        // w <= 64 and k + 1 <= w - 1 <= 63 => k <= 62
+        let big_l = k + w;
+        let two_to_the_l = 1u128.checked_shl(big_l).expect("Should not fail");
+        // floor(2^L / p), 2^L mod p
+        let (p_barrett, beta) = (two_to_the_l / p, two_to_the_l % p);
+        // c1_max = floor(d_max / 2^k) where d_max product of two values mod p so d_max = (p - 1)^2
+        let c1_max = ((p - 1) * (p - 1)) >> k;
+
+        // 2^k
+        let two_pow_k = 1u128 << k;
+        // c1_max * beta < (p - 2^k + 1) * 2^w
+        let requires_single_barrett_reduction_step = c1_max * beta < (p - two_pow_k + 1) << w;
+
+        if requires_single_barrett_reduction_step {
+            Some(BarrettInit { p_barrett, big_q })
+        } else {
+            None
+        }
+    }
+}
+
 #[inline(always)]
 pub const fn mul_mod32(n: Div32, x: u32, y: u32) -> u32 {
     Div32::rem_u64(x as u64 * y as u64, n)
@@ -162,6 +222,11 @@ pub const fn largest_prime_in_arithmetic_progression64(
 
     let x_hi = (hi - b) / a;
 
+    // No element of the progression falls in [lo, hi].
+    if x_hi < x_lo {
+        return None;
+    }
+
     let mut x = x_hi;
     let mut in_range = true;
     while in_range {
@@ -180,9 +245,40 @@ pub const fn largest_prime_in_arithmetic_progression64(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::prime64::Solinas;
+
+    /// Calls `f(a, b)` on 8192 products `a * b` of operands `a, b < p` built to maximize the
+    /// error `E` of the Barrett quotient estimate (see [`single_barrett_reduction_suffices`]):
+    /// `a` is odd and close to `p`, and `b` is the largest value below `p` such that
+    /// `a * b mod 2^k` is exactly `2^k - 1 - s`, for small values of `s`. Over all the pairs `E`
+    /// gets within 0.1% of the bound used by the criterion, so a prime accepted by mistake with a
+    /// non negligible margin has products needing two reductions among them.
+    pub(crate) fn for_each_adversarial_product(p: u64, mut f: impl FnMut(u64, u64)) {
+        let k = p.ilog2();
+        let mask = (1u128 << k) - 1;
+        let p = u128::from(p);
+
+        for s in 0..4 {
+            let r1 = mask - s;
+            for i in 0..2048 {
+                // p is odd, so a is odd and invertible modulo 2^k.
+                let a = p - 2 - 2 * i;
+                // Newton iterations: the number of correct bits doubles each time, starting at 3.
+                let mut a_inv = a;
+                for _ in 0..6 {
+                    a_inv = (a_inv * (2u128.wrapping_sub(a * a_inv) & mask)) & mask;
+                }
+                assert_eq!((a * a_inv) & mask, 1);
+                // Largest b < p with a * b = r1 mod 2^k. Note a * b < (p - 1)^2 as a <= p - 2.
+                let b_target = (a_inv * r1) & mask;
+                let b = (p - 1) - (((p - 1) - b_target) & mask);
+                assert_eq!((a * b) & mask, r1);
+                f(a as u64, b as u64);
+            }
+        }
+    }
 
     #[test]
     fn test_is_prime() {
