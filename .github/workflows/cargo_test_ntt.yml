@@ -99,7 +99,6 @@ jobs:
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
-          override: true
 
       - name: Test avx2
         run: make test_ntt
