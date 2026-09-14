@@ -56,7 +56,8 @@ impl HpuDevice {
             node_lock.ksk_set(ksk.as_view());
 
             // Init Fw
-            // Upload required TfheLut
+            // Configure Lut addr register
+            node_lock.lut_init();
             // and IOp translation table
             node_lock.fw_init(&self.config, gen_lut);
 

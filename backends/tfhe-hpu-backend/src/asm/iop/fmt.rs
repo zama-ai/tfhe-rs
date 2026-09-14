@@ -2,7 +2,6 @@
 //! Define binary format encoding of IOp instructions
 //! Rely on `bitfield_struct` crate to define bit-accurate insn format
 //! and some manual From/To implementation to move to internal type
-use crate::asm::dop::MAX_HPU_IN_CLUSTER;
 use crate::asm::{CtId, IOpId, PhysId, VirtId};
 use bitfield_struct::bitfield;
 

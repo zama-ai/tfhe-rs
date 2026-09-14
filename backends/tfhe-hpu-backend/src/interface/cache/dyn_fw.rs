@@ -7,17 +7,13 @@
 //! Fw memory is viewed as a set of SLOT_SIZE_WORDS u32 slot to ease memory management and reduce
 //! fragmentation.
 
-use crate::asm::dop::MAX_HPU_IN_CLUSTER;
+use crate::asm::iop::MAX_HPU_IN_CLUSTER;
 use crate::asm::{self, IOpProto};
 use crate::ffi;
 use crate::interface::{memory, IOP_NUMBER};
 use std::collections::{HashMap, VecDeque};
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use thiserror::Error;
-use zhc::crypto::integer_semantics::lut::LutId;
-use zhc::ir::IR;
-use zhc::langs::doplang::DopLang;
 use zhc::prelude::Fingerprint;
 
 use super::{Pool, PoolError, SlotId};
