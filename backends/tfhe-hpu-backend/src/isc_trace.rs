@@ -9,7 +9,6 @@ use crate::asm::dop;
 pub struct IscTrace {
     pub pe_reserved: u16,
     pub state: IscPoolState,
-    pub insn: Option<dop::DOp>,
     pub insn_hex: u32,
     pub insn_asm: Option<String>,
     pub timestamp: u32,
@@ -83,19 +82,19 @@ impl IscTrace {
         };
 
         let cmd = unsafe { std::mem::transmute::<u8, IscCommand>(flit0.cmd()) };
+        let mut asm_framed = [0; 2];
         let asm = match cmd {
             IscCommand::None => "Garbage".to_string(),
-            _ => dop::DOp::from_hex(flit0.insn())
-                .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?
-                .to_string(),
-        };
-
-        let insn = match cmd {
-            IscCommand::None => None,
             _ => {
-                let dop =
-                    dop::DOp::from_hex(flit0.insn()).map_err(TraceParsingError::IncorrectDOp)?;
-                Some(dop)
+                // `generate_translation_table`/`decode_translation_table` are internal `zhc_pipeline`
+                // helpers that additionally expect/produce a leading instruction-count word; that word is
+                // not part of this tool's file format, so it's synthesized here rather than written/read.
+                asm_framed[0] = 1;
+                asm_framed[1] = flit0.insn();
+                todo!("Expose from_hex in doplang")
+                // let ir = hpu_decode_translation_table(&asm_framed, None)
+                // .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?
+                // .to_string(),
             }
         };
 
@@ -111,7 +110,6 @@ impl IscTrace {
                 sync_id: flit0.sync_id(),
             },
             pe_reserved: flit0.pe_reserved(),
-            insn,
             insn_hex: flit0.insn(),
             insn_asm: Some(asm),
             timestamp: flit0.timestamp(),

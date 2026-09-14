@@ -16,6 +16,7 @@ use tfhe_hpu_backend::prelude::*;
 
 /// Define CLI arguments
 use clap::Parser;
+use zhc::langs::doplang;
 use zhc::utils::tracing::Scope;
 use zhc::utils::units::Microseconds;
 #[derive(Parser, Debug, Clone)]
@@ -172,10 +173,10 @@ fn main() -> Result<(), anyhow::Error> {
 
             let opcode = insn.insn.opcode();
             let target_tid = match opcode.optype() {
-                hpu_asm::dop::DOpType::ARITH => tid_pea,
-                hpu_asm::dop::DOpType::UCORE => tid_ucore,
-                hpu_asm::dop::DOpType::MEM => tid_pem,
-                hpu_asm::dop::DOpType::PBS => tid_pbs,
+                doplang::DOpType::ARITH => tid_pea,
+                doplang::DOpType::UCORE => tid_ucore,
+                doplang::DOpType::MEM => tid_pem,
+                doplang::DOpType::PBS => tid_pbs,
             };
             ptrace.new_complete(
                 Microseconds(insn.lifetime.issue as f64),

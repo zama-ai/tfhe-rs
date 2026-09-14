@@ -1,8 +1,8 @@
 /// Implement inner-view of Hpu backend
 use super::*;
-use crate::asm::dop::MAX_HPU_IN_CLUSTER;
 use crate::asm::iop::opcode::{USER_RANGE_LB, USER_RANGE_UB};
-use crate::asm::{IOpProto, PbsLut};
+use crate::asm::iop::MAX_HPU_IN_CLUSTER;
+use crate::asm::IOpProto;
 use crate::entities::*;
 use crate::interface::cache::{DynFwEntry, DynFwError};
 use crate::{asm, ffi};
@@ -971,6 +971,28 @@ impl HpuNode {
                             );
                             // TODO kept track of CustIOp signature
                             // TODO" use doplang passes to check custom iop validity
+                            // // Sanity check
+                            // let sync_opcode = asm::dop::DOpSync::opcode();
+                            // for (id, fw_bytes) in id_fw.iter() {
+                            //     // All IOp entry must be gte (MIN_IOP_SIZE-1)
+                            //     // NB fw_bytes contain size + DOps -> gte MIN_IOP_SIZE
+                            //     assert!(
+                            //         fw_bytes.len() >= self.params.isc_params.min_iop_size,
+                            //         "Error: IOp[0x{:x}].v{} is too short and could lead to sync_id overflow",
+                            //         id.0,
+                            //         id.1
+                            //     );
+                            //     // All IOp mustn't contain SYNC token
+                            //     let mut sync_dop = fw_bytes
+                            //         .iter()
+                            //         .filter(|w| (((*w >> 24) & 0xff) as u8) == sync_opcode)
+                            //         .peekable();
+                            //     assert!(
+                            //         sync_dop.peek().is_none(),
+                            //         "Error: IOp[0x{:x}].v{} contain SYNC. This break the min_iop_size requirement and
+                            //     could lead to sync_id overflow",id.0, id.1
+                            //     );
+                            // }
 
                             id_fw.push(((opcode.0 as usize, vid), dop_stream));
                         } else {
@@ -983,29 +1005,6 @@ impl HpuNode {
                         asm_base_file.expand()
                     );
                 }
-            }
-
-            // Sanity check
-            let sync_opcode = asm::dop::DOpSync::opcode();
-            for (id, fw_bytes) in id_fw.iter() {
-                // All IOp entry must be gte (MIN_IOP_SIZE-1)
-                // NB fw_bytes contain size + DOps -> gte MIN_IOP_SIZE
-                assert!(
-                    fw_bytes.len() >= self.params.isc_params.min_iop_size,
-                    "Error: IOp[0x{:x}].v{} is too short and could lead to sync_id overflow",
-                    id.0,
-                    id.1
-                );
-                // All IOp mustn't contain SYNC token
-                let mut sync_dop = fw_bytes
-                    .iter()
-                    .filter(|w| (((*w >> 24) & 0xff) as u8) == sync_opcode)
-                    .peekable();
-                assert!(
-                    sync_dop.peek().is_none(),
-                    "Error: IOp[0x{:x}].v{} contain SYNC. This break the min_iop_size requirement and
-                could lead to sync_id overflow",id.0, id.1
-                );
             }
 
             // Sort by opcode/vid and write Lut and translation table into memory

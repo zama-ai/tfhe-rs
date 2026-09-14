@@ -1,10 +1,8 @@
-pub mod dop;
-pub use dop::arg::Arg as DOpArg;
-use dop::ParsingError;
-pub use dop::{
-    DOp, DigitParameters, ImmId, MemId, Pbs, PbsGid, PbsLut, RegId, ToHex, UcoreFlag, UcorePayload,
-    UcorePayloadMode, UserFlag,
-};
+// pub use dop::arg::Arg as DOpArg;
+// pub use dop::{
+//     DOp, DigitParameters, ImmId, MemId, Pbs, PbsGid, PbsLut, RegId, ToHex, UcoreFlag, UcorePayload,
+//     UcorePayloadMode, UserFlag,
+// };
 pub mod iop;
 pub use iop::{AsmIOpcode, FwMode, IOp, IOpProto, IOpcode, Operand, OperandKind};
 
@@ -13,6 +11,15 @@ use std::collections::VecDeque;
 use std::io::{BufRead, Write};
 
 pub const ASM_COMMENT_PREFIX: [char; 2] = [';', '#'];
+
+/// Parsing error
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum ParsingError {
+    #[error("Unmatch Asm Operation: {0}")]
+    Unmatch(String),
+    #[error("Invalid arguments: {0}")]
+    InvalidArg(String),
+}
 
 // Common type used in both DOp/IOp definition --------------------------------
 /// Ciphertext Id
