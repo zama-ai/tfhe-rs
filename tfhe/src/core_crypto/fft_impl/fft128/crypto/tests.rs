@@ -3,6 +3,10 @@ use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootst
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_product::tests::{
     half_product_bootstrap_generic, half_product_matches_classic_bsk_generic,
 };
+use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_product_half_rotate::tests::{
+    half_product_half_rotate_bootstrap_generic,
+    half_product_half_rotate_matches_classic_bsk_generic,
+};
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_rotate::tests::{
     half_rotate_bootstrap_generic, half_rotate_matches_classic_bsk_generic,
 };
@@ -84,4 +88,25 @@ fn test_half_product_matches_classic_bsk_u128() {
 #[test]
 fn test_half_product_matches_classic_bsk_u64() {
     half_product_matches_classic_bsk_generic::<u64>(0);
+}
+
+#[test]
+fn test_half_product_half_rotate_bootstrap_u128() {
+    half_product_half_rotate_bootstrap_generic::<u128>();
+}
+
+#[test]
+fn test_half_product_half_rotate_bootstrap_u64() {
+    half_product_half_rotate_bootstrap_generic::<u64>();
+}
+
+// See `test_half_product_matches_classic_bsk_u128` for the tolerance.
+#[test]
+fn test_half_product_half_rotate_matches_classic_bsk_u128() {
+    half_product_half_rotate_matches_classic_bsk_generic::<u128>(1 << 56);
+}
+
+#[test]
+fn test_half_product_half_rotate_matches_classic_bsk_u64() {
+    half_product_half_rotate_matches_classic_bsk_generic::<u64>(0);
 }
