@@ -1,8 +1,15 @@
-; CUST_HPU0_18
 ; Simple IOp to check extraction pattern
 ; Correct result:
 ;   * Dst[0,1] <- Src[0][0,1]
 ;   * Dst[2,3] <- Src[1][0,1]
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; (Ciphertext<4, 2, 2>, Ciphertext<4, 2, 2>) -> Ciphertext<8, 2, 2>
+; [lut]
+; CarryInMsg: [0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3]
+; MsgOnly: [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
+; } ----------------------------------------------------------------------------
 
 ; Pack Src[0][0,1] with a Mac and extract Carry/Msg in Dst[0][0,1]
 LD R0 TS[0].0

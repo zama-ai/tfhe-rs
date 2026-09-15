@@ -1,11 +1,21 @@
-# CUST_HPU0_33 for VirtualHpu 0
-# WARNING: Prototype must be `--user-proto "[2]<N>::<N><0>"`
-# IOp to debug multi-hpu data xfer and sync
-# This IOp has two actors: one consumer and one producer.
-# Consumer read the IOp source and send them through explicit xfer toward the producer
-# Producer retrieved value with explicit lb_b2b and generate the output
-# Focus on explicit xfer between HPU
-# Below consumer code
+; IOp to debug multi-hpu data xfer and sync
+; This IOp has two actors: one consumer and one producer.
+; Consumer read the IOp source and send them through explicit xfer toward the producer
+; Producer retrieved value with explicit lb_b2b and generate the output
+; Focus on explicit xfer between HPU
+; Below consumer code
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; (Ciphertext<8, 2, 2>, Ciphertext<8, 2, 2>) -> Ciphertext<8, 2, 2>
+; [lut]
+; GenPropAdd: [0,1,2,3,0,1,2,3,1,2,3,0,1,2,3,0]
+; ManyGenProp: [0,0,0,1,2,2,2,3,0,1,2,3,0,1,2,3]
+; ReduceCarry2: [0,0,0,1,2,2,2,3,4,4,4,5,6,6,6,7]
+; ReduceCarry3: [0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,3]
+; ReduceCarryPad: [15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,0]
+; } ----------------------------------------------------------------------------
+
 LD        R0               TS[0].0             
 LD        R1               TS[1].0             
 LD        R3               TS[0].1             
@@ -27,28 +37,28 @@ ADDS      R25              R7               0
 ST TH.0 R25
 NOTIFY N1 F1 TH.0 
 ADDS      R20              R20              0                
-#ST TH.1 R20
-#NOTIFY N1 F1 TH.1 
+;ST TH.1 R20
+;NOTIFY N1 F1 TH.1 
 PBS       R22              R20              PbsReduceCarry2  
 MAC       R21              R12              R20              4                
-#ST TH.2 R21
-#NOTIFY N1 F2 TH.2 
+;ST TH.2 R21
+;NOTIFY N1 F2 TH.2 
 PBS       R24              R21              PbsReduceCarry3  
 MAC       R23              R16              R21              8                
-#ST TH.3 R23
-#NOTIFY N1 F3 TH.3 
+;ST TH.3 R23
+;NOTIFY N1 F3 TH.3 
 PBS_F       R26              R23              PbsReduceCarryPad 
-#PBS_F     R27              R25              PbsGenPropAdd    
-#ST        TD[0].0          R27              
-#LB_B2B F4 TH.4
-#LB_B2B F5 TH.5
-#LB_B2B F6 TH.6
-#WAIT F5 TH.4
-#LD R22 TH.4
-#WAIT F5 TH.5
-#LD R24 TH.5
-#WAIT F5 TH.6
-#LD R26 TH.6
+;PBS_F     R27              R25              PbsGenPropAdd    
+;ST        TD[0].0          R27              
+;LB_B2B F4 TH.4
+;LB_B2B F5 TH.5
+;LB_B2B F6 TH.6
+;WAIT F5 TH.4
+;LD R22 TH.4
+;WAIT F5 TH.5
+;LD R24 TH.5
+;WAIT F5 TH.6
+;LD R26 TH.6
 MAC       R32              R22              R13              4                
 MAC       R30              R24              R17              4                
 PBS       R33              R30              PbsGenPropAdd    
