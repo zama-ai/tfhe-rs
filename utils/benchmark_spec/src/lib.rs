@@ -64,6 +64,12 @@ impl BenchmarkSpec {
         &self.param_name
     }
 
+    /// The backend the benchmark ran on, as the id spells it. Read it rather
+    /// than the `backend` column of a stored result: the two have drifted.
+    pub fn backend(&self) -> Backend {
+        self.backend
+    }
+
     /// What the recorded value is: a duration, a rate, a count or a byte size.
     pub fn metric(&self) -> BenchmarkMetric {
         self.metric

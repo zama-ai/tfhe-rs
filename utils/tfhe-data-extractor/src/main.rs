@@ -11,18 +11,12 @@
 
 use clap::Parser;
 
-mod archive;
-mod cli;
-mod db;
-mod format;
-mod output;
-mod params;
-mod profile;
-mod query;
-
-use cli::{Args, EXIT_NO_RESULTS, Mode};
-use output::{OutputFormat, build_tables, parse_and_warn, write_archive, write_tables};
-use query::{QueryInputs, Selection, report_no_rows};
+use tfhe_data_extractor::cli::{Args, EXIT_NO_RESULTS, Mode};
+use tfhe_data_extractor::db;
+use tfhe_data_extractor::output::{
+    OutputFormat, build_tables, parse_and_warn, write_archive, write_tables,
+};
+use tfhe_data_extractor::query::{QueryInputs, Selection, report_no_rows};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
