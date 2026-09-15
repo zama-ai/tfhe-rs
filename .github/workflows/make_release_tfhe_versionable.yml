@@ -7,6 +7,10 @@ on:
         description: "Dry-run"
         type: boolean
         default: true
+      push_derive:
+        description: "Push tfhe-versionable-derive"
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -15,6 +19,7 @@ permissions: {}
 jobs:
   make-release-derive:
     name: make_release_tfhe_versionable/make-release-derive
+    if: ${{ inputs.push_derive }}
     uses: ./.github/workflows/make_release_common.yml
     with:
       package-name: "tfhe-versionable-derive"
@@ -34,6 +39,8 @@ jobs:
   make-release:
     name: make_release_tfhe_versionable/make-release
     needs: make-release-derive
+    # Skipping the derive release must not skip this one, but a failed derive must.
+    if: ${{ always() && needs.make-release-derive.result != 'failure' }}
     uses: ./.github/workflows/make_release_common.yml
     with:
       package-name: "tfhe-versionable"
