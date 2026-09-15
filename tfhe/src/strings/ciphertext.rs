@@ -65,19 +65,17 @@ impl Compactable for &ClearString {
         message_modulus: MessageModulus,
         num_blocks: Option<usize>,
     ) -> Option<DataKind> {
-        let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+        let blocks_per_char = message_modulus.num_blocks_per_ascii_char().ok()?;
 
         if let Some(n) = num_blocks {
             assert!(
-                (n as u32).is_multiple_of(blocks_per_char),
+                n.is_multiple_of(blocks_per_char),
                 "Inconsistent num block would split the string inside a a character"
             );
         }
 
         // How many chars we have to write
-        let n_chars = num_blocks.map_or(self.str.len(), |n_blocks| {
-            n_blocks / blocks_per_char as usize
-        });
+        let n_chars = num_blocks.map_or(self.str.len(), |n_blocks| n_blocks / blocks_per_char);
 
         // First, write the chars we have at hand
         let n_real_chars = n_chars.min(self.str().len());
@@ -91,7 +89,7 @@ impl Compactable for &ClearString {
 
         // Pad if necessary
         let padded = n_real_chars < n_chars;
-        for _ in 0..n_chars.saturating_sub(n_real_chars) * blocks_per_char as usize {
+        for _ in 0..n_chars.saturating_sub(n_real_chars) * blocks_per_char {
             messages.push(0);
         }
 
@@ -109,14 +107,16 @@ impl crate::integer::ciphertext::CompactCiphertextListBuilder {
         padding_count: u32,
     ) -> &mut Self {
         let message_modulus = self.pk.key.message_modulus();
-        let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+        let blocks_per_char = message_modulus
+            .num_blocks_per_ascii_char()
+            .expect("The parameters of the CompactPublicKey are not compatible with strings");
         let n = self.messages.len();
 
         let kind = clear_string
             .compact_into(
                 &mut self.messages,
                 message_modulus,
-                Some((clear_string.str.len() + padding_count as usize) * blocks_per_char as usize),
+                Some((clear_string.str.len() + padding_count as usize) * blocks_per_char),
             )
             .expect("Internal error: compact_into should return a kind");
         self.info.push(kind);
@@ -137,14 +137,16 @@ impl crate::integer::ciphertext::CompactCiphertextListBuilder {
         size: u32,
     ) -> &mut Self {
         let message_modulus = self.pk.key.message_modulus();
-        let blocks_per_char = 7u32.div_ceil(message_modulus.0.ilog2());
+        let blocks_per_char = message_modulus
+            .num_blocks_per_ascii_char()
+            .expect("The parameters of the CompactPublicKey are not compatible with strings");
         let n = self.messages.len();
 
         let kind = clear_string
             .compact_into(
                 &mut self.messages,
                 message_modulus,
-                Some((size * blocks_per_char) as usize),
+                Some(size as usize * blocks_per_char),
             )
             .expect("Internal error: compact_into should return a kind");
         self.info.push(kind);
@@ -176,15 +178,15 @@ impl crate::integer::ciphertext::Expandable for FheString {
                         "Invalid number of blocks for a string of {n_chars} chars, got 0 blocks"
                     ));
                 };
-                let n_blocks_per_chars = 7u32.div_ceil(first_block.message_modulus.0.ilog2());
-                let expected_num_blocks = n_chars * n_blocks_per_chars;
-                if expected_num_blocks != blocks.len() as u32 {
+                let n_blocks_per_chars = first_block.message_modulus.num_blocks_per_ascii_char()?;
+                let expected_num_blocks = n_chars as usize * n_blocks_per_chars;
+                if expected_num_blocks != blocks.len() {
                     return Err(crate::error!("Invalid number of blocks for a string of {n_chars} chars, expected {expected_num_blocks}, got {}", blocks.len()));
                 }
 
                 let mut chars = Vec::with_capacity(n_chars as usize);
                 for _ in 0..n_chars {
-                    let char: Vec<_> = blocks.drain(..n_blocks_per_chars as usize).collect();
+                    let char: Vec<_> = blocks.drain(..n_blocks_per_chars).collect();
                     chars.push(FheAsciiChar {
                         enc_char: RadixCiphertext::from(char),
                     });
@@ -377,7 +379,7 @@ impl FheString {
     }
 
     // Converts a `RadixCiphertext` to a `FheString`, building a `FheAsciiChar` for each
-    // num_ascii_blocks blocks.
+    // `MessageModulus::num_blocks_per_ascii_char` blocks.
     pub fn from_uint(uint: RadixCiphertext, padded: bool) -> Self {
         if uint.blocks().is_empty() {
             return Self {
@@ -386,12 +388,10 @@ impl FheString {
             };
         }
 
-        assert_eq!(
-            uint.blocks()[0].message_modulus.0,
-            uint.blocks()[0].carry_modulus.0
-        );
-
-        let num_blocks = num_ascii_blocks(uint.blocks()[0].message_modulus);
+        let num_blocks = uint.blocks()[0]
+            .message_modulus
+            .num_blocks_per_ascii_char()
+            .expect("The parameters of the ciphertext are not compatible with strings");
 
         assert_eq!(uint.blocks.len() % num_blocks, 0);
 
@@ -407,7 +407,8 @@ impl FheString {
         Self { enc_string, padded }
     }
 
-    // Converts a `FheString` to a `RadixCiphertext`, taking 4 blocks for each `FheAsciiChar`.
+    // Converts a `FheString` to a `RadixCiphertext`, concatenating the blocks of each
+    // `FheAsciiChar`.
     // We can then use a single large uint, that represents a string, in tfhe-rs operations.
     pub fn to_uint(&self) -> RadixCiphertext {
         self.clone().into_uint()
@@ -450,20 +451,12 @@ impl FheString {
     }
 }
 
-pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
-    let message_modulus = message_modulus.0;
-
-    assert!(message_modulus.is_power_of_two());
-
-    assert_eq!(8 % message_modulus.ilog2(), 0);
-
-    8 / message_modulus.ilog2() as usize
-}
-
 /// Creates a trivial encryption of the ascii string `str`
 ///
 /// * key: typically a shortint::ClientKey/ServerKey
 /// * encrypt: the method of the `key` used to create a trivial block
+/// * num_blocks: the number of blocks of each char, see
+///   [`MessageModulus::num_blocks_per_ascii_char`]
 ///
 /// # Panics
 ///
@@ -471,6 +464,7 @@ pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
 pub(in crate::strings) fn trivial_encrypt_ascii<BlockKey, F>(
     key: &BlockKey,
     encrypt_block: &F,
+    num_blocks: usize,
     str: &str,
     padding: Option<u32>,
 ) -> FheString
@@ -481,8 +475,6 @@ where
     assert!(str.is_ascii() & !str.contains('\0'));
 
     let padded = padding.is_some_and(|p| p != 0);
-
-    let num_blocks = num_ascii_blocks(key.message_modulus());
 
     let mut enc_string: Vec<_> = str
         .bytes()

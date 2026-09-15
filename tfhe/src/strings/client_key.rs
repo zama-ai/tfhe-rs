@@ -1,21 +1,55 @@
 use std::borrow::Borrow;
 
 use crate::integer::{ClientKey as IntegerClientKey, RadixCiphertext};
-use crate::strings::ciphertext::{num_ascii_blocks, FheAsciiChar, FheString};
+use crate::strings::ciphertext::{FheAsciiChar, FheString};
 
 pub struct ClientKey<T>
 where
     T: Borrow<IntegerClientKey>,
 {
     inner: T,
+    /// Number of radix blocks used to store one ASCII char, computed once at construction
+    num_ascii_blocks: usize,
 }
 
 impl<T> ClientKey<T>
 where
     T: Borrow<IntegerClientKey>,
 {
+    /// Creates a strings client key from an integer client key.
+    ///
+    /// # Panics
+    ///
+    /// If the parameters of the key are not compatible with strings, see [`Self::try_new`].
     pub fn new(inner: T) -> Self {
-        Self { inner }
+        Self::try_new(inner).unwrap()
+    }
+
+    /// Creates a strings client key from an integer client key.
+    ///
+    /// Returns an error if the parameters of the key are not compatible with strings, i.e. if
+    /// the message modulus is not a power of two whose bit width divides the size of an ASCII
+    /// char, or if the carry modulus is different from the message modulus.
+    pub fn try_new(inner: T) -> crate::Result<Self> {
+        let ck: &IntegerClientKey = inner.borrow();
+
+        if !ck.is_compatible_with_strings() {
+            return Err(crate::error!(
+                "Parameters are not compatible with the \"strings\" feature: the message modulus \
+                must be a power of two whose bit width divides 8, and the carry modulus must be \
+                equal to the message modulus"
+            ));
+        }
+
+        let num_ascii_blocks = ck
+            .parameters()
+            .message_modulus()
+            .num_blocks_per_ascii_char()?;
+
+        Ok(Self {
+            inner,
+            num_ascii_blocks,
+        })
     }
 
     pub fn inner(&self) -> &IntegerClientKey {
@@ -53,6 +87,7 @@ where
         super::ciphertext::trivial_encrypt_ascii(
             &ck.key,
             &crate::shortint::ClientKey::create_trivial,
+            self.num_ascii_blocks,
             str,
             padding,
         )
@@ -94,14 +129,7 @@ where
     }
 
     fn num_ascii_blocks(&self) -> usize {
-        let ck = self.inner.borrow();
-
-        assert_eq!(
-            ck.parameters().message_modulus().0,
-            ck.parameters().carry_modulus().0
-        );
-
-        num_ascii_blocks(ck.parameters().message_modulus())
+        self.num_ascii_blocks
     }
 
     /// Decrypts a `FheString`, removes any padding and returns the ASCII string.

@@ -8,7 +8,7 @@ pub use trim::split_ascii_whitespace;
 use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
 use crate::integer::prelude::*;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey as IntegerServerKey};
-use crate::strings::ciphertext::{num_ascii_blocks, FheAsciiChar, FheString};
+use crate::strings::ciphertext::{FheAsciiChar, FheString};
 use crate::strings::N;
 use rayon::prelude::*;
 use std::borrow::Borrow;
@@ -19,6 +19,8 @@ where
     T: Borrow<IntegerServerKey> + Sync,
 {
     inner: T,
+    /// Number of radix blocks used to store one ASCII char, computed once at construction
+    num_ascii_blocks: usize,
 }
 
 pub type ServerKeyRef<'a> = ServerKey<&'a IntegerServerKey>;
@@ -31,8 +33,37 @@ where
         self.inner.borrow()
     }
 
+    /// Creates a strings server key from an integer server key.
+    ///
+    /// # Panics
+    ///
+    /// If the parameters of the key are not compatible with strings, see [`Self::try_new`].
     pub fn new(inner: T) -> Self {
-        Self { inner }
+        Self::try_new(inner).unwrap()
+    }
+
+    /// Creates a strings server key from an integer server key.
+    ///
+    /// Returns an error if the parameters of the key are not compatible with strings, i.e. if
+    /// the message modulus is not a power of two whose bit width divides the size of an ASCII
+    /// char, or if the carry modulus is different from the message modulus.
+    pub fn try_new(inner: T) -> crate::Result<Self> {
+        let sk: &IntegerServerKey = inner.borrow();
+
+        if !sk.is_compatible_with_strings() {
+            return Err(crate::error!(
+                "Parameters are not compatible with the \"strings\" feature: the message modulus \
+                must be a power of two whose bit width divides 8, and the carry modulus must be \
+                equal to the message modulus"
+            ));
+        }
+
+        let num_ascii_blocks = sk.message_modulus().num_blocks_per_ascii_char()?;
+
+        Ok(Self {
+            inner,
+            num_ascii_blocks,
+        })
     }
 }
 
@@ -51,11 +82,7 @@ pub enum FheStringIsEmpty {
 // A few helper functions for the implementations
 impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
     pub(super) fn num_ascii_blocks(&self) -> usize {
-        let sk = self.inner();
-
-        assert_eq!(sk.message_modulus().0, sk.carry_modulus().0);
-
-        num_ascii_blocks(sk.message_modulus())
+        self.num_ascii_blocks
     }
 
     pub fn trivial_encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
@@ -64,6 +91,7 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
         super::ciphertext::trivial_encrypt_ascii(
             &sk.key,
             &crate::shortint::ServerKey::create_trivial,
+            self.num_ascii_blocks,
             str,
             padding,
         )
