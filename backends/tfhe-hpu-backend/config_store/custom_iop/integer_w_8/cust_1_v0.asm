@@ -1,6 +1,12 @@
-# CUST_HPU0_1
-# Simple IOp to check the xfer between Hpu/Cpu
-# Dest <- Src_a
+; Simple IOp to check the xfer between Hpu/Cpu
+; Dest <- Src_a
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; Ciphertext<8, 2, 2> -> Ciphertext<8, 2, 2>
+; [lut]
+; } ----------------------------------------------------------------------------
+
 LD R0   TS[0].0
 LD R1   TS[0].1
 LD R2   TS[0].2
