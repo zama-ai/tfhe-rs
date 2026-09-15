@@ -8,9 +8,116 @@ use super::*;
 use field::{
     FwMode, IOpHeader, IOpcode, ImmBundle, Immediate, Operand, OperandBlock, OperandBundle,
 };
-use lazy_static::lazy_static;
 
 pub const ASM_OPCODE_WIDTH: usize = 8;
+
+/// A minimal recursive-descent cursor over an iop.asm token, supporting the small set of
+/// productions (`str` literals, single-character delimiters, decimal/hex unsigned integers)
+/// needed by this module's parsers. Mirrors `zhc_langs::doplang::parser::Cursor`.
+struct Cursor<'a> {
+    rest: &'a str,
+}
+
+impl<'a> Cursor<'a> {
+    fn new(s: &'a str) -> Self {
+        Self { rest: s }
+    }
+
+    fn rest(&self) -> &'a str {
+        self.rest
+    }
+
+    /// Consumes `lit` if `rest` starts with it.
+    fn eat_str(&mut self, lit: &str) -> bool {
+        if let Some(rest) = self.rest.strip_prefix(lit) {
+            self.rest = rest;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Consumes any leading whitespace.
+    fn skip_ws(&mut self) {
+        self.rest = self.rest.trim_start();
+    }
+
+    /// Consumes a single expected character.
+    fn expect_char(&mut self, expected: char, tok: &str) -> Result<(), Box<ParsingError>> {
+        let mut chars = self.rest.chars();
+        match chars.next() {
+            Some(c) if c == expected => {
+                self.rest = chars.as_str();
+                Ok(())
+            }
+            _ => Err(Box::new(ParsingError::Unmatch(format!(
+                "`{tok}`: expected `{expected}`"
+            )))),
+        }
+    }
+
+    /// Fails unless the whole token has been consumed.
+    fn expect_eof(&self, tok: &str) -> Result<(), Box<ParsingError>> {
+        if self.rest.trim().is_empty() {
+            Ok(())
+        } else {
+            Err(Box::new(ParsingError::Unmatch(format!(
+                "`{tok}`: unexpected trailing `{}`",
+                self.rest
+            ))))
+        }
+    }
+
+    /// Parses an unsigned integer, accepting an optional `0x` hex prefix.
+    fn parse_uint<T>(&mut self, tok: &str, what: &str) -> Result<T, Box<ParsingError>>
+    where
+        T: TryFrom<u128>,
+    {
+        let (digits, radix) = if let Some(hex) = self.rest.strip_prefix("0x") {
+            let end = hex
+                .find(|c: char| !c.is_ascii_hexdigit())
+                .unwrap_or(hex.len());
+            let (digits, rest) = hex.split_at(end);
+            self.rest = rest;
+            (digits, 16)
+        } else {
+            let end = self
+                .rest
+                .find(|c: char| !c.is_ascii_digit())
+                .unwrap_or(self.rest.len());
+            let (digits, rest) = self.rest.split_at(end);
+            self.rest = rest;
+            (digits, 10)
+        };
+        if digits.is_empty() {
+            return Err(Box::new(ParsingError::Unmatch(format!(
+                "`{tok}`: expected a {what}"
+            ))));
+        }
+        let val = u128::from_str_radix(digits, radix).map_err(|err| {
+            Box::new(ParsingError::InvalidArg(format!("`{tok}`: invalid {what}: {err}")))
+        })?;
+        T::try_from(val).map_err(|_| {
+            Box::new(ParsingError::InvalidArg(format!("`{tok}`: {what} out of range")))
+        })
+    }
+}
+
+/// Finds the next `<...>` group (angle brackets don't nest in iop.asm grammar), returning its
+/// inner content and the remainder of `s` past the closing `>`.
+fn take_group<'a>(s: &'a str, whole: &str) -> Result<(&'a str, &'a str), Box<ParsingError>> {
+    let s = s.trim_start();
+    let inner = s.strip_prefix('<').ok_or_else(|| {
+        Box::new(ParsingError::Unmatch(format!(
+            "{whole}: expected `<...>`, got `{s}`"
+        )))
+    })?;
+    let end = inner.find('>').ok_or_else(|| {
+        Box::new(ParsingError::Unmatch(format!("{whole}: unterminated `<...>`")))
+    })?;
+    let (inner, rest) = inner.split_at(end);
+    Ok((inner, &rest[1..]))
+}
 
 /// Parsing error
 #[derive(thiserror::Error, Debug, Clone)]
@@ -120,54 +227,33 @@ impl From<&IOp> for AsmIOpcode {
 impl std::str::FromStr for AsmIOpcode {
     type Err = Box<ParsingError>;
 
+    /// Parses either the raw form `IOP[0x..]`/`IOP[<dec>]`, or a bare mnemonic alias
+    /// (`ADD`, `MUL`, ...) looked up in [`IOP_LUT`].
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref OPCODE_ARG_RE: regex::Regex = regex::Regex::new(
-                r"(?<raw>^IOP\[((?<hex_val>0x[0-9a-fA-F]+)|(?<val>[0-9]+))\])|^(?<alias>\w+)"
-            )
-            .expect("Invalid regex");
-        }
-
-        if let Some(caps) = OPCODE_ARG_RE.captures(s) {
-            if let Some(_raw) = caps.name("raw") {
-                let value = if let Some(raw_val) = caps.name("val") {
-                    raw_val
-                        .as_str()
-                        .parse::<u8>()
-                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?
-                } else {
-                    // One of them must match, otherwise error will be arose before
-                    let raw_hex_val = caps.name("hex_val").unwrap();
-                    u8::from_str_radix(&raw_hex_val.as_str()[2..], 16)
-                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?
-                };
-                if (opcode::USER_RANGE_LB..=opcode::USER_RANGE_UB).contains(&value) {
-                    Ok(AsmIOpcode {
-                        opcode: IOpcode(value),
-                        format: None,
-                    })
-                } else {
-                    Err(Box::new(ParsingError::Opcode(value)))
-                }
-            } else if let Some(alias) = caps.name("alias") {
-                if let Some(alias) = IOP_LUT.asm.get(alias.as_str()) {
-                    Ok(AsmIOpcode {
-                        opcode: alias.opcode,
-                        format: Some(alias.clone()),
-                    })
-                } else {
-                    Err(Box::new(ParsingError::Opalias(alias.as_str().to_string())))
-                }
+        let mut c = Cursor::new(s);
+        if c.eat_str("IOP[") {
+            let value: u8 = c.parse_uint(s, "opcode value")?;
+            c.expect_char(']', s)?;
+            c.expect_eof(s)?;
+            if (opcode::USER_RANGE_LB..=opcode::USER_RANGE_UB).contains(&value) {
+                Ok(AsmIOpcode {
+                    opcode: IOpcode(value),
+                    format: None,
+                })
             } else {
-                Err(Box::new(ParsingError::Unmatch(format!(
-                    "Invalid argument format {s}"
-                ))))
+                Err(Box::new(ParsingError::Opcode(value)))
             }
         } else {
-            Err(Box::new(ParsingError::Unmatch(format!(
-                "Invalid argument format {s}"
-            ))))
+            let alias = c.rest();
+            if let Some(fmt) = IOP_LUT.asm.get(alias) {
+                Ok(AsmIOpcode {
+                    opcode: fmt.opcode,
+                    format: Some(fmt.clone()),
+                })
+            } else {
+                Err(Box::new(ParsingError::Opalias(alias.to_string())))
+            }
         }
     }
 }
@@ -216,38 +302,29 @@ impl From<&IOpHeader> for Properties {
 impl std::str::FromStr for Properties {
     type Err = Box<ParsingError>;
 
+    /// Parses `[dyn] I<dst_width> I<src_width>` (destination alignment first, then source, per
+    /// `iop.md`'s Feature section).
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref PROPERTIES_ARG_RE: regex::Regex =
-                regex::Regex::new(r"(?<fw>dyn)?\s*I(?<dst>\d+)\s*I(?<src>\d+)")
-                    .expect("Invalid regex");
-        }
-
-        if let Some(caps) = PROPERTIES_ARG_RE.captures(s) {
-            let fw_mode = if caps.name("fw").is_some() {
-                FwMode::Dynamic
-            } else {
-                FwMode::Static
-            };
-            let src_width = caps["src"]
-                .parse::<u16>()
-                .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?;
-            let src_align = OperandBlock::new((src_width / MSG_WIDTH as u16) as u8);
-            let dst_width = caps["dst"]
-                .parse::<u16>()
-                .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?;
-            let dst_align = OperandBlock::new((dst_width / MSG_WIDTH as u16) as u8);
-            Ok(Properties {
-                fw_mode,
-                dst_align,
-                src_align,
-            })
+        let mut c = Cursor::new(s);
+        c.skip_ws();
+        let fw_mode = if c.eat_str("dyn") {
+            FwMode::Dynamic
         } else {
-            Err(Box::new(ParsingError::Unmatch(format!(
-                "Invalid argument format {s}"
-            ))))
-        }
+            FwMode::Static
+        };
+        c.skip_ws();
+        c.expect_char('I', s)?;
+        let dst_width: u16 = c.parse_uint(s, "destination width")?;
+        c.skip_ws();
+        c.expect_char('I', s)?;
+        let src_width: u16 = c.parse_uint(s, "source width")?;
+        c.expect_eof(s)?;
+        Ok(Properties {
+            fw_mode,
+            dst_align: OperandBlock::new((dst_width / MSG_WIDTH as u16) as u8),
+            src_align: OperandBlock::new((src_width / MSG_WIDTH as u16) as u8),
+        })
     }
 }
 
@@ -323,76 +400,51 @@ impl std::fmt::Display for OperandBundle {
     }
 }
 
+/// Parses one operand token: `I<width>@<addr>{Hpu<pos>[@<iid>]}` (single) or
+/// `I<width>[<len>]@<addr>{Hpu<pos>[@<iid>]}` (vector).
+fn parse_operand(tok: &str) -> Result<Operand, Box<ParsingError>> {
+    let mut c = Cursor::new(tok);
+    c.expect_char('I', tok)?;
+    let width: u16 = c.parse_uint(tok, "operand width")?;
+    let block = (width / MSG_WIDTH as u16) as u8;
+
+    let len: u8 = if c.eat_str("[") {
+        let len = c.parse_uint(tok, "vector length")?;
+        c.expect_char(']', tok)?;
+        len
+    } else {
+        1
+    };
+    c.expect_char('@', tok)?;
+    let base_cid: u16 = c.parse_uint(tok, "ct id")?;
+
+    c.expect_char('{', tok)?;
+    if !c.eat_str("Hpu") {
+        return Err(Box::new(ParsingError::Unmatch(format!(
+            "`{tok}`: expected `Hpu<pos>`"
+        ))));
+    }
+    let pos: u8 = c.parse_uint(tok, "hpu position")?;
+    let iid: u8 = if c.eat_str("@") {
+        c.parse_uint(tok, "iop id")?
+    } else {
+        0
+    };
+    c.expect_char('}', tok)?;
+    c.expect_eof(tok)?;
+
+    Ok(Operand::new(block, base_cid, len, PhysId(pos), IOpId(iid), None))
+}
+
 impl std::str::FromStr for OperandBundle {
     type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref ADDR_ARG_RE: regex::Regex =
-                regex::Regex::new(r"I(?<width>\d+)((?<vec>\[\s*(?<vec_len>\d+)\s*\]@(0x(?<vec_hex_cid>[0-9a-fA-F]+)|(?<vec_cid>\d+))\s*)|(?<single>@(0x(?<hex_cid>[0-9a-fA-F]+)|(?<cid>\d+))\s*))\{Hpu(?<pos>\d+)(@(?<iid>\d+))*\}")
-                    .expect("Invalid regex");
-        }
-        let mut operands =
-            ADDR_ARG_RE
-                .captures_iter(s)
-                .map(|caps| {
-                    let width = caps["width"]
-                        .parse::<u16>()
-                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?;
-                    let block = (width / MSG_WIDTH as u16) as u8;
-
-                    let pos = PhysId(
-                        caps["pos"]
-                            .parse::<u8>()
-                            .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?,
-                    );
-
-                    let iid =
-                        if let Some(raw_iid) = caps.name("iid") {
-                            IOpId(raw_iid.as_str().parse::<u8>().map_err(|err| {
-                                Box::new(ParsingError::InvalidArg(err.to_string()))
-                            })?)
-                        } else {
-                            IOpId(0)
-                        };
-
-                    if let Some(_vec) = caps.name("vec") {
-                        let base_cid = if let Some(raw_cid) = caps.name("vec_cid") {
-                            raw_cid.as_str().parse::<u16>().map_err(|err| {
-                                Box::new(ParsingError::InvalidArg(err.to_string()))
-                            })?
-                        } else {
-                            // One of them must match, otherwise error will be arose before
-                            let raw_hex_cid = caps.name("vec_hex_cid").unwrap();
-                            u16::from_str_radix(raw_hex_cid.as_str(), 16).map_err(|err| {
-                                Box::new(ParsingError::InvalidArg(err.to_string()))
-                            })?
-                        };
-                        let len = caps["vec_len"]
-                            .parse::<u8>()
-                            .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?;
-
-                        Ok(Operand::new(block, base_cid, len, pos, iid, None))
-                    } else if let Some(_single) = caps.name("single") {
-                        let base_cid = if let Some(raw_cid) = caps.name("cid") {
-                            raw_cid.as_str().parse::<u16>().map_err(|err| {
-                                Box::new(ParsingError::InvalidArg(err.to_string()))
-                            })?
-                        } else {
-                            // One of them must match, otherwise error will be arose before
-                            u16::from_str_radix(&caps["hex_cid"], 16).map_err(|err| {
-                                Box::new(ParsingError::InvalidArg(err.to_string()))
-                            })?
-                        };
-                        Ok(Operand::new(block, base_cid, 1, pos, iid, None))
-                    } else {
-                        Err(Box::new(ParsingError::Unmatch(format!(
-                            "Invalid argument format {s}"
-                        ))))
-                    }
-                })
-                .collect::<Result<Vec<_>, Box<ParsingError>>>()?;
+        let mut operands = s
+            .split_whitespace()
+            .map(parse_operand)
+            .collect::<Result<Vec<_>, Box<ParsingError>>>()?;
 
         // Empty OperandBundle is considered as parsing error
         if operands.is_empty() {
@@ -424,33 +476,22 @@ impl std::fmt::Display for ImmBundle {
     }
 }
 
+/// Parses one immediate token: a decimal or `0x`-prefixed hex constant.
+fn parse_imm(tok: &str) -> Result<Immediate, Box<ParsingError>> {
+    let mut c = Cursor::new(tok);
+    let value: u128 = c.parse_uint(tok, "immediate")?;
+    c.expect_eof(tok)?;
+    Ok(Immediate::from_cst(value))
+}
+
 impl std::str::FromStr for ImmBundle {
     type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref IMM_ARG_RE: regex::Regex =
-                regex::Regex::new(r"(0x(?<hex_imm>[0-9a-fA-F]+))|(?<imm>\d+)")
-                    .expect("Invalid regex");
-        }
-        let mut imms = IMM_ARG_RE
-            .captures_iter(s)
-            .map(|caps| {
-                let imm = if let Some(raw_imm) = caps.name("imm") {
-                    raw_imm
-                        .as_str()
-                        .parse::<u128>()
-                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?
-                } else {
-                    // One of them must match, otherwise error will be arose before
-                    let raw_hex_imm = caps.name("hex_imm").unwrap();
-                    u128::from_str_radix(raw_hex_imm.as_str(), 16)
-                        .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))?
-                };
-
-                Ok(Immediate::from_cst(imm))
-            })
+        let mut imms = s
+            .split_whitespace()
+            .map(parse_imm)
             .collect::<Result<Vec<_>, Box<ParsingError>>>()?;
 
         // Empty ImmBundle is considered as parsing error
@@ -546,63 +587,155 @@ impl std::fmt::Display for IOp {
 }
 
 /// Use FromStr trait to decode from asm file
+///
+/// Grammar: `OPCODE <PROPS> <MAP> <DST> <SRC> [<IMM>]` — the mnemonic/raw-opcode token, then each
+/// remaining section in its own `<...>` group (angle brackets don't nest here, so each group is
+/// found by its next `<`/matching `>` via [`take_group`], then delegated to that section's own
+/// parser).
 impl std::str::FromStr for IOp {
     type Err = Box<ParsingError>;
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref IOP_RE: regex::Regex = regex::Regex::new(
-                r"^(?<opcode>\S+)\s*(?<props><.*?>)\s*(?<map><.*?>)\s*(?<dst><.*?>)\s*(?<src><.*?>)\s*(?<imm><.*?>)?"
-            )
-            .expect("Invalid regex");
-        }
+        let trimmed = s.trim();
+        let opcode_end = trimmed.find('<').ok_or_else(|| {
+            Box::new(ParsingError::Unmatch(format!(
+                "{s}: expected an opcode followed by `<...>` sections"
+            )))
+        })?;
+        let (opcode_tok, rest) = trimmed.split_at(opcode_end);
+        let opcode = AsmIOpcode::from_str(opcode_tok.trim())?;
 
-        if let Some(caps) = IOP_RE.captures(s) {
-            let opcode = AsmIOpcode::from_str(caps["opcode"].trim_matches(['<', '>', ' ']))?;
-            let props = Properties::from_str(caps["props"].trim_matches(['<', '>', ' ']))?;
-            let map = IOpMapping::from_str(caps["map"].trim_matches(['<', '>', ' ']))?;
-            let dst = {
-                let mut bundle =
-                    OperandBundle::from_str(caps["dst"].trim_matches(['<', '>', ' ']))?;
-                bundle.set_kind(OperandKind::Dst);
-                bundle
-            };
-            let src = {
-                let mut bundle =
-                    OperandBundle::from_str(caps["src"].trim_matches(['<', '>', ' ']))?;
-                bundle.set_kind(OperandKind::Src);
-                bundle
-            };
-            let (imm, has_imm) = if let Some(imm) = caps.name("imm") {
-                (
-                    ImmBundle::from_str(imm.as_str().trim_matches(['<', '>', ' ']))?,
-                    true,
-                )
-            } else {
-                (ImmBundle::from(vec![]), false)
-            };
+        let (props_tok, rest) = take_group(rest, s)?;
+        let props = Properties::from_str(props_tok.trim())?;
+        let (map_tok, rest) = take_group(rest, s)?;
+        let map = IOpMapping::from_str(map_tok.trim())?;
+        let (dst_tok, rest) = take_group(rest, s)?;
+        let dst = {
+            let mut bundle = OperandBundle::from_str(dst_tok.trim())?;
+            bundle.set_kind(OperandKind::Dst);
+            bundle
+        };
+        let (src_tok, rest) = take_group(rest, s)?;
+        let src = {
+            let mut bundle = OperandBundle::from_str(src_tok.trim())?;
+            bundle.set_kind(OperandKind::Src);
+            bundle
+        };
 
-            // Aggregate some fields together to build real IOp
-            let header = IOpHeader {
-                fw_mode: props.fw_mode,
-                has_imm,
-                opcode: opcode.opcode,
-                dst_align: props.dst_align,
-                src_align: props.src_align,
-            };
-
-            Ok(IOp {
-                header,
-                map,
-                dst,
-                src,
-                imm,
-            })
+        let rest = rest.trim();
+        let (imm, has_imm) = if rest.is_empty() {
+            (ImmBundle::from(vec![]), false)
         } else {
-            Err(Box::new(ParsingError::Unmatch(format!(
-                "Invalid argument format {s}"
-            ))))
-        }
+            let (imm_tok, rest) = take_group(rest, s)?;
+            if !rest.trim().is_empty() {
+                return Err(Box::new(ParsingError::Unmatch(format!(
+                    "{s}: unexpected trailing `{}`",
+                    rest.trim()
+                ))));
+            }
+            (ImmBundle::from_str(imm_tok.trim())?, true)
+        };
+
+        // Aggregate some fields together to build real IOp
+        let header = IOpHeader {
+            fw_mode: props.fw_mode,
+            has_imm,
+            opcode: opcode.opcode,
+            dst_align: props.dst_align,
+            src_align: props.src_align,
+        };
+
+        Ok(IOp {
+            header,
+            map,
+            dst,
+            src,
+            imm,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_raw_opcode_with_mapping_and_single_operands() {
+        let iop: IOp = "IOP[0x35] <I8 I8> <2,0,1,3> <I8@0x08{Hpu2@1}> <I8@0x0{Hpu2@0} I8@0x4{Hpu2@0}>"
+            .parse()
+            .expect("valid line must parse");
+        assert_eq!(iop.opcode(), IOpcode(0x35));
+        assert_eq!(iop.fw_mode(), FwMode::Static);
+        assert_eq!(iop.dst().len(), 1);
+        assert_eq!(iop.src().len(), 2);
+        assert_eq!(iop.get_iid(), IOpId(1));
+        assert!(iop.imm().is_empty());
+    }
+
+    #[test]
+    fn parses_dyn_mnemonic_alias_vector_operand_and_immediate() {
+        let iop: IOp = "MULS <dyn I8 I8> <0,1,2,3> <I8@0x8{Hpu0}> <I8[2]@0x0{Hpu2}> <0xaf>"
+            .parse()
+            .expect("valid line must parse");
+        assert_eq!(iop.fw_mode(), FwMode::Dynamic);
+        // A vector token is one logical Operand spanning several ciphertexts, not several
+        // Operand entries.
+        assert_eq!(iop.src().len(), 1);
+        assert_eq!(iop.src()[0].props.vec_size.len(), 2);
+        assert_eq!(iop.imm().len(), 1);
+        assert_eq!(iop.imm()[0].cst_value(), 0xaf);
+    }
+
+    #[test]
+    fn round_trips_operand_bundle_through_display() {
+        // `Display for IOp` decorates its output with a `{iid}` marker straight after the
+        // opcode name that the input grammar itself has no production for (the iid lives
+        // per-operand, in each `{Hpu<pos>@<iid>}`) — so `IOp`'s `Display` and `FromStr` aren't
+        // meant to round-trip end-to-end. Each operand bundle's grammar is symmetric, though.
+        let src = "I64@0x08{Hpu1@0} I64@0x10{Hpu2@3}";
+        let bundle: OperandBundle = src.parse().expect("valid bundle must parse");
+        let reparsed: OperandBundle = format!("{bundle}")
+            .parse()
+            .expect("emitted bundle must reparse");
+        assert_eq!(format!("{bundle}"), format!("{reparsed}"));
+    }
+
+    #[test]
+    fn rejects_opcode_out_of_user_range() {
+        let err = "IOP[0x80] <I8 I8> <0> <I8@0x0{Hpu0}> <I8@0x0{Hpu0}>"
+            .parse::<IOp>()
+            .unwrap_err();
+        assert!(matches!(*err, ParsingError::Opcode(0x80)));
+    }
+
+    #[test]
+    fn rejects_unknown_alias() {
+        let err = "BOGUS <I8 I8> <0> <I8@0x0{Hpu0}> <I8@0x0{Hpu0}>"
+            .parse::<IOp>()
+            .unwrap_err();
+        assert!(matches!(*err, ParsingError::Opalias(_)));
+    }
+
+    #[test]
+    fn rejects_malformed_operand() {
+        let err = "MUL <I64 I64> <1> <I64@0x08{Hpu1}> <I64@BOGUS{Hpu1}>"
+            .parse::<IOp>()
+            .unwrap_err();
+        assert!(err.to_string().contains("ct id"), "{err}");
+    }
+
+    #[test]
+    fn rejects_missing_section() {
+        let err = "MUL <I64 I64> <1> <I64@0x08{Hpu1}>".parse::<IOp>().unwrap_err();
+        assert!(err.to_string().contains("expected"), "{err}");
+    }
+
+    #[test]
+    fn rejects_trailing_garbage_after_immediate() {
+        let err = "MULS <I8 I8> <0> <I8@0x8{Hpu0}> <I8@0x0{Hpu0}> <0xaf> <extra>"
+            .parse::<IOp>()
+            .unwrap_err();
+        assert!(err.to_string().contains("trailing"), "{err}");
     }
 }
