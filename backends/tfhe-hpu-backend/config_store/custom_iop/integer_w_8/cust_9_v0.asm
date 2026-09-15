@@ -1,6 +1,12 @@
-; CUST_HPU0_9
 ; Simple IOp to check the ALU Scalar operation 
 ; Dst[0].0 <- Src[0].0 + Imm[0].0
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; (Ciphertext<8, 2, 2>, Plaintext<8, 2>) -> Ciphertext<8, 2, 2>
+; [lut]
+; } ----------------------------------------------------------------------------
+
 LD R1 TS[0].0
 ADDS R0 R1 TI[0].0
 ST TD[0].0 R0 
