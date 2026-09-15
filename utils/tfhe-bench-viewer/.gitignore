@@ -1,0 +1,11 @@
+# What trunk builds. 8 MB of wasm in debug, and rebuilt on every save.
+dist/
+
+# Credentials, when someone copies the extractor's config.example.toml here.
+config.toml
+
+# What the viewer writes: snapshots, views, exported plots.
+*.data.json
+*.view.json
+*-latency.svg
+*-throughput.svg

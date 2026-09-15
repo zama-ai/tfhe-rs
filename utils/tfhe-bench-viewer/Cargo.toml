@@ -1,0 +1,28 @@
+[package]
+name = "tfhe-bench-viewer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Its own workspace root: the crate lives in the tfhe-rs tree but is not one of
+# its members, so nothing in CI ever builds this dependency tree.
+[workspace]
+
+[dependencies]
+# `eframe` re-exports `egui`, so there is a single version to keep in sync.
+eframe = "0.31"
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+benchmark_spec = { path = "../benchmark_spec" }
+
+# The database half. Left out of the web build entirely: sqlx needs a TCP
+# socket, which a page does not have, and tokio's multi-threaded runtime needs
+# threads, which wasm does not have either.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "net", "time"] }
+tfhe-data-extractor = { path = "../tfhe-data-extractor" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Document", "Element", "HtmlCanvasElement", "Window"] }

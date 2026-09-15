@@ -7,8 +7,12 @@
 use std::path::Path;
 
 use benchmark_spec::BenchmarkMetric;
-use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgSslMode};
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use sqlx::{Postgres, QueryBuilder};
+
+/// Re-exported so a caller can hold a pool without taking its own `sqlx`
+/// dependency, which would have to be kept on the same version as this one.
+pub use sqlx::postgres::PgPool;
 
 /// Database credentials. Every field is optional so the file and the
 /// environment can each provide a subset.
@@ -238,9 +242,69 @@ const BASE_QUERY: &str = "\
     LEFT JOIN benchmark.project_version AS pv ON m.project_version_id = pv.id \
     WHERE true";
 
+/// One stored result with the time it was inserted at.
+///
+/// The same row as [`BenchRow`] minus the "latest only" rule, plus what tells
+/// two curves apart once several runs of one benchmark are on screen at the
+/// same time.
+#[derive(Debug, sqlx::FromRow)]
+pub struct HistoryRow {
+    pub name: String,
+    pub bit_size: i64,
+    pub value: f64,
+    pub machine: String,
+    /// The parameter set alias, `''` when the row has none.
+    pub params: String,
+    /// Seconds since the epoch. Extracted in SQL rather than decoded here: the
+    /// column is `timestamp` on some deployments and `timestamptz` on others,
+    /// and a typed decode would have to pick one.
+    pub inserted_at: f64,
+}
+
+// No `DISTINCT ON`: every insertion is a point. `COALESCE` on the two columns
+// reached through a `LEFT JOIN`, which the wider selections of a history do hit.
+const HISTORY_QUERY: &str = "\
+    SELECT test.name AS name, COALESCE(p.bit_size, 0) AS bit_size, m.value AS value, \
+        h.name AS machine, COALESCE(p.crypto_parameters_alias, '') AS params, \
+        EXTRACT(EPOCH FROM m.insert_time)::float8 AS inserted_at \
+    FROM benchmark.metrics AS m \
+    LEFT JOIN benchmark.hardware        AS h  ON m.hardware_id        = h.id \
+    LEFT JOIN benchmark.backend         AS bk ON m.backend_id         = bk.id \
+    LEFT JOIN benchmark.branch          AS b  ON m.branch_id          = b.id \
+    LEFT JOIN benchmark.test            AS test ON m.test_id          = test.id \
+    LEFT JOIN benchmark.parameters      AS p  ON m.parameters_id      = p.id \
+    LEFT JOIN benchmark.project_version AS pv ON m.project_version_id = pv.id \
+    WHERE true";
+
+/// Every value each matching benchmark ever stored in the window, oldest first.
+pub async fn fetch_bench_history(
+    pool: &PgPool,
+    q: &FetchQuery<'_>,
+) -> anyhow::Result<Vec<HistoryRow>> {
+    let mut f = Filters::new(HISTORY_QUERY);
+    apply_filters(&mut f, q);
+    f.0.push(" ORDER BY test.name, h.name, m.insert_time");
+
+    let rows = f.0.build_query_as::<HistoryRow>().fetch_all(pool).await?;
+    Ok(rows)
+}
+
 /// Latest value per `test.name` matching the filters.
 pub async fn fetch_bench_rows(pool: &PgPool, q: &FetchQuery<'_>) -> anyhow::Result<Vec<BenchRow>> {
     let mut f = Filters::new(BASE_QUERY);
+    apply_filters(&mut f, q);
+
+    // Must open with the `DISTINCT ON` expressions; the trailing key is what
+    // makes it "the most recent value of each id on each machine".
+    f.0.push(" ORDER BY test.name, h.name, m.insert_time DESC");
+
+    let rows = f.0.build_query_as::<BenchRow>().fetch_all(pool).await?;
+    Ok(rows)
+}
+
+/// The `WHERE` clause both fetches share. Only the shape of the result and its
+/// ordering differ between them.
+fn apply_filters<'a>(f: &mut Filters<'a>, q: &'a FetchQuery<'a>) {
     f.eq("b.name", q.branch)
         .like_any("test.name", q.like_patterns)
         .eq_any("h.name", q.machines);
@@ -305,11 +369,4 @@ pub async fn fetch_bench_rows(pool: &PgPool, q: &FetchQuery<'_>) -> anyhow::Resu
             }
         }
     }
-
-    // Must open with the `DISTINCT ON` expressions; the trailing key is what
-    // makes it "the most recent value of each id on each machine".
-    f.0.push(" ORDER BY test.name, h.name, m.insert_time DESC");
-
-    let rows = f.0.build_query_as::<BenchRow>().fetch_all(pool).await?;
-    Ok(rows)
 }
