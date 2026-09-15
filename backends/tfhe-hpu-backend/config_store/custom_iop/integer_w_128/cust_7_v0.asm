@@ -1,7 +1,14 @@
-# CUST_7
-# Sample IOp to measure latency of batches of 2 PBS
-# does 10k batches of identity PBS
-# Correct result must be Dest <- Src[0]
+; Sample IOp to measure latency of batches of 2 PBS
+; does 10k batches of identity PBS
+; Correct result must be Dest <- Src[0]
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; Ciphertext<128, 2, 2> -> Ciphertext<128, 2, 2>
+; [lut]
+; None: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+; } ----------------------------------------------------------------------------
+
 LD R0 TS[0].0
 LD R1 TS[0].1
 LD R2 TS[0].2
@@ -20066,6 +20073,7 @@ PBS R6 R6 PbsNone
 PBS_F R7 R7 PbsNone
 PBS R8 R8 PbsNone
 PBS_F R9 R9 PbsNone
+ST TD[0].0 R0
 ST TD[0].1 R1
 ST TD[0].2 R2
 ST TD[0].3 R3

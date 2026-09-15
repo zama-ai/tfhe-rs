@@ -1,6 +1,12 @@
-# CUST_HPU0_0
-# Simple IOp to check the xfer between Hpu/Cpu
-# Construct constant in dest slot -> 249 (0xf9)
+; Simple IOp to check the xfer between Hpu/Cpu
+; Construct constant in dest slot -> 249 (0xf9)
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; () -> Ciphertext<8, 2, 2>
+; [lut]
+; } ----------------------------------------------------------------------------
+
 SUB R0 R0 R0
 ADDS R0 R0 1
 ST TD[0].0 R0 

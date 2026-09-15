@@ -1,6 +1,12 @@
-; CUST_HPU0_8
 ; Simple IOp to check the ALU operation 
 ; Dst[0].0 <- Src[0].0 + Src[1].0
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; (Ciphertext<6, 2, 2>, Ciphertext<6, 2, 2>) -> Ciphertext<6, 2, 2>
+; [lut]
+; } ----------------------------------------------------------------------------
+
 LD R1 TS[0].0
 LD R2 TS[1].0
 ADD R0 R1 R2

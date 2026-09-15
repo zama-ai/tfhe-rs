@@ -1,4 +1,3 @@
-; CUST_HPU0_19
 ; Simple IOp to check PbsMl2
 ; Correct result:
 ;   * Dst[0][0]   <- Src[0][0]
@@ -6,6 +5,13 @@
 ;   * Dst[0][2]   <- Src[0][0] +1
 ;   * Dst[0][3]   <- 0
 ; i.e Cust_19(0x2) => 0x32 
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; Ciphertext<2, 2, 2> -> Ciphertext<8, 2, 2>
+; [lut]
+; TestMany2: [0,1,2,3,0,1,2,3,1,2,3,0,1,2,3,0]
+; } ----------------------------------------------------------------------------
 
 ; Construct a 0 for destination padding
 SUB R16 R16 R16
