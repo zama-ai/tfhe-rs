@@ -1,8 +1,3 @@
-// pub use dop::arg::Arg as DOpArg;
-// pub use dop::{
-//     DOp, DigitParameters, ImmId, MemId, Pbs, PbsGid, PbsLut, RegId, ToHex, UcoreFlag, UcorePayload,
-//     UcorePayloadMode, UserFlag,
-// };
 pub mod iop;
 pub use iop::{AsmIOpcode, FwMode, IOp, IOpProto, IOpcode, Operand, OperandKind};
 
@@ -130,14 +125,6 @@ pub enum AsmOp<Op> {
     Stmt(Op),
 }
 
-impl<Op: dop::arg::ToFlush> AsmOp<Op> {
-    pub fn to_flush(&mut self) {
-        if let AsmOp::Stmt(op) = self {
-            *op = op.to_flush();
-        }
-    }
-}
-
 impl<Op: std::fmt::Display> std::fmt::Display for AsmOp<Op> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -256,86 +243,6 @@ where
             .open(path)?;
 
         writeln!(wr_f, "{self}").map_err(anyhow::Error::new)
-    }
-}
-
-// Implement dedicated hex parser/dumper for DOp
-impl Program<dop::DOp> {
-    /// Generic function to extract OP from hex file
-    /// Work on any kind of Op that implement FromStr
-    pub fn read_hex(file: &str) -> Result<Self, anyhow::Error> {
-        // Open file
-        let rd_f = std::io::BufReader::new(
-            std::fs::OpenOptions::new()
-                .create(false)
-                .read(true)
-                .open(file)
-                .unwrap_or_else(|_| panic!("Invalid HEX file {file}")),
-        );
-
-        let mut prog = Self::default();
-        for (line, val) in rd_f.lines().map_while(Result::ok).enumerate() {
-            if let Some(comment) = val.trim().strip_prefix(ASM_COMMENT_PREFIX) {
-                prog.push_comment(comment.to_string());
-            } else {
-                let val_u32 =
-                    dop::DOpRepr::from_str_radix(std::str::from_utf8(val.as_bytes()).unwrap(), 16)?;
-                match dop::DOp::from_hex(val_u32) {
-                    Ok(op) => prog.push_stmt(op),
-                    Err(err) => {
-                        tracing::warn!("DOp::ReadHex failed @{file}:{}", line + 1);
-                        return Err(err.into());
-                    }
-                }
-            }
-        }
-        Ok(prog)
-    }
-
-    /// Generic function to write Op in Hex file
-    pub fn write_hex(&self, file: &str) -> Result<(), anyhow::Error> {
-        // Create path
-        let path = std::path::Path::new(file);
-        if let Some(dir_p) = path.parent() {
-            std::fs::create_dir_all(dir_p).unwrap();
-        }
-
-        // Open file
-        let mut wr_f = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(path)?;
-
-        for op in self.0.iter() {
-            match op {
-                AsmOp::Comment(comment) => writeln!(wr_f, "{}{}", ASM_COMMENT_PREFIX[0], comment)?,
-                AsmOp::Stmt(op) => writeln!(wr_f, "{:x}", op.to_hex())?,
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Program<dop::DOp> {
-    /// Convert a program of Dops in translation table
-    pub fn tr_table(&self) -> Vec<dop::DOpRepr> {
-        let ops_stream = self
-            .iter()
-            .filter_map(|op| match op {
-                AsmOp::Comment(_) => None,
-                AsmOp::Stmt(op) => Some(op),
-            })
-            .collect::<Vec<_>>();
-
-        let mut words_stream = Vec::with_capacity(ops_stream.len() + 1);
-        // First word of the stream is length in DOp
-        words_stream.push(ops_stream.len() as u32);
-
-        ops_stream.iter().for_each(|op| {
-            words_stream.push(op.to_hex());
-        });
-        words_stream
     }
 }
 

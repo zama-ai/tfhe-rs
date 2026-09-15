@@ -896,7 +896,7 @@ impl HpuNode {
         // For each blk_w there are IOp_number * MAX_HPU_IN_CLUSTER
         // Opcode is 8bit -> 256 words entry
         // WARN: tr_table_ofst is relative expressed from DOP_LUT_ADDR i.e. after the runtime config
-        let mut tr_table_ofst = FW_TABLE_ENTRY * IOP_NUMBER * asm::dop::MAX_HPU_IN_CLUSTER;
+        let mut tr_table_ofst = FW_TABLE_ENTRY * IOP_NUMBER * asm::iop::MAX_HPU_IN_CLUSTER;
 
         // Fallback entry
         // All uninit IOp will point to 0 length firmware for error detection
@@ -920,7 +920,7 @@ impl HpuNode {
             // Generate Fw for standard operation
             // -> All operation with an associated alias
             //    => allocate lut but gather upload on real hw outside of the loop
-            let mut id_fw = Iop::ALL
+            let mut id_fw = Iop::ALL_STATIC
                 .iter()
                 .map(|iop| {
                     // Get pipeline
@@ -963,6 +963,20 @@ impl HpuNode {
                                 });
                             debug!("Read custom asm file: {asm_file}");
                             used_vid += 1;
+                            // Check validity
+                            let sync = doplang::sync_usage(&cust_ir);
+                            assert!(
+                                sync.0 == 0,
+                                "Error: {asm_file} contain SYNC. This break the min_iop_size requirement and
+                            could lead to sync_id overflow"
+                            );
+
+                            let mix = doplang::instruction_mix(&cust_ir);
+                            assert!(
+                                mix.total() >= self.params.isc_params.min_iop_size,
+                                "Error: {asm_file} is too short and could lead to sync_id overflow",
+                            );
+
                             // Upload required Lut if needed and generate relocation table
                             let lut_remap = self.update_lut_registry(&preamble.luts, gen_lut);
                             let dop_stream = zhc::pipeline::passes::hpu_generate_translation_table(
@@ -970,31 +984,8 @@ impl HpuNode {
                                 Some(&lut_remap),
                             );
                             // TODO kept track of CustIOp signature
-                            // TODO" use doplang passes to check custom iop validity
-                            // // Sanity check
-                            // let sync_opcode = asm::dop::DOpSync::opcode();
-                            // for (id, fw_bytes) in id_fw.iter() {
-                            //     // All IOp entry must be gte (MIN_IOP_SIZE-1)
-                            //     // NB fw_bytes contain size + DOps -> gte MIN_IOP_SIZE
-                            //     assert!(
-                            //         fw_bytes.len() >= self.params.isc_params.min_iop_size,
-                            //         "Error: IOp[0x{:x}].v{} is too short and could lead to sync_id overflow",
-                            //         id.0,
-                            //         id.1
-                            //     );
-                            //     // All IOp mustn't contain SYNC token
-                            //     let mut sync_dop = fw_bytes
-                            //         .iter()
-                            //         .filter(|w| (((*w >> 24) & 0xff) as u8) == sync_opcode)
-                            //         .peekable();
-                            //     assert!(
-                            //         sync_dop.peek().is_none(),
-                            //         "Error: IOp[0x{:x}].v{} contain SYNC. This break the min_iop_size requirement and
-                            //     could lead to sync_id overflow",id.0, id.1
-                            //     );
-                            // }
 
-                            id_fw.push(((opcode.0 as usize, vid), dop_stream));
+                            id_fw.push(((opcode.0, vid), dop_stream));
                         } else {
                             trace!("Custom asm file: {asm_file} unavailable")
                         }
@@ -1028,7 +1019,7 @@ impl HpuNode {
             for (id, fw_bytes) in id_fw.into_iter() {
                 // Store lookup addr
                 let byte_ofst = (tr_table_ofst * std::mem::size_of::<u32>()) as u32;
-                tr_lut[id.0 * MAX_HPU_IN_CLUSTER + id.1] = byte_ofst;
+                tr_lut[(id.0 as usize) * MAX_HPU_IN_CLUSTER + id.1] = byte_ofst;
 
                 // Write tr-table
                 let fw_words = bytemuck::cast_slice::<_, u32>(fw_bytes.as_slice());

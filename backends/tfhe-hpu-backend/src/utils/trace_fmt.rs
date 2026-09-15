@@ -171,7 +171,7 @@ fn main() -> Result<(), anyhow::Error> {
                 Scope::Thread,
             );
 
-            let opcode = insn.insn.opcode();
+            let opcode = insn.toberemoved.opcode();
             let target_tid = match opcode.optype() {
                 doplang::DOpType::ARITH => tid_pea,
                 doplang::DOpType::UCORE => tid_ucore,

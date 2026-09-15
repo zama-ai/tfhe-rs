@@ -2,8 +2,6 @@
 //! Rely on bitfield_struct that as a 128b limits
 use bitfield_struct::bitfield;
 
-use crate::asm::dop;
-
 // High-level view of the trace.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct IscTrace {
@@ -61,8 +59,6 @@ pub enum TraceParsingError {
     EmptyStream,
     #[error("Incorrect value {0}")]
     IncorrectValue(String),
-    #[error("Incorrect insn {0}")]
-    IncorrectDOp(dop::ParsingError),
 }
 
 impl IscTrace {
@@ -82,19 +78,12 @@ impl IscTrace {
         };
 
         let cmd = unsafe { std::mem::transmute::<u8, IscCommand>(flit0.cmd()) };
-        let mut asm_framed = [0; 2];
         let asm = match cmd {
             IscCommand::None => "Garbage".to_string(),
             _ => {
-                // `generate_translation_table`/`decode_translation_table` are internal `zhc_pipeline`
-                // helpers that additionally expect/produce a leading instruction-count word; that word is
-                // not part of this tool's file format, so it's synthesized here rather than written/read.
-                asm_framed[0] = 1;
-                asm_framed[1] = flit0.insn();
-                todo!("Expose from_hex in doplang")
-                // let ir = hpu_decode_translation_table(&asm_framed, None)
-                // .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?
-                // .to_string(),
+                let dop = zhc::pipeline::passes::hpu_decode_dop_repr(flit0.insn(), None)
+                    .map_err(|x| TraceParsingError::IncorrectValue(x.to_string()))?;
+                dop.to_string()
             }
         };
 
@@ -158,7 +147,6 @@ impl IscTraceStream {
                         println!("This event could occurred when the trace end is reached");
                         break;
                     }
-                    _ => panic!("{}", e),
                 },
             }
         }
