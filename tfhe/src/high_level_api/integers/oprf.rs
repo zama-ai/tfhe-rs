@@ -899,7 +899,7 @@ impl RangeForRandom {
     }
 }
 
-fn num_input_random_bits_for_max_distance(
+pub(in crate::high_level_api) fn num_input_random_bits_for_max_distance(
     excluded_upper_bound: NonZeroU64,
     max_distance: f64,
     message_modulus: MessageModulus,

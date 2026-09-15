@@ -81,6 +81,11 @@ use strum::FromRepr;
 #[cfg(test)]
 mod tests;
 
+/// Experimental circuit API: build a `Circuit` with `CircuitBuilder`
+/// and execute it on a backend.
+#[cfg(feature = "experimental")]
+pub mod circuit;
+
 pub use crate::high_level_api::booleans::{
     CompressedFheBool, CompressedFheBoolConformanceParams, FheBool, FheBoolConformanceParams,
     SquashedNoiseFheBool,
