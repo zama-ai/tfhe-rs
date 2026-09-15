@@ -1,7 +1,14 @@
-# CUST_HPU0_3
-# Simple IOp to check isc behavior
-# Generate obvious deps and check that isc correctly issued the dop
-# Correct result must bu Dest <- Src[0]
+; Simple IOp to check isc behavior
+; Generate obvious deps and check that isc correctly issued the dop
+; Correct result must bu Dest <- Src[0]
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; Ciphertext<8, 2, 2> -> Ciphertext<8, 2, 2>
+; [lut]
+; None: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+; } ----------------------------------------------------------------------------
+
 LD R0   TS[0].0
 LD R1   TS[0].1
 LD R2   TS[0].2
