@@ -1,4 +1,3 @@
-; CUST_HPU0_21
 ; Simple IOp to check PbsMl8
 ; WARN: This operation required 16b ct width
 ; Correct result:
@@ -10,6 +9,13 @@
 ;   * Dst[0][5]   <- Src[0][0] +5
 ;   * Dst[0][6]   <- Src[0][0] +6
 ;   * Dst[0][7]   <- Src[0][0] +7
+; ------------------------------------------------------------------------------
+; !preamble {
+; [signature]
+; Ciphertext<2, 2, 2> -> Ciphertext<16, 2, 2>
+; [lut]
+; TestMany8: [0,1,1,2,2,3,3,0,0,1,1,2,2,3,3,0]
+; } ----------------------------------------------------------------------------
 
 ; Apply PbsMl8 on Src[0] result goes in dest[0][0-7]
 LD R0 TS[0].0

@@ -2,7 +2,7 @@
 ; This IOp take two sources and generate two destination (one written by each node)
 ; Focus on LD templated Op from other Hpu
 ; HPU0 construct B[1]B[0]A[1]A[0]
-; HPU1 construct B[3]B[2]A[3]A[3]
+; HPU1 construct B[3]B[2]A[3]A[2]
 ; ------------------------------------------------------------------------------
 ; !preamble {
 ; [signature]
@@ -11,29 +11,34 @@
 ; None: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
 ; } ----------------------------------------------------------------------------
 
-LD R0 TS[0].0
-LD R1 TS[0].1
-LD R2 TS[1].0
-LD R3 TS[1].1
+LD_B2B F6 TH.0
+LD_B2B F7 TH.1
+LD_B2B F8 TH.2
+LD_B2B F9 TH.3
 
-PBS_F R0 R0 PbsNone
-PBS_F R1 R1 PbsNone
-PBS_F R2 R2 PbsNone
+WAIT F6 TH.0
+LD R0 TH.0
+WAIT F7 TH.1
+LD R1 TH.1
+WAIT F8 TH.2
+LD R2 TH.2
+WAIT F9 TH.3
+LD R3 TH.3
+
+PBS R0 R0 PbsNone
+PBS R1 R1 PbsNone
+PBS R2 R2 PbsNone
 PBS_F R3 R3 PbsNone
-PBS_F R0 R0 PbsNone
-PBS_F R1 R1 PbsNone
-PBS_F R2 R2 PbsNone
+PBS R0 R0 PbsNone
+PBS R1 R1 PbsNone
+PBS R2 R2 PbsNone
 PBS_F R3 R3 PbsNone
-PBS_F R0 R0 PbsNone
-PBS_F R1 R1 PbsNone
-PBS_F R2 R2 PbsNone
+PBS R0 R0 PbsNone
+PBS R1 R1 PbsNone
+PBS R2 R2 PbsNone
 PBS_F R3 R3 PbsNone
 
-SUB R4 R4 R4
-ST TH.0 R4
-NOTIFY N1 F1 TH.0
-
-ST TD[0].0 R0 
-ST TD[0].1 R1 
-ST TD[0].2 R2 
-ST TD[0].3 R3 
+ST TD[1].0 R0 
+ST TD[1].1 R1 
+ST TD[1].2 R2 
+ST TD[1].3 R3 
