@@ -65,15 +65,17 @@ if(NOT ${MULTI_ARCH})
   else()
     set(CMAKE_CUDA_ARCHITECTURES 70)
     set(CUDA_ARCH "700")
-    message(WARNING "Could not determine GPU architecture by running the CUDA compiler. Falling back to sm_70. Error: ${ARCH}")
+    message(
+      WARNING "Could not determine GPU architecture by running the CUDA compiler. Falling back to sm_70. Error: ${ARCH}"
+    )
   endif()
 else()
   set(CMAKE_CUDA_ARCHITECTURES 70 80 89)
   if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL "11.8")
     list(APPEND CMAKE_CUDA_ARCHITECTURES 90)
   endif()
-  # In multi-arch mode CUDA_ARCH is set to the max architecture value.
-  # Device kernel code must use __CUDA_ARCH__ (set per-pass by NVCC) instead.
+  # In multi-arch mode CUDA_ARCH is set to the max architecture value. Device kernel code must use __CUDA_ARCH__ (set
+  # per-pass by NVCC) instead.
   set(CUDA_ARCH "1000")
   message(STATUS "Multi-architecture GPU build: ${CMAKE_CUDA_ARCHITECTURES}")
 endif()
