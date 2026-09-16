@@ -1,8 +1,6 @@
 /// Implement inner-view of Hpu backend
 use super::*;
-use crate::asm::opcode::{USER_RANGE_LB, USER_RANGE_UB};
-use crate::asm::MAX_HPU_IN_CLUSTER;
-use crate::asm::IOpProto;
+use crate::asm::{IOpProto, MAX_HPU_IN_CLUSTER};
 use crate::entities::*;
 use crate::interface::cache::{DynFwEntry, DynFwError};
 use crate::{asm, ffi};
@@ -947,12 +945,18 @@ impl HpuNode {
                 .get(&format!("integer_w_{integer_w}"))
             {
                 for (name, asm_base_file) in custom.iter() {
-                    let iop = asm::AsmIOpcode::from_str(name)
+                    let iop = asm::StaticIOp::from_str(name)
                         .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
-                    let opcode = iop.opcode();
+                    let opcode = iop.get_opcode();
                     let mut used_vid = 0;
-                    if !(USER_RANGE_LB..=USER_RANGE_UB).contains(&opcode.0) {
-                        panic!("Custom Iop [{integer_w}::{}] outside of USER_RANGE [{USER_RANGE_LB}; {USER_RANGE_UB}]", opcode.0);
+                    if !(asm::StaticIOp::USER_RANGE_LB..=asm::StaticIOp::USER_RANGE_UB)
+                        .contains(&opcode)
+                    {
+                        panic!(
+                            "Custom Iop [{integer_w}::{opcode}] outside of USER_RANGE [{}; {}]",
+                            asm::StaticIOp::USER_RANGE_LB,
+                            asm::StaticIOp::USER_RANGE_UB
+                        );
                     }
 
                     for vid in 0..MAX_HPU_IN_CLUSTER {
@@ -990,7 +994,7 @@ impl HpuNode {
                             );
                             // TODO kept track of CustIOp signature
 
-                            id_fw.push(((opcode.0, vid), dop_stream));
+                            id_fw.push(((opcode, vid), dop_stream));
                         } else {
                             trace!("Custom asm file: {asm_file} unavailable")
                         }
