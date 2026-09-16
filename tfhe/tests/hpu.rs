@@ -185,9 +185,9 @@ mod hpu_test {
                     .iter()
                     .map(|mode| {
                         let (bw, block) = match mode {
-                            hpu_asm::iop::VarMode::Native => (width, num_block),
-                            hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                            hpu_asm::iop::VarMode::Bool => (1, 1),
+                            hpu_asm::VarMode::Native => (width, num_block),
+                            hpu_asm::VarMode::Half => (width / 2, num_block / 2),
+                            hpu_asm::VarMode::Bool => (1, 1),
                         };
 
                         let clear = rng.gen_range(0_u128..=max_val >> (width - bw));
@@ -855,9 +855,9 @@ mod hpu_test {
                     .enumerate()
                     .map(|(_pos, mode)| {
                         let (bw, block) = match mode {
-                            hpu_asm::iop::VarMode::Native => (width, num_block),
-                            hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                            hpu_asm::iop::VarMode::Bool => (1, 1),
+                            hpu_asm::VarMode::Native => (width, num_block),
+                            hpu_asm::VarMode::Half => (width / 2, num_block / 2),
+                            hpu_asm::VarMode::Bool => (1, 1),
                         };
 
                         let clear = rng.gen_range(0..u128::MAX >> (u128::BITS - (bw as u32)));

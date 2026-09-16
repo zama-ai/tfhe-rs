@@ -1,7 +1,7 @@
 /// Implement inner-view of Hpu backend
 use super::*;
-use crate::asm::iop::opcode::{USER_RANGE_LB, USER_RANGE_UB};
-use crate::asm::iop::MAX_HPU_IN_CLUSTER;
+use crate::asm::opcode::{USER_RANGE_LB, USER_RANGE_UB};
+use crate::asm::MAX_HPU_IN_CLUSTER;
 use crate::asm::IOpProto;
 use crate::entities::*;
 use crate::interface::cache::{DynFwEntry, DynFwError};
@@ -897,7 +897,7 @@ impl HpuNode {
         // For each blk_w there are IOp_number * MAX_HPU_IN_CLUSTER
         // Opcode is 8bit -> 256 words entry
         // WARN: tr_table_ofst is relative expressed from DOP_LUT_ADDR i.e. after the runtime config
-        let mut tr_table_ofst = FW_TABLE_ENTRY * IOP_NUMBER * asm::iop::MAX_HPU_IN_CLUSTER;
+        let mut tr_table_ofst = FW_TABLE_ENTRY * IOP_NUMBER * asm::MAX_HPU_IN_CLUSTER;
 
         // Fallback entry
         // All uninit IOp will point to 0 length firmware for error detection

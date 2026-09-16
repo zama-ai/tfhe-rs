@@ -47,8 +47,8 @@ fn main() -> Result<(), anyhow::Error> {
     if op_file.exists() {
         // read op from file
         match (
-            asm::Program::<asm::iop::IOp>::read_asm(&args.from),
-            asm::Program::<asm::iop::IOp>::read_hex(&args.from),
+            asm::Program::read_asm(&args.from),
+            asm::Program::read_hex(&args.from),
         ) {
             (Ok(p), ..) => p.write_hex(&args.to)?,
             (Err(_), Ok(p)) => p.write_asm(&args.to)?,
@@ -60,7 +60,7 @@ fn main() -> Result<(), anyhow::Error> {
             }
         }
     } else {
-        let iop = asm::iop::IOp::from_str(&args.from)?;
+        let iop = asm::IOp::from_str(&args.from)?;
         println!("iop: {} -> 0x{:0>8x?}", iop, iop.to_words());
     }
     Ok(())
