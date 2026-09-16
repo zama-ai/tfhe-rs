@@ -447,16 +447,9 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_CMP_EQ;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::CmpEq);
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -523,16 +516,9 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_CMP_NEQ;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::CmpNeq);
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -625,16 +611,9 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_CMP_LT;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::CmpLt);
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -701,16 +680,9 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_CMP_LTE;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::CmpLte);
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -777,16 +749,9 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_CMP_GT;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::CmpGt);
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -853,16 +818,9 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_CMP_GTE;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::CmpGte);
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -977,16 +935,9 @@ where
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_DIV;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Div);
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -1384,17 +1335,10 @@ generic_integer_impl_operation!(
                 let hpu_lhs = lhs.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_DIV;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Div);
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
-                                hpu_asm::FwMode::Static,
+                                                    hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
@@ -1462,17 +1406,10 @@ generic_integer_impl_operation!(
                 let hpu_lhs = lhs.ciphertext.on_hpu(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_MOD;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Mod);
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
-                                hpu_asm::FwMode::Static,
+                                                    hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
                     &[],
@@ -1598,17 +1535,10 @@ generic_integer_impl_shift_rotate!(
                         let hpu_lhs = lhs.ciphertext.on_hpu(device);
                         let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                        let (opcode, proto) = {
-                            let asm_iop = &hpu_asm::IOP_SHIFT_L;
-                            (
-                                asm_iop.opcode(),
-                                &asm_iop.format().expect("Unspecified IOP format").proto,
-                            )
-                        };
+                        let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::LeftShift);
                         // These clones are cheap are they are just Arc
                         let hpu_result = HpuRadixCiphertext::exec(
-                            proto,
-                                hpu_asm::FwMode::Static,
+                                                            hpu_asm::FwMode::Static,
                             opcode,
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
@@ -1664,17 +1594,10 @@ generic_integer_impl_shift_rotate!(
                         let hpu_lhs = lhs.ciphertext.on_hpu(device);
                         let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                        let (opcode, proto) = {
-                            let asm_iop = &hpu_asm::IOP_SHIFT_R;
-                            (
-                                asm_iop.opcode(),
-                                &asm_iop.format().expect("Unspecified IOP format").proto,
-                            )
-                        };
+                        let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::RightShift);
                         // These clones are cheap are they are just Arc
                         let hpu_result = HpuRadixCiphertext::exec(
-                            proto,
-                                hpu_asm::FwMode::Static,
+                                                            hpu_asm::FwMode::Static,
                             opcode,
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
@@ -1730,17 +1653,10 @@ generic_integer_impl_shift_rotate!(
                         let hpu_lhs = lhs.ciphertext.on_hpu(device);
                         let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                        let (opcode, proto) = {
-                            let asm_iop = &hpu_asm::IOP_ROT_L;
-                            (
-                                asm_iop.opcode(),
-                                &asm_iop.format().expect("Unspecified IOP format").proto,
-                            )
-                        };
+                        let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::LeftRot);
                         // These clones are cheap are they are just Arc
                         let hpu_result = HpuRadixCiphertext::exec(
-                            proto,
-                                hpu_asm::FwMode::Static,
+                                                            hpu_asm::FwMode::Static,
                             opcode,
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
@@ -1796,17 +1712,10 @@ generic_integer_impl_shift_rotate!(
                         let hpu_lhs = lhs.ciphertext.on_hpu(device);
                         let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                        let (opcode, proto) = {
-                            let asm_iop = &hpu_asm::IOP_ROT_R;
-                            (
-                                asm_iop.opcode(),
-                                &asm_iop.format().expect("Unspecified IOP format").proto,
-                            )
-                        };
+                        let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::RightRot);
                         // These clones are cheap are they are just Arc
                         let hpu_result = HpuRadixCiphertext::exec(
-                            proto,
-                                hpu_asm::FwMode::Static,
+                                                            hpu_asm::FwMode::Static,
                             opcode,
                             &[hpu_lhs.clone(), hpu_rhs.clone()],
                             &[],
@@ -2179,16 +2088,9 @@ where
                 let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_DIV;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Div);
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -2254,16 +2156,9 @@ where
                 let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_MOD;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Mod);
                 // These clones are cheap are they are just Arc
                 HpuRadixCiphertext::exec_assign(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -2336,16 +2231,9 @@ where
                 let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_SHIFT_L;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::LeftShift);
                 // These clones are cheap are they are just Arc
                 HpuRadixCiphertext::exec_assign(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -2417,16 +2305,9 @@ where
                 let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_SHIFT_R;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::RightShift);
                 // These clones are cheap are they are just Arc
                 HpuRadixCiphertext::exec_assign(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -2494,16 +2375,9 @@ where
                 let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_ROT_L;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::LeftRot);
                 // These clones are cheap are they are just Arc
                 HpuRadixCiphertext::exec_assign(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -2569,16 +2443,9 @@ where
                 let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_ROT_R;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::RightRot);
                 // These clones are cheap are they are just Arc
                 HpuRadixCiphertext::exec_assign(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -2677,15 +2544,8 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_self = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_SSUB;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Ssub);
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),

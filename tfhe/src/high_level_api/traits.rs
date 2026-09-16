@@ -273,7 +273,8 @@ where
     Self: Sized,
 {
     fn iop_exec(
-        iop: &tfhe_hpu_backend::prelude::hpu_asm::AsmIOpcode,
+        fw_mode: tfhe_hpu_backend::prelude::hpu_asm::FwMode,
+        opcode: tfhe_hpu_backend::prelude::hpu_asm::IOpcode,
         src: HpuHandle<&Self>,
     ) -> HpuHandle<Self>;
 }
