@@ -468,12 +468,11 @@ impl From<Vec<u8>> for IOpMapping {
     }
 }
 
-/// Construct IOpMapping from a vector of hpu_id and IOp NodesMap definition
-impl From<(Vec<u8>, &NodesMap)> for IOpMapping {
-    fn from(value: (Vec<u8>, &NodesMap)) -> Self {
-        let (val, nodes_map) = value;
+/// Construct IOpMapping from a vector of hpu_id and the number of nodes required by the IOp
+impl From<(Vec<u8>, u8)> for IOpMapping {
+    fn from(value: (Vec<u8>, u8)) -> Self {
+        let (val, used_nodes) = value;
         let mut raw = Self::from(val);
-        let used_nodes = nodes_map.get_nodes(raw.0.len() as u8);
         assert!(
             used_nodes <= (raw.0.len() as u8),
             "Error: Required hpu_node {used_nodes} is higher that available one {}",

@@ -1,16 +1,15 @@
 /// Implement inner-view of Hpu backend
 use super::*;
-use crate::asm::{IOpProto, MAX_HPU_IN_CLUSTER};
+use crate::asm::{IOpSig, MAX_HPU_IN_CLUSTER};
 use crate::entities::*;
 use crate::interface::cache::{DynFwEntry, DynFwError};
 use crate::{asm, ffi};
 use bytemuck::{Pod, Zeroable};
 use rtl::FromRtl;
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::str::FromStr;
 use std::sync::{atomic, Arc, Mutex};
-use zhc::compat::Iop;
 use zhc::crypto::integer_semantics::lut::{LutId, LutRegistry};
 use zhc::ir::IR;
 use zhc::langs::doplang;
@@ -103,7 +102,6 @@ pub struct HpuNode {
     // Lut and Fw memory
     lut_cache: cache::LutCache,
     fw_mem: memory::HugeMemory<u32>,
-    init_fw_width: Vec<usize>,
     dyn_fw_cache: cache::DynFwCache,
 
     // Memory management
@@ -357,7 +355,6 @@ impl HpuNode {
             lut_cache,
             fw_mem,
             dyn_fw_cache,
-            init_fw_width: Vec::new(),
             ct_mem,
             ct_base_addr,
             trace_mem,
@@ -842,8 +839,12 @@ pub fn new_zhc_config(config: &HpuConfig, params: &HpuParameters) -> zhc::config
 /// physical Gid
 impl HpuNode {
     #[tracing::instrument(skip(self, config, gen_lut))]
-    pub(crate) fn fw_init<F>(&mut self, config: &config::HpuConfig, gen_lut: &F)
-    where
+    pub(crate) fn fw_init<F>(
+        &mut self,
+        config: &config::HpuConfig,
+        fw_sig: &mut Option<HashMap<(asm::StaticIOp, u16), IOpSig>>,
+        gen_lut: &F,
+    ) where
         F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
     {
         // Prevent borrow/borrow mut at same time
@@ -919,7 +920,7 @@ impl HpuNode {
             // Generate Fw for standard operation
             // -> All operation with an associated alias
             //    => allocate lut but gather upload on real hw outside of the loop
-            let mut id_fw = Iop::ALL_STATIC
+            let mut id_fw = asm::StaticIOp::ALL
                 .iter()
                 .map(|iop| {
                     // Get pipeline
@@ -927,6 +928,15 @@ impl HpuNode {
                         &new_zhc_config(config, &params),
                         CiphertextSpec::new(*integer_w as u16, 2, 2),
                     );
+                    // NB: Currently all StaticIOp target 1 node
+                    // TODO get number of nodes from pipeline
+                    let sign_tuple = (pipeline.get_prototype().clone(), 1);
+
+                    // Kept track of associated signature
+                    if let Some(sig) = fw_sig {
+                        let _ = sig.insert((*iop, *integer_w as u16), sign_tuple);
+                    }
+
                     // Upload required Lut if needed and generate relocation table
                     let lut_remap = self.update_lut_registry(pipeline.get_lut_registry(), gen_lut);
                     let dop_stream = pipeline
@@ -959,6 +969,7 @@ impl HpuNode {
                         );
                     }
 
+                    let mut used_preamble: Option<doplang::Preamble> = None;
                     for vid in 0..MAX_HPU_IN_CLUSTER {
                         let asm_file = format!("{}_v{vid}.asm", asm_base_file.expand());
                         if std::path::Path::new(&asm_file).exists() {
@@ -992,18 +1003,22 @@ impl HpuNode {
                                 &cust_ir,
                                 Some(&lut_remap),
                             );
-                            // TODO kept track of CustIOp signature
-
+                            used_preamble = Some(preamble);
                             id_fw.push(((opcode, vid), dop_stream));
                         } else {
                             trace!("Custom asm file: {asm_file} unavailable")
                         }
                     }
-                    assert!(
-                        used_vid > 0,
+                    // Kept track of associated signature
+                    let preamble = used_preamble.unwrap_or_else(|| {
+                        panic!(
                         "Custom IOp: {opcode:?} failed. No file match given path {}_v{{[0-7]}}.asm",
-                        asm_base_file.expand()
-                    );
+                        asm_base_file.expand())
+                    });
+                    if let Some(sig) = fw_sig {
+                        let _ =
+                            sig.insert((iop, *integer_w as u16), (preamble.signature, used_vid));
+                    }
                 }
             }
 
@@ -1051,9 +1066,6 @@ impl HpuNode {
                 blk_ofst * std::mem::size_of::<u32>()
             );
             tracing::trace!("[{integer_w}]::LutTable=> {tr_lut:x?}");
-
-            // Update init_fw_width list enable to runtime check
-            self.init_fw_width.push(*integer_w);
         }
     }
 
@@ -1061,8 +1073,8 @@ impl HpuNode {
     pub(crate) fn fw_dyn_init<F>(
         &mut self,
         fingerprint: Fingerprint,
-        proto: IOpProto,
-        doplang: &Vec<IR<doplang::DopLang>>,
+        proto: IOpSig,
+        doplang: &[IR<doplang::DopLang>],
         lut_registry: &LutRegistry,
         gen_lut: &F,
     ) -> Result<Arc<DynFwEntry>, DynFwError>
@@ -1123,7 +1135,7 @@ impl HpuNode {
                 .lut_cache
                 .get_or_insert(lut.clone(), &curried_lut_gen)
                 .expect("Unable to upload required Lut. Check size of lut_mem");
-            lut_remap.push(hw_entry.id().clone());
+            lut_remap.push(*hw_entry.id());
         }
         lut_remap
     }
@@ -1138,17 +1150,8 @@ impl HpuNode {
             hid,
             ..
         } = self;
-
-        // Check if targeted width is properly configured
-        // NB: fw_blk_width is 0 encoded => 0 ~ 1 block ciphertext
-        assert!(
-            self.init_fw_width.contains(&((cmd.op.fw_blk_width()+1)*self.params.pbs_params.message_width)
-            ),
-            "Requested integer width {:?} isn't configured in [Hpu: {:?}] and could lead to Undefined Behavior. Please check Hpu configuration file.",
-            (cmd.op.fw_blk_width()+1) * self.params.pbs_params.message_width,
-            self.init_fw_width
-        );
         // Check if targeted IOp firmware is properly loaded
+        // TODO to be verified must have been done earlier
 
         // Issue work to Hpu through workq
         // Convert Iop in a stream of bytes

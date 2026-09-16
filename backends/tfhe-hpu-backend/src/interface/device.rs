@@ -8,12 +8,10 @@
 use super::cache::{DynFwEntry, DynFwError};
 use super::config::HpuConfig;
 use super::{HpuClusterWrapped, HpuInstError, HpuVarWrapped};
-use crate::asm;
 use crate::entities::*;
 use std::sync::Arc;
 
 use rayon::prelude::*;
-use zhc::builder::CiphertextSpec;
 use zhc::prelude::Pipeline;
 
 pub struct HpuDevice {
@@ -22,15 +20,25 @@ pub struct HpuDevice {
 }
 
 impl HpuDevice {
-    pub fn from_config(config_toml: &str, force_reload: bool) -> Result<Self, HpuInstError> {
+    pub fn from_config<F>(
+        config_toml: &str,
+        force_reload: bool,
+        gen_lut: &F,
+    ) -> Result<Self, HpuInstError>
+    where
+        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
+    {
         let config = HpuConfig::from_toml(config_toml);
 
-        Self::new(config, force_reload)
+        Self::new(config, force_reload, gen_lut)
     }
 
-    pub fn new(config: HpuConfig, force_reload: bool) -> Result<Self, HpuInstError> {
+    pub fn new<F>(config: HpuConfig, force_reload: bool, gen_lut: &F) -> Result<Self, HpuInstError>
+    where
+        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
+    {
         let config = Arc::new(config);
-        let cluster = HpuClusterWrapped::new_wrapped(&config, force_reload)?;
+        let cluster = HpuClusterWrapped::new_wrapped(&config, force_reload, gen_lut)?;
         Ok(Self { config, cluster })
     }
 
@@ -38,14 +46,7 @@ impl HpuDevice {
     /// Upload them in on-board memory and configure associated register entries
     /// Also use the given server key to generate required set of GlweLut
     /// Upload them in on-board memory and configure associated register entries
-    pub fn init<F>(
-        &self,
-        bsk: HpuLweBootstrapKeyView<u64>,
-        ksk: HpuLweKeyswitchKeyView<u64>,
-        gen_lut: &F,
-    ) where
-        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
-    {
+    pub fn init(&self, bsk: HpuLweBootstrapKeyView<u64>, ksk: HpuLweKeyswitchKeyView<u64>) {
         self.cluster.par_iter().for_each(|(_id, node)| {
             let mut node_lock = node.lock().expect("Error with backend mutex");
             // Properly reset keys
@@ -54,18 +55,6 @@ impl HpuDevice {
 
             node_lock.bsk_set(bsk.as_view());
             node_lock.ksk_set(ksk.as_view());
-
-            // Init Fw
-            // Configure Lut addr register
-            node_lock.lut_init();
-            // and IOp translation table
-            node_lock.fw_init(&self.config, gen_lut);
-
-            // Init HW trace offset
-            node_lock.trace_init();
-
-            // Init MHDMA
-            node_lock.mhdma_cfg();
         })
     }
 
@@ -78,111 +67,7 @@ impl HpuDevice {
     where
         F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
     {
-        // Common pipeline stages
-        let mut pipeline = pipeline;
-        let fingerprint = pipeline.get_fingerprint().clone();
-        let zhc_proto = pipeline.get_prototype().clone();
-        let lut_registry = pipeline.get_lut_registry().clone();
-        let zhc_mh_config = pipeline.get_multi_hpu_config().clone();
-        let doplang = pipeline.get_multi_doplang();
-
-        // Generate IOpProto
-        // Translate Tfhe-rs proto from zhc Op signature
-        // TODO: fuse both view. Drop tfhe-rs asm impl in favor of zhc one
-        let proto = {
-            use zhc::builder::Type;
-            use zhc::ir::Signature;
-            // TODO get real value from signature or pipeline
-            let ct_spec = CiphertextSpec::new(16, 2, 2); // TODO use real spec
-
-            let native_w = ct_spec.int_size();
-            let half_w = native_w / 2;
-            let mh_factor = zhc_mh_config.n_hpus;
-
-            let Signature(sig_src, sig_dst) = zhc_proto;
-            let dst_mode = sig_dst
-                .iter()
-                .filter_map(|sig| {
-                    if let Type::Ciphertext(spec) = sig {
-                        Some(spec)
-                    } else {
-                        None
-                    }
-                })
-                .map(|spec| {
-                    if spec.int_size() == native_w {
-                        asm::VarMode::Native
-                    } else if spec.int_size() == half_w {
-                        asm::VarMode::Half
-                    } else if spec.int_size() == 1 {
-                        asm::VarMode::Bool
-                    } else {
-                        panic!("Unexpected Ciphertext Type");
-                    }
-                })
-                .collect::<Vec<_>>();
-            let src_mode = sig_src
-                .iter()
-                .filter_map(|sig| {
-                    if let Type::Ciphertext(spec) = sig {
-                        Some(spec)
-                    } else {
-                        None
-                    }
-                })
-                .map(|spec| {
-                    if spec.int_size() == native_w {
-                        asm::VarMode::Native
-                    } else if spec.int_size() == half_w {
-                        asm::VarMode::Half
-                    } else if spec.int_size() == 1 {
-                        asm::VarMode::Bool
-                    } else {
-                        panic!("Unexpected Ciphertext Type");
-                    }
-                })
-                .collect::<Vec<_>>();
-            let imm = sig_src
-                .iter()
-                .filter_map(|sig| {
-                    if let Type::Plaintext(_) = sig {
-                        Some(())
-                    } else {
-                        None
-                    }
-                })
-                .count();
-            asm::IOpProto {
-                used_nodes: asm::NodesMap::new(&[mh_factor]),
-                dst: dst_mode,
-                src: src_mode,
-                imm,
-            }
-        };
-
-        // Parallel over nodes
-        // Each of them has its own relocation table, no recompute of the above.
-        let entries = self
-            .cluster
-            .par_iter()
-            .map(|(_id, node)| {
-                let mut node_lock = node.lock().expect("Error with backend mutex");
-                node_lock.fw_dyn_init(
-                    fingerprint.clone(),
-                    proto.clone(),
-                    doplang,
-                    &lut_registry,
-                    gen_lut,
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let all_match = entries.windows(2).all(|w| w[0].iop() == w[1].iop());
-        if !all_match {
-            Err(DynFwError::UnsyncView)
-        } else {
-            Ok(entries[0].clone())
-        }
+        self.cluster.fw_dyn_init(pipeline, gen_lut)
     }
 }
 

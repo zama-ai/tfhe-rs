@@ -22,6 +22,11 @@ pub const MSG_WIDTH: u8 = 2;
 pub const CARRY_WIDTH: u8 = 2;
 pub const MAX_HPU_IN_CLUSTER: usize = 8;
 
+/// An IOp's zhc signature, paired with the number of Hpu nodes it requires. Looked up from
+/// [`crate::interface::HpuCluster`]'s `fw_sig`/`dyn_fw_sig` tables, this replaces the old
+/// hand-rolled `IOpProto`.
+pub type IOpSig = (zhc::ir::Signature<zhc::builder::Type>, u8);
+
 /// Enum used to define a variable size relative to current integer width
 #[derive(Debug, Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum VarMode {
@@ -42,121 +47,6 @@ impl std::str::FromStr for VarMode {
             _ => Err(Box::new(ParsingError::InvalidArg(format!(
                 "Invalid VarMode: {s}"
             )))),
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct NodesMap([u8; MAX_HPU_IN_CLUSTER]);
-
-impl NodesMap {
-    // Create a new nodes map based on configuration
-    // Extend incomplete map and enforce that request nodes don't be higher than available one
-    pub fn new(nodes_cfg: &[u8]) -> Self {
-        let max_nodes = *nodes_cfg.iter().max().unwrap_or(&1);
-        let mut default = [max_nodes; MAX_HPU_IN_CLUSTER];
-
-        let mut prv_entry = 1;
-        for (i, (s, n)) in std::iter::zip(default.iter_mut(), nodes_cfg.iter()).enumerate() {
-            *s = if *n > (i + 1) as u8 { prv_entry } else { *n };
-            prv_entry = *s;
-        }
-        Self(default)
-    }
-
-    pub fn get_nodes(&self, avail_hpu: u8) -> u8 {
-        assert!(
-            avail_hpu <= MAX_HPU_IN_CLUSTER as u8,
-            "HPU could only gather at most {MAX_HPU_IN_CLUSTER} Hpu per cluster."
-        );
-        self.0[(avail_hpu - 1) as usize]
-    }
-
-    pub fn max_node(&self) -> u8 {
-        *self.0.iter().max().unwrap_or(&1)
-    }
-}
-
-/// Dynamic type to erase const template
-// TODO moved from runtime check to compile time one
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct IOpProto {
-    pub used_nodes: NodesMap,
-    pub dst: Vec<VarMode>,
-    pub src: Vec<VarMode>,
-    pub imm: usize,
-}
-
-/// Implement FromString trait to enable parsing from CLI
-impl std::str::FromStr for IOpProto {
-    type Err = Box<ParsingError>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref PROTO_ARG_RE: regex::Regex = regex::Regex::new(
-                r"\[(?<nodes>[\d\s,]+)\]<(?<dst>[\w\s,]+)>::<(?<src>[\w\s,]*)><(?<imm>\d+)>"
-            )
-            .expect("Invalid regex");
-        }
-        if let Some(caps) = PROTO_ARG_RE.captures(s) {
-            let nodes_config = if let Some(nodes_raw) = caps.name("nodes") {
-                nodes_raw
-                    .as_str()
-                    .trim()
-                    .split(',')
-                    .map(|nodes| nodes.trim().parse::<u8>())
-                    .collect::<Result<Vec<_>, std::num::ParseIntError>>()
-                    .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))
-            } else {
-                Err(Box::new(ParsingError::Unmatch(
-                    "Invalid IOpProto: Missing nodes field (e.g. [1,2,4]".to_string(),
-                )))
-            }?;
-            let dst = if let Some(dst_raw) = caps.name("dst") {
-                dst_raw
-                    .as_str()
-                    .split(',')
-                    .map(|x| x.trim().parse())
-                    .collect::<Result<Vec<VarMode>, Box<ParsingError>>>()
-            } else {
-                Err(Box::new(ParsingError::Unmatch(
-                    "Invalid IOpProto: Missing dst field (e.g. <Native, Bool>".to_string(),
-                )))
-            }?;
-
-            let src = if let Some(src_raw) = caps.name("src") {
-                src_raw
-                    .as_str()
-                    .split(',')
-                    .map(|x| x.trim().parse())
-                    .collect::<Result<Vec<VarMode>, Box<ParsingError>>>()
-            } else {
-                Err(Box::new(ParsingError::Unmatch(
-                    "Invalid IOpProto: Missing src field (e.g. <Native, Half, Bool, ...>"
-                        .to_string(),
-                )))
-            }?;
-            let imm = if let Some(imm_raw) = caps.name("imm") {
-                imm_raw
-                    .as_str()
-                    .parse::<usize>()
-                    .map_err(|err| Box::new(ParsingError::InvalidArg(err.to_string())))
-            } else {
-                Err(Box::new(ParsingError::Unmatch(
-                    "Invalid IOpProto: Missing imm field (e.g. <2>".to_string(),
-                )))
-            }?;
-
-            Ok(IOpProto {
-                used_nodes: NodesMap::new(&nodes_config),
-                dst,
-                src,
-                imm,
-            })
-        } else {
-            Err(Box::new(ParsingError::Unmatch(format!(
-                "Invalid IOpProto format {s}"
-            ))))
         }
     }
 }

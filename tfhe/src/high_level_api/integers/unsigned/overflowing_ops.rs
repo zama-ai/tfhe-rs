@@ -90,16 +90,9 @@ where
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = other.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_OVF_ADD;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::OvfAdd);
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -242,15 +235,8 @@ where
                     u128::from(as_u64)
                 };
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_OVF_ADDS;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::OvfAdds);
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_lhs),
@@ -430,16 +416,9 @@ where
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = other.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_OVF_SUB;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::OvfSub);
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],
@@ -565,15 +544,8 @@ where
                     u128::from(as_u64)
                 };
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_OVF_SUBS;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::OvfSubs);
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_lhs),
@@ -695,16 +667,9 @@ where
                 let hpu_lhs = self.ciphertext.on_hpu(device);
                 let hpu_rhs = other.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_OVF_MUL;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::OvfMul);
                 // These clones are cheap are they are just Arc
                 let mut hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_lhs.clone(), hpu_rhs.clone()],

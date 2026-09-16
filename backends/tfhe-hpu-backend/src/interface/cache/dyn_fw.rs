@@ -7,7 +7,7 @@
 //! Fw memory is viewed as a set of SLOT_SIZE_WORDS u32 slot to ease memory management and reduce
 //! fragmentation.
 
-use crate::asm::{self, IOpProto, MAX_HPU_IN_CLUSTER};
+use crate::asm::{self, IOpSig, MAX_HPU_IN_CLUSTER};
 use crate::ffi;
 use crate::interface::{memory, IOP_NUMBER};
 use std::collections::{HashMap, VecDeque};
@@ -66,12 +66,12 @@ impl DynFwCache {
     pub fn get_or_insert(
         &mut self,
         fingerprint: Fingerprint,
-        proto: IOpProto,
+        sig: IOpSig,
         streams: [Vec<u32>; MAX_HPU_IN_CLUSTER],
     ) -> Result<Arc<DynFwEntry>, DynFwError> {
         // Cache hit ?
         if let Some(e) = self.get_by_hash(&fingerprint) {
-            return Ok(e);
+            Ok(e)
         } else {
             // Allocate id
             let id = self.iop_pool.pop_front().ok_or(DynFwError::CacheFull)?;
@@ -121,8 +121,8 @@ impl DynFwCache {
             // Insert entry in cache
             let entry = Arc::new(DynFwEntry {
                 iop: id,
-                hash: fingerprint.clone(),
-                proto,
+                hash: fingerprint,
+                sig,
                 slots,
                 streams,
             });
@@ -178,7 +178,7 @@ impl DynFwCache {
                 .ok_or(DynFwError::UnsyncView)?;
             Ok(released_slots)
         } else {
-            Err(DynFwError::HashNotFound(stream_hash.clone()))
+            Err(DynFwError::HashNotFound(*stream_hash))
         }
     }
 
@@ -244,7 +244,7 @@ impl From<PoolError> for DynFwError {
 pub struct DynFwEntry {
     iop: asm::IOpcode,
     hash: Fingerprint,
-    proto: asm::IOpProto,
+    sig: IOpSig,
     slots: [Vec<SlotId>; MAX_HPU_IN_CLUSTER],
 
     // Kept associated stream for debug purpose
@@ -259,8 +259,8 @@ impl DynFwEntry {
     pub fn hash(&self) -> Fingerprint {
         self.hash
     }
-    pub fn proto(&self) -> &IOpProto {
-        &self.proto
+    pub fn sig(&self) -> &IOpSig {
+        &self.sig
     }
     pub fn streams(&self) -> &[Vec<u32>; MAX_HPU_IN_CLUSTER] {
         &self.streams
