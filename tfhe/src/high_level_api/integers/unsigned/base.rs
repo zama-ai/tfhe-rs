@@ -649,7 +649,7 @@ where
                 let hpu_self = self.ciphertext.on_hpu(device);
 
                 let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_LEAD0;
+                    let asm_iop = &hpu_asm::IOP_LEAD0;
                     (
                         asm_iop.opcode(),
                         &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -730,7 +730,7 @@ where
                 let hpu_self = self.ciphertext.on_hpu(device);
 
                 let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_LEAD1;
+                    let asm_iop = &hpu_asm::IOP_LEAD1;
                     (
                         asm_iop.opcode(),
                         &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -811,7 +811,7 @@ where
                 let hpu_self = self.ciphertext.on_hpu(device);
 
                 let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_TRAIL0;
+                    let asm_iop = &hpu_asm::IOP_TRAIL0;
                     (
                         asm_iop.opcode(),
                         &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -892,7 +892,7 @@ where
                 let hpu_self = self.ciphertext.on_hpu(device);
 
                 let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_TRAIL1;
+                    let asm_iop = &hpu_asm::IOP_TRAIL1;
                     (
                         asm_iop.opcode(),
                         &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -960,7 +960,7 @@ where
                 let hpu_self = self.ciphertext.on_hpu(device);
 
                 let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_COUNT0;
+                    let asm_iop = &hpu_asm::IOP_COUNT0;
                     (
                         asm_iop.opcode(),
                         &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -1028,7 +1028,7 @@ where
                 let hpu_self = self.ciphertext.on_hpu(device);
 
                 let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_COUNT1;
+                    let asm_iop = &hpu_asm::IOP_COUNT1;
                     (
                         asm_iop.opcode(),
                         &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -1111,7 +1111,7 @@ where
                 let hpu_self = self.ciphertext.on_hpu(device);
 
                 let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_ILOG2;
+                    let asm_iop = &hpu_asm::IOP_ILOG2;
                     (
                         asm_iop.opcode(),
                         &asm_iop.format().expect("Unspecified IOP format").proto,
