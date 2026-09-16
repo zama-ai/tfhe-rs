@@ -5,7 +5,8 @@
 use super::config::HpuConfig;
 use super::node::HpuNodeWrapped;
 use super::{cmd, HpuInstError, HpuVarWrapped};
-use crate::asm::iop::{IOpMapping, MAX_HPU_IN_CLUSTER};
+use crate::asm::IOpMapping;
+use crate::asm::MAX_HPU_IN_CLUSTER;
 use crate::asm::{IOpId, IOpProto, PhysId};
 use crate::entities::*;
 use crate::ffi::HpuHw;
@@ -306,7 +307,7 @@ impl HpuClusterWrapped {
     pub fn new_var_from(
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
-        mode: crate::asm::iop::VarMode,
+        mode: crate::asm::VarMode,
         pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
         // Compute workload and allocate on the less loaded node

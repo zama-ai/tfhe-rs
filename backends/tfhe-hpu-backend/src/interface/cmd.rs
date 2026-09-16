@@ -1,7 +1,7 @@
 //! Help with IOp management over HPU
 //! Track IOp status and handle backward update of associated HpuVariable
 use super::*;
-use crate::asm::iop::{IOpMapping, Immediate, Operand, OperandKind};
+use crate::asm::{IOpMapping, Immediate, Operand, OperandKind};
 use crate::asm::{FwMode, IOp, IOpId, IOpcode};
 use variable::HpuVarWrapped;
 
@@ -35,7 +35,7 @@ impl HpuCmd {
     ) -> Self {
         // Check arguments compliance with IOp prototype if any
         #[cfg(debug_assertions)]
-        if let Some(format) = crate::asm::iop::IOP_LUT.hex.get(&opcode) {
+        if let Some(format) = crate::asm::IOP_LUT.hex.get(&opcode) {
             assert_eq!(
                 dst.len(),
                 format.proto.dst.len(),
@@ -132,7 +132,7 @@ impl HpuCmd {
 /// Generic interface
 impl HpuCmd {
     pub fn exec_raw(
-        proto: &crate::asm::iop::IOpProto,
+        proto: &crate::asm::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         dst: &[HpuVarWrapped],
@@ -169,7 +169,7 @@ impl HpuCmd {
     }
 
     pub fn exec(
-        proto: &crate::asm::iop::IOpProto,
+        proto: &crate::asm::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],
@@ -188,7 +188,7 @@ impl HpuCmd {
     }
 
     pub fn exec_assign(
-        proto: &crate::asm::iop::IOpProto,
+        proto: &crate::asm::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],

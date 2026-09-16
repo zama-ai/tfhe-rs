@@ -63,7 +63,7 @@ impl Clone for RadixCiphertext {
                 //  But it's not the case for all.
                 // To prevent special cases, all the "deep" clone are made on HPU side
                 let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_MEMCPY;
+                    let asm_iop = &hpu_asm::IOP_MEMCPY;
                     (
                         asm_iop.opcode(),
                         &asm_iop.format().expect("Unspecified IOP format").proto,
