@@ -14,28 +14,45 @@ use crate::circuit::Circuit;
 use std::num::NonZeroUsize;
 
 /// Circuit executor that executes a circuit on the CPU
+///
+/// # Parallelism
+///
+/// Two layers of parallelism are stacked:
+/// - the executor runs up to `max_num_workers` *ops* concurrently, one per worker thread;
+/// - each op is an integer-layer operation that internally uses rayon's global thread pool, and may
+///   therefore use every core on its own.
+///
+/// `max_num_workers` is thus a cap on the number of ops in flight, not on the
+/// number of threads or cores used. Limiting the latter means configuring the
+/// rayon global pool.
 pub struct CpuBackend {
     pub(crate) sk: crate::ServerKey,
-    /// Upper bound on the worker pool size.
-    /// The actual number of workers used depends on the circuit,
-    /// it may be less than this, but never greater
+    /// Upper bound on the number of ops executed concurrently (one worker
+    /// thread each). The actual number used depends on the circuit: it may
+    /// be less than this, but never greater. See the type-level doc for what
+    /// this does and doesn't bound.
     pub(crate) max_num_workers: NonZeroUsize,
 }
 
 impl CpuBackend {
-    /// Create a CPU backend with `max_num_workers` derived from the
-    /// machine's logical cores, leaving one core for the coordinator thread.
+    /// Create a CPU backend with `max_num_workers` set to the machine's
+    /// logical core count minus one (at least 1).
     ///
-    /// The actual worker count per execution is further capped by
-    /// `circuit.max_concurrent_ops()`.
+    /// This is a heuristic for how many ops to keep in flight, not a
+    /// reservation of cores: ops use rayon internally and are free to use
+    /// every core (see the type-level doc). The actual worker count per
+    /// execution is further capped by `circuit.max_concurrent_ops()`.
     pub fn new(sk: crate::ServerKey) -> Self {
         let cpu_threads = std::thread::available_parallelism().map_or(4, NonZeroUsize::get);
-        // Leave one logical core for the coordinator thread
         let max = NonZeroUsize::new(cpu_threads.saturating_sub(1)).unwrap_or(NonZeroUsize::MIN);
         Self::with_max_num_workers(sk, max)
     }
 
-    /// Creates a CPU backend with the specified number of `max_num_workers`
+    /// Creates a CPU backend executing at most `max_num_workers` ops
+    /// concurrently.
+    ///
+    /// This does not cap the number of threads or cores used: each op may
+    /// use rayon's whole global pool (see the type-level doc).
     pub fn with_max_num_workers(sk: crate::ServerKey, max_num_workers: NonZeroUsize) -> Self {
         Self {
             sk,
@@ -134,13 +151,9 @@ pub enum CpuError {
         bits: u64,
         message_bits: u64,
     },
-    /// The execution ended without producing the circuit output at `pos`.
-    /// This means the worker threads exited before the circuit completed,
-    /// which is an internal error of the executor.
-    MissingOutput {
-        pos: u32,
-    },
-    /// Generic something went wrong error
+    /// The op at `node_index` failed while executing: a panic in the op's
+    /// implementation, an IR invariant the op found violated, or an internal
+    /// executor error surfaced on the op it affected.
     ExecutionError {
         node_index: u32,
         op: &'static str,
@@ -189,10 +202,6 @@ impl std::fmt::Display for CpuError {
                 f,
                 "circuit contains a {bits}-bit integer value, which is not representable \
                  with this key's radix encoding ({message_bits} message bits per block)"
-            ),
-            Self::MissingOutput { pos } => write!(
-                f,
-                "execution ended without producing circuit output {pos} (workers exited early)"
             ),
             Self::ExecutionError {
                 node_index,

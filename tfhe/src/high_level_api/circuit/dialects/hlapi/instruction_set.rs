@@ -8,7 +8,7 @@ use crate::MatchValues;
 use super::kinds::{ClearKind, FheIntKind, FheKind};
 use super::type_system::{KvKey, KvKeyKind, OprfMode, ScalarValue, ValueKind};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, strum::IntoStaticStr)]
 #[non_exhaustive]
 pub enum HlInstructionSet {
     // Boundary
@@ -538,97 +538,8 @@ impl HlInstructionSet {
 
     /// Stable diagnostic name for logs and panic messages.
     pub fn name(&self) -> &'static str {
-        #[allow(clippy::enum_glob_use, reason = "Glob is fine here")]
-        use HlInstructionSet::*;
-        match self {
-            Input { .. } => "Input",
-            Output { .. } => "Output",
-            EncryptTrivial { .. } => "EncryptTrivial",
-            Constant { .. } => "Constant",
-            FheAdd { .. } => "FheAdd",
-            FheSub { .. } => "FheSub",
-            FheMul { .. } => "FheMul",
-            FheDiv { .. } => "FheDiv",
-            FheRem { .. } => "FheRem",
-            FheMin { .. } => "FheMin",
-            FheMax { .. } => "FheMax",
-            FheNeg { .. } => "FheNeg",
-            FheSum { .. } => "FheSum",
-            FheIsEven { .. } => "FheIsEven",
-            FheIsOdd { .. } => "FheIsOdd",
-            FheLeadingZeros { .. } => "FheLeadingZeros",
-            FheLeadingOnes { .. } => "FheLeadingOnes",
-            FheTrailingZeros { .. } => "FheTrailingZeros",
-            FheTrailingOnes { .. } => "FheTrailingOnes",
-            FheCountOnes { .. } => "FheCountOnes",
-            FheCountZeros { .. } => "FheCountZeros",
-            FheIlog2 { .. } => "FheIlog2",
-            FheCheckedIlog2 { .. } => "FheCheckedIlog2",
-            FheReverseBits { .. } => "FheReverseBits",
-            FheAbs { .. } => "FheAbs",
-            FheBitAnd { .. } => "FheBitAnd",
-            FheBitOr { .. } => "FheBitOr",
-            FheBitXor { .. } => "FheBitXor",
-            FheNot { .. } => "FheNot",
-            FheEq { .. } => "FheEq",
-            FheNe { .. } => "FheNe",
-            FheLt { .. } => "FheLt",
-            FheLe { .. } => "FheLe",
-            FheGt { .. } => "FheGt",
-            FheGe { .. } => "FheGe",
-            FheShl { .. } => "FheShl",
-            FheShr { .. } => "FheShr",
-            FheRotateLeft { .. } => "FheRotateLeft",
-            FheRotateRight { .. } => "FheRotateRight",
-            FheOverflowingAdd { .. } => "FheOverflowingAdd",
-            FheOverflowingSub { .. } => "FheOverflowingSub",
-            FheOverflowingMul { .. } => "FheOverflowingMul",
-            FheOverflowingNeg { .. } => "FheOverflowingNeg",
-            FheScalarOverflowingAdd { .. } => "FheScalarOverflowingAdd",
-            FheScalarOverflowingSub { .. } => "FheScalarOverflowingSub",
-            FheDivRem { .. } => "FheDivRem",
-            FheCast { .. } => "FheCast",
-            Select { .. } => "Select",
-            FheFlip { .. } => "FheFlip",
-            SelectScalarScalar { .. } => "SelectScalarScalar",
-            SelectFheScalar { .. } => "SelectFheScalar",
-            SelectScalarFhe { .. } => "SelectScalarFhe",
-            FheScalarAdd { .. } => "FheScalarAdd",
-            FheScalarSub { .. } => "FheScalarSub",
-            ScalarFheSub { .. } => "ScalarFheSub",
-            FheScalarMul { .. } => "FheScalarMul",
-            FheScalarDiv { .. } => "FheScalarDiv",
-            FheScalarRem { .. } => "FheScalarRem",
-            FheScalarMin { .. } => "FheScalarMin",
-            FheScalarMax { .. } => "FheScalarMax",
-            FheScalarShl { .. } => "FheScalarShl",
-            FheScalarShr { .. } => "FheScalarShr",
-            FheScalarRotateLeft { .. } => "FheScalarRotateLeft",
-            FheScalarRotateRight { .. } => "FheScalarRotateRight",
-            FheScalarBitAnd { .. } => "FheScalarBitAnd",
-            FheScalarBitOr { .. } => "FheScalarBitOr",
-            FheScalarBitXor { .. } => "FheScalarBitXor",
-            FheScalarEq { .. } => "FheScalarEq",
-            FheScalarNe { .. } => "FheScalarNe",
-            FheScalarLt { .. } => "FheScalarLt",
-            FheScalarLe { .. } => "FheScalarLe",
-            FheScalarGt { .. } => "FheScalarGt",
-            FheScalarGe { .. } => "FheScalarGe",
-            ScalarFheLt { .. } => "ScalarFheLt",
-            ScalarFheLe { .. } => "ScalarFheLe",
-            ScalarFheGt { .. } => "ScalarFheGt",
-            ScalarFheGe { .. } => "ScalarFheGe",
-            MatchValue { .. } => "MatchValue",
-            FheOprf { .. } => "FheOprf",
-            FheContains { .. } => "FheContains",
-            FheContainsScalar { .. } => "FheContainsScalar",
-            KVStoreCreate { .. } => "KVStoreCreate",
-            KVStoreInsertWithClearKey { .. } => "KVStoreInsertWithClearKey",
-            KVStoreGetWithClearKey { .. } => "KVStoreGetWithClearKey",
-            KVStoreRemoveWithClearKey { .. } => "KVStoreRemoveWithClearKey",
-            KVStoreGet { .. } => "KVStoreGet",
-            KVStoreUpdate { .. } => "KVStoreUpdate",
-        }
+        // `strum::IntoStaticStr`: the variant identifier, e.g. `"FheAdd"`.
+        self.into()
     }
 }
 

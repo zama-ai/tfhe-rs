@@ -339,7 +339,7 @@ pub(crate) fn execute_circuit(
             let Ok(DoneOp { id, result }) = work_done_receiver.recv() else {
                 // All workers exited while outputs are still missing (e.g. a
                 // worker died outside its catch_unwind). The missing outputs
-                // are reported as `CpuError::MissingOutput` below.
+                // are reported as `CpuError::ExecutionError` below.
                 break 'main;
             };
 
@@ -396,7 +396,23 @@ pub(crate) fn execute_circuit(
     // Results carry the executing key's tag, like classic HLAPI ops.
     let mut output_list = CpuOutputList::with_tag(crate::prelude::Tagged::tag(sks).clone());
     for (pos, output) in program_outputs.into_iter().enumerate() {
-        let arc = output.ok_or(CpuError::MissingOutput { pos: pos as u32 })?;
+        let arc = output.ok_or_else(|| {
+            // Attribute the internal error to the `Output` op that never
+            // received its value.
+            let node_index = meta
+                .output_pos_of_op
+                .iter()
+                .find(|(_, &p)| p == pos as u32)
+                .map_or(u32::MAX, |(id, _)| id.0);
+            CpuError::ExecutionError {
+                node_index,
+                op: "Output",
+                message: format!(
+                    "internal executor error: execution ended without producing circuit \
+                     output {pos} (workers exited early)"
+                ),
+            }
+        })?;
         output_list.push(Arc::unwrap_or_clone(arc));
     }
 
