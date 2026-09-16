@@ -219,9 +219,9 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .enumerate()
                 .map(|(pos, mode)| {
                     let (bw, block) = match mode {
-                        hpu_asm::iop::VarMode::Native => (width, num_block),
-                        hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                        hpu_asm::iop::VarMode::Bool => (1, 1),
+                        hpu_asm::VarMode::Native => (width, num_block),
+                        hpu_asm::VarMode::Half => (width / 2, num_block / 2),
+                        hpu_asm::VarMode::Bool => (1, 1),
                     };
 
                     let clear = *args

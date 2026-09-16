@@ -766,7 +766,7 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                     let hpu_lhs = self.ciphertext.on_hpu(device);
 
                                     let (opcode, proto) = {
-                                        let asm_iop = &hpu_asm::iop::IOP_DIVS;
+                                        let asm_iop = &hpu_asm::IOP_DIVS;
                                         (
                                             asm_iop.opcode(),
                                             &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -1894,7 +1894,7 @@ macro_rules! define_scalar_ops {
                                     let hpu_lhs = lhs.ciphertext.on_hpu(device);
 
                                     let (opcode, proto) = {
-                                        let asm_iop = &hpu_asm::iop::IOP_DIVS;
+                                        let asm_iop = &hpu_asm::IOP_DIVS;
                                         (
                                             asm_iop.opcode(),
                                             &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -1972,7 +1972,7 @@ macro_rules! define_scalar_ops {
                             let hpu_lhs = lhs.ciphertext.on_hpu(device);
 
                             let (opcode, proto) = {
-                                let asm_iop = &hpu_asm::iop::IOP_MODS;
+                                let asm_iop = &hpu_asm::IOP_MODS;
                                 (
                                     asm_iop.opcode(),
                                     &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -2485,7 +2485,7 @@ macro_rules! define_scalar_ops {
                             let hpu_lhs = lhs.ciphertext.as_hpu_mut(device);
 
                             let (opcode, proto) = {
-                                let asm_iop = &hpu_asm::iop::IOP_DIVS;
+                                let asm_iop = &hpu_asm::IOP_DIVS;
                                 (
                                     asm_iop.opcode(),
                                     &asm_iop.format().expect("Unspecified IOP format").proto,
@@ -2534,7 +2534,7 @@ macro_rules! define_scalar_ops {
                             let hpu_lhs = lhs.ciphertext.as_hpu_mut(device);
 
                             let (opcode, proto) = {
-                                let asm_iop = &hpu_asm::iop::IOP_MODS;
+                                let asm_iop = &hpu_asm::IOP_MODS;
                                 (
                                     asm_iop.opcode(),
                                     &asm_iop.format().expect("Unspecified IOP format").proto,
