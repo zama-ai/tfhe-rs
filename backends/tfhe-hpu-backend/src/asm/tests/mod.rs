@@ -1,7 +1,7 @@
 //!
 //! Test for DOp/IOp format
 
-use crate::asm::{iop, Program};
+use crate::asm::Program;
 
 #[test]
 fn iop_asm_test() -> Result<(), anyhow::Error> {
@@ -20,7 +20,7 @@ fn iop_asm_test() -> Result<(), anyhow::Error> {
 
     let input_file = "src/asm/tests/iop.asm";
 
-    let iop_prg = Program::<iop::IOp>::read_asm(input_file)?;
+    let iop_prg = Program::read_asm(input_file)?;
     println!("Parsing results:\n {iop_prg}");
 
     Ok(())

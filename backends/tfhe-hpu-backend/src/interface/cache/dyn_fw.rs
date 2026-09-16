@@ -7,7 +7,7 @@
 //! Fw memory is viewed as a set of SLOT_SIZE_WORDS u32 slot to ease memory management and reduce
 //! fragmentation.
 
-use crate::asm::iop::MAX_HPU_IN_CLUSTER;
+use crate::asm::MAX_HPU_IN_CLUSTER;
 use crate::asm::{self, IOpProto};
 use crate::ffi;
 use crate::interface::{memory, IOP_NUMBER};
