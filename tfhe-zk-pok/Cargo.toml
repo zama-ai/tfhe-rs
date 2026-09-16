@@ -35,7 +35,6 @@ wasm-par-mq = { version = "0.1.1", path = "../utils/wasm-par-mq", features = [
 ], optional = true }
 
 [features]
-experimental = []
 cross-origin-wasm = ["dep:wasm-par-mq"]
 gpu = ["dep:zk-cuda-backend", "dep:tfhe-cuda-common"]
 

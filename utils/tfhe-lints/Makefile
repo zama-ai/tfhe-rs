@@ -6,7 +6,7 @@ require = $(if $($(1)),,$(error $(1) is required. Usage: make $@ $(1)=<value>))
 # Add new crates here and in the crate-args / run-all-crates definitions below.
 LINT_CRATE_NAMES      := tfhe tfhe-zk-pok tfhe-csprng tfhe-safe-serialize
 LINT_TFHE_ARGS        := -p tfhe -- --features=boolean,shortint,integer,strings,zk-pok
-LINT_TFHE_ZK_POK_ARGS := -p tfhe-zk-pok -- --features=experimental
+LINT_TFHE_ZK_POK_ARGS := -p tfhe-zk-pok
 LINT_TFHE_CSPRNG_ARGS := -p tfhe-csprng -- --all-features
 LINT_TFHE_SAFE_SERIALIZE_ARGS := -p tfhe-safe-serialize
 
