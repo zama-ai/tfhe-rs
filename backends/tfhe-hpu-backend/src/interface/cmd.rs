@@ -1,8 +1,7 @@
 //! Help with IOp management over HPU
 //! Track IOp status and handle backward update of associated HpuVariable
 use super::*;
-use crate::asm::{IOpMapping, Immediate, Operand, OperandKind};
-use crate::asm::{FwMode, IOp, IOpId, IOpcode};
+use crate::asm::{FwMode, IOp, IOpId, IOpMapping, IOpcode, Immediate, Operand, OperandKind};
 use variable::HpuVarWrapped;
 
 use std::sync::atomic;
@@ -25,6 +24,7 @@ pub struct HpuCmd {
 
 impl HpuCmd {
     fn new(
+        proto: &crate::asm::IOpProto,
         map: IOpMapping,
         fw_mode: FwMode,
         opcode: IOpcode,
@@ -33,26 +33,23 @@ impl HpuCmd {
         src: &[HpuVarWrapped],
         imm: &[HpuImm],
     ) -> Self {
-        // Check arguments compliance with IOp prototype if any
+        // Check arguments compliance with IOp prototype
         #[cfg(debug_assertions)]
-        if let Some(format) = crate::asm::IOP_LUT.hex.get(&opcode) {
+        {
             assert_eq!(
                 dst.len(),
-                format.proto.dst.len(),
-                "Error {}: Invalid number of dst arguments",
-                format.name
+                proto.dst.len(),
+                "Error {opcode:?}: Invalid number of dst arguments"
             );
             assert_eq!(
                 src.len(),
-                format.proto.src.len(),
-                "Error {}: Invalid number of dst arguments",
-                format.name
+                proto.src.len(),
+                "Error {opcode:?}: Invalid number of src arguments"
             );
             assert_eq!(
                 imm.len(),
-                format.proto.imm,
-                "Error {}: Invalid number of dst arguments",
-                format.name
+                proto.imm,
+                "Error {opcode:?}: Invalid number of imm arguments"
             );
         }
         let pdg_sync = atomic::AtomicUsize::new(map.len());
@@ -113,6 +110,7 @@ impl HpuCmd {
     }
 
     pub fn new_wrapped(
+        proto: &crate::asm::IOpProto,
         map: IOpMapping,
         fw_mode: FwMode,
         opcode: IOpcode,
@@ -121,7 +119,9 @@ impl HpuCmd {
         src: &[HpuVarWrapped],
         imm: &[HpuImm],
     ) -> Arc<Self> {
-        Arc::new(Self::new(map, fw_mode, opcode, iop_id, dst, src, imm))
+        Arc::new(Self::new(
+            proto, map, fw_mode, opcode, iop_id, dst, src, imm,
+        ))
     }
 
     pub fn op(&self) -> &IOp {
@@ -152,7 +152,16 @@ impl HpuCmd {
         let iop_id = cluster.gen_iop_id();
 
         // Create associated command
-        let cmd = Self::new_wrapped(map.clone(), fw_mode, opcode, iop_id, dst, rhs_ct, rhs_imm);
+        let cmd = Self::new_wrapped(
+            proto,
+            map.clone(),
+            fw_mode,
+            opcode,
+            iop_id,
+            dst,
+            rhs_ct,
+            rhs_imm,
+        );
 
         // Update cluster workload
         // _NB_: Done here to prevent bg_polling delay in workload update

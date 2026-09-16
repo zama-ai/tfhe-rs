@@ -532,7 +532,7 @@ impl IOp {
     pub fn opcode(&self) -> IOpcode {
         self.header.opcode
     }
-    pub fn asm_opcode(&self) -> AsmIOpcode {
+    pub fn asm_opcode(&self) -> StaticIOp {
         self.header.opcode.into()
     }
 

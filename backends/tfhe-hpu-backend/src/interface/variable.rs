@@ -3,8 +3,7 @@
 //! Handle lifetime management, deallocation and state inside HpuDevice.
 
 use super::*;
-use crate::asm::VarMode;
-use crate::asm::{IOpId, PhysId, SW_IOP_ID};
+use crate::asm::{IOpId, PhysId, VarMode, SW_IOP_ID};
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use std::sync::{Arc, Mutex};
 

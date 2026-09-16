@@ -5,9 +5,7 @@
 use super::config::HpuConfig;
 use super::node::HpuNodeWrapped;
 use super::{cmd, HpuInstError, HpuVarWrapped};
-use crate::asm::IOpMapping;
-use crate::asm::MAX_HPU_IN_CLUSTER;
-use crate::asm::{IOpId, IOpProto, PhysId};
+use crate::asm::{IOpId, IOpMapping, IOpProto, PhysId, MAX_HPU_IN_CLUSTER};
 use crate::entities::*;
 use crate::ffi::HpuHw;
 use itertools::*;
