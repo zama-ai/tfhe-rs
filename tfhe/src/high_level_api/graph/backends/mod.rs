@@ -2,14 +2,14 @@ pub mod cpu;
 
 use cpu::{CpuInputList, CpuOutputList};
 
-/// A backend capable of executing a [`Circuit`](super::Circuit).
+/// A backend capable of executing a [`ExecutionGraph`](super::ExecutionGraph).
 pub trait ExecutionBackend {
     type Error: std::error::Error;
 
-    /// Execute the circuit
+    /// Execute the graph
     fn execute(
         &mut self,
-        circuit: &super::Circuit,
+        graph: &super::ExecutionGraph,
         inputs: CpuInputList,
     ) -> Result<CpuOutputList, Self::Error>;
 }

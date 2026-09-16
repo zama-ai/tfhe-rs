@@ -1,16 +1,16 @@
 //! Backend-generic test cases for the dialect executor.
 //!
-//! Each function builds a circuit, runs it through an `impl ExecutionBackend`
+//! Each function builds a graph, runs it through an `impl ExecutionBackend`
 //! (via `execute`), and checks decrypted outputs. They are parameterised
 //! over the backend so the same cases can be re-run against any backend (e.g. a
 //! future GPU backend) by passing a different `ExecutionBackend` implementation.
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, Rng};
 
-use crate::circuit::backends::cpu::{CpuInputList, RuntimeValue};
-use crate::circuit::backends::ExecutionBackend;
-use crate::circuit::{
-    BuilderError, CircuitBuilder, ClearKind, FheIntKind, FheKind, HlInstructionSet, ValueId,
+use crate::graph::backends::cpu::{CpuInputList, RuntimeValue};
+use crate::graph::backends::ExecutionBackend;
+use crate::graph::{
+    BuilderError, ClearKind, ExecutionGraphBuilder, FheIntKind, FheKind, HlInstructionSet, ValueId,
     ValueKind,
 };
 use crate::prelude::*;
@@ -61,7 +61,7 @@ fn check_uint32_binary<B: ExecutionBackend, F, G, R>(
     edge_cases: &[(u32, u32)],
     rhs_sample: R,
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(u32, u32) -> u32,
     R: Fn(&mut ThreadRng) -> u32,
 {
@@ -71,9 +71,9 @@ fn check_uint32_binary<B: ExecutionBackend, F, G, R>(
         cases.push((rand_u32(&mut rng), rhs_sample(&mut rng)));
     }
 
-    // Batch all cases into a single wide circuit: one op-instance per case,
+    // Batch all cases into a single wide graph: one op-instance per case,
     // executed in one go so the backend runs them concurrently.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &(a, c) in &cases {
         let lhs = b.input(ValueKind::FheUint(32)).unwrap();
@@ -83,8 +83,8 @@ fn check_uint32_binary<B: ExecutionBackend, F, G, R>(
         inputs.push(FheUint32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
         let dec: u32 = outputs.get::<FheUint32>(i as u32).decrypt(ck);
@@ -104,7 +104,7 @@ fn check_uint32_compare<B: ExecutionBackend, F, G>(
     clear: G,
     edge_cases: &[(u32, u32)],
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(u32, u32) -> bool,
 {
     let mut rng = thread_rng();
@@ -113,7 +113,7 @@ fn check_uint32_compare<B: ExecutionBackend, F, G>(
         cases.push((rng.gen(), rng.gen()));
     }
 
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &(a, c) in &cases {
         let lhs = b.input(ValueKind::FheUint(32)).unwrap();
@@ -123,8 +123,8 @@ fn check_uint32_compare<B: ExecutionBackend, F, G>(
         inputs.push(FheUint32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
         let dec: bool = outputs.get::<FheBool>(i as u32).decrypt(ck);
@@ -144,7 +144,7 @@ fn check_uint32_unary<B: ExecutionBackend, F, G>(
     clear: G,
     edge_cases: &[u32],
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(u32) -> u32,
 {
     let mut rng = thread_rng();
@@ -153,7 +153,7 @@ fn check_uint32_unary<B: ExecutionBackend, F, G>(
         cases.push(rng.gen());
     }
 
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &a in &cases {
         let v = b.input(ValueKind::FheUint(32)).unwrap();
@@ -161,8 +161,8 @@ fn check_uint32_unary<B: ExecutionBackend, F, G>(
         b.output(r).unwrap();
         inputs.push(FheUint32::encrypt(a, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &a) in cases.iter().enumerate() {
         let dec: u32 = outputs.get::<FheUint32>(i as u32).decrypt(ck);
@@ -179,7 +179,7 @@ fn check_uint32_overflowing<B: ExecutionBackend, F, G>(
     clear: G,
     edge_cases: &[(u32, u32)],
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId, ValueId) -> Result<(ValueId, ValueId), BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId, ValueId) -> Result<(ValueId, ValueId), BuilderError>,
     G: Fn(u32, u32) -> (u32, bool),
 {
     let mut rng = thread_rng();
@@ -189,7 +189,7 @@ fn check_uint32_overflowing<B: ExecutionBackend, F, G>(
     }
 
     // Two outputs per case: result at 2*i, overflow flag at 2*i + 1.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &(a, c) in &cases {
         let lhs = b.input(ValueKind::FheUint(32)).unwrap();
@@ -200,8 +200,8 @@ fn check_uint32_overflowing<B: ExecutionBackend, F, G>(
         inputs.push(FheUint32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
         let dec_val: u32 = outputs.get::<FheUint32>(2 * i as u32).decrypt(ck);
@@ -212,7 +212,7 @@ fn check_uint32_overflowing<B: ExecutionBackend, F, G>(
 }
 
 /// Single-direction FHE/scalar op `out = build(value, scalar)` or
-/// `out = build(scalar, value)`. Builds the circuit once with the closure
+/// `out = build(scalar, value)`. Builds the graph once with the closure
 /// (which encodes the direction) and the scalar baked in.
 fn check_uint32_scalar<B: ExecutionBackend, F, G>(
     ck: &ClientKey,
@@ -222,7 +222,7 @@ fn check_uint32_scalar<B: ExecutionBackend, F, G>(
     clear: G,
     edge_cases: &[u32],
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(u32) -> u32,
 {
     let mut rng = thread_rng();
@@ -231,7 +231,7 @@ fn check_uint32_scalar<B: ExecutionBackend, F, G>(
         cases.push(rng.gen());
     }
 
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &a in &cases {
         let v = b.input(ValueKind::FheUint(32)).unwrap();
@@ -239,8 +239,8 @@ fn check_uint32_scalar<B: ExecutionBackend, F, G>(
         b.output(r).unwrap();
         inputs.push(FheUint32::encrypt(a, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &a) in cases.iter().enumerate() {
         let dec: u32 = outputs.get::<FheUint32>(i as u32).decrypt(ck);
@@ -257,7 +257,7 @@ fn check_uint32_scalar_compare<B: ExecutionBackend, F, G>(
     clear: G,
     edge_cases: &[u32],
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(u32) -> bool,
 {
     let mut rng = thread_rng();
@@ -266,7 +266,7 @@ fn check_uint32_scalar_compare<B: ExecutionBackend, F, G>(
         cases.push(rng.gen());
     }
 
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &a in &cases {
         let v = b.input(ValueKind::FheUint(32)).unwrap();
@@ -274,8 +274,8 @@ fn check_uint32_scalar_compare<B: ExecutionBackend, F, G>(
         b.output(r).unwrap();
         inputs.push(FheUint32::encrypt(a, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &a) in cases.iter().enumerate() {
         let dec: bool = outputs.get::<FheBool>(i as u32).decrypt(ck);
@@ -297,7 +297,7 @@ fn check_int32_binary<B: ExecutionBackend, F, G, R>(
     edge_cases: &[(i32, i32)],
     rhs_sample: R,
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(i32, i32) -> i32,
     R: Fn(&mut ThreadRng) -> i32,
 {
@@ -307,7 +307,7 @@ fn check_int32_binary<B: ExecutionBackend, F, G, R>(
         cases.push((rand_i32(&mut rng), rhs_sample(&mut rng)));
     }
 
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &(a, c) in &cases {
         let lhs = b.input(ValueKind::FheInt(32)).unwrap();
@@ -317,8 +317,8 @@ fn check_int32_binary<B: ExecutionBackend, F, G, R>(
         inputs.push(FheInt32::encrypt(a, ck));
         inputs.push(FheInt32::encrypt(c, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
         let dec: i32 = outputs.get::<FheInt32>(i as u32).decrypt(ck);
@@ -338,7 +338,7 @@ fn check_int32_compare<B: ExecutionBackend, F, G>(
     clear: G,
     edge_cases: &[(i32, i32)],
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(i32, i32) -> bool,
 {
     let mut rng = thread_rng();
@@ -347,7 +347,7 @@ fn check_int32_compare<B: ExecutionBackend, F, G>(
         cases.push((rng.gen(), rng.gen()));
     }
 
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &(a, c) in &cases {
         let lhs = b.input(ValueKind::FheInt(32)).unwrap();
@@ -357,8 +357,8 @@ fn check_int32_compare<B: ExecutionBackend, F, G>(
         inputs.push(FheInt32::encrypt(a, ck));
         inputs.push(FheInt32::encrypt(c, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
         let dec: bool = outputs.get::<FheBool>(i as u32).decrypt(ck);
@@ -378,7 +378,7 @@ fn check_int32_unary<B: ExecutionBackend, F, G>(
     clear: G,
     edge_cases: &[i32],
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(i32) -> i32,
 {
     let mut rng = thread_rng();
@@ -387,7 +387,7 @@ fn check_int32_unary<B: ExecutionBackend, F, G>(
         cases.push(rng.gen());
     }
 
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &a in &cases {
         let v = b.input(ValueKind::FheInt(32)).unwrap();
@@ -395,8 +395,8 @@ fn check_int32_unary<B: ExecutionBackend, F, G>(
         b.output(r).unwrap();
         inputs.push(FheInt32::encrypt(a, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &a) in cases.iter().enumerate() {
         let dec: i32 = outputs.get::<FheInt32>(i as u32).decrypt(ck);
@@ -413,7 +413,7 @@ fn check_int32_overflowing<B: ExecutionBackend, F, G>(
     clear: G,
     edge_cases: &[(i32, i32)],
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId, ValueId) -> Result<(ValueId, ValueId), BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId, ValueId) -> Result<(ValueId, ValueId), BuilderError>,
     G: Fn(i32, i32) -> (i32, bool),
 {
     let mut rng = thread_rng();
@@ -423,7 +423,7 @@ fn check_int32_overflowing<B: ExecutionBackend, F, G>(
     }
 
     // Two outputs per case: result at 2*i, overflow flag at 2*i + 1.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &(a, c) in &cases {
         let lhs = b.input(ValueKind::FheInt(32)).unwrap();
@@ -434,8 +434,8 @@ fn check_int32_overflowing<B: ExecutionBackend, F, G>(
         inputs.push(FheInt32::encrypt(a, ck));
         inputs.push(FheInt32::encrypt(c, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
         let dec_val: i32 = outputs.get::<FheInt32>(2 * i as u32).decrypt(ck);
@@ -446,50 +446,50 @@ fn check_int32_overflowing<B: ExecutionBackend, F, G>(
 }
 
 pub(crate) fn fheuint32_is_even_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_is_even(v).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     for a in [0u32, 1, 2, 3, u32::MAX, 0xDEAD_BEEF] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
         assert_eq!(dec, a % 2 == 0, "is_even({a}) = {dec}");
     }
 }
 
 pub(crate) fn fheuint32_is_odd_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_is_odd(v).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     for a in [0u32, 1, 2, 3, u32::MAX, 0xDEAD_BEEF] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
         assert_eq!(dec, a % 2 == 1, "is_odd({a}) = {dec}");
     }
 }
 
 pub(crate) fn fheuint32_checked_ilog2_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let (log, present) = b.fhe_checked_ilog2(v).unwrap();
     b.output(log).unwrap();
     b.output(present).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     // Include 0 — `checked_ilog2(0)` should return present=false.
     for a in [0u32, 1, 2, 3, 7, u32::MAX, 0xDEAD_BEEF] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec_log: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_present: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let expected_present = a > 0;
@@ -501,17 +501,17 @@ pub(crate) fn fheuint32_checked_ilog2_case<B: ExecutionBackend>(ck: &ClientKey, 
 }
 
 pub(crate) fn fheuint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let (r, o) = b.fhe_overflowing_neg(v).unwrap();
     b.output(r).unwrap();
     b.output(o).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     for a in [0u32, 1, u32::MAX, 0xDEAD_BEEF] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec_val: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_ovf: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let (exp_val, exp_ovf) = a.overflowing_neg();
@@ -524,17 +524,17 @@ pub(crate) fn fheuint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey
 }
 
 pub(crate) fn fheint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheInt(32)).unwrap();
     let (r, o) = b.fhe_overflowing_neg(v).unwrap();
     b.output(r).unwrap();
     b.output(o).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     for a in [0i32, 1, -1, i32::MIN, i32::MAX] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheInt32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec_val: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         let dec_ovf: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let (exp_val, exp_ovf) = a.overflowing_neg();
@@ -547,19 +547,19 @@ pub(crate) fn fheint32_overflowing_neg_case<B: ExecutionBackend>(ck: &ClientKey,
 }
 
 pub(crate) fn fheuint32_div_rem_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let l = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.input(ValueKind::FheUint(32)).unwrap();
     let (q, m) = b.fhe_div_rem(l, r).unwrap();
     b.output(q).unwrap();
     b.output(m).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     for (a, c) in [(42u32, 5), (100, 7), (u32::MAX, 1), (0, 12345)] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec_q: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_m: u32 = outputs.get::<FheUint32>(1).decrypt(ck);
         assert_eq!(dec_q, a / c, "div_rem({a}, {c}).0");
@@ -572,17 +572,17 @@ pub(crate) fn fheuint32_scalar_overflowing_add_case<B: ExecutionBackend>(
     backend: &mut B,
 ) {
     const S: u32 = 42;
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let (r, o) = b.fhe_overflowing_add(v, S).unwrap();
     b.output(r).unwrap();
     b.output(o).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     for a in [0u32, 1, u32::MAX - 10, u32::MAX] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec_val: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_ovf: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let (exp_val, exp_ovf) = a.overflowing_add(S);
@@ -599,17 +599,17 @@ pub(crate) fn fheuint32_scalar_overflowing_sub_case<B: ExecutionBackend>(
     backend: &mut B,
 ) {
     const S: u32 = 42;
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let (r, o) = b.fhe_overflowing_sub(v, S).unwrap();
     b.output(r).unwrap();
     b.output(o).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     for a in [0u32, 1, S, S + 1, u32::MAX] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec_val: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         let dec_ovf: bool = outputs.get::<FheBool>(1).decrypt(ck);
         let (exp_val, exp_ovf) = a.overflowing_sub(S);
@@ -629,20 +629,20 @@ pub(crate) fn fheuint8_fused_mul_scalar_div_case<B: ExecutionBackend>(
 
     // (a * b) / div_scalar with widening; FheUint8 -> wide FheUint16.
     const DIV: u8 = 10;
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let l = b.input(ValueKind::FheUint(8)).unwrap();
     let r = b.input(ValueKind::FheUint(8)).unwrap();
     // ScalarValue::Unsigned holds u128; we feed via u32 (any unsigned works).
     let result = b.fhe_fused_mul_scalar_div(l, r, DIV as u128).unwrap();
     b.output(result).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     // Widened arithmetic prevents the mul from overflowing u8 before the div.
     for (a, c) in [(7u8, 9u8), (200, 200), (255, 255), (1, 1), (0, 200)] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint8::encrypt(a, ck));
         inputs.push(FheUint8::encrypt(c, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: u8 = outputs.get::<FheUint8>(0).decrypt(ck);
         let expected = ((a as u16 * c as u16) / DIV as u16) as u8;
         assert_eq!(dec, expected, "fused_mul_scalar_div({a}, {c}, /{DIV})");
@@ -658,18 +658,18 @@ pub(crate) fn fheuint8_fused_scalar_mul_scalar_div_case<B: ExecutionBackend>(
     // (v * MUL) / DIV with widening; FheUint8 -> FheUint16.
     const MUL: u8 = 7;
     const DIV: u8 = 3;
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheUint(8)).unwrap();
     let result = b
         .fhe_fused_scalar_mul_scalar_div(v, MUL as u128, DIV as u128)
         .unwrap();
     b.output(result).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     for a in [0u8, 1, 100, 200, 255] {
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint8::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: u8 = outputs.get::<FheUint8>(0).decrypt(ck);
         let expected = ((a as u16 * MUL as u16) / DIV as u16) as u8;
         assert_eq!(
@@ -692,7 +692,7 @@ fn check_int32_shift<B: ExecutionBackend, F, G, R>(
     edge_cases: &[(i32, u32)],
     rhs_sample: R,
 ) where
-    F: Fn(&mut CircuitBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
+    F: Fn(&mut ExecutionGraphBuilder, ValueId, ValueId) -> Result<ValueId, BuilderError>,
     G: Fn(i32, u32) -> i32,
     R: Fn(&mut ThreadRng) -> u32,
 {
@@ -702,7 +702,7 @@ fn check_int32_shift<B: ExecutionBackend, F, G, R>(
         cases.push((rng.gen(), rhs_sample(&mut rng)));
     }
 
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let mut inputs = CpuInputList::new();
     for &(a, c) in &cases {
         let lhs = b.input(ValueKind::FheInt(32)).unwrap();
@@ -712,8 +712,8 @@ fn check_int32_shift<B: ExecutionBackend, F, G, R>(
         inputs.push(FheInt32::encrypt(a, ck));
         inputs.push(FheUint32::encrypt(c, ck));
     }
-    let circuit = b.build().unwrap();
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let graph = b.build().unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
 
     for (i, &(a, c)) in cases.iter().enumerate() {
         let dec: i32 = outputs.get::<FheInt32>(i as u32).decrypt(ck);
@@ -729,18 +729,18 @@ pub(crate) fn cast_fheuint32_to_fheint32_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_cast(v, FheKind::Int(32)).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
         let a: u32 = rng.gen();
         let mut inputs = CpuInputList::new();
         inputs.push(FheUint32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         assert_eq!(dec, a as i32);
     }
@@ -750,31 +750,31 @@ pub(crate) fn cast_fheint32_to_fheuint32_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheInt(32)).unwrap();
     let r = b.fhe_cast(v, FheKind::Uint(32)).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
         let a: i32 = rng.gen();
         let mut inputs = CpuInputList::new();
         inputs.push(FheInt32::encrypt(a, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, a as u32);
     }
 }
 
 pub(crate) fn cmux_fheuint32_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     let if_true = b.input(ValueKind::FheUint(32)).unwrap();
     let if_false = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_select(cond, if_true, if_false).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -785,37 +785,37 @@ pub(crate) fn cmux_fheuint32_case<B: ExecutionBackend>(ck: &ClientKey, backend: 
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheUint32::encrypt(t, ck));
         inputs.push(FheUint32::encrypt(f, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, if c { t } else { f });
     }
 }
 
 pub(crate) fn oprf_fheuint32_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf(ValueKind::FheUint(32), seed).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(0));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let _dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
     // No bound to check — any u32 is valid. The fact that decryption succeeds
     // and the value typechecks as u32 is the test.
 }
 
 pub(crate) fn oprf_fheuint32_bounded_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf_bounded(ValueKind::FheUint(32), seed, 5).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(42));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
     assert!(dec < (1 << 5), "bounded result {dec} must be < 2^5");
 }
@@ -825,17 +825,17 @@ pub(crate) fn oprf_fheuint32_custom_range_case<B: ExecutionBackend>(
     backend: &mut B,
 ) {
     let upper = std::num::NonZeroU64::new(7).unwrap();
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b
         .oprf_custom_range(ValueKind::FheUint(32), seed, upper, None)
         .unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(123));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
     assert!(
         (dec as u64) < upper.get(),
@@ -844,29 +844,29 @@ pub(crate) fn oprf_fheuint32_custom_range_case<B: ExecutionBackend>(
 }
 
 pub(crate) fn oprf_fheint32_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf(ValueKind::FheInt(32), seed).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(7));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let _dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
     // Any i32 is valid.
 }
 
 pub(crate) fn oprf_fheint32_bounded_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf_bounded(ValueKind::FheInt(32), seed, 4).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(99));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
     // Signed bounded is uniform in [0, 2^bits).
     assert!(
@@ -876,37 +876,37 @@ pub(crate) fn oprf_fheint32_bounded_case<B: ExecutionBackend>(ck: &ClientKey, ba
 }
 
 pub(crate) fn oprf_fhebool_full_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let r = b.oprf(ValueKind::FheBool, seed).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(13));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let _dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     // Any bool is valid.
 }
 
 pub(crate) fn oprf_is_deterministic_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let build_circuit = || {
-        let mut b = CircuitBuilder::new();
+    let build_graph = || {
+        let mut b = ExecutionGraphBuilder::new();
         let seed = b.input(ValueKind::Seed).unwrap();
         let r = b.oprf_bounded(ValueKind::FheUint(32), seed, 8).unwrap();
         b.output(r).unwrap();
         b.build().unwrap()
     };
-    let circuit_a = build_circuit();
-    let circuit_b = build_circuit();
+    let graph_a = build_graph();
+    let graph_b = build_graph();
 
     let make_inputs = || {
         let mut inputs = CpuInputList::new();
         inputs.push_seed(Seed(2024));
         inputs
     };
-    let out_a = backend.execute(&circuit_a, make_inputs()).unwrap();
-    let out_b = backend.execute(&circuit_b, make_inputs()).unwrap();
+    let out_a = backend.execute(&graph_a, make_inputs()).unwrap();
+    let out_b = backend.execute(&graph_b, make_inputs()).unwrap();
 
     let dec_a: u32 = out_a.get::<FheUint32>(0).decrypt(ck);
     let dec_b: u32 = out_b.get::<FheUint32>(0).decrypt(ck);
@@ -917,13 +917,13 @@ pub(crate) fn select_fheuint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     let if_true = b.input(ValueKind::FheUint(32)).unwrap();
     const FALSE_SCALAR: u32 = 0xDEAD_BEEF;
     let r = b.fhe_select(cond, if_true, FALSE_SCALAR).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -932,7 +932,7 @@ pub(crate) fn select_fheuint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheUint32::encrypt(t, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, if c { t } else { FALSE_SCALAR });
     }
@@ -942,13 +942,13 @@ pub(crate) fn select_fheuint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     let if_false = b.input(ValueKind::FheUint(32)).unwrap();
     const TRUE_SCALAR: u32 = 0xCAFE_BABE;
     let r = b.fhe_select(cond, TRUE_SCALAR, if_false).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -957,7 +957,7 @@ pub(crate) fn select_fheuint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheUint32::encrypt(f, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, if c { TRUE_SCALAR } else { f });
     }
@@ -967,7 +967,7 @@ pub(crate) fn select_fheuint32_both_scalar_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     const TRUE_SCALAR: u32 = 0x1234_5678;
     const FALSE_SCALAR: u32 = 0x9ABC_DEF0;
@@ -975,14 +975,14 @@ pub(crate) fn select_fheuint32_both_scalar_case<B: ExecutionBackend>(
         .fhe_select_const(cond, TRUE_SCALAR, FALSE_SCALAR, FheIntKind::Uint(32))
         .unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
         let c: bool = rng.gen();
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, if c { TRUE_SCALAR } else { FALSE_SCALAR });
     }
@@ -992,13 +992,13 @@ pub(crate) fn select_fheint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     let if_true = b.input(ValueKind::FheInt(32)).unwrap();
     const FALSE_SCALAR: i32 = -123_456;
     let r = b.fhe_select(cond, if_true, FALSE_SCALAR).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -1007,7 +1007,7 @@ pub(crate) fn select_fheint32_then_fhe_else_scalar_case<B: ExecutionBackend>(
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheInt32::encrypt(t, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         assert_eq!(dec, if c { t } else { FALSE_SCALAR });
     }
@@ -1017,13 +1017,13 @@ pub(crate) fn select_fheint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     let if_false = b.input(ValueKind::FheInt(32)).unwrap();
     const TRUE_SCALAR: i32 = i32::MAX;
     let r = b.fhe_select(cond, TRUE_SCALAR, if_false).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -1032,7 +1032,7 @@ pub(crate) fn select_fheint32_then_scalar_else_fhe_case<B: ExecutionBackend>(
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
         inputs.push(FheInt32::encrypt(f, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         assert_eq!(dec, if c { TRUE_SCALAR } else { f });
     }
@@ -1042,7 +1042,7 @@ pub(crate) fn select_fheint32_both_scalar_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     const TRUE_SCALAR: i32 = i32::MIN;
     const FALSE_SCALAR: i32 = i32::MAX;
@@ -1050,28 +1050,28 @@ pub(crate) fn select_fheint32_both_scalar_case<B: ExecutionBackend>(
         .fhe_select_const(cond, TRUE_SCALAR, FALSE_SCALAR, FheIntKind::Int(32))
         .unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
         let c: bool = rng.gen();
         let mut inputs = CpuInputList::new();
         inputs.push(FheBool::encrypt(c, ck));
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
         assert_eq!(dec, if c { TRUE_SCALAR } else { FALSE_SCALAR });
     }
 }
 
 pub(crate) fn contains_fheuint32_found_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let needle = b.input(ValueKind::FheUint(32)).unwrap();
     let h0 = b.input(ValueKind::FheUint(32)).unwrap();
     let h1 = b.input(ValueKind::FheUint(32)).unwrap();
     let h2 = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_contains(&[h0, h1, h2], needle).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut rng = thread_rng();
     for _ in 0..NUM_RANDOM_TRIALS {
@@ -1083,7 +1083,7 @@ pub(crate) fn contains_fheuint32_found_case<B: ExecutionBackend>(ck: &ClientKey,
         for h in haystack {
             inputs.push(FheUint32::encrypt(h, ck));
         }
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
         assert!(dec, "needle {needle_val} should be in {haystack:?}");
     }
@@ -1093,40 +1093,40 @@ pub(crate) fn contains_fheuint32_not_found_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let needle = b.input(ValueKind::FheUint(32)).unwrap();
     let h0 = b.input(ValueKind::FheUint(32)).unwrap();
     let h1 = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_contains(&[h0, h1], needle).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     // Fixed haystack {10, 20}; query for 30.
     let mut inputs = CpuInputList::new();
     inputs.push(FheUint32::encrypt(30u32, ck));
     inputs.push(FheUint32::encrypt(10u32, ck));
     inputs.push(FheUint32::encrypt(20u32, ck));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     assert!(!dec, "30 should not be in {{10, 20}}");
 }
 
 pub(crate) fn contains_fheint32_found_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let needle = b.input(ValueKind::FheInt(32)).unwrap();
     let h0 = b.input(ValueKind::FheInt(32)).unwrap();
     let h1 = b.input(ValueKind::FheInt(32)).unwrap();
     let h2 = b.input(ValueKind::FheInt(32)).unwrap();
     let r = b.fhe_contains(&[h0, h1, h2], needle).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push(FheInt32::encrypt(-7i32, ck));
     inputs.push(FheInt32::encrypt(1i32, ck));
     inputs.push(FheInt32::encrypt(-7i32, ck));
     inputs.push(FheInt32::encrypt(42i32, ck));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     assert!(dec, "-7 should be in {{1, -7, 42}}");
 }
@@ -1135,20 +1135,20 @@ pub(crate) fn contains_scalar_fheuint32_found_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let h0 = b.input(ValueKind::FheUint(32)).unwrap();
     let h1 = b.input(ValueKind::FheUint(32)).unwrap();
     let h2 = b.input(ValueKind::FheUint(32)).unwrap();
     const NEEDLE: u32 = 0xDEAD_BEEF;
     let r = b.fhe_contains(&[h0, h1, h2], NEEDLE).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push(FheUint32::encrypt(0u32, ck));
     inputs.push(FheUint32::encrypt(NEEDLE, ck));
     inputs.push(FheUint32::encrypt(0xFFFFu32, ck));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     assert!(dec, "clear needle 0xDEADBEEF should be in haystack");
 }
@@ -1157,18 +1157,18 @@ pub(crate) fn contains_scalar_fheint32_not_found_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let h0 = b.input(ValueKind::FheInt(32)).unwrap();
     let h1 = b.input(ValueKind::FheInt(32)).unwrap();
     const NEEDLE: i32 = -99;
     let r = b.fhe_contains(&[h0, h1], NEEDLE).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     let mut inputs = CpuInputList::new();
     inputs.push(FheInt32::encrypt(1i32, ck));
     inputs.push(FheInt32::encrypt(2i32, ck));
-    let outputs = backend.execute(&circuit, inputs).unwrap();
+    let outputs = backend.execute(&graph, inputs).unwrap();
     let dec: bool = outputs.get::<FheBool>(0).decrypt(ck);
     assert!(!dec, "-99 should not be in {{1, 2}}");
 }
@@ -1177,12 +1177,12 @@ pub(crate) fn constant_op_round_trip_case<B: ExecutionBackend>(backend: &mut B) 
     // A standalone Constant op feeds straight into an Output of clear kind.
     // Validates: builder accepts clear-typed Output, executor materializes
     // RuntimeValue::ClearUint, scheduler passes it through unchanged.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let c = b.constant(42u32, ClearKind::Uint(32)).unwrap();
     b.output(c).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
-    let outputs = backend.execute(&circuit, CpuInputList::new()).unwrap();
+    let outputs = backend.execute(&graph, CpuInputList::new()).unwrap();
     match &outputs.outputs[0] {
         RuntimeValue::ClearUint(v) => assert_eq!(*v, 42),
         other => panic!("expected ClearUint(42), got {other:?}"),
@@ -1193,24 +1193,24 @@ pub(crate) fn runtime_clear_input_via_fhe_add_case<B: ExecutionBackend>(
     ck: &ClientKey,
     backend: &mut B,
 ) {
-    // Circuit with one FHE input + one runtime clear input, fed into
+    // ExecutionGraph with one FHE input + one runtime clear input, fed into
     // fhe_add. The clear value isn't baked into the IR — it flows through
     // the input list at execute time.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let fhe = b.input(ValueKind::FheUint(32)).unwrap();
     let clear = b.input(ValueKind::Uint(32)).unwrap();
     let r = b.fhe_add(fhe, clear).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     // Sanity check: the second arg of the FheScalarAdd op was *not* lowered
     // to a Constant — it must remain an Input-produced value.
     let mut found_scalar_add = false;
-    for op_ref in circuit.ir().walk_ops_linear() {
+    for op_ref in graph.ir().walk_ops_linear() {
         if let HlInstructionSet::FheScalarAdd { .. } = op_ref.get_instruction() {
             let args = op_ref.get_arg_valids();
-            assert_eq!(circuit.clear_value_at(args[1]), None);
-            assert!(!circuit.is_compile_time_constant(args[1]));
+            assert_eq!(graph.clear_value_at(args[1]), None);
+            assert!(!graph.is_compile_time_constant(args[1]));
             found_scalar_add = true;
         }
     }
@@ -1224,7 +1224,7 @@ pub(crate) fn runtime_clear_input_via_fhe_add_case<B: ExecutionBackend>(
         inputs.push(FheUint32::encrypt(a, ck));
         // `From<u32> for RuntimeValue` → `ClearUint(u128)`.
         inputs.push(c);
-        let outputs = backend.execute(&circuit, inputs).unwrap();
+        let outputs = backend.execute(&graph, inputs).unwrap();
         let dec: u32 = outputs.get::<FheUint32>(0).decrypt(ck);
         assert_eq!(dec, a.wrapping_add(c), "fhe_add({a}, {c}) = {dec}");
     }

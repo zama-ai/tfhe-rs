@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use super::value::RuntimeValue;
-use crate::circuit::dialects::hlapi::{
+use crate::graph::dialects::hlapi::{
     ClearKind, FheIntKind, FheKind, HlInstructionSet, NonNanF64, OprfMode, ScalarValue, ValueKind,
 };
 use crate::high_level_api::integers::oprf::num_input_random_bits_for_max_distance;
@@ -14,7 +14,7 @@ use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
 /// modulus. Integer-layer APIs take block counts as `usize`.
 ///
 /// The division is strict: `bits` must be a multiple of the bits per block.
-/// The builder and `CpuBackend::check_circuit_compatibility` guarantee this,
+/// The builder and `CpuBackend::check_graph_compatibility` guarantee this,
 /// so a non-aligned width here means an invariant was broken upstream.
 /// Rounding would silently change the value's modulus (e.g. a 3-bit width
 /// executed as 4 bits under 2_2 parameters), so panic instead; the worker's
@@ -396,7 +396,7 @@ pub(super) fn exec_dialect_op(
     // Fast path: the mutating op is the sole owner of the store version
     // (the builder's use-after-move rule plus the executor's `waiter_of_op`
     // barrier make this the common case). The Arc can still be shared when
-    // the same store version is also a circuit output (`program_outputs`
+    // the same store version is also a graph output (`program_outputs`
     // keeps a reference for the whole run); cloning then preserves the
     // output's snapshot while this op mutates its own copy.
     fn take_store(store_arc: Arc<RuntimeValue>) -> RuntimeValue {

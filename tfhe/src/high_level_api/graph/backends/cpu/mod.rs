@@ -1,4 +1,4 @@
-//! CPU backend for circuit execution
+//! CPU backend for graph execution
 mod ops;
 mod scheduler;
 #[cfg(test)]
@@ -9,11 +9,11 @@ pub use value::{
     CpuInputList, CpuOutputError, CpuOutputList, RuntimeValue, RuntimeValueConversionError,
 };
 
-use crate::circuit::dialects::hlapi::{FheIntKind, KvKeyKind, ValueKind};
-use crate::circuit::Circuit;
+use crate::graph::dialects::hlapi::{FheIntKind, KvKeyKind, ValueKind};
+use crate::graph::ExecutionGraph;
 use std::num::NonZeroUsize;
 
-/// Circuit executor that executes a circuit on the CPU
+/// ExecutionGraph executor that executes a graph on the CPU
 ///
 /// # Parallelism
 ///
@@ -28,7 +28,7 @@ use std::num::NonZeroUsize;
 pub struct CpuBackend {
     pub(crate) sk: crate::ServerKey,
     /// Upper bound on the number of ops executed concurrently (one worker
-    /// thread each). The actual number used depends on the circuit: it may
+    /// thread each). The actual number used depends on the graph: it may
     /// be less than this, but never greater. See the type-level doc for what
     /// this does and doesn't bound.
     pub(crate) max_num_workers: NonZeroUsize,
@@ -41,7 +41,7 @@ impl CpuBackend {
     /// This is a heuristic for how many ops to keep in flight, not a
     /// reservation of cores: ops use rayon internally and are free to use
     /// every core (see the type-level doc). The actual worker count per
-    /// execution is further capped by `circuit.max_concurrent_ops()`.
+    /// execution is further capped by `graph.max_concurrent_ops()`.
     pub fn new(sk: crate::ServerKey) -> Self {
         let cpu_threads = std::thread::available_parallelism().map_or(4, NonZeroUsize::get);
         let max = NonZeroUsize::new(cpu_threads.saturating_sub(1)).unwrap_or(NonZeroUsize::MIN);
@@ -60,20 +60,20 @@ impl CpuBackend {
         }
     }
 
-    /// Resolve the worker count for a given circuit
+    /// Resolve the worker count for a given graph
     ///
-    /// Take the structural width of the circuit, clamped to the configured maximum
-    fn pick_num_workers(&self, circuit: &Circuit) -> usize {
+    /// Take the structural width of the graph, clamped to the configured maximum
+    fn pick_num_workers(&self, graph: &ExecutionGraph) -> usize {
         self.max_num_workers
             .get()
-            .min(circuit.max_concurrent_ops() as usize)
+            .min(graph.max_concurrent_ops() as usize)
             .max(1)
     }
 
-    /// Check that every integer value width in `circuit` is representable
+    /// Check that every integer value width in `graph` is representable
     /// with this backend's radix encoding, i.e. a non-zero multiple of the
     /// server key's message bits per block.
-    pub fn check_circuit_compatibility(&self, circuit: &Circuit) -> Result<(), CpuError> {
+    pub fn check_graph_compatibility(&self, graph: &ExecutionGraph) -> Result<(), CpuError> {
         let message_bits = u64::from(self.sk.message_modulus().0.ilog2());
         let check = |bits: u64| {
             if bits == 0 || !bits.is_multiple_of(message_bits) {
@@ -82,7 +82,7 @@ impl CpuBackend {
                 Ok(())
             }
         };
-        for val in circuit.ir().walk_vals_linear() {
+        for val in graph.ir().walk_vals_linear() {
             match val.get_type() {
                 ValueKind::FheUint(n) | ValueKind::FheInt(n) => check(u64::from(n))?,
                 ValueKind::KVStore { key: _, value } => {
@@ -103,16 +103,16 @@ impl super::ExecutionBackend for CpuBackend {
 
     fn execute(
         &mut self,
-        circuit: &Circuit,
+        graph: &ExecutionGraph,
         inputs: CpuInputList,
     ) -> Result<CpuOutputList, Self::Error> {
-        self.check_circuit_compatibility(circuit)?;
-        let n = self.pick_num_workers(circuit);
-        scheduler::execute_circuit(&self.sk, circuit, inputs, n)
+        self.check_graph_compatibility(graph)?;
+        let n = self.pick_num_workers(graph);
+        scheduler::execute_graph(&self.sk, graph, inputs, n)
     }
 }
 
-/// Possible errors when executing a circuit on CPU
+/// Possible errors when executing a graph on CPU
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum CpuError {
@@ -144,7 +144,7 @@ pub enum CpuError {
         got_message_modulus: crate::shortint::MessageModulus,
         got_carry_modulus: crate::shortint::CarryModulus,
     },
-    /// The circuit contains an integer value whose bit-width is not
+    /// The graph contains an integer value whose bit-width is not
     /// representable with this backend's radix encoding (not a non-zero
     /// multiple of the key's message bits per block).
     UnsupportedBitWidth {
@@ -200,7 +200,7 @@ impl std::fmt::Display for CpuError {
             ),
             Self::UnsupportedBitWidth { bits, message_bits } => write!(
                 f,
-                "circuit contains a {bits}-bit integer value, which is not representable \
+                "graph contains a {bits}-bit integer value, which is not representable \
                  with this key's radix encoding ({message_bits} message bits per block)"
             ),
             Self::ExecutionError {

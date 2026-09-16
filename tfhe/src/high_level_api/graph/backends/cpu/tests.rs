@@ -3,12 +3,12 @@
 //! These are the CPU `#[test]` entry points: each builds a `cpu_backend()` and
 //! calls a backend-generic case in [`super::test_cases`], plus builder-only
 //! (no-execution) error/shape tests that don't need a backend.
-use crate::circuit::backends::cpu::{CpuBackend, CpuInputList};
-use crate::circuit::backends::ExecutionBackend;
-use crate::circuit::dialects::hlapi::{FheIntKind, FheKind};
-use crate::circuit::{
-    BuilderError, BuilderErrorKind, CircuitBuilder, ClearKind, HlInstructionSet, KvKey, KvKeyKind,
-    OprfMode, ScalarValue, ValueKind,
+use crate::graph::backends::cpu::{CpuBackend, CpuInputList};
+use crate::graph::backends::ExecutionBackend;
+use crate::graph::dialects::hlapi::{FheIntKind, FheKind};
+use crate::graph::{
+    BuilderError, BuilderErrorKind, ClearKind, ExecutionGraphBuilder, HlInstructionSet, KvKey,
+    KvKeyKind, OprfMode, ScalarValue, ValueKind,
 };
 use crate::prelude::*;
 use crate::{
@@ -631,8 +631,8 @@ fn fheuint32_scalar_rotate_right() {
 // KVStore — builder-error paths (no executor, no keygen)
 // ============================================================
 
-fn new_bld() -> CircuitBuilder {
-    CircuitBuilder::new()
+fn new_bld() -> ExecutionGraphBuilder {
+    ExecutionGraphBuilder::new()
 }
 
 #[test]
@@ -844,9 +844,9 @@ fn output_accepts_computed_clear_bool() {
 
 #[test]
 fn test_kv_store() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
 
-    // Circuit inputs (real ciphertexts pushed at runtime by the client).
+    // ExecutionGraph inputs (real ciphertexts pushed at runtime by the client).
     let in_a = bld.input(ValueKind::FheUint(8)).unwrap(); // value at clear key 1
     let in_b = bld.input(ValueKind::FheUint(8)).unwrap(); // value at clear key 2
     let in_ka = bld.input(ValueKind::FheUint(32)).unwrap(); // encrypted key 1
@@ -885,7 +885,7 @@ fn test_kv_store() {
     bld.output(val_b_after).unwrap(); // 7
     bld.output(present_b_after).unwrap(); // 8
 
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
 
@@ -903,7 +903,7 @@ fn test_kv_store() {
     inputs.push(FheUint8::encrypt(na, &cks));
 
     let mut cpu = CpuBackend::new(sks);
-    let outputs = cpu.execute(&circuit, inputs).unwrap();
+    let outputs = cpu.execute(&graph, inputs).unwrap();
 
     let val_a_before: u8 = outputs.get::<FheUint8>(0).decrypt(&cks);
     let present_a_before: bool = outputs.get::<FheBool>(1).decrypt(&cks);
@@ -942,7 +942,7 @@ fn test_kv_store() {
 
 #[test]
 fn test_kv_store_get_missing_encrypted_key() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
     let in_v = bld.input(ValueKind::FheUint(8)).unwrap();
     let in_ek_missing = bld.input(ValueKind::FheUint(32)).unwrap();
     let store = bld
@@ -954,13 +954,13 @@ fn test_kv_store_get_missing_encrypted_key() {
     let (val, present) = bld.kv_store_get(store, in_ek_missing).unwrap();
     bld.output(val).unwrap();
     bld.output(present).unwrap();
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
     inputs.push(FheUint8::encrypt(42u8, &cks));
     inputs.push(FheUint32::encrypt(99u32, &cks)); // not in store
-    let outputs = CpuBackend::new(sks).execute(&circuit, inputs).unwrap();
+    let outputs = CpuBackend::new(sks).execute(&graph, inputs).unwrap();
 
     let val: u8 = outputs.get::<FheUint8>(0).decrypt(&cks);
     let present: bool = outputs.get::<FheBool>(1).decrypt(&cks);
@@ -973,7 +973,7 @@ fn test_kv_store_get_missing_encrypted_key() {
 
 #[test]
 fn test_kv_store_get_with_clear_key_paths() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
     let in_v = bld.input(ValueKind::FheUint(8)).unwrap();
     let store = bld
         .kv_store_create(KvKeyKind::U32, FheIntKind::Uint(8))
@@ -993,12 +993,12 @@ fn test_kv_store_get_with_clear_key_paths() {
     bld.output(present_hit).unwrap(); // 1 — ClearBool
     bld.output(val_miss).unwrap(); // 2
     bld.output(present_miss).unwrap(); // 3 — ClearBool
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
     inputs.push(FheUint8::encrypt(55u8, &cks));
-    let outputs = CpuBackend::new(sks).execute(&circuit, inputs).unwrap();
+    let outputs = CpuBackend::new(sks).execute(&graph, inputs).unwrap();
 
     let val_hit: u8 = outputs.get::<FheUint8>(0).decrypt(&cks);
     let present_hit: bool = outputs.get_untagged::<bool>(1); // ClearBool: no decrypt needed
@@ -1013,7 +1013,7 @@ fn test_kv_store_get_with_clear_key_paths() {
 
 #[test]
 fn test_kv_store_remove() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
     let in_a = bld.input(ValueKind::FheUint(8)).unwrap();
     let in_b = bld.input(ValueKind::FheUint(8)).unwrap();
     let in_ka = bld.input(ValueKind::FheUint(32)).unwrap();
@@ -1038,7 +1038,7 @@ fn test_kv_store_remove() {
     bld.output(present_a).unwrap(); // 1
     bld.output(val_b).unwrap(); // 2
     bld.output(present_b).unwrap(); // 3
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
@@ -1046,7 +1046,7 @@ fn test_kv_store_remove() {
     inputs.push(FheUint8::encrypt(22u8, &cks));
     inputs.push(FheUint32::encrypt(1u32, &cks));
     inputs.push(FheUint32::encrypt(2u32, &cks));
-    let outputs = CpuBackend::new(sks).execute(&circuit, inputs).unwrap();
+    let outputs = CpuBackend::new(sks).execute(&graph, inputs).unwrap();
 
     let val_a: u8 = outputs.get::<FheUint8>(0).decrypt(&cks);
     let present_a: bool = outputs.get::<FheBool>(1).decrypt(&cks);
@@ -1061,7 +1061,7 @@ fn test_kv_store_remove() {
 
 #[test]
 fn test_kv_store_update_missing_key() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
     let in_orig = bld.input(ValueKind::FheUint(8)).unwrap();
     let in_new = bld.input(ValueKind::FheUint(8)).unwrap();
     let in_ek_missing = bld.input(ValueKind::FheUint(32)).unwrap();
@@ -1078,7 +1078,7 @@ fn test_kv_store_update_missing_key() {
     bld.output(present_update).unwrap(); // 0
     bld.output(val_after).unwrap(); // 1
     bld.output(present_after).unwrap(); // 2
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
@@ -1086,7 +1086,7 @@ fn test_kv_store_update_missing_key() {
     inputs.push(FheUint8::encrypt(99u8, &cks)); // attempted new value
     inputs.push(FheUint32::encrypt(999u32, &cks)); // missing key
     inputs.push(FheUint32::encrypt(5u32, &cks)); // present key
-    let outputs = CpuBackend::new(sks).execute(&circuit, inputs).unwrap();
+    let outputs = CpuBackend::new(sks).execute(&graph, inputs).unwrap();
 
     let present_update: bool = outputs.get::<FheBool>(0).decrypt(&cks);
     let val_after: u8 = outputs.get::<FheUint8>(1).decrypt(&cks);
@@ -1105,7 +1105,7 @@ fn test_kv_store_update_missing_key() {
 
 #[test]
 fn test_kv_store_signed_end_to_end() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
     let in_a = bld.input(ValueKind::FheInt(8)).unwrap();
     let in_b = bld.input(ValueKind::FheInt(8)).unwrap();
     let in_new = bld.input(ValueKind::FheInt(8)).unwrap();
@@ -1129,7 +1129,7 @@ fn test_kv_store_signed_end_to_end() {
     bld.output(present_update).unwrap(); // 1
     bld.output(val_a_after).unwrap(); // 2
     bld.output(val_b_after).unwrap(); // 3
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let a: i8 = -42;
@@ -1141,7 +1141,7 @@ fn test_kv_store_signed_end_to_end() {
     inputs.push(FheInt8::encrypt(new_val, &cks));
     inputs.push(FheUint32::encrypt(1u32, &cks));
     inputs.push(FheUint32::encrypt(2u32, &cks));
-    let outputs = CpuBackend::new(sks).execute(&circuit, inputs).unwrap();
+    let outputs = CpuBackend::new(sks).execute(&graph, inputs).unwrap();
 
     let val_a_before: i8 = outputs.get::<FheInt8>(0).decrypt(&cks);
     let present_update: bool = outputs.get::<FheBool>(1).decrypt(&cks);
@@ -1165,7 +1165,7 @@ fn test_kv_store_signed_end_to_end() {
 
 #[test]
 fn test_kv_store_signed_get_missing() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
     let in_v = bld.input(ValueKind::FheInt(8)).unwrap();
     let in_ek_missing = bld.input(ValueKind::FheUint(32)).unwrap();
     let store = bld
@@ -1177,13 +1177,13 @@ fn test_kv_store_signed_get_missing() {
     let (val, present) = bld.kv_store_get(store, in_ek_missing).unwrap();
     bld.output(val).unwrap();
     bld.output(present).unwrap();
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
     inputs.push(FheInt8::encrypt(-5i8, &cks));
     inputs.push(FheUint32::encrypt(99u32, &cks));
-    let outputs = CpuBackend::new(sks).execute(&circuit, inputs).unwrap();
+    let outputs = CpuBackend::new(sks).execute(&graph, inputs).unwrap();
 
     let val: i8 = outputs.get::<FheInt8>(0).decrypt(&cks);
     let present: bool = outputs.get::<FheBool>(1).decrypt(&cks);
@@ -1192,7 +1192,7 @@ fn test_kv_store_signed_get_missing() {
 }
 
 // ============================================================
-// OPRF (oblivious pseudo-random) — circuit wiring of the FheOprf op
+// OPRF (oblivious pseudo-random) — graph wiring of the FheOprf op
 // ============================================================
 
 #[test]
@@ -1217,7 +1217,7 @@ fn oprf_fheuint32_custom_range() {
 fn oprf_power_of_two_custom_range_uses_bounded_mode() {
     let upper = std::num::NonZeroU64::new(8).unwrap();
     let singleton_upper = std::num::NonZeroU64::new(1).unwrap();
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let result = b
         .oprf_custom_range(ValueKind::FheUint(32), seed, upper, Some(0.5))
@@ -1227,16 +1227,16 @@ fn oprf_power_of_two_custom_range_uses_bounded_mode() {
         .unwrap();
     b.output(result).unwrap();
     b.output(singleton).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
-    assert!(circuit.ir().walk_ops_topological().any(|op| matches!(
+    assert!(graph.ir().walk_ops_topological().any(|op| matches!(
         op.get_instruction(),
         HlInstructionSet::FheOprf {
             mode: OprfMode::Bounded { bits: 3 },
             ..
         }
     )));
-    assert!(circuit.ir().walk_ops_topological().any(|op| matches!(
+    assert!(graph.ir().walk_ops_topological().any(|op| matches!(
         op.get_instruction(),
         HlInstructionSet::FheOprf {
             mode: OprfMode::Bounded { bits: 0 },
@@ -1247,7 +1247,7 @@ fn oprf_power_of_two_custom_range_uses_bounded_mode() {
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut inputs = CpuInputList::new();
     inputs.push_seed(Seed(42));
-    let outputs = CpuBackend::new(sks).execute(&circuit, inputs).unwrap();
+    let outputs = CpuBackend::new(sks).execute(&graph, inputs).unwrap();
     let decrypted: u32 = outputs.get::<FheUint32>(0).decrypt(&cks);
     assert!(decrypted < upper.get() as u32);
     let singleton_decrypted: u32 = outputs.get::<FheUint32>(1).decrypt(&cks);
@@ -1256,7 +1256,7 @@ fn oprf_power_of_two_custom_range_uses_bounded_mode() {
 
 #[test]
 fn oprf_custom_range_rejects_upper_bound_that_does_not_fit() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let upper = std::num::NonZeroU64::new(257).unwrap();
     let err = b
@@ -1302,7 +1302,7 @@ fn oprf_is_deterministic() {
 
 #[test]
 fn oprf_rejects_custom_range_on_signed() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let upper = std::num::NonZeroU64::new(5).unwrap();
     let err = b
@@ -1325,7 +1325,7 @@ fn oprf_rejects_custom_range_on_signed() {
 
 #[test]
 fn oprf_rejects_bounded_on_bool() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let err = b.oprf_bounded(ValueKind::FheBool, seed, 3).unwrap_err();
     assert!(
@@ -1345,7 +1345,7 @@ fn oprf_rejects_bounded_on_bool() {
 
 #[test]
 fn oprf_rejects_custom_range_on_bool() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let upper = std::num::NonZeroU64::new(5).unwrap();
     let err = b
@@ -1368,7 +1368,7 @@ fn oprf_rejects_custom_range_on_bool() {
 
 #[test]
 fn oprf_rejects_nan_max_distance() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let seed = b.input(ValueKind::Seed).unwrap();
     let upper = std::num::NonZeroU64::new(5).unwrap();
     let err = b
@@ -1428,7 +1428,7 @@ fn select_fheint32_both_scalar() {
 
 #[test]
 fn fhe_select_rejects_unsupported_operand_combination() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     let err = b.fhe_select(cond, 1u32, 2u32).unwrap_err();
     assert!(
@@ -1445,7 +1445,7 @@ fn fhe_select_rejects_unsupported_operand_combination() {
 
 #[test]
 fn fhe_select_const_rejects_invalid_scalar() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     // The first value is valid but the second does not fit `FheUint(32)`.
     // Validation must happen before either Constant is emitted.
@@ -1475,7 +1475,7 @@ fn fhe_cast_rejects_integer_to_bool() {
     // Like Rust's `as` and the regular HLAPI, integer -> bool is not a cast:
     // users must write `fhe_ne(value, 0)` explicitly.
     for kind in [ValueKind::FheUint(32), ValueKind::FheInt(32)] {
-        let mut b = CircuitBuilder::new();
+        let mut b = ExecutionGraphBuilder::new();
         let v = b.input(kind).unwrap();
         let err = b.fhe_cast(v, FheKind::Bool).unwrap_err();
         assert!(
@@ -1501,7 +1501,7 @@ fn fhe_cast_rejects_integer_to_bool() {
     }
 
     // Bool -> bool is a no-op, bool -> integer is still allowed.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let v = b.input(ValueKind::FheBool).unwrap();
     assert_eq!(b.fhe_cast(v, FheKind::Bool).unwrap(), v);
     b.fhe_cast(v, FheKind::Uint(32)).unwrap();
@@ -1510,7 +1510,7 @@ fn fhe_cast_rejects_integer_to_bool() {
 
 #[test]
 fn fhe_select_rejects_invalid_condition_without_mutation() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheUint(32)).unwrap();
     let value = b.input(ValueKind::FheUint(32)).unwrap();
     let err = b.fhe_select(cond, value, 1u32).unwrap_err();
@@ -1531,7 +1531,7 @@ fn fhe_select_rejects_invalid_condition_without_mutation() {
 
 #[test]
 fn fhe_flip_reports_unsupported_mixed_operands() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let cond = b.input(ValueKind::FheBool).unwrap();
     let value = b.input(ValueKind::FheUint(32)).unwrap();
     let err = b.fhe_flip(cond, value, 1u32).unwrap_err();
@@ -1581,7 +1581,7 @@ fn contains_scalar_fheint32_not_found() {
 #[test]
 fn contains_rejects_non_int_haystack() {
     // FheBool is not an FheIntKind; fhe_contains must reject it.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let needle = b.input(ValueKind::FheBool).unwrap();
     let h0 = b.input(ValueKind::FheBool).unwrap();
     let err = b.fhe_contains(&[h0], needle).unwrap_err();
@@ -1599,7 +1599,7 @@ fn contains_rejects_non_int_haystack() {
 
 #[test]
 fn contains_rejects_invalid_scalar_needle() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let h0 = b.input(ValueKind::FheUint(32)).unwrap();
     // -1i32 doesn't fit in FheUint(32) and normalize_for refuses to coerce.
     let err = b.fhe_contains(&[h0], -1i32).unwrap_err();
@@ -1617,7 +1617,7 @@ fn contains_rejects_invalid_scalar_needle() {
 
 #[test]
 fn contains_errors_on_empty_haystack() {
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let needle = b.input(ValueKind::FheUint(32)).unwrap();
     let err = b.fhe_contains(&[], needle).unwrap_err();
     assert!(
@@ -1633,34 +1633,34 @@ fn contains_errors_on_empty_haystack() {
 }
 
 // ============================================================
-// Circuit::max_concurrent_ops (ASAP DAG width)
+// ExecutionGraph::max_concurrent_ops (ASAP DAG width)
 // ============================================================
 
 #[test]
-fn max_concurrent_ops_empty_circuit() {
-    let b = CircuitBuilder::new();
-    let circuit = b.build().unwrap();
-    // Empty circuits return the floor of 1 (one worker is always sensible).
-    assert_eq!(circuit.max_concurrent_ops(), 1);
+fn max_concurrent_ops_empty_graph() {
+    let b = ExecutionGraphBuilder::new();
+    let graph = b.build().unwrap();
+    // Empty graphs return the floor of 1 (one worker is always sensible).
+    assert_eq!(graph.max_concurrent_ops(), 1);
 }
 
 #[test]
 fn max_concurrent_ops_linear_chain() {
     // a -> add1 -> add2 -> add3 -> output: width = 1 throughout.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let a = b.input(ValueKind::FheUint(32)).unwrap();
     let r1 = b.fhe_add(a, 1u32).unwrap();
     let r2 = b.fhe_add(r1, 2u32).unwrap();
     let r3 = b.fhe_add(r2, 3u32).unwrap();
     b.output(r3).unwrap();
-    let circuit = b.build().unwrap();
-    assert_eq!(circuit.max_concurrent_ops(), 1);
+    let graph = b.build().unwrap();
+    assert_eq!(graph.max_concurrent_ops(), 1);
 }
 
 #[test]
 fn max_concurrent_ops_wide_layer() {
     // a -> {add1, add2, add3, add4} -> sum -> output: 4 ops at level 1.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let a = b.input(ValueKind::FheUint(32)).unwrap();
     let r1 = b.fhe_add(a, 1u32).unwrap();
     let r2 = b.fhe_add(a, 2u32).unwrap();
@@ -1668,21 +1668,21 @@ fn max_concurrent_ops_wide_layer() {
     let r4 = b.fhe_add(a, 4u32).unwrap();
     let s = b.fhe_sum(&[r1, r2, r3, r4]).unwrap();
     b.output(s).unwrap();
-    let circuit = b.build().unwrap();
-    assert_eq!(circuit.max_concurrent_ops(), 4);
+    let graph = b.build().unwrap();
+    assert_eq!(graph.max_concurrent_ops(), 4);
 }
 
 #[test]
 fn max_concurrent_ops_diamond() {
     // a -> {add1, add2} -> mul -> output: width = 2 at level 1, then 1.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let a = b.input(ValueKind::FheUint(32)).unwrap();
     let l = b.fhe_add(a, 1u32).unwrap();
     let r = b.fhe_add(a, 2u32).unwrap();
     let m = b.fhe_mul(l, r).unwrap();
     b.output(m).unwrap();
-    let circuit = b.build().unwrap();
-    assert_eq!(circuit.max_concurrent_ops(), 2);
+    let graph = b.build().unwrap();
+    assert_eq!(graph.max_concurrent_ops(), 2);
 }
 
 #[test]
@@ -1690,11 +1690,11 @@ fn max_concurrent_ops_input_output_only() {
     // Pure pass-through: one input, one output, no compute ops.
     // Input/Output are coordinator-handled; width of "compute" is 0,
     // floored to 1.
-    let mut b = CircuitBuilder::new();
+    let mut b = ExecutionGraphBuilder::new();
     let a = b.input(ValueKind::FheUint(32)).unwrap();
     b.output(a).unwrap();
-    let circuit = b.build().unwrap();
-    assert_eq!(circuit.max_concurrent_ops(), 1);
+    let graph = b.build().unwrap();
+    assert_eq!(graph.max_concurrent_ops(), 1);
 }
 
 // ============================================================
@@ -1711,29 +1711,29 @@ fn constant_op_round_trip() {
 fn clear_value_at_recognizes_literal_in_polymorphic_add() {
     // After `b.fhe_add(fhe_input, 7u32)`, the second operand of the
     // FheScalarAdd op should be a Constant whose value is recoverable via
-    // Circuit::clear_value_at. An Input-produced operand should return None.
-    let mut b = CircuitBuilder::new();
+    // ExecutionGraph::clear_value_at. An Input-produced operand should return None.
+    let mut b = ExecutionGraphBuilder::new();
     let a = b.input(ValueKind::FheUint(32)).unwrap();
     let r = b.fhe_add(a, 7u32).unwrap();
     b.output(r).unwrap();
-    let circuit = b.build().unwrap();
+    let graph = b.build().unwrap();
 
     // Walk the IR to find the FheScalarAdd op and check its operands.
-    let ir = circuit.ir();
+    let ir = graph.ir();
     let mut checked = false;
     for op_ref in ir.walk_ops_linear() {
         if let HlInstructionSet::FheScalarAdd { .. } = op_ref.get_instruction() {
             let args = op_ref.get_arg_valids();
             assert_eq!(args.len(), 2, "FheScalarAdd takes (fhe, clear)");
             // First operand is the FHE input — not a constant.
-            assert_eq!(circuit.clear_value_at(args[0]), None);
-            assert!(!circuit.is_compile_time_constant(args[0]));
+            assert_eq!(graph.clear_value_at(args[0]), None);
+            assert!(!graph.is_compile_time_constant(args[0]));
             // Second operand is the Constant(7).
             assert_eq!(
-                circuit.clear_value_at(args[1]),
+                graph.clear_value_at(args[1]),
                 Some(ScalarValue::Unsigned(7))
             );
-            assert!(circuit.is_compile_time_constant(args[1]));
+            assert!(graph.is_compile_time_constant(args[1]));
             checked = true;
         }
     }
@@ -1775,7 +1775,7 @@ fn kvstore_output_after_move_is_rejected() {
 
 #[test]
 fn test_kv_store_output_then_mutate() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
 
     let in_v = bld.input(ValueKind::FheUint(8)).unwrap();
     let in_k = bld.input(ValueKind::FheUint(32)).unwrap();
@@ -1798,7 +1798,7 @@ fn test_kv_store_output_then_mutate() {
     bld.output(val).unwrap(); // 1
     bld.output(present).unwrap(); // 2
 
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
 
@@ -1809,7 +1809,7 @@ fn test_kv_store_output_then_mutate() {
     inputs.push(FheUint32::encrypt(2u32, &cks));
 
     let mut cpu = CpuBackend::new(sks);
-    let outputs = cpu.execute(&circuit, inputs).unwrap();
+    let outputs = cpu.execute(&graph, inputs).unwrap();
 
     let val: u8 = outputs.get::<FheUint8>(1).decrypt(&cks);
     let present: bool = outputs.get::<FheBool>(2).decrypt(&cks);
@@ -2058,12 +2058,12 @@ fn shift_rejects_negative_scalar_amount_on_signed() {
 
 #[test]
 fn test_outputs_carry_server_key_tag() {
-    let mut bld = CircuitBuilder::new();
+    let mut bld = ExecutionGraphBuilder::new();
     let a = bld.input(ValueKind::FheUint(32)).unwrap();
     let b = bld.input(ValueKind::FheUint(32)).unwrap();
     let sum = bld.fhe_add(a, b).unwrap();
     bld.output(sum).unwrap();
-    let circuit = bld.build().unwrap();
+    let graph = bld.build().unwrap();
 
     let (cks, mut sks) = generate_keys(ConfigBuilder::default());
     sks.tag_mut().set_u64(0xDEAD);
@@ -2073,7 +2073,7 @@ fn test_outputs_carry_server_key_tag() {
     inputs.push(FheUint32::encrypt(2u32, &cks));
 
     let mut cpu = CpuBackend::new(sks);
-    let outputs = cpu.execute(&circuit, inputs).unwrap();
+    let outputs = cpu.execute(&graph, inputs).unwrap();
 
     assert_eq!(outputs.tag().as_u64(), 0xDEAD);
     let r: FheUint32 = outputs.get(0);
@@ -2087,13 +2087,13 @@ fn test_outputs_carry_server_key_tag() {
 }
 
 // ============================================================
-// KVStore across the circuit boundary (output → HL type → input)
+// KVStore across the graph boundary (output → HL type → input)
 // ============================================================
 
 #[test]
-fn test_kv_store_across_circuit_boundary() {
-    // Circuit A: build a store with one entry and output it.
-    let mut bld = CircuitBuilder::new();
+fn test_kv_store_across_graph_boundary() {
+    // ExecutionGraph A: build a store with one entry and output it.
+    let mut bld = ExecutionGraphBuilder::new();
     let in_v = bld.input(ValueKind::FheUint(8)).unwrap();
     let store = bld
         .kv_store_create(KvKeyKind::U32, FheIntKind::Uint(8))
@@ -2102,10 +2102,10 @@ fn test_kv_store_across_circuit_boundary() {
         .kv_store_insert_with_clear_key(store, KvKey::U32(7), in_v)
         .unwrap();
     bld.output(store).unwrap();
-    let circuit_a = bld.build().unwrap();
+    let graph_a = bld.build().unwrap();
 
-    // Circuit B: take a store as input, get with an encrypted key.
-    let mut bld = CircuitBuilder::new();
+    // ExecutionGraph B: take a store as input, get with an encrypted key.
+    let mut bld = ExecutionGraphBuilder::new();
     let store_in = bld
         .input(ValueKind::KVStore {
             key: KvKeyKind::U32,
@@ -2116,7 +2116,7 @@ fn test_kv_store_across_circuit_boundary() {
     let (val, present) = bld.kv_store_get(store_in, in_ek).unwrap();
     bld.output(val).unwrap(); // 0
     bld.output(present).unwrap(); // 1
-    let circuit_b = bld.build().unwrap();
+    let graph_b = bld.build().unwrap();
 
     let (cks, sks) = generate_keys(ConfigBuilder::default());
     let mut cpu = CpuBackend::new(sks);
@@ -2124,7 +2124,7 @@ fn test_kv_store_across_circuit_boundary() {
 
     let mut inputs = CpuInputList::new();
     inputs.push(FheUint8::encrypt(v, &cks));
-    let outputs = cpu.execute(&circuit_a, inputs).unwrap();
+    let outputs = cpu.execute(&graph_a, inputs).unwrap();
 
     // Retrieve as a classic HL KVStore between executions.
     let hl_store: crate::KVStore<u32, FheUint8> = outputs.try_get(0).unwrap();
@@ -2138,17 +2138,17 @@ fn test_kv_store_across_circuit_boundary() {
         "retrieving an 8-bit store as 32-bit should fail"
     );
 
-    // Feed the store back into circuit B.
+    // Feed the store back into graph B.
     let mut inputs = CpuInputList::new();
     inputs.push(hl_store);
     inputs.push(FheUint32::encrypt(7u32, &cks));
-    let outputs = cpu.execute(&circuit_b, inputs).unwrap();
+    let outputs = cpu.execute(&graph_b, inputs).unwrap();
 
     let got: u8 = outputs.get::<FheUint8>(0).decrypt(&cks);
     let present: bool = outputs.get::<FheBool>(1).decrypt(&cks);
     assert_eq!(
         got, v,
-        "value stored in circuit A should be readable in circuit B"
+        "value stored in graph A should be readable in graph B"
     );
     assert!(present);
 }

@@ -68,8 +68,8 @@ where
 /// The store itself also carries a [`Tag`], accessible via the
 /// [`Tagged`](crate::prelude::Tagged) trait. It is set from the currently set
 /// server key when the store is created or decompressed (and defaults when no
-/// key is set); the experimental circuit API stamps it with the executing
-/// server key's tag when a store is retrieved from a circuit's outputs.
+/// key is set); the experimental graph API stamps it with the executing
+/// server key's tag when a store is retrieved from a graph's outputs.
 pub struct KVStore<Key, T>
 where
     T: FheIntegerType,
@@ -105,8 +105,8 @@ where
     }
 }
 
-// Only used by the experimental circuit API (KVStore circuit inputs/outputs).
-#[cfg(feature = "experimental")]
+// Only used by the experimental graph API (KVStore graph inputs/outputs).
+#[cfg(feature = "experimental-graph")]
 impl<Key, T> KVStore<Key, T>
 where
     T: FheIntegerType,

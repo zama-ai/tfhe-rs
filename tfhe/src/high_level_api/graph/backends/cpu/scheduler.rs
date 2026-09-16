@@ -3,7 +3,7 @@
 //! The idea is simple: track for each instruction when its needed inputs
 //! are ready, and when they all are, send the operation to a worker. Once the worker
 //! has done the operation, dispatch its outputs to the operations that use/consume them,
-//! rinse and repeat until all circuit outputs are collected
+//! rinse and repeat until all graph outputs are collected
 use std::collections::HashMap;
 use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use std::sync::Arc;
 use super::ops::exec_dialect_op;
 use super::value::{CpuInputList, CpuOutputList, RuntimeValue};
 use super::CpuError;
-use crate::circuit::dialects::hlapi::{Circuit, HlApiDialect, HlInstructionSet};
+use crate::graph::dialects::hlapi::{ExecutionGraph, HlApiDialect, HlInstructionSet};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use zhc_ir::{AsValId, OpId, OpMap, IR};
 use zhc_utils::small::SmallVec;
@@ -68,19 +68,19 @@ struct DoneOp {
     result: Result<Vec<Arc<RuntimeValue>>, CpuError>,
 }
 
-/// Static metadata derived once per `Circuit` execution.
+/// Static metadata derived once per `ExecutionGraph` execution.
 struct ReadyQueueMeta {
     /// Map operations to a list of operations that wait for that op to be done.
     waiter_of_op: HashMap<OpId, SmallVec<OpId>>,
     /// `OpId` → output position, for `Output { pos, .. }` ops only. Used by
-    /// `dispatch_value` to redirect values destined for circuit outputs into
+    /// `dispatch_value` to redirect values destined for graph outputs into
     /// `program_outputs[pos]` instead of dispatching them as ReadyOps.
     output_pos_of_op: HashMap<OpId, u32>,
 }
 
 impl ReadyQueueMeta {
-    fn from_circuit(circuit: &Circuit) -> (Self, OpMap<PendingOp>) {
-        let ir = circuit.ir();
+    fn from_graph(graph: &ExecutionGraph) -> (Self, OpMap<PendingOp>) {
+        let ir = graph.ir();
         let mut output_pos_of_op = HashMap::new();
         for op_ref in ir.walk_ops_linear() {
             if let HlInstructionSet::Output { pos, .. } = op_ref.get_instruction() {
@@ -99,7 +99,7 @@ impl ReadyQueueMeta {
         for op_ref in ir.walk_ops_linear() {
             if op_ref.get_instruction().mutates_kv_store() {
                 let store_id = op_ref.get_arg_valids()[0];
-                let store_ref = circuit.ir().get_val(store_id);
+                let store_ref = graph.ir().get_val(store_id);
                 for op_use in store_ref.get_users_iter() {
                     if op_use == op_ref {
                         continue;
@@ -185,7 +185,7 @@ fn dispatch_value(value_id: impl AsValId, value: Arc<RuntimeValue>, ctx: &mut Di
 fn worker(
     sks: &crate::ServerKey,
     in_channel: &Receiver<ReadyOp>,
-    circuit: &Circuit,
+    graph: &ExecutionGraph,
     out_channel: &Sender<DoneOp>,
 ) {
     // 4 outputs should be enough for > 99% of ops
@@ -199,7 +199,7 @@ fn worker(
 
         output_buf.clear();
 
-        let op_ref = circuit.ir().get_op(id);
+        let op_ref = graph.ir().get_op(id);
         let op = op_ref.get_instruction();
         let op_name = op.name();
 
@@ -246,27 +246,27 @@ fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send + 'static>) -> 
 }
 
 /// Crate-internal executor entry point.
-pub(crate) fn execute_circuit(
+pub(crate) fn execute_graph(
     sks: &crate::ServerKey,
-    circuit: &Circuit,
+    graph: &ExecutionGraph,
     inputs: CpuInputList,
     num_workers: usize,
 ) -> Result<CpuOutputList, CpuError> {
-    let (meta, mut pending_ops) = ReadyQueueMeta::from_circuit(circuit);
-    let ir = circuit.ir();
+    let (meta, mut pending_ops) = ReadyQueueMeta::from_graph(graph);
+    let ir = graph.ir();
 
-    let circuit_inputs = circuit.inputs();
-    let output_count = circuit.outputs().len();
+    let graph_inputs = graph.inputs();
+    let output_count = graph.outputs().len();
 
-    if inputs.inputs.len() != circuit_inputs.len() {
+    if inputs.inputs.len() != graph_inputs.len() {
         return Err(CpuError::InputCountMismatch {
-            expected: circuit.n_inputs(),
+            expected: graph.n_inputs(),
             got: inputs.inputs.len() as u32,
         });
     }
 
     let mut program_outputs: Vec<Option<Arc<RuntimeValue>>> = vec![None; output_count];
-    let mut outputs_needed = circuit.n_outputs();
+    let mut outputs_needed = graph.n_outputs();
 
     let (work_ready_sender, work_ready_receiver) = unbounded::<ReadyOp>();
     let (work_done_sender, work_done_receiver) = unbounded::<DoneOp>();
@@ -284,9 +284,9 @@ pub(crate) fn execute_circuit(
             ready_sender: &work_ready_sender,
         };
 
-        for (i, (val_id, input_value)) in circuit_inputs.iter().zip(inputs.inputs).enumerate() {
+        for (i, (val_id, input_value)) in graph_inputs.iter().zip(inputs.inputs).enumerate() {
             let i = i as u32;
-            let expected_kind = circuit.input_kind(i);
+            let expected_kind = graph.input_kind(i);
             input_value.check_input(i, &expected_kind, sks.pbs_key())?;
             dispatch_value(val_id, Arc::new(input_value), &mut ctx);
         }
@@ -309,10 +309,10 @@ pub(crate) fn execute_circuit(
 
     std::thread::scope(|s| {
         for _ in 0..num_workers {
-            let circuit_ref = circuit;
+            let graph_ref = graph;
             let rx = work_ready_receiver.clone();
             let tx = work_done_sender.clone();
-            s.spawn(move || worker(sks, &rx, circuit_ref, &tx));
+            s.spawn(move || worker(sks, &rx, graph_ref, &tx));
         }
         // Dropping it now means `work_done_receiver.recv()` returns Err exactly
         // when all workers have exited.
@@ -408,7 +408,7 @@ pub(crate) fn execute_circuit(
                 node_index,
                 op: "Output",
                 message: format!(
-                    "internal executor error: execution ended without producing circuit \
+                    "internal executor error: execution ended without producing graph \
                      output {pos} (workers exited early)"
                 ),
             }
