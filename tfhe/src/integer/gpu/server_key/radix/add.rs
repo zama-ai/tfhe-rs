@@ -91,6 +91,7 @@ impl CudaServerKey {
     ) {
         let mut tmp_rhs;
 
+        // FIXME(gpu): CPU default ops clean their inputs with `is_clean` (carries and noise level)
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
             ct_right.block_carries_are_empty(),
@@ -467,6 +468,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
+        // FIXME(gpu): CPU default ops clean their inputs with `is_clean` (carries and noise level)
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
             ct_right.block_carries_are_empty(),
@@ -619,6 +621,7 @@ impl CudaServerKey {
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock) {
         let mut tmp_lhs;
         let mut tmp_rhs;
+        // FIXME(gpu): CPU default ops clean their inputs with `is_clean` (carries and noise level)
         let (lhs, rhs) = match (
             ct_left.block_carries_are_empty(),
             ct_right.block_carries_are_empty(),

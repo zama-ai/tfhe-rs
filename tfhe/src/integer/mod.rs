@@ -51,7 +51,7 @@
 pub mod block_decomposition;
 pub(crate) mod encryption;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub mod backward_compatibility;
 pub mod bigint;

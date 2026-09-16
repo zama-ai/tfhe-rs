@@ -134,6 +134,7 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u8> + Numeric + TwosComplementNegation + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
+        // FIXME(gpu): CPU default ops clean their inputs with `is_clean` (carries and noise level)
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign(ct, streams);
         }
@@ -195,6 +196,7 @@ impl CudaServerKey {
     {
         let mut tmp_lhs;
         tmp_lhs = ct_left.duplicate(streams);
+        // FIXME(gpu): CPU default ops clean their inputs with `is_clean` (carries and noise level)
         if !tmp_lhs.block_carries_are_empty() {
             self.full_propagate_assign(&mut tmp_lhs, streams);
         }

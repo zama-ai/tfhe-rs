@@ -1,3 +1,4 @@
+use super::legacy_default_tests::{legacy_default_add_test, legacy_default_overflowing_add_test};
 use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
@@ -6,10 +7,8 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    default_add_test, default_sum_ciphertexts_vec_test, unchecked_add_assign_test,
-    unchecked_add_test,
+    default_sum_ciphertexts_vec_test, unchecked_add_assign_test, unchecked_add_test,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::default_overflowing_add_test;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
@@ -66,7 +65,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::add);
-    default_add_test(param, executor);
+    legacy_default_add_test(param, executor);
 }
 
 fn multi_device_integer_add<P>(param: P)
@@ -76,7 +75,7 @@ where
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
     let num_gpus = get_number_of_gpus();
     if num_gpus > 1 {
-        default_add_test(param, executor);
+        legacy_default_add_test(param, executor);
     }
 }
 
@@ -102,7 +101,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
-    default_overflowing_add_test(param, executor);
+    legacy_default_overflowing_add_test(param, executor);
 }
 
 fn multi_device_integer_default_overflowing_add<P>(param: P)
@@ -112,6 +111,6 @@ where
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
     let num_gpus = get_number_of_gpus();
     if num_gpus > 1 {
-        default_overflowing_add_test(param, executor);
+        legacy_default_overflowing_add_test(param, executor);
     }
 }

@@ -104,9 +104,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: TwosComplementNegation + DecomposableInto<u8>,
     {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
+        self.clean_inplace_for_default_op(ct);
 
         if Scalar::ZERO == scalar {
             return;
@@ -216,9 +214,7 @@ impl ServerKey {
     where
         T: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = T>,
     {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
+        self.clean_inplace_for_default_op(lhs);
 
         if self.is_eligible_for_parallel_single_carry_propagation(lhs.blocks.len()) {
             self.unsigned_overflowing_scalar_sub_assign_parallelized_at_least_4_bits(lhs, scalar)
@@ -335,21 +331,25 @@ impl ServerKey {
                     )
                 },
                 || {
-                    let modulus = if num_block_is_even {
+                    // 'Trim' the excess part when the number of block is odd
+                    // the excess part is tested by a trivial overflow check
+                    // at the end
+                    let last_block_modulus = if num_block_is_even {
                         packed_modulus
                     } else {
                         self.message_modulus().0
                     };
                     let last_scalar_block =
-                        u64::from(packed_scalar_blocks.last().copied().unwrap());
+                        u64::from(packed_scalar_blocks.last().copied().unwrap())
+                            % last_block_modulus;
                     let lut = self.key.generate_lookup_table(|last_packed_block| {
                         let value = last_packed_block
                             .wrapping_sub(last_scalar_block)
-                            .wrapping_add(modulus);
+                            .wrapping_add(last_block_modulus);
                         #[allow(clippy::comparison_chain)]
-                        if value < modulus {
+                        if value < last_block_modulus {
                             2 << 1 // Borrows
-                        } else if value == modulus {
+                        } else if value == last_block_modulus {
                             1 << 1 // Propagate
                         } else {
                             0 // None
@@ -458,9 +458,11 @@ impl ServerKey {
             std::mem::swap(out, b);
         }
 
-        if BlockDecomposer::new(scalar, packed_modulus.ilog2())
+        // The trivial check has to be done on the unpacked decomposition,
+        // otherwise odd number of blocks could return incorrect overflow result
+        if BlockDecomposer::new(scalar, self.message_modulus().0.ilog2())
             .iter_as::<u8>()
-            .skip(packed_blocks.len())
+            .skip(num_blocks)
             .any(|scalar_block| scalar_block != 0)
         {
             // The value we subtracted is bigger than what the ciphertext
@@ -717,9 +719,7 @@ impl ServerKey {
     where
         Scalar: SignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
+        self.clean_inplace_for_default_op(lhs);
 
         // The trivial overflow check has to be done on the scalar not its bit flipped version
         let mut decomposer = BlockDecomposer::new(scalar, self.message_modulus().0.ilog2())

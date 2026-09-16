@@ -231,33 +231,9 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs: T;
+        let rhs = self.clean_for_default_binary_assign_op(ct_left, ct_right);
 
-        let (lhs, rhs) = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct_left, ct_right),
-            (true, false) => {
-                tmp_rhs = ct_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct_left, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct_left);
-                (ct_left, ct_right)
-            }
-            (false, false) => {
-                tmp_rhs = ct_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct_left),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct_left, &tmp_rhs)
-            }
-        };
-
-        self.add_assign_with_carry_parallelized(lhs, rhs, None);
+        self.add_assign_with_carry_parallelized(ct_left, &rhs, None);
     }
 
     /// Computes the addition of two ciphertexts and returns the overflow flag
@@ -304,36 +280,13 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs: T;
         if ct_left.blocks().is_empty() || ct_right.blocks().is_empty() {
             return self.create_trivial_boolean_block(false);
         }
 
-        let (lhs, rhs) = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct_left, ct_right),
-            (true, false) => {
-                tmp_rhs = ct_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct_left, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct_left);
-                (ct_left, ct_right)
-            }
-            (false, false) => {
-                tmp_rhs = ct_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct_left),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct_left, &tmp_rhs)
-            }
-        };
+        let rhs = self.clean_for_default_binary_assign_op(ct_left, ct_right);
 
-        self.overflowing_add_assign_with_carry(lhs, rhs, None)
+        self.overflowing_add_assign_with_carry(ct_left, &rhs, None)
     }
 
     /// Computes the addition of two unsigned ciphertexts and returns the overflow flag
@@ -435,19 +388,7 @@ impl ServerKey {
     ) where
         T: IntegerRadixCiphertext,
     {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        let mut cloned_rhs;
-
-        let rhs = if rhs.block_carries_are_empty() {
-            rhs
-        } else {
-            cloned_rhs = rhs.clone();
-            self.full_propagate_parallelized(&mut cloned_rhs);
-            &cloned_rhs
-        };
+        let rhs = self.clean_for_default_binary_assign_op(lhs, rhs);
 
         self.advanced_add_assign_with_carry_parallelized(
             lhs.blocks_mut(),
