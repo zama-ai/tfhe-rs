@@ -7,15 +7,11 @@ use integer::hpu::ciphertext::HpuRadixCiphertext;
 use std::path::PathBuf;
 pub use std::time::{Duration, Instant};
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
+use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
+use tfhe::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe::*;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 
-use integer::hpu::ciphertext::HpuRadixCiphertext;
-use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
-
-use tfhe::shortint::parameters::KeySwitch32PBSParameters;
-
-use zhc::builder::CiphertextSpec;
 use zhc::config::multi_hpu::MultiHpuConfig;
 
 use rand::rngs::StdRng;
@@ -167,8 +163,12 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("\n A.0. Hpu backend default configuration");
     println!("   Open hardware with given configuration...");
     let hpu_config = HpuConfig::from_toml(args.config.expand().as_str());
-    let hpu_device =
-        HpuDevice::new(hpu_config.clone(), args.force_reload).expect("Hpu device init failed");
+    let hpu_device = HpuDevice::new(
+        hpu_config.clone(),
+        args.force_reload,
+        &tfhe::core_crypto::hpu::create_hpu_lookuptable,
+    )
+    .expect("Hpu device init failed");
 
     println!("   Generate client and server keys...");
     // Force key seeder if seed specified by user
@@ -230,26 +230,23 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             }
 
             // Register fw on Hpu -----------------------------------------------------
-            let fw_entry = hpu_device.fw_dyn_init(
-                mh_pipeline,
-                &crate::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable,
-            )?;
-            let proto = fw_entry.proto();
+            let fw_entry = hpu_device
+                .fw_dyn_init(mh_pipeline, &tfhe::core_crypto::hpu::create_hpu_lookuptable)?;
+            let (signature, _used_nodes) = fw_entry.sig();
 
             // Execution ROI ----------------------------------------------------------
-            let num_block = width / hpu_device.params().pbs_params.message_width;
-
             // Generate inputs
-            let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                .src
+            let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
+                .get_args()
                 .iter()
+                .filter_map(|ty| match ty {
+                    zhc::builder::Type::Ciphertext(spec) => Some(spec),
+                    zhc::builder::Type::Plaintext(_) => None,
+                })
                 .enumerate()
-                .map(|(pos, mode)| {
-                    let (bw, block) = match mode {
-                        hpu_asm::VarMode::Native => (width, num_block),
-                        hpu_asm::VarMode::Half => (width / 2, num_block / 2),
-                        hpu_asm::VarMode::Bool => (1, 1),
-                    };
+                .map(|(pos, spec)| {
+                    let bw = spec.int_size() as usize;
+                    let block = bw / hpu_device.params().pbs_params.message_width;
 
                     let clear = *args
                         .src
@@ -266,7 +263,12 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 })
                 .unzip();
 
-            let imms = (0..proto.imm)
+            let imm_count = signature
+                .get_args()
+                .iter()
+                .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                .count();
+            let imms = (0..imm_count)
                 .map(|pos| {
                     *args
                         .imm
@@ -281,7 +283,6 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let res_hpu = (0..args.iter)
                 .filter_map(|i| {
                     let res = HpuRadixCiphertext::exec(
-                        &proto,
                         hpu_asm::FwMode::Dynamic,
                         fw_entry.iop(),
                         &srcs_enc,

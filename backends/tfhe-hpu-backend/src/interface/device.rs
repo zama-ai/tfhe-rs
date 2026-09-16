@@ -79,6 +79,19 @@ impl HpuDevice {
     pub fn config(&self) -> &HpuConfig {
         &self.config
     }
+
+    /// Look up the zhc `Signature`/required-node-count of a given IOp. Mainly useful for
+    /// tooling/benchmarks that need to introspect an IOp's expected src/dst/imm shape ahead of
+    /// building a matching `HpuCmd` (which does this same lookup internally and doesn't need it
+    /// specified explicitly).
+    pub fn get_signature(
+        &self,
+        fw_mode: crate::asm::FwMode,
+        opcode: crate::asm::IOpcode,
+        integer_w: u16,
+    ) -> crate::asm::IOpSig {
+        self.cluster.get_signature(fw_mode, opcode, integer_w)
+    }
 }
 
 /// Allocate new Hpu variable to hold ciphertext
