@@ -68,11 +68,7 @@ pub fn init_device(device: &HpuDevice, server_key: CompressedServerKey) -> crate
     let hpu_ksk = HpuLweKeyswitchKeyOwned::create_from(ksk.as_view(), params);
 
     // Upload them on Hpu and configure internal Fw/Lut
-    device.init(
-        hpu_bsk.as_view(),
-        hpu_ksk.as_view(),
-        &crate::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable,
-    );
+    device.init(hpu_bsk.as_view(), hpu_ksk.as_view());
 
     Ok(())
 }

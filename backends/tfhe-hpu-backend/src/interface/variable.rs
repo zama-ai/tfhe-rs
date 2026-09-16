@@ -6,6 +6,7 @@ use super::*;
 use crate::asm::{IOpId, PhysId, VarMode, SW_IOP_ID};
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use std::sync::{Arc, Mutex};
+use zhc::builder::Type;
 
 pub(crate) struct HpuVar {
     bundle: memory::CiphertextBundle,
@@ -124,7 +125,12 @@ impl HpuVarWrapped {
 
     /// Create a new HpuVarWrapped with same properties
     /// Associated data is != only share properties
-    pub(crate) fn fork(&self, trgt_mode: VarMode, trgt_pos: PhysId) -> Self {
+    ///
+    /// `trgt_ty` is the target's concrete type as declared by the IOp's zhc `Signature<Type>`
+    /// (i.e. an absolute bit-width, unlike the caller-relative [`VarMode`] this used to take).
+    /// The resulting [`VarMode`] tag is inferred by comparing that absolute width against this
+    /// variable's own native-equivalent width.
+    pub(crate) fn fork(&self, trgt_ty: &Type, trgt_pos: PhysId) -> Self {
         let Self {
             params,
             width,
@@ -133,15 +139,53 @@ impl HpuVarWrapped {
             ..
         } = self.clone();
 
-        let width = match (&mode, &trgt_mode) {
-            (_, VarMode::Bool) => 1,
-            (VarMode::Native, VarMode::Native) => width,
-            (VarMode::Native, VarMode::Half) => width / 2,
-            (VarMode::Half, VarMode::Native) => 2 * width,
-            (VarMode::Half, VarMode::Half) => width,
-            _ => panic!("Unsupported mode, couldn't use a Boolean to build a bigger variable"),
+        let trgt_spec = match trgt_ty {
+            Type::Ciphertext(spec) => spec,
+            Type::Plaintext(_) => panic!("Couldn't fork a variable into a plaintext type"),
+        };
+        let msg_w = params.pbs_params.message_width;
+        let trgt_bits = trgt_spec.int_size() as usize;
+
+        let (width, trgt_mode) = if trgt_bits == 1 {
+            (1, VarMode::Bool)
+        } else {
+            let self_native_bits = match mode {
+                VarMode::Native => width * msg_w,
+                VarMode::Half => 2 * width * msg_w,
+                VarMode::Bool => {
+                    panic!("Unsupported mode, couldn't use a Boolean to build a bigger variable")
+                }
+            };
+            if trgt_bits == self_native_bits {
+                (trgt_bits.div_ceil(msg_w), VarMode::Native)
+            } else if trgt_bits * 2 == self_native_bits {
+                (trgt_bits.div_ceil(msg_w), VarMode::Half)
+            } else {
+                panic!("Unsupported target width {trgt_bits} relative to native {self_native_bits}")
+            }
         };
         Self::new_on(trgt_pos, parent, params, width, trgt_mode)
+    }
+
+    /// This variable's own concrete bit-width, independent of the (possibly relative, e.g.
+    /// `Half`) [`VarMode`] tag it was created with. Used to key lookups into an IOp's zhc
+    /// `Signature<Type>` (e.g. [`crate::interface::HpuCluster::get_signature`]).
+    pub(crate) fn bit_width(&self) -> u16 {
+        match self.mode {
+            VarMode::Bool => 1,
+            VarMode::Native | VarMode::Half => {
+                (self.width * self.params.pbs_params.message_width) as u16
+            }
+        }
+    }
+
+    /// Check if this variable's own encoded width matches the given zhc `Type` (used to
+    /// validate an assign-style IOp's rhs against its declared `Signature<Type>`).
+    pub(crate) fn matches_type(&self, ty: &Type) -> bool {
+        match ty {
+            Type::Ciphertext(spec) => spec.int_size() == self.bit_width(),
+            Type::Plaintext(_) => false,
+        }
     }
 
     pub fn try_into(self) -> Result<Vec<HpuLweCiphertextOwned<u64>>, HpuError> {
