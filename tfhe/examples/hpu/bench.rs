@@ -210,7 +210,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let bench_iop = if !args.iop.is_empty() {
         args.iop.clone()
     } else {
-        hpu_asm::iop::IOP_LIST.to_vec()
+        hpu_asm::IOP_LIST.to_vec()
     };
 
     let bench_w = if !args.integer_w.is_empty() {
@@ -257,9 +257,9 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                         .enumerate()
                         .map(|(pos, mode)| {
                             let (bw, block) = match mode {
-                                hpu_asm::iop::VarMode::Native => (*width, num_block),
-                                hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                                hpu_asm::iop::VarMode::Bool => (1, 1),
+                                hpu_asm::VarMode::Native => (*width, num_block),
+                                hpu_asm::VarMode::Half => (width / 2, num_block / 2),
+                                hpu_asm::VarMode::Bool => (1, 1),
                             };
 
                             let clear = *args.src.get(pos).unwrap_or(

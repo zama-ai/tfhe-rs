@@ -1,4 +1,4 @@
-use hpu_asm::iop::*;
+use hpu_asm::*;
 use tfhe_hpu_backend::prelude::*;
 
 use crate::core_crypto::prelude::{CreateFrom, LweCiphertextOwned};

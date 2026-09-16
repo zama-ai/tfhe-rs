@@ -111,11 +111,11 @@ impl HpuDevice {
                 })
                 .map(|spec| {
                     if spec.int_size() == native_w {
-                        asm::iop::VarMode::Native
+                        asm::VarMode::Native
                     } else if spec.int_size() == half_w {
-                        asm::iop::VarMode::Half
+                        asm::VarMode::Half
                     } else if spec.int_size() == 1 {
-                        asm::iop::VarMode::Bool
+                        asm::VarMode::Bool
                     } else {
                         panic!("Unexpected Ciphertext Type");
                     }
@@ -132,11 +132,11 @@ impl HpuDevice {
                 })
                 .map(|spec| {
                     if spec.int_size() == native_w {
-                        asm::iop::VarMode::Native
+                        asm::VarMode::Native
                     } else if spec.int_size() == half_w {
-                        asm::iop::VarMode::Half
+                        asm::VarMode::Half
                     } else if spec.int_size() == 1 {
-                        asm::iop::VarMode::Bool
+                        asm::VarMode::Bool
                     } else {
                         panic!("Unexpected Ciphertext Type");
                     }
@@ -153,7 +153,7 @@ impl HpuDevice {
                 })
                 .count();
             asm::IOpProto {
-                used_nodes: asm::iop::NodesMap::new(&[mh_factor]),
+                used_nodes: asm::NodesMap::new(&[mh_factor]),
                 dst: dst_mode,
                 src: src_mode,
                 imm,
@@ -203,7 +203,7 @@ impl HpuDevice {
     pub fn new_var_from(
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
-        mode: crate::asm::iop::VarMode,
+        mode: crate::asm::VarMode,
         pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
         self.cluster.new_var_from(ct, mode, pos)

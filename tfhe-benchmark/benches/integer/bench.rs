@@ -2798,11 +2798,11 @@ mod hpu {
                                 .iter()
                                 .map(|mode| {
                                     let (bw, block) = match mode {
-                                        hpu_asm::iop::VarMode::Native => (bit_size, num_block),
-                                        hpu_asm::iop::VarMode::Half => {
+                                        hpu_asm::VarMode::Native => (bit_size, num_block),
+                                        hpu_asm::VarMode::Half => {
                                             (bit_size / 2, num_block / 2)
                                         }
-                                        hpu_asm::iop::VarMode::Bool => (1, 1),
+                                        hpu_asm::VarMode::Bool => (1, 1),
                                     };
 
                                     let clear = rng
@@ -2879,11 +2879,11 @@ mod hpu {
                                     .iter()
                                     .map(|mode| {
                                         let (bw, block) = match mode {
-                                            hpu_asm::iop::VarMode::Native => (bit_size, num_block),
-                                            hpu_asm::iop::VarMode::Half => {
+                                            hpu_asm::VarMode::Native => (bit_size, num_block),
+                                            hpu_asm::VarMode::Half => {
                                                 (bit_size / 2, num_block / 2)
                                             }
-                                            hpu_asm::iop::VarMode::Bool => (1, 1),
+                                            hpu_asm::VarMode::Bool => (1, 1),
                                         };
 
                                         let clear = rng
@@ -2958,7 +2958,7 @@ mod hpu {
                 c,
                 IntegerOp::[< $iop:camel >],
                 stringify!($name),
-                &hpu_asm::iop::[< IOP_ $iop:upper >],
+                &hpu_asm::[< IOP_ $iop:upper >],
             )
         }
         }
@@ -2973,7 +2973,7 @@ mod hpu {
                 c,
                 IntegerOp::[< Scalar $iop:camel >],
                 stringify!($name),
-                &hpu_asm::iop::[< IOP_ $iop:upper >],
+                &hpu_asm::[< IOP_ $iop:upper >],
             )
         }
         }

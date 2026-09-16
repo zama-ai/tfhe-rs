@@ -259,7 +259,7 @@ where
         boolean: vec![],
         imm: vec![],
     };
-    let mut res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_7984, src);
+    let mut res_handle = FheHpu::iop_exec(&hpu_asm::IOP_ERC_7984, src);
     // Iop erc_7984 return new_from, new_to
     let new_to = res_handle.native.pop().unwrap();
     let new_from = res_handle.native.pop().unwrap();
@@ -285,7 +285,7 @@ where
         boolean: vec![],
         imm: vec![],
     };
-    let res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_7984_SIMD, src);
+    let res_handle = FheHpu::iop_exec(&hpu_asm::IOP_ERC_7984_SIMD, src);
     // Iop erc_7984 return new_from, new_to
     let res = res_handle.native;
     res
@@ -407,7 +407,7 @@ fn bench_transfer_latency_simd<FheType, F>(
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType>,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::iop::IOP_ERC_7984_SIMD
+    let hpu_simd_n = hpu_asm::IOP_ERC_7984_SIMD
         .format()
         .unwrap()
         .proto
@@ -698,7 +698,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType> + Sync,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::iop::IOP_ERC_7984_SIMD
+    let hpu_simd_n = hpu_asm::IOP_ERC_7984_SIMD
         .format()
         .unwrap()
         .proto
