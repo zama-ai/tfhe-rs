@@ -16,9 +16,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u8>,
     {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
+        self.clean_inplace_for_default_op(lhs);
 
         let mut decomposer =
             BlockDecomposer::new(scalar, self.message_modulus().0.ilog2()).iter_as::<u8>();
@@ -272,9 +270,7 @@ impl ServerKey {
         Scalar: DecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
+        self.clean_inplace_for_default_op(ct);
 
         let scalar_blocks = BlockDecomposer::with_block_count(
             scalar,
