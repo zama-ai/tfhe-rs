@@ -664,8 +664,6 @@ clippy_tfhe_csprng: install_rs_check_toolchain
 clippy_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-zk-pok -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		-p tfhe-zk-pok --features=experimental -- --no-deps -D warnings
 
 .PHONY: clippy_zk_pok_wasm # Run clippy lints on tfhe-zk-pok for wasm32 target
 clippy_zk_pok_wasm: install_rs_check_toolchain install_check_wasm32_target
@@ -1046,7 +1044,7 @@ test_zk_pok_gpu_sanitizer: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
 	export SANITIZER_CARGO_PACKAGE=tfhe-zk-pok && \
-	export SANITIZER_CARGO_FEATURES_GPU=experimental,gpu && \
+	export SANITIZER_CARGO_FEATURES_GPU=gpu && \
 	export SANITIZER_TEST_FILTER_GPU='gpu::' && \
 	export SANITIZER_TEST_EXCLUDES_GPU='conversion_roundtrip|scalar_validation|long_run' && \
 	export SANITIZER_TEST_EXE_GLOB='tfhe_zk_pok-*' && \
@@ -1057,7 +1055,7 @@ test_zk_pok_gpu_valgrind: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
 	export SANITIZER_CARGO_PACKAGE=tfhe-zk-pok && \
-	export SANITIZER_CARGO_FEATURES_CPU=experimental,gpu && \
+	export SANITIZER_CARGO_FEATURES_CPU=gpu && \
 	export SANITIZER_TEST_FILTER_CPU='gpu::' && \
 	export SANITIZER_TEST_EXCLUDES_CPU='conversion_roundtrip|scalar_validation|long_run' && \
 	export SANITIZER_TEST_EXE_GLOB='tfhe_zk_pok-*' && \
@@ -1555,24 +1553,24 @@ test_tfhe_csprng_big_endian: install_cargo_cross
 .PHONY: test_zk_pok # Run tfhe-zk-pok tests
 test_zk_pok:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		-p tfhe-zk-pok --features experimental
+		-p tfhe-zk-pok
 
 .PHONY: test_zk_pok_experimental_gpu # Run tfhe-zk-pok GPU-accelerated tests
 test_zk_pok_experimental_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		-p tfhe-zk-pok --features experimental,gpu -- gpu --skip long_run
+		-p tfhe-zk-pok --features gpu -- gpu --skip long_run
 
 .PHONY: test_zk_pok_experimental_long_run_gpu # Run long-run ZK GPU/CPU equivalence tests (multiple seeds)
 test_zk_pok_experimental_long_run_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		-p tfhe-zk-pok --features experimental,gpu -- \
+		-p tfhe-zk-pok --features gpu -- \
 		test_pke_v2_long_run --test-threads=1 --nocapture
 
 .PHONY: test_zk_pok_experimental_short_run_gpu
 test_zk_pok_experimental_short_run_gpu:
 	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		-p tfhe-zk-pok --features experimental,gpu -- \
+		-p tfhe-zk-pok --features gpu -- \
 		test_pke_v2_gpu_cpu_equivalence --test-threads=1 --nocapture
 
 .PHONY: test_integer_zk_gpu # Run tfhe-zk-pok tests
