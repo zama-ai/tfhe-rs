@@ -12,13 +12,13 @@ use super::type_system::{KvKey, KvKeyKind, OprfMode, ScalarValue, ValueKind};
 #[non_exhaustive]
 pub enum HlInstructionSet {
     // Boundary
-    /// Circuit input. `pos` is the index in the input list.
+    /// ExecutionGraph input. `pos` is the index in the input list.
     /// Produces one value of `kind`.
     Input {
         pos: u32,
         kind: ValueKind,
     },
-    /// Circuit output. `pos` is the index in the output list.
+    /// ExecutionGraph output. `pos` is the index in the output list.
     /// Consumes one value of `kind`
     Output {
         pos: u32,
@@ -427,7 +427,7 @@ pub enum HlInstructionSet {
     /// `mode` (full / bounded / custom-range).
     /// Signature: `(Seed) -> value_kind`.
     /// The seed is a runtime value (not an op field) so a fresh seed can be
-    /// supplied per execution without rebuilding the circuit.
+    /// supplied per execution without rebuilding the graph.
     /// Validity of `(value_kind, mode)` is enforced by the builder.
     FheOprf {
         value_kind: ValueKind,

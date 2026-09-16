@@ -1,7 +1,7 @@
 //! Runtime value types for the CPU backend: [`RuntimeValue`] and its
 //! conversion impls, plus the input/output list wrappers used by callers.
 
-use crate::circuit::{FheIntKind, KvKeyKind, ScalarValue, ValueKind};
+use crate::graph::{FheIntKind, KvKeyKind, ScalarValue, ValueKind};
 use crate::high_level_api::kv_store::KVStore as HlKVStore;
 use crate::integer::prelude::*;
 use crate::integer::server_key::KVStore;
@@ -58,9 +58,9 @@ impl RuntimeValue {
         }
     }
 
-    /// Validate this value against a circuit input's declared `expected` kind,
+    /// Validate this value against a graph input's declared `expected` kind,
     /// as the `input_index`-th input.
-    pub(in crate::high_level_api::circuit::backends) fn check_input(
+    pub(in crate::high_level_api::graph::backends) fn check_input(
         &self,
         input_index: u32,
         expected: &ValueKind,
@@ -743,7 +743,7 @@ impl std::fmt::Display for CpuOutputError {
         match self {
             Self::OutOfBounds { index, len } => write!(
                 f,
-                "output index {index} out of bounds, circuit has {len} outputs"
+                "output index {index} out of bounds, graph has {len} outputs"
             ),
             Self::WrongType { index, source } => {
                 write!(f, "output {index} has wrong type: {source}")
