@@ -1,3 +1,4 @@
+mod legacy_default_tests;
 pub(crate) mod test_add;
 pub(crate) mod test_aes;
 pub(crate) mod test_aes256;

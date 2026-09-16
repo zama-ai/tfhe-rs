@@ -394,6 +394,53 @@ where
     }
 }
 
+/// Returns, for each block of `ct` that is not clean, its index and why.
+///
+/// A clean block has a noise level at most nominal (zero for a trivial block), a degree at
+/// most `message_modulus - 1`, and encrypts a value at most equal to its degree.
+pub(crate) fn blocks_not_clean_or_trivial<T, C>(ct: &T, cks: &C) -> Vec<(usize, String)>
+where
+    T: crate::integer::IntegerRadixCiphertext,
+    C: AsRef<crate::integer::ClientKey>,
+{
+    let cks = cks.as_ref();
+
+    let max_degree_acceptable = cks.key.parameters().message_modulus().0 - 1;
+    let mut reasons = vec![];
+
+    for (i, block) in ct.blocks().iter().enumerate() {
+        if block.noise_level() > NoiseLevel::NOMINAL {
+            reasons.push((
+                i,
+                format!("noise level above nominal: {:?}", block.noise_level()),
+            ));
+        }
+
+        if block.degree.get() > max_degree_acceptable {
+            reasons.push((
+                i,
+                format!(
+                    "degree {:?} exceeds the maximum ({max_degree_acceptable}) for a clean block",
+                    block.degree
+                ),
+            ));
+        }
+
+        let block_value = cks.key.decrypt_message_and_carry(block);
+        if block_value > block.degree.get() {
+            reasons.push((
+                i,
+                format!(
+                    "value {block_value} exceeds its degree ({:?})",
+                    block.degree
+                ),
+            ));
+        }
+    }
+
+    reasons
+}
+
 /// Panics if a block is not either a clean block (see [panic_if_any_block_is_not_clean])
 /// or if it not trivial
 #[track_caller]
@@ -402,35 +449,17 @@ where
     T: crate::integer::IntegerRadixCiphertext,
     C: AsRef<crate::integer::ClientKey>,
 {
-    let cks = cks.as_ref();
-
-    let max_degree_acceptable = cks.key.parameters().message_modulus().0 - 1;
-
-    for (i, block) in ct.blocks().iter().enumerate() {
-        if block.is_trivial() {
-            continue;
-        }
-        assert_eq!(
-            block.noise_level(),
-            NoiseLevel::NOMINAL,
-            "Block at index {i} has a non nominal noise level: {:?}",
-            block.noise_level()
-        );
-
-        assert!(
-            block.degree.get() <= max_degree_acceptable,
-            "Block at index {i} has a degree {:?} that exceeds the maximum ({}) for a clean block",
-            block.degree,
-            max_degree_acceptable
-        );
-
-        let block_value = cks.key.decrypt_message_and_carry(block);
-        assert!(
-            block_value <= block.degree.get(),
-            "Block at index {i} has a value {block_value} that exceeds its degree ({:?})",
-            block.degree
-        );
-    }
+    let reasons = blocks_not_clean_or_trivial(ct, cks);
+    assert!(
+        reasons.is_empty(),
+        "{} block(s) not clean:\n{}",
+        reasons.len(),
+        reasons
+            .iter()
+            .map(|(i, reason)| format!("  block {i}: {reason}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
 }
 
 /// Little struct meant to reduce test boilerplate and increase readability
@@ -557,6 +586,12 @@ pub(crate) struct CpuFunctionExecutor<F> {
 impl<F> CpuFunctionExecutor<F> {
     pub(crate) fn new(func: F) -> Self {
         Self { sks: None, func }
+    }
+
+    /// Setup for the tests written with the [`super::test_harness`], from the context's
+    /// server key (`TestContext::server_key`).
+    pub(crate) fn setup_with_server_key(&mut self, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
     }
 }
 

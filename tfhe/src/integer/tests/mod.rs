@@ -1,3 +1,5 @@
+pub(crate) mod uint;
+
 macro_rules! create_parameterized_test {
     (
         $name:ident {
