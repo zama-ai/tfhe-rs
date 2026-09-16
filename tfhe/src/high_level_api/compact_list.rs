@@ -1971,6 +1971,10 @@ mod tests {
         }
     }
 
+    #[allow(
+        deprecated,
+        reason = "covers the deprecated allow_unpacked path until it is removed"
+    )]
     fn test_safe_deserialization_ct_list(is_packed: bool) {
         let (client_key, sks) = generate_keys(ConfigBuilder::default().build());
         set_server_key(sks);
@@ -2077,6 +2081,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        deprecated,
+        reason = "covers the deprecated allow_unpacked path until it is removed"
+    )]
     fn safe_deserialization_ct_list_versioned() {
         let (client_key, sks) = generate_keys(ConfigBuilder::default().build());
         set_server_key(sks);

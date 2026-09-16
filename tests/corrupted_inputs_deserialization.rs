@@ -198,6 +198,10 @@ fn handle_proven_ct_list(
 }
 
 #[test]
+#[allow(
+    deprecated,
+    reason = "covers the deprecated allow_unpacked path until it is removed"
+)]
 fn test_corrupted_inputs_deserialization() {
     let mut total_tests = 0;
     let data_dir = Path::new(DATA_DIR);

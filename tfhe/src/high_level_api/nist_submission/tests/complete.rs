@@ -92,6 +92,10 @@ fn run_erc20_test(
 }
 
 #[test]
+#[allow(
+    deprecated,
+    reason = "NIST lists are unpacked, allow_unpacked is needed"
+)]
 fn complete_test_zk() {
     let config = Config::from(NIST_META_PARAMS_2_2);
 

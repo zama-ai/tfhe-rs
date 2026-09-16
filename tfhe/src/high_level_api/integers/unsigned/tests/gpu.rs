@@ -589,6 +589,10 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32_gpu() {
 }
 
 #[test]
+#[allow(
+    deprecated,
+    reason = "covers the deprecated allow_unpacked path until it is removed"
+)]
 fn test_safe_deserialize_conformant_compact_fhe_uint32_gpu() {
     for (i, setup_fn) in GPU_SETUP_FN.into_iter().enumerate() {
         let client_key = setup_fn();

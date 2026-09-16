@@ -270,6 +270,10 @@ pub struct FuzzContext {
 
 impl FuzzContext {
     /// Load all auxiliary data from the `aux_data` directory.
+    #[allow(
+        deprecated,
+        reason = "the fuzzer targets the deprecated allow_unpacked path until it is removed"
+    )]
     pub fn load() -> Self {
         let server_key = load_server_key();
         let pubkey = load_public_key();

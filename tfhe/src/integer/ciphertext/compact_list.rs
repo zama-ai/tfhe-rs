@@ -1304,7 +1304,15 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
 
     /// Allow the list to be composed of unpacked ciphertexts.
     ///
-    /// Note that this means that the ciphertexts won't be sanitized.
+    /// Note that this means that the ciphertexts won't be sanitized: so the blocks may hold values
+    /// above the degree they advertise.
+    #[deprecated(
+        since = "1.9.0",
+        note = "unpacked lists might not be sanitized during expansion, so they are unsafe to accept \
+                from an untrusted source. For trusted inputs, skip the conformance check with \
+                `DeserializationConfig::disable_conformance`. For untrusted inputs, require packed \
+                lists, which are sanitized when they are unpacked."
+    )]
     pub fn allow_unpacked(self) -> Self {
         Self {
             allow_unpacked: true,
@@ -1410,6 +1418,10 @@ mod zk_pok_tests {
     use crate::CompactCiphertextListConformanceParams;
     use rand::random;
 
+    #[allow(
+        deprecated,
+        reason = "covers the deprecated allow_unpacked path until it is removed"
+    )]
     fn test_zk_list(is_packed: bool) {
         let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;

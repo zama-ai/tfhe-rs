@@ -555,6 +555,10 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32_ks32() {
     );
 }
 
+#[allow(
+    deprecated,
+    reason = "covers the deprecated allow_unpacked path until it is removed"
+)]
 fn test_safe_deserialize_conformant_compact_fhe_uint32(
     block_params: impl Into<crate::shortint::atomic_pattern::AtomicPatternParameters>,
     build_packed: bool,
