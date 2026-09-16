@@ -24,7 +24,6 @@ pub struct HpuCmd {
 
 impl HpuCmd {
     fn new(
-        proto: &crate::asm::IOpProto,
         map: IOpMapping,
         fw_mode: FwMode,
         opcode: IOpcode,
@@ -33,22 +32,37 @@ impl HpuCmd {
         src: &[HpuVarWrapped],
         imm: &[HpuImm],
     ) -> Self {
-        // Check arguments compliance with IOp prototype
+        // Check arguments compliance with IOp signature
         #[cfg(debug_assertions)]
         {
+            let first_src = src
+                .first()
+                .expect("IOp must contains at least 1 source operand");
+            let (signature, _used_nodes) =
+                first_src
+                    .parent
+                    .get_signature(fw_mode, opcode, first_src.bit_width());
+            let (src_arity, imm_arity) =
+                signature
+                    .get_args()
+                    .iter()
+                    .fold((0_usize, 0_usize), |(src, imm), ty| match ty {
+                        zhc::builder::Type::Ciphertext(_) => (src + 1, imm),
+                        zhc::builder::Type::Plaintext(_) => (src, imm + 1),
+                    });
             assert_eq!(
                 dst.len(),
-                proto.dst.len(),
+                signature.get_returns().len(),
                 "Error {opcode:?}: Invalid number of dst arguments"
             );
             assert_eq!(
                 src.len(),
-                proto.src.len(),
+                src_arity,
                 "Error {opcode:?}: Invalid number of src arguments"
             );
             assert_eq!(
                 imm.len(),
-                proto.imm,
+                imm_arity,
                 "Error {opcode:?}: Invalid number of imm arguments"
             );
         }
@@ -110,7 +124,6 @@ impl HpuCmd {
     }
 
     pub fn new_wrapped(
-        proto: &crate::asm::IOpProto,
         map: IOpMapping,
         fw_mode: FwMode,
         opcode: IOpcode,
@@ -119,9 +132,7 @@ impl HpuCmd {
         src: &[HpuVarWrapped],
         imm: &[HpuImm],
     ) -> Arc<Self> {
-        Arc::new(Self::new(
-            proto, map, fw_mode, opcode, iop_id, dst, src, imm,
-        ))
+        Arc::new(Self::new(map, fw_mode, opcode, iop_id, dst, src, imm))
     }
 
     pub fn op(&self) -> &IOp {
@@ -132,7 +143,6 @@ impl HpuCmd {
 /// Generic interface
 impl HpuCmd {
     pub fn exec_raw(
-        proto: &crate::asm::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         dst: &[HpuVarWrapped],
@@ -146,22 +156,20 @@ impl HpuCmd {
             .expect("Try to generate an IOp without any destination");
         let cluster = &first_dst.parent;
 
+        // Look up the IOp's required number of Hpu nodes
+        let first_src = rhs_ct
+            .first()
+            .expect("IOp must contains at least 1 source operand");
+        let (_signature, used_nodes) =
+            cluster.get_signature(fw_mode, opcode, first_src.bit_width());
+
         // Compute mapping based on workload and operand position
         let hpu_id = cluster.keys().copied().collect::<Vec<_>>();
-        let map = cluster.compute_cmd_map(&hpu_id, proto, dst, rhs_ct);
+        let map = cluster.compute_cmd_map(&hpu_id, used_nodes, dst, rhs_ct);
         let iop_id = cluster.gen_iop_id();
 
         // Create associated command
-        let cmd = Self::new_wrapped(
-            proto,
-            map.clone(),
-            fw_mode,
-            opcode,
-            iop_id,
-            dst,
-            rhs_ct,
-            rhs_imm,
-        );
+        let cmd = Self::new_wrapped(map.clone(), fw_mode, opcode, iop_id, dst, rhs_ct, rhs_imm);
 
         // Update cluster workload
         // _NB_: Done here to prevent bg_polling delay in workload update
@@ -178,7 +186,6 @@ impl HpuCmd {
     }
 
     pub fn exec(
-        proto: &crate::asm::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],
@@ -187,32 +194,39 @@ impl HpuCmd {
     ) -> Vec<HpuVarWrapped> {
         // Use given position or default to node likely to be used
         let pos = dst_pos.unwrap_or(rhs_ct[0].hpu_id);
-        let dst = proto
-            .dst
+        let (signature, _used_nodes) =
+            rhs_ct[0]
+                .parent
+                .get_signature(fw_mode, opcode, rhs_ct[0].bit_width());
+        let dst = signature
+            .get_returns()
             .iter()
-            .map(|m| rhs_ct[0].fork(*m, pos))
+            .map(|ty| rhs_ct[0].fork(ty, pos))
             .collect::<Vec<_>>();
-        Self::exec_raw(proto, fw_mode, opcode, &dst, rhs_ct, rhs_imm);
+        Self::exec_raw(fw_mode, opcode, &dst, rhs_ct, rhs_imm);
         dst
     }
 
     pub fn exec_assign(
-        proto: &crate::asm::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],
         rhs_imm: &[HpuImm],
     ) {
+        let (signature, _used_nodes) =
+            rhs_ct[0]
+                .parent
+                .get_signature(fw_mode, opcode, rhs_ct[0].bit_width());
         // Clone dst sub-array from srcs
-        let dst = std::iter::zip(proto.dst.iter(), rhs_ct.iter())
-            .map(|(p, v)| {
-                debug_assert_eq!(
-                    *p, v.mode,
+        let dst = std::iter::zip(signature.get_returns().iter(), rhs_ct.iter())
+            .map(|(ty, v)| {
+                debug_assert!(
+                    v.matches_type(ty),
                     "Assign with invalid prototype, rhs mode don't match"
                 );
                 v.clone()
             })
             .collect::<Vec<_>>();
-        Self::exec_raw(proto, fw_mode, opcode, &dst, rhs_ct, rhs_imm);
+        Self::exec_raw(fw_mode, opcode, &dst, rhs_ct, rhs_imm);
     }
 }
