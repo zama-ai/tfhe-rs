@@ -73,9 +73,15 @@ instance_type = "g6.2xlarge"
 user = "ubuntu"
 
 [backend.aws.a10g]
-region = "eu-west-1"
-image_id = "ami-067f3893108afe8cd"
-instance_type = "g5.8xlarge"
+region = "us-east-1"
+image_id = "ami-0250f541bc1358116"
+instance_type = "g5.4xlarge"
+user = "ubuntu"
+
+[backend.aws.l4]
+region = "us-east-1"
+image_id = "ami-0250f541bc1358116"
+instance_type = "g6.4xlarge"
 user = "ubuntu"
 
 [backend.hyperstack.gpu-test]
