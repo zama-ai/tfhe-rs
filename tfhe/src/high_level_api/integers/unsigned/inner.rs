@@ -62,15 +62,8 @@ impl Clone for RadixCiphertext {
                 //  Some of them has duplicated memory on Host with sync mechanism.
                 //  But it's not the case for all.
                 // To prevent special cases, all the "deep" clone are made on HPU side
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::IOP_MEMCPY;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::MemCpy);
                 let deep_clone = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(inner),

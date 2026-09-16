@@ -765,16 +765,9 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                 InternalServerKey::Hpu(device) => {
                                     let hpu_lhs = self.ciphertext.on_hpu(device);
 
-                                    let (opcode, proto) = {
-                                        let asm_iop = &hpu_asm::IOP_DIVS;
-                                        (
-                                            asm_iop.opcode(),
-                                            &asm_iop.format().expect("Unspecified IOP format").proto,
-                                        )
-                                    };
+                                    let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Divs);
                                     let mut hpu_result = HpuRadixCiphertext::exec(
-                                        proto,
-                                        hpu_asm::FwMode::Static,
+                                                                                hpu_asm::FwMode::Static,
                                         opcode,
                                         std::slice::from_ref(&hpu_lhs),
                                         &[u128::cast_from(rhs)],
@@ -1893,16 +1886,9 @@ macro_rules! define_scalar_ops {
                         InternalServerKey::Hpu(device) => {
                                     let hpu_lhs = lhs.ciphertext.on_hpu(device);
 
-                                    let (opcode, proto) = {
-                                        let asm_iop = &hpu_asm::IOP_DIVS;
-                                        (
-                                            asm_iop.opcode(),
-                                            &asm_iop.format().expect("Unspecified IOP format").proto,
-                                        )
-                                    };
+                                    let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Divs);
                                     let mut hpu_result = HpuRadixCiphertext::exec(
-                                        proto,
-                                        hpu_asm::FwMode::Static,
+                                                                                hpu_asm::FwMode::Static,
                                         opcode,
                                         std::slice::from_ref(&hpu_lhs),
                                         &[u128::cast_from(rhs)],
@@ -1971,16 +1957,9 @@ macro_rules! define_scalar_ops {
                         InternalServerKey::Hpu(device) => {
                             let hpu_lhs = lhs.ciphertext.on_hpu(device);
 
-                            let (opcode, proto) = {
-                                let asm_iop = &hpu_asm::IOP_MODS;
-                                (
-                                    asm_iop.opcode(),
-                                    &asm_iop.format().expect("Unspecified IOP format").proto,
-                                )
-                            };
+                            let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Mods);
                             let mut hpu_result = HpuRadixCiphertext::exec(
-                                proto,
-                                        hpu_asm::FwMode::Static,
+                                                                        hpu_asm::FwMode::Static,
                                 opcode,
                                 std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],
@@ -2484,16 +2463,9 @@ macro_rules! define_scalar_ops {
                         InternalServerKey::Hpu(device) => {
                             let hpu_lhs = lhs.ciphertext.as_hpu_mut(device);
 
-                            let (opcode, proto) = {
-                                let asm_iop = &hpu_asm::IOP_DIVS;
-                                (
-                                    asm_iop.opcode(),
-                                    &asm_iop.format().expect("Unspecified IOP format").proto,
-                                )
-                            };
+                            let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Divs);
                             let mut hpu_result = HpuRadixCiphertext::exec(
-                                proto,
-                                        hpu_asm::FwMode::Static,
+                                                                        hpu_asm::FwMode::Static,
                                 opcode,
                                 std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],
@@ -2533,16 +2505,9 @@ macro_rules! define_scalar_ops {
                         InternalServerKey::Hpu(device) => {
                             let hpu_lhs = lhs.ciphertext.as_hpu_mut(device);
 
-                            let (opcode, proto) = {
-                                let asm_iop = &hpu_asm::IOP_MODS;
-                                (
-                                    asm_iop.opcode(),
-                                    &asm_iop.format().expect("Unspecified IOP format").proto,
-                                )
-                            };
+                            let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Mods);
                             HpuRadixCiphertext::exec_assign(
-                                proto,
-                                        hpu_asm::FwMode::Static,
+                                                                        hpu_asm::FwMode::Static,
                                 opcode,
                                 std::slice::from_ref(&hpu_lhs),
                                 &[u128::cast_from(rhs)],
