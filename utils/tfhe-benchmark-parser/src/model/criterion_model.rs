@@ -16,6 +16,7 @@ pub struct CriterionThroughput {
 #[derive(Deserialize, Debug)]
 pub struct CriterionEstimates {
     pub mean: Estimate,
+    pub slope: Option<Estimate>,
     pub std_dev: Estimate,
 }
 
