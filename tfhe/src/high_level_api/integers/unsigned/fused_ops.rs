@@ -139,9 +139,9 @@ pub(crate) use impl_fused_mul_divs;
 //
 // Types without at least double-width FheUint (FheUint2048) are not supported.
 impl_fused_mul_divs!(
-    (super::FheUint2, super::FheUint4, u8, u8),
-    (super::FheUint4, super::FheUint8, u8, u8),
-    (super::FheUint6, super::FheUint12, u8, u16),
+    (super::FheUint2, super::FheUint16, u8, u16),
+    (super::FheUint4, super::FheUint16, u8, u16),
+    (super::FheUint6, super::FheUint16, u8, u16),
     (super::FheUint8, super::FheUint16, u8, u16),
     (super::FheUint10, super::FheUint32, u16, u32),
     (super::FheUint12, super::FheUint32, u16, u32),
@@ -158,17 +158,17 @@ impl_fused_mul_divs!(
 
 #[cfg(feature = "extended-types")]
 impl_fused_mul_divs!(
-    (super::FheUint24, super::FheUint48, u32, u64),
-    (super::FheUint40, super::FheUint80, u64, u128),
-    (super::FheUint48, super::FheUint96, u64, u128),
-    (super::FheUint56, super::FheUint112, u64, u128),
-    (super::FheUint72, super::FheUint144, u128, U256),
-    (super::FheUint80, super::FheUint160, u128, U256),
-    (super::FheUint88, super::FheUint176, u128, U256),
-    (super::FheUint96, super::FheUint192, u128, U256),
-    (super::FheUint104, super::FheUint208, u128, U256),
-    (super::FheUint112, super::FheUint224, u128, U256),
-    (super::FheUint120, super::FheUint240, u128, U256),
+    (super::FheUint24, super::FheUint64, u32, u64),
+    (super::FheUint40, super::FheUint128, u64, u128),
+    (super::FheUint48, super::FheUint128, u64, u128),
+    (super::FheUint56, super::FheUint128, u64, u128),
+    (super::FheUint72, super::FheUint256, u128, U256),
+    (super::FheUint80, super::FheUint256, u128, U256),
+    (super::FheUint88, super::FheUint256, u128, U256),
+    (super::FheUint96, super::FheUint256, u128, U256),
+    (super::FheUint104, super::FheUint256, u128, U256),
+    (super::FheUint112, super::FheUint256, u128, U256),
+    (super::FheUint120, super::FheUint256, u128, U256),
     (super::FheUint136, super::FheUint512, U256, U512),
     (super::FheUint144, super::FheUint512, U256, U512),
     (super::FheUint152, super::FheUint512, U256, U512),

@@ -1,6 +1,11 @@
+use crate::core_crypto::prelude::SignedInteger;
 use crate::prelude::*;
-use crate::{ClientKey, FheBool, FheInt16, FheInt32, FheInt64, FheInt8, FheUint64, FheUint8};
+use crate::{
+    ClientKey, FheBool, FheInt10, FheInt16, FheInt32, FheInt4, FheInt6, FheInt64, FheInt8,
+    FheIntegerType, FheUint64, FheUint8, IntegerId,
+};
 use rand::prelude::*;
+use std::ops::{Div, Mul};
 
 mod cpu;
 #[cfg(feature = "gpu")]
@@ -520,7 +525,7 @@ fn test_case_min_max(cks: &ClientKey) {
     assert_eq!(decrypted_max, a_val.max(b_val));
 }
 
-fn test_case_int16_fused_mul_div(cks: &ClientKey) {
+fn test_case_fused_mul_div(cks: &ClientKey) {
     let mut rng = rand::thread_rng();
 
     // Widening prevents incorrect result with signed values:
@@ -585,5 +590,96 @@ fn test_case_int16_fused_mul_div(cks: &ClientKey) {
             let decrypted: i16 = result.decrypt(cks);
             assert_eq!(decrypted, expected);
         }
+    }
+
+    // FheInt types which do not have a clear type with the same width
+    // we use the closest larger clear type, here we make sure the results
+    // are as expected
+    check_fused_mul_div::<FheInt4, i8, i16>(cks, 3, 127, 127);
+    check_fused_mul_div::<FheInt4, i8, i16>(cks, -8, 127, 127);
+    check_fused_mul_div::<FheInt4, i8, i16>(cks, 7, -128, -128);
+    check_fused_mul_div::<FheInt6, i8, i16>(cks, 31, 127, 127);
+    check_fused_mul_div::<FheInt6, i8, i16>(cks, -32, -128, -128);
+    for _ in 0..5 {
+        check_random_fused_mul_div::<FheInt4, i8, i16>(cks, &mut rng);
+        check_random_fused_mul_div::<FheInt10, i16, i32>(cks, &mut rng);
+    }
+}
+
+/// Sign truncates `value` to the `num_bits` low bits, the signed counterpart of masking
+/// with `(1 << num_bits) - 1`.
+fn sign_truncate<Clear: SignedInteger>(value: Clear, num_bits: usize) -> Clear {
+    let shift = Clear::BITS - num_bits;
+    (value << shift) >> shift
+}
+
+fn check_random_fused_mul_div<FheType, Clear, WideClear>(
+    cks: &ClientKey,
+    rng: &mut dyn rand::RngCore,
+) where
+    FheType: FheIntegerType
+        + FheTryEncrypt<Clear, ClientKey>
+        + FheDecrypt<Clear>
+        + FusedScalarMulScalarDiv<Clear, Output = FheType>,
+    for<'a> &'a FheType: FusedScalarMulScalarDiv<Clear, Output = FheType>,
+    Clear: SignedInteger,
+    rand::distributions::Standard: rand::distributions::Distribution<Clear>,
+    WideClear: From<Clear>
+        + CastInto<Clear>
+        + Mul<WideClear, Output = WideClear>
+        + Div<WideClear, Output = WideClear>,
+{
+    let num_bits = <FheType::Id as IntegerId>::num_bits();
+    let clear_a: Clear = sign_truncate(rng.gen(), num_bits);
+    let clear_b: Clear = rng.gen();
+    let clear_c: Clear = loop {
+        let v: Clear = rng.gen();
+        if v != Clear::ZERO {
+            break v;
+        }
+    };
+
+    check_fused_mul_div::<FheType, Clear, WideClear>(cks, clear_a, clear_b, clear_c);
+}
+
+fn check_fused_mul_div<FheType, Clear, WideClear>(
+    cks: &ClientKey,
+    clear_a: Clear,
+    clear_b: Clear,
+    clear_c: Clear,
+) where
+    FheType: FheIntegerType
+        + FheTryEncrypt<Clear, ClientKey>
+        + FheDecrypt<Clear>
+        + FusedScalarMulScalarDiv<Clear, Output = FheType>,
+    for<'a> &'a FheType: FusedScalarMulScalarDiv<Clear, Output = FheType>,
+    Clear: SignedInteger,
+    WideClear: From<Clear>
+        + CastInto<Clear>
+        + Mul<WideClear, Output = WideClear>
+        + Div<WideClear, Output = WideClear>,
+{
+    let num_bits = <FheType::Id as IntegerId>::num_bits();
+    assert!(num_bits < Clear::BITS);
+
+    let expected = sign_truncate(
+        ((WideClear::from(clear_a) * WideClear::from(clear_b)) / WideClear::from(clear_c))
+            .cast_into(),
+        num_bits,
+    );
+
+    let a = FheType::try_encrypt(clear_a, cks).unwrap();
+    // encrypted * scalar / scalar
+    {
+        let result = (&a).fused_scalar_mul_scalar_div(clear_b, clear_c);
+        let decrypted: Clear = result.decrypt(cks);
+        assert_eq!(decrypted, expected);
+    }
+
+    // Owned variants
+    {
+        let result = a.fused_scalar_mul_scalar_div(clear_b, clear_c);
+        let decrypted: Clear = result.decrypt(cks);
+        assert_eq!(decrypted, expected);
     }
 }

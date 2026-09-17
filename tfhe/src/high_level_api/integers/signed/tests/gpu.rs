@@ -378,7 +378,7 @@ fn test_gpu_get_div_size_on_gpu() {
 fn test_int16_fused_mul_div_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
-        super::test_case_int16_fused_mul_div(&client_key);
+        super::test_case_fused_mul_div(&client_key);
     }
 }
 
