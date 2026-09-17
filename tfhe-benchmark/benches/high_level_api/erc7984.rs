@@ -407,13 +407,7 @@ fn bench_transfer_latency_simd<FheType, F>(
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType>,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::IOP_ERC_7984_SIMD
-        .format()
-        .unwrap()
-        .proto
-        .src
-        .len()
-        / 3;
+    let hpu_simd_n = hpu_asm::IOP_ERC_7984_SIMD.format().unwrap().proto.src.len() / 3;
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
@@ -698,13 +692,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType> + Sync,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::IOP_ERC_7984_SIMD
-        .format()
-        .unwrap()
-        .proto
-        .src
-        .len()
-        / 3;
+    let hpu_simd_n = hpu_asm::IOP_ERC_7984_SIMD.format().unwrap().proto.src.len() / 3;
     let mut rng = thread_rng();
 
     let params = client_key.computation_parameters();
