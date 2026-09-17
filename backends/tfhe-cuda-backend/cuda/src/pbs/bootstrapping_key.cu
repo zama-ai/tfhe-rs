@@ -53,8 +53,8 @@ void cuda_convert_lwe_programmable_bootstrap_key_standard_64_async(
 }
 
 // Only used during testing to convert the classical bsk in the specialized
-// 2_2_params layout that works better for the global loads when using
-// registers.
+// 2_2_params natural-order layout that works better for the global loads when
+// using registers.
 void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
@@ -62,18 +62,25 @@ void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
-  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  bool use_throughput_oriented =
-      specialized_2_2_use_throughput_oriented<uint64_t>(
-          polynomial_size, glwe_dim, level_count, input_lwe_dim,
-          max_shared_memory);
-  // This entry point always targets the specialized 2_2 layout; the throughput
-  // flag only selects between the FFT16x4x16 and the natural-order specialized
-  // conversion within it.
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int64_t *)src, polynomial_size, total_polynomials,
-      /*use_specialized_fft_2_2=*/true, use_throughput_oriented);
+      /*use_specialized_fft_2_2=*/true, /*use_throughput_oriented=*/false);
+}
+
+// Only used during testing to convert the classical bsk in the bit-reversed
+// FFT16x4x16 layout consumed by the throughput oriented 2_2_params kernel.
+void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_throughput_64_async(
+    void *stream, uint32_t gpu_index, void *dest, void const *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size) {
+  size_t total_polynomials =
+      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
+               (size_t)(glwe_dim + 1), (size_t)level_count);
+  cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
+      (const int64_t *)src, polynomial_size, total_polynomials,
+      /*use_specialized_fft_2_2=*/true, /*use_throughput_oriented=*/true);
 }
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
