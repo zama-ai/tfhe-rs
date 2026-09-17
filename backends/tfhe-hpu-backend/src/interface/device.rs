@@ -101,10 +101,10 @@ impl HpuDevice {
     pub fn new_var_from(
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
-        mode: crate::asm::VarMode,
+        spec: zhc::builder::CiphertextSpec,
         pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
-        self.cluster.new_var_from(ct, mode, pos)
+        self.cluster.new_var_from(ct, spec, pos)
     }
 }
 
