@@ -140,11 +140,13 @@ fn process_leaf(
         }
     };
 
+    let point_estimates = estimates.slope.unwrap_or(estimates.mean).point_estimate;
+
     let mean_value = match throughput_elements {
         // Throughput benchmark: convert ns/op to ops/s.
-        Some(n) => (n as f64 * ONE_SECOND_IN_NANOSECONDS) / estimates.mean.point_estimate,
+        Some(n) => (n as f64 * ONE_SECOND_IN_NANOSECONDS) / point_estimates,
         // Latency benchmark.
-        None => estimates.mean.point_estimate,
+        None => point_estimates,
     };
 
     for (raw_value, stat) in [
