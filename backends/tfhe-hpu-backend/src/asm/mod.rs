@@ -27,30 +27,6 @@ pub const MAX_HPU_IN_CLUSTER: usize = 8;
 /// hand-rolled `IOpProto`.
 pub type IOpSig = (zhc::ir::Signature<zhc::builder::Type>, u8);
 
-/// Enum used to define a variable size relative to current integer width
-#[derive(Debug, Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
-pub enum VarMode {
-    Native,
-    Half,
-    Bool,
-}
-
-/// Implement FromString trait to enable parsing from CLI
-impl std::str::FromStr for VarMode {
-    type Err = Box<ParsingError>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "n" | "nat" | "native" => Ok(VarMode::Native),
-            "h" | "half" => Ok(VarMode::Half),
-            "b" | "bool" => Ok(VarMode::Bool),
-            _ => Err(Box::new(ParsingError::InvalidArg(format!(
-                "Invalid VarMode: {s}"
-            )))),
-        }
-    }
-}
-
 // Common type used in asm definition -----------------------------------------
 /// Ciphertext Id
 /// On-board memory is viewed as an array of ciphertext,
