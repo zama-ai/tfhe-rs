@@ -257,5 +257,5 @@ fn test_safe_deserialize_conformant_compressed_fhe_int32() {
 #[test]
 fn test_int16_fused_mul_div() {
     let client_key = setup_default_cpu();
-    super::test_case_int16_fused_mul_div(&client_key);
+    super::test_case_fused_mul_div(&client_key);
 }

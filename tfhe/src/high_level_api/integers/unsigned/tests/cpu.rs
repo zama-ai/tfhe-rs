@@ -707,5 +707,5 @@ fn test_match_value_or() {
 #[test]
 fn test_uint16_fused_mul_div() {
     let client_key = setup_default_cpu();
-    super::test_case_uint16_fused_mul_div(&client_key);
+    super::test_case_fused_mul_div(&client_key);
 }

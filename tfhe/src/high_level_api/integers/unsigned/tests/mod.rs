@@ -1,13 +1,17 @@
+use crate::core_crypto::prelude::UnsignedInteger;
 use crate::high_level_api::traits::BitSlice;
 use crate::integer::U256;
 use crate::prelude::*;
 #[cfg(feature = "gpu")]
 use crate::FheUint2;
 use crate::{
-    ClientKey, FheBool, FheUint16, FheUint256, FheUint32, FheUint64, FheUint8, MatchValues,
+    ClientKey, FheBool, FheIntegerType, FheUint10, FheUint16, FheUint256, FheUint32, FheUint4,
+    FheUint64, FheUint8, IntegerId, MatchValues,
 };
 use rand::{thread_rng, Rng};
+use rand_distr::uniform::SampleUniform;
 use std::collections::HashMap;
+use std::ops::{Div, Mul};
 
 mod cpu;
 #[cfg(feature = "gpu")]
@@ -937,7 +941,7 @@ fn test_case_match_value_or(cks: &ClientKey) {
     }
 }
 
-fn test_case_uint16_fused_mul_div(cks: &ClientKey) {
+fn test_case_fused_mul_div(cks: &ClientKey) {
     let mut rng = rand::thread_rng();
 
     // Widening prevents incorrect result:
@@ -997,5 +1001,81 @@ fn test_case_uint16_fused_mul_div(cks: &ClientKey) {
             let decrypted: u16 = result.decrypt(cks);
             assert_eq!(decrypted, expected);
         }
+    }
+
+    // FheUint types which do not have a clear type with the same width
+    // we use the closest larger clear type, here we make sure the results
+    // are as expected
+    check_fused_mul_div::<FheUint4, u8, u16>(cks, 3, 255, 255);
+    check_fused_mul_div::<FheUint4, u8, u16>(cks, 31, 255, 255);
+    for _ in 0..5 {
+        check_random_fused_mul_div::<FheUint4, u8, u16>(cks, &mut rng);
+        check_random_fused_mul_div::<FheUint10, u16, u32>(cks, &mut rng);
+    }
+}
+
+fn check_random_fused_mul_div<FheType, Clear, WideClear>(
+    cks: &ClientKey,
+    rng: &mut dyn rand::RngCore,
+) where
+    FheType: FheIntegerType
+        + FheTryEncrypt<Clear, ClientKey>
+        + FheDecrypt<Clear>
+        + FusedScalarMulScalarDiv<Clear, Output = FheType>,
+    for<'a> &'a FheType: FusedScalarMulScalarDiv<Clear, Output = FheType>,
+    Clear: UnsignedInteger + SampleUniform + PartialEq,
+    rand::distributions::Standard: rand::distributions::Distribution<Clear>,
+    WideClear: From<Clear>
+        + CastInto<Clear>
+        + Mul<WideClear, Output = WideClear>
+        + Div<WideClear, Output = WideClear>,
+{
+    assert!(<FheType::Id as IntegerId>::num_bits() < Clear::BITS);
+    let max_of_fhe_type = (Clear::ONE << <FheType::Id as IntegerId>::num_bits()) - Clear::ONE;
+    let clear_a: Clear = rng.gen() & max_of_fhe_type;
+    let clear_b: Clear = rng.gen();
+    let clear_c: Clear = rng.gen_range(Clear::ONE..=Clear::MAX);
+
+    check_fused_mul_div::<FheType, Clear, WideClear>(cks, clear_a, clear_b, clear_c);
+}
+
+fn check_fused_mul_div<FheType, Clear, WideClear>(
+    cks: &ClientKey,
+    clear_a: Clear,
+    clear_b: Clear,
+    clear_c: Clear,
+) where
+    FheType: FheIntegerType
+        + FheTryEncrypt<Clear, ClientKey>
+        + FheDecrypt<Clear>
+        + FusedScalarMulScalarDiv<Clear, Output = FheType>,
+    for<'a> &'a FheType: FusedScalarMulScalarDiv<Clear, Output = FheType>,
+    Clear: UnsignedInteger,
+    WideClear: From<Clear>
+        + CastInto<Clear>
+        + Mul<WideClear, Output = WideClear>
+        + Div<WideClear, Output = WideClear>,
+{
+    assert!(<FheType::Id as IntegerId>::num_bits() < Clear::BITS);
+    let max_of_fhe_type = (Clear::ONE << <FheType::Id as IntegerId>::num_bits()) - Clear::ONE;
+
+    let expected = ((WideClear::from(clear_a) * WideClear::from(clear_b))
+        / WideClear::from(clear_c))
+    .cast_into()
+        & max_of_fhe_type;
+
+    let a = FheType::try_encrypt(clear_a, cks).unwrap();
+    // encrypted * scalar / scalar
+    {
+        let result = (&a).fused_scalar_mul_scalar_div(clear_b, clear_c);
+        let decrypted: Clear = result.decrypt(cks);
+        assert_eq!(decrypted, expected);
+    }
+
+    // Owned variants
+    {
+        let result = a.fused_scalar_mul_scalar_div(clear_b, clear_c);
+        let decrypted: Clear = result.decrypt(cks);
+        assert_eq!(decrypted, expected);
     }
 }
