@@ -217,7 +217,7 @@ impl HpuVarWrapped {
     }
 
     /// Check if inner value depicts a boolean
-    /// Currently 
+    /// Currently
     pub fn is_boolean(&self) -> bool {
         self.bit_width() == (self.spec.block_spec().message_size() as u16)
     }
