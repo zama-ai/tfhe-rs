@@ -863,7 +863,7 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap_128(
-    uint32_t polynomial_size, uint32_t max_shared_memory) {
+    uint32_t polynomial_size, uint32_t max_shared_memory, uint32_t gpu_index) {
   uint64_t minimum_sm =
       get_buffer_size_full_sm_programmable_bootstrap_128_tbc<Torus>(
           polynomial_size);
@@ -873,7 +873,7 @@ bool supports_distributed_shared_memory_on_classic_programmable_bootstrap_128(
     // in shared memory we return false.
     return false;
   } else {
-    return cuda_check_support_thread_block_clusters();
+    return cuda_check_support_thread_block_clusters(gpu_index);
   }
 }
 
@@ -881,9 +881,9 @@ template <typename InputTorus, typename params>
 __host__ bool
 supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory) {
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index) {
 
-  if (!cuda_check_support_thread_block_clusters())
+  if (!cuda_check_support_thread_block_clusters(gpu_index))
     return false;
 
   // The TBC implementation is a specialized implementation for the noise
@@ -944,7 +944,7 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap_128<
-          __uint128_t>(polynomial_size, max_shared_memory);
+          __uint128_t>(polynomial_size, max_shared_memory, gpu_index);
 
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
@@ -997,7 +997,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
   if (!force_step_one_step_two &&
       has_support_to_cuda_programmable_bootstrap_128_tbc(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          level_count, max_shared_memory)) {
+          level_count, max_shared_memory, gpu_index)) {
     switch (polynomial_size) {
     case 2048:
       return scratch_programmable_bootstrap_tbc_128<InputTorus, Degree<2048>>(
@@ -1013,7 +1013,7 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
   } else if (!force_step_one_step_two &&
              has_support_to_cuda_programmable_bootstrap_128_cg(
                  glwe_dimension, polynomial_size, level_count,
-                 input_lwe_ciphertext_count, max_shared_memory)) {
+                 input_lwe_ciphertext_count, max_shared_memory, gpu_index)) {
     DISPATCH_POLY_SIZE(
         polynomial_size, Multibit128DegreePolicy,
         return scratch_programmable_bootstrap_cg_128<InputTorus, Params>(
@@ -1341,7 +1341,7 @@ __host__ void host_programmable_bootstrap_tbc_128(
   bool can_use_tbc =
       has_support_to_cuda_programmable_bootstrap_128_tbc(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          level_count, cuda_get_max_shared_memory(gpu_index)) &&
+          level_count, cuda_get_max_shared_memory(gpu_index), gpu_index) &&
       base_log == 24;
 
   PANIC_IF_FALSE(can_use_tbc,
@@ -1356,7 +1356,7 @@ __host__ void host_programmable_bootstrap_tbc_128(
 
   bool supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap_128<
-          __uint128_t>(polynomial_size, max_shared_memory);
+          __uint128_t>(polynomial_size, max_shared_memory, gpu_index);
 
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
@@ -1397,10 +1397,10 @@ __host__ void host_programmable_bootstrap_tbc_128(
 template <class params>
 __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
     int glwe_dimension, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_index) {
 
   // If Cooperative Groups is not supported, no need to check anything else
-  if (!cuda_check_support_cooperative_groups())
+  if (!cuda_check_support_cooperative_groups(gpu_index))
     return false;
 
   // Calculate the dimension of the kernel
@@ -1451,8 +1451,8 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
-  check_cuda_error(
-      cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0));
+  check_cuda_error(cudaDeviceGetAttribute(
+      &number_of_sm, cudaDevAttrMultiProcessorCount, gpu_index));
 
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
@@ -1460,11 +1460,12 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
 // Verify if the grid size satisfies the cooperative group constraints
 __host__ bool supports_cooperative_groups_on_programmable_bootstrap_128(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_index) {
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit classic PBS
   DISPATCH_POLY_SIZE(
       polynomial_size, Multibit128DegreePolicy,
       return verify_cuda_programmable_bootstrap_128_cg_grid_size<Params>(
-          glwe_dimension, level_count, num_samples, max_shared_memory));
+          glwe_dimension, level_count, num_samples, max_shared_memory,
+          gpu_index));
 }
 #endif // TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_PBS_PROGRAMMABLE_BOOTSTRAP_CLASSIC_128_CUH_
