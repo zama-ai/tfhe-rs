@@ -1401,7 +1401,6 @@ test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for 
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/) and not test(/uniformity/) and not test(/long_run/)"
 
-
 test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_level_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \

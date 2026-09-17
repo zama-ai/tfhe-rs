@@ -276,13 +276,14 @@ uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
   int divisor = 1;
   int ith_divisor = 0;
 
-#if CUDA_ARCH < 900
-  // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
-  // multiplication can run
-  int log2_max_num_pbs = log2_int(max_num_pbs);
-  if (log2_max_num_pbs > 13)
-    ith_divisor = log2_max_num_pbs - 11;
-#endif
+  int major = cuda_get_compute_capability_major(gpu_index);
+  if (major < 9) {
+    // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
+    // multiplication can run
+    int log2_max_num_pbs = log2_int(max_num_pbs);
+    if (log2_max_num_pbs > 13)
+      ith_divisor = log2_max_num_pbs - 11;
+  }
 
   for (int i = sqrt(x); i >= 1; i--) {
     if (x % i == 0) {
