@@ -1,11 +1,14 @@
 //! Module providing algorithms to perform computations on polynomials modulo $X^{N} + 1$.
 
-use itertools::Itertools;
-
 use crate::core_crypto::algorithms::slice_algorithms::*;
+use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView, FourierPolynomialList};
+use dyn_stack::{PodStack, StackReq};
+use itertools::Itertools;
+use tfhe_fft::c64;
 
 /// Add a polynomial to the output polynomial.
 ///
@@ -1369,6 +1372,60 @@ fn induction_karatsuba_custom_mod<Scalar>(
             custom_modulus,
         );
     }
+}
+/// Convert a list of polynomials with standard coefficients to the Fourier domain.
+///
+/// This allocates the required computation buffers internally. Use
+/// [`convert_standard_polynomial_list_to_fourier_mem_optimized`] to manage the buffers yourself.
+pub fn convert_polynomials_list_to_fourier<Scalar, InputCont, OutputCont>(
+    input: &PolynomialList<InputCont>,
+    output: &mut FourierPolynomialList<OutputCont>,
+) where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = c64>,
+{
+    let mut buffers = ComputationBuffers::new();
+
+    let fft = Fft::new(input.polynomial_size());
+    let fft = fft.as_view();
+
+    buffers.resize(
+        convert_standard_polynomial_list_to_fourier_mem_optimized_requirement(fft)
+            .unaligned_bytes_required(),
+    );
+
+    let stack = buffers.stack();
+
+    convert_standard_polynomial_list_to_fourier_mem_optimized(input, output, fft, stack);
+}
+
+/// Memory optimized version of [`convert_polynomials_list_to_fourier`].
+pub fn convert_standard_polynomial_list_to_fourier_mem_optimized<Scalar, InputCont, OutputCont>(
+    input: &PolynomialList<InputCont>,
+    output: &mut FourierPolynomialList<OutputCont>,
+    fft: FftView<'_>,
+    stack: &mut PodStack,
+) where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = c64>,
+{
+    assert_eq!(output.polynomial_size, input.polynomial_size());
+    assert_eq!(output.polynomial_count(), input.polynomial_count());
+
+    for (fourier_poly, coef_poly) in output.iter_mut().zip(input.iter()) {
+        // SAFETY: forward_as_torus doesn't write any uninitialized values into its output
+        fft.forward_as_torus(fourier_poly, coef_poly, stack);
+    }
+}
+
+/// Return the required memory for
+/// [`convert_standard_polynomial_list_to_fourier_mem_optimized`].
+pub fn convert_standard_polynomial_list_to_fourier_mem_optimized_requirement(
+    fft: FftView<'_>,
+) -> StackReq {
+    fft.forward_scratch()
 }
 
 #[cfg(test)]
