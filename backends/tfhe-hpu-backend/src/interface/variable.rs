@@ -3,10 +3,10 @@
 //! Handle lifetime management, deallocation and state inside HpuDevice.
 
 use super::*;
-use crate::asm::{IOpId, PhysId, VarMode, SW_IOP_ID};
+use crate::asm::{IOpId, PhysId, SW_IOP_ID};
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use std::sync::{Arc, Mutex};
-use zhc::builder::Type;
+use zhc::builder::{CiphertextSpec, Type};
 
 pub(crate) struct HpuVar {
     bundle: memory::CiphertextBundle,
@@ -52,7 +52,7 @@ pub struct HpuVarWrapped {
     pub(crate) id: memory::ciphertext::SlotId,
     pub(crate) params: Arc<HpuParameters>,
     pub(crate) width: usize,
-    pub(crate) mode: VarMode,
+    pub(crate) spec: CiphertextSpec,
     /// Reference to associated cluster
     pub(crate) hpu_id: PhysId,
     pub(crate) parent: HpuClusterWrapped,
@@ -71,7 +71,7 @@ impl HpuVarWrapped {
         cluster: HpuClusterWrapped,
         params: Arc<HpuParameters>,
         width: usize,
-        mode: VarMode,
+        spec: CiphertextSpec,
     ) -> Self {
         let pool = &cluster.get(&hpu_id.0).expect("Invalid Hpu Id").ct_mem;
         let bundle = pool.get_bundle(width);
@@ -80,7 +80,7 @@ impl HpuVarWrapped {
             id: *bundle.id(),
             params,
             width,
-            mode,
+            spec,
             hpu_id,
             parent: cluster,
             inner: Arc::new(Mutex::new(HpuVar {
@@ -96,9 +96,9 @@ impl HpuVarWrapped {
         cluster: HpuClusterWrapped,
         params: Arc<HpuParameters>,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
-        mode: VarMode,
+        spec: CiphertextSpec,
     ) -> Self {
-        let var = Self::new_on(hpu_id, cluster, params, ct.len(), mode);
+        let var = Self::new_on(hpu_id, cluster, params, ct.len(), spec);
 
         // Write cpu_ct with correct interleaving in host buffer
         // Now value is considered CpuSync (i.e. data valid only on cpu-side)
@@ -126,57 +126,24 @@ impl HpuVarWrapped {
     /// Create a new HpuVarWrapped with same properties
     /// Associated data is != only share properties
     ///
-    /// `trgt_ty` is the target's concrete type as declared by the IOp's zhc `Signature<Type>`
-    /// (i.e. an absolute bit-width, unlike the caller-relative [`VarMode`] this used to take).
-    /// The resulting [`VarMode`] tag is inferred by comparing that absolute width against this
-    /// variable's own native-equivalent width.
+    /// `trgt_ty` is the target's concrete type as declared by the IOp's zhc `Signature<Type>`.
+    /// Since it already carries the target's absolute [`CiphertextSpec`] (bit-width and block
+    /// layout), the new variable's storage width is derived directly from it.
     pub(crate) fn fork(&self, trgt_ty: &Type, trgt_pos: PhysId) -> Self {
-        let Self {
-            params,
-            width,
-            mode,
-            parent,
-            ..
-        } = self.clone();
+        let Self { params, parent, .. } = self.clone();
 
         let trgt_spec = match trgt_ty {
-            Type::Ciphertext(spec) => spec,
+            Type::Ciphertext(spec) => *spec,
             Type::Plaintext(_) => panic!("Couldn't fork a variable into a plaintext type"),
         };
-        let msg_w = params.pbs_params.message_width;
-        let trgt_bits = trgt_spec.int_size() as usize;
-
-        let (width, trgt_mode) = if trgt_bits == 1 {
-            (1, VarMode::Bool)
-        } else {
-            let self_native_bits = match mode {
-                VarMode::Native => width * msg_w,
-                VarMode::Half => 2 * width * msg_w,
-                VarMode::Bool => {
-                    panic!("Unsupported mode, couldn't use a Boolean to build a bigger variable")
-                }
-            };
-            if trgt_bits == self_native_bits {
-                (trgt_bits.div_ceil(msg_w), VarMode::Native)
-            } else if trgt_bits * 2 == self_native_bits {
-                (trgt_bits.div_ceil(msg_w), VarMode::Half)
-            } else {
-                panic!("Unsupported target width {trgt_bits} relative to native {self_native_bits}")
-            }
-        };
-        Self::new_on(trgt_pos, parent, params, width, trgt_mode)
+        let width = trgt_spec.block_count() as usize;
+        Self::new_on(trgt_pos, parent, params, width, trgt_spec)
     }
 
-    /// This variable's own concrete bit-width, independent of the (possibly relative, e.g.
-    /// `Half`) [`VarMode`] tag it was created with. Used to key lookups into an IOp's zhc
+    /// This variable's own concrete bit-width. Used to key lookups into an IOp's zhc
     /// `Signature<Type>` (e.g. [`crate::interface::HpuCluster::get_signature`]).
     pub(crate) fn bit_width(&self) -> u16 {
-        match self.mode {
-            VarMode::Bool => 1,
-            VarMode::Native | VarMode::Half => {
-                (self.width * self.params.pbs_params.message_width) as u16
-            }
-        }
+        self.spec.int_size()
     }
 
     /// Check if this variable's own encoded width matches the given zhc `Type` (used to
@@ -250,7 +217,8 @@ impl HpuVarWrapped {
     }
 
     /// Check if inner value depicts a boolean
+    /// Currently 
     pub fn is_boolean(&self) -> bool {
-        self.mode == VarMode::Bool
+        self.bit_width() == (self.spec.block_spec().message_size() as u16)
     }
 }

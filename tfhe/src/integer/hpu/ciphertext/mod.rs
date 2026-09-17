@@ -33,7 +33,12 @@ impl HpuRadixCiphertext {
             .map(|blk| HpuLweCiphertextOwned::create_from(blk.ct.as_view(), params.clone()))
             .collect::<Vec<_>>();
 
-        Self(device.new_var_from(hpu_ct, VarMode::Native, pos))
+        let spec = zhc::builder::CiphertextSpec::new(
+            (cpu_ct.blocks.len() * params.pbs_params.message_width) as u16,
+            params.pbs_params.carry_width as u8,
+            params.pbs_params.message_width as u8,
+        );
+        Self(device.new_var_from(hpu_ct, spec, pos))
     }
 
     /// Create a Cpu radix ciphertext copy from a Hpu one.
@@ -72,9 +77,14 @@ impl HpuRadixCiphertext {
 
         let hpu_ct = vec![HpuLweCiphertextOwned::create_from(
             cpu_ct.0.ct.as_view(),
-            params,
+            params.clone(),
         )];
-        Self(device.new_var_from(hpu_ct, VarMode::Bool, pos))
+        let spec = zhc::builder::CiphertextSpec::new(
+            1,
+            params.pbs_params.carry_width as u8,
+            params.pbs_params.message_width as u8,
+        );
+        Self(device.new_var_from(hpu_ct, spec, pos))
     }
 
     /// Create a Cpu boolean block from a Hpu one
