@@ -264,7 +264,7 @@ template <typename Torus> struct zk_expand_mem {
           return x % casting_params.message_modulus;
         };
         auto carry_extract_lut_f = [casting_params](Torus x) -> Torus {
-          return (x / casting_params.carry_modulus) %
+          return (x / casting_params.message_modulus) %
                  casting_params.message_modulus;
         };
         auto sanitize_bool_f = [](Torus x) -> Torus { return x == 0 ? 0 : 1; };
