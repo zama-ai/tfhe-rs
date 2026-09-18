@@ -171,6 +171,26 @@ fn exec_scalar_op(
     }
 }
 
+/// Execute a scalar shift/rotate: the clear operand is an *unsigned* amount
+/// whatever the ciphertext's signedness (see the dialect's signature for
+/// `FheScalarShl` and friends), unlike [`exec_scalar_op`] whose scalar has
+/// the ciphertext's kind.
+fn exec_scalar_shift_op(
+    input: &RuntimeValue,
+    amount: &ScalarValue,
+    unsigned_op: impl FnOnce(&RadixCiphertext, u128) -> RadixCiphertext,
+    signed_op: impl FnOnce(&SignedRadixCiphertext, u128) -> SignedRadixCiphertext,
+) -> RuntimeValue {
+    let ScalarValue::Unsigned(amount) = amount else {
+        panic!("shift/rotate amount must be an unsigned clear, got {amount:?}")
+    };
+    match input {
+        RuntimeValue::FheUint(v) => RuntimeValue::FheUint(unsigned_op(v, *amount)),
+        RuntimeValue::FheInt(v) => RuntimeValue::FheInt(signed_op(v, *amount)),
+        _ => panic!("shift/rotate on a non-integer ciphertext"),
+    }
+}
+
 /// Execute a scalar bitwise op (bitand/bitor/bitxor) with `Bool` support.
 fn exec_scalar_bitwise_op(
     input: &RuntimeValue,
@@ -389,6 +409,7 @@ pub(super) fn exec_dialect_op(
     inputs_arc: &mut Vec<Arc<RuntimeValue>>,
     outputs: &mut Vec<RuntimeValue>,
 ) {
+    let pbs = sks.pbs_key();
     // Mutating KVStore arms run first so they can take Arc ownership.
     // The read-only `inputs` view built below borrows `inputs_arc`, which
     // would block the move.
@@ -515,22 +536,22 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheAdd { kind: _ } => {
             outputs.push(exec_binary_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().add_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().add_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.add_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.add_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheSub { kind: _ } => {
             outputs.push(exec_binary_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().sub_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().sub_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.sub_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.sub_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheGe { kind: _ } => {
             outputs.push(exec_binary_cmp(
                 inputs,
-                |lhs, rhs| sks.pbs_key().ge_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().ge_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.ge_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.ge_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::Select { kind: _ } => {
@@ -542,12 +563,12 @@ pub(super) fn exec_dialect_op(
             };
             match (inputs[1], inputs[2]) {
                 (RuntimeValue::FheUint(a), RuntimeValue::FheUint(b)) => {
-                    let (x, y) = sks.pbs_key().flip_parallelized(cond, a, b);
+                    let (x, y) = pbs.flip_parallelized(cond, a, b);
                     outputs.push(RuntimeValue::FheUint(x));
                     outputs.push(RuntimeValue::FheUint(y));
                 }
                 (RuntimeValue::FheInt(a), RuntimeValue::FheInt(b)) => {
-                    let (x, y) = sks.pbs_key().flip_parallelized(cond, a, b);
+                    let (x, y) = pbs.flip_parallelized(cond, a, b);
                     outputs.push(RuntimeValue::FheInt(x));
                     outputs.push(RuntimeValue::FheInt(y));
                 }
@@ -566,23 +587,23 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheMul { kind: _ } => {
             outputs.push(exec_binary_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().mul_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().mul_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.mul_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.mul_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheBitOr { kind: _ } => {
             outputs.push(exec_binary_bitwise_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().bitor_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().bitor_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().boolean_bitor(lhs, rhs),
+                |lhs, rhs| pbs.bitor_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.bitor_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.boolean_bitor(lhs, rhs),
             ));
         }
         HlInstructionSet::FheNot { kind: _ } => {
             let result = match inputs[0] {
-                RuntimeValue::FheUint(v) => RuntimeValue::FheUint(sks.pbs_key().bitnot(v)),
-                RuntimeValue::FheInt(v) => RuntimeValue::FheInt(sks.pbs_key().bitnot(v)),
-                RuntimeValue::FheBool(v) => RuntimeValue::FheBool(sks.pbs_key().boolean_bitnot(v)),
+                RuntimeValue::FheUint(v) => RuntimeValue::FheUint(pbs.bitnot(v)),
+                RuntimeValue::FheInt(v) => RuntimeValue::FheInt(pbs.bitnot(v)),
+                RuntimeValue::FheBool(v) => RuntimeValue::FheBool(pbs.boolean_bitnot(v)),
                 _ => panic!("FheNot not supported on this kind"),
             };
             outputs.push(result);
@@ -593,8 +614,8 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheOverflowingAdd { kind: _ } => {
             let (result, overflow) = exec_overflowing_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().overflowing_add_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().overflowing_add_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.overflowing_add_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.overflowing_add_parallelized(lhs, rhs),
             );
             outputs.push(result);
             outputs.push(overflow);
@@ -602,11 +623,8 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheOverflowingSub { kind: _ } => {
             let (result, overflow) = exec_overflowing_op(
                 inputs,
-                |lhs, rhs| {
-                    sks.pbs_key()
-                        .unsigned_overflowing_sub_parallelized(lhs, rhs)
-                },
-                |lhs, rhs| sks.pbs_key().signed_overflowing_sub_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.unsigned_overflowing_sub_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.signed_overflowing_sub_parallelized(lhs, rhs),
             );
             outputs.push(result);
             outputs.push(overflow);
@@ -614,11 +632,8 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheOverflowingMul { kind: _ } => {
             let (result, overflow) = exec_overflowing_op(
                 inputs,
-                |lhs, rhs| {
-                    sks.pbs_key()
-                        .unsigned_overflowing_mul_parallelized(lhs, rhs)
-                },
-                |lhs, rhs| sks.pbs_key().signed_overflowing_mul_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.unsigned_overflowing_mul_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.signed_overflowing_mul_parallelized(lhs, rhs),
             );
             outputs.push(result);
             outputs.push(overflow);
@@ -626,11 +641,11 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheOverflowingNeg { kind: _ } => {
             let (result, overflow) = match inputs[0] {
                 RuntimeValue::FheUint(v) => {
-                    let (r, b) = sks.pbs_key().overflowing_neg_parallelized(v);
+                    let (r, b) = pbs.overflowing_neg_parallelized(v);
                     (RuntimeValue::FheUint(r), RuntimeValue::FheBool(b))
                 }
                 RuntimeValue::FheInt(v) => {
-                    let (r, b) = sks.pbs_key().overflowing_neg_parallelized(v);
+                    let (r, b) = pbs.overflowing_neg_parallelized(v);
                     (RuntimeValue::FheInt(r), RuntimeValue::FheBool(b))
                 }
                 _ => panic!("FheOverflowingNeg only supports integer types"),
@@ -681,11 +696,11 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheDivRem { kind: _ } => {
             let (q, r) = match (inputs[0], inputs[1]) {
                 (RuntimeValue::FheUint(a), RuntimeValue::FheUint(b)) => {
-                    let (q, r) = sks.pbs_key().div_rem_parallelized(a, b);
+                    let (q, r) = pbs.div_rem_parallelized(a, b);
                     (RuntimeValue::FheUint(q), RuntimeValue::FheUint(r))
                 }
                 (RuntimeValue::FheInt(a), RuntimeValue::FheInt(b)) => {
-                    let (q, r) = sks.pbs_key().div_rem_parallelized(a, b);
+                    let (q, r) = pbs.div_rem_parallelized(a, b);
                     (RuntimeValue::FheInt(q), RuntimeValue::FheInt(r))
                 }
                 _ => panic!("FheDivRem: mismatched or unsupported input kinds"),
@@ -696,117 +711,115 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheDiv { kind: _ } => {
             outputs.push(exec_binary_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().div_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().div_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.div_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.div_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheRem { kind: _ } => {
             outputs.push(exec_binary_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().rem_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().rem_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.rem_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.rem_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheMin { kind: _ } => {
             outputs.push(exec_binary_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().min_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().min_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.min_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.min_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheMax { kind: _ } => {
             outputs.push(exec_binary_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().max_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().max_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.max_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.max_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheNeg { kind: _ } => {
             let result = match inputs[0] {
-                RuntimeValue::FheUint(v) => {
-                    RuntimeValue::FheUint(sks.pbs_key().neg_parallelized(v))
-                }
-                RuntimeValue::FheInt(v) => RuntimeValue::FheInt(sks.pbs_key().neg_parallelized(v)),
+                RuntimeValue::FheUint(v) => RuntimeValue::FheUint(pbs.neg_parallelized(v)),
+                RuntimeValue::FheInt(v) => RuntimeValue::FheInt(pbs.neg_parallelized(v)),
                 _ => panic!("FheNeg only supports integer types"),
             };
             outputs.push(result);
         }
         HlInstructionSet::FheIsEven { kind: _ } => {
             let bb = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().is_even_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().is_even_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.is_even_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.is_even_parallelized(v),
                 _ => panic!("FheIsEven only supports integer types"),
             };
             outputs.push(RuntimeValue::FheBool(bb));
         }
         HlInstructionSet::FheIsOdd { kind: _ } => {
             let bb = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().is_odd_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().is_odd_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.is_odd_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.is_odd_parallelized(v),
                 _ => panic!("FheIsOdd only supports integer types"),
             };
             outputs.push(RuntimeValue::FheBool(bb));
         }
         HlInstructionSet::FheLeadingZeros { kind: _ } => {
             let raw = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().leading_zeros_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().leading_zeros_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.leading_zeros_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.leading_zeros_parallelized(v),
                 _ => panic!("FheLeadingZeros only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
         }
         HlInstructionSet::FheLeadingOnes { kind: _ } => {
             let raw = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().leading_ones_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().leading_ones_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.leading_ones_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.leading_ones_parallelized(v),
                 _ => panic!("FheLeadingOnes only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
         }
         HlInstructionSet::FheTrailingZeros { kind: _ } => {
             let raw = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().trailing_zeros_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().trailing_zeros_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.trailing_zeros_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.trailing_zeros_parallelized(v),
                 _ => panic!("FheTrailingZeros only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
         }
         HlInstructionSet::FheTrailingOnes { kind: _ } => {
             let raw = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().trailing_ones_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().trailing_ones_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.trailing_ones_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.trailing_ones_parallelized(v),
                 _ => panic!("FheTrailingOnes only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
         }
         HlInstructionSet::FheCountOnes { kind: _ } => {
             let raw = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().count_ones_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().count_ones_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.count_ones_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.count_ones_parallelized(v),
                 _ => panic!("FheCountOnes only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
         }
         HlInstructionSet::FheCountZeros { kind: _ } => {
             let raw = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().count_zeros_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().count_zeros_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.count_zeros_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.count_zeros_parallelized(v),
                 _ => panic!("FheCountZeros only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
         }
         HlInstructionSet::FheIlog2 { kind: _ } => {
             let raw = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().ilog2_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().ilog2_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.ilog2_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.ilog2_parallelized(v),
                 _ => panic!("FheIlog2 only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
         }
         HlInstructionSet::FheCheckedIlog2 { kind: _ } => {
             let (raw, bb) = match inputs[0] {
-                RuntimeValue::FheUint(v) => sks.pbs_key().checked_ilog2_parallelized(v),
-                RuntimeValue::FheInt(v) => sks.pbs_key().checked_ilog2_parallelized(v),
+                RuntimeValue::FheUint(v) => pbs.checked_ilog2_parallelized(v),
+                RuntimeValue::FheInt(v) => pbs.checked_ilog2_parallelized(v),
                 _ => panic!("FheCheckedIlog2 only supports integer types"),
             };
             outputs.push(RuntimeValue::FheUint(cast_to_fhe_uint32(sks, raw)));
@@ -814,12 +827,8 @@ pub(super) fn exec_dialect_op(
         }
         HlInstructionSet::FheReverseBits { kind: _ } => {
             let result = match inputs[0] {
-                RuntimeValue::FheUint(v) => {
-                    RuntimeValue::FheUint(sks.pbs_key().reverse_bits_parallelized(v))
-                }
-                RuntimeValue::FheInt(v) => {
-                    RuntimeValue::FheInt(sks.pbs_key().reverse_bits_parallelized(v))
-                }
+                RuntimeValue::FheUint(v) => RuntimeValue::FheUint(pbs.reverse_bits_parallelized(v)),
+                RuntimeValue::FheInt(v) => RuntimeValue::FheInt(pbs.reverse_bits_parallelized(v)),
                 _ => panic!("FheReverseBits only supports integer types"),
             };
             outputs.push(result);
@@ -828,7 +837,7 @@ pub(super) fn exec_dialect_op(
             // Builder rejects Uint(_); executor defensively checks anyway since
             // direct IR manipulation could theoretically bypass the builder.
             let result = match inputs[0] {
-                RuntimeValue::FheInt(v) => RuntimeValue::FheInt(sks.pbs_key().abs_parallelized(v)),
+                RuntimeValue::FheInt(v) => RuntimeValue::FheInt(pbs.abs_parallelized(v)),
                 _ => panic!("FheAbs only supports signed integer types"),
             };
             outputs.push(result);
@@ -845,7 +854,7 @@ pub(super) fn exec_dialect_op(
                             _ => panic!("FheSum cannot mix input types"),
                         })
                         .collect();
-                    let r = sks.pbs_key().sum_ciphertexts_parallelized(&elems).unwrap();
+                    let r = pbs.sum_ciphertexts_parallelized(&elems).unwrap();
                     RuntimeValue::FheUint(r)
                 }
                 FheIntKind::Int(_) => {
@@ -856,7 +865,7 @@ pub(super) fn exec_dialect_op(
                             _ => panic!("FheSum cannot mix input types"),
                         })
                         .collect();
-                    let r = sks.pbs_key().sum_ciphertexts_parallelized(&elems).unwrap();
+                    let r = pbs.sum_ciphertexts_parallelized(&elems).unwrap();
                     RuntimeValue::FheInt(r)
                 }
             };
@@ -865,59 +874,59 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheBitAnd { kind: _ } => {
             outputs.push(exec_binary_bitwise_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().bitand_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().bitand_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().boolean_bitand(lhs, rhs),
+                |lhs, rhs| pbs.bitand_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.bitand_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.boolean_bitand(lhs, rhs),
             ));
         }
         HlInstructionSet::FheBitXor { kind: _ } => {
             outputs.push(exec_binary_bitwise_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().bitxor_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().bitxor_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().boolean_bitxor(lhs, rhs),
+                |lhs, rhs| pbs.bitxor_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.bitxor_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.boolean_bitxor(lhs, rhs),
             ));
         }
         HlInstructionSet::FheEq { kind: _ } => {
             outputs.push(exec_binary_eq(
                 inputs,
-                |lhs, rhs| sks.pbs_key().eq_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().eq_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.eq_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.eq_parallelized(lhs, rhs),
                 // bool eq = NOT(XOR)
                 |lhs, rhs| {
-                    let xor = sks.pbs_key().boolean_bitxor(lhs, rhs);
-                    sks.pbs_key().boolean_bitnot(&xor)
+                    let xor = pbs.boolean_bitxor(lhs, rhs);
+                    pbs.boolean_bitnot(&xor)
                 },
             ));
         }
         HlInstructionSet::FheNe { kind: _ } => {
             outputs.push(exec_binary_eq(
                 inputs,
-                |lhs, rhs| sks.pbs_key().ne_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().ne_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.ne_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.ne_parallelized(lhs, rhs),
                 // bool ne = XOR
-                |lhs, rhs| sks.pbs_key().boolean_bitxor(lhs, rhs),
+                |lhs, rhs| pbs.boolean_bitxor(lhs, rhs),
             ));
         }
         HlInstructionSet::FheLt { kind: _ } => {
             outputs.push(exec_binary_cmp(
                 inputs,
-                |lhs, rhs| sks.pbs_key().lt_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().lt_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.lt_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.lt_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheLe { kind: _ } => {
             outputs.push(exec_binary_cmp(
                 inputs,
-                |lhs, rhs| sks.pbs_key().le_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().le_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.le_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.le_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheGt { kind: _ } => {
             outputs.push(exec_binary_cmp(
                 inputs,
-                |lhs, rhs| sks.pbs_key().gt_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().gt_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.gt_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.gt_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheShl {
@@ -926,8 +935,8 @@ pub(super) fn exec_dialect_op(
         } => {
             outputs.push(exec_shift_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().left_shift_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().left_shift_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.left_shift_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.left_shift_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheShr {
@@ -936,8 +945,8 @@ pub(super) fn exec_dialect_op(
         } => {
             outputs.push(exec_shift_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().right_shift_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().right_shift_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.right_shift_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.right_shift_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheRotateLeft {
@@ -946,8 +955,8 @@ pub(super) fn exec_dialect_op(
         } => {
             outputs.push(exec_shift_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().rotate_left_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().rotate_left_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.rotate_left_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.rotate_left_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheRotateRight {
@@ -956,8 +965,8 @@ pub(super) fn exec_dialect_op(
         } => {
             outputs.push(exec_shift_op(
                 inputs,
-                |lhs, rhs| sks.pbs_key().rotate_right_parallelized(lhs, rhs),
-                |lhs, rhs| sks.pbs_key().rotate_right_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.rotate_right_parallelized(lhs, rhs),
+                |lhs, rhs| pbs.rotate_right_parallelized(lhs, rhs),
             ));
         }
         HlInstructionSet::FheScalarAdd { kind: _ } => {
@@ -965,8 +974,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_add_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_add_parallelized(v, s),
+                |v, s| pbs.scalar_add_parallelized(v, s),
+                |v, s| pbs.scalar_add_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarSub { kind: _ } => {
@@ -974,8 +983,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_sub_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_sub_parallelized(v, s),
+                |v, s| pbs.scalar_sub_parallelized(v, s),
+                |v, s| pbs.scalar_sub_parallelized(v, s),
             ));
         }
         HlInstructionSet::ScalarFheSub { kind: _ } => {
@@ -986,12 +995,12 @@ pub(super) fn exec_dialect_op(
                 inputs[1],
                 &scalar,
                 |v, s| {
-                    let neg = sks.pbs_key().neg_parallelized(v);
-                    sks.pbs_key().scalar_add_parallelized(&neg, s)
+                    let neg = pbs.neg_parallelized(v);
+                    pbs.scalar_add_parallelized(&neg, s)
                 },
                 |v, s| {
-                    let neg = sks.pbs_key().neg_parallelized(v);
-                    sks.pbs_key().scalar_add_parallelized(&neg, s)
+                    let neg = pbs.neg_parallelized(v);
+                    pbs.scalar_add_parallelized(&neg, s)
                 },
             ));
         }
@@ -1000,8 +1009,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_mul_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_mul_parallelized(v, s),
+                |v, s| pbs.scalar_mul_parallelized(v, s),
+                |v, s| pbs.scalar_mul_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarDiv { kind: _ } => {
@@ -1009,8 +1018,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_div_parallelized(v, s),
-                |v, s| sks.pbs_key().signed_scalar_div_parallelized(v, s),
+                |v, s| pbs.scalar_div_parallelized(v, s),
+                |v, s| pbs.signed_scalar_div_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarRem { kind: _ } => {
@@ -1018,8 +1027,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_rem_parallelized(v, s),
-                |v, s| sks.pbs_key().signed_scalar_rem_parallelized(v, s),
+                |v, s| pbs.scalar_rem_parallelized(v, s),
+                |v, s| pbs.signed_scalar_rem_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarMin { kind: _ } => {
@@ -1027,8 +1036,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_min_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_min_parallelized(v, s),
+                |v, s| pbs.scalar_min_parallelized(v, s),
+                |v, s| pbs.scalar_min_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarMax { kind: _ } => {
@@ -1036,44 +1045,44 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_max_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_max_parallelized(v, s),
+                |v, s| pbs.scalar_max_parallelized(v, s),
+                |v, s| pbs.scalar_max_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarShl { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
-            outputs.push(exec_scalar_op(
+            outputs.push(exec_scalar_shift_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_left_shift_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_left_shift_parallelized(v, s),
+                |v, s| pbs.scalar_left_shift_parallelized(v, s),
+                |v, s| pbs.scalar_left_shift_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarShr { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
-            outputs.push(exec_scalar_op(
+            outputs.push(exec_scalar_shift_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_right_shift_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_right_shift_parallelized(v, s),
+                |v, s| pbs.scalar_right_shift_parallelized(v, s),
+                |v, s| pbs.scalar_right_shift_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarRotateLeft { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
-            outputs.push(exec_scalar_op(
+            outputs.push(exec_scalar_shift_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_rotate_left_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_rotate_left_parallelized(v, s),
+                |v, s| pbs.scalar_rotate_left_parallelized(v, s),
+                |v, s| pbs.scalar_rotate_left_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarRotateRight { kind: _ } => {
             let scalar = inputs[1].as_clear_scalar();
-            outputs.push(exec_scalar_op(
+            outputs.push(exec_scalar_shift_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_rotate_right_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_rotate_right_parallelized(v, s),
+                |v, s| pbs.scalar_rotate_right_parallelized(v, s),
+                |v, s| pbs.scalar_rotate_right_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarBitAnd { kind: _ } => {
@@ -1081,14 +1090,14 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_bitwise_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_bitand_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_bitand_parallelized(v, s),
+                |v, s| pbs.scalar_bitand_parallelized(v, s),
+                |v, s| pbs.scalar_bitand_parallelized(v, s),
                 // bool & true = v ; bool & false = false
                 |v, s| {
                     if s {
                         v.clone()
                     } else {
-                        sks.pbs_key().create_trivial_boolean_block(false)
+                        pbs.create_trivial_boolean_block(false)
                     }
                 },
             ));
@@ -1098,12 +1107,12 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_bitwise_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_bitor_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_bitor_parallelized(v, s),
+                |v, s| pbs.scalar_bitor_parallelized(v, s),
+                |v, s| pbs.scalar_bitor_parallelized(v, s),
                 // bool | true = true ; bool | false = v
                 |v, s| {
                     if s {
-                        sks.pbs_key().create_trivial_boolean_block(true)
+                        pbs.create_trivial_boolean_block(true)
                     } else {
                         v.clone()
                     }
@@ -1115,12 +1124,12 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_bitwise_op(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_bitxor_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_bitxor_parallelized(v, s),
+                |v, s| pbs.scalar_bitxor_parallelized(v, s),
+                |v, s| pbs.scalar_bitxor_parallelized(v, s),
                 // bool ^ true = NOT(v) ; bool ^ false = v
                 |v, s| {
                     if s {
-                        sks.pbs_key().boolean_bitnot(v)
+                        pbs.boolean_bitnot(v)
                     } else {
                         v.clone()
                     }
@@ -1132,14 +1141,14 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_eq(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_eq_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_eq_parallelized(v, s),
+                |v, s| pbs.scalar_eq_parallelized(v, s),
+                |v, s| pbs.scalar_eq_parallelized(v, s),
                 // bool == true = v ; bool == false = NOT(v)
                 |v, s| {
                     if s {
                         v.clone()
                     } else {
-                        sks.pbs_key().boolean_bitnot(v)
+                        pbs.boolean_bitnot(v)
                     }
                 },
             ));
@@ -1149,12 +1158,12 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_eq(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_ne_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_ne_parallelized(v, s),
+                |v, s| pbs.scalar_ne_parallelized(v, s),
+                |v, s| pbs.scalar_ne_parallelized(v, s),
                 // bool != true = NOT(v) ; bool != false = v
                 |v, s| {
                     if s {
-                        sks.pbs_key().boolean_bitnot(v)
+                        pbs.boolean_bitnot(v)
                     } else {
                         v.clone()
                     }
@@ -1166,8 +1175,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_cmp(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_lt_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_lt_parallelized(v, s),
+                |v, s| pbs.scalar_lt_parallelized(v, s),
+                |v, s| pbs.scalar_lt_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarLe { kind: _ } => {
@@ -1175,8 +1184,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_cmp(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_le_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_le_parallelized(v, s),
+                |v, s| pbs.scalar_le_parallelized(v, s),
+                |v, s| pbs.scalar_le_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarGt { kind: _ } => {
@@ -1184,8 +1193,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_cmp(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_gt_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_gt_parallelized(v, s),
+                |v, s| pbs.scalar_gt_parallelized(v, s),
+                |v, s| pbs.scalar_gt_parallelized(v, s),
             ));
         }
         HlInstructionSet::FheScalarGe { kind: _ } => {
@@ -1193,8 +1202,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_cmp(
                 inputs[0],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_ge_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_ge_parallelized(v, s),
+                |v, s| pbs.scalar_ge_parallelized(v, s),
+                |v, s| pbs.scalar_ge_parallelized(v, s),
             ));
         }
         HlInstructionSet::ScalarFheLt { kind: _ } => {
@@ -1203,8 +1212,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_cmp(
                 inputs[1],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_gt_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_gt_parallelized(v, s),
+                |v, s| pbs.scalar_gt_parallelized(v, s),
+                |v, s| pbs.scalar_gt_parallelized(v, s),
             ));
         }
         HlInstructionSet::ScalarFheLe { kind: _ } => {
@@ -1213,8 +1222,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_cmp(
                 inputs[1],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_ge_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_ge_parallelized(v, s),
+                |v, s| pbs.scalar_ge_parallelized(v, s),
+                |v, s| pbs.scalar_ge_parallelized(v, s),
             ));
         }
         HlInstructionSet::ScalarFheGt { kind: _ } => {
@@ -1223,8 +1232,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_cmp(
                 inputs[1],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_lt_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_lt_parallelized(v, s),
+                |v, s| pbs.scalar_lt_parallelized(v, s),
+                |v, s| pbs.scalar_lt_parallelized(v, s),
             ));
         }
         HlInstructionSet::ScalarFheGe { kind: _ } => {
@@ -1233,13 +1242,21 @@ pub(super) fn exec_dialect_op(
             outputs.push(exec_scalar_cmp(
                 inputs[1],
                 &scalar,
-                |v, s| sks.pbs_key().scalar_le_parallelized(v, s),
-                |v, s| sks.pbs_key().scalar_le_parallelized(v, s),
+                |v, s| pbs.scalar_le_parallelized(v, s),
+                |v, s| pbs.scalar_le_parallelized(v, s),
             ));
         }
-        HlInstructionSet::MatchValue { lut, .. } => match &inputs[0] {
+        HlInstructionSet::MatchValue {
+            lut, output_bits, ..
+        } => match &inputs[0] {
             RuntimeValue::FheUint(ct) => {
-                let (result, matched) = sks.pbs_key().match_value_parallelized(ct, lut);
+                let (result, matched) = pbs.match_value_parallelized(ct, lut);
+                // The integer layer sizes `result` by the LUT's largest output
+                // value; the dialect declares `FheUint(output_bits)`, so bring
+                // it to that width (like the HLAPI casting to its output type).
+                let result = sks
+                    .pbs_key()
+                    .cast_to_unsigned(result, num_blocks_for(*output_bits, sks));
                 outputs.push(result.into());
                 outputs.push(matched.into());
             }
@@ -1250,7 +1267,6 @@ pub(super) fn exec_dialect_op(
                 panic!("FheOprf expects a Seed input, got {:?}", inputs[0])
             };
             let oprf = sks.oprf_key();
-            let pbs = sks.pbs_key();
             let message_modulus = sks.message_modulus();
             let result = match (value_kind, mode) {
                 (ValueKind::FheUint(n), OprfMode::Full) => {
@@ -1343,7 +1359,6 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::FheContains { kind, n: _ } => {
             let needle = inputs[0];
             let haystack = &inputs[1..];
-            let pbs = sks.pbs_key();
             let result = match kind {
                 FheIntKind::Uint(_) => {
                     let RuntimeValue::FheUint(needle) = needle else {
@@ -1377,7 +1392,6 @@ pub(super) fn exec_dialect_op(
             outputs.push(RuntimeValue::FheBool(result));
         }
         HlInstructionSet::FheContainsScalar { kind, n: _ } => {
-            let pbs = sks.pbs_key();
             // Clear needle is inputs[0], haystack is inputs[1..].
             let scalar = inputs[0].as_clear_scalar();
             let haystack = &inputs[1..];
@@ -1465,7 +1479,7 @@ pub(super) fn exec_dialect_op(
         HlInstructionSet::KVStoreGet { .. } => {
             let (value, present) = match (inputs[0], inputs[1]) {
                 (RuntimeValue::FheUintKVStore(kv), RuntimeValue::FheUint(ek)) => {
-                    let (v, p) = sks.pbs_key().kv_store_get(kv, ek);
+                    let (v, p) = pbs.kv_store_get(kv, ek);
                     (RuntimeValue::FheUint(v), RuntimeValue::FheBool(p))
                 }
                 (RuntimeValue::FheIntKVStore(kv), RuntimeValue::FheUint(ek)) => {
@@ -1473,7 +1487,7 @@ pub(super) fn exec_dialect_op(
                     // encrypted_key as a SignedRadixCiphertext to match the
                     // value type bound on `kv_store_get<_, SignedRadixCiphertext>`.
                     let signed_key = SignedRadixCiphertext::from(ek.blocks.clone());
-                    let (v, p) = sks.pbs_key().kv_store_get(kv, &signed_key);
+                    let (v, p) = pbs.kv_store_get(kv, &signed_key);
                     (RuntimeValue::FheInt(v), RuntimeValue::FheBool(p))
                 }
                 _ => panic!("KVStoreGet: expected (KVStore, FheUint encrypted_key)"),

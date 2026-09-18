@@ -9,7 +9,7 @@ use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
 use crate::{FheBool, FheInt, FheIntId, FheUint, FheUintId, ReRandomizationMetadata, Tag};
 
 /// Possible runtime values to execute an HLAPI dialect program
-#[derive(Clone)]
+#[derive(Clone, strum::IntoStaticStr)]
 pub enum RuntimeValue {
     ClearBool(bool),
     /// Clear unsigned integer. Carries a `u128` to fit any `Uint(N)` width
@@ -30,17 +30,7 @@ pub enum RuntimeValue {
 impl RuntimeValue {
     /// Name of the variant, for error messages.
     pub(super) fn variant_name(&self) -> &'static str {
-        match self {
-            Self::ClearBool(_) => "ClearBool",
-            Self::ClearUint(_) => "ClearUint",
-            Self::ClearInt(_) => "ClearInt",
-            Self::FheBool(_) => "FheBool",
-            Self::FheUint(_) => "FheUint",
-            Self::FheInt(_) => "FheInt",
-            Self::FheUintKVStore(_) => "FheUintKVStore",
-            Self::FheIntKVStore(_) => "FheIntKVStore",
-            Self::Seed(_) => "Seed",
-        }
+        self.into()
     }
 
     /// Recover the clear [`ScalarValue`] payload from a clear `RuntimeValue`

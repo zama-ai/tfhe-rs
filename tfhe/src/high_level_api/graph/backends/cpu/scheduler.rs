@@ -199,40 +199,29 @@ fn worker(
 
         output_buf.clear();
 
-        let op_ref = graph.ir().get_op(id);
-        let op = op_ref.get_instruction();
-        let op_name = op.name();
-
-        // Wrap the dispatch in catch_unwind so a panic inside an op
-        // (intentional `todo!()`s, type-mismatch invariants, FHE-op bugs)
-        // gets surfaced as a CpuError instead of bringing down the worker
-        // thread (and through `thread::scope`, the whole executor).
-        let result = catch_op_panic(id, op_name, || {
-            exec_dialect_op(sks, &op, &mut inputs, &mut output_buf)
-        })
-        .map(|()| output_buf.drain(..).map(Arc::new).collect());
-
-        // Release our references to the inputs before notifying the
-        // coordinator, to make sure that we don't count as a potential
-        // owner
-        drop(inputs);
+        // catch all panics wether intentionnal or not so that the
+        // worker can properly report an error and let the system gracefully
+        // stop without dead-locks or dangling threads
+        let mut op_name = "<unknown op>";
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            let op_ref = graph.ir().get_op(id);
+            let op = op_ref.get_instruction();
+            op_name = op.name();
+            exec_dialect_op(sks, &op, &mut inputs, &mut output_buf);
+            // Release our references to the inputs before notifying the
+            // coordinator, to make sure that we don't count as a potential
+            // owner. On a panic, the unwinding drops them just the same.
+            drop(inputs);
+            output_buf.drain(..).map(Arc::new).collect::<Vec<_>>()
+        }))
+        .map_err(|payload| CpuError::ExecutionError {
+            node_index: id.0,
+            op: op_name,
+            message: panic_payload_to_string(payload),
+        });
 
         let _ = out_channel.send(DoneOp { id, result });
     }
-}
-
-/// Run `f` for the op `id`, converting a panic into a
-/// [`CpuError::ExecutionError`] carrying the op and the panic message.
-fn catch_op_panic<T>(
-    id: OpId,
-    op_name: &'static str,
-    f: impl FnOnce() -> T,
-) -> Result<T, CpuError> {
-    std::panic::catch_unwind(AssertUnwindSafe(f)).map_err(|payload| CpuError::ExecutionError {
-        node_index: id.0,
-        op: op_name,
-        message: panic_payload_to_string(payload),
-    })
 }
 
 fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send + 'static>) -> String {
@@ -337,9 +326,12 @@ pub(crate) fn execute_graph(
             }
 
             let Ok(DoneOp { id, result }) = work_done_receiver.recv() else {
-                // All workers exited while outputs are still missing (e.g. a
-                // worker died outside its catch_unwind). The missing outputs
-                // are reported as `CpuError::ExecutionError` below.
+                // All workers exited while outputs are still missing. Workers
+                // report a `DoneOp` for every `ReadyOp` (their whole body runs
+                // under `catch_unwind`), so this should not happen; it is kept
+                // as a last line of defense so a lost worker can never hang
+                // the coordinator. The missing outputs are reported as
+                // `CpuError::ExecutionError` below.
                 break 'main;
             };
 

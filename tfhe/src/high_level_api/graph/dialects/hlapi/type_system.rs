@@ -158,7 +158,7 @@ impl std::hash::Hash for NonNanF64 {
 ///
 /// `max_distance` is wrapped in [`NonNanF64`] so the enum can `derive` the
 /// usual traits (`Hash`/`Eq`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::IntoStaticStr)]
 #[non_exhaustive]
 pub enum OprfMode {
     /// Full-range uniform.
@@ -176,11 +176,7 @@ pub enum OprfMode {
 impl OprfMode {
     /// Short display name, used in error messages (`InvalidOprfMode`).
     pub fn name(&self) -> &'static str {
-        match self {
-            Self::Full => "Full",
-            Self::Bounded { .. } => "Bounded",
-            Self::CustomRange { .. } => "CustomRange",
-        }
+        self.into()
     }
 }
 

@@ -3,7 +3,7 @@
 //! These are the CPU `#[test]` entry points: each builds a `cpu_backend()` and
 //! calls a backend-generic case in [`super::test_cases`], plus builder-only
 //! (no-execution) error/shape tests that don't need a backend.
-use crate::graph::backends::cpu::{CpuBackend, CpuInputList};
+use crate::graph::backends::cpu::{CpuBackend, CpuError, CpuInputList};
 use crate::graph::backends::ExecutionBackend;
 use crate::graph::dialects::hlapi::{FheIntKind, FheKind};
 use crate::graph::{
@@ -2151,4 +2151,42 @@ fn test_kv_store_across_graph_boundary() {
         "value stored in graph A should be readable in graph B"
     );
     assert!(present);
+}
+
+/// A panic inside an op must surface as `CpuError::ExecutionError` and end
+/// the run, even with several workers and sibling ops in flight: a worker
+/// dying without reporting its `DoneOp` would hang the coordinator forever.
+#[test]
+fn op_panic_is_reported_with_multiple_workers() {
+    let (ck, sk) = setup();
+    let mut b = new_bld();
+    let a = b.input(ValueKind::FheUint(8)).unwrap();
+    // Siblings that keep other workers busy while the faulty op runs.
+    let s1 = b.fhe_add(a, a).unwrap();
+    let s2 = b.fhe_mul(a, a).unwrap();
+    // 3 bits is not representable under the default 2_2 parameters, so the
+    // executor's `num_blocks_for` panics. `CpuBackend::execute` would reject
+    // the graph up front in `check_graph_compatibility`; call the scheduler
+    // directly to force the panic inside a worker.
+    let bad = b.fhe_cast(a, FheKind::Uint(3)).unwrap();
+    b.output(s1).unwrap();
+    b.output(s2).unwrap();
+    b.output(bad).unwrap();
+    let graph = b.build().unwrap();
+
+    let mut inputs = CpuInputList::new();
+    inputs.push(FheUint8::encrypt(7u8, &ck));
+    let Err(err) = super::scheduler::execute_graph(&sk, &graph, inputs, 4) else {
+        panic!("expected the misaligned cast to fail")
+    };
+    match err {
+        CpuError::ExecutionError { op, message, .. } => {
+            assert_eq!(op, "FheCast");
+            assert!(
+                message.contains("not a multiple"),
+                "unexpected message: {message}"
+            );
+        }
+        other => panic!("expected ExecutionError, got {other:?}"),
+    }
 }

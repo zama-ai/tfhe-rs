@@ -36,15 +36,15 @@ pub struct CpuBackend {
 
 impl CpuBackend {
     /// Create a CPU backend with `max_num_workers` set to the machine's
-    /// logical core count minus one (at least 1).
+    /// logical core count.
     ///
     /// This is a heuristic for how many ops to keep in flight, not a
     /// reservation of cores: ops use rayon internally and are free to use
     /// every core (see the type-level doc). The actual worker count per
     /// execution is further capped by `graph.max_concurrent_ops()`.
     pub fn new(sk: crate::ServerKey) -> Self {
-        let cpu_threads = std::thread::available_parallelism().map_or(4, NonZeroUsize::get);
-        let max = NonZeroUsize::new(cpu_threads.saturating_sub(1)).unwrap_or(NonZeroUsize::MIN);
+        let max = std::thread::available_parallelism()
+            .unwrap_or(NonZeroUsize::new(4).expect("4 is non-zero"));
         Self::with_max_num_workers(sk, max)
     }
 
