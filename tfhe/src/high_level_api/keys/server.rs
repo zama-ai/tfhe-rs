@@ -762,6 +762,17 @@ impl<'a> From<&'a CudaServerKey> for InternalServerKeyRef<'a> {
 }
 
 impl InternalServerKey {
+    /// The tag ciphertexts produced with this key are stamped with
+    pub(crate) fn tag(&self) -> &Tag {
+        match self {
+            Self::Cpu(key) => &key.tag,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(key) => &key.tag,
+            #[cfg(feature = "hpu")]
+            Self::Hpu(device) => &device.tag,
+        }
+    }
+
     pub(crate) fn device(&self) -> Device {
         match self {
             Self::Cpu(_) => Device::Cpu,

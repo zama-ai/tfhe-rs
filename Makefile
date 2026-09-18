@@ -577,7 +577,7 @@ clippy_rustdoc: install_rs_check_toolchain
 	fi && \
 	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
-		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental \
+		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,experimental-graph \
 		-p tfhe -- --nocapture
 
 .PHONY: clippy_rustdoc_gpu # Run clippy lints on doctests enabling the boolean, shortint, integer and zk-pok
@@ -588,7 +588,7 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 	fi && \
 	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
-		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,gpu,gpu-zk \
+		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,experimental-graph,gpu,gpu-zk \
 		-p tfhe -- --nocapture
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
@@ -650,7 +650,7 @@ clippy_all_targets: install_rs_check_toolchain
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types,experimental \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types,experimental,experimental-graph \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tfhe_csprng # Run clippy lints on tfhe-csprng
@@ -1402,8 +1402,14 @@ test_integer_cov: install_tarpaulin
 		--features=integer,internal-keycache \
 		-p tfhe -- -Z unstable-options --report-time integer::
 
-.PHONY: test_high_level_api # Run all the tests for high_level_api
-test_high_level_api:
+.PHONY: test_graph_api # Run all the tests for the experimental Graph API
+test_graph_api:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental-graph -p tfhe \
+		-- high_level_api::graph:: --test-threads=20
+
+.PHONY: test_high_level_api # Run all the tests for high_level_api, including the Graph API
+test_high_level_api: test_graph_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
 		-- high_level_api:: --skip test_noise_check
@@ -1470,7 +1476,7 @@ build_one_hl_api_test_fake_multi_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
 		--features=integer,gpu-debug-fake-multi-gpu -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
-test_high_level_api_hpu: install_cargo_nextest install_hpu_sim 
+test_high_level_api_hpu: install_cargo_nextest install_hpu_sim
 ifeq ($(HPU_CONFIG), v80)
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \

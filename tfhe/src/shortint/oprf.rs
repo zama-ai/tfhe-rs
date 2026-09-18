@@ -42,6 +42,13 @@ pub trait OprfSeed {
     type Bytes: AsRef<[u8]>;
 
     fn into_bytes(self) -> Self::Bytes;
+
+    fn into_vec(self) -> Vec<u8>
+    where
+        Self: Sized,
+    {
+        self.into_bytes().as_ref().to_vec()
+    }
 }
 
 impl OprfSeed for Seed {
@@ -72,6 +79,13 @@ impl OprfSeed for Vec<u8> {
     type Bytes = Self;
 
     fn into_bytes(self) -> Self {
+        self
+    }
+
+    fn into_vec(self) -> Vec<u8>
+    where
+        Self: Sized,
+    {
         self
     }
 }
