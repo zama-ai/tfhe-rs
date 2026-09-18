@@ -19,7 +19,6 @@ pub enum IntegerCompactCiphertextListExpansionMode<'key> {
     CastAndUnpackIfNecessary(KeySwitchingKeyView<'key>),
     /// This only allows to unpack.
     UnpackAndSanitizeIfNecessary(&'key ServerKey),
-    NoCastingAndNoUnpacking,
 }
 
 pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [WopbsParameters; 2] = [
@@ -215,8 +214,6 @@ impl CompactCiphertextListConformanceParams {
     }
 
     /// Allow the list to be composed of unpacked ciphertexts.
-    ///
-    /// Note that this means that the ciphertexts won't be sanitized.
     pub fn allow_unpacked(self) -> Self {
         Self {
             allow_unpacked: true,
