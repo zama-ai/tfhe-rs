@@ -365,7 +365,7 @@ function hlapi_compact_public_key_encrypt_decrypt_int32_single(config) {
   let builder = CompactCiphertextList.builder(publicKey);
   builder.push_i32(I32_MIN);
   let list = builder.build();
-  let expander = list.expand();
+  let expander = list.expand_without_key();
   let encrypted = expander.get_int32(0);
 
   let decrypted = encrypted.decrypt(clientKey);
@@ -448,7 +448,7 @@ test("hlapi_compact_ciphertext_list", (t) => {
   assert.deepStrictEqual(deserialized.get_kind_of(3), FheTypes.Uint256);
   assert.deepStrictEqual(deserialized.get_kind_of(4), FheTypes.Uint2048);
 
-  let expander = deserialized.expand();
+  let expander = deserialized.expand_without_key();
 
   assert.deepStrictEqual(expander.is_empty(), false);
   assert.deepStrictEqual(expander.len(), 5);
