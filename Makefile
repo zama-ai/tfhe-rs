@@ -1725,6 +1725,23 @@ check_md_docs_are_tested:
 check_local_workspace_version:
 	RUSTFLAGS="" cargo xtask check-local-workspace-version
 
+.PHONY: release_status # Show which released crates need a version bump, a tag or a publish
+release_status:
+	python3 ./scripts/release_status.py
+
+# In a pull_request workflow actions/checkout produces a merge commit whose first parent
+# is the base branch, so HEAD^1 is the changes the pull request introduces. Locally
+# there is no such commit, and --pr-gate falls back to this branch's fork point.
+.PHONY: check_release_ready # Check PACKAGE is ready to be released from tag TAG
+check_release_ready:
+	python3 ./scripts/release_status.py --release-gate "$(TAG)" --crates "$(PACKAGE)"
+
+.PHONY: check_cuda_version_bump # Check that modified CUDA crates had their version bumped
+check_cuda_version_bump:
+	python3 ./scripts/release_status.py --files \
+		--pr-gate $(if $(GITHUB_BASE_REF),HEAD^1) \
+		--crates tfhe-cuda-common tfhe-cuda-backend zk-cuda-backend
+
 .PHONY: check_intra_md_links # Checks broken internal links in Markdown docs
 check_intra_md_links: install_mlc
 	mlc --offline --match-file-extension tfhe/docs
