@@ -211,7 +211,7 @@ This example shows how to use compressed compact public keys:
 ```rust
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, CompactCiphertextList, CompressedCompactPublicKey,
+    generate_keys, set_server_key, CompactCiphertextList, CompressedCompactPublicKey,
     ConfigBuilder, FheUint8,
 };
 
@@ -221,7 +221,8 @@ fn main() {
             tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
         )
         .build();
-    let (client_key, _) = generate_keys(config);
+    let (client_key, server_key) = generate_keys(config);
+    set_server_key(server_key);
 
     let public_key_compressed = CompressedCompactPublicKey::new(&client_key);
 

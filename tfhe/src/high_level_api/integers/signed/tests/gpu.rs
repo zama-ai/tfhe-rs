@@ -129,34 +129,32 @@ fn test_min_max_gpu() {
 
 #[test]
 fn test_compact_public_key_big_gpu() {
-    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
-        let client_key = setup_fn();
-        let public_key = CompactPublicKey::new(&client_key);
-        let compact_list = CompactCiphertextList::builder(&public_key)
-            .push(-1i8)
-            .build();
-        let expanded = compact_list.expand().unwrap();
-        let a: FheInt8 = expanded.get(0).unwrap().unwrap();
+    let client_key =
+        crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu_with_dedicated_cpk();
+    let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(-1i8)
+        .build_packed();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheInt8 = expanded.get(0).unwrap().unwrap();
 
-        let clear: i8 = a.decrypt(&client_key);
-        assert_eq!(clear, -1i8);
-    }
+    let clear: i8 = a.decrypt(&client_key);
+    assert_eq!(clear, -1i8);
 }
 
 #[test]
 fn test_compact_public_key_small_gpu() {
-    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
-        let client_key = setup_fn();
-        let public_key = CompactPublicKey::new(&client_key);
-        let compact_list = CompactCiphertextList::builder(&public_key)
-            .push(-123i8)
-            .build();
-        let expanded = compact_list.expand().unwrap();
-        let a: FheInt8 = expanded.get(0).unwrap().unwrap();
+    let client_key =
+        crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu_with_dedicated_cpk();
+    let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(-123i8)
+        .build_packed();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheInt8 = expanded.get(0).unwrap().unwrap();
 
-        let clear: i8 = a.decrypt(&client_key);
-        assert_eq!(clear, -123i8);
-    }
+    let clear: i8 = a.decrypt(&client_key);
+    assert_eq!(clear, -123i8);
 }
 
 #[test]

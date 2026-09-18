@@ -55,6 +55,27 @@ pub(crate) fn setup_multibit_gpu() -> ClientKey {
     ))
 }
 
+/// Same as [`setup_gpu`], with dedicated compact public key parameters.
+///
+/// The GPU expands a compact list by casting it, so it needs the key switching key that comes
+/// with these parameters.
+pub(crate) fn setup_gpu_with_dedicated_cpk() -> ClientKey {
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ))
+            .build();
+
+    let client_key = ClientKey::generate(config);
+    let csks = crate::CompressedServerKey::new(&client_key);
+
+    set_server_key(csks.decompress_to_gpu());
+
+    client_key
+}
+
 pub(crate) const GPU_SETUP_FN: [&dyn Fn() -> ClientKey; 2] =
     [&setup_classical_gpu, &setup_multibit_gpu];
 
@@ -259,34 +280,30 @@ fn test_small_uint128_gpu() {
 
 #[test]
 fn test_compact_public_key_big_gpu() {
-    for setup_fn in GPU_SETUP_FN {
-        let client_key = setup_fn();
-        let public_key = CompactPublicKey::new(&client_key);
-        let compact_list = CompactCiphertextList::builder(&public_key)
-            .push(255u8)
-            .build();
-        let expanded = compact_list.expand().unwrap();
-        let a: FheUint8 = expanded.get(0).unwrap().unwrap();
+    let client_key = setup_gpu_with_dedicated_cpk();
+    let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(255u8)
+        .build_packed();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheUint8 = expanded.get(0).unwrap().unwrap();
 
-        let clear: u8 = a.decrypt(&client_key);
-        assert_eq!(clear, 255u8);
-    }
+    let clear: u8 = a.decrypt(&client_key);
+    assert_eq!(clear, 255u8);
 }
 
 #[test]
 fn test_compact_public_key_small_gpu() {
-    for setup_fn in GPU_SETUP_FN {
-        let client_key = setup_fn();
-        let public_key = CompactPublicKey::new(&client_key);
-        let compact_list = CompactCiphertextList::builder(&public_key)
-            .push(255u8)
-            .build();
-        let expanded = compact_list.expand().unwrap();
-        let a: FheUint8 = expanded.get(0).unwrap().unwrap();
+    let client_key = setup_gpu_with_dedicated_cpk();
+    let public_key = CompactPublicKey::new(&client_key);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(255u8)
+        .build_packed();
+    let expanded = compact_list.expand().unwrap();
+    let a: FheUint8 = expanded.get(0).unwrap().unwrap();
 
-        let clear: u8 = a.decrypt(&client_key);
-        assert_eq!(clear, 255u8);
-    }
+    let clear: u8 = a.decrypt(&client_key);
+    assert_eq!(clear, 255u8);
 }
 
 #[test]
@@ -590,51 +607,34 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32_gpu() {
 
 #[test]
 fn test_safe_deserialize_conformant_compact_fhe_uint32_gpu() {
-    for (i, setup_fn) in GPU_SETUP_FN.into_iter().enumerate() {
-        let client_key = setup_fn();
-        let pk = CompactPublicKey::new(&client_key);
+    let client_key = setup_gpu_with_dedicated_cpk();
+    let pk = CompactPublicKey::new(&client_key);
 
-        let clears = [random::<u32>(), random::<u32>(), random::<u32>()];
-        let a = CompactCiphertextList::builder(&pk)
-            .extend(clears.iter().copied())
-            .build();
-        let mut serialized = vec![];
-        SerializationConfig::new(1 << 20)
-            .serialize_into(&a, &mut serialized)
-            .unwrap();
+    let clears = [random::<u32>(), random::<u32>(), random::<u32>()];
+    let a = CompactCiphertextList::builder(&pk)
+        .extend(clears.iter().copied())
+        .build_packed();
+    let mut serialized = vec![];
+    SerializationConfig::new(1 << 20)
+        .serialize_into(&a, &mut serialized)
+        .unwrap();
 
-        let params = if i == 0 {
-            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                    .try_into()
-                    .unwrap(),
-                ListSizeConstraint::exact_size(clears.len()),
-            )
-            .allow_unpacked()
-        } else if i == 1 {
-            CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
-                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                    .try_into()
-                    .unwrap(),
-                ListSizeConstraint::exact_size(clears.len()),
-            )
-            .allow_unpacked()
-        } else {
-            panic!("Unexpected parameter set")
-        };
-        let deserialized_a = DeserializationConfig::new(1 << 20)
-            .deserialize_from::<CompactCiphertextList>(serialized.as_slice(), &params)
-            .unwrap();
+    let params = CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ListSizeConstraint::exact_size(clears.len()),
+    );
+    let deserialized_a = DeserializationConfig::new(1 << 20)
+        .deserialize_from::<CompactCiphertextList>(serialized.as_slice(), &params)
+        .unwrap();
 
-        let expander = deserialized_a.expand().unwrap();
-        for (i, clear) in clears.into_iter().enumerate() {
-            let encrypted: FheUint32 = expander.get(i).unwrap().unwrap();
-            let decrypted: u32 = encrypted.decrypt(&client_key);
-            assert_eq!(decrypted, clear);
-        }
-
-        assert!(deserialized_a.is_conformant(&params));
+    let expander = deserialized_a.expand().unwrap();
+    for (i, clear) in clears.into_iter().enumerate() {
+        let encrypted: FheUint32 = expander.get(i).unwrap().unwrap();
+        let decrypted: u32 = encrypted.decrypt(&client_key);
+        assert_eq!(decrypted, clear);
     }
+
+    assert!(deserialized_a.is_conformant(&params));
 }
 
 #[test]

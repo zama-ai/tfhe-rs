@@ -233,7 +233,8 @@ fn test_compact_public_key_big() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128)
         .build();
-    let (client_key, _) = generate_keys(config);
+    let (client_key, server_key) = generate_keys(config);
+    set_server_key(server_key);
 
     let public_key = CompactPublicKey::new(&client_key);
     let compact_list = CompactCiphertextList::builder(&public_key)
@@ -251,7 +252,8 @@ fn test_compact_public_key_small() {
     let config = ConfigBuilder::default()
         .use_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128)
         .build();
-    let (client_key, _) = generate_keys(config);
+    let (client_key, server_key) = generate_keys(config);
+    set_server_key(server_key);
 
     let public_key = CompactPublicKey::new(&client_key);
     let compact_list = CompactCiphertextList::builder(&public_key)
