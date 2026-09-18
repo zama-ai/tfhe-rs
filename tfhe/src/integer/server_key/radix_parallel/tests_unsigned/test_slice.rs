@@ -17,7 +17,10 @@ use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
-use super::{nb_tests_for_params, CpuFunctionExecutor, FunctionExecutor, NB_CTXT};
+use super::{
+    nb_tests_for_params, panic_if_radix_is_not_clean, CpuFunctionExecutor, FunctionExecutor,
+    NB_CTXT,
+};
 
 create_parameterized_test!(integer_unchecked_scalar_slice);
 create_parameterized_test!(integer_unchecked_scalar_slice_assign);
@@ -265,6 +268,7 @@ where
         let (clear, _) = overflowing_add_under_modulus(clear, offset, modulus);
 
         let ct_res = executor.execute((&ct, range_start..range_end)).unwrap();
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(
             slice_reference_impl(clear, range_start..range_end, modulus),
@@ -315,6 +319,7 @@ where
         let (clear, _) = overflowing_add_under_modulus(clear, offset, modulus);
 
         executor.execute((&mut ct, range_start..range_end)).unwrap();
+        panic_if_radix_is_not_clean(&ct, &cks);
         let dec_res: u64 = cks.decrypt(&ct);
         assert_eq!(
             slice_reference_impl(clear, range_start..range_end, modulus),

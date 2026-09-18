@@ -1,6 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::server_key::radix_parallel::tests_unsigned::panic_if_any_block_is_not_clean_or_trivial;
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    panic_if_boolean_block_is_not_clean, panic_if_radix_is_not_clean,
+};
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -417,7 +419,7 @@ where
         for ct in inputs {
             let (result, is_ok) = executor.execute((&ct, &lut));
 
-            panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+            panic_if_radix_is_not_clean(&result, &cks);
 
             assert!(result.blocks.len() > ct.blocks.len());
 
@@ -454,7 +456,7 @@ where
         let lut = MatchValues::new(lut.clone()).unwrap();
         let (result, is_ok) = executor.execute((&ct, &lut));
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_radix_is_not_clean(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
         assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
 
@@ -486,7 +488,7 @@ where
         let lut = MatchValues::new(lut).unwrap();
         let (result, is_ok) = executor.execute((&ct, &lut));
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_radix_is_not_clean(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
         assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
 
@@ -555,14 +557,14 @@ where
 
         let lut = MatchValues::new(lut.clone()).unwrap();
         let (result, is_ok) = executor.execute((&ct, &lut));
+        panic_if_radix_is_not_clean(&result, &cks);
+        panic_if_boolean_block_is_not_clean(&is_ok, &cks);
 
         let (result_2, is_ok_2) = executor.execute((&ct, &lut));
+        panic_if_radix_is_not_clean(&result_2, &cks);
+        panic_if_boolean_block_is_not_clean(&is_ok_2, &cks);
         assert_eq!(result, result_2, "Failed determinism test");
         assert_eq!(is_ok, is_ok_2, "Failed determinism test");
-
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
-        assert_eq!(is_ok.0.degree, Degree::new(1));
-        assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt::<u64>(&result);
         let is_ok = cks.decrypt_bool(&is_ok);
@@ -633,7 +635,7 @@ where
         for ct in inputs {
             let result = executor.execute((&ct, &lut, u64::MAX));
 
-            panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+            panic_if_radix_is_not_clean(&result, &cks);
 
             assert_eq!(
                 result.blocks.len(),
@@ -673,7 +675,7 @@ where
         let lut = MatchValues::new(lut.clone()).unwrap();
         let result = executor.execute((&ct, &lut, clear_default));
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_radix_is_not_clean(&result, &cks);
         let result = cks.decrypt::<u64>(&result);
 
         assert_eq!(result, expected_result);
@@ -738,7 +740,7 @@ where
         let result_2 = executor.execute((&ct, &lut, clear_default));
         assert_eq!(result, result_2, "Failed determinism test");
 
-        panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+        panic_if_radix_is_not_clean(&result, &cks);
         let result = cks.decrypt::<u64>(&result);
 
         assert_eq!(result, expected_result);
@@ -804,11 +806,6 @@ where
         let expected_result = i >= halved_nb_test;
         let result = executor.execute((&cts, &ct));
 
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
-
         let result = cks.decrypt_bool(&result);
 
         assert_eq!(result, expected_result);
@@ -868,14 +865,11 @@ where
 
         let expected_result = i >= halved_nb_test;
         let result = executor.execute((&cts, &ct));
+        panic_if_boolean_block_is_not_clean(&result, &cks);
 
         let result_2 = executor.execute((&cts, &ct));
+        panic_if_boolean_block_is_not_clean(&result_2, &cks);
         assert_eq!(result, result_2, "Failed determinism test");
-
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
 
@@ -936,11 +930,6 @@ where
         let expected_result = i >= halved_nb_test;
         let result = executor.execute((&cts, clear));
 
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
-
         let result = cks.decrypt_bool(&result);
         assert_eq!(result, expected_result);
     }
@@ -996,14 +985,11 @@ where
 
         let expected_result = i >= halved_nb_test;
         let result = executor.execute((&cts, clear));
+        panic_if_boolean_block_is_not_clean(&result, &cks);
 
         let result_2 = executor.execute((&cts, clear));
+        panic_if_boolean_block_is_not_clean(&result_2, &cks);
         assert_eq!(result, result_2, "Failed determinism test");
-
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
         assert_eq!(result, expected_result);
@@ -1057,11 +1043,6 @@ where
         let expected_result = i >= halved_nb_test;
         let result = executor.execute((&ct, &clears));
 
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
-
         let result = cks.decrypt_bool(&result);
         assert_eq!(result, expected_result);
     }
@@ -1111,14 +1092,11 @@ where
         let ct = cks.encrypt(clear);
         let expected_result = i >= halved_nb_test;
         let result = executor.execute((&ct, &clears));
+        panic_if_boolean_block_is_not_clean(&result, &cks);
 
         let result_2 = executor.execute((&ct, &clears));
+        panic_if_boolean_block_is_not_clean(&result_2, &cks);
         assert_eq!(result, result_2, "Failed determinism test");
-
-        // If the mapping only contains numbers (output) that needs less than NB_CTXT
-        // blocks, some trivial zeros will be appended
-        assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
         assert_eq!(result, expected_result);
@@ -1239,16 +1217,17 @@ where
             .unwrap_or(0);
         let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&ct, &clears));
+        panic_if_radix_is_not_clean(&index, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in, &cks);
 
         let (index_2, is_in_2) = executor.execute((&ct, &clears));
+        panic_if_radix_is_not_clean(&index_2, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in_2, &cks);
         assert_eq!(index, index_2, "Failed determinism test");
         assert_eq!(is_in, is_in_2, "Failed determinism test");
 
         let index: u16 = cks.decrypt(&index);
         assert_eq!(index, expected_index as u16);
-
-        assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1368,16 +1347,17 @@ where
             .unwrap_or(0);
         let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&ct, &clears));
+        panic_if_radix_is_not_clean(&index, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in, &cks);
 
         let (index_2, is_in_2) = executor.execute((&ct, &clears));
+        panic_if_radix_is_not_clean(&index_2, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in_2, &cks);
         assert_eq!(index, index_2, "Failed determinism test");
         assert_eq!(is_in, is_in_2, "Failed determinism test");
 
         let index: u16 = cks.decrypt(&index);
         assert_eq!(index, expected_index as u16);
-
-        assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1517,16 +1497,17 @@ where
             .unwrap_or(0);
         let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&cts, &ct_to_find));
+        panic_if_radix_is_not_clean(&index, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in, &cks);
 
         let (index_2, is_in_2) = executor.execute((&cts, &ct_to_find));
+        panic_if_radix_is_not_clean(&index_2, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in_2, &cks);
         assert_eq!(index, index_2, "Failed determinism test");
         assert_eq!(is_in, is_in_2, "Failed determinism test");
 
         let index: u16 = cks.decrypt(&index);
         assert_eq!(index, expected_index as u16);
-
-        assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1652,16 +1633,17 @@ where
             .unwrap_or(0);
         let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&cts, clear));
+        panic_if_radix_is_not_clean(&index, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in, &cks);
 
         let (index_2, is_in_2) = executor.execute((&cts, clear));
+        panic_if_radix_is_not_clean(&index_2, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in_2, &cks);
         assert_eq!(index, index_2, "Failed determinism test");
         assert_eq!(is_in, is_in_2, "Failed determinism test");
 
         let index: u16 = cks.decrypt(&index);
         assert_eq!(index, expected_index as u16);
-
-        assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1815,16 +1797,17 @@ where
 
         let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&encrypted_values, &ct_to_find));
+        panic_if_radix_is_not_clean(&index, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in, &cks);
 
         let (index_2, is_in_2) = executor.execute((&encrypted_values, &ct_to_find));
+        panic_if_radix_is_not_clean(&index_2, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in_2, &cks);
         assert_eq!(index, index_2, "Failed determinism test");
         assert_eq!(is_in, is_in_2, "Failed determinism test");
 
         let index: u16 = cks.decrypt(&index);
         assert_eq!(index, expected_index as u16);
-
-        assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1956,12 +1939,11 @@ where
             .collect::<Vec<_>>();
         let expected_is_in = i >= halved_nb_test;
         let (index, is_in) = executor.execute((&encrypted_values, clear));
+        panic_if_radix_is_not_clean(&index, &cks);
+        panic_if_boolean_block_is_not_clean(&is_in, &cks);
 
         let index: u16 = cks.decrypt(&index);
         assert_eq!(index, expected_index as u16);
-
-        assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);

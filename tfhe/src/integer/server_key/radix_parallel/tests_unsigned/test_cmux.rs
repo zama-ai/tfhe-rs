@@ -2,7 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::prelude::*;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, panic_if_radix_is_not_clean, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -190,12 +190,14 @@ where
         let ctxt_condition = cks.encrypt_bool(clear_condition);
 
         let ct_res = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         assert!(ct_res.block_carries_are_empty());
 
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(dec_res, if clear_condition { clear_0 } else { clear_1 });
 
         let ct_res2 = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res2, &cks);
         assert_eq!(ct_res, ct_res2, "Operation is not deterministic");
 
         let clear_2 = rng.gen::<u64>() % modulus;
@@ -211,6 +213,7 @@ where
         assert!(!ctxt_1.block_carries_are_empty());
 
         let ct_res = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         assert!(ct_res.block_carries_are_empty());
 
         let dec_res: u64 = cks.decrypt(&ct_res);
@@ -232,18 +235,22 @@ where
         let condition = sks.create_trivial_boolean_block(false);
 
         let result = executor.execute((&condition, &one, &two));
+        panic_if_radix_is_not_clean(&result, &cks);
         assert!(result.block_carries_are_empty());
         assert_eq!(cks.decrypt::<u64>(&result), 2);
 
         let result = executor.execute((&condition, &one, &one));
+        panic_if_radix_is_not_clean(&result, &cks);
         assert!(result.block_carries_are_empty());
         assert_eq!(cks.decrypt::<u64>(&result), 1);
 
         let result = executor.execute((&condition, &two, &one));
+        panic_if_radix_is_not_clean(&result, &cks);
         assert!(result.block_carries_are_empty());
         assert_eq!(cks.decrypt::<u64>(&result), 1);
 
         let result = executor.execute((&condition, &two, &two));
+        panic_if_radix_is_not_clean(&result, &cks);
         assert!(result.block_carries_are_empty());
         assert_eq!(cks.decrypt::<u64>(&result), 2);
     }
@@ -252,18 +259,22 @@ where
         let condition = sks.create_trivial_boolean_block(true);
 
         let result = executor.execute((&condition, &one, &two));
+        panic_if_radix_is_not_clean(&result, &cks);
         assert!(result.block_carries_are_empty());
         assert_eq!(cks.decrypt::<u64>(&result), 1);
 
         let result = executor.execute((&condition, &one, &one));
+        panic_if_radix_is_not_clean(&result, &cks);
         assert!(result.block_carries_are_empty());
         assert_eq!(cks.decrypt::<u64>(&result), 1);
 
         let result = executor.execute((&condition, &two, &one));
+        panic_if_radix_is_not_clean(&result, &cks);
         assert!(result.block_carries_are_empty());
         assert_eq!(cks.decrypt::<u64>(&result), 2);
 
         let result = executor.execute((&condition, &two, &two));
+        panic_if_radix_is_not_clean(&result, &cks);
         assert!(result.block_carries_are_empty());
         assert_eq!(cks.decrypt::<u64>(&result), 2);
     }
@@ -297,6 +308,7 @@ where
         let ctxt_condition = cks.encrypt_bool(clear_condition);
 
         let ct_res = executor.execute((&ctxt_condition, clear_0, clear_1, NB_CTXT));
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         assert_eq!(ct_res.blocks.len(), NB_CTXT);
         assert!(ct_res.block_carries_are_empty());
         assert!(ct_res
@@ -308,6 +320,7 @@ where
         assert_eq!(dec_res, if clear_condition { clear_0 } else { clear_1 });
 
         let ct_res2 = executor.execute((&ctxt_condition, clear_0, clear_1, NB_CTXT));
+        panic_if_radix_is_not_clean(&ct_res2, &cks);
         assert_eq!(ct_res, ct_res2, "Operation is not deterministic");
     }
 }
@@ -398,6 +411,8 @@ where
         let ctxt_condition = cks.encrypt_bool(clear_condition);
 
         let (a, b) = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&a, &cks);
+        panic_if_radix_is_not_clean(&b, &cks);
         assert!(a.block_carries_are_empty());
         assert!(b.block_carries_are_empty());
 
@@ -412,6 +427,8 @@ where
         );
 
         let (a2, b2) = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&a2, &cks);
+        panic_if_radix_is_not_clean(&b2, &cks);
         assert_eq!(a, a2, "Operation is not deterministic");
         assert_eq!(b, b2, "Operation is not deterministic");
 
@@ -430,6 +447,8 @@ where
         let clear_1 = (clear_1 + clear_3) % modulus;
 
         let (a, b) = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
+        panic_if_radix_is_not_clean(&a, &cks);
+        panic_if_radix_is_not_clean(&b, &cks);
         assert!(a.block_carries_are_empty());
         assert!(b.block_carries_are_empty());
 
@@ -486,6 +505,8 @@ where
         let ctxt_rhs = cks.encrypt(clear_1);
 
         let (a, b) = executor.execute((&ctxt_condition, clear_0, &ctxt_rhs));
+        panic_if_radix_is_not_clean(&a, &cks);
+        panic_if_radix_is_not_clean(&b, &cks);
         assert_eq!(a.blocks.len(), NB_CTXT);
         assert_eq!(b.blocks.len(), NB_CTXT);
         assert!(a.block_carries_are_empty());
@@ -510,6 +531,8 @@ where
         );
 
         let (a2, b2) = executor.execute((&ctxt_condition, clear_0, &ctxt_rhs));
+        panic_if_radix_is_not_clean(&a2, &cks);
+        panic_if_radix_is_not_clean(&b2, &cks);
         assert_eq!(a, a2, "Operation is not deterministic");
         assert_eq!(b, b2, "Operation is not deterministic");
     }

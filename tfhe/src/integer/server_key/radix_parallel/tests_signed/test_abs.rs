@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     absolute_value_under_modulus, signed_add_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, panic_if_radix_is_not_clean, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
@@ -158,6 +158,7 @@ where
         let clear_0 = -modulus;
         let ctxt_0 = cks.encrypt_signed(clear_0);
         let ct_res = executor.execute(&ctxt_0);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
         assert_eq!(dec_res, -modulus);
     }
@@ -171,11 +172,13 @@ where
         clear_0 = signed_add_under_modulus(clear_0, clear_to_add, modulus);
 
         let ct_res = executor.execute(&ctxt_0);
+        panic_if_radix_is_not_clean(&ct_res, &cks);
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
         let clear_res = absolute_value_under_modulus(clear_0, modulus);
         assert_eq!(clear_res, dec_res);
 
         let ct_res2 = executor.execute(&ctxt_0);
+        panic_if_radix_is_not_clean(&ct_res2, &cks);
         assert_eq!(ct_res2, ct_res);
     }
 }
