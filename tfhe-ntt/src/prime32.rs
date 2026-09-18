@@ -600,7 +600,7 @@ fn mul_accumulate_scalar(
 struct BarrettInit32 {
     big_q: u32,
     p_barrett: u32,
-    requires_single_reduction_step: bool,
+    requires_single_barrett_reduction_step: bool,
 }
 
 impl BarrettInit32 {
@@ -617,12 +617,12 @@ impl BarrettInit32 {
         // Formula derived with https://blog.zksecurity.xyz/posts/barrett-tighter-bound/
         let single_reduction_threshold = m_as_u64 - (1 << (big_q - 1));
 
-        let requires_single_reduction_step = beta <= single_reduction_threshold;
+        let requires_single_barrett_reduction_step = beta <= single_reduction_threshold;
 
         Self {
             big_q,
             p_barrett,
-            requires_single_reduction_step,
+            requires_single_barrett_reduction_step,
         }
     }
 }
@@ -637,7 +637,7 @@ pub struct Plan {
     p: u32,
     p_div: Div32,
     /// If true can use non generic code and optimized reduction algorithms.
-    can_use_fast_reduction_code: bool,
+    can_use_fast_barrett_reduction_code: bool,
 
     // used for elementwise product
     p_barrett: u32,
@@ -702,7 +702,7 @@ impl Plan {
             let BarrettInit32 {
                 big_q,
                 p_barrett,
-                requires_single_reduction_step,
+                requires_single_barrett_reduction_step,
             } = BarrettInit32::new(modulus);
 
             // The mul_accumulate_scalar code (and derived SIMD code) can have an overflow issue due
@@ -720,33 +720,27 @@ impl Plan {
             // q * p from our result to start the reduction we have:
             // prod = to_reduce - q * p
             // prod = true_prod + c * p with c € {0, 1, 2}
-            // We need to make sure that prod does not overflow 32 bits
-            // We have true_prod which is reduced mod p, so true_prod <= p - 1
-            // prod <= 2^32 - 1 <=>
-            // true_prod + 2 * p <= 2^32 - 1 <=>
-            // 3 * p - 1 <= 2^32 - 1 <=>
-            // p <= 2^32 / 3 <= 1431655765.3333333 < 1431655766
+            //
+            // The fast reduction path only does a single reduction after computing the product, so
+            // we can only accept c € {0, 1}
             //
             // After the computation of prod a first reduction step is performed, meaning we now
             // have:
-            // prod = true_prod + c * p with c € {0, 1}
-            // We are accumulating in acc which is already reduced, so acc <= p - 1
-            // The accumulation yields:
-            // We need acc + prod <= 2^32 - 1 <=>
-            // (p - 1) + (p - 1) + p  <= 2^32 - 1 <=>
-            // 3p - 2 <= 2^32 - 1 <=>
-            // 3p <= 2^32 + 1 <=>
-            // p <= (2^32 + 1) / 3 <= 1431655765.6666667 < 1431655766
+            // prod = true_prod + c' * p with c' € { 0 } => prod == true_prod <= p - 1.
+            // We are accumulating in acc which is already reduced, so acc <= p - 1.
             //
-            // It is the same criterion.
-            // Now for cases where moduli are known to yield a Barrett reduction with a single step
-            // of reduction required (see blog post again) the conditions become:
-            // true_prod + p <= 2^32 - 1 <=>
-            // 2p - 1 <= 2^32 - 1 <=>
-            // p <= 2^31
+            // We have correctness if the accumulation does not overflow:
+            // acc + true_prod <= 2^32 - 1 <=>
+            // (p - 1) + (p - 1) <= 2^32 - 1 <=>
+            // 2p - 2 <= 2^32 - 1 <=>
+            // 2p <= 2^32 + 1 <=>
+            // p <= 2^31 + 0.5
+            //
+            // Since p is an integer => p <= 2^31
+            // Since p is prime we have p < 2^31, because it cannot be a power of 2
 
-            let can_use_fast_reduction_code =
-                (modulus < 1431655766) || (requires_single_reduction_step && modulus <= (1 << 31));
+            let can_use_fast_barrett_reduction_code =
+                requires_single_barrett_reduction_step && modulus < (1 << 31);
 
             Some(Self {
                 twid,
@@ -755,7 +749,7 @@ impl Plan {
                 inv_twid,
                 p: modulus,
                 p_div,
-                can_use_fast_reduction_code,
+                can_use_fast_barrett_reduction_code,
                 n_inv_mod_p,
                 n_inv_mod_p_shoup,
                 p_barrett,
@@ -780,13 +774,21 @@ impl Plan {
         self.p
     }
 
-    /// Returns whether the negacyclic NTT plan can use fast reduction code.
+    /// See [`Self::can_use_fast_barrett_reduction_code`].
+    #[inline]
+    #[deprecated(since = "0.7.2", note = "use can_use_fast_barrett_reduction_code")]
+    pub fn can_use_fast_reduction_code(&self) -> bool {
+        self.can_use_fast_barrett_reduction_code
+    }
+
+    /// Returns whether the negacyclic NTT plan can use fast Barrett reduction code.
     ///
     /// To avoid correctness issues linked to overflows the code has to make performance sacrifices
-    /// for certain primes and will not yield the best performance possible for them.
+    /// for certain primes and will not yield the best performance possible for them for some
+    /// methods relying on the Barrett reduction algorithm.
     #[inline]
-    pub fn can_use_fast_reduction_code(&self) -> bool {
-        self.can_use_fast_reduction_code
+    pub fn can_use_fast_barrett_reduction_code(&self) -> bool {
+        self.can_use_fast_barrett_reduction_code
     }
 
     /// Applies a forward negacyclic NTT transform in place to the given buffer.
@@ -898,7 +900,7 @@ impl Plan {
     /// Computes the elementwise product of `lhs` and `rhs`, multiplied by the inverse of the
     /// polynomial modulo the NTT modulus, and stores the result in `lhs`.
     pub fn mul_assign_normalize(&self, lhs: &mut [u32], rhs: &[u32]) {
-        if self.can_use_fast_reduction_code {
+        if self.can_use_fast_barrett_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
@@ -954,7 +956,7 @@ impl Plan {
     /// Multiplies the values by the inverse of the polynomial modulo the NTT modulus, and stores
     /// the result in `values`.
     pub fn normalize(&self, values: &mut [u32]) {
-        if self.can_use_fast_reduction_code {
+        if self.can_use_fast_barrett_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
@@ -991,7 +993,7 @@ impl Plan {
 
     /// Computes the elementwise product of `lhs` and `rhs` and accumulates the result to `acc`.
     pub fn mul_accumulate(&self, acc: &mut [u32], lhs: &[u32], rhs: &[u32]) {
-        if self.can_use_fast_reduction_code {
+        if self.can_use_fast_barrett_reduction_code {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
@@ -1336,28 +1338,6 @@ pub mod tests {
     }
 
     #[test]
-    fn test_plan_can_use_fast_reduction_code() {
-        use crate::primes32::{P0, P1, P2, P3, P4, P5, P6, P7, P8, P9};
-        const POLYNOMIAL_SIZE: usize = 32;
-
-        // First prime is smaller than 1431655766
-        // Second is larger, but satisfies the single reduction condition for Barrett
-        // The other ones can be used for performant code, we want those to be fast
-        for p in [
-            1062862849, 1431669377, P0, P1, P2, P3, P4, P5, P6, P7, P8, P9,
-        ] {
-            let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
-
-            assert!(plan.can_use_fast_reduction_code);
-        }
-
-        // Prime is bigger than threshold and does not satisfy the single reduction condition for
-        // Barrett
-        let plan = Plan::try_new(POLYNOMIAL_SIZE, 0x7fe0_1001).unwrap();
-        assert!(!plan.can_use_fast_reduction_code);
-    }
-
-    #[test]
     fn test_barret_invalid_reduction_non_regression() {
         const POLYNOMIAL_SIZE: usize = 32;
 
@@ -1373,6 +1353,31 @@ pub mod tests {
         plan.mul_accumulate(&mut acc, &input, &input);
 
         let expected = (u64::from(value) * u64::from(value) % u64::from(p)) as u32;
+        assert_eq!(acc[0], expected);
+    }
+
+    #[test]
+    fn test_barret_invalid_reduction_non_regression_requires_two_reductions() {
+        const POLYNOMIAL_SIZE: usize = 32;
+
+        let p: u32 = 1431306241;
+        let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+
+        let acc_val = p - 1;
+        let mut acc = [acc_val; POLYNOMIAL_SIZE];
+        let lhs_value = 1408522677;
+        // Essentially = [value, 0, 0, ...]
+        let lhs_input: [u32; POLYNOMIAL_SIZE] =
+            core::array::from_fn(|i| if i == 0 { lhs_value } else { 0 });
+
+        let rhs_value = 1388358692;
+        let rhs_input: [u32; POLYNOMIAL_SIZE] =
+            core::array::from_fn(|i| if i == 0 { rhs_value } else { 0 });
+
+        plan.mul_accumulate(&mut acc, &lhs_input, &rhs_input);
+
+        let expected =
+            ((acc_val as u64 + u64::from(lhs_value) * u64::from(rhs_value)) % u64::from(p)) as u32;
         assert_eq!(acc[0], expected);
     }
 

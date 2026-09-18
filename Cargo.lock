@@ -3810,7 +3810,7 @@ dependencies = [
 
 [[package]]
 name = "tfhe-ntt"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "aligned-vec",
  "bytemuck",
