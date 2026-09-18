@@ -134,7 +134,7 @@ fn test_compact_public_key_big_gpu() {
         let public_key = CompactPublicKey::new(&client_key);
         let compact_list = CompactCiphertextList::builder(&public_key)
             .push(-1i8)
-            .build();
+            .build_packed();
         let expanded = compact_list.expand().unwrap();
         let a: FheInt8 = expanded.get(0).unwrap().unwrap();
 
@@ -150,7 +150,7 @@ fn test_compact_public_key_small_gpu() {
         let public_key = CompactPublicKey::new(&client_key);
         let compact_list = CompactCiphertextList::builder(&public_key)
             .push(-123i8)
-            .build();
+            .build_packed();
         let expanded = compact_list.expand().unwrap();
         let a: FheInt8 = expanded.get(0).unwrap().unwrap();
 
