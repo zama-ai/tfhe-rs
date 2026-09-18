@@ -84,7 +84,7 @@ function fhe_uint32_example() {
 
   let serialized_list = compact_list.serialize();
   let deserialized_list = CompactCiphertextList.deserialize(serialized_list);
-  let encrypted_list = deserialized_list.expand();
+  let encrypted_list = deserialized_list.expand_without_key();
   assert.deepStrictEqual(encrypted_list.len(), values.length);
 
   for (let i = 0; i < values.length; i++)

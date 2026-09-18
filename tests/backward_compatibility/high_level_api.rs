@@ -480,6 +480,8 @@ pub fn test_hl_pubkey(
         } else {
             load_and_unversionize(dir, test, format)?
         };
+        set_server_key(client_key.generate_server_key());
+
         let ct_list = CompactCiphertextList::builder(&public_key)
             .push(value)
             .build();
