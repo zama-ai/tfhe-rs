@@ -247,7 +247,7 @@ async function compressedCompactPublicKeyTest256BitOnConfig(params_name) {
     BigInt(10000000),
   );
 
-  let expander = deserialized.expand();
+  let expander = deserialized.expand_without_key();
 
   assert_eq(expander.get_uint2(0).decrypt(clientKey), clear_u2);
 

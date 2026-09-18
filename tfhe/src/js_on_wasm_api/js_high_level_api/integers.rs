@@ -911,6 +911,16 @@ impl CompactCiphertextList {
     }
 
     #[wasm_bindgen]
+    pub fn expand_without_key(&self) -> Result<CompactCiphertextListExpander, JsError> {
+        catch_panic_result(|| {
+            self.0
+                .expand_without_key()
+                .map_err(into_js_error)
+                .map(CompactCiphertextListExpander)
+        })
+    }
+
+    #[wasm_bindgen]
     pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
         let mut buffer = vec![];
         catch_panic_result(|| {
