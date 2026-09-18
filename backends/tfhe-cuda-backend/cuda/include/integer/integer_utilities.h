@@ -324,6 +324,99 @@ struct radix_columns {
   }
 };
 
+/**
+ * @brief Index table mirrored on host and device: the device copy feeds the
+ * kernels, the host copy the degree and noise bookkeeping.
+ *
+ * Each of the `num_out_blocks` rows holds the `num_terms` source block indexes
+ * of one output block, so a single levelled kernel launch can express any
+ * permutation, duplication or recombination of radix blocks. `num_terms == 1`
+ * degenerates to a plain index vector.
+ *
+ * Tables are filled and freed by cuda_index_table_owner, which owns both
+ * halves; they are never allocated or released one by one.
+ */
+template <typename T> struct cuda_index_table {
+  /// @brief Host copy of the table.
+  T *h = nullptr;
+  /// @brief Device copy of the table, read by the kernel.
+  T *d = nullptr;
+  /// @brief Source blocks summed into each output block.
+  uint32_t num_terms = 0;
+  /// @brief Output blocks the table describes.
+  uint32_t num_out_blocks = 0;
+  /// @brief One past the largest index stored, so consumers can check that
+  /// their input holds enough blocks.
+  uint32_t num_sources = 0;
+};
+
+/// @brief Index table of a gather-sum, consumed by host_radix_gather_sum.
+using radix_gather_map = cuda_index_table<uint32_t>;
+
+/**
+ * @brief Owns the index tables of one scratch buffer.
+ *
+ * `create` registers the table it fills, so a table cannot be built without
+ * being released, and `release` runs the drop / synchronize / free sequence
+ * once instead of at every call site. Tables are tracked by address, so an
+ * owner must not outlive them, nor be copied.
+ */
+template <typename T> struct cuda_index_table_owner {
+  std::vector<cuda_index_table<T> *> tables;
+
+  cuda_index_table_owner() = default;
+  cuda_index_table_owner(const cuda_index_table_owner &) = delete;
+  cuda_index_table_owner &operator=(const cuda_index_table_owner &) = delete;
+
+  /// @brief Fills a table, uploads it to the device and starts tracking it.
+  ///
+  /// @param table Table to fill, its fields are overwritten.
+  /// @param num_out_blocks Number of output blocks the table describes.
+  /// @param num_terms Number of source blocks summed into each output block.
+  /// @param block_source Maps (output block, term) to its source block index.
+  void create(CudaStreams streams, bool allocate_gpu_memory,
+              uint64_t &size_tracker, cuda_index_table<T> &table,
+              uint32_t num_out_blocks, uint32_t num_terms,
+              const std::function<T(uint32_t, uint32_t)> &block_source) {
+    table.num_terms = num_terms;
+    table.num_out_blocks = num_out_blocks;
+    table.num_sources = 0;
+    uint64_t table_bytes =
+        safe_mul_sizeof<T>((size_t)num_out_blocks, (size_t)num_terms);
+    table.h = (T *)malloc(table_bytes);
+    PANIC_IF_FALSE(table.h != nullptr,
+                   "cuda index table: host allocation failed");
+    for (uint32_t o = 0; o < num_out_blocks; ++o)
+      for (uint32_t t = 0; t < num_terms; ++t) {
+        T source = block_source(o, t);
+        table.h[o * num_terms + t] = source;
+        if ((uint32_t)source + 1 > table.num_sources)
+          table.num_sources = (uint32_t)source + 1;
+      }
+    table.d = (T *)cuda_malloc_with_size_tracking_async(
+        table_bytes, streams.stream(0), streams.gpu_index(0), size_tracker,
+        allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        table.d, table.h, table_bytes, streams.stream(0), streams.gpu_index(0),
+        allocate_gpu_memory);
+    tables.push_back(&table);
+  }
+
+  /// @brief Frees every tracked table, device copies first.
+  void release(CudaStreams streams, bool allocate_gpu_memory) {
+    if (allocate_gpu_memory)
+      for (auto *table : tables)
+        if (table->d != nullptr)
+          cuda_drop_async(table->d, streams.stream(0), streams.gpu_index(0));
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    for (auto *table : tables) {
+      free(table->h);
+      *table = {};
+    }
+    tables.clear();
+  }
+};
+
 inline void calculate_final_degrees(uint64_t *const out_degrees,
                                     const uint64_t *const input_degrees,
                                     uint32_t num_blocks,
