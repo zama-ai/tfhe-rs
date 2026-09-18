@@ -39,6 +39,7 @@ exclude = [
     "utils/tfhe-lints",
     "apps/trivium",
     "utils/tfhe-forward-compat-matrices",
+    "apps/princev2",
 ]
 
 [workspace.package]

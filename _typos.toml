@@ -15,5 +15,7 @@ extend-ignore-identifiers-re = [
     "0x[0-9a-fA-F]+",
     "xrt_coreutil",
     # An identifier in slab.toml
-    "067f3893108afe8cd"
+    "067f3893108afe8cd",
+    # Y band of the bit-reorder stage in the princev2 diagram generators
+    "BRE"
 ]
