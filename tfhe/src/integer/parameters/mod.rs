@@ -19,7 +19,6 @@ pub enum IntegerCompactCiphertextListExpansionMode<'key> {
     CastAndUnpackIfNecessary(KeySwitchingKeyView<'key>),
     /// This only allows to unpack.
     UnpackAndSanitizeIfNecessary(&'key ServerKey),
-    NoCastingAndNoUnpacking,
 }
 
 pub const ALL_PARAMETER_VEC_INTEGER_16_BITS: [WopbsParameters; 2] = [
@@ -216,7 +215,10 @@ impl CompactCiphertextListConformanceParams {
 
     /// Allow the list to be composed of unpacked ciphertexts.
     ///
-    /// Note that this means that the ciphertexts won't be sanitized.
+    /// Note that unpacked lists might not be sanitized during expansion, so the blocks may hold
+    /// values above the degree they advertise. If you need guarantees about the encrypted values,
+    /// please use the
+    /// [`ProvenCompactCiphertextList`](crate::integer::ciphertext::ProvenCompactCiphertextList).
     pub fn allow_unpacked(self) -> Self {
         Self {
             allow_unpacked: true,

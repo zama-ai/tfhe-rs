@@ -119,7 +119,8 @@ fn noise_check_compact_public_key_encryption_noise_tuniform(
     ksk_params: ShortintKeySwitchingParameters,
     block_params: ClassicPBSParameters,
 ) {
-    // Hack to avoid server key needs and get the ciphertext directly
+    // The list is expanded without a server key, so that the measured noise is the one of the
+    // encryption and not the one of a sanitizing PBS
     cpke_params.expansion_kind =
         CompactCiphertextListExpansionKind::NoCasting(block_params.atomic_pattern());
 
@@ -176,7 +177,7 @@ fn noise_check_compact_public_key_encryption_noise_tuniform(
                             )
                             .unwrap();
                         let list = builder.build();
-                        let expanded = list.expand().unwrap();
+                        let expanded = list.expand_without_key().unwrap();
                         let encrypted: FheUint2 = expanded.get(0).unwrap().unwrap();
 
                         // Drop to lower level APIs to get to the noise

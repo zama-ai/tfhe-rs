@@ -533,13 +533,6 @@ impl ParameterSetConformant for CompactCiphertextList {
 /// Number of bits needed to store one ASCII char, according to the spec
 const ASCII_USEFUL_BITS: u32 = 7;
 
-pub const WRONG_UNPACKING_MODE_ERR_MSG: &str =
-    "Cannot expand a CompactCiphertextList that requires unpacking without \
-    a server key, please provide a integer::ServerKey passing it with the \
-    enum variant IntegerCompactCiphertextListExpansionMode::UnpackIfNecessary \
-    or IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary \
-    as unpacking_mode.";
-
 struct IntegerUnpackingToShortintCastingModeHelper {
     msg_extract: Box<dyn Fn(u64) -> u64 + Sync>,
     carry_extract: Box<dyn Fn(u64) -> u64 + Sync>,
@@ -855,16 +848,6 @@ fn expansion_post_process(
     info: &[DataKind],
 ) -> Result<Vec<Ciphertext>, crate::Error> {
     let is_packed = expanded_list.is_packed();
-    if is_packed
-        && matches!(
-            expansion_mode,
-            IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking
-        )
-    {
-        return Err(crate::Error::new(String::from(
-            WRONG_UNPACKING_MODE_ERR_MSG,
-        )));
-    }
 
     match expansion_mode {
         IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
@@ -915,8 +898,6 @@ fn expansion_post_process(
                 sanitize_blocks(expanded_blocks, sks, info)
             }
         }
-        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking => expanded_list
-            .cast_and_sanitize_if_needed(ShortintCompactCiphertextListCastingMode::NoCasting),
     }
 }
 
@@ -1018,9 +999,7 @@ impl CompactCiphertextList {
     ///
     /// let mut compact_ct = CompactCiphertextList::builder(&pk).push(-1i8).build();
     ///
-    /// let sanity_check_expander = compact_ct
-    ///     .expand(IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking)
-    ///     .unwrap();
+    /// let sanity_check_expander = compact_ct.expand_without_key().unwrap();
     /// let sanity_expanded = sanity_check_expander
     ///     .get::<SignedRadixCiphertext>(0)
     ///     .unwrap()
@@ -1032,9 +1011,7 @@ impl CompactCiphertextList {
     ///     .reinterpret_data(&[DataKind::Unsigned(num_blocks.try_into().unwrap())])
     ///     .unwrap();
     ///
-    /// let expander = compact_ct
-    ///     .expand(IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking)
-    ///     .unwrap();
+    /// let expander = compact_ct.expand_without_key().unwrap();
     ///
     /// let expanded = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
     /// let decrypted: u8 = cks.decrypt_radix(&expanded);
@@ -1083,6 +1060,40 @@ impl CompactCiphertextList {
 
         Ok(CompactCiphertextListExpander::new(
             casted_blocks,
+            self.info.clone(),
+        ))
+    }
+
+    /// Expand an unpacked list without a server key.
+    ///
+    /// No sanitizing lookup table is applied to its blocks, so they may hold values above the
+    /// degree they advertise. The list needs to be unpacked.
+    /// Use [`expand`](Self::expand) if you need sanitization or unpacking.
+    pub fn expand_without_key(&self) -> crate::Result<CompactCiphertextListExpander> {
+        if self.is_empty() {
+            return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
+        }
+        if self.is_packed() {
+            return Err(crate::error!(
+                "Cannot expand a packed CompactCiphertextList without a key, please provide an \
+                integer::ServerKey with IntegerCompactCiphertextListExpansionMode::\
+                UnpackAndSanitizeIfNecessary and call `expand`.",
+            ));
+        }
+        if self.needs_casting() {
+            return Err(crate::error!(
+                "Cannot expand a CompactCiphertextList that requires casting without a key, \
+                please provide a KeySwitchingKeyView with IntegerCompactCiphertextListExpansion\
+                Mode::CastAndUnpackIfNecessary and call `expand`.",
+            ));
+        }
+
+        let expanded_list = self.ct_list.expand_without_casting();
+        let blocks = expanded_list
+            .cast_and_sanitize_if_needed(ShortintCompactCiphertextListCastingMode::NoCasting)?;
+
+        Ok(CompactCiphertextListExpander::new(
+            blocks,
             self.info.clone(),
         ))
     }
@@ -1336,8 +1347,6 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
     }
 
     /// Allow the list to be composed of unpacked ciphertexts.
-    ///
-    /// Note that this means that the ciphertexts won't be sanitized.
     pub fn allow_unpacked(self) -> Self {
         Self {
             allow_unpacked: true,
@@ -1410,8 +1419,11 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::ClientKey;
-    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
+    use crate::integer::{gen_keys, ClientKey, CompactPublicKey, IntegerKeyKind, RadixCiphertext};
+    use crate::shortint::parameters::test_params::{
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    };
 
     /// A compact list may claim to contain strings while the server key parameters do not support
     /// them. As the list is untrusted, this must be an error and not a panic.
@@ -1458,6 +1470,31 @@ mod tests {
         assert!(sanitize_blocks(blocks.clone(), &sks, &infos).is_err());
         assert!(unpack_and_sanitize(blocks.clone(), &sks, &infos).is_err());
         assert!(sanitize_blocks(blocks, &sks, &infos[..1]).is_ok());
+    }
+
+    #[test]
+    fn test_expand_without_key_needs_an_unpacked_list() {
+        let num_blocks = 4;
+        let (cks, _sks) = gen_keys(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            IntegerKeyKind::Radix,
+        );
+        let pk = CompactPublicKey::new(&cks);
+
+        let mut builder = CompactCiphertextList::builder(&pk);
+        builder.push_with_num_blocks(17u8, num_blocks);
+
+        let expander = builder.build().expand_without_key().unwrap();
+        let expanded: RadixCiphertext = expander.get(0).unwrap().unwrap();
+        let decrypted: u8 = cks.decrypt_radix(&expanded);
+        assert_eq!(decrypted, 17);
+
+        // Unpacking requires a key
+        assert!(builder
+            .build_packed()
+            .unwrap()
+            .expand_without_key()
+            .is_err());
     }
 }
 
