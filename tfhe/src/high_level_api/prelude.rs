@@ -19,7 +19,7 @@ pub use crate::high_level_api::traits::{FheHpu, HpuHandle};
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};
 pub use tfhe_safe_serialize::ParameterSetConformant;
 
-pub use crate::high_level_api::array::traits::FheSliceDotProduct;
+pub use crate::high_level_api::array::traits::{FheSliceDotProduct, FheSliceDotProductParallel};
 
 #[cfg(feature = "gpu")]
 pub use crate::high_level_api::gpu_utils::*;

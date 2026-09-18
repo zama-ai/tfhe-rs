@@ -2,9 +2,51 @@ use core::slice;
 
 use crate::array::ClearArray;
 use crate::prelude::*;
-use crate::{generate_keys, set_server_key, ConfigBuilder, CpuFheUint32Array, FheUint32Array};
+use crate::{
+    generate_keys, set_server_key, ConfigBuilder, CpuFheUint32Array, FheUint32Array, FheUint64,
+};
 use rand::prelude::*;
 use rand::thread_rng;
+
+fn dot_product_test_case(client_key: &crate::ClientKey, parallel: bool) {
+    let clear_lhs = [u64::MAX, 2, 3, 4, 5, 6, 7, 8];
+    let clear_rhs = [2, 3, 4, 5, 6, 7, 8, 9];
+    let expected = clear_lhs
+        .iter()
+        .copied()
+        .zip(clear_rhs.iter().copied())
+        .fold(0u64, |acc, (lhs, rhs)| {
+            acc.wrapping_add(lhs.wrapping_mul(rhs))
+        });
+    let encrypted = clear_lhs
+        .iter()
+        .copied()
+        .map(|value| FheUint64::encrypt(value, client_key))
+        .collect::<Vec<_>>();
+
+    let result = if parallel {
+        FheUint64::dot_product_parallel(&encrypted, &clear_rhs)
+    } else {
+        FheUint64::dot_product(&encrypted, &clear_rhs)
+    };
+    let decrypted: u64 = result.decrypt(client_key);
+    assert_eq!(decrypted, expected);
+}
+
+#[test]
+fn test_fhe_uint_dot_product() {
+    let client_key = super::setup_default_cpu();
+    dot_product_test_case(&client_key, false);
+}
+
+#[test]
+#[cfg(feature = "gpu")]
+fn test_fhe_uint_dot_product_gpu() {
+    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+        let client_key = setup_fn();
+        dot_product_test_case(&client_key, true);
+    }
+}
 
 #[test]
 fn test_cpu_only_bitand() {
