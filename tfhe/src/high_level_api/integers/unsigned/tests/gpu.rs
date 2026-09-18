@@ -264,7 +264,7 @@ fn test_compact_public_key_big_gpu() {
         let public_key = CompactPublicKey::new(&client_key);
         let compact_list = CompactCiphertextList::builder(&public_key)
             .push(255u8)
-            .build();
+            .build_packed();
         let expanded = compact_list.expand().unwrap();
         let a: FheUint8 = expanded.get(0).unwrap().unwrap();
 
@@ -280,7 +280,7 @@ fn test_compact_public_key_small_gpu() {
         let public_key = CompactPublicKey::new(&client_key);
         let compact_list = CompactCiphertextList::builder(&public_key)
             .push(255u8)
-            .build();
+            .build_packed();
         let expanded = compact_list.expand().unwrap();
         let a: FheUint8 = expanded.get(0).unwrap().unwrap();
 
@@ -597,7 +597,7 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32_gpu() {
         let clears = [random::<u32>(), random::<u32>(), random::<u32>()];
         let a = CompactCiphertextList::builder(&pk)
             .extend(clears.iter().copied())
-            .build();
+            .build_packed();
         let mut serialized = vec![];
         SerializationConfig::new(1 << 20)
             .serialize_into(&a, &mut serialized)
@@ -610,7 +610,6 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32_gpu() {
                     .unwrap(),
                 ListSizeConstraint::exact_size(clears.len()),
             )
-            .allow_unpacked()
         } else if i == 1 {
             CompactCiphertextListConformanceParams::from_parameters_and_size_constraint(
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
@@ -618,7 +617,6 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32_gpu() {
                     .unwrap(),
                 ListSizeConstraint::exact_size(clears.len()),
             )
-            .allow_unpacked()
         } else {
             panic!("Unexpected parameter set")
         };
