@@ -32,6 +32,8 @@ mod reverse_bits;
 mod scalar_dot_prod;
 mod slice;
 #[cfg(test)]
+pub(crate) mod test_harness;
+#[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
 #[cfg(test)]
 pub(crate) mod tests_long_run;
@@ -331,5 +333,20 @@ impl ServerKey {
         if !ct.is_clean() {
             self.full_propagate_parallelized(ct);
         }
+    }
+
+    /// Cleans both inputs of a default binary op so that they are ready to be used:
+    /// `lhs` inplace, `rhs` into a `Cow` (owned only if it had to be cleaned).
+    ///
+    /// Both cleanings run in parallel.
+    pub(crate) fn clean_for_default_binary_op<'a, T>(&self, lhs: &mut T, rhs: &'a T) -> Cow<'a, T>
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let ((), rhs) = rayon::join(
+            || self.clean_inplace_for_default_op(lhs),
+            || self.clean_for_default_op(rhs),
+        );
+        rhs
     }
 }

@@ -1,15 +1,18 @@
 use std::sync::Arc;
 
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::test_harness::{
+    default_scalar_fixed_cases, ExecuteOn, Scalar, TestBuilder, TestContext,
+};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    default_overflowing_scalar_sub_test, default_scalar_sub_test, smart_scalar_sub_test,
-    FunctionExecutor,
+    default_scalar_sub_test, smart_scalar_sub_test, FunctionExecutor,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, random_non_zero_value, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::tests::uint::Uint;
+use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -69,9 +72,27 @@ fn integer_default_overflowing_scalar_sub<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor =
+    let ctx = TestContext::from_env(param);
+    let mut executor =
         CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_sub_parallelized);
-    default_overflowing_scalar_sub_test(param, executor);
+    executor.setup_from_compressed(ctx.compressed_server_key());
+    default_overflowing_scalar_sub_test(&ctx, executor);
+}
+
+pub(crate) fn default_overflowing_scalar_sub_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<(RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>,
+{
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(default_scalar_fixed_cases::<u64>)
+        .execute(executor, |(lhs, rhs): (Uint, Scalar<u64>)| {
+            // The result is computed modulo the radix width, the overflow is that of the
+            // full precision subtraction: a scalar exceeding the radix range always overflows
+            let result = lhs.wrapping_sub(rhs.cast(lhs.bits));
+            let overflowed = lhs.value < rhs.uint().value;
+            (result, overflowed)
+        });
 }
 
 pub(crate) fn unchecked_left_scalar_sub_test<P, T>(param: P, mut executor: T)
