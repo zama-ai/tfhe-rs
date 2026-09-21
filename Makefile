@@ -280,7 +280,7 @@ install_aikido_safe_chain_ci: fetch_aikido_safe_chain
 .PHONY: install_hpu_sim # Install Hpu simulation binary
 install_hpu_sim: install_rs_check_toolchain
 	@hpu_sim --help > /dev/null 2>&1 || \
-	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" install hpu_sim --git https://github.com/zama-ai/hpu_sim --locked --branch ct_fmt || \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" install hpu_sim --git https://github.com/zama-ai/hpu_sim --locked --rev 346b5ab52f2a3ff252e3ef3aa9840ea7d118c0bc || \
 	( echo "Unable to install hpu_sim, unknown error." && exit 1 )
 
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
@@ -1230,7 +1230,7 @@ test_integer_hpu_sim_ci_fast: install_cargo_nextest install_hpu_sim
 	kill -- -$$HPU_SIM_PID 2>/dev/null; \
 	exit $$RET
 
-.PHONY: test_hpu_sim_ci_fast # Run the quick multi_hpu tests on hpu backend and simulation model.
+.PHONY: test_multi_hpu_sim_ci_fast # Run the quick multi_hpu tests on hpu backend and simulation model.
 test_multi_hpu_sim_ci_fast: install_cargo_nextest install_hpu_sim
 	set -m; \
 	source ./setup_hpu.sh --config multi_sim ; \
