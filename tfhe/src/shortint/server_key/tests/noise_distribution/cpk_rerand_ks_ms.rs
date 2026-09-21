@@ -35,8 +35,7 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
-    CompactPublicKeyEncryptionParameters, MetaParameters, ShortintCompactCiphertextListCastingMode,
-    ShortintKeySwitchingParameters,
+    CompactPublicKeyEncryptionParameters, MetaParameters, ShortintKeySwitchingParameters,
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
@@ -240,9 +239,7 @@ fn cpk_rerand_ks_any_ms_inner_helper(
     let ct = {
         let compact_list =
             cpk.encrypt_iter_with_modulus(core::iter::once(msg), cpk.parameters.message_modulus.0);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)
@@ -252,9 +249,7 @@ fn cpk_rerand_ks_any_ms_inner_helper(
     let ct_zero_rerand = {
         let compact_list =
             cpk.encrypt_iter_with_modulus(core::iter::once(0), cpk.parameters.message_modulus.0);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)
@@ -450,18 +445,14 @@ fn noise_check_encrypt_cpk_rerand_ks_any_ms_noise(
 
     let sample_input = {
         let compact_list = cpk.encrypt_slice(&[0]);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)
     };
     let sample_input_zero_rerand = {
         let compact_list = cpk.encrypt_slice(&[0]);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)
@@ -842,9 +833,7 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_worst_case(
             &vec![0u64; lwe_ciphertext_count.0],
             cpk.parameters.message_modulus.0,
         );
-        let expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), lwe_ciphertext_count.0);
 
         expanded
@@ -1103,9 +1092,7 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_pbs(
             let mut shortint_casting_compact_list = no_casting_compact_list.clone();
             shortint_casting_compact_list.expansion_kind = orig_cast_mode;
 
-            let ap_inputs_expanded = no_casting_compact_list
-                .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-                .unwrap();
+            let ap_inputs_expanded = no_casting_compact_list.expand_without_casting().unwrap();
             assert_eq!(ap_inputs_expanded.len(), cpk_max_ct_capacity);
 
             // Shortint ReRand adds an encryption of zero on the compact list before the expansion,
@@ -1119,10 +1106,8 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_pbs(
 
             // Shortint expand will do the KS + MS + PBS all on its own
             let shortint_results = shortint_casting_compact_list
-                .expand(ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                    casting_key: ksk_ds,
-                    functions: None, // Will fallback to ID LUT which is what we want
-                })
+                // Will fallback to ID LUT which is what we want
+                .expand(ksk_ds, None)
                 .unwrap();
             assert_eq!(shortint_results.len(), cpk_max_ct_capacity);
 

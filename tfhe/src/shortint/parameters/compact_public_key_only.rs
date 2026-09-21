@@ -7,7 +7,7 @@ use crate::shortint::parameters::{
     LweDimension, MessageModulus, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
     SupportedCompactPkeZkScheme,
 };
-use crate::shortint::{KeySwitchingKeyView, PaddingBit, ShortintEncoding};
+use crate::shortint::{PaddingBit, ShortintEncoding};
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -23,15 +23,6 @@ pub type CastingFunctionsOwned<'functions> =
     Vec<Option<Vec<&'functions (dyn Fn(u64) -> u64 + Sync)>>>;
 pub type CastingFunctionsView<'functions> =
     &'functions [Option<Vec<&'functions (dyn Fn(u64) -> u64 + Sync)>>];
-
-#[derive(Clone, Copy)]
-pub enum ShortintCompactCiphertextListCastingMode<'a> {
-    CastIfNecessary {
-        casting_key: KeySwitchingKeyView<'a>,
-        functions: Option<CastingFunctionsView<'a>>,
-    },
-    NoCasting,
-}
 
 impl From<AtomicPatternKind> for CompactCiphertextListExpansionKind {
     fn from(value: AtomicPatternKind) -> Self {

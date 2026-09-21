@@ -8,7 +8,7 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
-    CompactPublicKeyEncryptionParameters, MetaParameters, ShortintCompactCiphertextListCastingMode,
+    CompactPublicKeyEncryptionParameters, MetaParameters,
     ShortintKeySwitchingParameters,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
@@ -340,9 +340,7 @@ fn noise_check_encrypt_cpk_ks_ms_noise_gpu(meta_params: MetaParameters, filename
 
     let sample_input = {
         let compact_list = cpk.key.encrypt_slice(&[0]);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)

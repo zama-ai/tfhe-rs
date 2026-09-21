@@ -81,7 +81,7 @@ pub use crate::shortint::parameters::transciphering::TranscipheringParameters;
 pub use classic::ClassicPBSParameters;
 pub use compact_public_key_only::{
     CastingFunctionsOwned, CastingFunctionsView, CompactCiphertextListExpansionKind,
-    CompactPublicKeyEncryptionParameters, ShortintCompactCiphertextListCastingMode,
+    CompactPublicKeyEncryptionParameters,
 };
 #[cfg(tarpaulin)]
 pub use coverage_parameters::*;
