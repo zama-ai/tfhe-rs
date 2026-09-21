@@ -58,7 +58,7 @@ __device__ void copy_polynomial_from_regs(const T *__restrict__ source,
  *  By default, it works on a single polynomial.
  */
 template <typename T, int elems_per_thread, int block_size>
-__device__ void
+__device__ __forceinline__ void
 divide_by_monomial_negacyclic_inplace(T *accumulator,
                                       const T *__restrict__ input, uint32_t j,
                                       bool zeroAcc, uint32_t num_poly = 1) {
@@ -467,8 +467,9 @@ __device__ void add_to_torus_128(double *re_hi, double *re_lo, double *im_hi,
 
 // Extracts the body of the nth-LWE in a GLWE.
 template <typename Torus, class params>
-__device__ void sample_extract_body(Torus *lwe_array_out, Torus const *glwe,
-                                    uint32_t glwe_dimension, uint32_t nth = 0) {
+__device__ __forceinline__ void
+sample_extract_body(Torus *lwe_array_out, Torus const *glwe,
+                    uint32_t glwe_dimension, uint32_t nth = 0) {
   // Set first coefficient of the glwe as the body of the LWE sample
   if (threadIdx.x == 0) {
     lwe_array_out[glwe_dimension * params::degree] =
@@ -478,9 +479,9 @@ __device__ void sample_extract_body(Torus *lwe_array_out, Torus const *glwe,
 
 // Extracts the mask from the nth-LWE in a GLWE.
 template <typename Torus, class params>
-__device__ void sample_extract_mask(Torus *lwe_array_out, Torus const *glwe,
-                                    uint32_t glwe_dimension = 1,
-                                    uint32_t nth = 0) {
+__device__ __forceinline__ void
+sample_extract_mask(Torus *lwe_array_out, Torus const *glwe,
+                    uint32_t glwe_dimension = 1, uint32_t nth = 0) {
   for (int z = 0; z < glwe_dimension; z++) {
     Torus *lwe_array_out_slice =
         (Torus *)lwe_array_out + (ptrdiff_t)(z * params::degree);

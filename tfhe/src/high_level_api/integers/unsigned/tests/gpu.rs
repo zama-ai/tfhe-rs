@@ -7,10 +7,12 @@ use crate::prelude::{
     FheEncrypt, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
     IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RerandSizeOnGpu, RotateLeft,
     RotateLeftAssign, RotateLeftSizeOnGpu, RotateRight, RotateRightAssign, RotateRightSizeOnGpu,
-    ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
+    ShlSizeOnGpu, ShrSizeOnGpu, SquashNoise, SubSizeOnGpu,
 };
 use crate::shortint::parameters::{
-    TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TestParameters, NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -18,9 +20,11 @@ use crate::shortint::parameters::{
 use crate::{
     set_server_key, ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams,
     CompactPublicKey, CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint256,
-    CompressedFheUint32, CompressedFheUint32ConformanceParams, ConfigBuilder,
-    DeserializationConfig, FheBool, FheInt16, FheInt32, FheInt8, FheUint128, FheUint16, FheUint256,
-    FheUint32, FheUint32ConformanceParams, FheUint8, GpuIndex, MatchValues, SerializationConfig,
+    CompressedFheUint32, CompressedFheUint32ConformanceParams,
+    CompressedSquashedNoiseCiphertextListBuilder, ConfigBuilder, DeserializationConfig, FheBool,
+    FheInt16, FheInt32, FheInt8, FheUint128, FheUint16, FheUint256, FheUint32,
+    FheUint32ConformanceParams, FheUint8, GpuIndex, MatchValues, SerializationConfig,
+    SquashedNoiseFheUint,
 };
 use rand::{random, Rng};
 
@@ -1096,5 +1100,87 @@ fn test_gpu_get_rerand_size_on_gpu() {
             check_valid_cuda_malloc_assert_oom(rerand_size, GpuIndex::new(0));
             assert!(rerand_size > 0);
         }
+    }
+}
+
+/// Builds a configuration whose noise squashing key is the halfhalf one: the classic compute
+/// parameters, whose LWE dimension is the 918 the halfhalf shape is defined for, and the classic
+/// noise squashing parameters, which only supply the output GLWE dimension, polynomial size and
+/// moduli.
+fn halfhalf_noise_squashing_config() -> crate::Config {
+    ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+        .enable_noise_squashing(NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+        .enable_gpu_halfhalf_noise_squashing()
+        .build()
+}
+
+#[test]
+fn test_uint32_halfhalf_noise_squashing_gpu() {
+    let client_key = ClientKey::generate(halfhalf_noise_squashing_config());
+    set_server_key(crate::CudaServerKey::new(&client_key));
+
+    let clear: u32 = random();
+    println!("test_uint32_halfhalf_noise_squashing_gpu: clear = {clear}");
+    let encrypted = FheUint32::encrypt(clear, &client_key);
+    // A bitand rather than the freshly encrypted ciphertext, so the input carries the noise of a
+    // computation, which is what noise squashing is for.
+    let computed = &encrypted & &encrypted;
+
+    let squashed = computed.squash_noise().unwrap();
+
+    let recovered: u32 = squashed.decrypt(&client_key);
+    assert_eq!(clear, recovered);
+}
+
+#[test]
+#[should_panic(expected = "Cannot build a CPU ServerKey")]
+fn test_halfhalf_noise_squashing_rejected_by_cpu_server_key() {
+    let client_key = ClientKey::generate(halfhalf_noise_squashing_config());
+    let _ = client_key.generate_server_key();
+}
+
+#[test]
+#[should_panic(expected = "Cannot build a CompressedServerKey")]
+fn test_halfhalf_noise_squashing_rejected_by_compressed_server_key() {
+    let client_key = ClientKey::generate(halfhalf_noise_squashing_config());
+    let _ = client_key.generate_compressed_server_key();
+}
+
+/// Squashed noise compression on top of the halfhalf noise squashing key.
+///
+/// The halfhalf path skips the seeded noise squashing bootstrap key but must keep the noise
+/// squashing compression key, which does not depend on it. Without that key `build()` below
+/// fails, so this covers the split made by `new_without_noise_squashing_key`.
+#[test]
+fn test_uint32_halfhalf_noise_squashing_compression_gpu() {
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .enable_noise_squashing(NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .enable_noise_squashing_compression(
+                NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+            .enable_gpu_halfhalf_noise_squashing()
+            .build();
+    let client_key = ClientKey::generate(config);
+    set_server_key(crate::CudaServerKey::new(&client_key));
+
+    let clears: [u32; 2] = [random(), random()];
+    println!("test_uint32_halfhalf_noise_squashing_compression_gpu: clears = {clears:?}");
+
+    let squashed = clears.map(|clear| {
+        let encrypted = FheUint32::encrypt(clear, &client_key);
+        (&encrypted & &encrypted).squash_noise().unwrap()
+    });
+
+    let mut builder = CompressedSquashedNoiseCiphertextListBuilder::new();
+    for squashed in squashed {
+        builder.push(squashed);
+    }
+    let compressed = builder.build().unwrap();
+
+    for (i, clear) in clears.iter().enumerate() {
+        let expanded: SquashedNoiseFheUint = compressed.get(i).unwrap().unwrap();
+        let recovered: u32 = expanded.decrypt(&client_key);
+        assert_eq!(*clear, recovered);
     }
 }

@@ -26,6 +26,8 @@ pub(in crate::high_level_api) use server::HpuTaggedDevice;
 pub use server::{CompressedServerKey, ReRandomizationSupport, ServerKey};
 pub(crate) use server::{InternalServerKey, InternalServerKeyRef};
 
+#[cfg(feature = "gpu")]
+pub(in crate::high_level_api) use inner::HALFHALF_NOISE_SQUASHING_IS_GPU_ONLY;
 pub(in crate::high_level_api) use inner::{
     IntegerClientKey, IntegerCompactPublicKey, IntegerCompressedCompactPublicKey,
     IntegerCompressedServerKey, IntegerConfig, IntegerServerKey, IntegerServerKeyConformanceParams,

@@ -2,9 +2,11 @@
 #include "pbs/programmable_bootstrap.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "pbs/programmable_bootstrap_testing.h"
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <device.h>
 #include <functional>
 #include <random>
@@ -344,4 +346,208 @@ void generate_lwe_keyswitch_keys(
   }
   cuda_synchronize_stream(stream, gpu_index);
   free(ksk_array);
+}
+
+// u128 key generation (single repetition, no GPU upload)
+
+static void check_c_api_status(int status, const char *func_name) {
+  if (status != 0) {
+    fprintf(stderr, "%s failed with status %d\n", func_name, status);
+    abort();
+  }
+}
+
+void generate_lwe_secret_keys_u128(__uint128_t **lwe_sk_array, int lwe_dimension,
+                                   Seed *seed) {
+  *lwe_sk_array =
+      (__uint128_t *)malloc(safe_mul_sizeof<__uint128_t>(lwe_dimension));
+  check_c_api_status(
+      core_crypto_lwe_secret_key_u128((void *)*lwe_sk_array, lwe_dimension,
+                                      seed->lo, seed->hi),
+      "core_crypto_lwe_secret_key_u128");
+}
+
+void generate_glwe_secret_keys_u128(__uint128_t **glwe_sk_array,
+                                    int glwe_dimension, int polynomial_size,
+                                    Seed *seed) {
+  size_t glwe_sk_size = safe_mul(glwe_dimension, polynomial_size);
+  *glwe_sk_array =
+      (__uint128_t *)malloc(safe_mul_sizeof<__uint128_t>(glwe_sk_size));
+  check_c_api_status(
+      core_crypto_lwe_secret_key_u128((void *)*glwe_sk_array, glwe_sk_size,
+                                      seed->lo, seed->hi),
+      "core_crypto_lwe_secret_key_u128");
+}
+
+void generate_lwe_bootstrapping_key_u128(__uint128_t **bsk_array,
+                                         __uint128_t *lwe_sk_in,
+                                         __uint128_t *glwe_sk_out,
+                                         int lwe_dimension, int glwe_dimension,
+                                         int polynomial_size, int pbs_level,
+                                         int pbs_base_log, Seed *seed,
+                                         DynamicDistribution noise_distribution) {
+  size_t bsk_element_count = 0;
+  check_c_api_status(
+      core_crypto_lwe_bootstrapping_key_element_count_u128(
+          lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
+          &bsk_element_count),
+      "core_crypto_lwe_bootstrapping_key_element_count_u128");
+  *bsk_array =
+      (__uint128_t *)malloc(safe_mul_sizeof<__uint128_t>(bsk_element_count));
+  check_c_api_status(
+      core_crypto_par_generate_lwe_bootstrapping_key_u128(
+          (void *)*bsk_array, pbs_base_log, pbs_level, (void *)lwe_sk_in,
+          lwe_dimension, (void *)glwe_sk_out, glwe_dimension, polynomial_size,
+          noise_distribution, seed->lo, seed->hi),
+      "core_crypto_par_generate_lwe_bootstrapping_key_u128");
+}
+
+void assemble_halfhalf_bsk_u128(
+    __uint128_t *output_bsk,
+    const __uint128_t *bsk_group1_mask, int level_count_group1_mask,
+    const __uint128_t *bsk_group1_body, int level_count_group1_body,
+    const __uint128_t *bsk_group2_mask, int level_count_group2_mask,
+    const __uint128_t *bsk_group2_body, int level_count_group2_body,
+    int lwe_dimension, int glwe_dimension, int polynomial_size,
+    int split_index) {
+
+  if (level_count_group1_mask < level_count_group1_body) {
+    fprintf(stderr,
+            "assemble_halfhalf_bsk_u128: level_count_group1_mask (%d) < "
+            "level_count_group1_body (%d)\n",
+            level_count_group1_mask, level_count_group1_body);
+    abort();
+  }
+  if (level_count_group2_mask < level_count_group2_body) {
+    fprintf(stderr,
+            "assemble_halfhalf_bsk_u128: level_count_group2_mask (%d) < "
+            "level_count_group2_body (%d)\n",
+            level_count_group2_mask, level_count_group2_body);
+    abort();
+  }
+  if (split_index < 0 || split_index > lwe_dimension) {
+    fprintf(stderr,
+            "assemble_halfhalf_bsk_u128: split_index (%d) out of range "
+            "[0, %d]\n",
+            split_index, lwe_dimension);
+    abort();
+  }
+
+  const int glwe_size = glwe_dimension + 1;
+  // k mask rows per GGSW entry
+  const int k = glwe_dimension;
+
+  struct GroupParams {
+    const __uint128_t *mask_bsk;
+    const __uint128_t *body_bsk;
+    int level_mask;
+    int level_body;
+    int entry_count;
+  };
+
+  GroupParams groups[2] = {
+      {bsk_group1_mask, bsk_group1_body, level_count_group1_mask,
+       level_count_group1_body, split_index},
+      {bsk_group2_mask, bsk_group2_body, level_count_group2_mask,
+       level_count_group2_body, lwe_dimension - split_index},
+  };
+
+  // Compact layout: each GGSW entry stores a mask block of k * level_mask GLWE
+  // ciphertexts followed by a body block of level_body GLWE ciphertexts, both
+  // level-major (see get_halfhalf_bsk_slice). Each GLWE ciphertext is
+  // glwe_size polynomials of polynomial_size u128 elements.
+
+  size_t out_offset = 0;
+
+  // Source BSK entry layout is level-major: each entry has level_count levels,
+  // each level has glwe_size rows of glwe_size * polynomial_size u128 elements.
+  const size_t glwe_ct_size = safe_mul(glwe_size, polynomial_size);
+  const size_t level_matrix_size = safe_mul(glwe_size, glwe_ct_size);
+
+  for (int g = 0; g < 2; g++) {
+    const auto &gp = groups[g];
+
+    const size_t mask_entry_size =
+        safe_mul(glwe_size, gp.level_mask, glwe_size, polynomial_size);
+    const size_t body_entry_size =
+        safe_mul(glwe_size, gp.level_body, glwe_size, polynomial_size);
+
+    // Compact output entry: glwe_size * (k * level_mask + level_body) polys
+    const size_t out_entry_size = safe_mul(
+        (size_t)glwe_size, (size_t)(k * gp.level_mask + gp.level_body),
+        (size_t)polynomial_size);
+
+    for (int i = 0; i < gp.entry_count; i++) {
+      int bsk_entry_idx = (g == 0) ? i : (split_index + i);
+
+      const __uint128_t *mask_entry =
+          gp.mask_bsk + bsk_entry_idx * mask_entry_size;
+      const __uint128_t *body_entry =
+          gp.body_bsk + bsk_entry_idx * body_entry_size;
+      __uint128_t *out_entry = output_bsk + out_offset;
+
+      size_t entry_cursor = 0;
+
+      // Mask block: level-major, the k GLev rows nested inside the level
+      for (int l = 0; l < gp.level_mask; l++) {
+        for (int j = 0; j < k; j++) {
+          const __uint128_t *src =
+              mask_entry + l * level_matrix_size + j * glwe_ct_size;
+          memcpy(out_entry + entry_cursor, src,
+                 glwe_ct_size * sizeof(__uint128_t));
+          entry_cursor += glwe_ct_size;
+        }
+      }
+
+      // Body GLev row: 1 row with level_body levels
+      for (int l = 0; l < gp.level_body; l++) {
+        const __uint128_t *src =
+            body_entry + l * level_matrix_size + k * glwe_ct_size;
+        memcpy(out_entry + entry_cursor, src,
+               glwe_ct_size * sizeof(__uint128_t));
+        entry_cursor += glwe_ct_size;
+      }
+
+      assert(entry_cursor == out_entry_size);
+      out_offset += out_entry_size;
+    }
+  }
+}
+
+__uint128_t *generate_identity_lut_pbs_u128(int polynomial_size,
+                                            int glwe_dimension,
+                                            int payload_modulus,
+                                            __uint128_t delta) {
+  int box_size = polynomial_size / payload_modulus;
+
+  __uint128_t *plaintext_lut_pbs =
+      (__uint128_t *)malloc(safe_mul_sizeof<__uint128_t>(polynomial_size));
+
+  for (int i = 0; i < payload_modulus; i++) {
+    int index = i * box_size;
+    for (int j = index; j < index + box_size; j++) {
+      plaintext_lut_pbs[j] = (__uint128_t)i * delta;
+    }
+  }
+
+  int half_box_size = box_size / 2;
+
+  // Negate the first half_box_size coefficients to manage negacyclicity.
+  // Unsigned wraparound gives the same result as Rust's wrapping_neg.
+  for (int i = 0; i < half_box_size; i++) {
+    plaintext_lut_pbs[i] = -plaintext_lut_pbs[i];
+  }
+
+  std::rotate(plaintext_lut_pbs, plaintext_lut_pbs + half_box_size,
+              plaintext_lut_pbs + polynomial_size);
+
+  __uint128_t *lut_pbs = (__uint128_t *)malloc(
+      safe_mul_sizeof<__uint128_t>(polynomial_size, glwe_dimension + 1));
+  memset(lut_pbs, 0,
+         safe_mul_sizeof<__uint128_t>(polynomial_size, glwe_dimension));
+  memcpy(lut_pbs + (ptrdiff_t)(glwe_dimension * polynomial_size),
+         plaintext_lut_pbs, safe_mul_sizeof<__uint128_t>(polynomial_size));
+
+  free(plaintext_lut_pbs);
+  return lut_pbs;
 }

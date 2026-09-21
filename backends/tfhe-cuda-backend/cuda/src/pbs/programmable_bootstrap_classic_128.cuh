@@ -1861,7 +1861,7 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
 }
 
 // Verify if the grid size satisfies the cooperative group constraints
-__host__ bool supports_cooperative_groups_on_programmable_bootstrap_128(
+__host__ inline bool supports_cooperative_groups_on_programmable_bootstrap_128(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
     uint32_t max_shared_memory) {
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit classic PBS

@@ -456,7 +456,8 @@ void execute_pbs_async(CudaStreams streams,
                        uint32_t polynomial_size, uint32_t base_log,
                        uint32_t level_count, uint32_t grouping_factor,
                        uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
-                       uint32_t num_many_lut, uint32_t lut_stride) {
+                       uint32_t num_many_lut, uint32_t lut_stride,
+                       CudaHalfhalfPbsParamsFFI halfhalf_params = {}) {
 
   if constexpr (std::is_same_v<OutputTorus, uint32_t>) {
     // 32 bits
@@ -618,6 +619,38 @@ void execute_pbs_async(CudaStreams streams,
             num_inputs_on_gpu);
       }
       break;
+    case HALFHALF:
+      // base_log and level_count are meaningless here: the halfhalf key
+      // carries one decomposition per section and per mask/body row, all of
+      // them inside halfhalf_params. The dimensions are still passed
+      // separately by the caller, so check the two descriptions agree.
+      PANIC_IF_FALSE(
+          halfhalf_params.input_lwe_dimension == lwe_dimension &&
+              halfhalf_params.glwe_dimension == glwe_dimension &&
+              halfhalf_params.polynomial_size == polynomial_size,
+          "Error: halfhalf PBS parameters disagree with the LWE/GLWE "
+          "dimensions requested by the caller.");
+      // The halfhalf blind rotation writes one sample extraction per input, so
+      // it cannot serve a many-LUT request. Silently ignoring num_many_lut
+      // would return only the first of the requested LUTs.
+      PANIC_IF_FALSE(num_many_lut <= 1 && lut_stride == 0,
+                     "Error: the halfhalf PBS does not support many-LUT, but "
+                     "num_many_lut is %u and lut_stride is %u.",
+                     num_many_lut, lut_stride);
+      for (uint i = 0; i < streams.count(); i++) {
+        int num_inputs_on_gpu = get_num_inputs_on_gpu(
+            input_lwe_ciphertext_count, i, streams.count());
+
+        auto current_lwe_array_out = get_variant_element(lwe_array_out, i);
+        auto current_lwe_array_in = get_variant_element(lwe_array_in, i);
+
+        cuda_programmable_bootstrap_128_halfhalf_async(
+            streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+            lut_vec[i], current_lwe_array_in, bootstrapping_keys[i],
+            reinterpret_cast<int8_t *>(pbs_buffer[i]), halfhalf_params,
+            num_inputs_on_gpu);
+      }
+      break;
     default:
       PANIC("Error: unsupported cuda PBS type.")
     }
@@ -639,7 +672,8 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
                          bool allocate_gpu_memory,
                          PBS_MS_REDUCTION_T noise_reduction_type,
-                         uint64_t &size_tracker) {
+                         uint64_t &size_tracker,
+                         CudaHalfhalfPbsParamsFFI halfhalf_params = {}) {
   static_assert(
       std::is_same_v<Torus, uint64_t> || std::is_same_v<Torus, __uint128_t>,
       "Cuda error: unsupported modulus size: only 64, or 128-bit integer "
@@ -678,6 +712,15 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
           stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, level_count, input_lwe_ciphertext_count,
           allocate_gpu_memory, noise_reduction_type);
+      break;
+    case HALFHALF:
+      // level_count is meaningless for a halfhalf key: the accumulator and
+      // join buffer are sized on the largest mask level count across the two
+      // sections, which the halfhalf scratch derives from halfhalf_params.
+      size_tracker = scratch_cuda_programmable_bootstrap_128_halfhalf_async(
+          stream, gpu_index, pbs_buffer, halfhalf_params,
+          input_lwe_ciphertext_count, allocate_gpu_memory,
+          noise_reduction_type);
       break;
     default:
       PANIC("Error: unsupported cuda PBS type.")

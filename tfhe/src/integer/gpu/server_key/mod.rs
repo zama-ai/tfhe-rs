@@ -1,5 +1,6 @@
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
-    CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+    CudaHalfhalfBootstrapKey, CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+    CudaPbs128BootstrapKey,
 };
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
@@ -40,6 +41,36 @@ pub(crate) mod radix;
 pub enum CudaBootstrappingKey<Scalar: UnsignedInteger> {
     Classic(CudaLweBootstrapKey),
     MultiBit(CudaLweMultiBitBootstrapKey<Scalar>),
+}
+
+/// Bootstrapping key of a [`crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey`].
+///
+/// [`Self::Halfhalf`] is a noise-squashing-only construction. It lives here rather than as a third
+/// [`CudaBootstrappingKey`] variant because the compute path matches that enum exhaustively in
+/// more than a hundred places, none of which can ever see a halfhalf key.
+pub enum CudaNoiseSquashingBootstrappingKey {
+    Classic(CudaLweBootstrapKey),
+    MultiBit(CudaLweMultiBitBootstrapKey<u128>),
+    Halfhalf(CudaHalfhalfBootstrapKey),
+}
+
+impl From<CudaBootstrappingKey<u128>> for CudaNoiseSquashingBootstrappingKey {
+    fn from(key: CudaBootstrappingKey<u128>) -> Self {
+        match key {
+            CudaBootstrappingKey::Classic(bsk) => Self::Classic(bsk),
+            CudaBootstrappingKey::MultiBit(bsk) => Self::MultiBit(bsk),
+        }
+    }
+}
+
+impl CudaNoiseSquashingBootstrappingKey {
+    pub(crate) fn output_lwe_dimension(&self) -> LweDimension {
+        match self {
+            Self::Classic(bsk) => bsk.output_lwe_dimension(),
+            Self::MultiBit(mb_bsk) => mb_bsk.output_lwe_dimension(),
+            Self::Halfhalf(hh_bsk) => hh_bsk.output_lwe_dimension(),
+        }
+    }
 }
 
 impl<Scalar> CudaBootstrappingKey<Scalar>

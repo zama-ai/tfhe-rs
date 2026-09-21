@@ -42,9 +42,9 @@ using Index = unsigned;
   *(double2 *)&dt_im_lo[pair_ind] = make_double2(lo_reg.im.lo, hi_reg.im.lo)
 
 template <class params>
-__device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
-                                            double *dt_im_hi,
-                                            double *dt_im_lo) {
+__device__ __forceinline__ void
+negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
+                            double *dt_im_hi, double *dt_im_lo) {
 
   __syncthreads();
   constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
@@ -132,9 +132,9 @@ __device__ void negacyclic_forward_fft_f128(double *dt_re_hi, double *dt_re_lo,
 }
 
 template <class params>
-__device__ void negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
-                                             double *dt_im_hi,
-                                             double *dt_im_lo) {
+__device__ __forceinline__ void
+negacyclic_backward_fft_f128(double *dt_re_hi, double *dt_re_lo,
+                             double *dt_im_hi, double *dt_im_lo) {
   __syncthreads();
   constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
   constexpr Index LOG2_DEGREE = params::log2_degree;

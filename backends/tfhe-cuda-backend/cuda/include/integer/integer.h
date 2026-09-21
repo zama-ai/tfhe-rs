@@ -3,6 +3,9 @@
 
 #include "../keyswitch/keyswitch.h"
 #include "../pbs/pbs_enums.h"
+// For CudaHalfhalfPbsParamsFFI, used by the halfhalf noise-squashing entry
+// points below.
+#include "../pbs/programmable_bootstrap.h"
 #include <stdint.h>
 
 enum OUTPUT_CARRY { NONE = 0, GENERATED = 1, PROPAGATED = 2 };
@@ -555,6 +558,20 @@ void cuda_apply_noise_squashing_async(
 
 void cleanup_cuda_apply_noise_squashing(CudaStreamsFFI streams,
                                         int8_t **mem_ptr_void);
+
+// Noise squashing onto a halfhalf (HP+HR) 128-bit bootstrap key. Same packing,
+// keyswitch and identity LUT as the functions above; only the bootstrap key
+// shape differs, which is why the parameters come as CudaHalfhalfPbsParamsFFI
+// rather than CudaLweBootstrapKeyParamsFFI. That shape is recorded in mem_ptr,
+// so the apply and cleanup steps are cuda_apply_noise_squashing_async and
+// cleanup_cuda_apply_noise_squashing above; only the scratch step differs.
+uint64_t scratch_cuda_apply_noise_squashing_halfhalf_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaHalfhalfPbsParamsFFI halfhalf_params, uint32_t input_glwe_dimension,
+    uint32_t input_polynomial_size, CudaLweKeyswitchKeyParamsFFI ksk_params,
+    uint32_t num_radix_blocks, uint32_t num_original_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,

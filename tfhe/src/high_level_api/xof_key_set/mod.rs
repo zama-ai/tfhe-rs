@@ -192,6 +192,17 @@ impl CompressedXofKeySet {
             return Err(crate::error!("Dedicated compact private key is required"));
         };
 
+        // Every key in an XofKeySet is seeded, and the halfhalf noise squashing key has no seeded
+        // form. Falling back to the Classic key would hand back a key set that does not match the
+        // requested configuration.
+        #[cfg(feature = "gpu")]
+        if ck.key.gpu_halfhalf_noise_squashing {
+            return Err(crate::error!(
+                "Cannot build an XofKeySet: {}",
+                crate::high_level_api::keys::HALFHALF_NOISE_SQUASHING_IS_GPU_ONLY
+            ));
+        }
+
         let mask_random_generator = MaskRandomGenerator::<G>::new(pub_seed.clone());
         let noise_random_generator = NoiseRandomGenerator::from_raw_parts(private_generator);
         let mut encryption_rand_gen = EncryptionRandomGenerator::from_raw_parts(
