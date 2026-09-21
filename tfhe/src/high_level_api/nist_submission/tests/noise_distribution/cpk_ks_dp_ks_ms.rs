@@ -5,7 +5,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyView};
 use crate::shortint::parameters::{
     CarryModulus, CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
-    MetaParameters, ShortintCompactCiphertextListCastingMode, ShortintKeySwitchingParameters,
+    MetaParameters, ShortintKeySwitchingParameters,
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::dp_ks_ms::dp_ks_any_ms;
@@ -175,9 +175,7 @@ fn cpk_ks_dp_ks_any_ms_helper(
     let ct = {
         let compact_list =
             cpk.encrypt_iter_with_modulus(core::iter::once(msg), cpk.parameters.message_modulus.0);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)
@@ -362,9 +360,7 @@ fn noise_check_encrypt_cpk_ks_dp_ks_ms_noise(meta_params: MetaParameters, filena
 
     let sample_input = {
         let compact_list = cpk.encrypt_slice(&[0]);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)

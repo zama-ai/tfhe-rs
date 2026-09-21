@@ -38,7 +38,6 @@ use crate::shortint::parameters::test_params::{
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
     CompressionParameters, MetaParameters, ReRandomizationParameters,
-    ShortintCompactCiphertextListCastingMode,
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
@@ -276,9 +275,7 @@ where
     let cpk_ct_zero_rerand = {
         let compact_list =
             cpk.encrypt_iter_with_modulus(core::iter::once(0), cpk.parameters.message_modulus.0);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)
@@ -666,9 +663,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(
     });
     let cpk_zero_sample_input = {
         let compact_list = cpk.encrypt_slice(&[0]);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)
