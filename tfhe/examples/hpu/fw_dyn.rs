@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 use crate::tfhe_hpu_backend::prelude::*;
 use integer::hpu::ciphertext::HpuRadixCiphertext;
+use std::path::PathBuf;
 pub use std::time::{Duration, Instant};
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
@@ -59,6 +60,10 @@ pub struct Args {
     /// Use trivial encrypt ciphertext
     #[arg(long)]
     pub trivial: bool,
+
+    /// Use trivial encrypt ciphertext
+    #[arg(long)]
+    pub dump_asm: Option<PathBuf>,
 }
 
 /// Simple enum that let user select the desired operation
@@ -192,7 +197,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         for zhc_op in args.zhc_ops.iter() {
             // Build custom IOp Ir ----------------------------------------------------
             println!("FwDyn_{width}b:: Start fw generation for {zhc_op} ...");
-            let mh_pipeline = match zhc_op {
+            let mut mh_pipeline = match zhc_op {
                 ZhcDynOp::MhMul(mh_factor) => {
                     let mh_config = MultiHpuConfig {
                         n_hpus: *mh_factor as u8,
@@ -202,6 +207,27 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 }
                 _ => unimplemented!("Current op not defined"),
             };
+
+            // Dump assembly if required
+            if let Some(asm_p) = args.dump_asm.as_ref() {
+                // Create folder if needed
+                if asm_p.exists() {
+                    if asm_p.is_file() {
+                        panic!("ASM_DUMP: given path is a file. Directory expected");
+                    }
+                } else {
+                    // Create it
+                    std::fs::create_dir_all(asm_p).unwrap();
+                }
+                // generate assembly
+                let asm_v = mh_pipeline.get_multi_hpu_assembly().clone();
+
+                for (hid, mut asm) in asm_v.into_iter().enumerate() {
+                    let filename = format!("{zhc_op}_v{hid}.asm");
+                    let asm_f = asm_p.join(filename);
+                    asm.move_to(asm_f).expect("Issue with asm generation");
+                }
+            }
 
             // Register fw on Hpu -----------------------------------------------------
             let fw_entry = hpu_device
