@@ -31,7 +31,6 @@ use crate::shortint::parameters::test_params::{
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, CompactCiphertextListExpansionKind,
     CompressionParameters, MetaParameters,
-    ShortintCompactCiphertextListCastingMode
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, noise_check, normality_check, pfail_check,
@@ -215,9 +214,7 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper_gpu<C: Container<Element =
         let compact_list = cpk
             .key
             .encrypt_iter_with_modulus(core::iter::once(0), cpk.parameters().message_modulus.0);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)
@@ -644,9 +641,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise_gpu(
 
     let cpk_zero_sample_input = {
         let compact_list = cpk.key.encrypt_slice(&[0]);
-        let mut expanded = compact_list
-            .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
-            .unwrap();
+        let mut expanded = compact_list.expand_without_casting().unwrap();
         assert_eq!(expanded.len(), 1);
 
         DynLwe::U64(expanded.pop().unwrap().ct)

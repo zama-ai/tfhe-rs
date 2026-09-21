@@ -5,11 +5,11 @@ use crate::core_crypto::prelude::{LweCiphertextCount, LweCiphertextListConforman
 use crate::shortint::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextListConformanceParams, CiphertextModulus,
+    CarryModulus, CastingFunctionsView, CiphertextListConformanceParams, CiphertextModulus,
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters, LweDimension,
-    MessageModulus, ShortintCompactCiphertextListCastingMode, SupportedCompactPkeZkScheme,
+    MessageModulus, SupportedCompactPkeZkScheme,
 };
-use crate::shortint::{Ciphertext, CompactPublicKey};
+use crate::shortint::{Ciphertext, CompactPublicKey, KeySwitchingKeyView};
 use crate::zk::{
     CompactPkeCrs, CompactPkeProof, CompactPkeProofConformanceParams, ZkComputeLoad,
     ZkMSBZeroPaddingBitCount, ZkPkeV2SupportedHashConfig, ZkVerificationOutcome,
@@ -94,12 +94,13 @@ impl ProvenCompactCiphertextList {
             .sum()
     }
 
-    pub fn verify_and_expand(
+    pub fn verify_and_expand<'a>(
         &self,
         crs: &CompactPkeCrs,
         public_key: &CompactPublicKey,
         metadata: &[u8],
-        casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
+        casting_key: KeySwitchingKeyView<'a>,
+        functions: Option<CastingFunctionsView<'a>>,
     ) -> crate::Result<Vec<Ciphertext>> {
         let not_all_valid = self.proved_lists.par_iter().any(|(ct_list, proof)| {
             verify_lwe_compact_ciphertext_list(
@@ -117,7 +118,7 @@ impl ProvenCompactCiphertextList {
         }
 
         // We can call the function as we have verified the proofs
-        self.expand_without_verification(casting_mode)
+        self.expand_without_verification(casting_key, functions)
     }
 
     /// Expands a ciphertext list without applying any casting or verification
@@ -131,7 +132,7 @@ impl ProvenCompactCiphertextList {
                 continue;
             }
 
-            let expanded = ct_list.expand_without_casting();
+            let expanded = ct_list.expand_raw();
             let merged = match result {
                 None => expanded,
                 Some(prev) => ExpandedCiphertextList::merge(prev, expanded)?,
@@ -145,59 +146,50 @@ impl ProvenCompactCiphertextList {
     ///
     /// If you are here you were probably looking for it: use at your own risks.
     #[doc(hidden)]
-    pub fn expand_without_verification(
+    pub fn expand_without_verification<'a>(
         &self,
-        casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
+        casting_key: KeySwitchingKeyView<'a>,
+        functions: Option<CastingFunctionsView<'a>>,
     ) -> crate::Result<Vec<Ciphertext>> {
-        let per_list_casting_mode: Vec<_> = match casting_mode {
-            ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                casting_key,
-                functions,
-            } => match functions {
-                Some(functions) => {
-                    // For how many ciphertexts we have functions
-                    let functions_sets_count = functions.len();
-                    let total_ciphertext_count: usize = self
-                        .proved_lists
-                        .iter()
-                        .map(|list| list.0.ct_list.lwe_ciphertext_count().0)
-                        .sum();
+        let per_list_functions: Vec<_> = match functions {
+            Some(functions) => {
+                // For how many ciphertexts we have functions
+                let functions_sets_count = functions.len();
+                let total_ciphertext_count: usize = self
+                    .proved_lists
+                    .iter()
+                    .map(|list| list.0.ct_list.lwe_ciphertext_count().0)
+                    .sum();
 
-                    if functions_sets_count != total_ciphertext_count {
-                        return Err(crate::Error::new(format!(
-                            "Cannot expand a CompactCiphertextList: got {functions_sets_count} \
+                if functions_sets_count != total_ciphertext_count {
+                    return Err(crate::Error::new(format!(
+                        "Cannot expand a CompactCiphertextList: got {functions_sets_count} \
                             sets of functions for casting, expected {total_ciphertext_count}"
-                        )));
-                    }
-
-                    let mut modes = vec![];
-                    let mut functions_used_so_far = 0;
-                    for list in self.proved_lists.iter() {
-                        let blocks_in_list = list.0.ct_list.lwe_ciphertext_count().0;
-
-                        let functions_to_use = &functions
-                            [functions_used_so_far..functions_used_so_far + blocks_in_list];
-
-                        modes.push(ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                            casting_key,
-                            functions: Some(functions_to_use),
-                        });
-
-                        functions_used_so_far += blocks_in_list;
-                    }
-                    modes
+                    )));
                 }
-                None => vec![casting_mode; self.proved_lists.len()],
-            },
-            ShortintCompactCiphertextListCastingMode::NoCasting => {
-                vec![ShortintCompactCiphertextListCastingMode::NoCasting; self.proved_lists.len()]
+
+                let mut functions_for_block = vec![];
+                let mut functions_used_so_far = 0;
+                for list in self.proved_lists.iter() {
+                    let blocks_in_list = list.0.ct_list.lwe_ciphertext_count().0;
+
+                    let functions_to_use =
+                        &functions[functions_used_so_far..functions_used_so_far + blocks_in_list];
+
+                    functions_for_block.push(Some(functions_to_use));
+
+                    functions_used_so_far += blocks_in_list;
+                }
+                functions_for_block
             }
+            None => vec![None; self.proved_lists.len()],
         };
+
         let expanded = self
             .proved_lists
             .iter()
-            .zip(per_list_casting_mode)
-            .map(|((ct_list, _proof), casting_mode)| ct_list.expand(casting_mode))
+            .zip(per_list_functions)
+            .map(|((ct_list, _proof), functions)| ct_list.expand(casting_key, functions))
             .collect::<Result<Vec<Vec<_>>, _>>()?
             .into_iter()
             .flatten()
@@ -363,7 +355,6 @@ mod tests {
     use crate::core_crypto::prelude::LweCiphertextCount;
     use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
     use crate::shortint::parameters::test_params::*;
-    use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
     use crate::shortint::{
         ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey,
     };
@@ -407,12 +398,8 @@ mod tests {
             .unwrap();
 
         {
-            let unproven_ct = proven_ct.expand_without_verification(
-                ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                    casting_key: ksk.as_view(),
-                    functions: Some(functions.as_slice()),
-                },
-            );
+            let unproven_ct =
+                proven_ct.expand_without_verification(ksk.as_view(), Some(functions.as_slice()));
             let unproven_ct = unproven_ct.unwrap();
 
             let decrypted = ck.decrypt(&unproven_ct[0]);
@@ -423,10 +410,8 @@ mod tests {
             &crs,
             &pub_key,
             metadata,
-            ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                casting_key: ksk.as_view(),
-                functions: Some(functions.as_slice()),
-            },
+            ksk.as_view(),
+            Some(functions.as_slice()),
         );
         let proven_ct = proven_ct.unwrap();
 
@@ -474,10 +459,8 @@ mod tests {
                 &crs,
                 &pub_key,
                 metadata,
-                ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                    casting_key: ksk.as_view(),
-                    functions: Some(functions.as_slice()),
-                },
+                ksk.as_view(),
+                Some(functions.as_slice()),
             )
             .unwrap();
         let decrypted = expanded
@@ -519,15 +502,7 @@ mod tests {
         assert!(proven_ct.verify(&crs, &pub_key, metadata).is_valid());
 
         let expanded = proven_ct
-            .verify_and_expand(
-                &crs,
-                &pub_key,
-                metadata,
-                ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                    casting_key: ksk.as_view(),
-                    functions: None,
-                },
-            )
+            .verify_and_expand(&crs, &pub_key, metadata, ksk.as_view(), None)
             .unwrap();
         let decrypted = expanded
             .iter()
