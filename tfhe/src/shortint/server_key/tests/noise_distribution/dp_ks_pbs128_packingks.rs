@@ -4,7 +4,7 @@ use super::utils::noise_simulation::*;
 use super::utils::to_json::TestResult;
 use super::utils::traits::*;
 use super::utils::{
-    mean_and_variance_check, noise_check, post_squashing_and_packing_noise_check,
+    mean_and_variance_check, noise_check, normality_check, post_squashing_and_packing_noise_check,
     DecryptionAndNoiseResult, NoiseSample,
 };
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
@@ -764,11 +764,18 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
         after_packing_sim.modulus().as_f64(),
     );
 
+    let after_packing_normality =
+        normality_check(&noise_samples_after_packing, "after packing", 0.01);
+
     let post_noise_squashing_bound_is_ok = post_squashing_and_packing_noise_check(
         &noise_samples_after_packing,
         noise_squashing_compression_params,
     );
-    noise_check(&guard, mean_variance_result, None);
+    noise_check(
+        &guard,
+        mean_variance_result,
+        Some(after_packing_normality.null_hypothesis_is_valid),
+    );
     assert!(post_noise_squashing_bound_is_ok)
 }
 
