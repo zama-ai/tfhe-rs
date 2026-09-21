@@ -496,7 +496,6 @@ mod test {
     use rand::Rng;
 
     use super::*;
-    use crate::shortint::ciphertext::ShortintCompactCiphertextListCastingMode;
     use crate::shortint::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
     use crate::shortint::parameters::test_params::*;
     use crate::shortint::parameters::{
@@ -654,11 +653,6 @@ mod test {
         let ksk_builder = KeySwitchingKeyBuildHelper::new((&privk, None), (&cks, &sks), ks_params);
         let casting_key: KeySwitchingKeyView<'_> = ksk_builder.as_key_switching_key_view();
 
-        let casting_mode = ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-            casting_key,
-            functions: None,
-        };
-
         let messages: [u64; CT_COUNT] =
             core::array::from_fn(|_| rng.gen_range(0..cpk_params.message_modulus.0));
         let mut enc = pubk.encrypt_slice(&messages);
@@ -675,7 +669,7 @@ mod test {
         pubk.re_randomize_compact_ciphertext_lists(std::iter::once(&mut enc), seeder.next_seed())
             .unwrap();
 
-        let cast = enc.expand(casting_mode).unwrap();
+        let cast = enc.expand(casting_key, None).unwrap();
 
         assert_eq!(cast.len(), CT_COUNT);
         for (ct, clear) in cast.iter().zip(&messages) {
@@ -712,11 +706,6 @@ mod test {
 
         let functions = vec![Some(vec![dyn_id; 1]); CT_COUNT];
 
-        let casting_mode = ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-            casting_key,
-            functions: Some(functions.as_slice()),
-        };
-
         let messages: [u64; CT_COUNT] =
             core::array::from_fn(|_| rng.gen_range(0..cpk_params.message_modulus.0));
         let mut enc = pubk
@@ -750,7 +739,9 @@ mod test {
         )
         .unwrap();
 
-        let cast = enc.expand_without_verification(casting_mode).unwrap();
+        let cast = enc
+            .expand_without_verification(casting_key, Some(&functions))
+            .unwrap();
 
         assert_eq!(cast.len(), CT_COUNT);
         for (ct, clear) in cast.iter().zip(&messages) {
