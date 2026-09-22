@@ -92,7 +92,9 @@ where
 {
     fn from(params: P) -> Self {
         let mut params = params.into().to_shortint_conformance_param();
-        params.degree = crate::shortint::ciphertext::Degree::new(1);
+        params.degree = crate::shortint::ciphertext::DegreeConformance::Exact(
+            crate::shortint::ciphertext::Degree::new(1),
+        );
         Self(params)
     }
 }
@@ -100,7 +102,9 @@ where
 impl From<&ServerKey> for FheBoolConformanceParams {
     fn from(sk: &ServerKey) -> Self {
         let mut parameter_set = Self(sk.key.pbs_key().key.conformance_params());
-        parameter_set.0.degree = crate::shortint::ciphertext::Degree::new(1);
+        parameter_set.0.degree = crate::shortint::ciphertext::DegreeConformance::Exact(
+            crate::shortint::ciphertext::Degree::new(1),
+        );
         parameter_set
     }
 }

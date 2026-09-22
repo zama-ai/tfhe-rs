@@ -1,12 +1,18 @@
 //! Runtime value types for the CPU backend: [`RuntimeValue`] and its
 //! conversion impls, plus the input/output list wrappers used by callers.
 
+use crate::conformance::ParameterSetConformant;
 use crate::graph::{FheIntKind, KvKeyKind, ScalarValue, ValueKind};
 use crate::high_level_api::kv_store::KVStore as HlKVStore;
+use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::integer::prelude::*;
 use crate::integer::server_key::KVStore;
 use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
-use crate::{FheBool, FheInt, FheIntId, FheUint, FheUintId, ReRandomizationMetadata, Tag};
+use crate::shortint::ciphertext::{Degree, DegreeConformance, NoiseLevelConformance};
+use crate::shortint::parameters::CiphertextConformanceParams;
+use crate::{
+    Config, FheBool, FheInt, FheIntId, FheUint, FheUintId, ReRandomizationMetadata, ServerKey, Tag,
+};
 
 /// Possible runtime values to execute an HLAPI dialect program
 #[derive(Clone, strum::IntoStaticStr)]
@@ -49,48 +55,19 @@ impl RuntimeValue {
     }
 
     /// Validate this value against a graph input's declared `expected` kind,
-    /// as the `input_index`-th input.
+    /// as the `input_index`-th input, for a backend whose server key yields
+    /// `params` (see [`RuntimeValueConformanceParams`]).
     pub(in crate::high_level_api::graph::backends) fn check_input(
         &self,
         input_index: u32,
         expected: &ValueKind,
-        sks: &crate::integer::ServerKey,
+        params: &RuntimeValueConformanceParams,
     ) -> Result<(), super::CpuError> {
-        let message_modulus = sks.message_modulus();
-        let carry_modulus = sks.carry_modulus();
-        let bits_per_block = message_modulus.0.ilog2();
-
-        // 1. Parameter compatibility.
-        let check_blocks_params = |blocks: &[crate::shortint::Ciphertext]| {
-            blocks
-                .iter()
-                .find(|b| b.message_modulus != message_modulus || b.carry_modulus != carry_modulus)
-                .map_or(Ok(()), |b| {
-                    Err(super::CpuError::InputParamsMismatch {
-                        input_index,
-                        expected_message_modulus: message_modulus,
-                        expected_carry_modulus: carry_modulus,
-                        got_message_modulus: b.message_modulus,
-                        got_carry_modulus: b.carry_modulus,
-                    })
-                })
-        };
-        match self {
-            Self::FheBool(b) => check_blocks_params(std::slice::from_ref(&b.0))?,
-            Self::FheUint(radix) => check_blocks_params(radix.blocks())?,
-            Self::FheInt(radix) => check_blocks_params(radix.blocks())?,
-            Self::FheUintKVStore(kv) => {
-                for (_, v) in kv.iter() {
-                    check_blocks_params(v.blocks())?;
-                }
-            }
-            Self::FheIntKVStore(kv) => {
-                for (_, v) in kv.iter() {
-                    check_blocks_params(v.blocks())?;
-                }
-            }
-            // Clear values and seeds carry no parameters.
-            Self::ClearBool(_) | Self::ClearUint(_) | Self::ClearInt(_) | Self::Seed(_) => {}
+        // 1. Conformance with the server key's parameters. Doing this first means the width
+        //    computations below can trust the key's parameters like message modulus, lwe
+        //    dimensions, etc
+        if !self.is_conformant(params) {
+            return Err(super::CpuError::InputNotConformant { input_index });
         }
 
         // 2. Kind compatibility.
@@ -115,9 +92,11 @@ impl RuntimeValue {
             }
             Self::FheBool(_) => ValueKind::FheBool,
             Self::FheUint(radix) => {
-                ValueKind::FheUint(radix.blocks().len() as u32 * bits_per_block)
+                ValueKind::FheUint(radix.blocks().len() as u32 * params.bits_per_block())
             }
-            Self::FheInt(radix) => ValueKind::FheInt(radix.blocks().len() as u32 * bits_per_block),
+            Self::FheInt(radix) => {
+                ValueKind::FheInt(radix.blocks().len() as u32 * params.bits_per_block())
+            }
             Self::Seed(_) => ValueKind::Seed,
             // A store's key kind is not observable from its runtime keys
             // (they are stored widened to u128) and an empty store has no
@@ -128,14 +107,14 @@ impl RuntimeValue {
                 key: KvKeyKind::U32,
                 value: FheIntKind::Uint(
                     kv.blocks_per_radix()
-                        .map_or(0, |n| n.get() as u32 * bits_per_block),
+                        .map_or(0, |n| n.get() as u32 * params.bits_per_block()),
                 ),
             },
             Self::FheIntKVStore(kv) => ValueKind::KVStore {
                 key: KvKeyKind::U32,
                 value: FheIntKind::Int(
                     kv.blocks_per_radix()
-                        .map_or(0, |n| n.get() as u32 * bits_per_block),
+                        .map_or(0, |n| n.get() as u32 * params.bits_per_block()),
                 ),
             },
         };
@@ -202,6 +181,238 @@ impl RuntimeValue {
             _ => {}
         }
         Ok(())
+    }
+}
+
+/// Expected properties of a [`RuntimeValue`] bound to a graph input of a
+/// given [`ValueKind`], for a given [`ServerKey`] (or the [`Config`] it was
+/// generated from).
+///
+/// Clear values and seeds have no parameter requirements and are always
+/// conformant.
+///
+/// By default the expected state is that of a *fresh* ciphertext: nominal
+/// noise level and full degree, so trivially encrypted values are not
+/// conformant. See [`Self::allow_trivial`].
+#[derive(Copy, Clone)]
+#[non_exhaustive]
+pub enum RuntimeValueConformanceParams {
+    FheBool(CiphertextConformanceParams),
+    FheUint(RadixCiphertextConformanceParams),
+    FheInt(RadixCiphertextConformanceParams),
+    /// Params every value stored in a KVStore of unsigned values must
+    /// satisfy.
+    FheUintKVStore(RadixCiphertextConformanceParams),
+    /// Params every value stored in a KVStore of signed values must satisfy.
+    FheIntKVStore(RadixCiphertextConformanceParams),
+    /// Clear values and seeds: nothing to check.
+    Clear,
+}
+
+impl RuntimeValueConformanceParams {
+    /// Params for a value of `kind`, from the per-block params of a key.
+    ///
+    /// Integer widths must be multiples of the block's message bits (see
+    /// `ExecutionGraph::check_radix_encoding`); the block count is rounded
+    /// down otherwise, and no value can then be conformant.
+    pub fn new(kind: ValueKind, block_params: CiphertextConformanceParams) -> Self {
+        let radix = |bits: u32| RadixCiphertextConformanceParams {
+            shortint_params: block_params,
+            num_blocks_per_integer: (bits / block_params.message_modulus.0.ilog2()) as usize,
+        };
+        match kind {
+            ValueKind::FheBool => {
+                let mut bool_params = block_params;
+                bool_params.degree = DegreeConformance::Exact(Degree::new(1));
+                Self::FheBool(bool_params)
+            }
+            ValueKind::FheUint(bits) => Self::FheUint(radix(bits)),
+            ValueKind::FheInt(bits) => Self::FheInt(radix(bits)),
+            ValueKind::KVStore {
+                key: _,
+                value: FheIntKind::Uint(bits),
+            } => Self::FheUintKVStore(radix(bits)),
+            ValueKind::KVStore {
+                key: _,
+                value: FheIntKind::Int(bits),
+            } => Self::FheIntKVStore(radix(bits)),
+            ValueKind::Bool | ValueKind::Uint(_) | ValueKind::Int(_) | ValueKind::Seed => {
+                Self::Clear
+            }
+        }
+    }
+
+    /// Params for a value of `kind` executed with `sks`.
+    pub fn from_server_key(kind: ValueKind, sks: &ServerKey) -> Self {
+        Self::new(kind, sks.key.pbs_key().key.conformance_params())
+    }
+
+    /// Params for a value of `kind` executed with a key generated from
+    /// `config`.
+    pub fn from_config(kind: ValueKind, config: impl Into<Config>) -> Self {
+        Self::new(
+            kind,
+            config
+                .into()
+                .inner
+                .block_parameters
+                .to_shortint_conformance_param(),
+        )
+    }
+
+    /// Whether to also accept trivially encrypted values.
+    ///
+    /// A trivial ciphertext carries no noise (and so no security) and a
+    /// degree that only bounds its clear value; a production server should
+    /// never receive one. This is meant for tests and debugging.
+    pub fn allow_trivial(mut self, allow: bool) -> Self {
+        if let Some(params) = self.block_params_mut() {
+            let degree = params.degree.degree();
+            let noise_level = params.noise_level.noise_level();
+            (params.degree, params.noise_level) = if allow {
+                (
+                    DegreeConformance::AtMost(degree),
+                    NoiseLevelConformance::AtMost(noise_level),
+                )
+            } else {
+                (
+                    DegreeConformance::Exact(degree),
+                    NoiseLevelConformance::Exact(noise_level),
+                )
+            };
+        }
+        self
+    }
+
+    /// The block params, if the kind has an encrypted payload.
+    pub fn block_params(&self) -> Option<&CiphertextConformanceParams> {
+        match self {
+            Self::FheBool(params) => Some(params),
+            Self::FheUint(params)
+            | Self::FheInt(params)
+            | Self::FheUintKVStore(params)
+            | Self::FheIntKVStore(params) => Some(&params.shortint_params),
+            Self::Clear => None,
+        }
+    }
+
+    /// Message bits per block of the expected encrypted payload.
+    ///
+    /// Only meaningful once a value passed `is_conformant`, which
+    /// guarantees the params describe an encrypted kind.
+    fn bits_per_block(&self) -> u32 {
+        self.block_params()
+            .expect("params of an encrypted kind")
+            .message_modulus
+            .0
+            .ilog2()
+    }
+
+    fn block_params_mut(&mut self) -> Option<&mut CiphertextConformanceParams> {
+        match self {
+            Self::FheBool(params) => Some(params),
+            Self::FheUint(params)
+            | Self::FheInt(params)
+            | Self::FheUintKVStore(params)
+            | Self::FheIntKVStore(params) => Some(&mut params.shortint_params),
+            Self::Clear => None,
+        }
+    }
+}
+
+impl ParameterSetConformant for RuntimeValue {
+    type ParameterSet = RuntimeValueConformanceParams;
+
+    fn is_conformant(&self, params: &RuntimeValueConformanceParams) -> bool {
+        match (self, params) {
+            (Self::FheBool(BooleanBlock(block)), RuntimeValueConformanceParams::FheBool(p)) => {
+                block.is_conformant(p)
+            }
+            (Self::FheUint(radix), RuntimeValueConformanceParams::FheUint(p)) => {
+                radix.is_conformant(p)
+            }
+            (Self::FheInt(radix), RuntimeValueConformanceParams::FheInt(p)) => {
+                radix.is_conformant(p)
+            }
+            (Self::FheUintKVStore(kv), RuntimeValueConformanceParams::FheUintKVStore(p)) => {
+                kv.iter().all(|(_, v)| v.is_conformant(p))
+            }
+            (Self::FheIntKVStore(kv), RuntimeValueConformanceParams::FheIntKVStore(p)) => {
+                kv.iter().all(|(_, v)| v.is_conformant(p))
+            }
+            (
+                Self::ClearBool(_) | Self::ClearUint(_) | Self::ClearInt(_) | Self::Seed(_),
+                RuntimeValueConformanceParams::Clear,
+            ) => true,
+            // The value is not of the variant the params describe.
+            _ => false,
+        }
+    }
+}
+
+/// Conformance params of every input of an `ExecutionGraph` for a given key
+///
+/// A [`CpuInputList`] is conformant when all inputs are conformant
+#[derive(Clone)]
+pub struct ExecutionGraphInputConformanceParams {
+    inputs: Vec<RuntimeValueConformanceParams>,
+}
+
+impl ExecutionGraphInputConformanceParams {
+    /// Params of `graph`'s inputs, from the per-block params of a key.
+    pub fn new(
+        graph: &crate::graph::ExecutionGraph,
+        block_params: CiphertextConformanceParams,
+    ) -> Self {
+        Self {
+            inputs: (0..graph.n_inputs())
+                .map(|i| RuntimeValueConformanceParams::new(graph.input_kind(i), block_params))
+                .collect(),
+        }
+    }
+
+    /// Params of `graph`'s inputs when executed with `sks`.
+    pub fn from_server_key(graph: &crate::graph::ExecutionGraph, sks: &ServerKey) -> Self {
+        Self::new(graph, sks.key.pbs_key().key.conformance_params())
+    }
+
+    /// Params of `graph`'s inputs when executed with a key generated from
+    /// `config`.
+    pub fn from_config(graph: &crate::graph::ExecutionGraph, config: impl Into<Config>) -> Self {
+        Self::new(
+            graph,
+            config
+                .into()
+                .inner
+                .block_parameters
+                .to_shortint_conformance_param(),
+        )
+    }
+
+    /// See [`RuntimeValueConformanceParams::allow_trivial`].
+    pub fn allow_trivial(mut self, allow: bool) -> Self {
+        for params in &mut self.inputs {
+            *params = params.allow_trivial(allow);
+        }
+        self
+    }
+
+    /// The params of each input, in input order.
+    pub fn inputs(&self) -> &[RuntimeValueConformanceParams] {
+        &self.inputs
+    }
+}
+
+impl ParameterSetConformant for CpuInputList {
+    type ParameterSet = ExecutionGraphInputConformanceParams;
+
+    fn is_conformant(&self, params: &ExecutionGraphInputConformanceParams) -> bool {
+        self.inputs.len() == params.inputs.len()
+            && self
+                .inputs
+                .iter()
+                .zip(&params.inputs)
+                .all(|(value, params)| value.is_conformant(params))
     }
 }
 
