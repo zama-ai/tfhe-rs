@@ -99,12 +99,14 @@ impl<G: ByteRandomGenerator> EncryptionRandomGenerator<G> {
     /// Create a new [`EncryptionRandomGenerator`], using the provided seed to seed the public
     /// mask generator and using the provided [`Seeder`] to privately seed the noise generator.
     ///
-    /// Accepts any type that converts to [`AesCtrParams`], including [`Seed`], [`XofSeed`],
-    /// [`SeedKind`], and [`CompressionSeed`].
+    /// Accepts any type that converts to [`AesCtrParams`], including [`Seed`], [`SeedKind`], and
+    /// [`CompressionSeed`]. A [`XofSeed`] must be wrapped in a [`SeedKind`] (e.g.
+    /// [`SeedKind::xof_aes256`]) to select the AES variant it is consumed with.
     ///
     /// [`Seed`]: crate::core_crypto::commons::math::random::Seed
     /// [`XofSeed`]: crate::core_crypto::commons::math::random::XofSeed
     /// [`SeedKind`]: tfhe_csprng::seeders::SeedKind
+    /// [`SeedKind::xof_aes256`]: tfhe_csprng::seeders::SeedKind::xof_aes256
     /// [`CompressionSeed`]: crate::core_crypto::commons::math::random::CompressionSeed
     // S is ?Sized to allow Box<dyn Seeder> to be passed.
     pub fn new<S: Seeder + ?Sized>(params: impl Into<AesCtrParams>, seeder: &mut S) -> Self {

@@ -95,29 +95,52 @@ impl XofSeed {
     }
 }
 
+/// Aes variants to be used by an RandomGenerator initialized by a XofSeed
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(AesVariantVersions)]
+pub enum AesVariant {
+    Aes128,
+    Aes256,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(SeedKindVersions)]
 pub enum SeedKind {
     /// Initializes the Aes-Ctr with a counter starting at 0
     /// and uses the seed as the Aes key.
+    ///
+    /// Always Aes-128: a [`Seed`] only carries 128 bits, so it cannot honestly key Aes-256.
     Ctr(Seed),
     /// Seed that initialized the Aes-Ctr following the Threshold (Fully) Homomorphic Encryption
     /// document (see [XofSeed]).
     ///
     /// An Aes-Key and starting counter will be derived from the XofSeed, to
-    /// then initialize the Aes-Ctr random generator
-    Xof(XofSeed),
+    /// then initialize the Aes-Ctr random generator. `aes` selects which derivation is used.
+    /// The same [`XofSeed`] yields a different stream under each `aes`.
+    Xof { seed: XofSeed, aes: AesVariant },
+}
+
+impl SeedKind {
+    /// Builds an Aes-128 backed [`SeedKind::Xof`].
+    pub fn xof_aes128(seed: XofSeed) -> Self {
+        Self::Xof {
+            seed,
+            aes: AesVariant::Aes128,
+        }
+    }
+
+    /// Builds an Aes-256 backed [`SeedKind::Xof`].
+    pub fn xof_aes256(seed: XofSeed) -> Self {
+        Self::Xof {
+            seed,
+            aes: AesVariant::Aes256,
+        }
+    }
 }
 
 impl From<Seed> for SeedKind {
     fn from(value: Seed) -> Self {
         Self::Ctr(value)
-    }
-}
-
-impl From<XofSeed> for SeedKind {
-    fn from(value: XofSeed) -> Self {
-        Self::Xof(value)
     }
 }
 
@@ -141,7 +164,9 @@ mod implem;
 pub use implem::*;
 use tfhe_versionable::Versionize;
 
-use crate::seeders::backward_compatibility::{SeedKindVersions, SeedVersions, XofSeedVersions};
+use crate::seeders::backward_compatibility::{
+    AesVariantVersions, SeedKindVersions, SeedVersions, XofSeedVersions,
+};
 
 #[cfg(test)]
 mod generic_tests {

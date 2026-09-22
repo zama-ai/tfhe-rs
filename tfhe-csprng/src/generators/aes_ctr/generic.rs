@@ -86,7 +86,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
     where
         BlockCipher: AesBlockCipher<Key = crate::generators::AnyAesKey>,
     {
-        use crate::seeders::SeedKind;
+        use crate::seeders::{AesVariant, SeedKind};
         let params = params.into();
         let (key, offset) = match &params.seed {
             // Aes128Key has an unspoken requirement to have bytes in an order independent of
@@ -98,9 +98,19 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
                 AnyAesKey::Aes128(Aes128Key(u128::from_le(s.0))),
                 AesIndex(0),
             ),
-            SeedKind::Xof(xof) => {
-                let (key, index) = super::xof_init_128(xof.clone());
+            SeedKind::Xof {
+                seed,
+                aes: AesVariant::Aes128,
+            } => {
+                let (key, index) = super::xof_init_128(seed.clone());
                 (AnyAesKey::Aes128(key), index)
+            }
+            SeedKind::Xof {
+                seed,
+                aes: AesVariant::Aes256,
+            } => {
+                let (key, index) = super::xof_init_256(seed.clone());
+                (AnyAesKey::Aes256(key), index)
             }
         };
         Self::new(key, params.first_index, Bound::Unbounded, offset)
