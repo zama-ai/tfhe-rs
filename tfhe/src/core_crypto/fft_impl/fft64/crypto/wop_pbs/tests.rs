@@ -1,5 +1,4 @@
 use super::*;
-use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::test::{FftWopPbsKeys, FftWopPbsTestParams};
 use crate::core_crypto::commons::dispersion::LogStandardDev;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
@@ -368,81 +367,68 @@ fn test_circuit_bootstrapping_binary() {
             stack,
         );
 
-        let glwe_size = glwe_dimension.to_glwe_size();
+        assert_ggsw_encrypts_value(&glwe_sk, &cbs_res, value);
+    }
+}
 
-        //print the key to check if the RLWE in the GGSW seem to be well created
-        println!("RLWE secret key:\n{glwe_sk:?}");
-        let mut decrypted = PlaintextListOwned::new(
-            0_u64,
-            PlaintextCount(polynomial_size.0 * level_count_cbs.0 * glwe_size.0),
-        );
-        decrypt_glwe_ciphertext_list(&glwe_sk, &cbs_res.as_glwe_list(), &mut decrypted);
+/// Check that `ggsw` is a GGSW encryption of `value` by decrypting every row of every level matrix.
+fn assert_ggsw_encrypts_value(
+    glwe_sk: &GlweSecretKeyOwned<u64>,
+    ggsw: &GgswCiphertextOwned<u64>,
+    value: u64,
+) {
+    let polynomial_size = ggsw.polynomial_size();
+    let glwe_size = ggsw.glwe_size();
+    let glwe_dimension = glwe_size.to_glwe_dimension();
+    let level_count = ggsw.decomposition_level_count();
+    let base_log = ggsw.decomposition_base_log();
 
-        let level_size = polynomial_size.0 * glwe_size.0;
+    let mut decrypted = PlaintextListOwned::new(
+        0u64,
+        PlaintextCount(polynomial_size.0 * level_count.0 * glwe_size.0),
+    );
+    decrypt_glwe_ciphertext_list(glwe_sk, &ggsw.as_glwe_list(), &mut decrypted);
 
-        println!("\nGGSW decryption:");
-        for (level_idx, level_decrypted_glwe) in decrypted.chunks_exact_mut(level_size).enumerate()
+    let level_size = polynomial_size.0 * glwe_size.0;
+
+    for (level_idx, level_decrypted_glwe) in decrypted.as_ref().chunks_exact(level_size).enumerate()
+    {
+        let current_level = level_count.0 - level_idx;
+        // Comparing scaled torus values rather than the decoded integers keeps this exact even when
+        // value * delta wraps around the ciphertext modulus.
+        let delta = 1u64 << (64 - base_log.0 * current_level);
+        let decomposer = SignedDecomposer::new(base_log, DecompositionLevelCount(current_level));
+
+        let rows: Vec<&[u64]> = level_decrypted_glwe
+            .chunks_exact(polynomial_size.0)
+            .collect();
+
+        for (row, sk_polynomial) in rows
+            .iter()
+            .take(glwe_dimension.0)
+            .zip(glwe_sk.as_polynomial_list().iter())
         {
-            let current_level = level_count_cbs.0 - level_idx;
+            let expected: Vec<u64> = sk_polynomial
+                .as_ref()
+                .iter()
+                .map(|s| value.wrapping_mul(*s).wrapping_mul(delta).wrapping_neg())
+                .collect();
+            let decoded: Vec<u64> = row
+                .iter()
+                .map(|coeff| decomposer.closest_representable(*coeff))
+                .collect();
 
-            for (decrypted_glwe, original_polynomial_from_glwe_sk) in level_decrypted_glwe
-                .chunks_exact(polynomial_size.0)
-                .take(glwe_dimension.0)
-                .zip(glwe_sk.as_polynomial_list().iter())
-            {
-                let mut expected_decryption = PlaintextListOwned::new(
-                    0u64,
-                    PlaintextCount(original_polynomial_from_glwe_sk.polynomial_size().0),
-                );
-                expected_decryption
-                    .as_mut()
-                    .copy_from_slice(original_polynomial_from_glwe_sk.as_ref());
-
-                let multiplying_factor = 0u64.wrapping_sub(value);
-
-                slice_wrapping_scalar_mul_assign(expected_decryption.as_mut(), multiplying_factor);
-
-                let decomposer =
-                    SignedDecomposer::new(base_log_cbs, DecompositionLevelCount(current_level));
-
-                expected_decryption
-                    .as_mut()
-                    .iter_mut()
-                    .for_each(|coeff| *coeff >>= 64 - base_log_cbs.0 * current_level);
-
-                let mut decoded_glwe =
-                    PlaintextList::from_container(decrypted_glwe.as_ref().to_vec());
-
-                decoded_glwe.as_mut().iter_mut().for_each(|coeff| {
-                    *coeff = decomposer.closest_representable(*coeff)
-                        >> (64 - base_log_cbs.0 * current_level);
-                });
-
-                assert_eq!(expected_decryption.as_ref(), decoded_glwe.as_ref());
-            }
-            let last_decrypted_glwe = level_decrypted_glwe
-                .chunks_exact(polynomial_size.0)
-                .next_back()
-                .unwrap();
-
-            let mut last_decoded_glwe =
-                PlaintextList::from_container(last_decrypted_glwe.as_ref().to_vec());
-
-            let decomposer =
-                SignedDecomposer::new(base_log_cbs, DecompositionLevelCount(current_level));
-
-            last_decoded_glwe.as_mut().iter_mut().for_each(|coeff| {
-                *coeff = decomposer.closest_representable(*coeff)
-                    >> (64 - base_log_cbs.0 * current_level);
-            });
-
-            let mut expected_decryption =
-                PlaintextListOwned::new(0u64, last_decoded_glwe.plaintext_count());
-
-            *expected_decryption.as_mut().first_mut().unwrap() = value;
-
-            assert_eq!(expected_decryption.as_ref(), last_decoded_glwe.as_ref());
+            assert_eq!(expected, decoded, "level {current_level} mask row mismatch");
         }
+
+        let mut expected = vec![0u64; polynomial_size.0];
+        expected[0] = value.wrapping_mul(delta);
+        let decoded: Vec<u64> = rows[glwe_dimension.0]
+            .iter()
+            .map(|coeff| decomposer.closest_representable(*coeff))
+            .collect();
+
+        assert_eq!(expected, decoded, "level {current_level} body row mismatch");
     }
 }
 
