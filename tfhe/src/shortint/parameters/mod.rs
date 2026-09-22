@@ -72,7 +72,9 @@ pub use v1_8 as current_params;
 pub use super::atomic_pattern::{AtomicPatternKind, AtomicPatternParameters};
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;
 use super::ciphertext::CompressedModulusSwitchedCiphertextConformanceParams;
-pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
+pub use super::ciphertext::{
+    Degree, DegreeConformance, MaxNoiseLevel, NoiseLevel, NoiseLevelConformance,
+};
 use super::server_key::PBSConformanceParams;
 pub use super::PBSOrder;
 use crate::shortint::ciphertext::MaxDegree;
@@ -203,8 +205,8 @@ pub struct CiphertextConformanceParams {
     pub ct_params: LweCiphertextConformanceParams<u64>,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub degree: Degree,
-    pub noise_level: NoiseLevel,
+    pub degree: DegreeConformance,
+    pub noise_level: NoiseLevelConformance,
     pub atomic_pattern: AtomicPatternKind,
 }
 

@@ -7,7 +7,9 @@ pub use dialects::hlapi::{
     NotANumberError, Operand, OprfMode, ScalarValue, ValueId, ValueKind,
 };
 
-pub use backends::cpu::{CpuBackend, CpuError, CpuInputList, CpuOutputError, CpuOutputList};
+pub use backends::cpu::{
+    CpuBackend, CpuBackendOptions, CpuError, CpuInputList, CpuOutputError, CpuOutputList,
+};
 pub use backends::ExecutionBackend;
 
 #[cfg(test)]

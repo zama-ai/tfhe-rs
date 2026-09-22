@@ -49,7 +49,10 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{ComputationBuffers, Fft, Fft128};
-use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
+use crate::shortint::ciphertext::{
+    Ciphertext, Degree, DegreeConformance, MaxDegree, MaxNoiseLevel, NoiseLevel,
+    NoiseLevelConformance,
+};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
     fill_accumulator_no_encoding, fill_accumulator_with_encoding, fill_many_lut_accumulator,
@@ -778,9 +781,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             ct_params,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
-            degree: Degree::new(self.message_modulus.0 - 1),
+            degree: DegreeConformance::Exact(Degree::new(self.message_modulus.0 - 1)),
             atomic_pattern: self.atomic_pattern.kind(),
-            noise_level: NoiseLevel::NOMINAL,
+            noise_level: NoiseLevelConformance::Exact(NoiseLevel::NOMINAL),
         }
     }
 

@@ -11,7 +11,9 @@ use crate::core_crypto::prelude::{
     LweKeyswitchKeyConformanceParams, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::KeySwitch32PBSParametersVersions;
-use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertextConformanceParams;
+use crate::shortint::ciphertext::{
+    CompressedModulusSwitchedCiphertextConformanceParams, DegreeConformance, NoiseLevelConformance,
+};
 use crate::shortint::parameters::ModulusSwitchType;
 
 use super::{
@@ -137,9 +139,9 @@ impl KeySwitch32PBSParameters {
         let ciphertext_modulus = self.ciphertext_modulus;
         let carry_modulus = self.carry_modulus;
 
-        let degree = Degree::new(message_modulus.0 - 1);
+        let degree = DegreeConformance::Exact(Degree::new(message_modulus.0 - 1));
 
-        let noise_level = NoiseLevel::NOMINAL;
+        let noise_level = NoiseLevelConformance::Exact(NoiseLevel::NOMINAL);
 
         CiphertextConformanceParams {
             ct_params: LweCiphertextConformanceParams {
