@@ -160,4 +160,9 @@ mod test {
     fn test_vector_xof_seed_bytes() {
         generator_generic_test::test_vectors_xof_seed_bytes::<SoftwareRandomGenerator>();
     }
+
+    #[test]
+    fn test_vector_xof_seed_aes256() {
+        generator_generic_test::test_vectors_xof_seed_aes256::<SoftwareRandomGenerator>();
+    }
 }

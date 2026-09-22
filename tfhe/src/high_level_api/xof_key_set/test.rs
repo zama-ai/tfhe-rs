@@ -11,15 +11,23 @@ fn run_xof_key_set_test(config: Config, tag_str: &str, device: Device, check_exp
     let security_bits = 128;
     let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
     let tag = Tag::from(tag_str);
+    let derivation_mode = XofDerivationMode::Aes256;
 
     let (cks, compressed_key_set) = CompressedXofKeySet::generate(
         config,
         private_seed_bytes,
+        derivation_mode,
         security_bits,
         max_norm_hwt,
         tag.clone(),
     )
     .unwrap();
+
+    // The public seed stored in the key set must be consumed the same way as the private one.
+    assert_eq!(
+        compressed_key_set.seed.mode, derivation_mode,
+        "the key set must record the derivation mode it was generated with"
+    );
 
     assert_eq!(cks.tag(), compressed_key_set.compressed_public_key.tag());
     assert_eq!(cks.tag(), &tag);
