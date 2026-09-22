@@ -140,7 +140,7 @@ pub use default::DefaultRandomGenerator;
 #[allow(unused)] // to please clippy when tests are not activated
 pub mod generator_generic_test {
     use super::*;
-    use crate::seeders::{Seed, XofSeed};
+    use crate::seeders::{Seed, SeedKind, XofSeed};
     use rand::Rng;
 
     const REPEATS: usize = 1_000;
@@ -301,7 +301,7 @@ pub mod generator_generic_test {
         let seed = 1u128;
         let xof_seed = XofSeed::new_u128(seed, *b"abcdefgh");
 
-        let mut rng = G::new(xof_seed);
+        let mut rng = G::new(SeedKind::xof_aes128(xof_seed));
         let bytes = rng.take(N_BYTES).collect::<Vec<_>>();
         assert_eq!(bytes, EXPECTED_BYTE);
     }
@@ -334,8 +334,43 @@ pub mod generator_generic_test {
         ];
         let xof_seed = XofSeed::new(seed, *b"abcdefgh");
 
-        let mut rng = G::new(xof_seed);
+        // Explicitly Aes-128, see `test_vectors_xof_seed`.
+        let mut rng = G::new(SeedKind::xof_aes128(xof_seed));
         let bytes = rng.take(N_BYTES).collect::<Vec<_>>();
         assert_eq!(bytes, EXPECTED_BYTE);
+    }
+
+    /// Same seed as [`test_vectors_xof_seed_bytes`], but through the Aes-256 XOF derivation.
+    pub fn test_vectors_xof_seed_aes256<G: RandomGenerator>() {
+        // Number of random bytes to generate,
+        // this should be 2 batch worth of aes calls (where a batch is 8 aes)
+        const N_BYTES: usize = 16 * 2 * 8;
+
+        pub const EXPECTED_BYTE_XOF_AES256: [u8; N_BYTES] = [
+            127, 209, 158, 232, 65, 53, 35, 75, 217, 194, 142, 90, 214, 31, 168, 10, 0, 109, 71,
+            18, 234, 99, 207, 10, 13, 88, 114, 108, 167, 4, 11, 206, 165, 52, 246, 188, 68, 176,
+            118, 210, 23, 91, 84, 30, 133, 69, 146, 66, 58, 138, 151, 150, 98, 182, 73, 229, 104,
+            76, 93, 33, 242, 213, 40, 108, 196, 181, 91, 70, 255, 3, 131, 73, 144, 51, 5, 8, 74,
+            183, 73, 101, 19, 50, 237, 101, 74, 116, 75, 85, 61, 35, 130, 25, 73, 252, 20, 14, 179,
+            55, 79, 182, 199, 11, 59, 233, 251, 228, 72, 214, 111, 31, 255, 119, 31, 239, 253, 247,
+            173, 47, 43, 226, 47, 43, 195, 225, 73, 47, 200, 56, 125, 103, 126, 163, 92, 14, 48,
+            215, 160, 228, 135, 164, 222, 88, 126, 115, 58, 58, 148, 76, 47, 78, 76, 221, 30, 139,
+            220, 247, 233, 190, 48, 92, 98, 47, 50, 71, 135, 194, 8, 12, 43, 197, 214, 154, 242,
+            235, 197, 79, 87, 161, 86, 64, 210, 132, 155, 150, 253, 136, 7, 49, 227, 196, 58, 243,
+            75, 35, 89, 192, 50, 232, 208, 215, 131, 13, 104, 158, 133, 17, 16, 81, 81, 44, 71,
+            117, 7, 12, 221, 210, 178, 110, 237, 230, 180, 139, 73, 202, 157, 46, 213, 88, 187,
+            163, 102, 212, 31, 149, 187, 245, 208, 175, 155, 44, 70, 147, 65, 99, 244, 233, 159,
+            119, 191, 67, 10, 196, 114, 68, 142, 246,
+        ];
+
+        let seed = vec![
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            24, 25, 26, 27, 28, 29, 30, 31,
+        ];
+        let xof_seed = XofSeed::new(seed, *b"abcdefgh");
+
+        let mut rng = G::new(SeedKind::xof_aes256(xof_seed));
+        let bytes = rng.take(N_BYTES).collect::<Vec<_>>();
+        assert_eq!(bytes, EXPECTED_BYTE_XOF_AES256);
     }
 }
