@@ -1,3 +1,4 @@
+use crate::shortint::ciphertext::{DegreeConformance, NoiseLevelConformance};
 use tfhe_versionable::Versionize;
 
 use super::common::*;
@@ -63,8 +64,8 @@ impl From<CompressedModulusSwitchedCiphertextConformanceParams> for CiphertextCo
             ct_params: value.ct_params.ct_params,
             message_modulus: value.message_modulus,
             carry_modulus: value.carry_modulus,
-            degree: value.degree,
-            noise_level: NoiseLevel::NOMINAL,
+            degree: DegreeConformance::Exact(value.degree),
+            noise_level: NoiseLevelConformance::Exact(NoiseLevel::NOMINAL),
             atomic_pattern: value.atomic_pattern,
         }
     }

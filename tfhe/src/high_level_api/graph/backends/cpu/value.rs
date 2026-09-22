@@ -1,12 +1,17 @@
 //! Runtime value types for the CPU backend: [`RuntimeValue`] and its
 //! conversion impls, plus the input/output list wrappers used by callers.
 
+use crate::conformance::ParameterSetConformant;
 use crate::graph::{FheIntKind, KvKeyKind, ScalarValue, ValueKind};
 use crate::high_level_api::kv_store::KVStore as HlKVStore;
 use crate::integer::prelude::*;
 use crate::integer::server_key::KVStore;
 use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
-use crate::{FheBool, FheInt, FheIntId, FheUint, FheUintId, ReRandomizationMetadata, Tag};
+use crate::shortint::ciphertext::{Degree, DegreeConformance, NoiseLevelConformance};
+use crate::shortint::parameters::CiphertextConformanceParams;
+use crate::{
+    Config, FheBool, FheInt, FheIntId, FheUint, FheUintId, ReRandomizationMetadata, ServerKey, Tag,
+};
 
 /// Possible runtime values to execute an HLAPI dialect program
 #[derive(Clone, strum::IntoStaticStr)]
@@ -49,48 +54,21 @@ impl RuntimeValue {
     }
 
     /// Validate this value against a graph input's declared `expected` kind,
-    /// as the `input_index`-th input.
+    /// as the `input_index`-th input, for a backend whose server key yields
+    /// `params` (see [`RuntimeValueConformanceParams`]).
     pub(in crate::high_level_api::graph::backends) fn check_input(
         &self,
         input_index: u32,
         expected: &ValueKind,
-        sks: &crate::integer::ServerKey,
+        params: &RuntimeValueConformanceParams,
     ) -> Result<(), super::CpuError> {
-        let message_modulus = sks.message_modulus();
-        let carry_modulus = sks.carry_modulus();
-        let bits_per_block = message_modulus.0.ilog2();
+        let bits_per_block = params.radix_block_params.message_modulus.0.ilog2();
 
-        // 1. Parameter compatibility.
-        let check_blocks_params = |blocks: &[crate::shortint::Ciphertext]| {
-            blocks
-                .iter()
-                .find(|b| b.message_modulus != message_modulus || b.carry_modulus != carry_modulus)
-                .map_or(Ok(()), |b| {
-                    Err(super::CpuError::InputParamsMismatch {
-                        input_index,
-                        expected_message_modulus: message_modulus,
-                        expected_carry_modulus: carry_modulus,
-                        got_message_modulus: b.message_modulus,
-                        got_carry_modulus: b.carry_modulus,
-                    })
-                })
-        };
-        match self {
-            Self::FheBool(b) => check_blocks_params(std::slice::from_ref(&b.0))?,
-            Self::FheUint(radix) => check_blocks_params(radix.blocks())?,
-            Self::FheInt(radix) => check_blocks_params(radix.blocks())?,
-            Self::FheUintKVStore(kv) => {
-                for (_, v) in kv.iter() {
-                    check_blocks_params(v.blocks())?;
-                }
-            }
-            Self::FheIntKVStore(kv) => {
-                for (_, v) in kv.iter() {
-                    check_blocks_params(v.blocks())?;
-                }
-            }
-            // Clear values and seeds carry no parameters.
-            Self::ClearBool(_) | Self::ClearUint(_) | Self::ClearInt(_) | Self::Seed(_) => {}
+        // 1. Conformance with the server key's parameters. Doing this first means the width
+        //    computations below can trust the key's parameters like message modulus, lwe
+        //    dimensions, etc
+        if !self.is_conformant(params) {
+            return Err(super::CpuError::InputNotConformant { input_index });
         }
 
         // 2. Kind compatibility.
@@ -202,6 +180,105 @@ impl RuntimeValue {
             _ => {}
         }
         Ok(())
+    }
+}
+
+/// Expected properties of the encrypted payload of a [`RuntimeValue`].
+///
+/// Used to check that the [`RuntimeValue`] matches a [`Config`]
+/// or a [`ServerKey`].
+///
+/// Non-FHE values like clears, seed have no parameters requirements
+/// and so are always conformant.
+///
+/// By default the expected state is that of a *fresh* ciphertext: nominal
+/// noise level and full degree, so trivially encrypted values are not
+/// conformant. See [`Self::allow_trivial`].
+#[derive(Copy, Clone)]
+pub struct RuntimeValueConformanceParams {
+    /// Params the block of an `FheBool`
+    pub(crate) bool_params: CiphertextConformanceParams,
+    /// Params every block of a radix ciphertext (`FheUint`, `FheInt`, and
+    /// the values of a KVStore) must satisfy.
+    pub(crate) radix_block_params: CiphertextConformanceParams,
+}
+
+impl RuntimeValueConformanceParams {
+    fn from_block_params(radix_block_params: CiphertextConformanceParams) -> Self {
+        let mut bool_params = radix_block_params;
+        bool_params.degree = DegreeConformance::Exact(Degree::new(1));
+        Self {
+            bool_params,
+            radix_block_params,
+        }
+    }
+
+    /// Whether to also accept trivially encrypted values.
+    ///
+    /// A trivial ciphertext carries no noise (and so no security) and a
+    /// degree that only bounds its clear value; a production server should
+    /// never receive one. This is meant for tests and debugging.
+    pub fn allow_trivial(mut self, allow: bool) -> Self {
+        for params in [&mut self.bool_params, &mut self.radix_block_params] {
+            let degree = params.degree.degree();
+            let noise_level = params.noise_level.noise_level();
+            (params.degree, params.noise_level) = if allow {
+                (
+                    DegreeConformance::AtMost(degree),
+                    NoiseLevelConformance::AtMost(noise_level),
+                )
+            } else {
+                (
+                    DegreeConformance::Exact(degree),
+                    NoiseLevelConformance::Exact(noise_level),
+                )
+            };
+        }
+        self
+    }
+
+    fn are_blocks_conformant(&self, blocks: &[crate::shortint::Ciphertext]) -> bool {
+        blocks
+            .iter()
+            .all(|block| block.is_conformant(&self.radix_block_params))
+    }
+}
+
+impl<C: Into<Config>> From<C> for RuntimeValueConformanceParams {
+    fn from(config: C) -> Self {
+        let config: Config = config.into();
+        Self::from_block_params(
+            config
+                .inner
+                .block_parameters
+                .to_shortint_conformance_param(),
+        )
+    }
+}
+
+impl From<&ServerKey> for RuntimeValueConformanceParams {
+    fn from(sks: &ServerKey) -> Self {
+        Self::from_block_params(sks.key.pbs_key().key.conformance_params())
+    }
+}
+
+impl ParameterSetConformant for RuntimeValue {
+    type ParameterSet = RuntimeValueConformanceParams;
+
+    fn is_conformant(&self, params: &RuntimeValueConformanceParams) -> bool {
+        match self {
+            Self::FheBool(BooleanBlock(block)) => block.is_conformant(&params.bool_params),
+            Self::FheUint(radix) => params.are_blocks_conformant(radix.blocks()),
+            Self::FheInt(radix) => params.are_blocks_conformant(radix.blocks()),
+            Self::FheUintKVStore(kv) => kv
+                .iter()
+                .all(|(_, v)| params.are_blocks_conformant(v.blocks())),
+            Self::FheIntKVStore(kv) => kv
+                .iter()
+                .all(|(_, v)| params.are_blocks_conformant(v.blocks())),
+            // Clear values and seeds carry no parameters.
+            Self::ClearBool(_) | Self::ClearUint(_) | Self::ClearInt(_) | Self::Seed(_) => true,
+        }
     }
 }
 

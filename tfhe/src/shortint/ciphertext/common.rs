@@ -402,3 +402,84 @@ mod tests {
         }
     }
 }
+
+/// How a ciphertext's noise level is checked for conformance.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum NoiseLevelConformance {
+    /// The noise level must be exactly this one.
+    Exact(NoiseLevel),
+    /// The noise level must be this one or lower (the bound is inclusive).
+    AtMost(NoiseLevel),
+}
+
+impl NoiseLevelConformance {
+    pub fn is_conformant(self, noise_level: NoiseLevel) -> bool {
+        match self {
+            Self::Exact(expected) => noise_level == expected,
+            Self::AtMost(bound) => noise_level <= bound,
+        }
+    }
+
+    /// The noise level this bound is built around.
+    pub fn noise_level(self) -> NoiseLevel {
+        match self {
+            Self::Exact(v) | Self::AtMost(v) => v,
+        }
+    }
+}
+
+/// How a ciphertext's degree is checked for conformance.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum DegreeConformance {
+    /// The degree must be exactly this one.
+    Exact(Degree),
+    /// The degree must be this one or lower (the bound is inclusive).
+    AtMost(Degree),
+}
+
+impl DegreeConformance {
+    pub fn is_conformant(self, degree: Degree) -> bool {
+        match self {
+            Self::Exact(expected) => degree == expected,
+            Self::AtMost(bound) => degree <= bound,
+        }
+    }
+
+    /// The degree this bound is built around.
+    pub fn degree(self) -> Degree {
+        match self {
+            Self::Exact(v) | Self::AtMost(v) => v,
+        }
+    }
+}
+
+#[cfg(test)]
+mod conformance_bound_tests {
+    use super::*;
+
+    #[test]
+    fn noise_level_bounds() {
+        let exact = NoiseLevelConformance::Exact(NoiseLevel::NOMINAL);
+        assert!(exact.is_conformant(NoiseLevel::NOMINAL));
+        assert!(!exact.is_conformant(NoiseLevel::ZERO));
+        assert!(!exact.is_conformant(NoiseLevel(2)));
+
+        let at_most = NoiseLevelConformance::AtMost(NoiseLevel::NOMINAL);
+        assert!(at_most.is_conformant(NoiseLevel::NOMINAL));
+        assert!(at_most.is_conformant(NoiseLevel::ZERO));
+        assert!(!at_most.is_conformant(NoiseLevel(2)));
+    }
+
+    #[test]
+    fn degree_bounds() {
+        let exact = DegreeConformance::Exact(Degree::new(3));
+        assert!(exact.is_conformant(Degree::new(3)));
+        assert!(!exact.is_conformant(Degree::new(2)));
+        assert!(!exact.is_conformant(Degree::new(4)));
+
+        let at_most = DegreeConformance::AtMost(Degree::new(3));
+        assert!(at_most.is_conformant(Degree::new(3)));
+        assert!(at_most.is_conformant(Degree::new(0)));
+        assert!(!at_most.is_conformant(Degree::new(4)));
+    }
+}

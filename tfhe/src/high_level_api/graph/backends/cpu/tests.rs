@@ -3,7 +3,10 @@
 //! These are the CPU `#[test]` entry points: each builds a `cpu_backend()` and
 //! calls a backend-generic case in [`super::test_cases`], plus builder-only
 //! (no-execution) error/shape tests that don't need a backend.
-use crate::graph::backends::cpu::{CpuBackend, CpuError, CpuInputList};
+use crate::graph::backends::cpu::{
+    CpuBackend, CpuBackendOptions, CpuError, CpuInputList, RuntimeValue,
+    RuntimeValueConformanceParams,
+};
 use crate::graph::backends::ExecutionBackend;
 use crate::graph::dialects::hlapi::{FheIntKind, FheKind};
 use crate::graph::{
@@ -12,7 +15,8 @@ use crate::graph::{
 };
 use crate::prelude::*;
 use crate::{
-    generate_keys, ClientKey, ConfigBuilder, FheBool, FheInt8, FheUint32, FheUint8, Seed, ServerKey,
+    generate_keys, set_server_key, ClientKey, ConfigBuilder, FheBool, FheInt32, FheInt8, FheUint32,
+    FheUint8, Seed, ServerKey,
 };
 
 // Backend-generic case functions + the `check_*` helpers + `rand_*`.
@@ -2181,6 +2185,7 @@ fn op_panic_is_reported_with_multiple_workers() {
         &graph,
         inputs,
         std::num::NonZeroUsize::new(4).unwrap(),
+        &RuntimeValueConformanceParams::from(&sk),
     ) else {
         panic!("expected the misaligned cast to fail")
     };
@@ -2194,4 +2199,186 @@ fn op_panic_is_reported_with_multiple_workers() {
         }
         other => panic!("expected ExecutionError, got {other:?}"),
     }
+}
+
+// ============================================================
+// Input conformance with the executing server key
+// ============================================================
+
+/// A parameter set with a different message/carry modulus than the
+/// default config, so values encrypted under it are not conformant with a
+/// default-config key.
+fn other_params_config() -> crate::Config {
+    ConfigBuilder::with_custom_parameters(
+        crate::shortint::parameters::v1_6::V1_6_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+    )
+    .build()
+}
+
+#[test]
+fn runtime_value_conformance_params() {
+    let config = ConfigBuilder::default().build();
+    let (ck, sk) = generate_keys(config);
+    let (other_ck, _) = generate_keys(other_params_config());
+    // Trivial encryption and KVStore insertion need the global server key.
+    set_server_key(sk.clone());
+
+    let from_key = RuntimeValueConformanceParams::from(&sk);
+    let from_config = RuntimeValueConformanceParams::from(config);
+
+    let fresh: Vec<RuntimeValue> = vec![
+        FheBool::encrypt(true, &ck).into(),
+        FheUint32::encrypt(7u32, &ck).into(),
+        FheInt32::encrypt(-7i32, &ck).into(),
+        {
+            let mut store = crate::KVStore::<u32, FheUint8>::new();
+            store.insert_with_clear_key(1, FheUint8::encrypt(7u8, &ck));
+            store.into()
+        },
+        RuntimeValue::from(true),
+        RuntimeValue::from(7u32),
+        RuntimeValue::from(-7i32),
+        RuntimeValue::Seed(vec![1, 2, 3]),
+    ];
+    for value in &fresh {
+        assert!(value.is_conformant(&from_key), "{value:?}");
+        assert!(value.is_conformant(&from_config), "{value:?}");
+    }
+
+    let not_conformant: Vec<RuntimeValue> = vec![
+        // Trivial encryptions do not have the nominal noise level.
+        FheBool::encrypt_trivial(true).into(),
+        FheUint32::encrypt_trivial(7u32).into(),
+        FheInt32::encrypt_trivial(-7i32).into(),
+        // Encrypted under other parameters.
+        FheBool::encrypt(true, &other_ck).into(),
+        FheUint32::encrypt(7u32, &other_ck).into(),
+        FheInt32::encrypt(-7i32, &other_ck).into(),
+        {
+            let mut store = crate::KVStore::<u32, FheUint8>::new();
+            store.insert_with_clear_key(1, FheUint8::encrypt(7u8, &other_ck));
+            store.into()
+        },
+    ];
+    for value in &not_conformant {
+        assert!(!value.is_conformant(&from_key), "{value:?}");
+        assert!(!value.is_conformant(&from_config), "{value:?}");
+    }
+
+    // With trivial values allowed, only the ones under other parameters
+    // remain non-conformant.
+    let allow_trivial = from_key.allow_trivial(true);
+    for value in &fresh {
+        assert!(value.is_conformant(&allow_trivial), "{value:?}");
+    }
+    let trivial: Vec<RuntimeValue> = vec![
+        FheBool::encrypt_trivial(true).into(),
+        FheBool::encrypt_trivial(false).into(),
+        FheUint32::encrypt_trivial(0u32).into(),
+        FheUint32::encrypt_trivial(u32::MAX).into(),
+        FheInt32::encrypt_trivial(-7i32).into(),
+    ];
+    for value in &trivial {
+        assert!(value.is_conformant(&allow_trivial), "{value:?}");
+    }
+    let other_params: Vec<RuntimeValue> = vec![
+        FheBool::encrypt(true, &other_ck).into(),
+        FheUint32::encrypt(7u32, &other_ck).into(),
+        FheInt32::encrypt(-7i32, &other_ck).into(),
+    ];
+    for value in &other_params {
+        assert!(!value.is_conformant(&allow_trivial), "{value:?}");
+    }
+    // And it can be switched back.
+    let strict_again = allow_trivial.allow_trivial(false);
+    for value in &trivial {
+        assert!(!value.is_conformant(&strict_again), "{value:?}");
+    }
+}
+
+/// `a + b` graph over `FheUint32` inputs.
+fn add_graph() -> crate::graph::ExecutionGraph {
+    let mut b = new_bld();
+    let a = b.input(ValueKind::FheUint(32)).unwrap();
+    let c = b.input(ValueKind::FheUint(32)).unwrap();
+    let s = b.fhe_add(a, c).unwrap();
+    b.output(s).unwrap();
+    b.build().unwrap()
+}
+
+#[test]
+fn execute_rejects_trivial_input() {
+    let (ck, sk) = setup();
+    // Trivial encryption needs the global server key.
+    set_server_key(sk.clone());
+    let mut be = CpuBackend::new(sk);
+    let graph = add_graph();
+
+    let mut inputs = CpuInputList::new();
+    inputs.push(FheUint32::encrypt(1u32, &ck));
+    inputs.push(FheUint32::encrypt_trivial(2u32));
+    let Err(err) = be.execute(&graph, inputs) else {
+        panic!("expected the trivial input to be rejected")
+    };
+    assert!(
+        matches!(err, CpuError::InputNotConformant { input_index: 1 }),
+        "expected InputNotConformant for input 1, got {err:?}"
+    );
+}
+
+#[test]
+fn execute_accepts_trivial_input_when_allowed() {
+    let (ck, sk) = setup();
+    // Trivial encryption needs the global server key.
+    set_server_key(sk.clone());
+    let options = CpuBackendOptions::default().allow_trivial_inputs(true);
+    let mut be = CpuBackend::with_options(sk, options);
+    let graph = add_graph();
+
+    let mut inputs = CpuInputList::new();
+    inputs.push(FheUint32::encrypt(1u32, &ck));
+    inputs.push(FheUint32::encrypt_trivial(2u32));
+    let outputs = be.execute(&graph, inputs).unwrap();
+    let sum: u32 = outputs.get::<FheUint32>(0).decrypt(&ck);
+    assert_eq!(sum, 3);
+
+    // Allowing trivial inputs does not weaken the check on the rest of the
+    // parameters.
+    let (other_ck, _) = generate_keys(other_params_config());
+    let mut inputs = CpuInputList::new();
+    inputs.push(FheUint32::encrypt(1u32, &other_ck));
+    inputs.push(FheUint32::encrypt_trivial(2u32));
+    let Err(err) = be.execute(&graph, inputs) else {
+        panic!("expected the input encrypted under other parameters to be rejected")
+    };
+    assert!(
+        matches!(err, CpuError::InputNotConformant { input_index: 0 }),
+        "expected InputNotConformant for input 0, got {err:?}"
+    );
+}
+
+#[test]
+fn execute_rejects_input_encrypted_under_other_params() {
+    let (ck, mut be) = cpu_backend();
+    let (other_ck, _) = generate_keys(other_params_config());
+    let graph = add_graph();
+
+    let mut inputs = CpuInputList::new();
+    inputs.push(FheUint32::encrypt(1u32, &other_ck));
+    inputs.push(FheUint32::encrypt(2u32, &ck));
+    let Err(err) = be.execute(&graph, inputs) else {
+        panic!("expected the input encrypted under other parameters to be rejected")
+    };
+    assert!(
+        matches!(err, CpuError::InputNotConformant { input_index: 0 }),
+        "expected InputNotConformant for input 0, got {err:?}"
+    );
+
+    // Sanity check: the same graph runs fine with conformant inputs.
+    let mut inputs = CpuInputList::new();
+    inputs.push(FheUint32::encrypt(1u32, &ck));
+    inputs.push(FheUint32::encrypt(2u32, &ck));
+    let outputs = be.execute(&graph, inputs).unwrap();
+    let sum: u32 = outputs.get::<FheUint32>(0).decrypt(&ck);
+    assert_eq!(sum, 3);
 }

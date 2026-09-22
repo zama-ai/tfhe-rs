@@ -40,8 +40,8 @@ impl ParameterSetConformant for CompressedCiphertext {
             && *message_modulus == param.message_modulus
             && *carry_modulus == param.carry_modulus
             && *atomic_pattern == param.atomic_pattern
-            && *degree == param.degree
-            && *noise_level == param.noise_level
+            && param.degree.is_conformant(*degree)
+            && param.noise_level.is_conformant(*noise_level)
     }
 }
 
