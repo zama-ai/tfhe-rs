@@ -321,11 +321,13 @@ mod tests {
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use crate::transciphering::TranscipheringServerKey;
+    use crate::xof_key_set::XofDerivationMode;
     use crate::{integer, ConfigBuilder, Tag};
 
     fn generate_keyset(config: crate::Config) -> CompressedXofKeySet {
         CompressedXofKeySet::generate(
             config,
+            XofDerivationMode::Aes256,
             vec![9u8; 32],
             128,
             NormalizedHammingWeightBound::new(0.8).unwrap(),
