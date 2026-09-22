@@ -126,7 +126,7 @@ fn compute_type_hash<'tcx>(
             .iter()
             .map(|f| {
                 let field_name = f.name.as_str();
-                let field_ty = f.ty(tcx, args);
+                let field_ty = f.ty(tcx, args).skip_normalization();
                 format!("{field_name}:{field_ty}")
             })
             .collect();
@@ -248,7 +248,11 @@ impl VersionsDispatchSnapshot {
         item: &'tcx Item<'_>,
         enu: &'tcx rustc_hir::EnumDef<'tcx>,
     ) {
-        let ty = cx.tcx.type_of(item.owner_id).instantiate_identity();
+        let ty = cx
+            .tcx
+            .type_of(item.owner_id)
+            .instantiate_identity()
+            .skip_normalization();
         if get_def_id_from_ty(ty).is_none() {
             return;
         }
@@ -260,7 +264,13 @@ impl VersionsDispatchSnapshot {
                 .for_each_relevant_impl(versionize_trait, ty, |impl_id| {
                     if !found_impl {
                         let trait_ref = cx.tcx.impl_trait_ref(impl_id);
-                        if trait_ref.instantiate_identity().args.type_at(0) == ty {
+                        if trait_ref
+                            .instantiate_identity()
+                            .skip_normalization()
+                            .args
+                            .type_at(0)
+                            == ty
+                        {
                             found_impl = true;
                         }
                     }
@@ -281,7 +291,11 @@ impl VersionsDispatchSnapshot {
             };
 
             let field_def_id = field.def_id;
-            let field_ty = cx.tcx.type_of(field_def_id).instantiate_identity();
+            let field_ty = cx
+                .tcx
+                .type_of(field_def_id)
+                .instantiate_identity()
+                .skip_normalization();
 
             let (inner_type_def_path, inner_type_display, type_hash) = match field_ty.kind() {
                 TyKind::Adt(adt_def, args) => {
@@ -333,7 +347,11 @@ impl VersionsDispatchSnapshot {
         }
 
         // Source type = Self type of the impl
-        let source_ty = cx.tcx.type_of(item.owner_id).instantiate_identity();
+        let source_ty = cx
+            .tcx
+            .type_of(item.owner_id)
+            .instantiate_identity()
+            .skip_normalization();
         let source_def_path = match source_ty.kind() {
             TyKind::Adt(adt_def, _) => cx.tcx.def_path_str(adt_def.did()),
             _ => return,
@@ -341,7 +359,11 @@ impl VersionsDispatchSnapshot {
 
         // Target type = generic arg of Upgrade<Target>
         // Extract from the trait ref generic args
-        let trait_ref = cx.tcx.impl_trait_ref(item.owner_id).instantiate_identity();
+        let trait_ref = cx
+            .tcx
+            .impl_trait_ref(item.owner_id)
+            .instantiate_identity()
+            .skip_normalization();
 
         // <MyTypeV0 as tfhe_versionable::Upgrade<MyType>>
         // We take 1 for MyType

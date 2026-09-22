@@ -4,11 +4,11 @@ use rustc_errors::Applicability;
 use rustc_hir::def::Res;
 use rustc_hir::def_id::DefId;
 use rustc_hir::{Item, ItemKind, QPath, TyKind, VariantData};
-use rustc_lint::{LateContext, LateLintPass, LintContext};
+use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_lint, impl_lint_pass};
 use rustc_span::{Ident, Symbol};
 
-use tfhe_lints_common::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
+use tfhe_lints_common::{get_def_id_from_ty, is_allowed_lint, span_lint, symbols_list_from_str};
 
 #[derive(Default)]
 pub struct InvalidVersionizeDispatchInner {
@@ -102,8 +102,11 @@ impl<'tcx> LateLintPass<'tcx> for InvalidVersionizeDispatch {
         // If the currently checked item is an enum definition
         if let ItemKind::Enum(enu_id, _, enu) = item.kind {
             // Gets the type name of the enum
-            let ty: rustc_middle::ty::Ty<'tcx> =
-                cx.tcx.type_of(item.owner_id).instantiate_identity();
+            let ty: rustc_middle::ty::Ty<'tcx> = cx
+                .tcx
+                .type_of(item.owner_id)
+                .instantiate_identity()
+                .skip_normalization();
 
             if let Some(type_def_id) = get_def_id_from_ty(ty) {
                 // If the type has been automatically generated, skip it
@@ -124,7 +127,13 @@ impl<'tcx> LateLintPass<'tcx> for InvalidVersionizeDispatch {
                             if !found_impl {
                                 let trait_ref = cx.tcx.impl_trait_ref(impl_id);
 
-                                if trait_ref.instantiate_identity().args.type_at(0) == ty {
+                                if trait_ref
+                                    .instantiate_identity()
+                                    .skip_normalization()
+                                    .args
+                                    .type_at(0)
+                                    == ty
+                                {
                                     found_impl = true;
                                 }
                             }
@@ -147,7 +156,7 @@ impl<'tcx> LateLintPass<'tcx> for InvalidVersionizeDispatch {
                 }
 
                 if !enum_name.to_string().ends_with(TARGET_SUFFIX) {
-                    cx.span_lint(INVALID_VERSIONIZE_DISPATCH, enu_id.span, |diag| {
+                    span_lint(cx, INVALID_VERSIONIZE_DISPATCH, enu_id.span, |diag| {
                         diag.primary_message(format!(
                             "Enum {ty} should end with '{TARGET_SUFFIX}'"
                         ));
@@ -173,51 +182,64 @@ impl<'tcx> LateLintPass<'tcx> for InvalidVersionizeDispatch {
                         } else if id == enu_variants_length - 1
                             && name.as_str() != suggested_type_name
                         {
-                            cx.span_lint(INVALID_VERSIONIZE_DISPATCH, ident.span, |diag| {
-                                        diag.primary_message(format!("Invalid variant for dispatch enum {ty}"));
-                                        diag.span_suggestion(
-                                            ident.span,
-                                            "Consider renaming it to",
-                                            suggested_type_name,
-                                            Applicability::MaybeIncorrect,
-                                        );
-                                        diag.note(format!("The inner type of the last variant should be named like the enum without the 'Versions' suffix, i.e. {suggested_type_name}"));
-                                        diag.note(IGNORE_LINT_MESSAGE);
-                                    });
+                            span_lint(cx, INVALID_VERSIONIZE_DISPATCH, ident.span, |diag| {
+                                diag.primary_message(format!(
+                                    "Invalid variant for dispatch enum {ty}"
+                                ));
+                                diag.span_suggestion(
+                                    ident.span,
+                                    "Consider renaming it to",
+                                    suggested_type_name,
+                                    Applicability::MaybeIncorrect,
+                                );
+                                diag.note(format!("The inner type of the last variant should be named like the enum without the 'Versions' suffix, i.e. {suggested_type_name}"));
+                                diag.note(IGNORE_LINT_MESSAGE);
+                            });
                         } else if id < enu_variants_length - 1
                             && name.as_str() != format!("{}V{id}", suggested_type_name)
                         {
-                            cx.span_lint(INVALID_VERSIONIZE_DISPATCH, ident.span, |diag| {
-                                        diag.primary_message(format!("Invalid variant for dispatch enum {ty}"));
-                                        diag.span_suggestion(
-                                            ident.span,
-                                            "Consider renaming it to",
-                                            format!("{}V{id}",suggested_type_name),
-                                            Applicability::MaybeIncorrect,
-                                        );
-                                        diag.note(format!("The inner type of all variants except the last should be named like the enum without the 'Versions' suffix followed by a version suffix, i.e. {}V{id}", suggested_type_name));
-                                        diag.note(IGNORE_LINT_MESSAGE);
-                                });
+                            span_lint(cx, INVALID_VERSIONIZE_DISPATCH, ident.span, |diag| {
+                                diag.primary_message(format!(
+                                    "Invalid variant for dispatch enum {ty}"
+                                ));
+                                diag.span_suggestion(
+                                    ident.span,
+                                    "Consider renaming it to",
+                                    format!("{}V{id}", suggested_type_name),
+                                    Applicability::MaybeIncorrect,
+                                );
+                                diag.note(format!("The inner type of all variants except the last should be named like the enum without the 'Versions' suffix followed by a version suffix, i.e. {}V{id}", suggested_type_name));
+                                diag.note(IGNORE_LINT_MESSAGE);
+                            });
                         }
                     } else {
-                        cx.span_lint(INVALID_VERSIONIZE_DISPATCH, variant.span, |diag| {
+                        span_lint(cx, INVALID_VERSIONIZE_DISPATCH, variant.span, |diag| {
                             diag.primary_message(format!("Invalid variant for dispatch enum {ty}"));
                             diag.note("Do not inline fields; variants must wrap a struct type.");
                             diag.note(IGNORE_LINT_MESSAGE);
                         });
                     }
                     if variant.ident.as_str() != format!("V{}", id) {
-                        cx.span_lint(INVALID_VERSIONIZE_DISPATCH, variant.ident.span, |diag| {
-                            diag.primary_message(format!("Invalid variant for dispatch enum {ty}"));
-                            diag.span_suggestion(
-                                variant.ident.span,
-                                "Consider renaming it to",
-                                format!("V{id}"),
-                                Applicability::MaybeIncorrect,
-                            );
-                            diag.note("Variants should be named V0, V1, ... and defined in order");
-                            diag.note(IGNORE_LINT_MESSAGE);
-                        });
+                        span_lint(
+                            cx,
+                            INVALID_VERSIONIZE_DISPATCH,
+                            variant.ident.span,
+                            |diag| {
+                                diag.primary_message(format!(
+                                    "Invalid variant for dispatch enum {ty}"
+                                ));
+                                diag.span_suggestion(
+                                    variant.ident.span,
+                                    "Consider renaming it to",
+                                    format!("V{id}"),
+                                    Applicability::MaybeIncorrect,
+                                );
+                                diag.note(
+                                    "Variants should be named V0, V1, ... and defined in order",
+                                );
+                                diag.note(IGNORE_LINT_MESSAGE);
+                            },
+                        );
                     }
                 }
             }
