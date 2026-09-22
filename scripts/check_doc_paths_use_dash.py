@@ -9,6 +9,8 @@ import os
 
 DEBUG = False
 
+IGNORE_FILES = {".DS_Store"}
+
 
 def main():
     curr_file_path = Path(__file__)
@@ -34,6 +36,8 @@ def main():
                 )
 
         for file in files:
+            if file in IGNORE_FILES:
+                continue
             if "_" in str(file):
                 problems.append(
                     f"Found file: {file} in {subdirs} containing a '_' instead of a '-', "
