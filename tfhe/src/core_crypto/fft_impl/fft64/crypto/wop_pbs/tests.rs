@@ -2,6 +2,7 @@ use super::*;
 use crate::core_crypto::algorithms::test::{FftWopPbsKeys, FftWopPbsTestParams};
 use crate::core_crypto::commons::dispersion::LogStandardDev;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
+use crate::core_crypto::commons::math::random::{RandomGenerable, UniformBinary};
 use crate::core_crypto::commons::test_tools;
 use crate::core_crypto::fft_impl::common::tests::gen_keys_or_get_from_cache_if_enabled;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
@@ -85,6 +86,82 @@ pub fn generate_keys<
         big_lwe_sk,
         fbsk: fourier_bsk,
         lwe_pfpksk: vec_pfpksk,
+    }
+}
+
+struct TestCbsKeys<InputScalar: UnsignedInteger, OutputScalar: UnsignedInteger> {
+    glwe_sk: GlweSecretKeyOwned<OutputScalar>,
+    lwe_sk: LweSecretKeyOwned<InputScalar>,
+    fourier_bsk: FourierLweBootstrapKeyOwned,
+    pfpksk_list: LwePrivateFunctionalPackingKeyswitchKeyListOwned<OutputScalar>,
+}
+
+fn generate_cbs_keys<InputScalar, OutputScalar>(
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    base_log_bsk: DecompositionBaseLog,
+    level_bsk: DecompositionLevelCount,
+    base_log_pksk: DecompositionBaseLog,
+    level_pksk: DecompositionLevelCount,
+    noise_distribution: DynamicDistribution<OutputScalar>,
+    ciphertext_modulus: CiphertextModulus<OutputScalar>,
+    rsc: &mut TestResources,
+) -> TestCbsKeys<InputScalar, OutputScalar>
+where
+    InputScalar: UnsignedInteger + RandomGenerable<UniformBinary> + CastInto<OutputScalar> + Sync,
+    OutputScalar: UnsignedTorus + Sync + Send,
+{
+    let glwe_sk: GlweSecretKeyOwned<OutputScalar> =
+        allocate_and_generate_new_binary_glwe_secret_key(
+            glwe_dimension,
+            polynomial_size,
+            &mut rsc.secret_random_generator,
+        );
+    let lwe_sk: LweSecretKeyOwned<InputScalar> = allocate_and_generate_new_binary_lwe_secret_key(
+        lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+
+    let std_bsk: LweBootstrapKeyOwned<OutputScalar> = allocate_and_generate_new_lwe_bootstrap_key(
+        &lwe_sk,
+        &glwe_sk,
+        base_log_bsk,
+        level_bsk,
+        noise_distribution,
+        ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    let mut fourier_bsk = FourierLweBootstrapKey::new(
+        lwe_dimension,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        base_log_bsk,
+        level_bsk,
+    );
+
+    let fft = Fft::new(polynomial_size);
+
+    fourier_bsk
+        .as_mut_view()
+        .par_fill_with_forward_fourier(std_bsk.as_view(), fft.as_view());
+
+    let pfpksk_list = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+        &glwe_sk.as_lwe_secret_key(),
+        &glwe_sk,
+        base_log_pksk,
+        level_pksk,
+        noise_distribution,
+        ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    TestCbsKeys {
+        glwe_sk,
+        lwe_sk,
+        fourier_bsk,
+        pfpksk_list,
     }
 }
 
@@ -272,55 +349,26 @@ fn test_circuit_bootstrapping_binary() {
 
     let mut rsc = TestResources::new();
 
-    // Create GLWE and LWE secret key
-    let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
+    let TestCbsKeys {
+        glwe_sk,
+        lwe_sk,
+        fourier_bsk,
+        pfpksk_list,
+    } = generate_cbs_keys(
+        small_lwe_dimension,
         glwe_dimension,
         polynomial_size,
-        &mut rsc.secret_random_generator,
-    );
-    let lwe_sk: LweSecretKeyOwned<u64> = allocate_and_generate_new_binary_lwe_secret_key(
-        small_lwe_dimension,
-        &mut rsc.secret_random_generator,
-    );
-
-    // Allocation and generation of the bootstrap key in standard domain:
-    let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
-        &lwe_sk,
-        &glwe_sk,
         base_log_bsk,
         level_bsk,
-        noise_distribution,
-        ciphertext_modulus,
-        &mut rsc.encryption_random_generator,
-    );
-
-    let mut fourier_bsk = FourierLweBootstrapKey::new(
-        small_lwe_dimension,
-        glwe_dimension.to_glwe_size(),
-        polynomial_size,
-        base_log_bsk,
-        level_bsk,
-    );
-
-    let fft = Fft::new(polynomial_size);
-    let fft = fft.as_view();
-
-    fourier_bsk
-        .as_mut_view()
-        .par_fill_with_forward_fourier(std_bsk.as_view(), fft);
-
-    let lwe_sk_bs_output = glwe_sk.clone().into_lwe_secret_key();
-
-    // Creation of all the pfksk for the circuit bootstrapping
-    let vec_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
-        &lwe_sk_bs_output,
-        &glwe_sk,
         base_log_pksk,
         level_pksk,
         noise_distribution,
         ciphertext_modulus,
-        &mut rsc.encryption_random_generator,
+        &mut rsc,
     );
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
 
     let delta_log = DeltaLog(60);
 
@@ -362,7 +410,7 @@ fn test_circuit_bootstrapping_binary() {
             lwe_in.as_view(),
             cbs_res.as_mut_view(),
             delta_log,
-            vec_pfpksk.as_view(),
+            pfpksk_list.as_view(),
             fft,
             stack,
         );
