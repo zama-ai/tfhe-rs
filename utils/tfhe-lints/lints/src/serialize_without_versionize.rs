@@ -2,10 +2,10 @@ use std::sync::{Arc, OnceLock};
 
 use rustc_hir::def_id::DefId;
 use rustc_hir::{Impl, Item, ItemKind};
-use rustc_lint::{LateContext, LateLintPass, LintContext};
+use rustc_lint::{LateContext, LateLintPass};
 use rustc_session::{declare_lint, impl_lint_pass};
 
-use tfhe_lints_common::{get_def_id_from_ty, is_allowed_lint, symbols_list_from_str};
+use tfhe_lints_common::{get_def_id_from_ty, is_allowed_lint, span_lint, symbols_list_from_str};
 
 #[derive(Default)]
 pub struct SerializeWithoutVersionizeInner {
@@ -71,8 +71,11 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
         }) = item.kind
         {
             // Gets the target type of the implementation
-            let ty: rustc_middle::ty::Ty<'tcx> =
-                cx.tcx.type_of(item.owner_id).instantiate_identity();
+            let ty: rustc_middle::ty::Ty<'tcx> = cx
+                .tcx
+                .type_of(item.owner_id)
+                .instantiate_identity()
+                .skip_normalization();
 
             if let Some(type_def_id) = get_def_id_from_ty(ty) {
                 // If the type has been automatically generated, skip it
@@ -99,7 +102,13 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
                                     if !found_impl {
                                         let trait_ref = cx.tcx.impl_trait_ref(impl_id);
 
-                                        if trait_ref.instantiate_identity().args.type_at(0) == ty {
+                                        if trait_ref
+                                            .instantiate_identity()
+                                            .skip_normalization()
+                                            .args
+                                            .type_at(0)
+                                            == ty
+                                        {
                                             found_impl = true;
                                         }
                                     }
@@ -108,7 +117,8 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
 
                         if !found_impl {
                             // Emit a warning
-                            cx.span_lint(
+                            span_lint(
+                                cx,
                                 SERIALIZE_WITHOUT_VERSIONIZE,
                                 cx.tcx.def_span(type_def_id),
                                 |diag| {

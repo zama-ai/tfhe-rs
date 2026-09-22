@@ -30,9 +30,11 @@ define run-all-crates
 	$(if $(3),cd $(3) && )$(call run-dylint,$(1),$(2)) $(LINT_TFHE_SAFE_SERIALIZE_ARGS)
 endef
 
+TFHE_LINTS_TOOLCHAIN := $(shell sed -n 's/^channel = "\(.*\)"$$/\1/p' utils/tfhe-lints/rust-toolchain)
+
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
-install_cargo_dylint:
-	cargo install --locked cargo-dylint dylint-link --version 5.0.0
+install_cargo_dylint: install_tfhe_lints_toolchain
+	cargo +$(TFHE_LINTS_TOOLCHAIN) install --locked cargo-dylint dylint-link --version 6.0.4
 
 .PHONY: install_tfhe_lints_toolchain # Install the nightly toolchain required by tfhe-lints (from utils/tfhe-lints/rust-toolchain)
 install_tfhe_lints_toolchain:

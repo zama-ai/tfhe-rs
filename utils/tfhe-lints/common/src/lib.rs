@@ -2,16 +2,18 @@
 #![warn(unused_extern_crates)]
 
 extern crate rustc_ast;
+extern crate rustc_errors;
 extern crate rustc_hir;
 extern crate rustc_lint;
 extern crate rustc_middle;
 extern crate rustc_span;
 
 use rustc_ast::tokenstream::TokenTree;
+use rustc_errors::{Diag, DiagDecorator, MultiSpan};
 use rustc_hir::AttrArgs;
 use rustc_hir::def_id::DefId;
-use rustc_lint::LateContext;
-use rustc_middle::ty::{Ty, TyKind};
+use rustc_lint::{LateContext, Lint, LintContext};
+use rustc_middle::ty::{AliasTyKind, Ty, TyKind};
 use rustc_span::Symbol;
 
 /// Converts an array of str into a Vec of [`Symbol`]
@@ -24,7 +26,7 @@ pub fn symbols_list_from_str(list: &[&str]) -> Vec<Symbol> {
 /// `impl_late_lint` macro but for a mysterious reason this does not
 /// work automatically.
 pub fn is_allowed_lint(cx: &LateContext<'_>, target: DefId, lint_name: &str) -> bool {
-    for attr in cx.tcx.get_attrs(target, Symbol::intern("allow")) {
+    for attr in cx.tcx.get_attrs_by_path(target, &[Symbol::intern("allow")]) {
         if let AttrArgs::Delimited(args) = &attr.get_normal_item().args {
             let len = args.tokens.len();
 
@@ -41,11 +43,28 @@ pub fn is_allowed_lint(cx: &LateContext<'_>, target: DefId, lint_name: &str) -> 
     false
 }
 
+/// Emits `lint` at `span`, using `decorate` to fill in the diagnostic.
+///
+/// Replacement for the removed `LateContext::span_lint`.
+pub fn span_lint(
+    cx: &LateContext<'_>,
+    lint: &'static Lint,
+    span: impl Into<MultiSpan>,
+    decorate: impl FnOnce(&mut Diag<'_, ()>),
+) {
+    cx.emit_span_lint(lint, span, DiagDecorator(decorate));
+}
+
 /// Gets the [`DefId`] of a type
 pub fn get_def_id_from_ty(ty: Ty<'_>) -> Option<DefId> {
     match ty.kind() {
         TyKind::Adt(adt_def, _) => Some(adt_def.did()),
-        TyKind::Alias(_, alias_ty) => Some(alias_ty.def_id),
+        TyKind::Alias(alias_ty) => Some(match alias_ty.kind {
+            AliasTyKind::Projection { def_id }
+            | AliasTyKind::Inherent { def_id }
+            | AliasTyKind::Opaque { def_id }
+            | AliasTyKind::Free { def_id } => def_id,
+        }),
         TyKind::Dynamic(predicates, ..) => predicates.principal_def_id(),
         TyKind::FnDef(def_id, _)
         | TyKind::Foreign(def_id)
