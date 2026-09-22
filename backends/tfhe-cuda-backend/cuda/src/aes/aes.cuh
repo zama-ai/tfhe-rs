@@ -53,59 +53,13 @@
  *   AND on a sum, entering the PBS at noise 2   batch_vec_and_inplace
  */
 
-static constexpr uint32_t AES_LINEAR_THREADS = 256;
-
 /**
- * Evaluates one GF(2) linear map from an index table: out[b, i] is the sum
- * of the inputs the table names for bit b. Bitsliced layout everywhere:
- * bit b of AES input i lives at block b * num_aes_inputs + i.
+ * AddRoundKey is the one levelled step that accumulates into the state
+ * instead of gathering a fresh one, so it keeps a kernel of its own where
+ * every other layer goes through host_radix_gather_sum.
  */
-template <typename Torus>
-__global__ void
-device_aes_linear_combination(Torus *out, const Torus *in, const uint32_t *idx,
-                              uint32_t terms, uint32_t num_aes_inputs,
-                              uint32_t chunks_per_ct, uint32_t lwe_size) {
-  uint32_t chunk = blockIdx.x % chunks_per_ct;
-  uint32_t out_block = blockIdx.x / chunks_per_ct;
-  uint32_t coeff = chunk * blockDim.x + threadIdx.x;
-  if (coeff >= lwe_size)
-    return;
+static constexpr uint32_t AES_ADD_ROUND_KEY_THREADS = 256;
 
-  uint32_t input = out_block % num_aes_inputs;
-  uint32_t bit = out_block / num_aes_inputs;
-
-  Torus acc = 0;
-  for (uint32_t k = 0; k < terms; ++k) {
-    uint32_t src = idx[bit * terms + k];
-    if (src != AES_LINEAR_NO_TERM)
-      acc += in[((size_t)src * num_aes_inputs + input) * lwe_size + coeff];
-  }
-  out[(size_t)out_block * lwe_size + coeff] = acc;
-}
-
-/**
- * Seeds every AES input with the IV, directly in bitsliced order, so the
- * CTR loop needs no separate transpose pass.
- */
-template <typename Torus>
-__global__ void
-device_aes_broadcast_bits(Torus *out, const Torus *src, uint32_t num_aes_inputs,
-                          uint32_t chunks_per_ct, uint32_t lwe_size) {
-  uint32_t chunk = blockIdx.x % chunks_per_ct;
-  uint32_t out_block = blockIdx.x / chunks_per_ct;
-  uint32_t coeff = chunk * blockDim.x + threadIdx.x;
-  if (coeff >= lwe_size)
-    return;
-
-  uint32_t bit = out_block / num_aes_inputs;
-  out[(size_t)out_block * lwe_size + coeff] =
-      src[(size_t)bit * lwe_size + coeff];
-}
-
-/**
- * AddRoundKey kernel: adds the shared round key, read in place from the
- * expanded key, to every input's state.
- */
 template <typename Torus>
 __global__ void device_aes_add_broadcast_bits(Torus *out, const Torus *src,
                                               uint32_t num_aes_inputs,
@@ -123,149 +77,6 @@ __global__ void device_aes_add_broadcast_bits(Torus *out, const Torus *src,
 }
 
 /**
- * Hands the finished states back in the block order callers expect.
- */
-template <typename Torus>
-__global__ void
-device_aes_bitsliced_to_blocks(Torus *out, const Torus *in, uint32_t num_bits,
-                               uint32_t num_aes_inputs, uint32_t chunks_per_ct,
-                               uint32_t lwe_size) {
-  uint32_t chunk = blockIdx.x % chunks_per_ct;
-  uint32_t src_block = blockIdx.x / chunks_per_ct;
-  uint32_t coeff = chunk * blockDim.x + threadIdx.x;
-  if (coeff >= lwe_size)
-    return;
-
-  uint32_t input = src_block % num_aes_inputs;
-  uint32_t bit = src_block / num_aes_inputs;
-  out[((size_t)input * num_bits + bit) * lwe_size + coeff] =
-      in[(size_t)src_block * lwe_size + coeff];
-}
-
-/**
- * Thread blocks per ciphertext, keeping the launch grid one-dimensional.
- */
-static inline uint32_t aes_linear_chunks_per_ct(uint32_t lwe_size) {
-  return CEIL_DIV(lwe_size, AES_LINEAR_THREADS);
-}
-
-/**
- * The raw kernels above touch whole block ranges concurrently, so operand
- * ranges must be disjoint, and base pointers are not enough since slices
- * of one buffer can overlap. Also rejects mismatched lwe dimensions and
- * unallocated dry-run ciphertexts, which the kernels cannot survive.
- */
-template <typename Torus>
-static inline void aes_check_disjoint_ranges(const CudaRadixCiphertextFFI *out,
-                                             uint32_t num_out_blocks,
-                                             const CudaRadixCiphertextFFI *in,
-                                             uint32_t num_in_blocks,
-                                             const char *op_name) {
-  PANIC_IF_FALSE(out->ptr != nullptr && in->ptr != nullptr,
-                 "Cuda error: %s cannot run on unallocated (dry-run) "
-                 "ciphertexts",
-                 op_name);
-  PANIC_IF_FALSE(out->lwe_dimension == in->lwe_dimension,
-                 "Cuda error: %s operands must have the same lwe dimension",
-                 op_name);
-  const size_t lwe_bytes = ((size_t)out->lwe_dimension + 1) * sizeof(Torus);
-  const uintptr_t out_start = (uintptr_t)out->ptr;
-  const uintptr_t out_end = out_start + num_out_blocks * lwe_bytes;
-  const uintptr_t in_start = (uintptr_t)in->ptr;
-  const uintptr_t in_end = in_start + num_in_blocks * lwe_bytes;
-  PANIC_IF_FALSE(out_end <= in_start || in_end <= out_start,
-                 "Cuda error: %s operand ranges overlap", op_name);
-}
-
-/**
- * Launches one index-table linear map and mirrors degree and noise
- * host-side exactly as the chain of additions it replaces would.
- */
-template <typename Torus>
-__host__ void host_aes_linear_combination(
-    cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *out,
-    const CudaRadixCiphertextFFI *in, const uint32_t *d_idx,
-    const uint32_t *h_idx, uint32_t terms, uint32_t num_out_bits,
-    uint32_t num_aes_inputs, uint32_t message_modulus, uint32_t carry_modulus) {
-
-  if (out->num_radix_blocks < num_out_bits * num_aes_inputs)
-    PANIC("Cuda error: AES linear combination output has too few blocks")
-
-  uint32_t max_src = 0;
-  for (uint32_t k = 0; k < num_out_bits * terms; ++k)
-    if (h_idx[k] != AES_LINEAR_NO_TERM && h_idx[k] > max_src)
-      max_src = h_idx[k];
-  if (in->num_radix_blocks < (max_src + 1) * num_aes_inputs)
-    PANIC("Cuda error: AES linear combination input has too few blocks for the "
-          "index table it is addressed with")
-  aes_check_disjoint_ranges<Torus>(out, num_out_bits * num_aes_inputs, in,
-                                   (max_src + 1) * num_aes_inputs,
-                                   "AES linear combination");
-
-  cuda_set_device(gpu_index);
-  uint32_t lwe_size = out->lwe_dimension + 1;
-  uint32_t chunks = aes_linear_chunks_per_ct(lwe_size);
-  uint32_t num_out_blocks = num_out_bits * num_aes_inputs;
-
-  device_aes_linear_combination<Torus>
-      <<<num_out_blocks * chunks, AES_LINEAR_THREADS, 0, stream>>>(
-          (Torus *)out->ptr, (const Torus *)in->ptr, d_idx, terms,
-          num_aes_inputs, chunks, lwe_size);
-  check_cuda_error(cudaGetLastError());
-
-  for (uint32_t bit = 0; bit < num_out_bits; ++bit) {
-    for (uint32_t input = 0; input < num_aes_inputs; ++input) {
-      uint64_t degree = 0, noise = 0;
-      for (uint32_t k = 0; k < terms; ++k) {
-        uint32_t src = h_idx[bit * terms + k];
-        if (src == AES_LINEAR_NO_TERM)
-          continue;
-        degree += in->degrees[src * num_aes_inputs + input];
-        noise += in->noise_levels[src * num_aes_inputs + input];
-      }
-      uint32_t o = bit * num_aes_inputs + input;
-      out->degrees[o] = degree;
-      out->noise_levels[o] = noise;
-      CHECK_NOISE_LEVEL(noise, message_modulus, carry_modulus);
-    }
-  }
-}
-
-/**
- * IV broadcast entry point. Degree and noise carry over unchanged.
- */
-template <typename Torus>
-__host__ void host_aes_broadcast_bits(cudaStream_t stream, uint32_t gpu_index,
-                                      CudaRadixCiphertextFFI *out,
-                                      const CudaRadixCiphertextFFI *src,
-                                      uint32_t num_bits,
-                                      uint32_t num_aes_inputs) {
-
-  if (out->num_radix_blocks < num_bits * num_aes_inputs ||
-      src->num_radix_blocks < num_bits)
-    PANIC("Cuda error: AES broadcast operands have too few blocks")
-  aes_check_disjoint_ranges<Torus>(out, num_bits * num_aes_inputs, src,
-                                   num_bits, "AES bit broadcast");
-
-  cuda_set_device(gpu_index);
-  uint32_t lwe_size = out->lwe_dimension + 1;
-  uint32_t chunks = aes_linear_chunks_per_ct(lwe_size);
-  uint32_t num_out_blocks = num_bits * num_aes_inputs;
-
-  device_aes_broadcast_bits<Torus>
-      <<<num_out_blocks * chunks, AES_LINEAR_THREADS, 0, stream>>>(
-          (Torus *)out->ptr, (const Torus *)src->ptr, num_aes_inputs, chunks,
-          lwe_size);
-  check_cuda_error(cudaGetLastError());
-
-  for (uint32_t bit = 0; bit < num_bits; ++bit)
-    for (uint32_t input = 0; input < num_aes_inputs; ++input) {
-      out->degrees[bit * num_aes_inputs + input] = src->degrees[bit];
-      out->noise_levels[bit * num_aes_inputs + input] = src->noise_levels[bit];
-    }
-}
-
-/**
  * AddRoundKey entry point, the only place the round keys are read.
  */
 template <typename Torus>
@@ -279,16 +90,20 @@ __host__ void host_aes_add_round_key(cudaStream_t stream, uint32_t gpu_index,
   if (state->num_radix_blocks < num_bits * num_aes_inputs ||
       round_key->num_radix_blocks < num_bits)
     PANIC("Cuda error: AddRoundKey operands have too few blocks")
-  aes_check_disjoint_ranges<Torus>(state, num_bits * num_aes_inputs, round_key,
-                                   num_bits, "AddRoundKey");
+  PANIC_IF_FALSE(state->ptr != nullptr && round_key->ptr != nullptr,
+                 "Cuda error: AddRoundKey cannot run on unallocated (dry-run) "
+                 "ciphertexts");
+  PANIC_IF_FALSE(state->lwe_dimension == round_key->lwe_dimension,
+                 "Cuda error: AddRoundKey operands must have the same lwe "
+                 "dimension");
 
   cuda_set_device(gpu_index);
   uint32_t lwe_size = state->lwe_dimension + 1;
-  uint32_t chunks = aes_linear_chunks_per_ct(lwe_size);
+  uint32_t chunks = CEIL_DIV(lwe_size, AES_ADD_ROUND_KEY_THREADS);
   uint32_t num_out_blocks = num_bits * num_aes_inputs;
 
   device_aes_add_broadcast_bits<Torus>
-      <<<num_out_blocks * chunks, AES_LINEAR_THREADS, 0, stream>>>(
+      <<<num_out_blocks * chunks, AES_ADD_ROUND_KEY_THREADS, 0, stream>>>(
           (Torus *)state->ptr, (const Torus *)round_key->ptr, num_aes_inputs,
           chunks, lwe_size);
   check_cuda_error(cudaGetLastError());
@@ -299,43 +114,6 @@ __host__ void host_aes_add_round_key(cudaStream_t stream, uint32_t gpu_index,
       state->degrees[o] += round_key->degrees[bit];
       state->noise_levels[o] += round_key->noise_levels[bit];
       CHECK_NOISE_LEVEL(state->noise_levels[o], message_modulus, carry_modulus);
-    }
-}
-
-/**
- * Final transposition entry point. It is a pure permutation, so the
- * metadata moves with the blocks.
- */
-template <typename Torus>
-__host__ void
-host_aes_bitsliced_to_blocks(cudaStream_t stream, uint32_t gpu_index,
-                             CudaRadixCiphertextFFI *out,
-                             const CudaRadixCiphertextFFI *in,
-                             uint32_t num_bits, uint32_t num_aes_inputs) {
-
-  if (out->num_radix_blocks < num_bits * num_aes_inputs ||
-      in->num_radix_blocks < num_bits * num_aes_inputs)
-    PANIC("Cuda error: AES transpose operands have too few blocks")
-  aes_check_disjoint_ranges<Torus>(out, num_bits * num_aes_inputs, in,
-                                   num_bits * num_aes_inputs, "AES transpose");
-
-  cuda_set_device(gpu_index);
-  uint32_t lwe_size = out->lwe_dimension + 1;
-  uint32_t chunks = aes_linear_chunks_per_ct(lwe_size);
-  uint32_t num_blocks = num_bits * num_aes_inputs;
-
-  device_aes_bitsliced_to_blocks<Torus>
-      <<<num_blocks * chunks, AES_LINEAR_THREADS, 0, stream>>>(
-          (Torus *)out->ptr, (const Torus *)in->ptr, num_bits, num_aes_inputs,
-          chunks, lwe_size);
-  check_cuda_error(cudaGetLastError());
-
-  for (uint32_t bit = 0; bit < num_bits; ++bit)
-    for (uint32_t input = 0; input < num_aes_inputs; ++input) {
-      uint32_t src = bit * num_aes_inputs + input;
-      uint32_t dst = input * num_bits + bit;
-      out->degrees[dst] = in->degrees[src];
-      out->noise_levels[dst] = in->noise_levels[src];
     }
 }
 
@@ -572,6 +350,9 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
                      tables->sbox_reorder_len,
                  "S-box called with a parallelism the index tables were not "
                  "built for");
+  PANIC_IF_FALSE(num_aes_inputs == tables->sbox_gather.num_lanes,
+                 "S-box called with a batch size the index tables were not "
+                 "built for");
 
   constexpr uint32_t INPUT_BITS_LEN = 8;
   constexpr uint32_t OUTPUT_BITS_LEN = 8;
@@ -605,11 +386,8 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
 
   CudaRadixCiphertextFFI *reordered_input_buffer =
       mem->main_workspaces->sbox_input_buffer;
-  host_aes_linear_combination<Torus>(
-      streams.stream(0), streams.gpu_index(0), reordered_input_buffer,
-      sbox_io_bytes, tables->d_sbox_gather, tables->h_sbox_gather, 1,
-      tables->sbox_reorder_len, num_aes_inputs, mem->params.message_modulus,
-      mem->params.carry_modulus);
+  host_radix_gather_sum<Torus>(streams, mem->params, reordered_input_buffer,
+                               sbox_io_bytes, tables->sbox_gather);
 
   CudaRadixCiphertextFFI input_bits[INPUT_BITS_LEN];
   for (uint32_t bit = 0; bit < INPUT_BITS_LEN; ++bit)
@@ -816,11 +594,8 @@ __host__ void vectorized_sbox_n_bytes(CudaStreams streams,
   as_radix_ciphertext_slice<Torus>(
       &sbox_output_region, mem->main_workspaces->sbox_internal_workspace, 0,
       OUTPUT_BITS_LEN * num_sbox_blocks);
-  host_aes_linear_combination<Torus>(
-      streams.stream(0), streams.gpu_index(0), sbox_io_bytes,
-      &sbox_output_region, tables->d_sbox_scatter, tables->h_sbox_scatter, 1,
-      tables->sbox_reorder_len, num_aes_inputs, mem->params.message_modulus,
-      mem->params.carry_modulus);
+  host_radix_gather_sum<Torus>(streams, mem->params, sbox_io_bytes,
+                               &sbox_output_region, tables->sbox_scatter);
 
 #undef XOR
 #undef FLUSH
@@ -837,14 +612,11 @@ template <typename Torus>
 __host__ void vectorized_shift_rows(CudaStreams streams,
                                     CudaRadixCiphertextFFI *dest,
                                     const CudaRadixCiphertextFFI *state,
-                                    uint32_t num_aes_inputs,
                                     int_aes_encrypt_buffer<Torus> *mem) {
 
   auto *tables = mem->linear_tables;
-  host_aes_linear_combination<Torus>(
-      streams.stream(0), streams.gpu_index(0), dest, state,
-      tables->d_shift_rows, tables->h_shift_rows, 1, AES_STATE_BITS,
-      num_aes_inputs, mem->params.message_modulus, mem->params.carry_modulus);
+  host_radix_gather_sum<Torus>(streams, mem->params, dest, state,
+                               tables->shift_rows);
 }
 
 /**
@@ -875,18 +647,13 @@ __host__ void vectorized_mix_columns(CudaStreams streams,
   CudaRadixCiphertextFFI xtime;
   as_radix_ciphertext_slice<Torus>(&xtime, workspace, half, 2 * half);
 
-  host_aes_linear_combination<Torus>(
-      streams.stream(0), streams.gpu_index(0), &xtime, shifted, tables->d_xtime,
-      tables->h_xtime, int_aes_linear_tables::XTIME_TERMS, STATE_BITS,
-      num_aes_inputs, mem->params.message_modulus, mem->params.carry_modulus);
+  host_radix_gather_sum<Torus>(streams, mem->params, &xtime, shifted,
+                               tables->xtime);
 
   aes_flush_inplace<Torus>(streams, &xtime, mem, bsks, ksks);
 
-  host_aes_linear_combination<Torus>(
-      streams.stream(0), streams.gpu_index(0), state, workspace,
-      tables->d_mix_columns, tables->h_mix_columns,
-      int_aes_linear_tables::MIX_COLUMNS_TERMS, STATE_BITS, num_aes_inputs,
-      mem->params.message_modulus, mem->params.carry_modulus);
+  host_radix_gather_sum<Torus>(streams, mem->params, state, workspace,
+                               tables->mix_columns);
 }
 
 /**
@@ -940,8 +707,7 @@ __host__ void vectorized_aes_rounds_inplace(
                                      num_aes_inputs, mem, bsks, ksks);
     }
 
-    vectorized_shift_rows<Torus>(streams, &shifted, all_states_bitsliced,
-                                 num_aes_inputs, mem);
+    vectorized_shift_rows<Torus>(streams, &shifted, all_states_bitsliced, mem);
 
     if (round != num_rounds) {
       vectorized_mix_columns<Torus>(streams, all_states_bitsliced, &shifted,
@@ -1065,7 +831,6 @@ __host__ void host_integer_aes_ctr_encrypt(
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks) {
 
-  constexpr uint32_t NUM_BITS = AES_STATE_BITS;
   constexpr uint32_t ROUNDS = 10;
 
   PANIC_IF_FALSE(mem->main_workspaces->main_bitsliced_states_buffer != nullptr,
@@ -1075,9 +840,8 @@ __host__ void host_integer_aes_ctr_encrypt(
   CudaRadixCiphertextFFI *transposed_states =
       mem->main_workspaces->main_bitsliced_states_buffer;
 
-  host_aes_broadcast_bits<Torus>(streams.stream(0), streams.gpu_index(0),
-                                 transposed_states, iv, NUM_BITS,
-                                 num_aes_inputs);
+  host_radix_gather_sum<Torus>(streams, mem->params, transposed_states, iv,
+                               mem->linear_tables->iv_broadcast);
 
   vectorized_aes_add_counter_inplace<Torus>(streams, transposed_states,
                                             counter_bits_le_all_blocks,
@@ -1086,9 +850,8 @@ __host__ void host_integer_aes_ctr_encrypt(
   vectorized_aes_rounds_inplace<Torus>(streams, transposed_states, round_keys,
                                        ROUNDS, num_aes_inputs, mem, bsks, ksks);
 
-  host_aes_bitsliced_to_blocks<Torus>(streams.stream(0), streams.gpu_index(0),
-                                      output, transposed_states, NUM_BITS,
-                                      num_aes_inputs);
+  host_radix_gather_sum<Torus>(streams, mem->params, output, transposed_states,
+                               mem->linear_tables->to_blocks);
 }
 
 /**
