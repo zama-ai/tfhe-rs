@@ -15,7 +15,6 @@ __host__ void host_integer_aes_ctr_256_encrypt(
     int_aes_encrypt_buffer<Torus> *mem, void *const *bsks,
     KSTorus *const *ksks) {
 
-  constexpr uint32_t NUM_BITS = AES_STATE_BITS;
   constexpr uint32_t ROUNDS = 14;
 
   PANIC_IF_FALSE(mem->main_workspaces->main_bitsliced_states_buffer != nullptr,
@@ -25,9 +24,8 @@ __host__ void host_integer_aes_ctr_256_encrypt(
   CudaRadixCiphertextFFI *transposed_states =
       mem->main_workspaces->main_bitsliced_states_buffer;
 
-  host_aes_broadcast_bits<Torus>(streams.stream(0), streams.gpu_index(0),
-                                 transposed_states, iv, NUM_BITS,
-                                 num_aes_inputs);
+  host_radix_gather_sum<Torus>(streams, mem->params, transposed_states, iv,
+                               mem->linear_tables->iv_broadcast);
 
   vectorized_aes_add_counter_inplace<Torus>(streams, transposed_states,
                                             counter_bits_le_all_blocks,
@@ -36,9 +34,8 @@ __host__ void host_integer_aes_ctr_256_encrypt(
   vectorized_aes_rounds_inplace<Torus>(streams, transposed_states, round_keys,
                                        ROUNDS, num_aes_inputs, mem, bsks, ksks);
 
-  host_aes_bitsliced_to_blocks<Torus>(streams.stream(0), streams.gpu_index(0),
-                                      output, transposed_states, NUM_BITS,
-                                      num_aes_inputs);
+  host_radix_gather_sum<Torus>(streams, mem->params, output, transposed_states,
+                               mem->linear_tables->to_blocks);
 }
 
 /**

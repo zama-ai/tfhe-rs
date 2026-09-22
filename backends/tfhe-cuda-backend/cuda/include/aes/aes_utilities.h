@@ -107,45 +107,48 @@ template <typename Torus> struct int_aes_lut_buffers {
   }
 };
 
-// Padding for index-table rows that use fewer terms than the table width.
-static constexpr uint32_t AES_LINEAR_NO_TERM = 0xFFFFFFFFu;
-
-// malloc with the failure check the tables below all need.
-static inline uint32_t *aes_host_alloc_u32(uint32_t len) {
-  uint32_t *ptr = (uint32_t *)malloc(sizeof(uint32_t) * len);
-  PANIC_IF_FALSE(ptr != nullptr, "Cuda error: host allocation failed");
-  return ptr;
-}
-
 /**
  * The fixed GF(2) maps of a round, as index tables: per output bit, the
- * input bits to sum, padded with AES_LINEAR_NO_TERM. The map lives here
- * rather than in a launch schedule spelling out one copy or one addition
- * per wire, so a permutation and a five term sum are the same single
- * launch and neither costs a bootstrap. Pure bit positions, uploaded once
- * whatever num_aes_inputs is.
+ * input bits to sum. The map lives here rather than in a launch schedule
+ * spelling out one copy or one addition per wire, so a permutation and a
+ * five term sum are the same single launch and neither costs a bootstrap.
+ * Pure bit positions, the lane dimension being the map's to replicate, so
+ * the tables do not grow with num_aes_inputs.
  */
 struct int_aes_linear_tables {
   static constexpr uint32_t XTIME_BASE = AES_STATE_BITS;
   static constexpr uint32_t XTIME_TERMS = 2;
   static constexpr uint32_t MIX_COLUMNS_TERMS = 5;
 
-  uint32_t *h_shift_rows, *d_shift_rows;
-  uint32_t *h_xtime, *d_xtime;
-  uint32_t *h_mix_columns, *d_mix_columns;
-  uint32_t *h_sbox_gather, *d_sbox_gather;
-  uint32_t *h_sbox_scatter, *d_sbox_scatter;
+  // Owns every map below, and releases them
+  radix_index_tables<uint32_t> maps;
+
+  radix_index_table<uint32_t> shift_rows;
+  radix_index_table<uint32_t> xtime;
+  radix_index_table<uint32_t> mix_columns;
+  radix_index_table<uint32_t> sbox_gather;
+  radix_index_table<uint32_t> sbox_scatter;
+  radix_index_table<uint32_t> iv_broadcast;
+  radix_index_table<uint32_t> to_blocks;
 
   uint32_t sbox_reorder_len;
 
   bool has_round_tables;
 
   int_aes_linear_tables(CudaStreams streams, bool allocate_gpu_memory,
-                        uint32_t sbox_parallelism, uint64_t &size_tracker,
-                        aes_buffer_scope scope) {
+                        uint32_t num_aes_inputs, uint32_t sbox_parallelism,
+                        uint64_t &size_tracker, aes_buffer_scope scope) {
 
+    const uint32_t N = num_aes_inputs;
     this->sbox_reorder_len = AES_BITS_PER_BYTE * sbox_parallelism;
     this->has_round_tables = (scope == aes_buffer_scope::FULL_ENCRYPTION);
+
+    auto build = [&](radix_index_table<uint32_t> &map, uint32_t num_out_bits,
+                     uint32_t num_terms,
+                     const std::function<uint32_t(uint32_t, uint32_t)> &src) {
+      maps.create(streams, allocate_gpu_memory, size_tracker, map, num_out_bits,
+                  num_terms, N, N, src);
+    };
 
     if (has_round_tables) {
       // ShiftRows rotates row r of the state left by r bytes:
@@ -158,13 +161,12 @@ struct int_aes_linear_tables {
       //
       // Read the right hand state column major and you get the table below:
       //
-      const uint32_t shift_rows_map[AES_STATE_BYTES] = {
-          0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11};
-      h_shift_rows = aes_host_alloc_u32(AES_STATE_BITS);
-      for (uint32_t byte = 0; byte < AES_STATE_BYTES; ++byte)
-        for (uint32_t bit = 0; bit < AES_BITS_PER_BYTE; ++bit)
-          h_shift_rows[byte * AES_BITS_PER_BYTE + bit] =
-              shift_rows_map[byte] * AES_BITS_PER_BYTE + bit;
+      build(shift_rows, AES_STATE_BITS, 1, [](uint32_t bit, uint32_t) {
+        constexpr uint32_t shift_rows_map[AES_STATE_BYTES] = {
+            0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11};
+        return shift_rows_map[bit / AES_BITS_PER_BYTE] * AES_BITS_PER_BYTE +
+               bit % AES_BITS_PER_BYTE;
+      });
 
       // xtime multiplies by x in GF(2^8). Bits are MSB first and the modulus
       // x^8 + x^4 + x^3 + x + 1 folds bit 0 back onto j = 3, 4, 6, 7:
@@ -172,16 +174,14 @@ struct int_aes_linear_tables {
       //   out[j] = a[j + 1]     j < 7
       //   out[j] += a[0]        j = 3, 4, 6, 7
       //
-      h_xtime = aes_host_alloc_u32(AES_STATE_BITS * XTIME_TERMS);
-      for (uint32_t byte = 0; byte < AES_STATE_BYTES; ++byte) {
-        const uint32_t base = byte * AES_BITS_PER_BYTE;
-        for (uint32_t j = 0; j < AES_BITS_PER_BYTE; ++j) {
-          uint32_t *row = &h_xtime[(base + j) * XTIME_TERMS];
-          row[0] = (j == AES_BITS_PER_BYTE - 1) ? base : base + j + 1;
-          const bool reduced = (j == 3 || j == 4 || j == 6);
-          row[1] = reduced ? base : AES_LINEAR_NO_TERM;
-        }
-      }
+      build(xtime, AES_STATE_BITS, XTIME_TERMS,
+            [](uint32_t bit, uint32_t term) {
+              uint32_t j = bit % AES_BITS_PER_BYTE, base = bit - j;
+              if (term == 0)
+                return (j == AES_BITS_PER_BYTE - 1) ? base : base + j + 1;
+              const bool reduced = (j == 3 || j == 4 || j == 6);
+              return reduced ? base : RADIX_INDEX_NO_TERM;
+            });
 
       // MixColumns multiplies each column by a fixed matrix over GF(2^8):
       //
@@ -193,29 +193,38 @@ struct int_aes_linear_tables {
       // With 3a = 2a + a that is five terms at most per output. The
       // workspace holds [shifted | xtime of it], so a doubled term is the
       // same index plus XTIME_BASE and one table covers both halves.
-      h_mix_columns = aes_host_alloc_u32(AES_STATE_BITS * MIX_COLUMNS_TERMS);
-      for (uint32_t col = 0; col < 4; ++col) {
-        const uint32_t c = col * 4;
-        for (uint32_t t = 0; t < AES_BITS_PER_BYTE; ++t) {
-          auto orig = [&](uint32_t b) {
-            return (c + b) * AES_BITS_PER_BYTE + t;
-          };
-          auto mul2 = [&](uint32_t b) { return XTIME_BASE + orig(b); };
-          const uint32_t rows[4][MIX_COLUMNS_TERMS] = {
-              {mul2(0), mul2(1), orig(1), orig(2), orig(3)},
-              {orig(0), mul2(1), mul2(2), orig(2), orig(3)},
-              {orig(0), orig(1), mul2(2), orig(3), mul2(3)},
-              {mul2(0), orig(0), orig(1), orig(2), mul2(3)},
-          };
-          for (uint32_t b = 0; b < 4; ++b)
-            for (uint32_t k = 0; k < MIX_COLUMNS_TERMS; ++k)
-              h_mix_columns[orig(b) * MIX_COLUMNS_TERMS + k] = rows[b][k];
-        }
-      }
-    } else {
-      h_shift_rows = d_shift_rows = nullptr;
-      h_xtime = d_xtime = nullptr;
-      h_mix_columns = d_mix_columns = nullptr;
+      build(mix_columns, AES_STATE_BITS, MIX_COLUMNS_TERMS,
+            [](uint32_t bit, uint32_t term) {
+              uint32_t byte = bit / AES_BITS_PER_BYTE;
+              uint32_t t = bit % AES_BITS_PER_BYTE;
+              uint32_t c = byte & ~3u, b = byte & 3u;
+              auto orig = [c, t](uint32_t i) {
+                return (c + i) * AES_BITS_PER_BYTE + t;
+              };
+              auto mul2 = [&orig](uint32_t i) { return XTIME_BASE + orig(i); };
+              const uint32_t rows[4][MIX_COLUMNS_TERMS] = {
+                  {mul2(0), mul2(1), orig(1), orig(2), orig(3)},
+                  {orig(0), mul2(1), mul2(2), orig(2), orig(3)},
+                  {orig(0), orig(1), mul2(2), orig(3), mul2(3)},
+                  {mul2(0), orig(0), orig(1), orig(2), mul2(3)},
+              };
+              return rows[b][term];
+            });
+
+      // The IV is one state the whole batch starts from, so it has no lane
+      // of its own: every input reads the same bit.
+      maps.create(streams, allocate_gpu_memory, size_tracker, iv_broadcast,
+                  AES_STATE_BITS, 1, N, 1,
+                  [](uint32_t bit, uint32_t) { return bit; });
+
+      // Leaving the bitsliced layout is the one map that crosses lanes, so
+      // it is the one spelled out block by block.
+      maps.create(streams, allocate_gpu_memory, size_tracker, to_blocks,
+                  AES_STATE_BITS * N, 1, 1, 1, [N](uint32_t o, uint32_t) {
+                    uint32_t input = o / AES_STATE_BITS;
+                    uint32_t bit = o % AES_STATE_BITS;
+                    return bit * N + input;
+                  });
     }
 
     // A bootstrap batch addresses one run per bit position, the state stores
@@ -224,50 +233,20 @@ struct int_aes_linear_tables {
     //   state      | byte 0: b0 b1 ... b7 | byte 1: b0 b1 ... b7 | ...
     //   gathered   | b0 of every byte | b1 of every byte | ...
     //
-    h_sbox_gather = aes_host_alloc_u32(sbox_reorder_len);
-    h_sbox_scatter = aes_host_alloc_u32(sbox_reorder_len);
-    for (uint32_t p = 0; p < sbox_parallelism; ++p)
-      for (uint32_t j = 0; j < AES_BITS_PER_BYTE; ++j) {
-        h_sbox_gather[j * sbox_parallelism + p] = p * AES_BITS_PER_BYTE + j;
-        h_sbox_scatter[p * AES_BITS_PER_BYTE + j] = j * sbox_parallelism + p;
-      }
-
-    auto upload = [&](uint32_t **d, const uint32_t *h, uint32_t len) {
-      *d = (uint32_t *)cuda_malloc_with_size_tracking_async(
-          sizeof(uint32_t) * len, streams.stream(0), streams.gpu_index(0),
-          size_tracker, allocate_gpu_memory);
-      cuda_memcpy_with_size_tracking_async_to_gpu(
-          *d, h, sizeof(uint32_t) * len, streams.stream(0),
-          streams.gpu_index(0), allocate_gpu_memory);
-    };
-    if (has_round_tables) {
-      upload(&d_shift_rows, h_shift_rows, AES_STATE_BITS);
-      upload(&d_xtime, h_xtime, AES_STATE_BITS * XTIME_TERMS);
-      upload(&d_mix_columns, h_mix_columns, AES_STATE_BITS * MIX_COLUMNS_TERMS);
-    }
-    upload(&d_sbox_gather, h_sbox_gather, sbox_reorder_len);
-    upload(&d_sbox_scatter, h_sbox_scatter, sbox_reorder_len);
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    build(sbox_gather, sbox_reorder_len, 1,
+          [sbox_parallelism](uint32_t o, uint32_t) {
+            return (o % sbox_parallelism) * AES_BITS_PER_BYTE +
+                   o / sbox_parallelism;
+          });
+    build(sbox_scatter, sbox_reorder_len, 1,
+          [sbox_parallelism](uint32_t o, uint32_t) {
+            return (o % AES_BITS_PER_BYTE) * sbox_parallelism +
+                   o / AES_BITS_PER_BYTE;
+          });
   }
 
   void release(CudaStreams streams, bool allocate_gpu_memory) {
-    if (allocate_gpu_memory) {
-      if (has_round_tables) {
-        cuda_drop_async(d_shift_rows, streams.stream(0), streams.gpu_index(0));
-        cuda_drop_async(d_xtime, streams.stream(0), streams.gpu_index(0));
-        cuda_drop_async(d_mix_columns, streams.stream(0), streams.gpu_index(0));
-      }
-      cuda_drop_async(d_sbox_gather, streams.stream(0), streams.gpu_index(0));
-      cuda_drop_async(d_sbox_scatter, streams.stream(0), streams.gpu_index(0));
-    }
-    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    if (has_round_tables) {
-      free(h_shift_rows);
-      free(h_xtime);
-      free(h_mix_columns);
-    }
-    free(h_sbox_gather);
-    free(h_sbox_scatter);
+    maps.release(streams, allocate_gpu_memory);
   }
 };
 
@@ -477,8 +456,9 @@ template <typename Torus> struct int_aes_encrypt_buffer {
         streams, params, allocate_gpu_memory, num_aes_inputs, sbox_parallelism,
         size_tracker, scope);
 
-    this->linear_tables = new int_aes_linear_tables(
-        streams, allocate_gpu_memory, sbox_parallelism, size_tracker, scope);
+    this->linear_tables =
+        new int_aes_linear_tables(streams, allocate_gpu_memory, num_aes_inputs,
+                                  sbox_parallelism, size_tracker, scope);
 
     if (scope == aes_buffer_scope::FULL_ENCRYPTION) {
       this->round_workspaces = new int_aes_round_workspaces<Torus>(
