@@ -33,6 +33,9 @@ pub(crate) fn generate_from_trait_impl(
 
     Ok(parse_quote! {
         #[automatically_derived]
+        // The original type may have deprecated fields or variants, the generated
+        // conversion code must still be able to use them.
+        #[allow(deprecated)]
         impl #impl_generics #from_trait<#src> for #dest #where_clause {
             fn from(#from_variable: #src) -> Self {
                 #constructor
@@ -65,6 +68,9 @@ pub(crate) fn generate_try_from_trait_impl(
 
     Ok(parse_quote! {
         #[automatically_derived]
+        // The original type may have deprecated fields or variants, the generated
+        // conversion code must still be able to use them.
+        #[allow(deprecated)]
         impl #impl_generics #try_from_trait<#src> for #dest #where_clause {
             type Error = #error;
             fn try_from(#from_variable: #src) -> #result_type<Self, Self::Error> {
