@@ -9,27 +9,21 @@ use tfhe::boolean::engine::BooleanEngine;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::{DefaultRandomGenerator, NormalizedHammingWeightBound};
 use tfhe::shortint::engine::ShortintEngine;
-use tfhe::xof_key_set::CompressedXofKeySet;
-use tfhe::{ClientKey, CompressedCompactPublicKey, CompressedServerKey, Seed, Tag};
+use tfhe::xof_key_set::{CompressedXofKeySet, XofDerivationMode};
+use tfhe::{Seed, Tag};
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
 
+// 1.9 changed `CompressedXofKeySet` to use AES-256 based random generator
 const HL_COMPRESSED_XOF_KEY_SET_TEST: HlCompressedXofKeySetTest = HlCompressedXofKeySetTest {
     compressed_xof_key_set_file_name: Cow::Borrowed("compressed_xof_key_set"),
     client_key_file_name: Cow::Borrowed("xof_client_key"),
 };
 
-const HL_SERVER_KEY_TEST: HlServerKeyTest = HlServerKeyTest {
-    test_filename: Cow::Borrowed("server_key_complete"),
-    client_key_filename: Cow::Borrowed("client_key_complete"),
-    rerand_cpk_filename: Some(Cow::Borrowed("cpk_rerand_complete")),
-    compressed: true,
-};
+pub struct V1_9;
 
-pub struct V1_6;
-
-impl TfhersVersion for V1_6 {
-    const VERSION_NUMBER: &'static str = "1.6";
+impl TfhersVersion for V1_9 {
+    const VERSION_NUMBER: &'static str = "1.9";
 
     fn seed_prng(seed: u128) {
         let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
@@ -57,6 +51,7 @@ impl TfhersVersion for V1_6 {
             let (hl_client_key, hl_xof_key_set) = CompressedXofKeySet::generate(
                 INSECURE_TEST_NO_KS_RERAND_META_PARAMS.convert().into(),
                 seed_bytes,
+                XofDerivationMode::Aes256,
                 security_bits,
                 max_norm_hwt,
                 Tag::default(),
@@ -75,25 +70,8 @@ impl TfhersVersion for V1_6 {
             );
         }
 
-        {
-            // The CSPRNG had a bug fix in 1.6, so we generate a complete ServerKey
-            let meta_params = INSECURE_TEST_NO_KS_RERAND_META_PARAMS.convert();
-            let client_key = ClientKey::generate(meta_params);
-            let compressed_server_key = CompressedServerKey::new(&client_key);
-            let cpk = CompressedCompactPublicKey::new(&client_key);
-
-            store_versioned_auxiliary(&client_key, &dir, &HL_SERVER_KEY_TEST.client_key_filename);
-            store_versioned_auxiliary(&cpk, &dir, &HL_SERVER_KEY_TEST.rerand_cpk_filename.unwrap());
-            store_versioned_test(
-                &compressed_server_key,
-                &dir,
-                &HL_SERVER_KEY_TEST.test_filename(),
-            );
-        }
-
-        vec![
-            TestMetadata::HlCompressedXofKeySet(HL_COMPRESSED_XOF_KEY_SET_TEST),
-            TestMetadata::HlServerKey(HL_SERVER_KEY_TEST),
-        ]
+        vec![TestMetadata::HlCompressedXofKeySet(
+            HL_COMPRESSED_XOF_KEY_SET_TEST,
+        )]
     }
 }

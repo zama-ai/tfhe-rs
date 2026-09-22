@@ -27,6 +27,7 @@ use crate::shortint::ShortintEncoding;
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use tfhe_csprng::seeders::SeedKind;
 use tfhe_versionable::Versionize;
 /// Private key from which a [`CompactPublicKey`] can be built.
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
@@ -489,17 +490,24 @@ impl CompactPublicKey {
     }
 }
 
-fn noise_generator_from_seed(
-    seed: &[u8],
-) -> crate::Result<NoiseRandomGenerator<DefaultRandomGenerator>> {
+/// The [`SeedKind`] that seeded public key encryption derives from a caller supplied seed.
+fn pke_seed_kind(seed: &[u8]) -> crate::Result<SeedKind> {
     if seed.len() < 16 {
         return Err(crate::Error::new(format!(
             "seed must be at least 16 bytes, got {}",
             seed.len()
         )));
     }
-    let xof_seed = XofSeed::new(seed.to_vec(), TFHE_PKE_DOMAIN_SEPARATOR);
-    Ok(NoiseRandomGenerator::new_from_seed(xof_seed))
+    Ok(SeedKind::xof_aes256(XofSeed::new(
+        seed.to_vec(),
+        TFHE_PKE_DOMAIN_SEPARATOR,
+    )))
+}
+
+fn noise_generator_from_seed(
+    seed: &[u8],
+) -> crate::Result<NoiseRandomGenerator<DefaultRandomGenerator>> {
+    Ok(NoiseRandomGenerator::new_from_seed(pke_seed_kind(seed)?))
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
