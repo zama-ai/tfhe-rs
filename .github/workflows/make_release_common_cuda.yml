@@ -97,6 +97,12 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Check the crate is ready to release
+        env:
+          PACKAGE: ${{ inputs.package-name }}
+          TAG: ${{ github.ref_name }}
+        run: make check_release_ready PACKAGE="${PACKAGE}" TAG="${TAG}"
+
       - name: Export CUDA variables
         shell: bash
         run: |
