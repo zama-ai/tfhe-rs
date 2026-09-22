@@ -28,7 +28,7 @@ pub use crate::high_level_api::keys::{
     ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedReRandomizationKey,
     CompressedReRandomizationKeySwitchingKey, CompressedServerKey, ServerKey,
 };
-pub use crate::high_level_api::xof_key_set::{CompressedXofKeySet, XofKeySet};
+pub use crate::high_level_api::xof_key_set::{CompressedXofKeySet, XofDerivationMode, XofKeySet};
 
 // Global state
 #[cfg(feature = "gpu")]
