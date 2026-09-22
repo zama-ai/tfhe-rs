@@ -263,8 +263,8 @@ fn test_circuit_bootstrapping_binary() {
     let level_pksk = DecompositionLevelCount(2);
     let base_log_pksk = DecompositionBaseLog(15);
 
-    let level_count_cbs = DecompositionLevelCount(1);
-    let base_log_cbs = DecompositionBaseLog(10);
+    let level_count_cbs = DecompositionLevelCount(3);
+    let base_log_cbs = DecompositionBaseLog(6);
 
     let std = LogStandardDev::from_log_standard_dev(-60.);
     let noise_distribution = DynamicDistribution::new_gaussian(std);
@@ -383,12 +383,13 @@ fn test_circuit_bootstrapping_binary() {
         println!("\nGGSW decryption:");
         for (level_idx, level_decrypted_glwe) in decrypted.chunks_exact_mut(level_size).enumerate()
         {
+            let current_level = level_count_cbs.0 - level_idx;
+
             for (decrypted_glwe, original_polynomial_from_glwe_sk) in level_decrypted_glwe
                 .chunks_exact(polynomial_size.0)
                 .take(glwe_dimension.0)
                 .zip(glwe_sk.as_polynomial_list().iter())
             {
-                let current_level = level_idx + 1;
                 let mut expected_decryption = PlaintextListOwned::new(
                     0u64,
                     PlaintextCount(original_polynomial_from_glwe_sk.polynomial_size().0),
@@ -427,11 +428,12 @@ fn test_circuit_bootstrapping_binary() {
             let mut last_decoded_glwe =
                 PlaintextList::from_container(last_decrypted_glwe.as_ref().to_vec());
 
-            let decomposer = SignedDecomposer::new(base_log_cbs, level_count_cbs);
+            let decomposer =
+                SignedDecomposer::new(base_log_cbs, DecompositionLevelCount(current_level));
 
             last_decoded_glwe.as_mut().iter_mut().for_each(|coeff| {
                 *coeff = decomposer.closest_representable(*coeff)
-                    >> (64 - base_log_cbs.0 * level_count_cbs.0);
+                    >> (64 - base_log_cbs.0 * current_level);
             });
 
             let mut expected_decryption =
