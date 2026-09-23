@@ -1,31 +1,16 @@
-use benchmark::utilities::{write_to_json_external_name, OperatorType};
-use benchmark_spec::CsvResultWriter;
+use benchmark::utilities::{write_to_json_measured, OperatorType};
+use benchmark_spec::{BenchmarkMetric, CsvResultWriter, MeasuredId};
 use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::get_shortint_parameter_set_from_name;
-use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
-
-const BENCHMARK_NAME_PREFIX: &str = "wasm::";
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     raw_results_file: String,
-}
-
-fn params_from_name(name: &str) -> ClassicPBSParameters {
-    match get_shortint_parameter_set_from_name(name.to_uppercase().as_str())
-        .pbs_parameters()
-        .unwrap()
-    {
-        PBSParameters::PBS(p) => p,
-        PBSParameters::MultiBitPBS(_) => {
-            panic!("Tried to get a MultiBitPBS, expected ClassicPBSParameters")
-        }
-    }
 }
 
 pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
@@ -36,29 +21,24 @@ pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
     let raw_results = fs::read_to_string(raw_results_file).expect("cannot open raw results file");
     let results_as_json: HashMap<String, f32> = serde_json::from_str(&raw_results).unwrap();
 
-    for (full_name, val) in results_as_json.iter() {
-        let prefixed_full_name = format!("{BENCHMARK_NAME_PREFIX}{full_name}");
-        let mut name_parts = full_name.split("::").collect::<Vec<_>>();
-        if name_parts[0] == "zk" {
-            // For WASM benchmarks are ZK related, the bench name is prefixed
-            // with 'zk::' in the full name.
-            name_parts.remove(0);
-        }
+    for (stored_name, raw_value) in results_as_json.iter() {
+        let measured: MeasuredId = stored_name.parse().unwrap_or_else(|err| {
+            panic!("{stored_name} does not follow the benchmark spec: {err:?}")
+        });
 
-        let bench_name = name_parts[0];
-        let params: PBSParameters = params_from_name(name_parts[1]).into();
-        println!("{name_parts:?}");
-        if full_name.contains("_size") {
-            benchmark_test_result.write_result(&prefixed_full_name, *val as usize);
-        } else {
-            let value_in_ns = (val * 1_000_000_f32) as usize;
-            benchmark_test_result.write_result(&prefixed_full_name, value_in_ns);
-        }
+        // Sizes are in bytes, timings in ms converted to ns.
+        let value = match measured.spec.metric() {
+            BenchmarkMetric::KeySize => *raw_value as usize,
+            _ => (raw_value * 1_000_000_f32) as usize,
+        };
+        benchmark_test_result.write_result(&measured.to_string(), value);
 
-        write_to_json_external_name(
-            &prefixed_full_name,
-            params.name(),
-            bench_name,
+        let params_alias = get_shortint_parameter_set_from_name(measured.spec.param_name()).name();
+
+        write_to_json_measured(
+            &measured,
+            params_alias,
+            measured.spec.bench_path().to_string(),
             &operator,
             0,
             vec![],

@@ -22,6 +22,16 @@ import init, {
   ShortintCompactPublicKeyEncryptionParameters,
   ShortintCompactPublicKeyEncryptionParametersName,
 } from "./pkg/tfhe.js";
+import initSpec, {
+  mean_name,
+  cpk_gen_id,
+  compressed_server_key_gen_id,
+  compressed_server_key_serialize_id,
+  compact_list_encrypt_id,
+  compact_list_serialize_id,
+  zk_proof_id,
+  zk_proven_list_size_id,
+} from "./spec_pkg/benchmark_spec_js.js";
 
 const U32_MAX = 4294967295;
 const U64_MAX = BigInt("0xffffffffffffffff");
@@ -120,6 +130,7 @@ async function publicKeyTest() {
 async function compactPublicKeyBench32Bit(params_name) {
   const bench_loops = 100;
   let bench_results = {};
+  const cross_origin = !(await threads());
 
   const params_name_str = shortint_params_name(params_name);
   let config = get_tfhe_config(params_name);
@@ -141,9 +152,8 @@ async function compactPublicKeyBench32Bit(params_name) {
   let end = performance.now();
   const timing_1 = (end - start) / bench_loops;
   console.log("CompactPublicKey Gen bench: ", timing_1, " ms");
-  let bench_id =
-    "compact_public_key_gen" + "::" + params_name_str + "::" + "32bit_mean";
-  bench_results[bench_id] = timing_1;
+  let bench_id = cpk_gen_id(params_name_str, 32);
+  bench_results[mean_name(bench_id, cross_origin)] = timing_1;
 
   let values = [0, 1, 2, 2394, U32_MAX].map(BigInt);
 
@@ -160,9 +170,8 @@ async function compactPublicKeyBench32Bit(params_name) {
   end = performance.now();
   const timing_2 = (end - start) / bench_loops;
   console.log("CompactFheUint32List Encrypt bench: ", timing_2, " ms");
-  bench_id =
-    "compact_list_encrypt" + "::" + params_name_str + "::" + "fheuint32_mean";
-  bench_results[bench_id] = timing_2;
+  bench_id = compact_list_encrypt_id(params_name_str, 32, BigInt(values.length));
+  bench_results[mean_name(bench_id, cross_origin)] = timing_2;
 
   let serialized_list = compact_list.safe_serialize(BigInt(10000000));
   console.log("Serialized CompactFheUint32List size: ", serialized_list.length);
@@ -175,13 +184,12 @@ async function compactPublicKeyBench32Bit(params_name) {
   end = performance.now();
   const timing_3 = (end - start) / bench_loops;
   console.log("CompactFheUint32List serialization bench: ", timing_3, " ms");
-  bench_id =
-    "compact_list_serialization" +
-    "::" +
-    params_name_str +
-    "::" +
-    "fheuint32_mean";
-  bench_results[bench_id] = timing_3;
+  bench_id = compact_list_serialize_id(
+    params_name_str,
+    32,
+    BigInt(values.length),
+  );
+  bench_results[mean_name(bench_id, cross_origin)] = timing_3;
 
   return bench_results;
 }
@@ -480,6 +488,7 @@ async function compressedCompactPublicKeyTest256BitSmall() {
 async function compactPublicKeyBench256Bit(params_name) {
   const bench_loops = 100;
   let bench_results = {};
+  const cross_origin = !(await threads());
 
   const params_name_str = shortint_params_name(params_name);
   let config = get_tfhe_config(params_name);
@@ -501,9 +510,8 @@ async function compactPublicKeyBench256Bit(params_name) {
   let end = performance.now();
   const timing_1 = (end - start) / bench_loops;
   console.log("CompactPublicKey Gen bench: ", timing_1, " ms");
-  let bench_id =
-    "compact_public_key_gen" + "::" + params_name_str + "::" + "256bit_mean";
-  bench_results[bench_id] = timing_1;
+  let bench_id = cpk_gen_id(params_name_str, 256);
+  bench_results[mean_name(bench_id, cross_origin)] = timing_1;
 
   let values = [0, 1, 2, 2394, U32_MAX].map((e) => BigInt(e));
 
@@ -522,9 +530,12 @@ async function compactPublicKeyBench256Bit(params_name) {
   end = performance.now();
   const timing_2 = (end - start) / bench_loops;
   console.log("CompactFheUint256List Encrypt bench: ", timing_2, " ms");
-  bench_id =
-    "compact_list_encrypt" + "::" + params_name_str + "::" + "fheuint256_mean";
-  bench_results[bench_id] = timing_2;
+  bench_id = compact_list_encrypt_id(
+    params_name_str,
+    256,
+    BigInt(values.length),
+  );
+  bench_results[mean_name(bench_id, cross_origin)] = timing_2;
 
   let serialized_list = compact_list.safe_serialize(BigInt(10000000));
   console.log(
@@ -540,13 +551,12 @@ async function compactPublicKeyBench256Bit(params_name) {
   end = performance.now();
   const timing_3 = (end - start) / bench_loops;
   console.log("CompactFheUint256List serialization bench: ", timing_3, " ms");
-  bench_id =
-    "compact_list_serialization" +
-    "::" +
-    params_name_str +
-    "::" +
-    "fheuint256_mean";
-  bench_results[bench_id] = timing_3;
+  bench_id = compact_list_serialize_id(
+    params_name_str,
+    256,
+    BigInt(values.length),
+  );
+  bench_results[mean_name(bench_id, cross_origin)] = timing_3;
 
   return bench_results;
 }
@@ -560,6 +570,7 @@ async function compactPublicKeyBench256BitBig() {
 async function compressedServerKeyBench(params_name) {
   const bench_loops = 5;
   let bench_results = {};
+  const cross_origin = !(await threads());
 
   const params_name_str = shortint_params_name(params_name);
   let config = get_tfhe_config(params_name);
@@ -575,9 +586,8 @@ async function compressedServerKeyBench(params_name) {
   let end = performance.now();
   const timing_1 = (end - start) / bench_loops;
   console.log("CompressedServerKey Gen bench: ", timing_1, " ms");
-  let bench_id =
-    "compressed_server_key_gen" + "::" + params_name_str + "::" + "mean";
-  bench_results[bench_id] = timing_1;
+  let bench_id = compressed_server_key_gen_id(params_name_str);
+  bench_results[mean_name(bench_id, cross_origin)] = timing_1;
 
   let serverKey = TfheCompressedServerKey.new(clientKey);
   let serialized_key = serverKey.safe_serialize(BigInt(1000000000));
@@ -591,13 +601,8 @@ async function compressedServerKeyBench(params_name) {
   end = performance.now();
   const timing_2 = (end - start) / bench_loops;
   console.log("CompressedServerKey serialization bench: ", timing_2, " ms");
-  bench_id =
-    "compressed_server_key_serialization" +
-    "::" +
-    params_name_str +
-    "::" +
-    "mean";
-  bench_results[bench_id] = timing_2;
+  bench_id = compressed_server_key_serialize_id(params_name_str);
+  bench_results[mean_name(bench_id, cross_origin)] = timing_2;
 
   return bench_results;
 }
@@ -617,7 +622,7 @@ async function compressedServerKeyBenchMessage2Carry2() {
 async function compactPublicKeyZeroKnowledgeBench() {
   let params_to_bench = [
     {
-      zk_scheme: "ZKV2",
+      zk_scheme: "v2",
       name_str: shortint_params_name(
         ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
       ),
@@ -629,6 +634,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
   ];
 
   let bench_results = {};
+  const cross_origin = !(await threads());
 
   for (const params of params_to_bench) {
     let block_params_name_str = params.name_str;
@@ -643,8 +649,8 @@ async function compactPublicKeyZeroKnowledgeBench() {
     const bench_loops = 5; // The computation is expensive
     let load_choices = [ZkComputeLoad.Proof, ZkComputeLoad.Verify];
     const load_to_str = {
-      [ZkComputeLoad.Proof]: "compute_load_proof",
-      [ZkComputeLoad.Verify]: "compute_load_verify",
+      [ZkComputeLoad.Proof]: "proof",
+      [ZkComputeLoad.Verify]: "verify",
     };
 
     // Proof configuration:
@@ -694,29 +700,20 @@ async function compactPublicKeyZeroKnowledgeBench() {
           }
           const mean = timing / bench_loops;
 
-          let base_bench_str = "zk::pke_zk_proof";
-          let supportsThreads = await threads();
+          const spec_args = [
+            block_params_name_str,
+            bits_to_encrypt,
+            proof_config["crs_bit_size"],
+            load_to_str[loadChoice],
+            params.zk_scheme,
+          ];
 
-          let common_bench_str =
-            base_bench_str +
-            "::" +
-            block_params_name_str +
-            "::" +
-            bits_to_encrypt +
-            "_bits_packed_" +
-            proof_config["crs_bit_size"] +
-            "_bits_crs_" +
-            load_to_str[loadChoice] +
-            "_" +
-            params.zk_scheme;
-
-          if (!supportsThreads) {
-            common_bench_str += "_cross_origin";
-          }
-
-          const bench_str_1 = common_bench_str + "_mean";
+          const bench_str_1 = mean_name(zk_proof_id(...spec_args), cross_origin);
           console.log(bench_str_1, ": ", mean, " ms");
-          const bench_str_2 = common_bench_str + "_serialized_size_mean";
+          const bench_str_2 = mean_name(
+            zk_proven_list_size_id(...spec_args),
+            cross_origin,
+          );
           console.log(bench_str_2, ": ", serialized_size, " bytes");
 
           bench_results[bench_str_1] = mean;
@@ -731,6 +728,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
 
 async function main() {
   await init();
+  await initSpec();
   let supportsThreads = await threads();
   if (supportsThreads) {
     const { initThreadPool } = await import("./pkg/tfhe.js");

@@ -193,18 +193,19 @@ jobs:
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
+  # Uses the Rust extractor: the Python one cannot parse spec ids.
   cpu-zk-client-latency-table:
     name: generate_documentation_svgs/cpu-zk-client-latency-table
-    uses: ./.github/workflows/generate_svg_common.yml
+    uses: ./.github/workflows/generate_svg_rust_common.yml
     if: inputs.generate-cpu-svgs
     with:
-      backend: cpu
+      backend: wasm
       hardware_name: m6i.4xlarge
-      layer: wasm
+      layer: integer
       bench_subset: zk
       pbs_kind: classical
       bench_type: latency
-      name_suffix: _chrome_mean
+      name_suffix: _mean_chrome
       time_span_days: ${{ inputs.time_span_days }}
       output_filename: cpu-zk-wasm-benchmark-latency
     secrets:

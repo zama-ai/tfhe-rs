@@ -20,6 +20,7 @@ pub enum Backend {
     Cpu,
     Cuda,
     Hpu,
+    Wasm,
 }
 
 pub fn bench_backend_from_cfg() -> Backend {

@@ -37,6 +37,7 @@ pub fn table(measured: &[Measured], backend: Backend) -> Table {
     let rows = match backend {
         Backend::Hpu => HPU_ROWS,
         Backend::Cpu | Backend::Cuda => ROWS,
+        Backend::Wasm => &[],
     };
     let mut cells: Cells<(TransferFlavor, BenchmarkMetric)> = Cells::new();
 

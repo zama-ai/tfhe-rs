@@ -1,5 +1,6 @@
 mod backend;
 mod bench_path;
+pub mod browser_benches;
 mod csv_writer;
 mod error;
 mod measured;
@@ -23,9 +24,9 @@ pub use metric::{BenchmarkMetric, BenchmarkType, OperandType, get_bench_type};
 pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{
     BooleanBench, CiphertextKind, CoreCryptoBench, HlIntegerOp, IntegerBench, IntegerOp,
-    IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, KeyKind, ShortintBench,
-    ShortintCastingOp, ShortintOp, ShortintPackingOp, TfheLayer, TranscipheringBench, VectorFindOp,
-    ZkPkeBench,
+    IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, KeyKind, Serializable,
+    ShortintBench, ShortintCastingOp, ShortintOp, ShortintPackingOp, TfheLayer,
+    TranscipheringBench, VectorFindOp, ZkPkeBench,
 };
 pub use type_tag::{
     ComputeLoad, CudaKeyswitchConfig, FheType, PrecisionTag, ShuffleConfig, TypeTag, ZkPkeConfig,
@@ -57,6 +58,11 @@ impl BenchmarkSpec {
     /// The benchmarked operation, as a path (`tfhe::hlapi::ops::add`).
     pub fn bench_path(&self) -> BenchPath {
         self.bench_path
+    }
+
+    /// What ran the benchmark.
+    pub fn backend(&self) -> Backend {
+        self.backend
     }
 
     /// The parameter set name (from `NamedParam::name()`).

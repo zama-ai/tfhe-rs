@@ -5,6 +5,7 @@ pub mod kv_store;
 pub mod noise_squash;
 pub mod oprf;
 pub mod protocol;
+pub mod serialize;
 
 use std::str::FromStr;
 
@@ -23,6 +24,7 @@ pub use super::hl_integer_op::HlIntegerOp;
 pub use super::key_size::KeyKind;
 pub use super::vector_find::VectorFindOp;
 pub use ct_size::CiphertextKind;
+pub use serialize::Serializable;
 
 /// Benchmark categories within the HLAPI layer.
 ///
@@ -49,7 +51,10 @@ pub enum HlapiBench {
     Protocol(ProtocolKind),
     VectorFind(VectorFindOp),
     Keys(KeyKind),
+    KeyGen(KeyKind),
     Ciphertexts(CiphertextKind),
+    Encrypt(CiphertextKind),
+    Serialize(Serializable),
     // A single benchmark, so no op enum to carry.
     BitonicShuffle,
 }
@@ -65,8 +70,9 @@ impl SpecNode for HlapiBench {
             HlapiBench::Oprf(op) => Some(op),
             HlapiBench::Protocol(op) => Some(op),
             HlapiBench::VectorFind(op) => Some(op),
-            HlapiBench::Keys(key) => Some(key),
-            HlapiBench::Ciphertexts(ct) => Some(ct),
+            HlapiBench::Keys(key) | HlapiBench::KeyGen(key) => Some(key),
+            HlapiBench::Ciphertexts(ct) | HlapiBench::Encrypt(ct) => Some(ct),
+            HlapiBench::Serialize(object) => Some(object),
             HlapiBench::BitonicShuffle => None,
         }
     }
@@ -89,7 +95,10 @@ impl FromStr for HlapiBench {
             HlapiBenchKind::Protocol => Ok(Self::Protocol(rest.parse()?)),
             HlapiBenchKind::VectorFind => Ok(Self::VectorFind(rest.parse()?)),
             HlapiBenchKind::Keys => Ok(Self::Keys(rest.parse()?)),
+            HlapiBenchKind::KeyGen => Ok(Self::KeyGen(rest.parse()?)),
             HlapiBenchKind::Ciphertexts => Ok(Self::Ciphertexts(rest.parse()?)),
+            HlapiBenchKind::Encrypt => Ok(Self::Encrypt(rest.parse()?)),
+            HlapiBenchKind::Serialize => Ok(Self::Serialize(rest.parse()?)),
             // Leaf variants close the bench path: what follows belongs to the
             // trailing part of the id, not to this node.
             _ if !rest.is_empty() => Err(SpecParseError::Unknown(format!(

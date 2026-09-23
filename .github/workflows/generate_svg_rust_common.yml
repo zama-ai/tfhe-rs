@@ -1,0 +1,103 @@
+name: generate_svg_rust_common
+
+# Same contract as generate_svg_common.yml, against the Rust data extractor.
+# Jobs move here one at a time as the tables they publish are ported, so the two
+# are expected to coexist until the last one has crossed.
+
+on:
+  workflow_call:
+    inputs:
+      backend:
+        type: string
+        required: true
+      hardware_name:
+        type: string
+        required: true
+      layer:
+        type: string
+        required: true
+      bench_subset:
+        type: string
+        default: all
+      pbs_kind: # Valid values are 'classical', 'multi_bit' or 'any'
+        type: string
+        required: true
+      grouping_factor: # Valid values are 2, 3, or 4
+        type: string
+        default: 4
+      bench_type: # Valid values are 'latency', 'throughput'
+        type: string
+        required: true
+      name_suffix:
+        type: string
+        default: _mean_avx512
+      time_span_days:
+        type: string
+        default: 60
+      output_filename:
+        type: string
+        required: true
+    secrets:
+      DATA_EXTRACTOR_DATABASE_USER:
+        required: true
+      DATA_EXTRACTOR_DATABASE_HOST:
+        required: true
+      DATA_EXTRACTOR_DATABASE_PASSWORD:
+        required: true
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
+
+jobs:
+  generate-table:
+    name: generate_svg_rust_common/generate-table
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: 'false'
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Produce table from database
+        run: |
+          cargo run --release -p tfhe-data-extractor -- "${OUTPUT_FILENAME}" \
+          --generate-svg \
+          --branch "${REF_NAME}" \
+          --backend "${BACKEND}" \
+          --hardware "${HARDWARE_NAME}" \
+          --tfhe-rs-layer "${LAYER}" \
+          --pbs-kind "${PBS_KIND}" \
+          --grouping-factor "${GROUPING_FACTOR}" \
+          --bench-type "${BENCH_TYPE}" \
+          --bench-subset "${BENCH_SUBSET}" \
+          --name-suffix "${NAME_SUFFIX}" \
+          --time-span-days "${TIME_SPAN}"
+        env:
+          OUTPUT_FILENAME: ${{ inputs.output_filename }}
+          REF_NAME: ${{ github.ref_name }}
+          BACKEND: ${{ inputs.backend }}
+          HARDWARE_NAME: ${{ inputs.hardware_name }}
+          LAYER: ${{ inputs.layer }}
+          PBS_KIND: ${{ inputs.pbs_kind }}
+          GROUPING_FACTOR: ${{ inputs.grouping_factor }}
+          BENCH_TYPE: ${{ inputs.bench_type }}
+          BENCH_SUBSET: ${{ inputs.bench_subset }}
+          NAME_SUFFIX: ${{ inputs.name_suffix }}
+          TIME_SPAN: ${{ inputs.time_span_days }}
+          DATA_EXTRACTOR_DATABASE_USER: ${{ secrets.DATA_EXTRACTOR_DATABASE_USER }}
+          DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
+          DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
+
+      - name: Upload tables
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ github.sha }}_${{ inputs.backend }}_${{ inputs.layer }}_subset_${{inputs.bench_subset}}_${{ inputs.pbs_kind }}_${{ inputs.bench_type }}_tables
+          # This will upload all the file generated
+          path: ${{ inputs.output_filename }}*.svg
+          retention-days: 60

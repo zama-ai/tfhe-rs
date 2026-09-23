@@ -72,6 +72,7 @@ fn profile_section(backend: Backend) -> &'static str {
         Backend::Cpu => "cpu",
         Backend::Cuda => "gpu",
         Backend::Hpu => "hpu",
+        Backend::Wasm => "wasm",
     }
 }
 

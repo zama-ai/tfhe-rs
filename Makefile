@@ -1821,7 +1821,7 @@ test_nodejs_wasm_api_ci: build_node_js_api
 	$(MAKE) test_nodejs_wasm_api
 
 # This is an internal target, not meant to be called on its own.
-run_web_js_api_parallel: build_web_js_api_parallel setup_venv
+run_web_js_api_parallel: build_web_js_api_parallel build_benchmark_spec_js setup_venv
 	cd $(WEB_SERVER_DIR) && npm install && npm run build
 	source venv/bin/activate && \
 	python ci/webdriver.py \
@@ -1834,7 +1834,7 @@ run_web_js_api_parallel: build_web_js_api_parallel setup_venv
 	--id-exclude-pattern asyncMainThread
 
 # This is an internal target, not meant to be called on its own.
-run_web_js_api_cross_origin: build_web_js_api setup_venv
+run_web_js_api_cross_origin: build_web_js_api build_benchmark_spec_js setup_venv
 	cd $(WEB_SERVER_DIR) && npm install && npm run build
 	source venv/bin/activate && \
 	python ci/webdriver.py \

@@ -18,7 +18,7 @@ use crate::traits::SpecNode;
 pub use boolean::BooleanBench;
 pub use core_crypto::CoreCryptoBench;
 pub use hl_integer_op::HlIntegerOp;
-pub use hlapi::{CiphertextKind, HlapiBench};
+pub use hlapi::{CiphertextKind, HlapiBench, Serializable};
 pub use integer::ops::IntegerOp;
 pub use integer::{
     IntegerBench, IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, ZkPkeBench,
