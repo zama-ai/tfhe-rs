@@ -371,8 +371,11 @@ impl CompactCiphertextListExpander {
             .transpose()
     }
 
-    pub(crate) fn message_modulus(&self) -> MessageModulus {
-        self.expanded_blocks[0].message_modulus
+    /// Returns the message modulus of the blocks in the list, or None if the list holds no block
+    pub(crate) fn message_modulus(&self) -> Option<MessageModulus> {
+        self.expanded_blocks
+            .first()
+            .map(|block| block.message_modulus)
     }
 }
 
@@ -524,6 +527,15 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         })
     }
 
+    /// Number of blocks described by the metadata of a list
+    fn block_count(&self, infos: &[DataKind]) -> crate::Result<usize> {
+        DataKind::total_block_count(infos, self.message_modulus).map_err(|()| {
+            crate::error!(
+                "Invalid compact ciphertext list: the block count of its metadata overflows"
+            )
+        })
+    }
+
     /// Generate functions to unpack message and carries and additionally sanitizes blocks
     ///
     /// * boolean blocks: make sure they encrypt a 0 or a 1
@@ -532,12 +544,15 @@ impl IntegerUnpackingToShortintCastingModeHelper {
     pub fn generate_unpack_and_sanitize_functions<'a>(
         &'a self,
         infos: &[DataKind],
+        expected_lwe_count: usize,
     ) -> crate::Result<ExpandFunctionsOwned<'a>> {
-        let block_count: usize = infos
-            .iter()
-            .map(|x| x.num_blocks(self.message_modulus))
-            .sum();
-        let packed_block_count = block_count.div_ceil(2);
+        let packed_block_count = self.block_count(infos)?.div_ceil(2);
+        if packed_block_count != expected_lwe_count {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: its metadata describes {packed_block_count} \
+                 packed ciphertexts, got {expected_lwe_count}"
+            ));
+        }
         let mut functions: ExpandFunctionsOwned<'a> =
             vec![Some(Vec::with_capacity(2)); packed_block_count];
         let mut overall_block_idx = 0;
@@ -606,11 +621,15 @@ impl IntegerUnpackingToShortintCastingModeHelper {
     pub fn generate_sanitize_without_unpacking_functions<'a>(
         &'a self,
         infos: &[DataKind],
+        expected_lwe_count: usize,
     ) -> crate::Result<ExpandFunctionsOwned<'a>> {
-        let total_block_count: usize = infos
-            .iter()
-            .map(|x| x.num_blocks(self.message_modulus))
-            .sum();
+        let total_block_count = self.block_count(infos)?;
+        if total_block_count != expected_lwe_count {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: its metadata describes {total_block_count} \
+                 ciphertexts, got {expected_lwe_count}"
+            ));
+        }
         let mut functions = Vec::with_capacity(total_block_count);
 
         let mut push_functions = |block_count: usize, func: &'a (dyn Fn(u64) -> u64 + Sync)| {
@@ -651,11 +670,12 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         &'a self,
         infos: &[DataKind],
         is_packed: bool,
+        expected_lwe_count: usize,
     ) -> crate::Result<ExpandFunctionsOwned<'a>> {
         if is_packed {
-            self.generate_unpack_and_sanitize_functions(infos)
+            self.generate_unpack_and_sanitize_functions(infos, expected_lwe_count)
         } else {
-            self.generate_sanitize_without_unpacking_functions(infos)
+            self.generate_sanitize_without_unpacking_functions(infos, expected_lwe_count)
         }
     }
 
@@ -828,9 +848,17 @@ impl CompactCiphertextList {
         if self.is_empty() {
             return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
         }
+        if self.ct_list.is_empty() {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: it holds no ciphertext but its metadata \
+                describes {} items",
+                self.info.len()
+            ));
+        }
         let helper =
             IntegerUnpackingToShortintCastingModeHelper::from_expansion_mode(expansion_mode);
-        let functions = helper.generate_expand_functions(&self.info, self.is_packed())?;
+        let functions =
+            helper.generate_expand_functions(&self.info, self.is_packed(), self.ct_list.len())?;
 
         let casted_blocks = match expansion_mode {
             IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
@@ -859,6 +887,13 @@ impl CompactCiphertextList {
     pub fn expand_without_key(&self) -> crate::Result<CompactCiphertextListExpander> {
         if self.is_empty() {
             return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
+        }
+        if self.ct_list.is_empty() {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: it holds no ciphertext but its metadata \
+                describes {} items",
+                self.info.len()
+            ));
         }
         if self.is_packed() {
             return Err(crate::error!(
@@ -989,10 +1024,21 @@ impl ProvenCompactCiphertextList {
         if self.is_empty() {
             return Ok(CompactCiphertextListExpander::new(Vec::new(), Vec::new()));
         }
+        if self.ct_list.ciphertext_count() == 0 {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: it holds no ciphertext but its metadata \
+                describes {} items",
+                self.info.len()
+            ));
+        }
 
         let helper =
             IntegerUnpackingToShortintCastingModeHelper::from_expansion_mode(expansion_mode);
-        let functions = helper.generate_expand_functions(&self.info, self.is_packed())?;
+        let functions = helper.generate_expand_functions(
+            &self.info,
+            self.is_packed(),
+            self.ct_list.ciphertext_count(),
+        )?;
 
         let casted_blocks = match expansion_mode {
             IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
@@ -1211,6 +1257,51 @@ mod tests {
         TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     };
 
+    #[test]
+    fn test_expand_list_with_more_blocks_in_metadata_than_ciphertexts() {
+        let (cks, sks) = gen_keys(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            IntegerKeyKind::Radix,
+        );
+        let pk = CompactPublicKey::new(&cks);
+
+        let mut builder = CompactCiphertextList::builder(&pk);
+        builder.push_with_num_blocks(0u8, 2);
+
+        let list = CompactCiphertextList {
+            ct_list: builder.build().ct_list,
+            info: vec![DataKind::Unsigned(NonZero::new(usize::MAX).unwrap())],
+        };
+
+        assert!(list
+            .expand(IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(&sks))
+            .is_err());
+    }
+
+    /// A list whose metadata only describes items without blocks (empty strings) holds no
+    /// ciphertext, expanding it must be an error
+    #[test]
+    fn test_expand_list_with_metadata_but_no_ciphertext() {
+        let (cks, sks) = gen_keys(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            IntegerKeyKind::Radix,
+        );
+        let pk = CompactPublicKey::new(&cks);
+
+        let list = CompactCiphertextList {
+            ct_list: CompactCiphertextList::builder(&pk).build().ct_list,
+            info: vec![DataKind::String {
+                n_chars: 0,
+                padded: false,
+            }],
+        };
+
+        assert!(list
+            .expand(IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(&sks))
+            .is_err());
+        assert!(list.expand_without_key().is_err());
+    }
+
     /// A compact list may claim to contain strings while the server key parameters do not support
     /// them. As the list is untrusted, this must be an error and not a panic.
     #[test]
@@ -1226,20 +1317,21 @@ mod tests {
             },
         ];
 
+        // These parameters do not support strings, so generating functions should return an error
         let helper = IntegerUnpackingToShortintCastingModeHelper::new(params.message_modulus);
         assert!(helper
-            .generate_unpack_and_sanitize_functions(&infos)
+            .generate_unpack_and_sanitize_functions(&infos, 1)
             .is_err());
         assert!(helper
-            .generate_sanitize_without_unpacking_functions(&infos)
+            .generate_sanitize_without_unpacking_functions(&infos, 2)
             .is_err());
 
         // Without strings, the same parameters work
         assert!(helper
-            .generate_unpack_and_sanitize_functions(&infos[..1])
+            .generate_unpack_and_sanitize_functions(&infos[..1], 1)
             .is_ok());
         assert!(helper
-            .generate_sanitize_without_unpacking_functions(&infos[..1])
+            .generate_sanitize_without_unpacking_functions(&infos[..1], 2)
             .is_ok());
 
         let cks = ClientKey::new(params);
@@ -1251,7 +1343,7 @@ mod tests {
         let ct_list = builder.build().ct_list;
 
         let functions = helper
-            .generate_sanitize_without_unpacking_functions(&infos[..1])
+            .generate_sanitize_without_unpacking_functions(&infos[..1], ct_list.len())
             .unwrap();
         assert!(ct_list
             .expand_without_casting_and_apply_functions(&sks.key, &functions)
@@ -1325,6 +1417,30 @@ mod zk_pok_tests {
     use crate::zk::{CompactPkeCrs, ZkComputeLoad, ZkVerificationOutcome};
     use crate::CompactCiphertextListConformanceParams;
     use rand::random;
+
+    /// A proven list without any inner list holds no ciphertext, expanding it must be an error even
+    /// if its metadata describes items
+    #[test]
+    fn test_expand_proven_list_with_metadata_but_no_ciphertext() {
+        let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+        let sks = ServerKey::new_radix_server_key(&cks);
+
+        let list = ProvenCompactCiphertextList {
+            ct_list: crate::shortint::ciphertext::ProvenCompactCiphertextList {
+                proved_lists: vec![],
+            },
+            info: vec![DataKind::String {
+                n_chars: 0,
+                padded: false,
+            }],
+        };
+
+        assert!(list
+            .expand_without_verification(
+                IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(&sks)
+            )
+            .is_err());
+    }
 
     fn test_zk_list(is_packed: bool) {
         let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
