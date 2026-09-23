@@ -91,7 +91,7 @@ impl CiphertextBundle {
     pub fn id(&self) -> &SlotId {
         &self.slots[0].id
     }
-    pub fn iter(&mut self) -> std::slice::Iter<'_, CiphertextSlot> {
+    pub fn iter(&self) -> std::slice::Iter<'_, CiphertextSlot> {
         self.slots.iter()
     }
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, CiphertextSlot> {
