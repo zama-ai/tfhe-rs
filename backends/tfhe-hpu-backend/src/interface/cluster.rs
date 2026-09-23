@@ -25,7 +25,7 @@ pub struct HpuCluster {
     workload: Arc<[atomic::AtomicUsize; MAX_HPU_IN_CLUSTER]>,
     iop_id: Arc<atomic::AtomicU8>,
     pub(crate) cmd_tx: mpsc::Sender<Arc<cmd::HpuCmd>>,
-    params: Arc<HpuParameters>,
+    pub(crate) params: Arc<HpuParameters>,
     fw_sig: Arc<HashMap<(StaticIOp, u16), IOpSig>>,
     dyn_fw_sig: Arc<Mutex<HashMap<IOpcode, IOpSig>>>,
 
@@ -383,15 +383,18 @@ impl HpuCluster {
 impl HpuCluster {
     /// Compute ordered list of usable nodes
     /// Nodes are sorted by workload and rhs position
+    ///
+    /// _NB_: With late allocation, some operands may not be dispatched yet. Those don't
+    /// express any position preference and are simply skipped.
     pub(crate) fn usable_nodes(&self, hpu_id: &[u8], rhs_ct: &[HpuVarWrapped]) -> Vec<u8> {
         // Extract inputs position
-        let inputs_pos_weight = rhs_ct.iter().map(|v| v.hpu_id.0 as usize).fold(
-            [0usize; MAX_HPU_IN_CLUSTER],
-            |mut acc, hid| {
+        let inputs_pos_weight = rhs_ct
+            .iter()
+            .filter_map(|v| v.hpu_pos().map(|hid| hid.0 as usize))
+            .fold([0usize; MAX_HPU_IN_CLUSTER], |mut acc, hid| {
                 acc[hid] += 1;
                 acc
-            },
-        );
+            });
         // Compute node weight
         let mut hpu_weight = std::iter::zip(inputs_pos_weight.iter(), self.workload.iter())
             .enumerate()
@@ -421,6 +424,9 @@ impl HpuCluster {
     /// * Operand position
     ///
     /// NB: It's mandatory that node owning the destination data is part of the compute
+    ///
+    /// _NB_: Destinations that aren't dispatched yet don't constrain the mapping. They are
+    /// bound to the first node of the returned mapping by [`cmd::HpuCmd::exec_raw`].
     pub(crate) fn compute_cmd_map(
         &self,
         hpu_id: &[u8],
@@ -431,7 +437,10 @@ impl HpuCluster {
         // Split it in two categories and ordered them back
         //  a) Node that must belong to the IOp (because they own a destination)
         //  b) Backup Node that optionally could by part of the Iop
-        let dst_pos = dst.iter().map(|v| v.hpu_id.0).collect::<HashSet<_>>();
+        let dst_pos = dst
+            .iter()
+            .filter_map(|v| v.hpu_pos().map(|hid| hid.0))
+            .collect::<HashSet<_>>();
         let (mut hpu_ord, hpu_opt): (Vec<_>, Vec<_>) = self
             .usable_nodes(hpu_id, rhs_ct)
             .into_iter()
@@ -505,38 +514,19 @@ impl std::ops::Deref for HpuClusterWrapped {
 
 impl HpuClusterWrapped {
     /// Construct an Hpu variable from a vector of HpuLweCiphertext
-    /// Allocation is made on the less loaded node
     ///
-    /// _NB_: Workload management is done at variable allocation. It's not perfect but easier in
-    /// first time.
+    /// _NB_: By default, no on-board memory is allocated here. The variable is only backed by
+    /// its host buffer until a first IOp uses it, at which point it is dispatched on a node
+    /// selected from the IOp mapping (c.f. [`cmd::HpuCmd::exec_raw`]).
+    /// Providing `pos` forces an early allocation on the given node.
     pub fn new_var_from(
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
         spec: zhc::builder::CiphertextSpec,
         pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
-        // Compute workload and allocate on the less loaded node
-        let trgt_id = if let Some(hid) = pos {
-            hid
-        } else {
-            let hid = self
-                .nodes
-                .keys()
-                .map(|id| {
-                    (
-                        *id,
-                        self.workload[*id as usize].load(atomic::Ordering::SeqCst),
-                    )
-                })
-                .sorted_by(|a, b| Ord::cmp(&a.1, &b.1))
-                .map(|x| x.0)
-                .next()
-                .expect("HpuCluster must contains at least one HpuNode");
-            PhysId(hid)
-        };
+        tracing::debug!("HpuVariable created with position {pos:?}");
 
-        tracing::debug!("HpuVariable will be created on Hpu {trgt_id}");
-
-        HpuVarWrapped::new_from(trgt_id, self.clone(), self.params.clone(), ct, spec)
+        HpuVarWrapped::new(self.clone(), spec, pos, Some(ct))
     }
 }

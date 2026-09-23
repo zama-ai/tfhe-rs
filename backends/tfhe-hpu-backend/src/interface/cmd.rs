@@ -3,6 +3,7 @@
 use super::*;
 use crate::asm::{FwMode, IOp, IOpId, IOpMapping, IOpcode, Immediate, Operand, OperandKind};
 use variable::HpuVarWrapped;
+use zhc::builder::Type;
 
 use std::sync::atomic;
 
@@ -47,8 +48,8 @@ impl HpuCmd {
                     .get_args()
                     .iter()
                     .fold((0_usize, 0_usize), |(src, imm), ty| match ty {
-                        zhc::builder::Type::Ciphertext(_) => (src + 1, imm),
-                        zhc::builder::Type::Plaintext(_) => (src, imm + 1),
+                        Type::Ciphertext(_) => (src + 1, imm),
+                        Type::Plaintext(_) => (src, imm + 1),
                     });
             assert_eq!(
                 dst.len(),
@@ -69,14 +70,18 @@ impl HpuCmd {
         let pdg_sync = atomic::AtomicUsize::new(map.len());
 
         // Extract Operands definition from HpuVar
+        // NB: every operand is expected to be dispatched by `exec_raw` beforehand
         let dst_op = dst
             .iter()
             .map(|var| {
+                let (pos, slot) = var
+                    .position()
+                    .expect("Dst variable must be dispatched before IOp creation");
                 Operand::new(
-                    var.width as u8,
-                    var.id.0 as u16,
+                    var.blocks(),
+                    slot.0 as u16,
                     1, /* TODO handle vec source !? */
-                    var.hpu_id,
+                    pos,
                     iid,
                     Some(OperandKind::Dst),
                 )
@@ -85,13 +90,16 @@ impl HpuCmd {
         let src_op = src
             .iter()
             .map(|var| {
+                let (pos, slot) = var
+                    .position()
+                    .expect("Src variable must be dispatched before IOp creation");
                 // TODO should be able to get inner_iid without lock
                 let iid = var.inner.lock().unwrap().iid();
                 Operand::new(
-                    var.width as u8,
-                    var.id.0 as u16,
+                    var.blocks(),
+                    slot.0 as u16,
                     1, /* TODO handle vec source !? */
-                    var.hpu_id,
+                    pos,
                     iid,
                     Some(OperandKind::Src),
                 )
@@ -163,9 +171,34 @@ impl HpuCmd {
         let (_signature, used_nodes) =
             cluster.get_signature(fw_mode, opcode, first_src.bit_width());
 
-        // Compute mapping based on workload and operand position
+        // Compute mapping based on workload and already dispatched operand position
         let hpu_id = cluster.keys().copied().collect::<Vec<_>>();
         let map = cluster.compute_cmd_map(&hpu_id, used_nodes, dst, rhs_ct);
+
+        // Late allocation
+        // Variables that aren't bound to a node yet land on the first node of the mapping.
+        // Doing it here -- and not at variable creation -- let the workload/position heuristic
+        // select the node once the operation is known, and prevent needless board to board
+        // transfer.
+        // TODO: Enhance this fallback position once multi-hpu Signature gave more insight on
+        //       per node variables read/write
+        //
+        // For src only:
+        // Enforce that sources are readable by the Hw.
+        // NB: must be done before `HpuCmd::new` since the latter flags destinations as
+        // Hpu-only, and dst aliases src for assign-style IOp.
+        let home = *map
+            .first()
+            .expect("IOp mapping must contains at least one node");
+
+        for var in dst.iter() {
+            var.dispatch_on(home);
+        }
+        for var in rhs_ct.iter() {
+            var.dispatch_and_sync(home, true)
+                .unwrap_or_else(|err| panic!("Couldn't sync {var:?} on Hpu: {err}"));
+        }
+
         let iop_id = cluster.gen_iop_id();
 
         // Create associated command
@@ -192,16 +225,22 @@ impl HpuCmd {
         rhs_imm: &[HpuImm],
         dst_pos: Option<crate::asm::PhysId>,
     ) -> Vec<HpuVarWrapped> {
-        // Use given position or default to node likely to be used
-        let pos = dst_pos.unwrap_or(rhs_ct[0].hpu_id);
+        let cluster = &rhs_ct[0].parent;
         let (signature, _used_nodes) =
-            rhs_ct[0]
-                .parent
-                .get_signature(fw_mode, opcode, rhs_ct[0].bit_width());
+            cluster.get_signature(fw_mode, opcode, rhs_ct[0].bit_width());
+        // Destinations are built from the IOp's declared returns: each of them already carries
+        // its absolute `CiphertextSpec`, no need to derive it from an existing variable.
+        //
+        // _NB_: `dst_pos` honors an explicit placement request, which makes the targeted node
+        // part of the computed IOp mapping. Left to `None`, destinations stay un-dispatched
+        // and `exec_raw` places them on the first node of the mapping.
         let dst = signature
             .get_returns()
             .iter()
-            .map(|ty| rhs_ct[0].fork(ty, pos))
+            .map(|ty| match ty {
+                Type::Ciphertext(spec) => HpuVarWrapped::new(cluster.clone(), *spec, dst_pos, None),
+                Type::Plaintext(_) => panic!("Error {opcode:?}: IOp couldn't return a plaintext"),
+            })
             .collect::<Vec<_>>();
         Self::exec_raw(fw_mode, opcode, &dst, rhs_ct, rhs_imm);
         dst
