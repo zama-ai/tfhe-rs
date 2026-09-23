@@ -17,6 +17,7 @@ use crate::zk::{
     ZkMSBZeroPaddingBitCount, ZkPkeV2SupportedHashConfig, ZkVerificationOutcome,
 };
 
+use itertools::Itertools;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -141,17 +142,12 @@ impl ProvenCompactCiphertextList {
             None => vec![None; self.proved_lists.len()],
         };
 
-        let expanded = self
-            .proved_lists
+        self.proved_lists
             .iter()
             .zip(per_list_functions)
             .map(|((ct_list, _proof), functions)| ct_list.expand(casting_key, functions))
-            .collect::<Result<Vec<Vec<_>>, _>>()?
-            .into_iter()
-            .flatten()
-            .collect();
-
-        Ok(expanded)
+            .flatten_ok()
+            .collect()
     }
 
     /// This function allows to expand a ciphertext without verifying the associated proof, and
@@ -166,19 +162,14 @@ impl ProvenCompactCiphertextList {
     ) -> crate::Result<Vec<Ciphertext>> {
         let per_list_functions = self.split_functions_per_list(functions)?;
 
-        let expanded = self
-            .proved_lists
+        self.proved_lists
             .iter()
             .zip(per_list_functions)
             .map(|((ct_list, _proof), functions)| {
                 ct_list.expand_without_casting_and_apply_functions(server_key, functions)
             })
-            .collect::<Result<Vec<Vec<_>>, _>>()?
-            .into_iter()
-            .flatten()
-            .collect();
-
-        Ok(expanded)
+            .flatten_ok()
+            .collect()
     }
 
     /// Split the functions to apply on the ciphertexts of this list into one slice for each of
