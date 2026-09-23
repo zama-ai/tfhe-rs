@@ -3076,7 +3076,6 @@ mod hpu {
         default_hpu_subs,
         //default_hpu_ssub,
         default_hpu_muls,
-        default_hpu_divs,
         default_hpu_divs
     );
 
