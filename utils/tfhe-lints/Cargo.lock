@@ -163,13 +163,12 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "clippy_utils"
-version = "0.1.98"
-source = "git+https://github.com/rust-lang/rust-clippy?rev=9fca3bc9fc2bc83c60bde26d18ed68f11564b228#9fca3bc9fc2bc83c60bde26d18ed68f11564b228"
+version = "0.1.100"
+source = "git+https://github.com/rust-lang/rust-clippy?rev=21baba9c10c5d179915cae82e6247bc2337872fb#21baba9c10c5d179915cae82e6247bc2337872fb"
 dependencies = [
  "arrayvec",
  "itertools",
  "rustc_apfloat",
- "serde",
 ]
 
 [[package]]
@@ -289,9 +288,9 @@ dependencies = [
 
 [[package]]
 name = "dylint"
-version = "6.0.4"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d59232730e7347f7b56a021e943c7cbd57636f56866c2a95341aa6159e64dad0"
+checksum = "36143945826ac0fcdcfbe5428074d84cac9510aa28584435a71e51f22d644119"
 dependencies = [
  "anstyle",
  "anyhow",
@@ -307,9 +306,9 @@ dependencies = [
 
 [[package]]
 name = "dylint_internal"
-version = "6.0.4"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc1edfdeb8f1b20ee0adcd6fa30f1562aebe7ef49caf89a0befab488d62babfd"
+checksum = "d2d852b4a08f8591389714911e6b381bcd3da3778650a05baef91a801869917e"
 dependencies = [
  "anstyle",
  "anyhow",
@@ -321,6 +320,7 @@ dependencies = [
  "regex",
  "semver",
  "serde",
+ "serde_json",
  "tar",
  "tempfile",
  "thiserror 2.0.20",
@@ -330,9 +330,9 @@ dependencies = [
 
 [[package]]
 name = "dylint_linting"
-version = "6.0.4"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e9f65c0439f032da8c5febad832b033c6784f084a3fdc8c3b41e0ed727d5654"
+checksum = "5a7c61575df18252a32cd5fbd4224454b62a37352cf18943476370c991ca6b8c"
 dependencies = [
  "cargo_metadata",
  "dylint_internal",
@@ -345,9 +345,9 @@ dependencies = [
 
 [[package]]
 name = "dylint_testing"
-version = "6.0.4"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f7d8b8cb1558ef0d090882c6359e5e2d5571ca6633446fa2347fa48da7b27bb"
+checksum = "1a33b8cd0529c5a22ade9665181c9c3471316db3e44b6a47b3a5516672a99081"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -357,7 +357,6 @@ dependencies = [
  "env_logger",
  "once_cell",
  "regex",
- "serde_json",
  "tempfile",
 ]
 
@@ -540,9 +539,9 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "itertools"
-version = "0.12.1"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
 dependencies = [
  "either",
 ]
