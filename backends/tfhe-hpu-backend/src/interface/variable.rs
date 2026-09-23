@@ -6,6 +6,7 @@ use super::*;
 use crate::asm::iop::VarMode;
 use crate::asm::{IOpId, PhysId, SW_IOP_ID};
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
+use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 
 pub(crate) struct HpuVar {
@@ -105,20 +106,32 @@ impl HpuVarWrapped {
         {
             let mut inner = var.inner.lock().unwrap();
 
-            for (slot, ct) in std::iter::zip(inner.bundle.iter_mut(), ct) {
-                #[cfg(feature = "io-dump")]
-                let params = ct.params().clone();
-                for (id, cut) in ct.into_container().iter().enumerate() {
-                    slot.mz[id].write(0, cut);
-                    #[cfg(feature = "io-dump")]
+            #[cfg(feature = "io-dump")]
+            for (slot, ct) in std::iter::zip(inner.bundle.iter(), &ct) {
+                for (id, cut) in ct.as_view().into_container().iter().enumerate() {
                     io_dump::dump(
-                        cut.as_slice(),
-                        &params,
+                        cut,
+                        ct.params(),
                         io_dump::DumpKind::BlweIn,
                         io_dump::DumpId::Slot(slot.id, id),
                     );
                 }
             }
+
+            // One DMA transfer per PC, all slots
+            let conts = ct
+                .into_iter()
+                .map(|ct| ct.into_container())
+                .collect::<Vec<_>>();
+            let first = inner.bundle.iter_mut().next().expect("Empty bundle");
+            first.mz.par_iter_mut().enumerate().for_each(|(id, mz)| {
+                let stride = mz.size() / std::mem::size_of::<u64>();
+                let mut buf = vec![0u64; stride * conts.len()];
+                for (slot, cont) in buf.chunks_exact_mut(stride).zip(&conts) {
+                    slot[..cont[id].len()].copy_from_slice(&cont[id]);
+                }
+                mz.write(0, &buf);
+            });
         }
         var
     }
@@ -153,20 +166,35 @@ impl HpuVarWrapped {
             return Err(HpuError::SyncPending(self));
         }
 
+        // One DMA transfer per PC, all slots
+        let n_slots = inner.bundle.iter().len();
+        let first = inner.bundle.iter().next().expect("Empty bundle");
+        let bufs = first
+            .mz
+            .par_iter()
+            .map(|mz| {
+                let mut buf = vec![0u64; mz.size() / std::mem::size_of::<u64>() * n_slots];
+                mz.read(0, &mut buf);
+                buf
+            })
+            .collect::<Vec<_>>();
+
         let mut ct = Vec::new();
 
-        for slot in inner.bundle.iter() {
+        #[allow(unused_variables)]
+        for (s, slot) in inner.bundle.iter().enumerate() {
             // Allocate HpuLwe
             // and view inner buffer as cut
             let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, (*self.params).clone());
             let mut hw_slice = hpu_lwe.as_mut_view().into_container();
 
-            // Copy from Xrt memory
+            // Copy from bundle buffers
             #[allow(unused_variables)]
-            std::iter::zip(slot.mz.iter(), hw_slice.iter_mut())
+            std::iter::zip(bufs.iter(), hw_slice.iter_mut())
                 .enumerate()
-                .for_each(|(id, (mz, cut))| {
-                    mz.read(0, cut);
+                .for_each(|(id, (buf, cut))| {
+                    let stride = buf.len() / n_slots;
+                    cut.copy_from_slice(&buf[s * stride..][..cut.len()]);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         cut,
