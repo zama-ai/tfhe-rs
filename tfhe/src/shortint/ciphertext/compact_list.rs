@@ -181,7 +181,6 @@ impl CompactCiphertextList {
 /// A ciphertext list that has been expanded, but no post-processing (cast, unpack, sanitize) has
 /// been applied
 #[doc(hidden)]
-#[derive(Clone)]
 pub struct ExpandedCiphertextList {
     ct_list: LweCiphertextListOwned<u64>,
     degree: Degree,
