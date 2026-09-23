@@ -67,6 +67,9 @@ pub enum Commands {
     /// Hardware trace operation
     #[command(about = "Trace related operations")]
     TraceDump {
+        /// File containing lut_map for correct Pbs Lut decoding
+        #[arg(default_value = "hpu_lut_map.json")]
+        lut_map: String,
         /// Stop after a given size (Expressed in MiB)
         #[arg(long, short)]
         size_mib: Option<usize>,
@@ -423,13 +426,17 @@ fn main() {
             ResetAction::Hard => unimplemented!(),
             ResetAction::Flush => unimplemented!(),
         },
-        Commands::TraceDump { file, size_mib } => {
+        Commands::TraceDump {
+            file,
+            size_mib,
+            lut_map,
+        } => {
             // trace depth is expressed in MiB
             let size_b = std::cmp::min(config.board.trace_depth, size_mib.unwrap_or(usize::MAX))
                 * 1024
                 * 1024;
 
-            trace_dump(&mut hpu_hw, &regmap, size_b, file)
+            trace_dump(&mut hpu_hw, &regmap, lut_map, size_b, file)
         }
         Commands::PktTrace { action } => match action {
             PktTraceAction::Status => mhdma::pkt_trace_status(&mut hpu_hw, &regmap),
@@ -714,7 +721,13 @@ fn soft_reset(hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
     }
 }
 
-fn trace_dump(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, size_b: usize, filename: &str) {
+fn trace_dump(
+    hw: &mut ffi::HpuHw,
+    regmap: &FlatRegmap,
+    lut_map_f: &str,
+    size_b: usize,
+    filename: &str,
+) {
     let offset = {
         let offset_reg: Vec<usize> = ["trc_pc0_lsb", "trc_pc0_msb"]
             .into_iter()
@@ -728,11 +741,13 @@ fn trace_dump(hw: &mut ffi::HpuHw, regmap: &FlatRegmap, size_b: usize, filename:
             .collect();
         offset_reg[0] as u64 + ((offset_reg[1] as u64) << 32)
     };
+    println!("Load LutMap context from file: {lut_map_f}");
+    let lut_map = LutMap::read_from(lut_map_f).expect("Issue with LutMap loading");
 
     println!("Dump {size_b} bytes of trace [@{offset:x}] inside {filename}");
     let raw_data = read_mem(hw, offset, size_b);
-    let trace_stream =
-        IscTraceStream::from_bytes(&raw_data).expect("Issue with during trace parsing");
+    let trace_stream = IscTraceStream::from_bytes_with_ctx(&raw_data, &lut_map)
+        .expect("Issue with during trace parsing");
 
     let file = File::create(filename).expect("Failed to create or open trace dump file");
     let buf_wr = std::io::BufWriter::new(file);
