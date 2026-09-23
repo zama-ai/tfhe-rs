@@ -19,7 +19,9 @@ impl HpuRadixCiphertext {
 
     /// Create a Hpu Radix ciphertext based on a Cpu one.
     ///
-    /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
+    /// No on-board allocation nor transfer with FPGA will occur until an operation on the
+    /// HpuRadixCiphertext is requested. Giving a `pos` forces the on-board allocation to happen
+    /// right away on the requested node.
     pub fn from_radix_ciphertext(
         cpu_ct: &RadixCiphertext,
         device: &HpuDevice,
@@ -67,7 +69,9 @@ impl HpuRadixCiphertext {
 
     /// Create a Hpu boolean ciphertext based on a Cpu one.
     ///
-    /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
+    /// No on-board allocation nor transfer with FPGA will occur until an operation on the
+    /// HpuRadixCiphertext is requested. Giving a `pos` forces the on-board allocation to happen
+    /// right away on the requested node.
     pub fn from_boolean_ciphertext(
         cpu_ct: &BooleanBlock,
         device: &HpuDevice,

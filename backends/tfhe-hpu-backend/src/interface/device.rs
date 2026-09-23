@@ -100,6 +100,10 @@ impl HpuDevice {
 /// Only here to expose function to the user. Associated logic is handled by the cluster
 impl HpuDevice {
     /// Construct an Hpu variable from a vector of HpuLweCiphertext
+    ///
+    /// With `pos` left to `None` the variable is created host-side only: on-board memory is
+    /// allocated -- and the node selected -- when the first IOp uses it. Providing `pos`
+    /// forces an early allocation on the given node.
     pub fn new_var_from(
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
