@@ -1659,13 +1659,14 @@ test_safe_serialize:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--all-targets -p tfhe-safe-serialize
 
-# These three own the benchmark id grammar and the tools reading it back. No
-# database needed: the extractor builds its queries at runtime, and its profile
-# test reads ci/regression.toml relative to the workspace root.
-.PHONY: test_benchmark_utils # Run tests for benchmark_spec, the bench parser and the data extractor
+# These own the benchmark id grammar, the browser ids and the tools reading them
+# back. No database needed: the extractor builds its queries at runtime, and its
+# profile test reads ci/regression.toml relative to the workspace root.
+.PHONY: test_benchmark_utils # Run tests for benchmark_spec, the browser ids, the bench parser and the data extractor
 test_benchmark_utils:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--all-targets -p benchmark_spec -p tfhe-benchmark-parser -p tfhe-data-extractor
+		--all-targets -p benchmark_spec -p benchmark-spec-js -p tfhe-benchmark-parser \
+		-p tfhe-data-extractor
 
 # The backward compat data folder holds historical binary data but also rust code to generate and load them.
 .PHONY: gen_backward_compat_data # Re-generate backward compatibility data
@@ -1821,7 +1822,7 @@ test_nodejs_wasm_api_ci: build_node_js_api
 	$(MAKE) test_nodejs_wasm_api
 
 # This is an internal target, not meant to be called on its own.
-run_web_js_api_parallel: build_web_js_api_parallel setup_venv
+run_web_js_api_parallel: build_web_js_api_parallel build_benchmark_spec_js setup_venv
 	cd $(WEB_SERVER_DIR) && npm install && npm run build
 	source venv/bin/activate && \
 	python ci/webdriver.py \
@@ -1834,7 +1835,7 @@ run_web_js_api_parallel: build_web_js_api_parallel setup_venv
 	--id-exclude-pattern asyncMainThread
 
 # This is an internal target, not meant to be called on its own.
-run_web_js_api_cross_origin: build_web_js_api setup_venv
+run_web_js_api_cross_origin: build_web_js_api build_benchmark_spec_js setup_venv
 	cd $(WEB_SERVER_DIR) && npm install && npm run build
 	source venv/bin/activate && \
 	python ci/webdriver.py \

@@ -1,7 +1,7 @@
 use super::ParseOutcome;
 use super::parameters::get_parameters;
 use anyhow::{Context, Result};
-use benchmark_spec::{Backend, BenchmarkMetric};
+use benchmark_spec::{Backend, BenchmarkMetric, MeasuredId};
 use serde::Deserialize;
 use serde_json::Number;
 use std::path::{Path, PathBuf};
@@ -45,7 +45,7 @@ pub fn parse_key_gen_time(
 fn parse_key_results(
     result_file: &Path,
     class: PointClass,
-    point_type: BenchmarkMetric,
+    default_point_type: BenchmarkMetric,
     extra_params_dirs: &[PathBuf],
     backend: Backend,
 ) -> Result<ParseOutcome> {
@@ -80,6 +80,12 @@ fn parse_key_results(
                     continue;
                 }
             };
+
+        // The wasm CSV mixes timings and sizes, so trust the id when it parses.
+        let point_type = row
+            .test_name
+            .parse::<MeasuredId>()
+            .map_or(default_point_type, |measured| measured.spec.metric());
 
         points.push(Point {
             value: Number::from(row.value),

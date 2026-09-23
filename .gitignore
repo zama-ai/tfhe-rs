@@ -37,6 +37,8 @@ web-test-runner/
 node_modules/
 package-lock.json
 utils/wasm-par-mq/examples/*/pkg/
+utils/benchmark-spec-js/pkg/
+tfhe/web_wasm_parallel_tests/spec_pkg/
 
 # Python .env
 .env

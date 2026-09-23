@@ -110,7 +110,7 @@ pub fn build_tables(
             format::erc7984::table(measured, args.backend),
         )],
         // One table per compute load, all ciphertext.
-        (Layer::Integer, BenchSubset::Zk) => format::zk::tables(measured)
+        (Layer::Integer, BenchSubset::Zk) => format::zk::tables(measured, args.backend)
             .into_iter()
             .map(|(suffix, table)| (format!("-ciphertext{suffix}"), table))
             .collect(),

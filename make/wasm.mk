@@ -33,6 +33,11 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack install_
 	find pkg/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
 	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
 
+.PHONY: build_benchmark_spec_js # Build the benchmark id builders used by the web bench harness
+build_benchmark_spec_js: install_wasm_pack
+	cd utils/benchmark-spec-js && \
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=web
+
 .PHONY: build_node_js_api # Build the js API targeting nodejs
 build_node_js_api: install_wasm_pack
 	cd tfhe && \
