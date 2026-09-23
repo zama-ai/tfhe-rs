@@ -12,10 +12,14 @@ use std::hint::black_box;
 use tfhe::core_crypto::prelude::*;
 
 // TODO Refactor KS, PBS and KS-PBS benchmarks into a single generic function.
-fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
+fn ks_pbs<
+    Scalar: UnsignedTorus + CastInto<usize> + Serialize + tfhe::core_crypto::prelude::CastFrom<u32>,
+>(
     c: &mut Criterion,
     parameters: &[(String, BenchPbsParams<Scalar>)],
-) {
+) where
+    u32: tfhe::core_crypto::prelude::CastFrom<Scalar>,
+{
     let cc_bench = CoreCryptoBench::KsPbs;
     let bench_type = get_bench_type();
     let mut bench_group = c.benchmark_group(cc_bench.to_string());
@@ -49,8 +53,8 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             &input_lwe_secret_key,
             params.ks_base_log,
             params.ks_level,
-            params.lwe_noise_distribution,
-            params.ciphertext_modulus,
+            DynamicDistribution::new_t_uniform(13),
+            CiphertextModulus::<u32>::new_native(),
             &mut encryption_generator,
         );
 
@@ -88,10 +92,10 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                         &mut encryption_generator,
                     );
 
-                let mut output_ks_ct: LweCiphertextOwned<Scalar> = LweCiphertext::new(
-                    Scalar::ZERO,
+                let mut output_ks_ct: LweCiphertextOwned<u32> = LweCiphertext::new(
+                    0,
                     input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                    params.ciphertext_modulus,
+                    CiphertextModulus::<u32>::new_native(),
                 );
 
                 let accumulator = GlweCiphertext::new(
@@ -125,7 +129,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
-                            keyswitch_lwe_ciphertext(
+                            keyswitch_lwe_ciphertext_with_scalar_change(
                                 &ksk_big_to_small,
                                 &input_ks_ct,
                                 &mut output_ks_ct,
@@ -144,137 +148,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 }
             }
             BenchmarkType::Throughput => {
-                let fft = Fft::new(fourier_bsk.polynomial_size());
-                let mut setup = |batch_size: usize| {
-                    let input_ks_cts = (0..batch_size)
-                        .map(|_| {
-                            allocate_and_encrypt_new_lwe_ciphertext(
-                                &output_lwe_secret_key,
-                                Plaintext(Scalar::ONE),
-                                params.lwe_noise_distribution,
-                                params.ciphertext_modulus,
-                                &mut encryption_generator,
-                            )
-                        })
-                        .collect::<Vec<LweCiphertextOwned<Scalar>>>();
-
-                    let output_ks_cts = (0..batch_size)
-                        .map(|_| {
-                            LweCiphertext::new(
-                                Scalar::ZERO,
-                                input_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                                params.ciphertext_modulus,
-                            )
-                        })
-                        .collect::<Vec<LweCiphertextOwned<Scalar>>>();
-
-                    let accumulators = (0..batch_size)
-                        .map(|_| {
-                            GlweCiphertext::new(
-                                Scalar::ZERO,
-                                params.glwe_dimension.to_glwe_size(),
-                                params.polynomial_size,
-                                params.ciphertext_modulus,
-                            )
-                        })
-                        .collect::<Vec<_>>();
-
-                    // Allocate the LweCiphertext to store the result of the PBS
-                    let output_pbs_cts = (0..batch_size)
-                        .map(|_| {
-                            LweCiphertext::new(
-                                Scalar::ZERO,
-                                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                                params.ciphertext_modulus,
-                            )
-                        })
-                        .collect::<Vec<_>>();
-
-                    let buffers = (0..batch_size)
-                        .map(|_| {
-                            let mut buffer = ComputationBuffers::new();
-
-                            buffer.resize(
-                                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<
-                                    Scalar,
-                                >(
-                                    fourier_bsk.glwe_size(),
-                                    fourier_bsk.polynomial_size(),
-                                    fft.as_view(),
-                                )
-                                .unaligned_bytes_required(),
-                            );
-
-                            buffer
-                        })
-                        .collect::<Vec<_>>();
-
-                    (
-                        input_ks_cts,
-                        output_ks_cts,
-                        output_pbs_cts,
-                        accumulators,
-                        buffers,
-                    )
-                };
-                type Res<Scalar> = (
-                    Vec<LweCiphertext<Vec<Scalar>>>,  // input_ks_cts
-                    Vec<LweCiphertext<Vec<Scalar>>>,  // output_ks_cts
-                    Vec<LweCiphertext<Vec<Scalar>>>,  // output_pbs_cts
-                    Vec<GlweCiphertext<Vec<Scalar>>>, // accumulators
-                    Vec<ComputationBuffers>,          // buffers
-                );
-                let run = |inputs: &mut Res<Scalar>| {
-                    inputs
-                        .0
-                        .par_iter()
-                        .zip(inputs.1.par_iter_mut())
-                        .zip(inputs.2.par_iter_mut())
-                        .zip(inputs.3.par_iter())
-                        .zip(inputs.4.par_iter_mut())
-                        .for_each(
-                            |(
-                                (((input_ks_ct, output_ks_ct), output_pbs_ct), accumulator),
-                                buffer,
-                            )| {
-                                keyswitch_lwe_ciphertext(
-                                    &ksk_big_to_small,
-                                    input_ks_ct,
-                                    output_ks_ct,
-                                );
-                                programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                                    output_ks_ct,
-                                    output_pbs_ct,
-                                    &accumulator.as_view(),
-                                    &fourier_bsk,
-                                    fft.as_view(),
-                                    buffer.stack(),
-                                );
-                            },
-                        )
-                };
-                let elements = {
-                    #[cfg(any(feature = "gpu", feature = "hpu"))]
-                    {
-                        use benchmark::utilities::throughput_num_threads;
-                        let blocks: usize = 1;
-                        throughput_num_threads(blocks, 1) // FIXME This number of element do not
-                                                          // staturate the target machine
-                    }
-                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
-                    {
-                        use benchmark::find_optimal_batch::find_optimal_batch;
-                        find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
-                    }
-                };
-                bench_group.throughput(Throughput::Elements(elements));
-                bench_group.bench_function(&bench_id, |b| {
-                    b.iter_batched(
-                        || setup(elements as usize),
-                        |mut inputs| run(&mut inputs),
-                        criterion::BatchSize::SmallInput,
-                    )
-                });
+                panic!("no ks32")
             }
         }
 

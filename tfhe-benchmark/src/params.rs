@@ -255,33 +255,54 @@ pub mod shortint_params {
         use super::*;
         use crate::crypto_record::{BenchPackingKsParams, BenchPbsParams};
         use crate::utilities::{get_param_type, ParamType};
+        use tfhe::shortint::parameters::ks32::KeySwitch32PBSParameters;
+        use tfhe::shortint::parameters::v1_8::ks32::tuniform::p_fail_2_minus_128::ks_pbs::V1_8_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
         pub fn core_benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
-            match get_parameters_set() {
-                ParametersSet::Default => {
-                    let iterator = match get_param_type() {
-                        ParamType::ClassicalDocumentation => {
-                            SHORTINT_BENCH_PARAMS_TUNIFORM_DOCUMENTATION
-                                .iter()
-                                .chain([].iter())
-                        }
-                        _ => SHORTINT_BENCH_PARAMS_TUNIFORM
-                            .iter()
-                            .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter()),
-                    };
-                    iterator
-                        .map(|(params, name)| (name.to_string(), (*params).into()))
-                        .collect()
-                }
-                ParametersSet::All => filter_parameters(
-                    &BENCH_ALL_CLASSIC_PBS_PARAMETERS,
-                    DesiredNoiseDistribution::Both,
-                    DesiredBackend::Cpu,
+            [(
+                V1_8_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+                "V1_8_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128",
+            )]
+            .into_iter()
+            .map(|(params, name)| {
+                let KeySwitch32PBSParameters {
+                    lwe_dimension,
+                    glwe_dimension,
+                    polynomial_size,
+                    lwe_noise_distribution,
+                    glwe_noise_distribution,
+                    pbs_base_log,
+                    pbs_level,
+                    ks_base_log,
+                    ks_level,
+                    message_modulus,
+                    carry_modulus,
+                    max_noise_level,
+                    log2_p_fail,
+                    post_keyswitch_ciphertext_modulus,
+                    ciphertext_modulus,
+                    modulus_switch_noise_reduction_params,
+                } = params;
+
+                (
+                    name.to_string(),
+                    BenchPbsParams {
+                        lwe_dimension,
+                        glwe_dimension,
+                        polynomial_size,
+                        lwe_noise_distribution: lwe_noise_distribution.to_u64_distribution(),
+                        glwe_noise_distribution,
+                        pbs_base_log,
+                        pbs_level,
+                        ks_base_log,
+                        ks_level,
+                        ciphertext_modulus,
+                        message_modulus: Some(message_modulus.0),
+                        carry_modulus: Some(carry_modulus.0),
+                    },
                 )
-                .into_iter()
-                .map(|(params, name)| (name.to_string(), (*params).into()))
-                .collect(),
-            }
+            })
+            .collect()
         }
 
         pub fn core_benchmark_compression_parameters() -> Vec<(String, BenchPackingKsParams<u64>)> {
@@ -630,7 +651,7 @@ mod integer_params {
                 #[cfg(feature = "gpu")]
                 let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
                 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
-                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS.into()];
+                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {
