@@ -1991,7 +1991,7 @@ clippy_bench: install_rs_check_toolchain
 .PHONY: clippy_bench_gpu # Run clippy lints on tfhe-benchmark
 clippy_bench_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=gpu,shortint,integer,internal-keycache,pbs-stats,zk-pok \
+		--features=gpu,boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
 
 .PHONY: clippy_bench_hpu # Run clippy lints on tfhe-benchmark
