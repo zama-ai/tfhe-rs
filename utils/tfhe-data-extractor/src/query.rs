@@ -131,7 +131,7 @@ impl Selection {
                 vec![format!(
                     "{}::{}::{}%{}",
                     BenchPathKind::Tfhe,
-                    db::like_escape(&args.layer.layer_kind()?.to_string()),
+                    db::like_escape(&args.layer.layer_kind().to_string()),
                     args.bench_subset.path_segment(),
                     db::like_escape(&args.name_suffix),
                 )],

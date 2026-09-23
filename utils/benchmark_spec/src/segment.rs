@@ -51,6 +51,7 @@ mod tests {
         assert_eq!(Backend::Cpu.segment(), None);
         assert_eq!(Backend::Cuda.segment(), Some("cuda"));
         assert_eq!(Backend::Hpu.segment(), Some("hpu"));
+        assert_eq!(Backend::Wasm.segment(), Some("wasm"));
 
         assert_eq!(BenchmarkMetric::Latency.segment(), None);
         assert_eq!(BenchmarkMetric::Throughput.segment(), Some("throughput"));
@@ -83,7 +84,7 @@ mod tests {
             }
         }
 
-        check(&[Backend::Cpu, Backend::Cuda, Backend::Hpu]);
+        check(&[Backend::Cpu, Backend::Cuda, Backend::Hpu, Backend::Wasm]);
         check(&[
             BenchmarkMetric::Latency,
             BenchmarkMetric::Throughput,

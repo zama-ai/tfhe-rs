@@ -3,7 +3,7 @@ use crate::model::record::{
     BenchmarkParametersRecord, ExecutionType, IntegerRepresentation, KeySetType,
     PolynomialMultiplication,
 };
-use benchmark_spec::{BenchmarkSpec, OperandType};
+use benchmark_spec::{Backend, BenchmarkSpec, MeasuredId, OperandType};
 use std::fs;
 use std::path::PathBuf;
 
@@ -25,21 +25,24 @@ pub fn write_to_json(
     )
 }
 
-/// Writes benchmark parameters for a benchmark whose id was produced outside of
-/// Rust, so that no [`BenchmarkSpec`] can be built for it.
-///
-/// The only such benchmarks are the wasm ones: their names come from the
-/// JavaScript harness. Everything else must go through [`write_to_json`].
-pub fn write_to_json_external_name(
-    bench_id: &str,
+/// Writes benchmark parameters for a wasm result, filed under its stored name
+/// since the browser harness computes the statistic itself. Everything else
+/// must go through [`write_to_json`].
+pub fn write_to_json_measured(
+    measured: &MeasuredId,
     params_alias: impl Into<String>,
     display_name: impl Into<String>,
     operator_type: &OperatorType,
     bit_size: u64,
     decomposition_basis: Vec<u32>,
 ) {
+    assert_eq!(
+        measured.spec.backend(),
+        Backend::Wasm,
+        "{measured} is not a wasm result, use write_to_json"
+    );
     write_record(
-        bench_id,
+        &measured.to_string(),
         params_alias,
         display_name,
         operator_type,

@@ -400,8 +400,7 @@ def dump_benchmark_results(results, browser_kind):
     """
     if results:
         results = {
-            key.replace("mean", "_".join((browser_kind.name, "mean"))): val
-            for key, val in results.items()
+            "_".join((key, browser_kind.name)): val for key, val in results.items()
         }
         results_path = pathlib.Path("tfhe-benchmark/wasm_benchmark_results.json")
         existing_results = {}
