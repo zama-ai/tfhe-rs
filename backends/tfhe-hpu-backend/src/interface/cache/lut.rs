@@ -16,7 +16,7 @@ use std::sync::Arc;
 use thiserror::Error;
 
 use super::{Pool, PoolError, SlotId};
-use zhc::crypto::integer_semantics::lut::{LutId, RawLut};
+use zhc::crypto::integer_semantics::lut::{LutDecoder, LutId, RawLut};
 
 /// Keep track of uploaded LUT and associated properties
 pub struct LutCache {
@@ -207,7 +207,7 @@ impl LutMap {
     }
 
     /// Retrieve the LUT sitting in a given slot
-    pub fn get(&self, id: LutId) -> Option<&RawLut> {
+    pub fn get(&self, id: &LutId) -> Option<&RawLut> {
         // Entries are sorted by id (c.f. `LutCache::lut_map`)
         self.0
             .binary_search_by_key(&id.0, |(entry_id, _lut)| entry_id.0)
@@ -221,6 +221,13 @@ impl std::ops::Deref for LutMap {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl LutDecoder for LutMap {
+    fn decode_lut_id(&self, lid: &LutId) -> &RawLut {
+        self.get(lid)
+            .unwrap_or_else(|| panic!("Failed to get lid {lid}"))
     }
 }
 
