@@ -31,6 +31,20 @@ pub use variable::HpuVarWrapped;
 
 use crate::prelude::HpuParameters;
 
+/// Common error type reported by Hpu
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub(crate) enum HpuInternalError {
+    #[error("Couldn't sync uninitialized variable.")]
+    UnInitData,
+
+    #[error("Unallocated data. HpuVar must be dispatch before sync.")]
+    UnAllocData,
+
+    // Recoreverable errors
+    #[error("Couldn't sync yet. Operation is pending")]
+    OperationPending,
+}
+
 /// Common error type exposed to user
 #[derive(Error, Clone, Debug)]
 pub enum HpuError {
