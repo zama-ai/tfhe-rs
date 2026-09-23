@@ -13,7 +13,7 @@ dylint_linting::dylint_library!();
 #[allow(clippy::no_mangle_with_rust_abi)]
 #[unsafe(no_mangle)]
 pub fn register_lints(_sess: &rustc_session::Session, lint_store: &mut rustc_lint::LintStore) {
-    lint_store.register_late_pass(|_| {
+    lint_store.register_late_lint_pass(Box::new(|_| {
         Box::new(versions_dispatch_snapshot::VersionsDispatchSnapshot::default())
-    });
+    }));
 }

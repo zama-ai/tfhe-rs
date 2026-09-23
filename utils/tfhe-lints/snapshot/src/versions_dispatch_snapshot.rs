@@ -397,7 +397,7 @@ impl VersionsDispatchSnapshot {
 /// snapshot contains the expected behavior
 #[test]
 fn ui() {
-    dylint_testing::ui_test_example(env!("CARGO_PKG_NAME"), "versions_dispatch_snapshot");
+    dylint_testing::ui_test_example(env!("CARGO_CRATE_NAME"), "versions_dispatch_snapshot");
 
     let json_str = std::fs::read_to_string("lint_enum_snapshots_main.json")
         .expect("JSON snapshot should exist after lint run");
