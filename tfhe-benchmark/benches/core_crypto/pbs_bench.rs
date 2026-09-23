@@ -1214,7 +1214,7 @@ mod cuda {
                 &benchmark_spec,
                 "pbs",
                 &OperatorType::Atomic,
-                bit_size,
+                bit_size.into(),
                 vec![bit_size],
             );
         }
@@ -1470,7 +1470,7 @@ mod cuda {
                 &benchmark_spec,
                 "pbs",
                 &OperatorType::Atomic,
-                bit_size,
+                bit_size.into(),
                 vec![bit_size],
             );
         }

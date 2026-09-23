@@ -1986,6 +1986,17 @@ clippy_bench: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=experimental \
 		-p tfhe-benchmark -- --no-deps -D warnings
+	# Clippy with GPU and DOCS_RS=1 to only run rust code clippy
+	DOCS_RS=1 RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=gpu,boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok \
+		-p tfhe-benchmark -- --no-deps -D warnings
+	DOCS_RS=1 RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=gpu,shortint,internal-keycache \
+		-p tfhe-benchmark -- --no-deps -D warnings
+	@# For experimental core-crypto PBS
+	DOCS_RS=1 RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=gpu,experimental \
+		-p tfhe-benchmark -- --no-deps -D warnings
 
 
 .PHONY: clippy_bench_gpu # Run clippy lints on tfhe-benchmark
