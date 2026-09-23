@@ -526,6 +526,15 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         })
     }
 
+    /// Number of blocks described by the metadata of a list
+    fn block_count(&self, infos: &[DataKind]) -> crate::Result<usize> {
+        DataKind::total_block_count(infos, self.message_modulus).map_err(|()| {
+            crate::error!(
+                "Invalid compact ciphertext list: the block count of its metadata overflows"
+            )
+        })
+    }
+
     /// Generate functions to unpack message and carries and additionally sanitizes blocks
     ///
     /// * boolean blocks: make sure they encrypt a 0 or a 1
@@ -534,12 +543,15 @@ impl IntegerUnpackingToShortintCastingModeHelper {
     pub fn generate_unpack_and_sanitize_functions<'a>(
         &'a self,
         infos: &[DataKind],
+        expected_lwe_count: usize,
     ) -> crate::Result<CastingFunctionsOwned<'a>> {
-        let block_count: usize = infos
-            .iter()
-            .map(|x| x.num_blocks(self.message_modulus))
-            .sum();
-        let packed_block_count = block_count.div_ceil(2);
+        let packed_block_count = self.block_count(infos)?.div_ceil(2);
+        if packed_block_count != expected_lwe_count {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: its metadata describes {packed_block_count} \
+                 packed ciphertexts, got {expected_lwe_count}"
+            ));
+        }
         let mut functions: CastingFunctionsOwned<'a> =
             vec![Some(Vec::with_capacity(2)); packed_block_count];
         let mut overall_block_idx = 0;
@@ -608,11 +620,15 @@ impl IntegerUnpackingToShortintCastingModeHelper {
     pub fn generate_sanitize_without_unpacking_functions<'a>(
         &'a self,
         infos: &[DataKind],
+        expected_lwe_count: usize,
     ) -> crate::Result<CastingFunctionsOwned<'a>> {
-        let total_block_count: usize = infos
-            .iter()
-            .map(|x| x.num_blocks(self.message_modulus))
-            .sum();
+        let total_block_count = self.block_count(infos)?;
+        if total_block_count != expected_lwe_count {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: its metadata describes {total_block_count} \
+                 ciphertexts, got {expected_lwe_count}"
+            ));
+        }
         let mut functions = Vec::with_capacity(total_block_count);
 
         let mut push_functions = |block_count: usize, func: &'a (dyn Fn(u64) -> u64 + Sync)| {
@@ -670,9 +686,10 @@ fn expansion_post_process(
             let function_helper =
                 IntegerUnpackingToShortintCastingModeHelper::new(dest_sks.message_modulus);
             let functions = if is_packed {
-                function_helper.generate_unpack_and_sanitize_functions(info)?
+                function_helper.generate_unpack_and_sanitize_functions(info, expanded_list.len())?
             } else {
-                function_helper.generate_sanitize_without_unpacking_functions(info)?
+                function_helper
+                    .generate_sanitize_without_unpacking_functions(info, expanded_list.len())?
             };
 
             expanded_list
@@ -702,9 +719,9 @@ fn expansion_post_process(
             let helper = IntegerUnpackingToShortintCastingModeHelper::new(sks.message_modulus());
 
             let functions = if is_packed {
-                helper.generate_unpack_and_sanitize_functions(info)?
+                helper.generate_unpack_and_sanitize_functions(info, expanded_list.len())?
             } else {
-                helper.generate_sanitize_without_unpacking_functions(info)?
+                helper.generate_sanitize_without_unpacking_functions(info, expanded_list.len())?
             };
 
             expanded_list.apply_functions(&sks.key, &functions)
@@ -1238,6 +1255,29 @@ mod tests {
         TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     };
 
+    /// A compact list that has not been checked for conformance may claim to hold way more blocks
+    /// than it does. As the list is untrusted, this must be an error and not a panic.
+    #[test]
+    fn test_expand_list_with_more_blocks_in_metadata_than_ciphertexts() {
+        let (cks, sks) = gen_keys(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            IntegerKeyKind::Radix,
+        );
+        let pk = CompactPublicKey::new(&cks);
+
+        let mut builder = CompactCiphertextList::builder(&pk);
+        builder.push_with_num_blocks(0u8, 2);
+
+        let list = CompactCiphertextList {
+            ct_list: builder.build().ct_list,
+            info: vec![DataKind::Unsigned(NonZero::new(usize::MAX).unwrap())],
+        };
+
+        assert!(list
+            .expand(IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(&sks))
+            .is_err());
+    }
+
     /// A compact list may claim to contain strings while the server key parameters do not support
     /// them. As the list is untrusted, this must be an error and not a panic.
     #[test]
@@ -1253,20 +1293,22 @@ mod tests {
             },
         ];
 
+        // The string holds no block with these parameters, so the 2 blocks of the unsigned are
+        // the only ones described by the metadata
         let helper = IntegerUnpackingToShortintCastingModeHelper::new(params.message_modulus);
         assert!(helper
-            .generate_unpack_and_sanitize_functions(&infos)
+            .generate_unpack_and_sanitize_functions(&infos, 1)
             .is_err());
         assert!(helper
-            .generate_sanitize_without_unpacking_functions(&infos)
+            .generate_sanitize_without_unpacking_functions(&infos, 2)
             .is_err());
 
         // Without strings, the same parameters work
         assert!(helper
-            .generate_unpack_and_sanitize_functions(&infos[..1])
+            .generate_unpack_and_sanitize_functions(&infos[..1], 1)
             .is_ok());
         assert!(helper
-            .generate_sanitize_without_unpacking_functions(&infos[..1])
+            .generate_sanitize_without_unpacking_functions(&infos[..1], 2)
             .is_ok());
 
         let cks = ClientKey::new(params);
@@ -1278,7 +1320,7 @@ mod tests {
         let blocks = builder.build().ct_list.expand_raw();
 
         let functions = helper
-            .generate_sanitize_without_unpacking_functions(&infos[..1])
+            .generate_sanitize_without_unpacking_functions(&infos[..1], blocks.len())
             .unwrap();
         assert!(blocks.apply_functions(&sks.key, &functions).is_ok());
 
