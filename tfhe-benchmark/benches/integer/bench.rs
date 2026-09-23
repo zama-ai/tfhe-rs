@@ -2818,7 +2818,7 @@ mod hpu {
 
                                     let clear = rng
                                         .gen_range(0..u128::cast_from(max_value_for_bit_size))
-                                        & if bw < u128::BITS {
+                                        & if bw < u128::BITS.try_into().unwrap() {
                                             (1_u128 << bw) - 1
                                         } else {
                                             !0_u128
@@ -2899,7 +2899,7 @@ mod hpu {
 
                                         let clear = rng
                                             .gen_range(0..u128::cast_from(max_value_for_bit_size))
-                                            & if bw < u128::BITS {
+                                            & if bw < u128::BITS.try_into().unwrap() {
                                                 (1_u128 << bw) - 1
                                             } else {
                                                 !0_u128
