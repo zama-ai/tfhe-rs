@@ -59,7 +59,7 @@ pub fn span_lint(
 pub fn get_def_id_from_ty(ty: Ty<'_>) -> Option<DefId> {
     match ty.kind() {
         TyKind::Adt(adt_def, _) => Some(adt_def.did()),
-        TyKind::Alias(alias_ty) => Some(match alias_ty.kind {
+        TyKind::Alias(_, alias_ty) => Some(match alias_ty.kind {
             AliasTyKind::Projection { def_id }
             | AliasTyKind::Inherent { def_id }
             | AliasTyKind::Opaque { def_id }

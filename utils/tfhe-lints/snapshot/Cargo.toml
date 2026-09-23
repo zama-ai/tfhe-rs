@@ -18,7 +18,7 @@ serde_json = "1"
 sha2 = "0.10"
 
 [dev-dependencies]
-dylint_testing = "6.0.4"
+dylint_testing = "6.1.0"
 serde = { version = "1.0", features = ["derive"] }
 tfhe-versionable = { path = "../../tfhe-versionable" }
 

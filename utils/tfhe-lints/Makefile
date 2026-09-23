@@ -34,7 +34,7 @@ TFHE_LINTS_TOOLCHAIN := $(shell sed -n 's/^channel = "\(.*\)"$$/\1/p' utils/tfhe
 
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
 install_cargo_dylint: install_tfhe_lints_toolchain
-	cargo +$(TFHE_LINTS_TOOLCHAIN) install --locked cargo-dylint dylint-link --version 6.0.4
+	cargo +$(TFHE_LINTS_TOOLCHAIN) install --locked cargo-dylint dylint-link --version 6.1.0
 
 .PHONY: install_tfhe_lints_toolchain # Install the nightly toolchain required by tfhe-lints (from utils/tfhe-lints/rust-toolchain)
 install_tfhe_lints_toolchain:

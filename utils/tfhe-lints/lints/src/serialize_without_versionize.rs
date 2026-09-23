@@ -138,5 +138,5 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
 
 #[test]
 fn ui() {
-    dylint_testing::ui_test_example(env!("CARGO_PKG_NAME"), "serialize_without_versionize");
+    dylint_testing::ui_test_example(env!("CARGO_CRATE_NAME"), "serialize_without_versionize");
 }

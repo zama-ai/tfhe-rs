@@ -273,5 +273,5 @@ fn dispatch_variant_inner_type_name<'tcx>(
 
 #[test]
 fn ui() {
-    dylint_testing::ui_test_example(env!("CARGO_PKG_NAME"), "invalid_versionize_dispatch");
+    dylint_testing::ui_test_example(env!("CARGO_CRATE_NAME"), "invalid_versionize_dispatch");
 }

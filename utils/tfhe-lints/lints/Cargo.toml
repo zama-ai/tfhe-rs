@@ -15,7 +15,7 @@ dylint_linting = { workspace = true }
 tfhe-lints-common = { path = "../common" }
 
 [dev-dependencies]
-dylint_testing = "6.0.4"
+dylint_testing = "6.1.0"
 serde = { version = "1.0", features = ["derive"] }
 tfhe-versionable = { path = "../../tfhe-versionable" }
 
