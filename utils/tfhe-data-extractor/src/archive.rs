@@ -161,11 +161,8 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
 
 /// The rows no catalogue entry can express, with the id they would come from.
 ///
-/// Only the browser proof, and not for want of a migrated emitter: the wasm ids
-/// carry no crate segment at all, so they have no path in the spec, and
-/// [`Layer::Wasm`](crate::cli::Layer::Wasm) says as much. There is no `BenchPath` to
-/// write down, which is the whole difference with an entry that merely comes
-/// back empty.
+/// Only the browser proof: it shares its path with `zkpok_server` and an
+/// [`ArchiveOp`] elects on paths alone, so it needs a backend filter first.
 pub struct PendingOp {
     /// The `op` column it would fill.
     pub label: &'static str,
@@ -175,7 +172,7 @@ pub struct PendingOp {
 
 pub const PENDING_OPS: &[PendingOp] = &[PendingOp {
     label: "zkpok_browser",
-    stored_id: "wasm::compact_fhe_uint_proven_encryption_*_chrome",
+    stored_id: "tfhe::integer::zk::proof::wasm::*_mean_chrome",
 }];
 
 /// Every row the published page carries, whether this tool can fill it or not.

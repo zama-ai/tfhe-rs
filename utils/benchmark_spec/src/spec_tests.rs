@@ -457,7 +457,7 @@ fn trailing_segments_round_trip_in_every_combination() {
         })),
     ];
 
-    for backend in [Backend::Cpu, Backend::Cuda, Backend::Hpu] {
+    for backend in [Backend::Cpu, Backend::Cuda, Backend::Hpu, Backend::Wasm] {
         for metric in [
             BenchmarkMetric::Latency,
             BenchmarkMetric::Throughput,

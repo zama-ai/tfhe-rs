@@ -142,6 +142,8 @@ fn rows(backend: Backend, operand: OperandType) -> &'static [(&'static str, Inte
         (Backend::Cuda, OperandType::PlainText) => GPU_SCALAR_ROWS,
         (Backend::Hpu, OperandType::CipherText) => HPU_CIPHERTEXT_ROWS,
         (Backend::Hpu, OperandType::PlainText) => HPU_SCALAR_ROWS,
+        // No integer operation is benchmarked in a browser.
+        (Backend::Wasm, _) => &[],
     }
 }
 

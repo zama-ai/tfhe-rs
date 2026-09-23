@@ -19,22 +19,20 @@ pub enum Layer {
     Shortint,
     #[value(name = "core_crypto")]
     CoreCrypto,
-    Wasm,
 }
 
 impl Layer {
     /// Maps the CLI layer onto the spec's own layer token, so the id prefix used in
     /// the SQL `LIKE` pattern always follows the spec grammar.
-    pub fn layer_kind(&self) -> anyhow::Result<TfheLayerKind> {
-        Ok(match self {
+    ///
+    /// Browser benchmarks have no layer of their own, use `--backend wasm`.
+    pub fn layer_kind(&self) -> TfheLayerKind {
+        match self {
             Layer::HlApi => TfheLayerKind::Hlapi,
             Layer::Integer => TfheLayerKind::Integer,
             Layer::Shortint => TfheLayerKind::Shortint,
             Layer::CoreCrypto => TfheLayerKind::CoreCrypto,
-            // Wasm benches never migrated to the spec grammar: their ids carry no
-            // crate prefix, so there is nothing the parser could match.
-            Layer::Wasm => anyhow::bail!("the `wasm` layer is not part of the benchmark spec"),
-        })
+        }
     }
 }
 

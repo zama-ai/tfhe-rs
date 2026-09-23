@@ -4,7 +4,9 @@
 //! side of the proof carries the work, and a proof-heavy run is not comparable
 //! with a verify-heavy one, so the two never share a grid.
 
-use benchmark_spec::{BenchPath, ComputeLoad, IntegerBench, TfheLayer, TypeTag, ZkPkeBench};
+use benchmark_spec::{
+    Backend, BenchPath, ComputeLoad, IntegerBench, TfheLayer, TypeTag, ZkPkeBench,
+};
 
 use super::{Cells, GridSpec, Measured, Table, build_grid, readable_value};
 
@@ -19,6 +21,16 @@ const COLUMNS: &[(&str, ZkPkeBench)] = &[
     ("Verifying", ZkPkeBench::Verify),
     ("Verify + expand", ZkPkeBench::VerifyAndExpand),
 ];
+
+/// A browser only proves, verification happens server side.
+const BROWSER_COLUMNS: &[(&str, ZkPkeBench)] = &[("Proving", ZkPkeBench::Proof)];
+
+fn columns(backend: Backend) -> &'static [(&'static str, ZkPkeBench)] {
+    match backend {
+        Backend::Wasm => BROWSER_COLUMNS,
+        Backend::Cpu | Backend::Cuda | Backend::Hpu => COLUMNS,
+    }
+}
 
 /// Rows in publication order: how many bits the proven list packs, labelled as
 /// the `FheUint64` count that represents.
@@ -49,7 +61,9 @@ fn suffix(load: ComputeLoad) -> &'static str {
 }
 
 /// Builds one table per compute load, suffixed with the trade-off it describes.
-pub fn tables(measured: &[Measured]) -> Vec<(String, Table)> {
+pub fn tables(measured: &[Measured], backend: Backend) -> Vec<(String, Table)> {
+    let columns = columns(backend);
+
     LOADS
         .iter()
         .map(|load| {
@@ -77,7 +91,7 @@ pub fn tables(measured: &[Measured]) -> Vec<(String, Table)> {
                 // operations, so they have to be turned away by name. Letting
                 // them in would cost nothing at lookup, which never asks for
                 // them, but they would contest cells and be reported for it.
-                if !COLUMNS.iter().any(|(_, column)| *column == op) {
+                if !columns.iter().any(|(_, column)| *column == op) {
                     continue;
                 }
 
@@ -95,7 +109,7 @@ pub fn tables(measured: &[Measured]) -> Vec<(String, Table)> {
                         .iter()
                         .map(|(label, bits)| (label.to_string(), *bits))
                         .collect(),
-                    columns: COLUMNS
+                    columns: columns
                         .iter()
                         .map(|(name, key)| (name.to_string(), *key))
                         .collect(),
@@ -169,7 +183,7 @@ mod tests {
             ),
         ];
 
-        let tables = tables(&rows);
+        let tables = tables(&rows, Backend::Cpu);
         assert_eq!(tables.len(), 2);
 
         let (proof_suffix, proof) = &tables[0];
@@ -195,5 +209,49 @@ mod tests {
         assert_eq!(proof.grid.rows.len(), 3);
         assert_eq!(verify.grid.rows.len(), 3);
         assert!(proof.conflicts.is_empty());
+    }
+
+    #[test]
+    fn the_browser_table_publishes_proving_alone() {
+        const PARAM: &str = "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128";
+
+        let rows = vec![
+            measured(
+                &format!(
+                    "tfhe::integer::zk::proof::wasm::{PARAM}\
+                     ::64_bits_packed::2048_bits_crs::compute_load_proof::zk_v2_mean_chrome"
+                ),
+                8_710_000.0,
+            ),
+            measured(
+                &format!(
+                    "tfhe::integer::zk::proof::wasm::{PARAM}\
+                     ::256_bits_packed::2048_bits_crs::compute_load_verify::zk_v2_mean_chrome"
+                ),
+                5_430_000.0,
+            ),
+            // Same tag as the proof, must be dropped by the column set.
+            measured(
+                &format!(
+                    "tfhe::integer::zk::proven_list::wasm::key_size::{PARAM}\
+                     ::64_bits_packed::2048_bits_crs::compute_load_proof::zk_v2_mean_chrome"
+                ),
+                32_768.0,
+            ),
+        ];
+
+        let tables = tables(&rows, Backend::Wasm);
+        assert_eq!(tables.len(), 2);
+
+        let (proof_suffix, proof) = &tables[0];
+        assert_eq!(proof_suffix, "-slow_proof_and_fast_verify");
+        assert_eq!(proof.grid.columns, vec!["Proving".to_string()]);
+        assert_eq!(proof.grid.rows[0].cells, vec![Some("8.71 ms".to_string())]);
+
+        let (_, verify) = &tables[1];
+        assert_eq!(verify.grid.rows[1].cells, vec![Some("5.43 ms".to_string())]);
+
+        assert!(proof.conflicts.is_empty());
+        assert!(verify.conflicts.is_empty());
     }
 }
