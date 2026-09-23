@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "hpu", allow(dead_code, unused_imports))]
+
 #[cfg(not(feature = "hpu"))]
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
@@ -69,7 +71,7 @@ fn bench_sns_only_fhe_type<FheType>(
     #[cfg(feature = "gpu")]
     set_server_key(compressed_sks.decompress_to_gpu());
 
-    #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+    #[cfg(not(feature = "gpu"))]
     {
         let decompressed_sks = compressed_sks.decompress();
         rayon::broadcast(|_| set_server_key(decompressed_sks.clone()));
@@ -118,7 +120,7 @@ fn bench_sns_only_fhe_type<FheType>(
 
                     throughput_num_threads(num_blocks, 4)
                 }
-                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                #[cfg(not(feature = "gpu"))]
                 {
                     use benchmark::find_optimal_batch::find_optimal_batch;
 
@@ -177,7 +179,7 @@ fn bench_sns_only_fhe_type<FheType>(
                 });
             }
 
-            #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+            #[cfg(not(feature = "gpu"))]
             {
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
@@ -239,7 +241,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     #[cfg(feature = "gpu")]
     set_server_key(compressed_sks.decompress_to_gpu());
 
-    #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+    #[cfg(not(feature = "gpu"))]
     {
         let decompressed_sks = compressed_sks.decompress();
         rayon::broadcast(|_| set_server_key(decompressed_sks.clone()));
@@ -296,7 +298,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
 
                     throughput_num_threads(num_blocks, 4)
                 }
-                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                #[cfg(not(feature = "gpu"))]
                 {
                     use benchmark::find_optimal_batch::find_optimal_batch;
 
@@ -372,7 +374,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                 });
             }
 
-            #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+            #[cfg(not(feature = "gpu"))]
             {
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(bench_id.as_str(), |b| {
@@ -452,11 +454,14 @@ bench_sns_only_type!(FheUint128);
 
 bench_decomp_sns_comp_type!(FheUint64);
 
+#[cfg(feature = "hpu")]
+fn main() {
+    panic!("Noise squashing is not supported on HPU");
+}
+
+#[cfg(not(feature = "hpu"))]
 fn main() {
     let env_config = EnvConfig::new();
-
-    #[cfg(feature = "hpu")]
-    panic!("Noise squashing is not supported on HPU");
 
     let params: Vec<(
         PBSParameters,
@@ -464,7 +469,7 @@ fn main() {
         NoiseSquashingCompressionParameters,
         CompressionParameters,
     )> = {
-        #[cfg(all(not(feature = "hpu"), not(feature = "gpu")))]
+        #[cfg(not(feature = "gpu"))]
         {
             vec![(
                 BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
