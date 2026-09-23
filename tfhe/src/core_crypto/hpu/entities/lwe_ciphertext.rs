@@ -46,13 +46,28 @@ impl<Scalar: UnsignedInteger> From<HpuLweCiphertextView<'_, Scalar>>
             CiphertextModulus::try_new_power_of_2(pbs_p.ciphertext_width).unwrap(),
         );
 
-        // FPGA outputs natural order, a flat walk over the mask is sufficient.
-        let mut mask = cpu_lwe.get_mut_mask();
-
-        for (i, dst) in mask.as_mut().iter_mut().enumerate() {
-            *dst = modswitch::lsb2msb(params, hpu_lwe[i]);
-        }
+        // FPGA outputs natural order, we start by simply copying the body (last coef)
         *cpu_lwe.get_mut_body().data = modswitch::lsb2msb(params, hpu_lwe[lwe_len - 1]);
+
+        // For performance, we iterate depending on pem_pc and chunk size.
+        let pem_pc = params.pc_params.pem_pc;
+        let chunk_size = params.regf_params.coef_nb / pem_pc;
+        let shift = Scalar::BITS - params.ntt_params.ct_width as usize;
+        let pc_data = hpu_lwe.into_container(); // raw pc buffer
+
+        // orders data from each PC chunks so that we avoid sorting element per element
+        cpu_lwe
+            .get_mut_mask()
+            .as_mut()
+            .chunks_mut(chunk_size)
+            .enumerate()
+            .for_each(|(k, run)| {
+                let offset = (k / pem_pc) * chunk_size;
+                let src = &pc_data[k % pem_pc][offset..offset + run.len()];
+                for (dst, &coef) in run.iter_mut().zip(src) {
+                    *dst = coef << shift;
+                }
+            });
 
         cpu_lwe
     }
