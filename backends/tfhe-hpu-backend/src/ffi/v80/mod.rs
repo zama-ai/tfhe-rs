@@ -12,7 +12,7 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, Write};
 use std::process::{Command, Stdio};
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 mod ami;
 use ami::AmiDriver;
@@ -36,7 +36,7 @@ fn update_pcie_perms() {
 
 pub struct HpuHw {
     pub(super) ami: AmiDriver,
-    pub(super) qdma: Arc<Mutex<QdmaDriver>>,
+    pub(super) qdma: Arc<QdmaDriver>,
     allocator: Option<MemAlloc>,
 }
 
@@ -419,53 +419,25 @@ impl HpuHw {
         }
 
         // Create user queues ----------------------------------------------
-        let h2c_path = format!("/dev/qdma{dev}001-MM-1");
-        let c2h_path = format!("/dev/qdma{dev}001-MM-2");
-
-        if !std::path::Path::new(&h2c_path).exists() {
-            Command::new("dma-ctl")
-                .arg(format!("qdma{dev}001"))
-                .arg("q")
-                .arg("add")
-                .arg("idx")
-                .arg("1")
-                .arg("dir")
-                .arg("h2c")
-                .status()
-                .expect("Unable to create Qdma queue1");
-            Command::new("dma-ctl")
-                .arg(format!("qdma{dev}001"))
-                .arg("q")
-                .arg("start")
-                .arg("idx")
-                .arg("1")
-                .arg("dir")
-                .arg("h2c")
-                .status()
-                .expect("Unable to start Qdma queue1");
-        }
-
-        if !std::path::Path::new(&c2h_path).exists() {
-            Command::new("dma-ctl")
-                .arg(format!("qdma{dev}001"))
-                .arg("q")
-                .arg("add")
-                .arg("idx")
-                .arg("2")
-                .arg("dir")
-                .arg("c2h")
-                .status()
-                .expect("Unable to create Qdma queue2");
-            Command::new("dma-ctl")
-                .arg(format!("qdma{dev}001"))
-                .arg("q")
-                .arg("start")
-                .arg("idx")
-                .arg("2")
-                .arg("dir")
-                .arg("c2h")
-                .status()
-                .expect("Unable to start Qdma queue2");
+        for lane in 0..qdma::QDMA_LANES {
+            let (h2c_idx, c2h_idx) = qdma::lane_idx(lane);
+            for (idx, dir) in [(h2c_idx, "h2c"), (c2h_idx, "c2h")] {
+                if std::path::Path::new(&qdma::queue_path(dev, idx)).exists() {
+                    continue;
+                }
+                for action in ["add", "start"] {
+                    Command::new("dma-ctl")
+                        .arg(format!("qdma{dev}001"))
+                        .arg("q")
+                        .arg(action)
+                        .arg("idx")
+                        .arg(idx.to_string())
+                        .arg("dir")
+                        .arg(dir)
+                        .status()
+                        .unwrap_or_else(|_| panic!("Unable to {action} Qdma queue{idx} {dir}"));
+                }
+            }
         }
     }
 
@@ -480,17 +452,13 @@ impl HpuHw {
         let hpu_pdi = HpuV80Pdi::from_bincode(hpu_path)
             .unwrap_or_else(|err| panic!("Invalid \'.hpu\' {hpu_path:?}: {err}"));
 
-        // Construct qdma path
-        let h2c_path = format!("/dev/qdma{pcie_id}001-MM-1");
-        let c2h_path = format!("/dev/qdma{pcie_id}001-MM-2");
-
         // Open current Hw
         let ami = AmiDriver::new(pcie_id, &hpu_pdi.metadata.amc.his_version, Some(ami_retry))?;
-        let qdma = QdmaDriver::new(&h2c_path, &c2h_path)?;
+        let qdma = QdmaDriver::new(pcie_id)?;
 
         Ok(Self {
             ami,
-            qdma: Arc::new(Mutex::new(qdma)),
+            qdma: Arc::new(qdma),
             allocator: None,
         })
     }
@@ -508,13 +476,11 @@ impl HpuHw {
     }
 
     pub fn read_abs_bytes(&self, addr: u64, bytes: &mut [u8]) {
-        let qdma = self.qdma.lock().unwrap();
-        qdma.read_bytes(addr as usize, bytes)
+        self.qdma.read_bytes(addr as usize, bytes)
     }
 
     pub fn write_abs_bytes(&mut self, addr: u64, bytes: &[u8]) {
-        let qdma = self.qdma.lock().unwrap();
-        qdma.write_bytes(addr as usize, bytes)
+        self.qdma.write_bytes(addr as usize, bytes)
     }
 
     /// Handle on-board memory allocation
@@ -543,7 +509,7 @@ pub struct MemZone {
     chunks: Vec<MemChunk>,
 
     // Ref to Qdma driver
-    qdma: Arc<Mutex<QdmaDriver>>,
+    qdma: Arc<QdmaDriver>,
 }
 
 impl MemZone {
@@ -551,7 +517,7 @@ impl MemZone {
         kind: ffi::MemKind,
         addr: u64,
         chunks: Vec<MemChunk>,
-        qdma: Arc<Mutex<QdmaDriver>>,
+        qdma: Arc<QdmaDriver>,
     ) -> Self {
         Self {
             kind,
@@ -562,8 +528,7 @@ impl MemZone {
     }
 
     pub fn read_bytes(&self, ofst: usize, bytes: &mut [u8]) {
-        let qdma = self.qdma.lock().unwrap();
-        qdma.read_bytes(ofst + self.addr as usize, bytes)
+        self.qdma.read_bytes(ofst + self.addr as usize, bytes)
     }
 
     pub fn paddr(&self) -> u64 {
@@ -575,8 +540,7 @@ impl MemZone {
     }
 
     pub fn write_bytes(&mut self, ofst: usize, bytes: &[u8]) {
-        let qdma = self.qdma.lock().unwrap();
-        qdma.write_bytes(ofst + self.addr as usize, bytes)
+        self.qdma.write_bytes(ofst + self.addr as usize, bytes)
     }
 }
 
