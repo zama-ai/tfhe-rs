@@ -323,7 +323,7 @@ pub mod shortint_params {
                     };
                     filter_parameters(
                         &CORE_BENCH_ALL_MULTI_BIT_PBS_PARAMETERS,
-                        DesiredNoiseDistribution::Both,
+                        DesiredNoiseDistribution::TUniform,
                         desired_backend,
                     )
                     .into_iter()

@@ -315,6 +315,7 @@ fn multi_bit_ks_pbs<
     let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
     for (name, params, grouping_factor) in parameters.iter() {
+        println!("NAME: {name}");
         // Create the LweSecretKey
         let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             params.lwe_dimension,
