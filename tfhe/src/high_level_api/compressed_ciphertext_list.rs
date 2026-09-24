@@ -630,7 +630,7 @@ impl CiphertextList for CompressedCiphertextList {
                         .ok_or_else(|| {
                             crate::Error::new("Compression key not set in server key".to_owned())
                         })
-                        .map(|decompression_key| {
+                        .and_then(|decompression_key| {
                             ct_list.get_decompression_size_on_gpu(index, decompression_key, streams)
                         }),
                     InnerCompressedCiphertextList::Cuda(cuda_ct_list) => cuda_key
@@ -640,7 +640,7 @@ impl CiphertextList for CompressedCiphertextList {
                         .ok_or_else(|| {
                             crate::Error::new("Compression key not set in server key".to_owned())
                         })
-                        .map(|decompression_key| {
+                        .and_then(|decompression_key| {
                             cuda_ct_list.get_decompression_size_on_gpu(
                                 index,
                                 decompression_key,

@@ -11,6 +11,7 @@ use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::num::NonZero;
+use std::ops::Range;
 use tfhe_versionable::Versionize;
 
 pub trait Compressible {
@@ -94,7 +95,7 @@ impl CompressedCiphertextListBuilder {
             return self;
         };
 
-        let num_blocks = kind.num_blocks(modulus);
+        let num_blocks = kind.num_blocks(modulus).unwrap();
 
         // Check that the number of blocks that were added matches the
         // number of blocks advertised by the DataKind
@@ -142,30 +143,40 @@ impl CompressedCiphertextList {
         self.len() == 0
     }
 
+    /// Kind and range of the ciphertexts of the item at `index`, or None if `index` is out of
+    /// bounds
+    fn block_range(&self, index: usize) -> crate::Result<Option<(DataKind, Range<usize>)>> {
+        let Some((kind, range)) =
+            DataKind::locate(&self.info, index, self.packed_list.message_modulus())?
+        else {
+            return Ok(None);
+        };
+
+        if range.end > self.packed_list.len() {
+            return Err(crate::error!(
+                "Invalid list: its metadata describes more than the {} ciphertexts it holds",
+                self.packed_list.len()
+            ));
+        }
+
+        Ok(Some((kind, range)))
+    }
+
     fn blocks_of(
         &self,
         index: usize,
         decomp_key: &DecompressionKey,
-    ) -> Option<(Vec<Ciphertext>, DataKind)> {
-        let preceding_infos = self.info.get(..index)?;
-        let current_info = self.info.get(index).copied()?;
-        let message_modulus = self.packed_list.message_modulus()?;
+    ) -> crate::Result<Option<(Vec<Ciphertext>, DataKind)>> {
+        let Some((current_info, block_range)) = self.block_range(index)? else {
+            return Ok(None);
+        };
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
+        let blocks = block_range
+            .into_par_iter()
+            .map(|i| decomp_key.key.unpack(&self.packed_list, i))
+            .collect::<crate::Result<Vec<_>>>()?;
 
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus);
-
-        Some((
-            (start_block_index..end_block_index)
-                .into_par_iter()
-                .map(|i| decomp_key.key.unpack(&self.packed_list, i).unwrap())
-                .collect(),
-            current_info,
-        ))
+        Ok(Some((blocks, current_info)))
     }
 
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
@@ -176,7 +187,7 @@ impl CompressedCiphertextList {
     where
         T: Expandable,
     {
-        self.blocks_of(index, decomp_key)
+        self.blocks_of(index, decomp_key)?
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
             .transpose()
     }
@@ -186,7 +197,7 @@ impl CompressedCiphertextList {
         index: usize,
         decomp_key: &CudaDecompressionKey,
         streams: &CudaStreams,
-    ) -> Option<u64> {
+    ) -> crate::Result<Option<u64>> {
         self.get_blocks_of_size_on_gpu(index, decomp_key, streams)
     }
     #[cfg(feature = "gpu")]
@@ -195,25 +206,20 @@ impl CompressedCiphertextList {
         index: usize,
         decomp_key: &CudaDecompressionKey,
         streams: &CudaStreams,
-    ) -> Option<u64> {
-        let preceding_infos = self.info.get(..index)?;
-        let current_info = self.info.get(index).copied()?;
-        let message_modulus = self.packed_list.message_modulus()?;
+    ) -> crate::Result<Option<u64>> {
+        let Some((_, block_range)) = self.block_range(index)? else {
+            return Ok(None);
+        };
+        if block_range.is_empty() {
+            return Ok(Some(0));
+        }
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
-
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
-
-        Some(decomp_key.get_cpu_list_unpack_size_on_gpu(
+        Ok(Some(decomp_key.get_cpu_list_unpack_size_on_gpu(
             &self.packed_list,
-            start_block_index,
-            end_block_index,
+            block_range.start,
+            block_range.end - 1,
             streams,
-        ))
+        )))
     }
 }
 

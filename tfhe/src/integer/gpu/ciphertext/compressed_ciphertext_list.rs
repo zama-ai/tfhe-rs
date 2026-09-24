@@ -21,6 +21,7 @@ use crate::shortint::PBSOrder;
 use itertools::Itertools;
 use serde::{Deserializer, Serializer};
 use std::num::NonZeroUsize;
+use std::ops::Range;
 
 pub trait CudaExpandable: Sized {
     fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self>;
@@ -92,37 +93,49 @@ impl CudaCompressedCiphertextList {
         self.info.get(index).copied()
     }
 
-    #[allow(clippy::unnecessary_wraps)]
+    /// Kind and range of the ciphertexts of the item at `index`, or None if `index` is out of
+    /// bounds
+    fn block_range(&self, index: usize) -> crate::Result<Option<(DataKind, Range<usize>)>> {
+        let Some((kind, range)) =
+            DataKind::locate(&self.info, index, self.packed_list.message_modulus())?
+        else {
+            return Ok(None);
+        };
+
+        if range.end > self.packed_list.bodies_count() {
+            return Err(crate::error!(
+                "Invalid list: its metadata describes more than the {} ciphertexts it holds",
+                self.packed_list.bodies_count()
+            ));
+        }
+
+        Ok(Some((kind, range)))
+    }
+
     fn blocks_of(
         &self,
         index: usize,
         decomp_key: &CudaDecompressionKey,
         streams: &CudaStreams,
-    ) -> Option<(CudaRadixCiphertext, DataKind)> {
-        let preceding_infos = self.info.get(..index)?;
-        let current_info = self.info.get(index).copied()?;
-        let message_modulus = self.packed_list.message_modulus()?;
+    ) -> crate::Result<Option<(CudaRadixCiphertext, DataKind)>> {
+        let Some((current_info, block_range)) = self.block_range(index)? else {
+            return Ok(None);
+        };
+        if block_range.is_empty() {
+            return Err(crate::error!(
+                "Items stored without blocks are not supported on GPU"
+            ));
+        }
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
-
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
-
-        Some((
-            decomp_key
-                .unpack(
-                    &self.packed_list,
-                    current_info,
-                    start_block_index,
-                    end_block_index,
-                    streams,
-                )
-                .unwrap(),
+        let blocks = decomp_key.unpack(
+            &self.packed_list,
             current_info,
-        ))
+            block_range.start,
+            block_range.end - 1,
+            streams,
+        )?;
+
+        Ok(Some((blocks, current_info)))
     }
 
     fn get_blocks_of_size_on_gpu(
@@ -130,25 +143,20 @@ impl CudaCompressedCiphertextList {
         index: usize,
         decomp_key: &CudaDecompressionKey,
         streams: &CudaStreams,
-    ) -> Option<u64> {
-        let preceding_infos = self.info.get(..index)?;
-        let current_info = self.info.get(index).copied()?;
-        let message_modulus = self.packed_list.message_modulus()?;
+    ) -> crate::Result<Option<u64>> {
+        let Some((_, block_range)) = self.block_range(index)? else {
+            return Ok(None);
+        };
+        if block_range.is_empty() {
+            return Ok(Some(0));
+        }
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
-
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
-
-        Some(decomp_key.get_gpu_list_unpack_size_on_gpu(
+        Ok(Some(decomp_key.get_gpu_list_unpack_size_on_gpu(
             &self.packed_list,
-            start_block_index,
-            end_block_index,
+            block_range.start,
+            block_range.end - 1,
             streams,
-        ))
+        )))
     }
 
     pub fn get<T>(
@@ -160,7 +168,7 @@ impl CudaCompressedCiphertextList {
     where
         T: CudaExpandable,
     {
-        self.blocks_of(index, decomp_key, streams)
+        self.blocks_of(index, decomp_key, streams)?
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
             .transpose()
     }
@@ -170,7 +178,7 @@ impl CudaCompressedCiphertextList {
         index: usize,
         decomp_key: &CudaDecompressionKey,
         streams: &CudaStreams,
-    ) -> Option<u64> {
+    ) -> crate::Result<Option<u64>> {
         self.get_blocks_of_size_on_gpu(index, decomp_key, streams)
     }
 
