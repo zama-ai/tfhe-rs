@@ -8,6 +8,8 @@ target_p*/
 /keys/
 # In case of symlinked keys
 /keys
+# This one is created by the dedup-params utility
+tfhe/src/shortint/parameters/v*_orig/
 
 **/*.rmeta
 **/*.bin
