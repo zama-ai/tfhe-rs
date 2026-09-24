@@ -26,12 +26,27 @@ use lazy_static::lazy_static;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
+use std::os::fd::AsRawFd;
 use std::os::unix::fs::FileExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, PoisonError};
 
 const QDMA_VERSION_FILE: &str = "/sys/module/qdma_pf/version";
 const QDMA_VERSION_PATTERN: &str = r"2024\.1\.0\.\d+-zama";
 pub(crate) const QDMA_LANES: usize = 2;
+
+/// Linux AIO (uapi aio_abi.h)
+const AIO_MAX_REQS: usize = QDMA_LANES; //
+const IOCB_CMD_PREAD: u16 = 0; // using IOCB_CMD_PREAD
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct IoEvent {
+    data: u64, /* the data field from the iocb */
+    obj: u64,  /* what iocb this event came from */
+    res: i64,  /* result code for this event */
+    res2: i64, /* secondary result */
+}
 
 /// Queue indexes of a lane: (h2c, c2h). Index 0: PDI load
 pub(crate) fn lane_idx(lane: usize) -> (usize, usize) {
@@ -46,6 +61,18 @@ pub(crate) struct QdmaDriver {
     qdma_h2c: Vec<File>,
     qdma_c2h: Vec<File>,
     lane: AtomicUsize,
+    aio_context: Mutex<libc::c_ulong>,
+}
+
+impl Drop for QdmaDriver {
+    fn drop(&mut self) {
+        let aio_context = *self
+            .aio_context
+            .get_mut()
+            .unwrap_or_else(PoisonError::into_inner);
+        // SAFETY: aio_context comes from io_setup and is destroyed once
+        unsafe { libc::syscall(libc::SYS_io_destroy, aio_context) };
+    }
 }
 
 impl QdmaDriver {
@@ -79,10 +106,25 @@ impl QdmaDriver {
             );
         }
 
+        let mut aio_context: libc::c_ulong = 0;
+
+        // SAFETY: io_setup writes the new context id in aio_context
+        let ret = unsafe {
+            libc::syscall(
+                libc::SYS_io_setup,
+                AIO_MAX_REQS as libc::c_long,
+                &mut aio_context,
+            )
+        };
+        if ret != 0 {
+            return Err(format!("io_setup failed: {}", std::io::Error::last_os_error()).into());
+        }
+
         Ok(Self {
             qdma_h2c,
             qdma_c2h,
             lane: AtomicUsize::new(0),
+            aio_context: Mutex::new(aio_context),
         })
     }
 
@@ -142,5 +184,89 @@ impl QdmaDriver {
             .read_exact_at(bytes, addr as u64)
             .unwrap();
         tracing::trace!("QDMA red {} bytes from device [lane {lane}]", bytes.len());
+    }
+
+    /// Read all data at once with Linux AIO, one request per QDMA lane
+    pub fn read_batch(&self, reqs: &mut [(usize, &mut [u8])]) {
+        let aio_context = self
+            .aio_context
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let pc_number = reqs.len();
+
+        // this assert is guarding unsafe code, today impossible to reach
+        assert!(
+            pc_number <= AIO_MAX_REQS,
+            "read_batch: {pc_number} reqs > {AIO_MAX_REQS}"
+        );
+
+        // SAFETY: iocb is plain data, all zero is valid
+        let mut aio_requests: [libc::iocb; AIO_MAX_REQS] = unsafe { std::mem::zeroed() };
+        for (request, ((addr, bytes), file)) in aio_requests
+            .iter_mut()
+            .zip(reqs.iter_mut().zip(&self.qdma_c2h))
+        {
+            request.aio_lio_opcode = IOCB_CMD_PREAD;
+            request.aio_fildes = file.as_raw_fd() as u32;
+            request.aio_buf = bytes.as_mut_ptr() as u64;
+            request.aio_nbytes = bytes.len() as u64;
+            request.aio_offset = *addr as i64;
+        }
+        let mut aio_request_ptrs = aio_requests
+            .each_mut()
+            .map(|request| request as *mut libc::iocb);
+
+        // SAFETY: requests and buffers outlive the I/O, all completions are collected below
+        let submitted = unsafe {
+            libc::syscall(
+                libc::SYS_io_submit,
+                *aio_context,
+                pc_number as libc::c_long,
+                aio_request_ptrs.as_mut_ptr(),
+            )
+        };
+        assert_eq!(
+            submitted,
+            pc_number as libc::c_long,
+            "io_submit: {}",
+            std::io::Error::last_os_error()
+        );
+
+        let mut aio_events = [IoEvent::default(); AIO_MAX_REQS];
+        let mut done = 0;
+
+        while done < pc_number {
+            let pending = &mut aio_events[..pc_number - done];
+
+            // SAFETY: pending holds room for the events asked
+            let completed = unsafe {
+                libc::syscall(
+                    libc::SYS_io_getevents,
+                    *aio_context,
+                    pending.len() as libc::c_long,
+                    pending.len() as libc::c_long,
+                    pending.as_mut_ptr(),
+                    std::ptr::null::<libc::timespec>(),
+                )
+            };
+
+            if completed < 0 {
+                let err = std::io::Error::last_os_error();
+                assert!(
+                    err.kind() == std::io::ErrorKind::Interrupted,
+                    "io_getevents: {err}"
+                );
+                continue;
+            }
+            let failed = pending[..completed as usize]
+                .iter()
+                .find(|ev| ev.res < 1 || ev.res2 != 0);
+            assert!(
+                failed.is_none(),
+                "QDMA AIO read failed: {:?}",
+                failed.map(|ev| (ev.res, ev.res2))
+            );
+            done += completed as usize;
+        }
     }
 }

@@ -9,6 +9,33 @@ use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 
+/// Copy-back buffers, reused so their pages stay resident for the DMA
+static C2H_BUFS: Mutex<Vec<&'static mut [u64]>> = Mutex::new(Vec::new());
+
+/// Map `len` words on 2 MiB huge pages
+fn huge_buf(len: usize) -> &'static mut [u64] {
+    let size_b = (len * std::mem::size_of::<u64>()).div_ceil(1 << 21) << 21;
+    let flags = libc::MAP_PRIVATE
+        | libc::MAP_ANONYMOUS
+        | libc::MAP_HUGETLB
+        | libc::MAP_HUGE_2MB
+        | libc::MAP_POPULATE;
+    let prot = libc::PROT_READ | libc::PROT_WRITE;
+
+    // SAFETY: fresh anonymous mapping, never unmapped: valid until the process exits
+    let p = unsafe { libc::mmap(std::ptr::null_mut(), size_b, prot, flags, -1, 0) };
+    if p == libc::MAP_FAILED {
+        tracing::warn!("No hugetlb page (vm.nr_hugepages?): copy-back on 4 KiB pages");
+        return vec![0u64; len].leak();
+    }
+    unsafe { std::slice::from_raw_parts_mut(p as *mut u64, size_b / std::mem::size_of::<u64>()) }
+}
+
+/// Map the copy-back buffers at device open, out of the copy-back time
+pub(crate) fn init_c2h_bufs(n_pc: usize, len: usize) {
+    C2H_BUFS.lock().unwrap().resize_with(n_pc, || huge_buf(len));
+}
+
 pub(crate) struct HpuVar {
     bundle: memory::CiphertextBundle,
     pending: usize,
@@ -169,15 +196,25 @@ impl HpuVarWrapped {
         // One DMA transfer per PC, all slots
         let n_slots = inner.bundle.iter().len();
         let first = inner.bundle.iter().next().expect("Empty bundle");
-        let bufs = first
+        let strides = first
             .mz
-            .par_iter()
-            .map(|mz| {
-                let mut buf = vec![0u64; mz.size() / std::mem::size_of::<u64>() * n_slots];
-                mz.read(0, &mut buf);
-                buf
+            .iter()
+            .map(|mz| mz.size() / std::mem::size_of::<u64>())
+            .collect::<Vec<_>>();
+
+        let mut bufs = C2H_BUFS.lock().unwrap();
+        bufs.resize_with(strides.len(), || &mut []);
+        let mut reads = std::iter::zip(first.mz.iter(), bufs.iter_mut())
+            .zip(&strides)
+            .map(|((mz, buf), stride)| {
+                if buf.len() < stride * n_slots {
+                    *buf = huge_buf(stride * n_slots);
+                }
+                (mz, &mut buf[..stride * n_slots])
             })
             .collect::<Vec<_>>();
+
+        crate::ffi::MemZone::read_batch(&mut reads);
 
         let mut ct = Vec::new();
 
@@ -190,10 +227,9 @@ impl HpuVarWrapped {
 
             // Copy from bundle buffers
             #[allow(unused_variables)]
-            std::iter::zip(bufs.iter(), hw_slice.iter_mut())
+            std::iter::zip(bufs.iter().zip(&strides), hw_slice.iter_mut())
                 .enumerate()
-                .for_each(|(id, (buf, cut))| {
-                    let stride = buf.len() / n_slots;
+                .for_each(|(id, ((buf, stride), cut))| {
                     cut.copy_from_slice(&buf[s * stride..][..cut.len()]);
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(

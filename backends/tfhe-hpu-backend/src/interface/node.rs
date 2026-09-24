@@ -339,6 +339,9 @@ impl HpuNode {
         let (ct_mem, ct_base_addr) =
             memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_props);
 
+        // Copy-back buffers, one 2 MiB (x86) huge page per PC
+        super::variable::init_c2h_bufs(config.board.ct_pc.len(), (2 << 20) / 8);
+
         // load trace ptr from config (size does not matter so putting 256)
         let trace_props = memory::HugeMemoryProperties {
             mem_cut: vec![config.board.trace_pc],
