@@ -1233,19 +1233,19 @@ is not"
     }
 
     pub fn is_packed(&self) -> bool {
-        if self.is_empty() {
-            return false;
-        }
-
-        self.ct_list.proved_lists[0].0.is_packed()
+        // `is_empty` is about the `info` metadata, which a malformed list may have out of sync
+        // with `proved_lists`, so index the latter through `first` to stay panic free
+        self.ct_list
+            .proved_lists
+            .first()
+            .is_some_and(|(list, _)| list.is_packed())
     }
 
     pub fn needs_casting(&self) -> bool {
-        if self.is_empty() {
-            return false;
-        }
-
-        self.ct_list.proved_lists[0].0.needs_casting()
+        self.ct_list
+            .proved_lists
+            .first()
+            .is_some_and(|(list, _)| list.needs_casting())
     }
 
     pub fn proof_size(&self) -> usize {
