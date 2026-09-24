@@ -259,7 +259,10 @@ where
         boolean: vec![],
         imm: vec![],
     };
-    let mut res_handle = FheHpu::iop_exec(&hpu_asm::IOP_ERC_7984, src);
+    let mut res_handle = FheHpu::iop_exec(
+        hpu_asm::FwMode::Static,
+        hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Erc7984),
+        src);
     // Iop erc_7984 return new_from, new_to
     let new_to = res_handle.native.pop().unwrap();
     let new_from = res_handle.native.pop().unwrap();
@@ -285,7 +288,10 @@ where
         boolean: vec![],
         imm: vec![],
     };
-    let res_handle = FheHpu::iop_exec(&hpu_asm::IOP_ERC_7984_SIMD, src);
+    let res_handle = FheHpu::iop_exec(
+        hpu_asm::FwMode::Static,
+        hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Erc7984Simd),
+        src);
     // Iop erc_7984 return new_from, new_to
     let res = res_handle.native;
     res
@@ -406,8 +412,7 @@ fn bench_transfer_latency_simd<FheType, F>(
     FheType: FheWait,
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType>,
 {
-    use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::IOP_ERC_7984_SIMD.format().unwrap().proto.src.len() / 3;
+    let hpu_simd_n = 12;
 
     let params = client_key.computation_parameters();
     let params_name = params.name();
@@ -417,7 +422,7 @@ fn bench_transfer_latency_simd<FheType, F>(
         HlapiBench::Erc7984(erc7984_bench_spec),
         &params_name,
         OperandType::CipherText,
-        Some(type_name),
+        Some(tag),
         BenchmarkMetric::Latency,
         None,
     );
@@ -691,8 +696,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     FheType: FheWait,
     F: for<'a> Fn(&'a Vec<FheType>, &'a Vec<FheType>, &'a Vec<FheType>) -> Vec<FheType> + Sync,
 {
-    use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
-    let hpu_simd_n = hpu_asm::IOP_ERC_7984_SIMD.format().unwrap().proto.src.len() / 3;
+    let hpu_simd_n = 12;
     let mut rng = thread_rng();
 
     let params = client_key.computation_parameters();
@@ -1003,7 +1007,10 @@ fn main() {
             "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
         );
         let hpu_device =
-            HpuDevice::from_config(&config_path.expand(), false /* force_reload */)
+            HpuDevice::from_config(
+                &config_path.expand(),
+                false, /* force_reload */
+                &tfhe::core_crypto::hpu::create_hpu_lookuptable)
                 .expect("Error with HpuDevice");
 
         let config = Config::from_hpu_device(&hpu_device);
