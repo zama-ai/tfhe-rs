@@ -542,6 +542,19 @@ impl MemZone {
     pub fn write_bytes(&mut self, ofst: usize, bytes: &[u8]) {
         self.qdma.write_bytes(ofst + self.addr as usize, bytes)
     }
+
+    /// Read each zone from its base, all reads in flight at once
+    pub fn read_batch(reqs: &mut [(&MemZone, &mut [u8])]) {
+        let Some((first, _)) = reqs.first() else {
+            return;
+        };
+        let qdma = first.qdma.clone();
+        let mut reqs = reqs
+            .iter_mut()
+            .map(|(mz, bytes)| (mz.addr as usize, &mut **bytes))
+            .collect::<Vec<_>>();
+        qdma.read_batch(&mut reqs);
+    }
 }
 
 /// Utility function to extract board device_id and serial_number from env
