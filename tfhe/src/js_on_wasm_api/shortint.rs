@@ -16,6 +16,7 @@ use crate::shortint::parameters::v1_5::*;
 use crate::shortint::parameters::v1_6::*;
 use crate::shortint::parameters::v1_7::*;
 use crate::shortint::parameters::v1_8::*;
+use crate::shortint::parameters::v1_9::*;
 use crate::shortint::parameters::*;
 use std::panic::set_hook;
 use wasm_bindgen::prelude::*;
@@ -355,6 +356,14 @@ expose_predefined_pke_parameters!(
         V1_8_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
         V1_8_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1
     ),
+    (
+        V1_9_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_9_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    ),
+    (
+        V1_9_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_9_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1
+    ),
 );
 
 #[wasm_bindgen]
@@ -569,7 +578,7 @@ expose_predefined_pbs_parameters!(
     PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS_GAUSSIAN_2
     ],
     [
-    (V1_7, M128), (V1_8, M128) @
+    (V1_7, M128), (V1_8, M128), (V1_9, M128) @
     PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2,
     PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2,

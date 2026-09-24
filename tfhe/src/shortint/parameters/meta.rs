@@ -588,12 +588,13 @@ impl ReRandomizationChoice {
     }
 }
 
-const KNOWN_PARAMETERS: [(Version, &[(&MetaParameters, &str)]); 5] = [
+const KNOWN_PARAMETERS: [(Version, &[(&MetaParameters, &str)]); 6] = [
     (Version(1, 4), &super::v1_4::VEC_ALL_META_PARAMETERS),
     (Version(1, 5), &super::v1_5::VEC_ALL_META_PARAMETERS),
     (Version(1, 6), &super::v1_6::VEC_ALL_META_PARAMETERS),
     (Version(1, 7), &super::v1_7::VEC_ALL_META_PARAMETERS),
     (Version(1, 8), &super::v1_8::VEC_ALL_META_PARAMETERS),
+    (Version(1, 9), &super::v1_9::VEC_ALL_META_PARAMETERS),
 ];
 
 /// Struct that allows to search for known parameters of TFHE-RS given some
