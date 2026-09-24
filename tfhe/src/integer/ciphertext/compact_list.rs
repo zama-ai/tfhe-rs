@@ -109,7 +109,7 @@ impl CompactCiphertextListBuilder {
             Some(kind) => {
                 let msg_modulus = self.pk.key.message_modulus();
                 self.info.push(kind);
-                kind.num_blocks(msg_modulus)
+                kind.num_blocks(msg_modulus).map_err(|_| ())?
             }
             None => 0,
         };
@@ -350,12 +350,8 @@ impl CompactCiphertextListExpander {
         let current_info = self.info.get(index).copied()?;
         let msg_mod = self.expanded_blocks.first()?.message_modulus;
 
-        let start_block_index = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(msg_mod))
-            .sum();
-        let end_block_index = start_block_index + current_info.num_blocks(msg_mod);
+        let start_block_index = DataKind::total_block_count(preceding_infos, msg_mod).ok()?;
+        let end_block_index = start_block_index + current_info.num_blocks(msg_mod).ok()?;
 
         self.expanded_blocks
             .get(start_block_index..end_block_index)
@@ -526,11 +522,7 @@ impl IntegerUnpackingToShortintCastingModeHelper {
 
     /// Number of blocks described by the metadata of a list
     fn block_count(&self, infos: &[DataKind]) -> crate::Result<usize> {
-        DataKind::total_block_count(infos, self.message_modulus).map_err(|()| {
-            crate::error!(
-                "Invalid compact ciphertext list: the block count of its metadata overflows"
-            )
-        })
+        DataKind::total_block_count(infos, self.message_modulus)
     }
 
     /// Generate functions to unpack message and carries and additionally sanitizes blocks
@@ -573,7 +565,7 @@ impl IntegerUnpackingToShortintCastingModeHelper {
             };
 
         for data_kind in infos {
-            let block_count = data_kind.num_blocks(self.message_modulus);
+            let block_count = data_kind.num_blocks(self.message_modulus)?;
             match data_kind {
                 DataKind::Boolean => {
                     push_functions(
@@ -636,7 +628,7 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         };
 
         for data_kind in infos {
-            let block_count = data_kind.num_blocks(self.message_modulus);
+            let block_count = data_kind.num_blocks(self.message_modulus)?;
             match data_kind {
                 DataKind::Boolean => {
                     push_functions(block_count, self.msg_extract_bool.as_ref());
@@ -739,12 +731,8 @@ impl CompactCiphertextList {
     ) -> Self {
         let sself = Self { ct_list, info };
         let expected_lwe_count: usize = {
-            let unpacked_expected_lwe_count: usize = sself
-                .info
-                .iter()
-                .copied()
-                .map(|kind| kind.num_blocks(sself.message_modulus()))
-                .sum();
+            let unpacked_expected_lwe_count =
+                DataKind::total_block_count(&sself.info, sself.message_modulus()).unwrap();
             if sself.is_packed() {
                 unpacked_expected_lwe_count.div_ceil(2)
             } else {
@@ -809,17 +797,8 @@ impl CompactCiphertextList {
     /// assert_eq!(u8::MAX, decrypted);
     /// ```
     pub fn reinterpret_data(&mut self, info: &[DataKind]) -> Result<(), crate::Error> {
-        let current_lwe_count: usize = self
-            .info
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(self.message_modulus()))
-            .sum();
-        let new_lwe_count: usize = info
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(self.message_modulus()))
-            .sum();
+        let current_lwe_count = DataKind::total_block_count(&self.info, self.message_modulus())?;
+        let new_lwe_count = DataKind::total_block_count(info, self.message_modulus())?;
 
         if current_lwe_count != new_lwe_count {
             return Err(crate::Error::new(
@@ -916,7 +895,7 @@ impl CompactCiphertextList {
     /// Computes the expected number of blocks based on the `info` metadata.
     ///
     /// Returns an error if the sum overflows
-    fn expected_num_block(&self) -> Result<usize, ()> {
+    fn expected_num_block(&self) -> crate::Result<usize> {
         DataKind::total_block_count(&self.info, self.message_modulus())
     }
 }
@@ -1088,7 +1067,7 @@ impl ProvenCompactCiphertextList {
     /// Computes the expected number of blocks based on the `info` metadata.
     ///
     /// Returns an error if the sum overflows
-    fn expected_num_block(&self) -> Result<usize, ()> {
+    fn expected_num_block(&self) -> crate::Result<usize> {
         DataKind::total_block_count(&self.info, self.message_modulus())
     }
 }
@@ -1302,7 +1281,10 @@ mod tests {
             .is_ok());
 
         // Craft a fake list with an empty string and check that it does not make expand panic
-        let list = CompactCiphertextList::from_raw_parts(builder.build().ct_list, infos.to_vec());
+        let list = CompactCiphertextList {
+            ct_list: builder.build().ct_list,
+            info: infos.to_vec(),
+        };
         assert!(list
             .expand(IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(&sks))
             .is_err());
@@ -1945,7 +1927,8 @@ mod zk_pok_tests {
                 infos_block_count += proven_ct
                     .get_kind_of(idx)
                     .unwrap()
-                    .num_blocks(pke_params.message_modulus);
+                    .num_blocks(pke_params.message_modulus)
+                    .unwrap();
             }
 
             infos_block_count
@@ -1971,10 +1954,7 @@ mod zk_pok_tests {
         }
 
         assert_eq!(
-            new_infos
-                .iter()
-                .map(|x| x.num_blocks(pke_params.message_modulus))
-                .sum::<usize>(),
+            DataKind::total_block_count(&new_infos, pke_params.message_modulus).unwrap(),
             infos_block_count
         );
 

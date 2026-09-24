@@ -27,6 +27,17 @@ pub struct CudaCompactCiphertextListInfo {
     pub data_kind: DataKind,
 }
 
+impl CudaCompactCiphertextListInfo {
+    pub(crate) fn total_block_count(info: &[Self]) -> crate::Result<usize> {
+        info.iter().try_fold(0usize, |acc, x| {
+            acc.checked_add(x.data_kind.num_blocks(x.info.message_modulus)?)
+                .ok_or_else(|| {
+                    crate::error!("Overflow while trying to compute total num blocks for list")
+                })
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct CudaCompactCiphertextListExpander {
     pub(crate) expanded_blocks: CudaLweCiphertextList<u64>,
@@ -76,13 +87,10 @@ impl CudaCompactCiphertextListExpander {
         let current_info = self.blocks_info.get(index)?;
         let message_modulus = self.blocks_info.get(index)?.info.message_modulus;
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .clone()
-            .map(|ct_info| ct_info.data_kind.num_blocks(message_modulus))
-            .sum();
+        let start_block_index =
+            CudaCompactCiphertextListInfo::total_block_count(preceding_infos).ok()?;
 
-        let block_count = current_info.data_kind.num_blocks(message_modulus);
+        let block_count = current_info.data_kind.num_blocks(message_modulus).ok()?;
         let end_block_index = start_block_index + block_count;
 
         if block_count == 0 {
@@ -116,13 +124,10 @@ impl CudaCompactCiphertextListExpander {
         let current_info = self.blocks_info.get(index)?;
         let message_modulus = self.blocks_info.get(index)?.info.message_modulus;
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .clone()
-            .map(|ct_info| ct_info.data_kind.num_blocks(message_modulus))
-            .sum();
+        let start_block_index =
+            CudaCompactCiphertextListInfo::total_block_count(preceding_infos).ok()?;
 
-        let block_count = current_info.data_kind.num_blocks(message_modulus);
+        let block_count = current_info.data_kind.num_blocks(message_modulus).ok()?;
         let end_block_index = start_block_index + block_count;
 
         Some(
@@ -210,7 +215,7 @@ impl CudaFlattenedVecCompactCiphertextList {
         vec_compact_list: Vec<crate::shortint::ciphertext::CompactCiphertextList>,
         data_info: Vec<DataKind>,
         streams: &CudaStreams,
-    ) -> Self {
+    ) -> crate::Result<Self> {
         let first = vec_compact_list.first().unwrap();
 
         // We assume all ciphertexts will have the same lwe dimension
@@ -242,10 +247,7 @@ impl CudaFlattenedVecCompactCiphertextList {
             })
             .sum();
 
-        let total_blocks: usize = data_info
-            .iter()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
+        let total_blocks = DataKind::total_block_count(&data_info, message_modulus)?;
 
         // Calculate the actual output size after unpacking
         let log_message_modulus = message_modulus.0.ilog2() as usize;
@@ -299,7 +301,7 @@ impl CudaFlattenedVecCompactCiphertextList {
         };
         streams.synchronize();
 
-        Self {
+        Ok(Self {
             d_flattened_vec: d_flattened_d_vec,
             lwe_dimension,
             lwe_ciphertext_count: total_num_blocks,
@@ -311,13 +313,13 @@ impl CudaFlattenedVecCompactCiphertextList {
             num_lwe_per_compact_list,
             data_info,
             is_boolean,
-        }
+        })
     }
 
     pub(crate) fn from_integer_compact_ciphertext_list(
         compact_list: &crate::integer::ciphertext::CompactCiphertextList,
         streams: &CudaStreams,
-    ) -> Self {
+    ) -> crate::Result<Self> {
         let single_element_vec = vec![compact_list.ct_list.clone()];
         Self::from_vec_shortint_compact_ciphertext_list(
             single_element_vec,
@@ -563,8 +565,7 @@ impl<'de> serde::Deserialize<'de> for CudaFlattenedVecCompactCiphertextList {
             crate::integer::ciphertext::CompactCiphertextList::deserialize(deserializer)?;
         let streams = CudaStreams::new_multi_gpu();
 
-        Ok(Self::from_integer_compact_ciphertext_list(
-            &cpu_list, &streams,
-        ))
+        Self::from_integer_compact_ciphertext_list(&cpu_list, &streams)
+            .map_err(<D::Error as serde::de::Error>::custom)
     }
 }
