@@ -202,12 +202,13 @@ impl InnerCompactCiphertextList {
                 }
             }),
             #[cfg(feature = "gpu")]
-            (Self::Cuda(cuda_ct), crate::Device::Cpu) => with_cuda_internal_keys(|keys| {
-                let streams = &keys.streams;
-                Some(Self::Cpu(
-                    cuda_ct.to_integer_compact_ciphertext_list(streams).unwrap(),
-                ))
-            }),
+            (Self::Cuda(cuda_ct), crate::Device::Cpu) => {
+                let cuda_ct = with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
+                    cuda_ct.to_integer_compact_ciphertext_list(streams)
+                })?;
+                Some(Self::Cpu(cuda_ct))
+            }
             #[cfg(feature = "gpu")]
             (Self::Cpu(cpu_ct), crate::Device::CudaGpu) => {
                 let cuda_ct = with_cuda_internal_keys(|keys| {
@@ -215,7 +216,7 @@ impl InnerCompactCiphertextList {
                     CudaFlattenedVecCompactCiphertextList::from_integer_compact_ciphertext_list(
                         cpu_ct, streams,
                     )
-                });
+                })?;
                 Some(Self::Cuda(cuda_ct))
             }
             #[cfg(feature = "hpu")]
@@ -348,7 +349,7 @@ impl CompactCiphertextList {
                 let gpu_inner =
                     CudaFlattenedVecCompactCiphertextList::from_integer_compact_ciphertext_list(
                         cpu_inner, streams,
-                    );
+                    )?;
 
                 let ksk = cuda_key.cpk_key_switching_key();
                 let expander =
@@ -550,7 +551,7 @@ pub(crate) mod zk {
                         CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                             cpu_ct, streams,
                         )
-                    });
+                    })?;
                     Some(Self::Cuda(cuda_ct))
                 }
                 #[cfg(feature = "hpu")]
@@ -785,7 +786,7 @@ pub(crate) mod zk {
                         InnerProvenCompactCiphertextList::Cpu(inner) => {
                             &CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                 inner, streams,
-                            )
+                            )?
                         }
                         InnerProvenCompactCiphertextList::Cuda(inner) => inner,
                     };

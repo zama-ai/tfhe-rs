@@ -376,7 +376,7 @@ mod gpu {
             let cuda_ns_ct = CudaSquashedNoiseRadixCiphertext {
                 packed_d_blocks: blocks,
                 info,
-                original_block_count: kind.num_blocks(message_modulus),
+                original_block_count: kind.num_blocks(message_modulus)?,
             };
             Ok(Self::new(
                 InnerSquashedNoiseRadixCiphertext::Cuda(cuda_ns_ct),
@@ -395,7 +395,7 @@ mod gpu {
             let cuda_ns_ct = CudaSquashedNoiseRadixCiphertext {
                 packed_d_blocks: blocks,
                 info,
-                original_block_count: kind.num_blocks(message_modulus),
+                original_block_count: kind.num_blocks(message_modulus)?,
             };
             let cuda_ns_signed_ct = CudaSquashedNoiseSignedRadixCiphertext {
                 ciphertext: cuda_ns_ct,

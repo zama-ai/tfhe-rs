@@ -103,13 +103,11 @@ impl CudaCompressedCiphertextList {
         let current_info = self.info.get(index).copied()?;
         let message_modulus = self.packed_list.message_modulus()?;
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
+        let start_block_index =
+            DataKind::total_block_count(preceding_infos, message_modulus).ok()?;
 
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
+        let end_block_index =
+            start_block_index + current_info.num_blocks(message_modulus).ok()? - 1;
 
         Some((
             decomp_key
@@ -135,13 +133,11 @@ impl CudaCompressedCiphertextList {
         let current_info = self.info.get(index).copied()?;
         let message_modulus = self.packed_list.message_modulus()?;
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
+        let start_block_index =
+            DataKind::total_block_count(preceding_infos, message_modulus).ok()?;
 
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
+        let end_block_index =
+            start_block_index + current_info.num_blocks(message_modulus).ok()? - 1;
 
         Some(decomp_key.get_gpu_list_unpack_size_on_gpu(
             &self.packed_list,

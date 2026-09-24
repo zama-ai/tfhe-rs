@@ -142,7 +142,8 @@ fn cpk_ks_any_ms_inner_helper_gpu(
                 vec![compact_list],
                 data_info,
                 &cuda_side_resources.streams,
-            );
+            )
+            .unwrap();
         let cuda_compact_list_expander = cuda_casting_compact_list
             .expand(
                 cuda_ksk,
@@ -629,7 +630,8 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
                     vec![no_casting_compact_list.clone()],
                     data_info,
                     &cuda_side_resources.streams,
-                );
+                )
+                .unwrap();
 
             //This is for the verification
             let cuda_casting_compact_list =
