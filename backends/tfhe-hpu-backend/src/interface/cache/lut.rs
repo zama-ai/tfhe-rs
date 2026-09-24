@@ -10,6 +10,8 @@ use crate::interface::io_dump;
 use crate::interface::memory;
 use crate::prelude::HpuGlweLookuptableOwned;
 use std::collections::HashMap;
+use std::io::Write;
+use std::path::Path;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -152,6 +154,73 @@ impl LutCache {
 
     pub fn get_stats(&self) -> usize {
         self.id_entries.len()
+    }
+
+    /// Snapshot the cached LUT in a serde friendly companion type.
+    /// Mainly useful for post-mortem analysis (c.f. [`LutMap`]).
+    pub fn lut_map(&self) -> LutMap {
+        let mut entries = self
+            .id_entries
+            .values()
+            .map(|entry| (entry.id, entry.lut.clone()))
+            .collect::<Vec<_>>();
+        // Sort to get a deterministic dump, `id_entries` iteration order isn't stable
+        entries.sort_by_key(|(id, _lut)| id.0);
+
+        LutMap(entries)
+    }
+}
+
+/// Serde companion type of [`LutCache`].
+///
+/// Holds the LUT uploaded on a node alongside the [`LutId`] -- i.e. the on-board slot -- they
+/// sit in, sorted by id. The id is carried explicitly so that a cache with holes in its slot
+/// space (`flush_by_*`) stays correctly described.
+///
+/// _NB_: This is a plain snapshot, it carries no reference to the cache it was taken from.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LutMap(Vec<(LutId, RawLut)>);
+
+impl LutMap {
+    /// Deserialize a map from a json file
+    ///
+    /// Counterpart of [`Self::write_to`] and of the dump issued on device release
+    /// (c.f. `FwConfig::dump_lut_map`).
+    pub fn read_from<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        serde_json::from_reader(std::io::BufReader::new(file)).map_err(std::io::Error::other)
+    }
+
+    /// Serialize the map in a json file
+    /// Missing parent directories are created along the way.
+    pub fn write_to<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
+        let path = path.as_ref();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let file = std::fs::File::create(path)?;
+        let mut writer = std::io::BufWriter::new(file);
+        serde_json::to_writer_pretty(&mut writer, self).map_err(std::io::Error::other)?;
+        // NB: BufWriter swallows flush errors on drop, do it explicitly to report them
+        writer.flush()
+    }
+
+    /// Retrieve the LUT sitting in a given slot
+    pub fn get(&self, id: LutId) -> Option<&RawLut> {
+        // Entries are sorted by id (c.f. `LutCache::lut_map`)
+        self.0
+            .binary_search_by_key(&id.0, |(entry_id, _lut)| entry_id.0)
+            .ok()
+            .map(|pos| &self.0[pos].1)
+    }
+}
+
+impl std::ops::Deref for LutMap {
+    type Target = [(LutId, RawLut)];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

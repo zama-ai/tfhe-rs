@@ -696,6 +696,11 @@ impl HpuNode {
 /// Handle Glwe Lut initialisation
 /// Lut and Fw are merged since
 impl HpuNode {
+    /// Snapshot the LUT currently uploaded on this node
+    pub(crate) fn lut_map(&self) -> cache::LutMap {
+        self.lut_cache.lut_map()
+    }
+
     #[tracing::instrument(level = "debug", skip(self), ret)]
     pub(crate) fn lut_init(&mut self) {
         let Self {
@@ -1120,10 +1125,8 @@ impl HpuNode {
         // Erase parameters args from current lut_gen
         // NB: lut_cache doesn't have access to hpu_parameters
         let curried_lut_gen = |raw_lut: &zhc::crypto::integer_semantics::lut::RawLut| {
-            let lut_u64 = raw_lut
-                .lut()
-                .iter()
-                .map(|v| v.raw_complete_bits() as u64)
+            let lut_u64 = (0..raw_lut.lut().len())
+                .map(|i| raw_lut.entry(i).raw_complete_bits() as u64)
                 .collect::<Vec<_>>();
             gen_lut(&params, &lut_u64)
         };
