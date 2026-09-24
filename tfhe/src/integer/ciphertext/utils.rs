@@ -20,17 +20,17 @@ pub enum DataKind {
 }
 
 impl DataKind {
-    pub fn num_blocks(self, message_modulus: MessageModulus) -> usize {
+    pub fn num_blocks(self, message_modulus: MessageModulus) -> crate::Result<usize> {
         match self {
-            Self::Unsigned(n) | Self::Signed(n) => n.get(),
-            Self::Boolean => 1,
+            Self::Unsigned(n) | Self::Signed(n) => Ok(n.get()),
+            Self::Boolean => Ok(1),
             Self::String { n_chars, .. } => {
-                let Ok(blocks_per_char) = message_modulus.num_blocks_per_ascii_char() else {
-                    return 0;
-                };
-                // Use saturating mul to avoid panic here, maybe on the long run this function
-                // should return a Result
-                (n_chars as usize).saturating_mul(blocks_per_char.get())
+                let blocks_per_char = message_modulus.num_blocks_per_ascii_char()?;
+                (n_chars as usize)
+                    .checked_mul(blocks_per_char.get())
+                    .ok_or_else(|| {
+                        crate::error!("Overflow while trying to compute num blocks for string")
+                    })
             }
         }
     }
@@ -38,16 +38,17 @@ impl DataKind {
     pub(crate) fn total_block_count(
         info: &[Self],
         message_modulus: MessageModulus,
-    ) -> Result<usize, ()> {
+    ) -> crate::Result<usize> {
         if message_modulus.0 == 0 {
-            return Err(());
+            return Err(crate::error!("Invalid message modulus in list: 0"));
         }
 
-        info.iter()
-            .try_fold(0usize, |acc, &x| {
-                acc.checked_add(x.num_blocks(message_modulus))
-            })
-            .ok_or(())
+        info.iter().try_fold(0usize, |acc, &x| {
+            acc.checked_add(x.num_blocks(message_modulus)?)
+                .ok_or_else(|| {
+                    crate::error!("Overflow while trying to compute total num blocks for list")
+                })
+        })
     }
 }
 
@@ -113,21 +114,20 @@ mod test {
         };
 
         // Unsupported parameters (possibly coming from untrusted data) must not panic
-        let num_blocks = kind.num_blocks(MessageModulus(0));
-        assert_eq!(num_blocks, 0);
+        assert!(kind.num_blocks(MessageModulus(0)).is_err());
 
-        let num_blocks = kind.num_blocks(MessageModulus(1));
-        assert_eq!(num_blocks, 0);
+        assert!(kind.num_blocks(MessageModulus(1)).is_err());
 
-        let num_blocks = kind.num_blocks(MessageModulus(8));
-        assert_eq!(num_blocks, 0);
+        assert!(kind.num_blocks(MessageModulus(8)).is_err());
 
         let kind = DataKind::String {
             n_chars: u32::MAX,
             padded: true,
         };
 
-        let num_blocks = kind.num_blocks(MessageModulus(2));
-        assert_eq!(num_blocks, (u32::MAX as usize).saturating_mul(8));
+        assert_eq!(
+            kind.num_blocks(MessageModulus(2)).unwrap(),
+            (u32::MAX as usize) * 8
+        );
     }
 }

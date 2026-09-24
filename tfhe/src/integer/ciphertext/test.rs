@@ -449,7 +449,8 @@ mod zk {
         let streams = CudaStreams::new_multi_gpu();
         let mut gpu_list = CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
             &proven_ct, &streams,
-        );
+        )
+        .unwrap();
         gpu_list.re_randomize(&pk, gpu_seed, &streams).unwrap();
 
         // Read ciphertext data back from GPU and reconstruct an integer proven list

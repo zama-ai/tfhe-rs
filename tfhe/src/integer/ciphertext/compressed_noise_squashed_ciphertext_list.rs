@@ -192,14 +192,12 @@ impl CompressedSquashedNoiseCiphertextList {
         let current_info = self.info.get(index).copied()?;
         let message_modulus = self.list.message_modulus().unwrap();
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(message_modulus).div_ceil(2))
-            .sum();
+        let start_block_index = preceding_infos.iter().try_fold(0usize, |acc, kind| {
+            acc.checked_add(kind.num_blocks(message_modulus).ok()?.div_ceil(2))
+        })?;
 
         let end_block_index =
-            start_block_index + current_info.num_blocks(message_modulus).div_ceil(2);
+            start_block_index + current_info.num_blocks(message_modulus).ok()?.div_ceil(2);
 
         Some((
             (start_block_index..end_block_index)
@@ -384,7 +382,8 @@ impl CompressedSquashedNoiseCiphertextListBuilder {
             return self;
         };
 
-        let num_blocks = kind.num_blocks(modulus).div_ceil(2); // Because blocks are packed when noise squashed
+        // div_ceil(2) because blocks are packed when noise squashed
+        let num_blocks = kind.num_blocks(modulus).unwrap().div_ceil(2);
 
         // Check that the number of blocks that were added matches the
         // number of blocks advertised by the DataKind
@@ -445,26 +444,31 @@ mod test {
         const NUM_BLOCKS: usize = 16;
 
         let clear_a = rng.gen_range(0..=i32::MAX);
-        let clear_b = rng.gen_range(i32::MIN..=-1);
-        let clear_c = rng.gen::<u32>();
-        let clear_d = rng.gen::<bool>();
+        let clear_b = rng.gen::<bool>();
+        let clear_c = rng.gen::<bool>();
+        let clear_d = rng.gen_range(i32::MIN..=-1);
+        let clear_e = rng.gen::<u32>();
 
         let ct_a = cks.encrypt_signed_radix(clear_a, NUM_BLOCKS);
-        let ct_b = cks.encrypt_signed_radix(clear_b, NUM_BLOCKS);
-        let ct_c = cks.encrypt_radix(clear_c, NUM_BLOCKS);
-        let ct_d = cks.encrypt_bool(clear_d);
+        let ct_b = cks.encrypt_bool(clear_b);
+        let ct_c = cks.encrypt_bool(clear_c);
+        let ct_d = cks.encrypt_signed_radix(clear_d, NUM_BLOCKS);
+        let ct_e = cks.encrypt_radix(clear_e, NUM_BLOCKS);
 
         let ns_ct_a = noise_squashing_key
             .squash_signed_radix_ciphertext_noise(&sks, &ct_a)
             .unwrap();
         let ns_ct_b = noise_squashing_key
-            .squash_signed_radix_ciphertext_noise(&sks, &ct_b)
+            .squash_boolean_block_noise(&sks, &ct_b)
             .unwrap();
         let ns_ct_c = noise_squashing_key
-            .squash_radix_ciphertext_noise(&sks, &ct_c)
+            .squash_boolean_block_noise(&sks, &ct_c)
             .unwrap();
         let ns_ct_d = noise_squashing_key
-            .squash_boolean_block_noise(&sks, &ct_d)
+            .squash_signed_radix_ciphertext_noise(&sks, &ct_d)
+            .unwrap();
+        let ns_ct_e = noise_squashing_key
+            .squash_radix_ciphertext_noise(&sks, &ct_e)
             .unwrap();
 
         let list = CompressedSquashedNoiseCiphertextList::builder()
@@ -472,23 +476,27 @@ mod test {
             .push(ns_ct_b)
             .push(ns_ct_c)
             .push(ns_ct_d)
+            .push(ns_ct_e)
             .build(&compression_key);
 
         let ns_ct_a: SquashedNoiseSignedRadixCiphertext = list.get(0).unwrap().unwrap();
-        let ns_ct_b: SquashedNoiseSignedRadixCiphertext = list.get(1).unwrap().unwrap();
-        let ns_ct_c: SquashedNoiseRadixCiphertext = list.get(2).unwrap().unwrap();
-        let ns_ct_d: SquashedNoiseBooleanBlock = list.get(3).unwrap().unwrap();
+        let ns_ct_b: SquashedNoiseBooleanBlock = list.get(1).unwrap().unwrap();
+        let ns_ct_c: SquashedNoiseBooleanBlock = list.get(2).unwrap().unwrap();
+        let ns_ct_d: SquashedNoiseSignedRadixCiphertext = list.get(3).unwrap().unwrap();
+        let ns_ct_e: SquashedNoiseRadixCiphertext = list.get(4).unwrap().unwrap();
 
         let decryption_key = noise_squashing_compression_private_key.private_key_view();
 
         let d_clear_a: i32 = decryption_key.decrypt_signed_radix(&ns_ct_a).unwrap();
-        let d_clear_b: i32 = decryption_key.decrypt_signed_radix(&ns_ct_b).unwrap();
-        let d_clear_c: u32 = decryption_key.decrypt_radix(&ns_ct_c).unwrap();
-        let d_clear_d = decryption_key.decrypt_bool(&ns_ct_d).unwrap();
+        let d_clear_b = decryption_key.decrypt_bool(&ns_ct_b).unwrap();
+        let d_clear_c = decryption_key.decrypt_bool(&ns_ct_c).unwrap();
+        let d_clear_d: i32 = decryption_key.decrypt_signed_radix(&ns_ct_d).unwrap();
+        let d_clear_e: u32 = decryption_key.decrypt_radix(&ns_ct_e).unwrap();
 
         assert_eq!(clear_a, d_clear_a);
         assert_eq!(clear_b, d_clear_b);
         assert_eq!(clear_c, d_clear_c);
         assert_eq!(clear_d, d_clear_d);
+        assert_eq!(clear_e, d_clear_e);
     }
 }
