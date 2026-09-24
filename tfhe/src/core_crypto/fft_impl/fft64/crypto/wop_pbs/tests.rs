@@ -481,6 +481,193 @@ fn assert_ggsw_encrypts_value(
 }
 
 #[test]
+fn test_circuit_bootstrapping() {
+    // Circuit bootstrap parameters from the optimizer (2 bits of message + 2 bits of carry)
+    let polynomial_size = PolynomialSize(2048);
+    let glwe_dimension = GlweDimension(1);
+    let small_lwe_dimension = LweDimension(879);
+
+    let level_count_cbs = DecompositionLevelCount(2);
+    let base_log_cbs = DecompositionBaseLog(9);
+
+    let level_bsk = DecompositionLevelCount(3);
+    let base_log_bsk = DecompositionBaseLog(12);
+
+    let level_pksk = DecompositionLevelCount(2);
+    let base_log_pksk = DecompositionBaseLog(16);
+
+    let lwe_noise_distribution = DynamicDistribution::<u32>::new_t_uniform(14);
+    let in_ciphertext_modulus = CiphertextModulus::<u32>::new_native();
+
+    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(17);
+
+    let out_ciphertext_modulus = CiphertextModulus::new_native();
+
+    let mut rsc = TestResources::new();
+
+    let TestCbsKeys {
+        glwe_sk,
+        lwe_sk,
+        fourier_bsk,
+        pfpksk_list,
+    } = generate_cbs_keys(
+        small_lwe_dimension,
+        glwe_dimension,
+        polynomial_size,
+        base_log_bsk,
+        level_bsk,
+        base_log_pksk,
+        level_pksk,
+        glwe_noise_distribution,
+        out_ciphertext_modulus,
+        &mut rsc,
+    );
+
+    let glwe_size = glwe_dimension.to_glwe_size();
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
+
+    let mut mem = PodBuffer::try_new(StackReq::any_of(&[
+        convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft),
+        add_external_product_assign_mem_optimized_requirement::<u64>(
+            glwe_size,
+            polynomial_size,
+            fft,
+        ),
+    ]))
+    .unwrap();
+    let stack = PodStack::new(&mut mem);
+
+    // WoP-PBS setting with a padding bit
+    let glwe_message_bits = message_modulus_log.0 + 1;
+
+    for message_modulus_log in (1..=4).map(MessageModulusLog) {
+        let delta_log = DeltaLog(32 - 1 - message_modulus_log.0);
+
+        for value in 0..1u64 << message_modulus_log.0 {
+            let mut lwe_in = LweCiphertextOwned::new(
+                0u32,
+                small_lwe_dimension.to_lwe_size(),
+                in_ciphertext_modulus,
+            );
+            encrypt_lwe_ciphertext(
+                &lwe_sk,
+                &mut lwe_in,
+                Plaintext((value as u32) << delta_log.0),
+                lwe_noise_distribution,
+                &mut rsc.encryption_random_generator,
+            );
+
+            let mut cbs_res = GgswCiphertextOwned::new(
+                0u64,
+                glwe_size,
+                polynomial_size,
+                base_log_cbs,
+                level_count_cbs,
+                out_ciphertext_modulus,
+            );
+
+            par_circuit_bootstrap(
+                fourier_bsk.as_view(),
+                lwe_in.as_view(),
+                cbs_res.as_mut_view(),
+                message_modulus_log,
+                pfpksk_list.as_view(),
+                fft,
+            );
+
+            assert_ggsw_encrypts_value(&glwe_sk, &cbs_res, value);
+            assert_external_product_multiplies_by_value(
+                &glwe_sk,
+                &cbs_res,
+                value,
+                message_modulus_log,
+                glwe_message_bits,
+                glwe_noise_distribution,
+                fft,
+                stack,
+                &mut rsc,
+            );
+        }
+    }
+}
+
+/// Checks `GGSW(m) ⊡ GLWE(µ) = GLWE(m·µ)` on a GLWE encrypting random messages
+#[allow(clippy::too_many_arguments)]
+fn assert_external_product_multiplies_by_value(
+    glwe_sk: &GlweSecretKeyOwned<u64>,
+    ggsw: &GgswCiphertextOwned<u64>,
+    value: u64,
+    message_modulus_log: MessageModulusLog,
+    glwe_message_bits: usize,
+    glwe_noise_distribution: DynamicDistribution<u64>,
+    fft: FftView<'_>,
+    stack: &mut PodStack,
+    rsc: &mut TestResources,
+) {
+    let glwe_size = ggsw.glwe_size();
+    let polynomial_size = ggsw.polynomial_size();
+    let out_ciphertext_modulus = ggsw.ciphertext_modulus();
+
+    let glwe_delta = 1u64 << (64 - glwe_message_bits);
+
+    let mut fourier_ggsw = FourierGgswCiphertext::new(
+        glwe_size,
+        polynomial_size,
+        ggsw.decomposition_base_log(),
+        ggsw.decomposition_level_count(),
+    );
+    convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(ggsw, &mut fourier_ggsw, fft, stack);
+
+    let mut glwe_plaintext = PlaintextListOwned::new(0u64, PlaintextCount(polynomial_size.0));
+    glwe_plaintext.as_mut().iter_mut().for_each(|coeff| {
+        *coeff = test_tools::random_uint_between(0..1u64 << glwe_message_bits) * glwe_delta;
+    });
+
+    let mut glwe_in =
+        GlweCiphertextOwned::new(0u64, glwe_size, polynomial_size, out_ciphertext_modulus);
+    encrypt_glwe_ciphertext(
+        glwe_sk,
+        &mut glwe_in,
+        &glwe_plaintext,
+        glwe_noise_distribution,
+        &mut rsc.encryption_random_generator,
+    );
+
+    let mut glwe_out =
+        GlweCiphertextOwned::new(0u64, glwe_size, polynomial_size, out_ciphertext_modulus);
+    add_external_product_assign_mem_optimized(&mut glwe_out, &fourier_ggsw, &glwe_in, fft, stack);
+
+    let mut decrypted = PlaintextListOwned::new(0u64, PlaintextCount(polynomial_size.0));
+    decrypt_glwe_ciphertext(glwe_sk, &glwe_out, &mut decrypted);
+
+    let decomposer = SignedDecomposer::new(
+        DecompositionBaseLog(glwe_message_bits),
+        DecompositionLevelCount(1),
+    );
+
+    for (decrypted_coeff, input_coeff) in decrypted
+        .as_ref()
+        .iter()
+        .zip(glwe_plaintext.as_ref().iter())
+    {
+        let decoded = decomposer.closest_representable(*decrypted_coeff) / glwe_delta;
+        // The product is only recovered modulo the GLWE message modulus, which is enough to
+        // exhibit the multiplication by the encrypted scalar
+        let expected = value.wrapping_mul(*input_coeff / glwe_delta) % (1 << glwe_message_bits);
+
+        assert_eq!(
+            decoded % (1 << glwe_message_bits),
+            expected,
+            "external product mismatch for message {value} \
+            with message_modulus_log {}",
+            message_modulus_log.0
+        );
+    }
+}
+
+#[test]
 pub fn test_cmux_tree() {
     // Define settings for an insecure toy example
     let polynomial_size = PolynomialSize(512);
