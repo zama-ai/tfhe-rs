@@ -20,11 +20,23 @@ use crate::shortint::{AtomicPatternKind, CarryModulus, Ciphertext, MessageModulu
 use crate::GpuIndex;
 use itertools::Itertools;
 use serde::Deserializer;
+use std::ops::Range;
 use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_to_gpu;
 #[derive(Clone)]
 pub struct CudaCompactCiphertextListInfo {
     pub info: CudaBlockInfo,
     pub data_kind: DataKind,
+}
+
+impl CudaCompactCiphertextListInfo {
+    pub(crate) fn total_block_count(info: &[Self]) -> crate::Result<usize> {
+        info.iter().try_fold(0usize, |acc, x| {
+            acc.checked_add(x.data_kind.num_blocks(x.info.message_modulus)?)
+                .ok_or_else(|| {
+                    crate::error!("Overflow while trying to compute total num blocks for list")
+                })
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -67,32 +79,54 @@ impl CudaCompactCiphertextListExpander {
         Some(blocks.info.carry_modulus)
     }
 
+    /// Range of the blocks used by the item at `index`, or None if `index` is out of bounds
+    ///
+    /// Returns an error if the range overflows or goes past the expanded blocks
+    fn block_range(&self, index: usize) -> crate::Result<Option<Range<usize>>> {
+        let Some(current_info) = self.blocks_info.get(index) else {
+            // Index out of bound.
+            return Ok(None);
+        };
+
+        let start_block_index =
+            CudaCompactCiphertextListInfo::total_block_count(&self.blocks_info[..index])?;
+        let block_count = current_info
+            .data_kind
+            .num_blocks(current_info.info.message_modulus)?;
+        let end_block_index = start_block_index
+            .checked_add(block_count)
+            .ok_or_else(|| crate::error!("Overflow while trying to compute block range in list"))?;
+
+        let expanded_block_count = self.expanded_blocks.0.lwe_ciphertext_count.0;
+        if end_block_index > expanded_block_count {
+            return Err(crate::error!(
+                "Invalid expanded list: its metadata describes more blocks than the \
+                {expanded_block_count} it holds"
+            ));
+        }
+
+        Ok(Some(start_block_index..end_block_index))
+    }
+
     fn blocks_of(
         &self,
         index: usize,
         streams: &CudaStreams,
-    ) -> Option<(CudaRadixCiphertext, DataKind)> {
-        let preceding_infos = self.blocks_info.get(..index)?;
-        let current_info = self.blocks_info.get(index)?;
-        let message_modulus = self.blocks_info.get(index)?.info.message_modulus;
-
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .clone()
-            .map(|ct_info| ct_info.data_kind.num_blocks(message_modulus))
-            .sum();
-
-        let block_count = current_info.data_kind.num_blocks(message_modulus);
-        let end_block_index = start_block_index + block_count;
-
-        if block_count == 0 {
-            return None;
+    ) -> crate::Result<Option<(CudaRadixCiphertext, DataKind)>> {
+        let Some(block_range) = self.block_range(index)? else {
+            return Ok(None);
+        };
+        if block_range.is_empty() {
+            return Err(crate::error!(
+                "Items stored without blocks are not supported on GPU"
+            ));
         }
 
+        let current_info = &self.blocks_info[index];
+        let block_count = block_range.len();
+
         let blocks = CudaRadixCiphertext {
-            d_blocks: self
-                .expanded_blocks
-                .get(streams, start_block_index..end_block_index),
+            d_blocks: self.expanded_blocks.get(streams, block_range),
             info: CudaRadixCiphertextInfo {
                 blocks: vec![
                     CudaBlockInfo {
@@ -109,33 +143,31 @@ impl CudaCompactCiphertextListExpander {
                 ],
             },
         };
-        Some((blocks, current_info.data_kind))
+        Ok(Some((blocks, current_info.data_kind)))
     }
-    fn get_blocks_of_size_on_gpu(&self, index: usize, streams: &CudaStreams) -> Option<u64> {
-        let preceding_infos = self.blocks_info.get(..index)?;
-        let current_info = self.blocks_info.get(index)?;
-        let message_modulus = self.blocks_info.get(index)?.info.message_modulus;
+    fn get_blocks_of_size_on_gpu(
+        &self,
+        index: usize,
+        streams: &CudaStreams,
+    ) -> crate::Result<Option<u64>> {
+        let Some(block_range) = self.block_range(index)? else {
+            return Ok(None);
+        };
+        if block_range.is_empty() {
+            return Ok(Some(0));
+        }
 
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .clone()
-            .map(|ct_info| ct_info.data_kind.num_blocks(message_modulus))
-            .sum();
-
-        let block_count = current_info.data_kind.num_blocks(message_modulus);
-        let end_block_index = start_block_index + block_count;
-
-        Some(
+        Ok(Some(
             self.expanded_blocks
-                .get_decompression_size_on_gpu(streams, start_block_index..end_block_index),
-        )
+                .get_decompression_size_on_gpu(streams, block_range),
+        ))
     }
 
     pub fn get<T>(&self, index: usize, streams: &CudaStreams) -> crate::Result<Option<T>>
     where
         T: CudaExpandable,
     {
-        self.blocks_of(index, streams)
+        self.blocks_of(index, streams)?
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
             .transpose()
     }
@@ -144,7 +176,7 @@ impl CudaCompactCiphertextListExpander {
         &self,
         index: usize,
         streams: &CudaStreams,
-    ) -> Option<u64> {
+    ) -> crate::Result<Option<u64>> {
         self.get_blocks_of_size_on_gpu(index, streams)
     }
 
@@ -210,7 +242,7 @@ impl CudaFlattenedVecCompactCiphertextList {
         vec_compact_list: Vec<crate::shortint::ciphertext::CompactCiphertextList>,
         data_info: Vec<DataKind>,
         streams: &CudaStreams,
-    ) -> Self {
+    ) -> crate::Result<Self> {
         let first = vec_compact_list.first().unwrap();
 
         // We assume all ciphertexts will have the same lwe dimension
@@ -242,10 +274,7 @@ impl CudaFlattenedVecCompactCiphertextList {
             })
             .sum();
 
-        let total_blocks: usize = data_info
-            .iter()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
+        let total_blocks = DataKind::total_block_count(&data_info, message_modulus)?;
 
         // Calculate the actual output size after unpacking
         let log_message_modulus = message_modulus.0.ilog2() as usize;
@@ -299,7 +328,7 @@ impl CudaFlattenedVecCompactCiphertextList {
         };
         streams.synchronize();
 
-        Self {
+        Ok(Self {
             d_flattened_vec: d_flattened_d_vec,
             lwe_dimension,
             lwe_ciphertext_count: total_num_blocks,
@@ -311,13 +340,13 @@ impl CudaFlattenedVecCompactCiphertextList {
             num_lwe_per_compact_list,
             data_info,
             is_boolean,
-        }
+        })
     }
 
     pub(crate) fn from_integer_compact_ciphertext_list(
         compact_list: &crate::integer::ciphertext::CompactCiphertextList,
         streams: &CudaStreams,
-    ) -> Self {
+    ) -> crate::Result<Self> {
         let single_element_vec = vec![compact_list.ct_list.clone()];
         Self::from_vec_shortint_compact_ciphertext_list(
             single_element_vec,
@@ -563,8 +592,7 @@ impl<'de> serde::Deserialize<'de> for CudaFlattenedVecCompactCiphertextList {
             crate::integer::ciphertext::CompactCiphertextList::deserialize(deserializer)?;
         let streams = CudaStreams::new_multi_gpu();
 
-        Ok(Self::from_integer_compact_ciphertext_list(
-            &cpu_list, &streams,
-        ))
+        Self::from_integer_compact_ciphertext_list(&cpu_list, &streams)
+            .map_err(<D::Error as serde::de::Error>::custom)
     }
 }

@@ -3,6 +3,7 @@ use crate::integer::backward_compatibility::ciphertext::DataKindVersions;
 use crate::shortint::{Ciphertext, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
+use std::ops::Range;
 use tfhe_versionable::Versionize;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize)]
@@ -20,17 +21,17 @@ pub enum DataKind {
 }
 
 impl DataKind {
-    pub fn num_blocks(self, message_modulus: MessageModulus) -> usize {
+    pub fn num_blocks(self, message_modulus: MessageModulus) -> crate::Result<usize> {
         match self {
-            Self::Unsigned(n) | Self::Signed(n) => n.get(),
-            Self::Boolean => 1,
+            Self::Unsigned(n) | Self::Signed(n) => Ok(n.get()),
+            Self::Boolean => Ok(1),
             Self::String { n_chars, .. } => {
-                let Ok(blocks_per_char) = message_modulus.num_blocks_per_ascii_char() else {
-                    return 0;
-                };
-                // Use saturating mul to avoid panic here, maybe on the long run this function
-                // should return a Result
-                (n_chars as usize).saturating_mul(blocks_per_char.get())
+                let blocks_per_char = message_modulus.num_blocks_per_ascii_char()?;
+                (n_chars as usize)
+                    .checked_mul(blocks_per_char.get())
+                    .ok_or_else(|| {
+                        crate::error!("Overflow while trying to compute num blocks for string")
+                    })
             }
         }
     }
@@ -38,18 +39,86 @@ impl DataKind {
     pub(crate) fn total_block_count(
         info: &[Self],
         message_modulus: MessageModulus,
-    ) -> Result<usize, ()> {
+    ) -> crate::Result<usize> {
+        Self::total_count(info, message_modulus, Self::num_blocks)
+    }
+
+    /// Number of noise squashed ciphertexts used by this item
+    pub(crate) fn num_squashed_blocks(
+        self,
+        message_modulus: MessageModulus,
+    ) -> crate::Result<usize> {
+        Ok(self.num_blocks(message_modulus)?.div_ceil(2))
+    }
+
+    /// Kind and range of the blocks used by the item at `index` in a list described by `info`
+    ///
+    /// Returns None if `index` is out of bounds, and an error if `message_modulus` is missing or if
+    /// the range overflows
+    pub(crate) fn locate(
+        info: &[Self],
+        index: usize,
+        message_modulus: Option<MessageModulus>,
+    ) -> crate::Result<Option<(Self, Range<usize>)>> {
+        Self::locate_with(info, index, message_modulus, Self::num_blocks)
+    }
+
+    /// Same as [`Self::locate`], for a list of noise squashed ciphertexts
+    pub(crate) fn locate_squashed(
+        info: &[Self],
+        index: usize,
+        message_modulus: Option<MessageModulus>,
+    ) -> crate::Result<Option<(Self, Range<usize>)>> {
+        Self::locate_with(info, index, message_modulus, Self::num_squashed_blocks)
+    }
+
+    /// Number of ciphertexts used by the items of `info`, item is size counted with `count_blocks`
+    fn total_count(
+        info: &[Self],
+        message_modulus: MessageModulus,
+        count_blocks: BlocksCounter,
+    ) -> crate::Result<usize> {
         if message_modulus.0 == 0 {
-            return Err(());
+            return Err(crate::error!("Invalid message modulus in list: 0"));
         }
 
-        info.iter()
-            .try_fold(0usize, |acc, &x| {
-                acc.checked_add(x.num_blocks(message_modulus))
-            })
-            .ok_or(())
+        info.iter().try_fold(0usize, |acc, &x| {
+            acc.checked_add(count_blocks(x, message_modulus)?)
+                .ok_or_else(|| {
+                    crate::error!("Overflow while trying to compute total num blocks for list")
+                })
+        })
+    }
+
+    /// Kind and range of the ciphertexts used by the item at `index` in a list described by
+    /// `info`, item is size counted with `count_blocks`
+    fn locate_with(
+        info: &[Self],
+        index: usize,
+        message_modulus: Option<MessageModulus>,
+        count_blocks: BlocksCounter,
+    ) -> crate::Result<Option<(Self, Range<usize>)>> {
+        let Some(&kind) = info.get(index) else {
+            // Index out of bound.
+            return Ok(None);
+        };
+
+        let message_modulus =
+            message_modulus.ok_or_else(|| crate::error!("Missing metadata for list"))?;
+
+        let start = Self::total_count(&info[..index], message_modulus, count_blocks)?;
+        let end = start
+            .checked_add(count_blocks(kind, message_modulus)?)
+            .ok_or_else(|| crate::error!("Overflow while trying to compute block range in list"))?;
+
+        Ok(Some((kind, start..end)))
     }
 }
+
+/// Method used to count the number of ciphertexts in a list. Can be:
+/// - DataKind::num_blocks
+/// - DataKind::num_squashed_blocks
+type BlocksCounter = fn(DataKind, MessageModulus) -> crate::Result<usize>;
 
 pub trait Expandable: Sized {
     fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self>;
@@ -113,21 +182,20 @@ mod test {
         };
 
         // Unsupported parameters (possibly coming from untrusted data) must not panic
-        let num_blocks = kind.num_blocks(MessageModulus(0));
-        assert_eq!(num_blocks, 0);
+        assert!(kind.num_blocks(MessageModulus(0)).is_err());
 
-        let num_blocks = kind.num_blocks(MessageModulus(1));
-        assert_eq!(num_blocks, 0);
+        assert!(kind.num_blocks(MessageModulus(1)).is_err());
 
-        let num_blocks = kind.num_blocks(MessageModulus(8));
-        assert_eq!(num_blocks, 0);
+        assert!(kind.num_blocks(MessageModulus(8)).is_err());
 
         let kind = DataKind::String {
             n_chars: u32::MAX,
             padded: true,
         };
 
-        let num_blocks = kind.num_blocks(MessageModulus(2));
-        assert_eq!(num_blocks, (u32::MAX as usize).saturating_mul(8));
+        assert_eq!(
+            kind.num_blocks(MessageModulus(2)).unwrap(),
+            (u32::MAX as usize) * 8
+        );
     }
 }
