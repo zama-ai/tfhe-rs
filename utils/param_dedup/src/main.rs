@@ -118,7 +118,19 @@ struct Args {
     to_deduplicate: String,
 }
 
-const SUBDIRS_TO_DEDUP: [&str; 2] = ["classic", "multi_bit"];
+// Parameter sub modules (directories or files) of a version module that are deduplicated.
+// Aliases are generated as `v1_x::V1_X_PARAM` so every const in these must be re-exported at the
+// root of the version module (this is not the case for `transciphering`).
+const SUBDIRS_TO_DEDUP: [&str; 8] = [
+    "classic",
+    "multi_bit",
+    "ks32",
+    "compact_public_key_only",
+    "key_switching",
+    "list_compression",
+    "noise_squashing",
+    "hpu.rs",
+];
 
 fn main() {
     let args = Args::parse();
@@ -242,9 +254,13 @@ fn main() {
             .to_uppercase()
             + "_";
 
-        // Deduplicate classic and multi bit only for now, they are the main source of redundancy
         for param_sub_dir in SUBDIRS_TO_DEDUP {
             let curr_param_dir = shortint_param_dir.join(param_sub_dir);
+
+            // Older versions may not have all the parameter kinds
+            if !curr_param_dir.exists() {
+                continue;
+            }
 
             let curr_param_dir_entries = get_dir_paths_recursively(curr_param_dir).unwrap();
 
