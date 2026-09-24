@@ -394,14 +394,16 @@ impl CudaCompressedSquashedNoiseCiphertextList {
         let message_modulus = self.packed_list.message_modulus()?;
 
         // Squashed CTs have blocks packed in pairs
-        let start_block_index: usize = preceding_infos
-            .iter()
-            .copied()
-            .map(|kind| kind.num_blocks(message_modulus).div_ceil(2))
-            .sum();
+        let start_block_index = preceding_infos.iter().try_fold(0usize, |acc, kind| {
+            acc.checked_add(kind.num_blocks(message_modulus).ok()?.div_ceil(2))
+        })?;
 
-        let end_block_index =
-            start_block_index + current_data_kind.num_blocks(message_modulus).div_ceil(2) - 1;
+        let end_block_index = start_block_index
+            + current_data_kind
+                .num_blocks(message_modulus)
+                .ok()?
+                .div_ceil(2)
+            - 1;
 
         let (unpacked, info) = self
             .unpack(
@@ -486,31 +488,37 @@ mod test {
         let mut rng = rand::thread_rng();
 
         let clear_a = rng.gen_range(0..=i32::MAX);
-        let clear_b = rng.gen_range(i32::MIN..=-1);
-        let clear_c = rng.gen::<u32>();
-        let clear_d = rng.gen::<bool>();
+        let clear_b = rng.gen::<bool>();
+        let clear_c = rng.gen::<bool>();
+        let clear_d = rng.gen_range(i32::MIN..=-1);
+        let clear_e = rng.gen::<u32>();
 
         let ct_a = cks.encrypt_signed_radix(clear_a, NUM_BLOCKS);
-        let ct_b = cks.encrypt_signed_radix(clear_b, NUM_BLOCKS);
-        let ct_c = cks.encrypt_radix(clear_c, NUM_BLOCKS);
-        let ct_d = cks.encrypt_bool(clear_d);
+        let ct_b = cks.encrypt_bool(clear_b);
+        let ct_c = cks.encrypt_bool(clear_c);
+        let ct_d = cks.encrypt_signed_radix(clear_d, NUM_BLOCKS);
+        let ct_e = cks.encrypt_radix(clear_e, NUM_BLOCKS);
 
         let d_ct_a = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_a, &streams);
-        let d_ct_b = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_b, &streams);
-        let d_ct_c = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_c, &streams);
-        let d_ct_d = CudaBooleanBlock::from_boolean_block(&ct_d, &streams);
+        let d_ct_b = CudaBooleanBlock::from_boolean_block(&ct_b, &streams);
+        let d_ct_c = CudaBooleanBlock::from_boolean_block(&ct_c, &streams);
+        let d_ct_d = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_d, &streams);
+        let d_ct_e = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_e, &streams);
 
         let d_ns_ct_a = cuda_noise_squashing_key
             .squash_signed_radix_ciphertext_noise(&cuda_sks, &d_ct_a, &streams)
             .unwrap();
         let d_ns_ct_b = cuda_noise_squashing_key
-            .squash_signed_radix_ciphertext_noise(&cuda_sks, &d_ct_b, &streams)
+            .squash_boolean_block_noise(&cuda_sks, &d_ct_b, &streams)
             .unwrap();
         let d_ns_ct_c = cuda_noise_squashing_key
-            .squash_radix_ciphertext_noise(&cuda_sks, &d_ct_c.ciphertext, &streams)
+            .squash_boolean_block_noise(&cuda_sks, &d_ct_c, &streams)
             .unwrap();
         let d_ns_ct_d = cuda_noise_squashing_key
-            .squash_boolean_block_noise(&cuda_sks, &d_ct_d, &streams)
+            .squash_signed_radix_ciphertext_noise(&cuda_sks, &d_ct_d, &streams)
+            .unwrap();
+        let d_ns_ct_e = cuda_noise_squashing_key
+            .squash_radix_ciphertext_noise(&cuda_sks, &d_ct_e.ciphertext, &streams)
             .unwrap();
 
         let cuda_list = CudaCompressedSquashedNoiseCiphertextList::builder()
@@ -518,33 +526,39 @@ mod test {
             .push(d_ns_ct_b, &streams)
             .push(d_ns_ct_c, &streams)
             .push(d_ns_ct_d, &streams)
+            .push(d_ns_ct_e, &streams)
             .build(&cuda_noise_squashing_compression_key, &streams);
 
         let d_decompressed_ns_ct_a: CudaSquashedNoiseSignedRadixCiphertext =
             cuda_list.get(0, &streams).unwrap().unwrap();
-        let d_decompressed_ns_ct_b: CudaSquashedNoiseSignedRadixCiphertext =
+        let d_decompressed_ns_ct_b: CudaSquashedNoiseBooleanBlock =
             cuda_list.get(1, &streams).unwrap().unwrap();
-        let d_decompressed_ns_ct_c: CudaSquashedNoiseRadixCiphertext =
+        let d_decompressed_ns_ct_c: CudaSquashedNoiseBooleanBlock =
             cuda_list.get(2, &streams).unwrap().unwrap();
-        let d_decompressed_ns_ct_d: CudaSquashedNoiseBooleanBlock =
+        let d_decompressed_ns_ct_d: CudaSquashedNoiseSignedRadixCiphertext =
             cuda_list.get(3, &streams).unwrap().unwrap();
+        let d_decompressed_ns_ct_e: CudaSquashedNoiseRadixCiphertext =
+            cuda_list.get(4, &streams).unwrap().unwrap();
 
         let ns_ct_a = d_decompressed_ns_ct_a.to_squashed_noise_signed_radix_ciphertext(&streams);
-        let ns_ct_b = d_decompressed_ns_ct_b.to_squashed_noise_signed_radix_ciphertext(&streams);
-        let ns_ct_c = d_decompressed_ns_ct_c.to_squashed_noise_radix_ciphertext(&streams);
-        let ns_ct_d = d_decompressed_ns_ct_d.to_squashed_noise_boolean_block(&streams);
+        let ns_ct_b = d_decompressed_ns_ct_b.to_squashed_noise_boolean_block(&streams);
+        let ns_ct_c = d_decompressed_ns_ct_c.to_squashed_noise_boolean_block(&streams);
+        let ns_ct_d = d_decompressed_ns_ct_d.to_squashed_noise_signed_radix_ciphertext(&streams);
+        let ns_ct_e = d_decompressed_ns_ct_e.to_squashed_noise_radix_ciphertext(&streams);
 
         let decryption_key = noise_squashing_compression_private_key.private_key_view();
 
         let d_clear_a: i32 = decryption_key.decrypt_signed_radix(&ns_ct_a).unwrap();
-        let d_clear_b: i32 = decryption_key.decrypt_signed_radix(&ns_ct_b).unwrap();
-        let d_clear_c: u32 = decryption_key.decrypt_radix(&ns_ct_c).unwrap();
-        let d_clear_d = decryption_key.decrypt_bool(&ns_ct_d).unwrap();
+        let d_clear_b = decryption_key.decrypt_bool(&ns_ct_b).unwrap();
+        let d_clear_c = decryption_key.decrypt_bool(&ns_ct_c).unwrap();
+        let d_clear_d: i32 = decryption_key.decrypt_signed_radix(&ns_ct_d).unwrap();
+        let d_clear_e: u32 = decryption_key.decrypt_radix(&ns_ct_e).unwrap();
 
         assert_eq!(clear_a, d_clear_a);
         assert_eq!(clear_b, d_clear_b);
         assert_eq!(clear_c, d_clear_c);
         assert_eq!(clear_d, d_clear_d);
+        assert_eq!(clear_e, d_clear_e);
     }
 
     const NB_TESTS: usize = 5;
