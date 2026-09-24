@@ -6,14 +6,14 @@ use forward_common::{
     ARTIFACTS, CLEAR_BOOL, CLEAR_U8, CLEAR_U32, PROVEN_LEN, ZK_METADATA, load, report,
     write_artifact,
 };
-use tfhe::shortint::parameters::current_params::meta::cpu::V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::shortint::parameters::current_params::meta::cpu::V1_9_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 use tfhe::{ClientKey, CompactPublicKey, ConfigBuilder, ProvenCompactCiphertextList};
 
 fn produce(dir: &Path) {
     std::fs::create_dir_all(dir).unwrap();
 
-    let meta_params = V1_8_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+    let meta_params = V1_9_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
     let compute_params = meta_params.compute_parameters;
     let pke_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
     let config = ConfigBuilder::with_custom_parameters(compute_params)
