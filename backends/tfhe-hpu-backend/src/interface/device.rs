@@ -7,8 +7,10 @@
 
 use super::cache::{DynFwEntry, DynFwError};
 use super::config::HpuConfig;
-use super::{HpuClusterWrapped, HpuInstError, HpuVarWrapped};
+use super::{HpuClusterWrapped, HpuInstError, HpuVarWrapped, LutMap};
+use crate::asm::PhysId;
 use crate::entities::*;
+use std::path::Path;
 use std::sync::Arc;
 
 use rayon::prelude::*;
@@ -105,6 +107,31 @@ impl HpuDevice {
         pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
         self.cluster.new_var_from(ct, spec, pos)
+    }
+}
+
+/// Post-mortem analysis helpers
+impl HpuDevice {
+    /// Snapshot the LUT currently uploaded on node `hid`
+    pub fn get_lut_map(&self, hid: PhysId) -> LutMap {
+        self.cluster.get_lut_map(hid)
+    }
+
+    /// Dump the LUT currently uploaded on node `hid` in a json file
+    ///
+    /// Missing parent directories are created along the way.
+    ///
+    /// _NB_: A dump of every node could also be requested through the configuration file, it
+    /// then occurs on device release (c.f. `FwConfig::dump_lut_map`).
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the file couldn't be written.
+    pub fn dump_lut_map<P: AsRef<Path>>(&self, hid: PhysId, path: P) {
+        let path = path.as_ref();
+        self.cluster
+            .dump_lut_map(hid, path)
+            .unwrap_or_else(|err| panic!("Couldn't dump LutMap in `{}`:: {err}", path.display()));
     }
 }
 
