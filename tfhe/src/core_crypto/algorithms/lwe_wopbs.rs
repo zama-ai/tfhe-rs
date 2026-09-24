@@ -8,9 +8,9 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::{
     circuit_bootstrap_boolean_vertical_packing, circuit_bootstrap_boolean_vertical_packing_scratch,
-    extract_bits, extract_bits_scratch,
+    extract_bits, extract_bits_scratch, par_circuit_bootstrap_non_binary,
 };
-use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
+use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use dyn_stack::{PodStack, StackReq};
 use rayon::prelude::*;
 use tfhe_fft::c64;
@@ -720,4 +720,143 @@ pub fn circuit_bootstrap_boolean_vertical_packing_lwe_ciphertext_list_mem_optimi
         level_cbs,
         fft,
     )
+}
+
+/// Convert an [`LWE ciphertext`](`LweCiphertext`) encrypting a small unsigned integer into a [`GGSW
+/// ciphertext`](`GgswCiphertext`) encrypting the same integer at the constant coefficient (X^0).
+///
+/// The input must have its `message_modulus_log` bits of message in the MSBs, just under a bit of
+/// padding. The resulting GGSW is meant to be consumed by an external product, which computes
+/// `GGSW(m) ⊡ GLWE(µ) = GLWE(m·µ)`.
+///
+/// # Example
+///
+/// ```rust
+/// use tfhe::core_crypto::prelude::*;
+///
+/// // Parameters for 2 bits of message and 2 bits of carry
+/// let polynomial_size = PolynomialSize(2048);
+/// let glwe_dimension = GlweDimension(1);
+/// let lwe_dimension = LweDimension(879);
+///
+/// let base_log_bsk = DecompositionBaseLog(12);
+/// let level_bsk = DecompositionLevelCount(3);
+///
+/// let base_log_pfpksk = DecompositionBaseLog(16);
+/// let level_pfpksk = DecompositionLevelCount(2);
+///
+/// let base_log_cbs = DecompositionBaseLog(9);
+/// let level_cbs = DecompositionLevelCount(2);
+///
+/// let ciphertext_modulus = CiphertextModulus::new_native();
+/// // TUniform bound of 14 for a 2^32 modulus, scaled to the native 2^64 modulus
+/// let lwe_noise_distribution = DynamicDistribution::new_t_uniform(46);
+/// let glwe_noise_distribution = DynamicDistribution::new_t_uniform(17);
+///
+/// let mut seeder = new_seeder();
+/// let seeder = seeder.as_mut();
+/// let mut encryption_generator =
+///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+/// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+///
+/// let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+///     glwe_dimension,
+///     polynomial_size,
+///     &mut secret_generator,
+/// );
+/// let lwe_sk =
+///     allocate_and_generate_new_binary_lwe_secret_key(lwe_dimension, &mut secret_generator);
+/// let lwe_big_sk = glwe_sk.clone().into_lwe_secret_key();
+///
+/// let std_bsk: LweBootstrapKeyOwned<u64> = par_allocate_and_generate_new_lwe_bootstrap_key(
+///     &lwe_sk,
+///     &glwe_sk,
+///     base_log_bsk,
+///     level_bsk,
+///     glwe_noise_distribution,
+///     ciphertext_modulus,
+///     &mut encryption_generator,
+/// );
+/// let mut fourier_bsk = FourierLweBootstrapKeyOwned::new(
+///     std_bsk.input_lwe_dimension(),
+///     std_bsk.glwe_size(),
+///     std_bsk.polynomial_size(),
+///     std_bsk.decomposition_base_log(),
+///     std_bsk.decomposition_level_count(),
+/// );
+/// par_convert_standard_lwe_bootstrap_key_to_fourier(&std_bsk, &mut fourier_bsk);
+///
+/// let pfpksk_list = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+///     &lwe_big_sk,
+///     &glwe_sk,
+///     base_log_pfpksk,
+///     level_pfpksk,
+///     glwe_noise_distribution,
+///     ciphertext_modulus,
+///     &mut encryption_generator,
+/// );
+///
+/// let message_modulus_log = MessageModulusLog(4);
+/// // -1 for the padding bit
+/// let delta_log = DeltaLog(64 - 1 - message_modulus_log.0);
+/// let message = 11u64;
+///
+/// let mut lwe_in = LweCiphertextOwned::new(0u64, lwe_dimension.to_lwe_size(), ciphertext_modulus);
+/// encrypt_lwe_ciphertext(
+///     &lwe_sk,
+///     &mut lwe_in,
+///     Plaintext(message << delta_log.0),
+///     lwe_noise_distribution,
+///     &mut encryption_generator,
+/// );
+///
+/// let mut ggsw_out = GgswCiphertextOwned::new(
+///     0u64,
+///     glwe_dimension.to_glwe_size(),
+///     polynomial_size,
+///     base_log_cbs,
+///     level_cbs,
+///     ciphertext_modulus,
+/// );
+///
+/// par_circuit_bootstrap_non_binary_lwe_ciphertext(
+///     &lwe_in,
+///     &mut ggsw_out,
+///     &fourier_bsk,
+///     &pfpksk_list,
+///     message_modulus_log,
+/// );
+///
+/// let decrypted = decrypt_constant_ggsw_ciphertext(&glwe_sk, &ggsw_out);
+/// assert_eq!(decrypted.0, message);
+/// ```
+pub fn par_circuit_bootstrap_non_binary_lwe_ciphertext<
+    Scalar,
+    InputCont,
+    OutputCont,
+    BskCont,
+    PFPKSKCont,
+>(
+    lwe_in: &LweCiphertext<InputCont>,
+    ggsw_out: &mut GgswCiphertext<OutputCont>,
+    fourier_bsk: &FourierLweBootstrapKey<BskCont>,
+    pfpksk_list: &LwePrivateFunctionalPackingKeyswitchKeyList<PFPKSKCont>,
+    message_modulus_log: MessageModulusLog,
+) where
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync + Send,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    BskCont: Container<Element = c64>,
+    PFPKSKCont: Container<Element = Scalar>,
+{
+    let fft = Fft::new(fourier_bsk.polynomial_size());
+
+    par_circuit_bootstrap_non_binary(
+        fourier_bsk.as_view(),
+        lwe_in.as_view(),
+        ggsw_out.as_mut_view(),
+        message_modulus_log,
+        pfpksk_list.as_view(),
+        fft.as_view(),
+    );
 }
