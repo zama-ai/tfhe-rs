@@ -150,14 +150,14 @@ impl CudaProvenCompactCiphertextList {
                 cpu_lists,
                 self.h_proved_lists.info.clone(),
                 streams,
-            );
+            )?;
         Ok(())
     }
 
     pub fn from_proven_compact_ciphertext_list(
         h_proved_lists: &ProvenCompactCiphertextList,
         streams: &CudaStreams,
-    ) -> Self {
+    ) -> crate::Result<Self> {
         assert!(
             h_proved_lists.is_packed(),
             "Only packed lists are supported on GPUs"
@@ -173,12 +173,12 @@ impl CudaProvenCompactCiphertextList {
                 h_vec_compact_lists,
                 h_proved_lists.info.clone(),
                 streams,
-            );
+            )?;
 
-        Self {
+        Ok(Self {
             h_proved_lists: h_proved_lists.clone(),
             d_flattened_compact_lists: d_compact_lists,
-        }
+        })
     }
 
     pub fn lwe_dimension(&self) -> LweDimension {
@@ -202,7 +202,8 @@ impl<'de> serde::Deserialize<'de> for CudaProvenCompactCiphertextList {
         let cpu_ct = ProvenCompactCiphertextList::deserialize(deserializer)?;
         let streams = CudaStreams::new_multi_gpu();
 
-        Ok(Self::from_proven_compact_ciphertext_list(&cpu_ct, &streams))
+        Self::from_proven_compact_ciphertext_list(&cpu_ct, &streams)
+            .map_err(<D::Error as serde::de::Error>::custom)
     }
 }
 
@@ -309,7 +310,8 @@ mod tests {
             let gpu_proven_ct =
                 CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                     &proven_ct, &streams,
-                );
+                )
+                .unwrap();
 
             let gpu_expander = gpu_proven_ct
                 .verify_and_expand(&crs, &pk, metadata, &d_ksk, &streams)
@@ -397,7 +399,8 @@ mod tests {
             let gpu_proven_ct =
                 CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                     &proven_ct, &streams,
-                );
+                )
+                .unwrap();
 
             let gpu_expander = gpu_proven_ct
                 .verify_and_expand(&crs, &pk, metadata, &d_ksk, &streams)
@@ -492,7 +495,8 @@ mod tests {
                     infos_block_count += proven_ct
                         .get_kind_of(idx)
                         .unwrap()
-                        .num_blocks(pke_params.message_modulus);
+                        .num_blocks(pke_params.message_modulus)
+                        .unwrap();
                 }
 
                 infos_block_count
@@ -518,10 +522,7 @@ mod tests {
             }
 
             assert_eq!(
-                new_infos
-                    .iter()
-                    .map(|x| x.num_blocks(pke_params.message_modulus))
-                    .sum::<usize>(),
+                DataKind::total_block_count(&new_infos, pke_params.message_modulus).unwrap(),
                 infos_block_count
             );
 
@@ -540,7 +541,8 @@ mod tests {
             let gpu_proven_ct =
                 CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                     &proven_ct, &streams,
-                );
+                )
+                .unwrap();
 
             let gpu_expander = gpu_proven_ct
                 .verify_and_expand(&crs, &pk, metadata, &d_ksk, &streams)

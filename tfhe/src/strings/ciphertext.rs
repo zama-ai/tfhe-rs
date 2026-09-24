@@ -125,7 +125,9 @@ impl crate::integer::ciphertext::CompactCiphertextListBuilder {
             .expect("Internal error: compact_into should return a kind");
         self.info.push(kind);
 
-        let added_count = kind.num_blocks(message_modulus);
+        let added_count = kind
+            .num_blocks(message_modulus)
+            .expect("Failed to compute block count");
         assert_eq!(
             n + added_count,
             self.messages.len(),
@@ -156,7 +158,9 @@ impl crate::integer::ciphertext::CompactCiphertextListBuilder {
             .expect("Internal error: compact_into should return a kind");
         self.info.push(kind);
 
-        let added_count = kind.num_blocks(message_modulus);
+        let added_count = kind
+            .num_blocks(message_modulus)
+            .expect("Failed to compute block count");
         assert_eq!(
             n + added_count,
             self.messages.len(),
