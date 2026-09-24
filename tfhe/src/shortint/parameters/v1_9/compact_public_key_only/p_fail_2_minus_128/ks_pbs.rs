@@ -1,0 +1,15 @@
+use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
+/// This parameter set should be used when doing zk proof of public key encryption
+pub const V1_9_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    CompactPublicKeyEncryptionParameters =
+    V1_9_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+pub const V1_9_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2:
+    CompactPublicKeyEncryptionParameters =
+    V1_9_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+pub const V1_9_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1:
+    CompactPublicKeyEncryptionParameters =
+    V1_9_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
+pub const V1_9_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2: CompactPublicKeyEncryptionParameters = crate::shortint::parameters::v1_8::V1_8_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+pub const V1_9_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2: CompactPublicKeyEncryptionParameters = crate::shortint::parameters::v1_8::V1_8_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+pub const V1_9_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1: CompactPublicKeyEncryptionParameters = crate::shortint::parameters::v1_8::V1_8_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
+pub const V1_9_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1: CompactPublicKeyEncryptionParameters = crate::shortint::parameters::v1_8::V1_8_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
