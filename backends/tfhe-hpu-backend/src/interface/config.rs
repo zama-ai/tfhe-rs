@@ -13,17 +13,31 @@ impl ShellString {
         Self(from)
     }
     pub fn expand(&self) -> String {
+        self.try_expand()
+            .unwrap_or_else(|err| panic!("Error: {err}"))
+    }
+
+    /// Fallible variant of [`Self::expand`].
+    /// Useful on paths that mustn't abort the program when unresolvable (e.g. expanded from a
+    /// `Drop` implementation).
+    pub fn try_expand(&self) -> Result<String, String> {
         // Regex that match on $MY_VAR or ${MY_VAR}
         let shell_regex = regex::Regex::new(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?").unwrap();
 
         // Replace each bash var occurrence with the associated environment variable value
+        let mut missing = None;
         let cow = shell_regex.replace_all(&self.0, |caps: &regex::Captures| {
             let shell_var = &caps[1];
             std::env::var(shell_var).unwrap_or_else(|_| {
-                panic!("Error: ShellString used env_var <{shell_var}> not found")
+                missing.get_or_insert_with(|| shell_var.to_string());
+                String::new()
             })
         });
-        cow.to_string()
+
+        match missing {
+            Some(shell_var) => Err(format!("ShellString used env_var <{shell_var}> not found")),
+            None => Ok(cow.to_string()),
+        }
     }
 }
 
@@ -146,6 +160,16 @@ pub struct FwConfig {
     /// Defines the minimum batch size for an accurate FW simulation (use this
     /// while this information is not available as a register in the hardware)
     pub min_batch_size: usize,
+
+    /// Dump the on-board LUT in a json file when the cluster is released.
+    /// Mainly useful for post-mortem analysis (c.f. [`crate::interface::LutMap`]).
+    ///
+    /// The node id is appended to the file stem, i.e. `lut_map.json` gives `lut_map_n0.json`,
+    /// `lut_map_n1.json`, ... so that nodes of a cluster don't overwrite each other.
+    ///
+    /// Left unset, no dump occurs.
+    #[serde(default)]
+    pub dump_lut_map: Option<ShellString>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

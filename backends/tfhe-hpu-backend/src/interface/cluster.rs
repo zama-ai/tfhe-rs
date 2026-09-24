@@ -3,9 +3,9 @@
 //! Those Nodes has direct Board to Board link and work together
 
 use super::cache::{DynFwEntry, DynFwError};
-use super::config::HpuConfig;
+use super::config::{HpuConfig, ShellString};
 use super::node::HpuNodeWrapped;
-use super::{cmd, HpuInstError, HpuVarWrapped};
+use super::{cmd, HpuInstError, HpuVarWrapped, LutMap};
 use crate::asm::{
     FwMode, IOpId, IOpMapping, IOpSig, IOpcode, PhysId, StaticIOp, MAX_HPU_IN_CLUSTER,
 };
@@ -13,6 +13,7 @@ use crate::entities::*;
 use crate::ffi::HpuHw;
 use itertools::*;
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::sync::{atomic, mpsc, Arc, Mutex, OnceLock};
 use zhc::prelude::Pipeline;
 
@@ -38,6 +39,10 @@ pub struct HpuCluster {
     // Enforce that at most u8::MAX IOp are inflight in the cluster.
     // => All node keep in the same IOp Round
     iop_inflight: Arc<atomic::AtomicU8>,
+
+    // Post-mortem analysis
+    // Path of the LUT dump issued on release, c.f. `FwConfig::dump_lut_map`
+    lut_map_dump: Option<ShellString>,
 }
 
 impl HpuCluster {
@@ -124,6 +129,7 @@ impl HpuCluster {
             bg_poll: Arc::new(atomic::AtomicBool::new(false)),
             bg_handles: OnceLock::new(),
             workq: Arc::new(Mutex::new(cmd_rx)),
+            lut_map_dump: config.firmware.dump_lut_map.clone(),
         };
 
         // Start polling thread in the background
@@ -204,6 +210,72 @@ impl HpuCluster {
     }
 }
 
+/// Post-mortem analysis helpers
+impl HpuCluster {
+    /// Snapshot the LUT currently uploaded on node `hid`
+    pub(crate) fn get_lut_map(&self, hid: PhysId) -> LutMap {
+        self.nodes
+            .get(&hid.0)
+            .unwrap_or_else(|| panic!("Invalid Hpu Id {hid}"))
+            .lock()
+            .expect("Error with backend mutex")
+            .lut_map()
+    }
+
+    /// Dump the LUT currently uploaded on node `hid` in a json file
+    /// Missing parent directories are created along the way.
+    pub(crate) fn dump_lut_map(&self, hid: PhysId, path: &Path) -> std::io::Result<()> {
+        self.get_lut_map(hid).write_to(path)
+    }
+
+    /// Per node dump path, i.e. `lut_map.json` -> `lut_map_n0.json`
+    /// Prevent nodes of a cluster from overwriting each other.
+    fn lut_map_dump_path(base: &Path, hid: PhysId) -> PathBuf {
+        let stem = base
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().to_string())
+            .unwrap_or_else(|| String::from("lut_map"));
+
+        let mut name = format!("{stem}_n{}", hid.0);
+        if let Some(ext) = base.extension() {
+            name.push('.');
+            name.push_str(&ext.to_string_lossy());
+        }
+        base.with_file_name(name)
+    }
+
+    /// Dump the LUT of every node, as requested by `FwConfig::dump_lut_map`
+    ///
+    /// _NB_: Issued from `drop`, thus errors are only reported and never raised: aborting the
+    /// program over a debug dump -- moreover while possibly already unwinding -- isn't an
+    /// option.
+    fn dump_lut_map_all(&self) {
+        let Some(dump) = self.lut_map_dump.as_ref() else {
+            return;
+        };
+        let base = match dump.try_expand() {
+            Ok(path) => PathBuf::from(path),
+            Err(err) => {
+                tracing::error!("Couldn't expand `firmware.dump_lut_map`: {err}");
+                return;
+            }
+        };
+
+        for hid in self.nodes.keys().copied().map(PhysId) {
+            let path = Self::lut_map_dump_path(&base, hid);
+            match self.dump_lut_map(hid, &path) {
+                Ok(()) => tracing::info!("Dumped LutMap of Hpu {hid} in `{}`", path.display()),
+                Err(err) => {
+                    tracing::error!(
+                        "Couldn't dump LutMap of Hpu {hid} in `{}`:: {err}",
+                        path.display()
+                    )
+                }
+            }
+        }
+    }
+}
+
 impl Drop for HpuCluster {
     fn drop(&mut self) {
         // Required background polling thread to stop
@@ -218,6 +290,9 @@ impl Drop for HpuCluster {
                 .join()
                 .expect("Ack_queue Background thread failed to stop properly");
         }
+
+        // Snapshot the on-board LUT before the nodes release them
+        self.dump_lut_map_all();
     }
 }
 
