@@ -10,22 +10,16 @@ use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::encryption::{create_clear_radix_block_iterator, KnowsMessageModulus};
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
 pub use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
-use crate::integer::{CompactPublicKey, ServerKey};
+use crate::integer::CompactPublicKey;
+use crate::shortint::ciphertext::Degree;
 #[cfg(feature = "zk-pok")]
 use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
-use crate::shortint::ciphertext::{
-    Degree, ExpandedCiphertextList, ExpandedCiphertextListConformanceParams,
-};
 #[cfg(feature = "zk-pok")]
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, CompactCiphertextListExpansionKind,
     CompactPublicKeyEncryptionParameters, LweDimension,
 };
-use crate::shortint::parameters::{
-    CastingFunctionsOwned, CiphertextListConformanceParams,
-    ShortintCompactCiphertextListCastingMode,
-};
-use crate::shortint::server_key::LookupTableOwned;
+use crate::shortint::parameters::{CiphertextListConformanceParams, ExpandFunctionsOwned};
 use crate::shortint::{Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use crate::zk::{
@@ -34,84 +28,8 @@ use crate::zk::{
 };
 use std::num::{NonZero, NonZeroUsize};
 
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
-
-/// Unpack message and carries and additionally sanitizes blocks
-///
-/// * boolean blocks: make sure they encrypt a 0 or a 1
-/// * last block of ascii char: make sure only necessary bits contain information
-/// * default case: make sure they have no carries
-fn unpack_and_sanitize(
-    mut packed_blocks: Vec<Ciphertext>,
-    sks: &ServerKey,
-    infos: &[DataKind],
-) -> Result<Vec<Ciphertext>, crate::Error> {
-    let block_count: usize = infos
-        .iter()
-        .map(|x| x.num_blocks(sks.message_modulus()))
-        .sum();
-    let packed_block_count = block_count.div_ceil(2);
-    if packed_block_count == 0 || packed_block_count != packed_blocks.len() {
-        return Err(crate::error!(
-            "Invalid packed blocks count during unpacking of a compact ciphertext list: \
-             expected {packed_block_count}, got {}",
-            packed_blocks.len()
-        ));
-    }
-    let functions = IntegerUnpackingToShortintCastingModeHelper::new(sks.message_modulus())
-        .generate_unpacked_and_sanitize_luts(infos, sks)?;
-
-    // Create a new vec with the input blocks doubled
-    let mut unpacked = Vec::with_capacity(functions.len());
-    for block in packed_blocks.drain(..packed_block_count - 1) {
-        unpacked.push(block.clone());
-        unpacked.push(block);
-    }
-    if block_count.is_multiple_of(2) {
-        unpacked.push(packed_blocks[0].clone());
-    }
-    unpacked.push(packed_blocks.pop().unwrap());
-
-    unpacked
-        .par_iter_mut()
-        .zip(functions.par_iter())
-        .for_each(|(block, lut)| sks.key.apply_lookup_table_assign(block, lut));
-
-    Ok(unpacked)
-}
-
-/// This function sanitizes blocks depending on the data kind:
-///
-/// * boolean blocks: make sure they encrypt a 0 or a 1
-/// * last block of ascii char: make sure only necessary bits contain information
-/// * default case: make sure they have no carries
-fn sanitize_blocks(
-    mut expanded_blocks: Vec<Ciphertext>,
-    sks: &ServerKey,
-    infos: &[DataKind],
-) -> Result<Vec<Ciphertext>, crate::Error> {
-    let functions = IntegerUnpackingToShortintCastingModeHelper::new(sks.message_modulus())
-        .generate_sanitize_without_unpacking_luts(infos, sks)?;
-
-    if functions.len() != expanded_blocks.len() {
-        return Err(crate::error!(
-            "Invalid blocks count during sanitization of a compact ciphertext list: \
-             expected {}, got {}",
-            functions.len(),
-            expanded_blocks.len()
-        ));
-    }
-    expanded_blocks
-        .par_iter_mut()
-        .zip(functions.par_iter())
-        .for_each(|(block, sanitize_acc)| {
-            sks.key.apply_lookup_table_assign(block, sanitize_acc);
-        });
-
-    Ok(expanded_blocks)
-}
 
 pub trait Compactable {
     fn compact_into(
@@ -606,16 +524,33 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         })
     }
 
+    /// Number of blocks described by the metadata of a list
+    fn block_count(&self, infos: &[DataKind]) -> crate::Result<usize> {
+        DataKind::total_block_count(infos, self.message_modulus).map_err(|()| {
+            crate::error!(
+                "Invalid compact ciphertext list: the block count of its metadata overflows"
+            )
+        })
+    }
+
+    /// Generate functions to unpack message and carries and additionally sanitizes blocks
+    ///
+    /// * boolean blocks: make sure they encrypt a 0 or a 1
+    /// * last block of ascii char: make sure only necessary bits contain information
+    /// * default case: make sure they have no carries
     pub fn generate_unpack_and_sanitize_functions<'a>(
         &'a self,
         infos: &[DataKind],
-    ) -> crate::Result<CastingFunctionsOwned<'a>> {
-        let block_count: usize = infos
-            .iter()
-            .map(|x| x.num_blocks(self.message_modulus))
-            .sum();
-        let packed_block_count = block_count.div_ceil(2);
-        let mut functions: CastingFunctionsOwned<'a> =
+        expected_lwe_count: usize,
+    ) -> crate::Result<ExpandFunctionsOwned<'a>> {
+        let packed_block_count = self.block_count(infos)?.div_ceil(2);
+        if packed_block_count != expected_lwe_count {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: its metadata describes {packed_block_count} \
+                 packed ciphertexts, got {expected_lwe_count}"
+            ));
+        }
+        let mut functions: ExpandFunctionsOwned<'a> =
             vec![Some(Vec::with_capacity(2)); packed_block_count];
         let mut overall_block_idx = 0;
 
@@ -675,14 +610,23 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         Ok(functions)
     }
 
+    /// Generate functions to sanitize blocks depending on the data kind:
+    ///
+    /// * boolean blocks: make sure they encrypt a 0 or a 1
+    /// * last block of ascii char: make sure only necessary bits contain information
+    /// * default case: make sure they have no carries
     pub fn generate_sanitize_without_unpacking_functions<'a>(
         &'a self,
         infos: &[DataKind],
-    ) -> crate::Result<CastingFunctionsOwned<'a>> {
-        let total_block_count: usize = infos
-            .iter()
-            .map(|x| x.num_blocks(self.message_modulus))
-            .sum();
+        expected_lwe_count: usize,
+    ) -> crate::Result<ExpandFunctionsOwned<'a>> {
+        let total_block_count = self.block_count(infos)?;
+        if total_block_count != expected_lwe_count {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: its metadata describes {total_block_count} \
+                 ciphertexts, got {expected_lwe_count}"
+            ));
+        }
         let mut functions = Vec::with_capacity(total_block_count);
 
         let mut push_functions = |block_count: usize, func: &'a (dyn Fn(u64) -> u64 + Sync)| {
@@ -717,187 +661,34 @@ impl IntegerUnpackingToShortintCastingModeHelper {
         Ok(functions)
     }
 
-    pub fn generate_sanitize_without_unpacking_luts(
-        &self,
+    /// Generate the functions to apply on the blocks of a list during its expansion, unpacking
+    /// them if the list is packed
+    fn generate_expand_functions<'a>(
+        &'a self,
         infos: &[DataKind],
-        sks: &ServerKey,
-    ) -> crate::Result<Vec<LookupTableOwned>> {
-        let total_block_count: usize = infos
-            .iter()
-            .map(|x| x.num_blocks(self.message_modulus))
-            .sum();
-        let mut functions = Vec::with_capacity(total_block_count);
+        is_packed: bool,
+        expected_lwe_count: usize,
+    ) -> crate::Result<ExpandFunctionsOwned<'a>> {
+        if is_packed {
+            self.generate_unpack_and_sanitize_functions(infos, expected_lwe_count)
+        } else {
+            self.generate_sanitize_without_unpacking_functions(infos, expected_lwe_count)
+        }
+    }
 
-        let mut push_luts_for_function = |block_count: usize, func: &dyn Fn(u64) -> u64| {
-            let lut = sks.key.generate_lookup_table(func);
-            for _ in 0..block_count {
-                functions.push(lut.clone());
+    /// Build a helper that outputs blocks with the message modulus of the key used for the
+    /// expansion
+    fn from_expansion_mode(expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>) -> Self {
+        let message_modulus = match expansion_mode {
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                key_switching_key_view,
+            ) => key_switching_key_view.key.dest_server_key.message_modulus,
+            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
+                sks.message_modulus()
             }
         };
 
-        for data_kind in infos {
-            let block_count = data_kind.num_blocks(self.message_modulus);
-            match data_kind {
-                DataKind::Boolean => {
-                    push_luts_for_function(block_count, self.msg_extract_bool.as_ref());
-                }
-                DataKind::String { n_chars, .. } => {
-                    let StringsUnpackingToShortintCastingModeHelper {
-                        msg_extract_last_char_block,
-                        carry_extract_last_char_block: _,
-                        blocks_per_char,
-                    } = self.strings_helper()?;
-                    for _ in 0..*n_chars {
-                        push_luts_for_function(
-                            blocks_per_char.get() - 1,
-                            self.msg_extract.as_ref(),
-                        );
-                        push_luts_for_function(1, msg_extract_last_char_block);
-                    }
-                }
-                _ => {
-                    push_luts_for_function(block_count, self.msg_extract.as_ref());
-                }
-            }
-        }
-
-        Ok(functions)
-    }
-
-    /// Generates a vec of LUTs to apply to both unpack an sanitize data
-    ///
-    /// The LUTs are stored flattened, thus 2 consecutive LUTs must be applied to the same input
-    /// block
-    pub fn generate_unpacked_and_sanitize_luts(
-        &self,
-        infos: &[DataKind],
-        sks: &ServerKey,
-    ) -> crate::Result<Vec<LookupTableOwned>> {
-        let block_count: usize = infos
-            .iter()
-            .map(|x| x.num_blocks(self.message_modulus))
-            .sum();
-        let packed_block_count = block_count.div_ceil(2);
-        let mut functions = Vec::with_capacity(packed_block_count);
-        let mut overall_block_idx = 0;
-
-        // Small help that handles the dispatch between the msg_fn and carry_fn
-        // depending on the overall block index (to know if the data is in the carry or msg)
-        let mut push_functions =
-            |block_count: usize, msg_fn: &dyn Fn(u64) -> u64, carry_fn: &dyn Fn(u64) -> u64| {
-                for _ in 0..block_count {
-                    let is_in_msg_part = overall_block_idx % 2 == 0;
-                    if is_in_msg_part {
-                        functions.push(sks.key.generate_lookup_table(msg_fn));
-                    } else {
-                        functions.push(sks.key.generate_lookup_table(carry_fn));
-                    }
-                    overall_block_idx += 1;
-                }
-            };
-
-        for data_kind in infos {
-            let block_count = data_kind.num_blocks(self.message_modulus);
-            match data_kind {
-                DataKind::Boolean => {
-                    push_functions(
-                        block_count,
-                        &self.msg_extract_bool,
-                        &self.carry_extract_bool,
-                    );
-                }
-                DataKind::String { n_chars, .. } => {
-                    let StringsUnpackingToShortintCastingModeHelper {
-                        msg_extract_last_char_block,
-                        carry_extract_last_char_block,
-                        blocks_per_char,
-                    } = self.strings_helper()?;
-                    for _ in 0..*n_chars {
-                        push_functions(
-                            blocks_per_char.get() - 1,
-                            &self.msg_extract,
-                            &self.carry_extract,
-                        );
-                        push_functions(
-                            1,
-                            msg_extract_last_char_block,
-                            carry_extract_last_char_block,
-                        );
-                    }
-                }
-                _ => {
-                    push_functions(block_count, &self.msg_extract, &self.carry_extract);
-                }
-            }
-        }
-
-        Ok(functions)
-    }
-}
-
-/// Applies post processing on expanded ciphertext, based on the list and the expansion_mode.
-///
-/// The possible processing are:
-/// * cast to different parameters
-/// * sanitize to remove invalid values for types that do not support any bit pattern (bool,
-///   strings)
-/// * unpack if the list is packed
-fn expansion_post_process(
-    expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
-    expanded_list: ExpandedCiphertextList,
-    info: &[DataKind],
-) -> Result<Vec<Ciphertext>, crate::Error> {
-    let is_packed = expanded_list.is_packed();
-
-    match expansion_mode {
-        IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
-            key_switching_key_view,
-        ) => {
-            let dest_sks = &key_switching_key_view.key.dest_server_key;
-            let function_helper =
-                IntegerUnpackingToShortintCastingModeHelper::new(dest_sks.message_modulus);
-            let functions = if is_packed {
-                function_helper.generate_unpack_and_sanitize_functions(info)?
-            } else {
-                function_helper.generate_sanitize_without_unpacking_functions(info)?
-            };
-
-            expanded_list.cast_and_sanitize_if_needed(
-                ShortintCompactCiphertextListCastingMode::CastIfNecessary {
-                    casting_key: key_switching_key_view.key,
-                    functions: Some(functions.as_slice()),
-                },
-            )
-        }
-        IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
-            let conformance_params = ExpandedCiphertextListConformanceParams {
-                ct_list_params: LweCiphertextListConformanceParams {
-                    lwe_dim: sks.key.ciphertext_lwe_dimension(),
-                    lwe_ciphertext_count_constraint: ListSizeConstraint::exact_size(
-                        // Since the list comes from the expansion of a CompactCiphertextList, and
-                        // that the size of this list has already been checked, there is no need to
-                        // validate it again, so we give its own size as constraint
-                        expanded_list.len(),
-                    ),
-                    ct_modulus: sks.key.ciphertext_modulus,
-                },
-                message_modulus: sks.message_modulus(),
-                carry_modulus: sks.carry_modulus(),
-            };
-            if !expanded_list.is_conformant(&conformance_params) {
-                return Err(crate::Error::new(
-                    "This compact list is not conformant with the given server key".to_string(),
-                ));
-            }
-
-            let expanded_blocks = expanded_list
-                .cast_and_sanitize_if_needed(ShortintCompactCiphertextListCastingMode::NoCasting)?;
-            if is_packed {
-                unpack_and_sanitize(expanded_blocks, sks, info)
-            } else {
-                sanitize_blocks(expanded_blocks, sks, info)
-            }
-        }
+        Self::new(message_modulus)
     }
 }
 
@@ -1054,8 +845,21 @@ impl CompactCiphertextList {
         if self.is_empty() {
             return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
         }
-        let expanded_list = self.ct_list.expand_without_casting();
-        let casted_blocks = expansion_post_process(expansion_mode, expanded_list, &self.info)?;
+        let helper =
+            IntegerUnpackingToShortintCastingModeHelper::from_expansion_mode(expansion_mode);
+        let functions =
+            helper.generate_expand_functions(&self.info, self.is_packed(), self.ct_list.len())?;
+
+        let casted_blocks = match expansion_mode {
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                key_switching_key_view,
+            ) => self
+                .ct_list
+                .expand(key_switching_key_view.key, Some(functions.as_slice()))?,
+            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => self
+                .ct_list
+                .expand_without_casting_and_apply_functions(&sks.key, &functions)?,
+        };
 
         Ok(CompactCiphertextListExpander::new(
             casted_blocks,
@@ -1089,9 +893,7 @@ impl CompactCiphertextList {
             ));
         }
 
-        let expanded_list = self.ct_list.expand_without_casting();
-        let blocks = expanded_list
-            .cast_and_sanitize_if_needed(ShortintCompactCiphertextListCastingMode::NoCasting)?;
+        let blocks = self.ct_list.expand_without_casting()?;
 
         Ok(CompactCiphertextListExpander::new(
             blocks,
@@ -1206,19 +1008,24 @@ impl ProvenCompactCiphertextList {
             return Ok(CompactCiphertextListExpander::new(Vec::new(), Vec::new()));
         }
 
-        let expanded_list = self.ct_list.expand_raw()?;
-        let casted_blocks = match expanded_list {
-            Some(expanded_list) => {
-                expansion_post_process(expansion_mode, expanded_list, &self.info)?
-            }
-            // Means ct_list is empty, but the info vec is not. This should be caught by conformance
-            // but we return an error here anyways
-            None => {
-                return Err(crate::error!(
-                    "Invalid ProvenCompactCiphertextList, ct_list is empty but the info metadata \
-is not"
-                ))
-            }
+        let helper =
+            IntegerUnpackingToShortintCastingModeHelper::from_expansion_mode(expansion_mode);
+        let functions = helper.generate_expand_functions(
+            &self.info,
+            self.is_packed(),
+            self.ct_list.ciphertext_count(),
+        )?;
+
+        let casted_blocks = match expansion_mode {
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
+                key_switching_key_view,
+            ) => self.ct_list.expand_without_verification(
+                key_switching_key_view.key,
+                Some(functions.as_slice()),
+            )?,
+            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => self
+                .ct_list
+                .expand_without_verification_or_casting(&sks.key, &functions)?,
         };
 
         Ok(CompactCiphertextListExpander::new(
@@ -1245,19 +1052,17 @@ is not"
     }
 
     pub fn is_packed(&self) -> bool {
-        if self.is_empty() {
-            return false;
-        }
-
-        self.ct_list.proved_lists[0].0.is_packed()
+        self.ct_list
+            .proved_lists
+            .first()
+            .is_some_and(|(list, _)| list.is_packed())
     }
 
     pub fn needs_casting(&self) -> bool {
-        if self.is_empty() {
-            return false;
-        }
-
-        self.ct_list.proved_lists[0].0.needs_casting()
+        self.ct_list
+            .proved_lists
+            .first()
+            .is_some_and(|(list, _)| list.needs_casting())
     }
 
     pub fn proof_size(&self) -> usize {
@@ -1420,11 +1225,34 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::{gen_keys, ClientKey, CompactPublicKey, IntegerKeyKind, RadixCiphertext};
+    use crate::integer::{
+        gen_keys, ClientKey, CompactPublicKey, IntegerKeyKind, RadixCiphertext, ServerKey,
+    };
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     };
+
+    #[test]
+    fn test_expand_list_with_more_blocks_in_metadata_than_ciphertexts() {
+        let (cks, sks) = gen_keys(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            IntegerKeyKind::Radix,
+        );
+        let pk = CompactPublicKey::new(&cks);
+
+        let mut builder = CompactCiphertextList::builder(&pk);
+        builder.push_with_num_blocks(0u8, 2);
+
+        let list = CompactCiphertextList {
+            ct_list: builder.build().ct_list,
+            info: vec![DataKind::Unsigned(NonZero::new(usize::MAX).unwrap())],
+        };
+
+        assert!(list
+            .expand(IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(&sks))
+            .is_err());
+    }
 
     /// A compact list may claim to contain strings while the server key parameters do not support
     /// them. As the list is untrusted, this must be an error and not a panic.
@@ -1441,36 +1269,43 @@ mod tests {
             },
         ];
 
+        // These parameters do not support strings, so generating functions should return an error
         let helper = IntegerUnpackingToShortintCastingModeHelper::new(params.message_modulus);
         assert!(helper
-            .generate_unpack_and_sanitize_functions(&infos)
+            .generate_unpack_and_sanitize_functions(&infos, 1)
             .is_err());
         assert!(helper
-            .generate_sanitize_without_unpacking_functions(&infos)
+            .generate_sanitize_without_unpacking_functions(&infos, 2)
             .is_err());
 
         // Without strings, the same parameters work
         assert!(helper
-            .generate_unpack_and_sanitize_functions(&infos[..1])
+            .generate_unpack_and_sanitize_functions(&infos[..1], 1)
             .is_ok());
         assert!(helper
-            .generate_sanitize_without_unpacking_functions(&infos[..1])
+            .generate_sanitize_without_unpacking_functions(&infos[..1], 2)
             .is_ok());
 
         let cks = ClientKey::new(params);
         let sks = ServerKey::new_radix_server_key(&cks);
 
-        assert!(helper
-            .generate_unpacked_and_sanitize_luts(&infos, &sks)
-            .is_err());
-        assert!(helper
-            .generate_sanitize_without_unpacking_luts(&infos, &sks)
-            .is_err());
+        let pk = CompactPublicKey::new(&cks);
+        let mut builder = CompactCiphertextList::builder(&pk);
+        builder.push_with_num_blocks(0u8, 2);
+        let ct_list = builder.build().ct_list;
 
-        let blocks = vec![sks.key.create_trivial(0); 2];
-        assert!(sanitize_blocks(blocks.clone(), &sks, &infos).is_err());
-        assert!(unpack_and_sanitize(blocks.clone(), &sks, &infos).is_err());
-        assert!(sanitize_blocks(blocks, &sks, &infos[..1]).is_ok());
+        let functions = helper
+            .generate_sanitize_without_unpacking_functions(&infos[..1], ct_list.len())
+            .unwrap();
+        assert!(ct_list
+            .expand_without_casting_and_apply_functions(&sks.key, &functions)
+            .is_ok());
+
+        // Craft a fake list with an empty string and check that it does not make expand panic
+        let list = CompactCiphertextList::from_raw_parts(builder.build().ct_list, infos.to_vec());
+        assert!(list
+            .expand(IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(&sks))
+            .is_err());
     }
 
     #[test]
