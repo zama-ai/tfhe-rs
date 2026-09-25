@@ -10,7 +10,7 @@ use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
 use super::ops::exec_dialect_op;
-use super::value::{CpuInputList, CpuOutputList, RuntimeValue};
+use super::value::{CpuInputList, CpuOutputList, RuntimeValue, RuntimeValueConformanceParams};
 use super::CpuError;
 use crate::graph::dialects::hlapi::{ExecutionGraph, HlApiDialect, HlInstructionSet};
 use crossbeam::channel::{unbounded, Receiver, Sender};
@@ -251,6 +251,7 @@ pub(crate) fn execute_graph(
     graph: &ExecutionGraph,
     inputs: CpuInputList,
     num_workers: NonZeroUsize,
+    conformance_params: &RuntimeValueConformanceParams,
 ) -> Result<CpuOutputList, CpuError> {
     let (meta, mut pending_ops) = ReadyQueueMeta::from_graph(graph);
     let ir = graph.ir();
@@ -287,7 +288,7 @@ pub(crate) fn execute_graph(
         for (i, (val_id, input_value)) in graph_inputs.iter().zip(inputs.inputs).enumerate() {
             let i = i as u32;
             let expected_kind = graph.input_kind(i);
-            input_value.check_input(i, &expected_kind, sks.pbs_key())?;
+            input_value.check_input(i, &expected_kind, conformance_params)?;
             dispatch_value(val_id, Arc::new(input_value), &mut ctx);
         }
 
