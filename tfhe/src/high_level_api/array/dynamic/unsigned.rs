@@ -13,7 +13,7 @@ use crate::high_level_api::array::{
 };
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheUintId;
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
+use crate::integer::block_decomposition::{FixedDecomposableInto, FixedRecomposableFrom};
 use crate::integer::RadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use crate::{ClientKey, Device, Error};
@@ -309,7 +309,7 @@ impl BitwiseArrayBackend for DynUintBackend {
 
 impl<Clear> ClearBitwiseArrayBackend<Clear> for DynUintBackend
 where
-    Clear: DecomposableInto<u8>,
+    Clear: FixedDecomposableInto<u8>,
 {
     fn bitand_slice(
         lhs: TensorSlice<'_, Self::Slice<'_>>,
@@ -374,7 +374,7 @@ where
 impl<'a, Clear, Id> FheTryEncrypt<&'a [Clear], ClientKey> for FheUintArray<Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64> + UnsignedNumeric,
+    Clear: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = Error;
 
@@ -386,7 +386,7 @@ where
 impl<'a, Clear, Id> FheTryEncrypt<(&'a [Clear], Vec<usize>), ClientKey> for FheUintArray<Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64> + UnsignedNumeric,
+    Clear: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = Error;
 
@@ -408,7 +408,7 @@ where
 impl<Clear, Id> FheDecrypt<Vec<Clear>> for FheUintArray<Id>
 where
     Id: FheUintId,
-    Clear: RecomposableFrom<u64> + UnsignedNumeric,
+    Clear: FixedRecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
         self.as_slice().decrypt(key)
@@ -418,7 +418,7 @@ where
 impl<Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSliceMut<'_, Id>
 where
     Id: FheUintId,
-    Clear: RecomposableFrom<u64> + UnsignedNumeric,
+    Clear: FixedRecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
         self.as_slice().decrypt(key)
@@ -428,7 +428,7 @@ where
 impl<Clear, Id> FheDecrypt<Vec<Clear>> for FheUintSlice<'_, Id>
 where
     Id: FheUintId,
-    Clear: RecomposableFrom<u64> + UnsignedNumeric,
+    Clear: FixedRecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
         let cpu_cow = self.elems.on_cpu();

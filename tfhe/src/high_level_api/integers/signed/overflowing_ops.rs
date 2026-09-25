@@ -3,7 +3,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::prelude::{OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub};
 use crate::{FheBool, FheInt};
 
@@ -128,7 +128,7 @@ where
 impl<Id, Clear> OverflowingAdd<Clear> for &FheInt<Id>
 where
     Id: FheIntId,
-    Clear: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8>,
+    Clear: SignedNumeric + FixedDecomposableInto<u64> + FixedDecomposableInto<u8>,
 {
     type Output = FheInt<Id>;
 
@@ -208,7 +208,7 @@ where
 impl<Id, Clear> OverflowingAdd<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8>,
+    Clear: SignedNumeric + FixedDecomposableInto<u64> + FixedDecomposableInto<u8>,
 {
     type Output = Self;
 
@@ -245,7 +245,7 @@ where
 impl<Id, Clear> OverflowingAdd<&FheInt<Id>> for Clear
 where
     Id: FheIntId,
-    Clear: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8>,
+    Clear: SignedNumeric + FixedDecomposableInto<u64> + FixedDecomposableInto<u8>,
 {
     type Output = FheInt<Id>;
 
@@ -399,9 +399,9 @@ impl<Id, Clear> OverflowingSub<Clear> for &FheInt<Id>
 where
     Id: FheIntId,
     Clear: SignedNumeric
-        + DecomposableInto<u8>
+        + FixedDecomposableInto<u8>
         + std::ops::Not<Output = Clear>
-        + DecomposableInto<u64>,
+        + FixedDecomposableInto<u64>,
 {
     type Output = FheInt<Id>;
 
@@ -480,9 +480,9 @@ impl<Id, Clear> OverflowingSub<Clear> for FheInt<Id>
 where
     Id: FheIntId,
     Clear: SignedNumeric
-        + DecomposableInto<u8>
+        + FixedDecomposableInto<u8>
         + std::ops::Not<Output = Clear>
-        + DecomposableInto<u64>,
+        + FixedDecomposableInto<u64>,
 {
     type Output = Self;
 

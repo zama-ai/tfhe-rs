@@ -21,7 +21,7 @@ use crate::high_level_api::traits::{
     RotateRightAssign,
 };
 use crate::integer::bigint::{U1024, U2048, U512};
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 #[cfg(feature = "hpu")]
@@ -38,7 +38,7 @@ use tfhe_hpu_backend::prelude::*;
 
 impl<Id, Clear> FheEq<Clear> for FheUint<Id>
 where
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
     Id: FheUintId,
 {
     /// Test for equality between a [FheUint] and a clear
@@ -149,7 +149,7 @@ where
 impl<Id, Clear> FheOrd<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     /// Test for less than between a [FheUint] and a clear value
     ///
@@ -364,7 +364,7 @@ where
 impl<Id, Clear> FheOrdSizeOnGpu<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     fn get_gt_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
@@ -424,7 +424,7 @@ where
 impl<Id, Clear> FheEqSizeOnGpu<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     fn get_eq_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
@@ -458,7 +458,7 @@ where
 impl<Id, Clear> FheMinSizeOnGpu<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     fn get_min_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
@@ -478,7 +478,7 @@ where
 impl<Id, Clear> FheMaxSizeOnGpu<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     fn get_max_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
@@ -497,7 +497,7 @@ where
 
 impl<Id, Clear> FheMax<Clear> for FheUint<Id>
 where
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
     Id: FheUintId,
 {
     type Output = Self;
@@ -558,7 +558,7 @@ where
 impl<Id, Clear> FheMin<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     type Output = Self;
 

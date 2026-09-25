@@ -13,7 +13,7 @@ use crate::high_level_api::global_state::{
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheDecrypt, SquashNoise, Tagged};
 use crate::high_level_api::SquashedNoiseCiphertextState;
-use crate::integer::block_decomposition::RecomposableFrom;
+use crate::integer::block_decomposition::FixedRecomposableFrom;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
 use crate::named::Named;
@@ -236,7 +236,7 @@ impl SquashedNoiseFheUint {
 
 impl<Clear> FheDecrypt<Clear> for SquashedNoiseFheUint
 where
-    Clear: RecomposableFrom<u128> + UnsignedNumeric,
+    Clear: FixedRecomposableFrom<u128> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Clear {
         let noise_squashing_private_key = key.private_noise_squashing_decryption_key(self.state);

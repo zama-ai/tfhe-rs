@@ -12,7 +12,7 @@
 //! it is absolutely worth to compute the approximation of the inverse.
 use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
 use crate::integer::bigint::{StaticUnsignedBigInt, I1024, I2048, I4096, U1024, U2048, U4096};
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
 use crate::integer::{IntegerCiphertext, ServerKey, I256, I512, U256, U512};
@@ -93,7 +93,7 @@ pub trait Reciprocable: MiniUnsignedInteger {
         + CastInto<Self>
         + CastInto<u64>
         + ScalarMultiplier // Needed for scalar_mul
-        + DecomposableInto<u8>; // Needed for scalar_mul
+        + FixedDecomposableInto<u8>; // Needed for scalar_mul
 }
 
 impl Reciprocable for u8 {
@@ -133,8 +133,8 @@ impl Reciprocable for U2048 {
 }
 
 pub trait SignedReciprocable:
-    DecomposableInto<u64>
-    + DecomposableInto<u8>
+    FixedDecomposableInto<u64>
+    + FixedDecomposableInto<u8>
     + SignedNumeric
     + Neg<Output = Self>
     + Shl<usize, Output = Self>
@@ -142,7 +142,7 @@ pub trait SignedReciprocable:
     + std::fmt::Debug
 {
     type Unsigned: Reciprocable + CastFrom<Self> + std::fmt::Debug;
-    type DoublePrecision: DecomposableInto<u8>
+    type DoublePrecision: FixedDecomposableInto<u8>
         + ScalarMultiplier
         + CastFrom<<Self::Unsigned as Reciprocable>::DoublePrecision>
         + CastInto<u64>
@@ -320,7 +320,7 @@ impl ServerKey {
     /// }
     fn scalar_mul_high<T>(&self, lhs: &RadixCiphertext, rhs: T) -> RadixCiphertext
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         let mut result = lhs.clone();
         self.extend_radix_with_trivial_zero_blocks_msb_assign(&mut result, lhs.blocks.len());
@@ -335,7 +335,7 @@ impl ServerKey {
         rhs: T,
     ) -> SignedRadixCiphertext
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         let num_blocks = lhs.blocks.len();
         let mut result = self.extend_radix_with_sign_msb(lhs, num_blocks);
@@ -855,7 +855,7 @@ impl ServerKey {
         divisor: T,
     ) -> (RadixCiphertext, RadixCiphertext)
     where
-        T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
+        T: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         let quotient = self.unchecked_scalar_div_parallelized(numerator, divisor);
         let remainder = if MiniUnsignedInteger::is_power_of_two(divisor) {
@@ -876,7 +876,7 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
+        T: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if MiniUnsignedInteger::is_power_of_two(divisor) {
             // The remainder is simply the bits that would get 'shifted out'
@@ -892,7 +892,7 @@ impl ServerKey {
         numerator: &mut RadixCiphertext,
         divisor: T,
     ) where
-        T: Reciprocable + DecomposableInto<u8>,
+        T: Reciprocable + FixedDecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
             self.full_propagate_parallelized(numerator);
@@ -906,7 +906,7 @@ impl ServerKey {
         numerator: &mut RadixCiphertext,
         divisor: T,
     ) where
-        T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
+        T: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
             self.full_propagate_parallelized(numerator);
@@ -921,7 +921,7 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        T: Reciprocable + DecomposableInto<u8>,
+        T: Reciprocable + FixedDecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
             self.full_propagate_parallelized(numerator);
@@ -936,7 +936,7 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
+        T: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
             self.full_propagate_parallelized(numerator);
@@ -951,7 +951,7 @@ impl ServerKey {
         divisor: T,
     ) -> (RadixCiphertext, RadixCiphertext)
     where
-        T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
+        T: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
             self.full_propagate_parallelized(numerator);
@@ -962,7 +962,7 @@ impl ServerKey {
 
     pub fn scalar_div_assign_parallelized<T>(&self, numerator: &mut RadixCiphertext, divisor: T)
     where
-        T: Reciprocable + DecomposableInto<u8>,
+        T: Reciprocable + FixedDecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
             self.full_propagate_parallelized(numerator);
@@ -973,7 +973,7 @@ impl ServerKey {
 
     pub fn scalar_rem_assign_parallelized<T>(&self, numerator: &mut RadixCiphertext, divisor: T)
     where
-        T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
+        T: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if !numerator.block_carries_are_empty() {
             self.full_propagate_parallelized(numerator);
@@ -1020,7 +1020,7 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        T: Reciprocable + DecomposableInto<u8>,
+        T: Reciprocable + FixedDecomposableInto<u8>,
     {
         let mut result = numerator.clone();
         self.scalar_div_assign_parallelized(&mut result, divisor);
@@ -1065,7 +1065,7 @@ impl ServerKey {
         divisor: T,
     ) -> RadixCiphertext
     where
-        T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
+        T: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         let mut result = numerator.clone();
         self.scalar_rem_assign_parallelized(&mut result, divisor);
@@ -1107,7 +1107,7 @@ impl ServerKey {
         divisor: T,
     ) -> (RadixCiphertext, RadixCiphertext)
     where
-        T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
+        T: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if numerator.block_carries_are_empty() {
             self.unchecked_scalar_div_rem_parallelized(numerator, divisor)

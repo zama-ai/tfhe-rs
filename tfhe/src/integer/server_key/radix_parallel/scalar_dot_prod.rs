@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::{CastInto, Numeric, OverflowingAdd, UnsignedInteger};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext, ServerKey};
 use std::ops::{AddAssign, Mul};
 
@@ -18,7 +18,7 @@ impl ServerKey {
     ) -> Vec<T>
     where
         Clear: Numeric
-            + DecomposableInto<u64>
+            + FixedDecomposableInto<u64>
             + CastInto<usize>
             + CastFrom<u128>
             + Mul<Clear, Output = Clear>
@@ -141,7 +141,7 @@ impl ServerKey {
     ) -> T
     where
         Clear: Numeric
-            + DecomposableInto<u64>
+            + FixedDecomposableInto<u64>
             + CastInto<usize>
             + CastFrom<u128>
             + Mul<Clear, Output = Clear>
@@ -181,7 +181,7 @@ impl ServerKey {
     ) -> T
     where
         Clear: Numeric
-            + DecomposableInto<u64>
+            + FixedDecomposableInto<u64>
             + CastInto<usize>
             + CastFrom<u128>
             + Mul<Clear, Output = Clear>
@@ -219,7 +219,7 @@ impl ServerKey {
     ) -> T
     where
         Clear: Numeric
-            + DecomposableInto<u64>
+            + FixedDecomposableInto<u64>
             + CastInto<usize>
             + CastFrom<u128>
             + Mul<Clear, Output = Clear>
@@ -249,7 +249,7 @@ impl ServerKey {
         n_blocks: u32,
     ) -> RadixCiphertext
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         assert_eq!(
             boolean_blocks.len(),
@@ -283,7 +283,7 @@ impl ServerKey {
         n_blocks: u32,
     ) -> RadixCiphertext
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         let boolean_blocks = self.cleaned_boolean_blocks(boolean_blocks);
 

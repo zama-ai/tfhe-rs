@@ -1,4 +1,4 @@
-use super::block_decomposition::{BlockDecomposer, DecomposableInto};
+use super::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::shortint::parameters::MessageModulus;
 
 pub(crate) trait KnowsMessageModulus {
@@ -50,7 +50,7 @@ pub(crate) fn encrypt_words_radix_impl<BlockKey, Block, RadixCiphertextType, T, 
     encrypt_block: F,
 ) -> RadixCiphertextType
 where
-    T: DecomposableInto<u64>,
+    T: FixedDecomposableInto<u64>,
     BlockKey: KnowsMessageModulus,
     F: Fn(&BlockKey, u64) -> Block,
     RadixCiphertextType: From<Vec<Block>>,
@@ -75,7 +75,7 @@ pub(crate) fn encrypt_many_words_radix_impl<BlockKey, Block, RadixCiphertextType
     encrypt_blocks: F,
 ) -> RadixCiphertextType
 where
-    T: DecomposableInto<u64>,
+    T: FixedDecomposableInto<u64>,
     BlockKey: KnowsMessageModulus,
     F: Fn(&BlockKey, ClearRadixBlockIterator<T>) -> Vec<Block>,
     RadixCiphertextType: From<Vec<Block>>,
@@ -92,7 +92,7 @@ where
 // We need to concretize the iterator type to be able to pass callbacks consuming the iterator,
 // having an opaque return impl Iterator does not allow to take callbacks at this moment, not sure
 // the Fn(impl Trait) syntax can be made to work nicely with the rest of the language
-pub(crate) type ClearRadixBlockIterator<T> = std::iter::Map<BlockDecomposer<T>, fn(T) -> u64>;
+pub(crate) type ClearRadixBlockIterator<T> = std::iter::Map<BlockDecomposer<T>, fn(u128) -> u64>;
 
 pub(crate) fn create_clear_radix_block_iterator<T>(
     message: T,
@@ -100,7 +100,7 @@ pub(crate) fn create_clear_radix_block_iterator<T>(
     num_blocks: usize,
 ) -> ClearRadixBlockIterator<T>
 where
-    T: DecomposableInto<u64>,
+    T: FixedDecomposableInto<u64>,
 {
     let bits_in_block = message_modulus.0.ilog2();
     BlockDecomposer::with_block_count(message, bits_in_block, num_blocks).iter_as::<u64>()

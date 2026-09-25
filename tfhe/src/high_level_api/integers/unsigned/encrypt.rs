@@ -3,7 +3,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
+use crate::integer::block_decomposition::{FixedDecomposableInto, FixedRecomposableFrom};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
@@ -12,7 +12,7 @@ use crate::{ClientKey, CompressedPublicKey, FheUint, PublicKey};
 impl<Id, ClearType> FheDecrypt<ClearType> for FheUint<Id>
 where
     Id: FheUintId,
-    ClearType: RecomposableFrom<u64> + UnsignedNumeric,
+    ClearType: FixedRecomposableFrom<u64> + UnsignedNumeric,
 {
     /// Decrypts a [FheUint] to an unsigned type.
     ///
@@ -44,7 +44,7 @@ where
 impl<Id, T> FheTryEncrypt<T, ClientKey> for FheUint<Id>
 where
     Id: FheUintId,
-    T: DecomposableInto<u64> + UnsignedNumeric,
+    T: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = crate::Error;
 
@@ -68,7 +68,7 @@ where
 impl<Id, T> FheTryEncrypt<T, PublicKey> for FheUint<Id>
 where
     Id: FheUintId,
-    T: DecomposableInto<u64> + UnsignedNumeric,
+    T: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = crate::Error;
 
@@ -91,7 +91,7 @@ where
 impl<Id, T> FheTryEncrypt<T, CompressedPublicKey> for FheUint<Id>
 where
     Id: FheUintId,
-    T: DecomposableInto<u64> + UnsignedNumeric,
+    T: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = crate::Error;
 
@@ -112,7 +112,7 @@ where
 
 impl<Id, T> FheTryTrivialEncrypt<T> for FheUint<Id>
 where
-    T: DecomposableInto<u64> + UnsignedNumeric,
+    T: FixedDecomposableInto<u64> + UnsignedNumeric,
     Id: FheUintId,
 {
     type Error = crate::Error;
@@ -153,7 +153,7 @@ where
 
 impl<Id, T> FheTrivialEncrypt<T> for FheUint<Id>
 where
-    T: DecomposableInto<u64> + UnsignedNumeric,
+    T: FixedDecomposableInto<u64> + UnsignedNumeric,
     Id: FheUintId,
 {
     /// Creates a trivially encrypted FheUint

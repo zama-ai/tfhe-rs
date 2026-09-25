@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::{Cleartext, SignedNumeric, UnsignedNumeric};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix::neg::NegatedDegreeIter;
 use crate::integer::server_key::radix::scalar_sub::TwosComplementNegation;
@@ -35,7 +35,7 @@ impl ServerKey {
     pub fn smart_scalar_sub_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         if self.is_scalar_sub_possible(ct, scalar).is_err() {
             self.full_propagate_parallelized(ct);
@@ -47,7 +47,7 @@ impl ServerKey {
     pub fn smart_scalar_sub_assign_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         if self.is_scalar_sub_possible(ct, scalar).is_err() {
             self.full_propagate_parallelized(ct);
@@ -92,7 +92,7 @@ impl ServerKey {
     pub fn scalar_sub_parallelized<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         let mut ct_res = ct.clone();
         self.scalar_sub_assign_parallelized(&mut ct_res, scalar);
@@ -102,7 +102,7 @@ impl ServerKey {
     pub fn scalar_sub_assign_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -117,7 +117,7 @@ impl ServerKey {
 
     pub fn unchecked_left_scalar_sub<Scalar, T>(&self, scalar: Scalar, rhs: &T) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
         // a - b <=> a + (-b)
@@ -132,7 +132,7 @@ impl ServerKey {
         rhs: &T,
     ) -> Result<(), CheckError>
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
         // We do scalar - ct by doing scalar + (-ct)
@@ -152,7 +152,7 @@ impl ServerKey {
 
     pub fn smart_left_scalar_sub_parallelized<Scalar, T>(&self, scalar: Scalar, rhs: &mut T) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
         if self.is_neg_possible(rhs).is_err() {
@@ -173,7 +173,7 @@ impl ServerKey {
 
     pub fn left_scalar_sub_parallelized<Scalar, T>(&self, scalar: Scalar, rhs: &T) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
         if rhs.block_carries_are_empty() {
@@ -214,7 +214,7 @@ impl ServerKey {
         scalar: T,
     ) -> BooleanBlock
     where
-        T: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = T>,
+        T: UnsignedNumeric + FixedDecomposableInto<u8> + std::ops::Not<Output = T>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -233,7 +233,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> BooleanBlock
     where
-        Scalar: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
+        Scalar: UnsignedNumeric + FixedDecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
         assert!(!lhs.blocks.is_empty(), "lhs cannot be empty");
 
@@ -303,7 +303,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> BooleanBlock
     where
-        Scalar: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
+        Scalar: UnsignedNumeric + FixedDecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
         let packed_modulus = self.message_modulus().0 * self.message_modulus().0;
 
@@ -701,7 +701,7 @@ impl ServerKey {
         scalar: T,
     ) -> (RadixCiphertext, BooleanBlock)
     where
-        T: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = T>,
+        T: UnsignedNumeric + FixedDecomposableInto<u8> + std::ops::Not<Output = T>,
     {
         let mut result = lhs.clone();
         let overflow =
@@ -715,7 +715,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> BooleanBlock
     where
-        Scalar: SignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
+        Scalar: SignedNumeric + FixedDecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -761,7 +761,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> (SignedRadixCiphertext, BooleanBlock)
     where
-        Scalar: SignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
+        Scalar: SignedNumeric + FixedDecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
         let mut result = lhs.clone();
         let overflow = self.signed_overflowing_scalar_sub_assign_parallelized(&mut result, scalar);

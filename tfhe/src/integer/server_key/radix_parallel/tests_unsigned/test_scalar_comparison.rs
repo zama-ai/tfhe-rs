@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::UnsignedNumeric;
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
+use crate::integer::block_decomposition::{FixedDecomposableInto, FixedRecomposableFrom};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
@@ -26,7 +26,7 @@ pub(crate) fn test_unchecked_scalar_function<P, T, ClearF, Scalar>(
     clear_fn: ClearF,
 ) where
     P: Into<TestParameters>,
-    Scalar: UnsignedNumeric + DecomposableInto<u64> + RecomposableFrom<u64> + From<bool>,
+    Scalar: UnsignedNumeric + FixedDecomposableInto<u64> + FixedRecomposableFrom<u64> + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
@@ -73,8 +73,8 @@ pub(crate) fn test_smart_scalar_function<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -140,8 +140,8 @@ pub(crate) fn test_default_scalar_function<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -596,7 +596,7 @@ pub(crate) fn test_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
     clear_fn: ClearF,
 ) where
     P: Into<TestParameters>,
-    Scalar: UnsignedNumeric + DecomposableInto<u64> + RecomposableFrom<u64>,
+    Scalar: UnsignedNumeric + FixedDecomposableInto<u64> + FixedRecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
@@ -641,7 +641,10 @@ pub(crate) fn test_smart_scalar_minmax<P, T, ClearF, Scalar>(
     clear_fn: ClearF,
 ) where
     P: Into<TestParameters>,
-    Scalar: UnsignedNumeric + AddAssign<Scalar> + DecomposableInto<u64> + RecomposableFrom<u64>,
+    Scalar: UnsignedNumeric
+        + AddAssign<Scalar>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
@@ -704,7 +707,10 @@ pub(crate) fn test_default_scalar_minmax<P, T, ClearF, Scalar>(
     clear_fn: ClearF,
 ) where
     P: Into<TestParameters>,
-    Scalar: UnsignedNumeric + AddAssign<Scalar> + DecomposableInto<u64> + RecomposableFrom<u64>,
+    Scalar: UnsignedNumeric
+        + AddAssign<Scalar>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,

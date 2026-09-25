@@ -2,7 +2,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweCiphertextCount;
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
@@ -33,7 +33,7 @@ impl CudaServerKey {
     ) -> Option<std::cmp::Ordering>
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(scalar, self.message_modulus.0.ilog2())
@@ -113,7 +113,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if scalar < Scalar::ZERO {
@@ -250,7 +250,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
@@ -312,7 +312,7 @@ impl CudaServerKey {
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let message_modulus = self.message_modulus.0;
 
@@ -552,7 +552,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::EQ, streams)
     }
@@ -605,7 +605,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if ct.block_carries_are_empty() {
@@ -667,7 +667,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if ct.block_carries_are_empty() {
@@ -689,7 +689,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::NE, streams)
     }
@@ -701,7 +701,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::GT, streams)
@@ -714,7 +714,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::GE, streams)
@@ -727,7 +727,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::LT, streams)
@@ -740,7 +740,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::LE, streams)
@@ -753,7 +753,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
@@ -775,7 +775,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
@@ -797,7 +797,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
@@ -819,7 +819,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
@@ -889,7 +889,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_minmax(ct, scalar, ComparisonType::MAX, streams)
@@ -902,7 +902,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_minmax(ct, scalar, ComparisonType::MIN, streams)
@@ -910,7 +910,7 @@ impl CudaServerKey {
 
     pub fn scalar_max<Scalar, T>(&self, ct: &T, scalar: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;
@@ -927,7 +927,7 @@ impl CudaServerKey {
 
     pub fn scalar_min<Scalar, T>(&self, ct: &T, scalar: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut tmp_lhs;

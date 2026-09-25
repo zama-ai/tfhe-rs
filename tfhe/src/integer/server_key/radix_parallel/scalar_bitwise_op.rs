@@ -1,4 +1,4 @@
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::ServerKey;
 use rayon::prelude::*;
@@ -7,7 +7,7 @@ impl ServerKey {
     pub fn unchecked_scalar_bitand_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let mut result = lhs.clone();
         self.unchecked_scalar_bitand_assign_parallelized(&mut result, rhs);
@@ -17,7 +17,7 @@ impl ServerKey {
     pub fn unchecked_scalar_bitand_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let message_modulus = self.key.message_modulus.0;
         assert!(message_modulus.is_power_of_two());
@@ -47,7 +47,7 @@ impl ServerKey {
     pub fn smart_scalar_bitand_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
@@ -60,7 +60,7 @@ impl ServerKey {
     pub fn smart_scalar_bitand_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
@@ -94,7 +94,7 @@ impl ServerKey {
     pub fn scalar_bitand_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let mut result = lhs.clone();
         self.scalar_bitand_assign_parallelized(&mut result, rhs);
@@ -127,7 +127,7 @@ impl ServerKey {
     pub fn scalar_bitand_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
@@ -138,7 +138,7 @@ impl ServerKey {
     pub fn unchecked_scalar_bitor_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let mut result = lhs.clone();
         self.unchecked_scalar_bitor_assign_parallelized(&mut result, rhs);
@@ -148,7 +148,7 @@ impl ServerKey {
     pub fn unchecked_scalar_bitor_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let message_modulus = self.key.message_modulus.0;
         assert!(message_modulus.is_power_of_two());
@@ -172,7 +172,7 @@ impl ServerKey {
     pub fn smart_scalar_bitor_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
@@ -185,7 +185,7 @@ impl ServerKey {
     pub fn smart_scalar_bitor_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
@@ -219,7 +219,7 @@ impl ServerKey {
     pub fn scalar_bitor_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let mut result = lhs.clone();
         self.scalar_bitor_assign_parallelized(&mut result, rhs);
@@ -252,7 +252,7 @@ impl ServerKey {
     pub fn scalar_bitor_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
@@ -263,7 +263,7 @@ impl ServerKey {
     pub fn unchecked_scalar_bitxor_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let mut result = lhs.clone();
         self.unchecked_scalar_bitxor_assign_parallelized(&mut result, rhs);
@@ -273,7 +273,7 @@ impl ServerKey {
     pub fn unchecked_scalar_bitxor_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let message_modulus = self.key.message_modulus.0;
         assert!(message_modulus.is_power_of_two());
@@ -297,7 +297,7 @@ impl ServerKey {
     pub fn smart_scalar_bitxor_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
@@ -313,7 +313,7 @@ impl ServerKey {
         rhs: Scalar,
     ) where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);
@@ -347,7 +347,7 @@ impl ServerKey {
     pub fn scalar_bitxor_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let mut result = lhs.clone();
         self.scalar_bitxor_assign_parallelized(&mut result, rhs);
@@ -380,7 +380,7 @@ impl ServerKey {
     pub fn scalar_bitxor_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate(lhs);

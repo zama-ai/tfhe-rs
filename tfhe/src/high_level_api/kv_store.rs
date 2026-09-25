@@ -7,7 +7,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{Compressible, Expandable};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
@@ -417,9 +417,9 @@ where
 
 impl<Key, T> KVStore<Key, T>
 where
-    // DecomposableInto<u64> (not just Decomposable): the GPU backend passes
-    // clear keys as u64 blocks through the FFI.
-    Key: DecomposableInto<u64> + CastInto<usize> + Ord,
+    // FixedDecomposableInto<u64> (not just Decomposable): the GPU backend
+    // passes clear keys as u64 blocks through the FFI.
+    Key: FixedDecomposableInto<u64> + CastInto<usize> + Ord,
     T: FheIntegerType,
 {
     /// Gets the value corresponding to the encrypted key.
@@ -587,7 +587,7 @@ where
     /// Returns an encrypted boolean that encrypts true if the value was found.
     pub fn contains_clear_value<Clear>(&self, clear_value: Clear) -> FheBool
     where
-        Clear: DecomposableInto<u64>,
+        Clear: FixedDecomposableInto<u64>,
     {
         #[allow(unreachable_patterns)]
         global_state::with_internal_keys(|key| match (key, &self.inner) {

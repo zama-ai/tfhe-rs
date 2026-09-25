@@ -1,12 +1,11 @@
 use crate::integer::backward_compatibility::ciphertext::CompressedKVStoreVersions;
-use crate::integer::block_decomposition::{Decomposable, DecomposableInto};
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{
     CompressedCiphertextList, CompressedCiphertextListBuilder, Compressible, Expandable,
 };
 use crate::integer::compression_keys::{CompressionKey, DecompressionKey};
 use crate::integer::prelude::ServerKeyDefaultCMux;
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, ServerKey};
-use crate::prelude::CastInto;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -194,7 +193,7 @@ impl ServerKey {
     ) -> (Ct, BooleanBlock, Vec<BooleanBlock>)
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Ord,
+        Key: FixedDecomposableInto<usize> + Ord,
     {
         if map.is_empty() {
             let zero = self.create_trivial_zero_radix(encrypted_key.blocks().len());
@@ -229,7 +228,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Ord,
+        Key: FixedDecomposableInto<usize> + Ord,
     {
         if map.is_empty() {
             return self.create_trivial_boolean_block(false);
@@ -253,7 +252,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Ord,
+        Key: FixedDecomposableInto<usize> + Ord,
     {
         // We accept the cost of the cloning for now
         let values_vec = map.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
@@ -271,8 +270,8 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Ord,
-        Clear: DecomposableInto<u64>,
+        Key: FixedDecomposableInto<usize> + Ord,
+        Clear: FixedDecomposableInto<u64>,
     {
         // We accept the cost of the cloning for now
         let values_vec = map.iter().map(|(_, v)| v.clone()).collect::<Vec<_>>();
@@ -296,7 +295,7 @@ impl ServerKey {
     ) -> (Ct, BooleanBlock)
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Ord,
+        Key: FixedDecomposableInto<usize> + Ord,
     {
         let (result, check_block, _selectors) = self.kv_store_get_impl(map, encrypted_key);
         (result, check_block)
@@ -319,7 +318,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Ord,
+        Key: FixedDecomposableInto<usize> + Ord,
     {
         if map.is_empty() {
             return self.create_trivial_boolean_block(false);
@@ -363,7 +362,7 @@ impl ServerKey {
     ) -> (Ct, Ct, BooleanBlock)
     where
         Ct: IntegerRadixCiphertext,
-        Key: Decomposable + CastInto<usize> + Ord,
+        Key: FixedDecomposableInto<usize> + Ord,
         F: Fn(Ct) -> Ct,
     {
         let (old_value, check_block, selectors) = self.kv_store_get_impl(map, encrypted_key);

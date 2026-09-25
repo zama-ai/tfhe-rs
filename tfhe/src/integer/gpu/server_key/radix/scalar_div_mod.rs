@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
@@ -188,7 +188,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext)
     where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
@@ -295,7 +295,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaUnsignedRadixCiphertext)
     where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
@@ -316,7 +316,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext
     where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     {
         self.unchecked_scalar_div_rem(numerator, divisor, streams).1
     }
@@ -361,7 +361,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext
     where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     {
         let mut tmp_numerator;
         let numerator = if numerator.block_carries_are_empty() {
@@ -382,7 +382,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
@@ -480,7 +480,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         let mut tmp_numerator;
@@ -502,7 +502,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext)
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
@@ -605,7 +605,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaSignedRadixCiphertext, CudaSignedRadixCiphertext)
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         let mut tmp_numerator;
@@ -627,7 +627,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         let (_, remainder) = self.unchecked_signed_scalar_div_rem(numerator, divisor, streams);
@@ -675,7 +675,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         let mut tmp_numerator;
@@ -697,7 +697,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> u64
     where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
@@ -779,7 +779,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
         streams: &CudaStreams,
     ) -> u64
     where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
@@ -832,7 +832,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
         streams: &CudaStreams,
     ) -> u64
     where
-        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     {
         if MiniUnsignedInteger::is_power_of_two(divisor) {
             return self.get_scalar_bitand_size_on_gpu(numerator, streams);
@@ -898,7 +898,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
         streams: &CudaStreams,
     ) -> u64
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
@@ -950,7 +950,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
         streams: &CudaStreams,
     ) -> u64
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         self.get_signed_scalar_div_rem_size_on_gpu(numerator, divisor, streams)

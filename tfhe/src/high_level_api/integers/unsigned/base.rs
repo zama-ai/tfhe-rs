@@ -13,7 +13,7 @@ use crate::high_level_api::re_randomization::{
 };
 use crate::high_level_api::traits::{FheWait, ReRandomize, Tagged};
 use crate::high_level_api::{global_state, Device};
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
+use crate::integer::block_decomposition::{FixedDecomposableInto, FixedRecomposableFrom};
 use crate::integer::ciphertext::ReRandomizationSeed;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
@@ -509,7 +509,7 @@ where
     /// ```
     pub fn try_decrypt_trivial<Clear>(&self) -> Result<Clear, NotTrivialCiphertextError>
     where
-        Clear: UnsignedNumeric + RecomposableFrom<u64>,
+        Clear: UnsignedNumeric + FixedRecomposableFrom<u64>,
     {
         self.ciphertext.on_cpu().decrypt_trivial()
     }
@@ -1256,7 +1256,7 @@ where
         matches: &MatchValues<Clear>,
     ) -> crate::Result<(FheUint<OutId>, FheBool)>
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
         OutId: FheUintId,
     {
         global_state::with_internal_keys(|key| match key {
@@ -1350,7 +1350,7 @@ where
         matches: &MatchValues<Clear>,
     ) -> crate::Result<u64>
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(_) => Err(crate::Error::new(
@@ -1411,7 +1411,7 @@ where
         or_value: Clear,
     ) -> crate::Result<FheUint<OutId>>
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
         OutId: FheUintId,
     {
         global_state::with_internal_keys(|key| match key {
@@ -1497,7 +1497,7 @@ where
         or_value: Clear,
     ) -> crate::Result<u64>
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(_) => Err(crate::Error::new(
@@ -1587,7 +1587,7 @@ where
     /// ```
     pub fn if_then_else<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
     where
-        Clear: UnsignedNumeric + DecomposableInto<u64>,
+        Clear: UnsignedNumeric + FixedDecomposableInto<u64>,
     {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
@@ -1620,7 +1620,7 @@ where
     /// Same as [Self::if_then_else] but with a different name
     pub fn select<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
     where
-        Clear: UnsignedNumeric + DecomposableInto<u64>,
+        Clear: UnsignedNumeric + FixedDecomposableInto<u64>,
     {
         Self::if_then_else(condition, true_value, false_value)
     }
@@ -1628,7 +1628,7 @@ where
     /// Same as [Self::if_then_else] but with a different name
     pub fn cmux<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
     where
-        Clear: UnsignedNumeric + DecomposableInto<u64>,
+        Clear: UnsignedNumeric + FixedDecomposableInto<u64>,
     {
         Self::if_then_else(condition, true_value, false_value)
     }
