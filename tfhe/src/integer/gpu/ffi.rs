@@ -11200,3 +11200,428 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
         update_noise_degree(v, ffi);
     }
 }
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+///
+/// `k_first` and `k_second` are the key halves in circuit order: `(k0, k1)` to
+/// encrypt, `(k1, k0)` to decrypt.
+pub(crate) unsafe fn cuda_backend_prince_key_prep<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    key_bits_first: &mut CudaRadixCiphertext,
+    key_bits_second: &mut CudaRadixCiphertext,
+    kap_bw_first: &mut CudaRadixCiphertext,
+    kap_bw_second: &mut CudaRadixCiphertext,
+    kap_mid_first: &mut CudaRadixCiphertext,
+    k_first: &CudaRadixCiphertext,
+    k_second: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut key_bits_first_degrees = key_bits_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut key_bits_first_noise_levels = key_bits_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_key_bits_first = prepare_cuda_radix_ffi(
+        key_bits_first,
+        &mut key_bits_first_degrees,
+        &mut key_bits_first_noise_levels,
+    );
+
+    let mut key_bits_second_degrees = key_bits_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut key_bits_second_noise_levels = key_bits_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_key_bits_second = prepare_cuda_radix_ffi(
+        key_bits_second,
+        &mut key_bits_second_degrees,
+        &mut key_bits_second_noise_levels,
+    );
+
+    let mut kap_bw_first_degrees = kap_bw_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut kap_bw_first_noise_levels = kap_bw_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_kap_bw_first = prepare_cuda_radix_ffi(
+        kap_bw_first,
+        &mut kap_bw_first_degrees,
+        &mut kap_bw_first_noise_levels,
+    );
+
+    let mut kap_bw_second_degrees = kap_bw_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut kap_bw_second_noise_levels = kap_bw_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_kap_bw_second = prepare_cuda_radix_ffi(
+        kap_bw_second,
+        &mut kap_bw_second_degrees,
+        &mut kap_bw_second_noise_levels,
+    );
+
+    let mut kap_mid_first_degrees = kap_mid_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut kap_mid_first_noise_levels = kap_mid_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_kap_mid_first = prepare_cuda_radix_ffi(
+        kap_mid_first,
+        &mut kap_mid_first_degrees,
+        &mut kap_mid_first_noise_levels,
+    );
+
+    let mut k_first_degrees = k_first.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut k_first_noise_levels = k_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_k_first =
+        prepare_cuda_radix_ffi(k_first, &mut k_first_degrees, &mut k_first_noise_levels);
+
+    let mut k_second_degrees = k_second.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut k_second_noise_levels = k_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_k_second =
+        prepare_cuda_radix_ffi(k_second, &mut k_second_degrees, &mut k_second_noise_levels);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_prince_key_prep_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        bsk_params,
+        ksk_params,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_integer_prince_key_prep_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_key_bits_first,
+        &raw mut cuda_ffi_key_bits_second,
+        &raw mut cuda_ffi_kap_bw_first,
+        &raw mut cuda_ffi_kap_bw_second,
+        &raw mut cuda_ffi_kap_mid_first,
+        &raw const cuda_ffi_k_first,
+        &raw const cuda_ffi_k_second,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_prince_key_prep_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(key_bits_first, &cuda_ffi_key_bits_first);
+    update_noise_degree(key_bits_second, &cuda_ffi_key_bits_second);
+    update_noise_degree(kap_bw_first, &cuda_ffi_kap_bw_first);
+    update_noise_degree(kap_bw_second, &cuda_ffi_kap_bw_second);
+    update_noise_degree(kap_mid_first, &cuda_ffi_kap_mid_first);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+///
+/// `k_first` and `k_second` are the key halves in circuit order, and the
+/// prepared key material must have been produced for the same direction as
+/// `is_decrypt`.
+pub(crate) unsafe fn cuda_backend_prince<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output: &mut CudaRadixCiphertext,
+    input: &CudaRadixCiphertext,
+    k_first: &CudaRadixCiphertext,
+    k_second: &CudaRadixCiphertext,
+    key_bits_first: &CudaRadixCiphertext,
+    key_bits_second: &CudaRadixCiphertext,
+    kap_bw_first: &CudaRadixCiphertext,
+    kap_bw_second: &CudaRadixCiphertext,
+    kap_mid_first: &CudaRadixCiphertext,
+    num_prince_inputs: u32,
+    is_decrypt: bool,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let mut input_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    let mut k_first_degrees = k_first.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut k_first_noise_levels = k_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_k_first =
+        prepare_cuda_radix_ffi(k_first, &mut k_first_degrees, &mut k_first_noise_levels);
+
+    let mut k_second_degrees = k_second.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut k_second_noise_levels = k_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_k_second =
+        prepare_cuda_radix_ffi(k_second, &mut k_second_degrees, &mut k_second_noise_levels);
+
+    let mut key_bits_first_degrees = key_bits_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut key_bits_first_noise_levels = key_bits_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_key_bits_first = prepare_cuda_radix_ffi(
+        key_bits_first,
+        &mut key_bits_first_degrees,
+        &mut key_bits_first_noise_levels,
+    );
+
+    let mut key_bits_second_degrees = key_bits_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut key_bits_second_noise_levels = key_bits_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_key_bits_second = prepare_cuda_radix_ffi(
+        key_bits_second,
+        &mut key_bits_second_degrees,
+        &mut key_bits_second_noise_levels,
+    );
+
+    let mut kap_bw_first_degrees = kap_bw_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut kap_bw_first_noise_levels = kap_bw_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_kap_bw_first = prepare_cuda_radix_ffi(
+        kap_bw_first,
+        &mut kap_bw_first_degrees,
+        &mut kap_bw_first_noise_levels,
+    );
+
+    let mut kap_bw_second_degrees = kap_bw_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut kap_bw_second_noise_levels = kap_bw_second
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_kap_bw_second = prepare_cuda_radix_ffi(
+        kap_bw_second,
+        &mut kap_bw_second_degrees,
+        &mut kap_bw_second_noise_levels,
+    );
+
+    let mut kap_mid_first_degrees = kap_mid_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut kap_mid_first_noise_levels = kap_mid_first
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_kap_mid_first = prepare_cuda_radix_ffi(
+        kap_mid_first,
+        &mut kap_mid_first_degrees,
+        &mut kap_mid_first_noise_levels,
+    );
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_integer_prince_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        bsk_params,
+        ksk_params,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        true,
+        noise_reduction_type as u32,
+        num_prince_inputs,
+        is_decrypt,
+    );
+
+    cuda_integer_prince_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_input,
+        &raw const cuda_ffi_k_first,
+        &raw const cuda_ffi_k_second,
+        &raw const cuda_ffi_key_bits_first,
+        &raw const cuda_ffi_key_bits_second,
+        &raw const cuda_ffi_kap_bw_first,
+        &raw const cuda_ffi_kap_bw_second,
+        &raw const cuda_ffi_kap_mid_first,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_prince_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(output, &cuda_ffi_output);
+}
+
+pub(crate) fn cuda_backend_get_prince_key_prep_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size = unsafe {
+        scratch_cuda_integer_prince_key_prep_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+            noise_reduction_type as u32,
+        )
+    };
+    unsafe {
+        cleanup_cuda_integer_prince_key_prep_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr))
+    };
+    size
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cuda_backend_get_prince_size_on_gpu(
+    streams: &CudaStreams,
+    num_prince_inputs: u32,
+    is_decrypt: bool,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size = unsafe {
+        scratch_cuda_integer_prince_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+            noise_reduction_type as u32,
+            num_prince_inputs,
+            is_decrypt,
+        )
+    };
+    unsafe { cleanup_cuda_integer_prince_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr)) };
+    size
+}
