@@ -234,8 +234,10 @@ TEST_TARGETS = [
     "test_zk_pok_gpu_valgrind",
     "test_high_level_api_fake_multi_gpu",
     "test_signed_integer_fake_multi_gpu",
-    "test_high_level_api_noise_squash_relaxed_pbs128_gpu",
-    "test_gpu_racecheck_relaxed_pbs128",
+    "test_high_level_api_noise_squash_relaxed_tbc_pbs128_gpu",
+    "test_high_level_api_noise_squash_relaxed_default_pbs128_gpu",
+    "test_gpu_racecheck_relaxed_tbc_pbs128",
+    "test_gpu_racecheck_relaxed_default_pbs128",
 ]
 
 

@@ -1,3 +1,8 @@
+// Included only so the compiler checks these array sizes against
+// NEG_TWIDDLES_COUNT in twiddles.cuh. The arrays keep the literal 4096: the
+// constant's longer name would make clang-format rewrap the generated table.
+#include "twiddles.cuh"
+
 __device__ double neg_twiddles_re_hi[4096] = {0x0p+0,
                                               0x1.6a09e667f3bcdp-1,
                                               0x1.d906bcf328d46p-1,
