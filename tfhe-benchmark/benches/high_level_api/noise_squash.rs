@@ -15,8 +15,6 @@ use benchmark::params_aliases::{
     BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-#[cfg(feature = "gpu")]
-use benchmark::utilities::configure_gpu;
 use benchmark::utilities::{
     will_this_bench_run, write_to_json, BitSizesSet, EnvConfig, OperatorType,
 };
@@ -46,40 +44,119 @@ use tfhe::{
     HlExpandable, HlSquashedNoiseCompressible,
 };
 
+/// A GPU server key for `client_key` on the default GPU choice, used by the latency benchmarks.
+///
+/// The halfhalf noise squashing key has no compressed form: it is generated straight into device
+/// memory from the client key. Every other key still travels through the compressed path.
+#[cfg(feature = "gpu")]
+fn gpu_server_key(client_key: &ClientKey, halfhalf_noise_squashing: bool) -> tfhe::CudaServerKey {
+    if halfhalf_noise_squashing {
+        tfhe::CudaServerKey::new(client_key)
+    } else {
+        CompressedServerKey::new(client_key).decompress_to_gpu()
+    }
+}
+
+/// One GPU server key per GPU, for the throughput benchmarks.
+///
+/// Both paths build the host side key material once and upload it to each GPU: a
+/// `CompressedServerKey` that every `decompress_to_specific_gpu` reuses, or, for halfhalf, the
+/// standard domain bootstrap key that `new_on_each_gpu_choice` generates once.
+#[cfg(feature = "gpu")]
+fn gpu_server_key_per_gpu(
+    client_key: &ClientKey,
+    halfhalf_noise_squashing: bool,
+    gpu_count: usize,
+) -> Vec<tfhe::CudaServerKey> {
+    if halfhalf_noise_squashing {
+        let gpu_choices = (0..gpu_count)
+            .map(|i| tfhe::CudaGpuChoice::from(GpuIndex::new(i as u32)))
+            .collect::<Vec<_>>();
+        tfhe::CudaServerKey::new_on_each_gpu_choice(client_key, &gpu_choices)
+    } else {
+        let compressed_server_key = CompressedServerKey::new(client_key);
+        (0..gpu_count)
+            .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
+            .collect()
+    }
+}
+
+/// Configuration shared by both benchmarks in this file.
+fn noise_squash_config(
+    param: PBSParameters,
+    noise_param: NoiseSquashingParameters,
+    comp_noise_param: Option<NoiseSquashingCompressionParameters>,
+    comp_param: Option<CompressionParameters>,
+    halfhalf_noise_squashing: bool,
+) -> tfhe::Config {
+    use tfhe::ConfigBuilder;
+
+    let mut config =
+        ConfigBuilder::with_custom_parameters(param).enable_noise_squashing(noise_param);
+    #[cfg(feature = "gpu")]
+    if halfhalf_noise_squashing {
+        config = config.enable_gpu_halfhalf_noise_squashing();
+    }
+    #[cfg(not(feature = "gpu"))]
+    let _ = halfhalf_noise_squashing;
+    if let Some(comp_noise_param) = comp_noise_param {
+        config = config.enable_noise_squashing_compression(comp_noise_param);
+    }
+    if let Some(comp_param) = comp_param {
+        config = config.enable_compression(comp_param);
+    }
+    config.build()
+}
+
+/// Compute parameters, noise squashing parameters, noise squashing compression parameters,
+/// compression parameters, and whether the noise squashing key uses the GPU's halfhalf format.
+type BenchParams = (
+    PBSParameters,
+    NoiseSquashingParameters,
+    NoiseSquashingCompressionParameters,
+    CompressionParameters,
+    bool,
+);
+
 fn bench_sns_only_fhe_type<FheType>(
     c: &mut Criterion,
-    params: (
-        PBSParameters,
-        NoiseSquashingParameters,
-        NoiseSquashingCompressionParameters,
-        CompressionParameters,
-    ),
+    params: BenchParams,
     tag: TypeTag,
     num_bits: usize,
 ) where
     FheType: FheEncrypt<u128, ClientKey> + Send + Sync + SquashNoise,
 {
-    let (param, noise_param, _, _) = params;
+    let (param, noise_param, _, _, halfhalf_noise_squashing) = params;
 
-    use tfhe::{set_server_key, ConfigBuilder};
-    let config = ConfigBuilder::with_custom_parameters(param)
-        .enable_noise_squashing(noise_param)
-        .build();
+    use tfhe::set_server_key;
+    let config = noise_squash_config(param, noise_param, None, None, halfhalf_noise_squashing);
     let client_key = ClientKey::generate(config);
-    let compressed_sks = CompressedServerKey::new(&client_key);
 
+    // Broadcast to the rayon workers as well, since the throughput path squashes from a parallel
+    // iterator. The key is built with gpu_server_key rather than through CompressedServerKey
+    // (as configure_gpu does), because the halfhalf noise squashing key has no compressed form.
     #[cfg(feature = "gpu")]
-    set_server_key(compressed_sks.decompress_to_gpu());
+    {
+        let sks = gpu_server_key(&client_key, halfhalf_noise_squashing);
+        rayon::broadcast(|_| set_server_key(sks.clone()));
+        set_server_key(sks);
+    }
 
     #[cfg(not(feature = "gpu"))]
     {
-        let decompressed_sks = compressed_sks.decompress();
+        let decompressed_sks = CompressedServerKey::new(&client_key).decompress();
         rayon::broadcast(|_| set_server_key(decompressed_sks.clone()));
         set_server_key(decompressed_sks);
     }
 
     let mut bench_group = c.benchmark_group(tag.to_string());
-    let noise_param_name = noise_param.name();
+    // The halfhalf key reuses the classic noise squashing parameters, so the parameter name alone
+    // would collide with the classic tuple's benchmark id.
+    let noise_param_name = if halfhalf_noise_squashing {
+        format!("{}_HALFHALF", noise_param.name())
+    } else {
+        noise_param.name()
+    };
 
     let mut rng = thread_rng();
 
@@ -96,9 +173,6 @@ fn bench_sns_only_fhe_type<FheType>(
 
     match bench_type {
         BenchmarkType::Latency => {
-            #[cfg(feature = "gpu")]
-            configure_gpu(&client_key);
-
             let input = FheType::encrypt(rng.gen(), &client_key);
 
             bench_group.bench_function(bench_id.as_str(), |b| {
@@ -151,12 +225,8 @@ fn bench_sns_only_fhe_type<FheType>(
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
                 let gpu_count = get_number_of_gpus() as usize;
-                let compressed_server_key = CompressedServerKey::new(&client_key);
-                let sks_vec = (0..gpu_count)
-                    .map(|i| {
-                        compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32))
-                    })
-                    .collect::<Vec<_>>();
+                let sks_vec =
+                    gpu_server_key_per_gpu(&client_key, halfhalf_noise_squashing, gpu_count);
 
                 bench_group.bench_function(bench_id.as_str(), |b| {
                     let encrypt_values = || {
@@ -214,12 +284,7 @@ fn bench_sns_only_fhe_type<FheType>(
 
 fn bench_decomp_sns_comp_fhe_type<FheType>(
     c: &mut Criterion,
-    params: (
-        PBSParameters,
-        NoiseSquashingParameters,
-        NoiseSquashingCompressionParameters,
-        CompressionParameters,
-    ),
+    params: BenchParams,
     tag: TypeTag,
     num_bits: usize,
 ) where
@@ -227,29 +292,42 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
     FheType: SquashNoise + Tagged + HlExpandable + HlCompressible,
     <FheType as SquashNoise>::Output: HlSquashedNoiseCompressible,
 {
-    let (param, noise_param, comp_noise_param, comp_param) = params;
+    let (param, noise_param, comp_noise_param, comp_param, halfhalf_noise_squashing) = params;
 
-    use tfhe::{set_server_key, ConfigBuilder};
-    let config = ConfigBuilder::with_custom_parameters(param)
-        .enable_noise_squashing(noise_param)
-        .enable_noise_squashing_compression(comp_noise_param)
-        .enable_compression(comp_param)
-        .build();
+    use tfhe::set_server_key;
+    let config = noise_squash_config(
+        param,
+        noise_param,
+        Some(comp_noise_param),
+        Some(comp_param),
+        halfhalf_noise_squashing,
+    );
     let client_key = ClientKey::generate(config);
-    let compressed_sks = CompressedServerKey::new(&client_key);
 
+    // See bench_sns_only_fhe_type: the halfhalf key has no compressed form, so the key is built
+    // with gpu_server_key.
     #[cfg(feature = "gpu")]
-    set_server_key(compressed_sks.decompress_to_gpu());
+    {
+        let sks = gpu_server_key(&client_key, halfhalf_noise_squashing);
+        rayon::broadcast(|_| set_server_key(sks.clone()));
+        set_server_key(sks);
+    }
 
     #[cfg(not(feature = "gpu"))]
     {
-        let decompressed_sks = compressed_sks.decompress();
+        let decompressed_sks = CompressedServerKey::new(&client_key).decompress();
         rayon::broadcast(|_| set_server_key(decompressed_sks.clone()));
         set_server_key(decompressed_sks);
     }
 
     let mut bench_group = c.benchmark_group(tag.to_string());
-    let noise_param_name = noise_param.name();
+    // The halfhalf key reuses the classic noise squashing parameters, so the parameter name alone
+    // would collide with the classic tuple's benchmark id.
+    let noise_param_name = if halfhalf_noise_squashing {
+        format!("{}_HALFHALF", noise_param.name())
+    } else {
+        noise_param.name()
+    };
 
     let mut rng = thread_rng();
 
@@ -266,9 +344,6 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
 
     match bench_type {
         BenchmarkType::Latency => {
-            #[cfg(feature = "gpu")]
-            configure_gpu(&client_key);
-
             let input = FheType::encrypt(rng.gen(), &client_key);
 
             let mut builder = CompressedCiphertextListBuilder::new();
@@ -333,12 +408,8 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                 bench_group.throughput(Throughput::Elements(elements));
                 println!("elements: {elements}");
                 let gpu_count = get_number_of_gpus() as usize;
-                let compressed_server_key = CompressedServerKey::new(&client_key);
-                let sks_vec = (0..gpu_count)
-                    .map(|i| {
-                        compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32))
-                    })
-                    .collect::<Vec<_>>();
+                let sks_vec =
+                    gpu_server_key_per_gpu(&client_key, halfhalf_noise_squashing, gpu_count);
 
                 bench_group.bench_function(bench_id.as_str(), |b| {
                     let compressed_values = || {
@@ -419,7 +490,7 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
 macro_rules! bench_sns_only_type {
     ($fhe_type:ident) => {
         ::paste::paste! {
-            fn [<bench_sns_only_ $fhe_type:snake>](c: &mut Criterion, params: &[(PBSParameters, NoiseSquashingParameters, NoiseSquashingCompressionParameters, CompressionParameters)]) {
+            fn [<bench_sns_only_ $fhe_type:snake>](c: &mut Criterion, params: &[BenchParams]) {
                 for param in params {
                     bench_sns_only_fhe_type::<$fhe_type>(c, *param, $fhe_type::type_tag(), $fhe_type::num_bits());
                 }
@@ -431,7 +502,7 @@ macro_rules! bench_sns_only_type {
 macro_rules! bench_decomp_sns_comp_type {
     ($fhe_type:ident) => {
         ::paste::paste! {
-            fn [<bench_decomp_sns_comp_ $fhe_type:snake>](c: &mut Criterion, params: &[(PBSParameters, NoiseSquashingParameters, NoiseSquashingCompressionParameters, CompressionParameters)]) {
+            fn [<bench_decomp_sns_comp_ $fhe_type:snake>](c: &mut Criterion, params: &[BenchParams]) {
                 for param in params {
                 bench_decomp_sns_comp_fhe_type::<$fhe_type>(c, *param, $fhe_type::type_tag(), $fhe_type::num_bits());
     }
@@ -463,12 +534,7 @@ fn main() {
 fn main() {
     let env_config = EnvConfig::new();
 
-    let params: Vec<(
-        PBSParameters,
-        NoiseSquashingParameters,
-        NoiseSquashingCompressionParameters,
-        CompressionParameters,
-    )> = {
+    let params: Vec<BenchParams> = {
         #[cfg(not(feature = "gpu"))]
         {
             vec![(
@@ -476,6 +542,7 @@ fn main() {
                 BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                false,
             )]
         }
 
@@ -486,11 +553,23 @@ fn main() {
                      BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                      BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                      BENCH_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     false,
                  ), (
                      BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                      BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                      BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                      BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     false,
+                 ), (
+                     // Halfhalf noise squashing: the classic compute parameters, whose LWE
+                     // dimension is the 918 the halfhalf shape is defined for, with the classic
+                     // noise squashing GLWE parameters. The multi-bit tuple above cannot be
+                     // reused: its LWE dimension is not 918.
+                     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                     BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                     true,
                  ),
             ]
         }

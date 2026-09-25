@@ -26,10 +26,11 @@ __device__ __forceinline__ f128x2 neg_twid_from_aos(Index i) {
   return f128x2(f128(re.x, re.y), f128(im.x, im.y));
 }
 
-// USE_AOS_TWIDDLES is set by the classical 128-bit PBS step kernels and the
-// single-iteration TBC kernel: every other transform caller may run without the
-// host_build_neg_twiddles_aos hook having been executed, so it keeps reading
-// the plane arrays.
+// USE_AOS_TWIDDLES is set by the classical 128-bit PBS step kernels, the
+// single-iteration TBC kernel and the halfhalf DEFAULT step kernels (whose
+// scratch is scratch_programmable_bootstrap_128_halfhalf). Every other
+// transform caller may run without the host_build_neg_twiddles_aos hook having
+// been executed, so it keeps reading the plane arrays.
 template <bool USE_AOS_TWIDDLES>
 __device__ __forceinline__ f128x2 get_neg_twid(Index i) {
   if constexpr (USE_AOS_TWIDDLES) {

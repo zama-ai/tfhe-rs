@@ -30,7 +30,8 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
 use crate::integer::gpu::server_key::radix::{CudaNoiseSquashingKey, CudaRadixCiphertextInfo};
 use crate::integer::gpu::server_key::{
-    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
+    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaNoiseSquashingBootstrappingKey,
+    CudaServerKey,
 };
 use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
@@ -102,11 +103,12 @@ impl CudaSideResources {
         block_info: CudaBlockInfo,
     ) -> Self {
         let (polynomial_size, multi_bit_grouping_factor) = match &nsk.bootstrapping_key {
-            CudaBootstrappingKey::MultiBit(mb_bsk) => (
+            CudaNoiseSquashingBootstrappingKey::MultiBit(mb_bsk) => (
                 Some(mb_bsk.polynomial_size()),
                 Some(mb_bsk.grouping_factor()),
             ),
-            CudaBootstrappingKey::Classic(_) => (None, None),
+            CudaNoiseSquashingBootstrappingKey::Classic(_)
+            | CudaNoiseSquashingBootstrappingKey::Halfhalf(_) => (None, None),
         };
         Self {
             streams: streams.clone(),
@@ -401,7 +403,7 @@ impl NoiseSimulationGenericBootstrapKey {
 // Extensions for NoiseSimulationLweFourier128Bsk to support GPU operations (for u128 noise
 // squashing)
 impl NoiseSimulationLweFourier128Bsk {
-    pub fn matches_actual_bsk_gpu(&self, lwe_bsk: &CudaBootstrappingKey<u128>) -> bool {
+    pub fn matches_actual_bsk_gpu(&self, lwe_bsk: &CudaNoiseSquashingBootstrappingKey) -> bool {
         let input_lwe_dimension = self.input_lwe_dimension();
         let glwe_size = self.output_glwe_size();
         let polynomial_size = self.output_polynomial_size();
@@ -409,7 +411,10 @@ impl NoiseSimulationLweFourier128Bsk {
         let decomp_level_count = self.decomp_level_count();
 
         match lwe_bsk {
-            CudaBootstrappingKey::Classic(cuda_bsk) => {
+            // The simulation has a single base log and level count, which cannot describe the
+            // halfhalf key's four decompositions.
+            CudaNoiseSquashingBootstrappingKey::Halfhalf(_) => false,
+            CudaNoiseSquashingBootstrappingKey::Classic(cuda_bsk) => {
                 let bsk_input_lwe_dimension = cuda_bsk.input_lwe_dimension();
                 let bsk_glwe_size = cuda_bsk.glwe_dimension().to_glwe_size();
                 let bsk_polynomial_size = cuda_bsk.polynomial_size();
@@ -422,7 +427,7 @@ impl NoiseSimulationLweFourier128Bsk {
                     && decomp_base_log == bsk_decomp_base_log
                     && decomp_level_count == bsk_decomp_level_count
             }
-            CudaBootstrappingKey::MultiBit(cuda_mb_bsk) => {
+            CudaNoiseSquashingBootstrappingKey::MultiBit(cuda_mb_bsk) => {
                 let bsk_input_lwe_dimension = cuda_mb_bsk.input_lwe_dimension();
                 let bsk_glwe_size = cuda_mb_bsk.glwe_dimension().to_glwe_size();
                 let bsk_polynomial_size = cuda_mb_bsk.polynomial_size();
@@ -745,16 +750,23 @@ impl CudaNoiseSquashingKey {
     pub fn noise_simulation_modulus_switch_config(
         &self,
     ) -> NoiseSimulationModulusSwitchConfig<&Self> {
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(bsk) => match &bsk.ms_noise_reduction_configuration {
-                None => NoiseSimulationModulusSwitchConfig::Standard,
-                Some(CudaModulusSwitchNoiseReductionConfiguration::Centered) => {
-                    NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
-                }
-            },
+        let ms_noise_reduction_configuration = match &self.bootstrapping_key {
+            CudaNoiseSquashingBootstrappingKey::Classic(bsk) => {
+                &bsk.ms_noise_reduction_configuration
+            }
+            CudaNoiseSquashingBootstrappingKey::Halfhalf(hh_bsk) => {
+                &hh_bsk.ms_noise_reduction_configuration
+            }
             // Multi-bit PBS uses a grouping-factor-based modulus switch
-            CudaBootstrappingKey::MultiBit(mb_bsk) => {
-                NoiseSimulationModulusSwitchConfig::MultiBit(mb_bsk.grouping_factor())
+            CudaNoiseSquashingBootstrappingKey::MultiBit(mb_bsk) => {
+                return NoiseSimulationModulusSwitchConfig::MultiBit(mb_bsk.grouping_factor())
+            }
+        };
+
+        match ms_noise_reduction_configuration {
+            None => NoiseSimulationModulusSwitchConfig::Standard,
+            Some(CudaModulusSwitchNoiseReductionConfiguration::Centered) => {
+                NoiseSimulationModulusSwitchConfig::CenteredMeanNoiseReduction
             }
         }
     }
@@ -910,15 +922,18 @@ impl LweClassicFft128Bootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u1
         side_resources: &mut Self::SideResources,
     ) {
         use crate::core_crypto::gpu::algorithms::lwe_programmable_bootstrapping::cuda_programmable_bootstrap_128_lwe_ciphertext;
-        use crate::integer::gpu::server_key::CudaBootstrappingKey;
+        use crate::integer::gpu::server_key::CudaNoiseSquashingBootstrappingKey;
 
         match (input, output) {
             (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U128(output_cuda_lwe)) => {
                 // Get the bootstrap key from self - it's already u128 type
                 let bsk = match &self.bootstrapping_key {
-                    CudaBootstrappingKey::Classic(d_bsk) => d_bsk,
-                    CudaBootstrappingKey::MultiBit(_) => {
+                    CudaNoiseSquashingBootstrappingKey::Classic(d_bsk) => d_bsk,
+                    CudaNoiseSquashingBootstrappingKey::MultiBit(_) => {
                         panic!("MultiBit bootstrapping keys are not supported for 128-bit PBS");
+                    }
+                    CudaNoiseSquashingBootstrappingKey::Halfhalf(_) => {
+                        panic!("Halfhalf bootstrapping keys are not supported for 128-bit PBS");
                     }
                 };
 
@@ -1374,14 +1389,17 @@ impl LweGenericBlindRotate128<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u12
         side_resources: &mut Self::SideResources,
     ) {
         match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(_) => {
+            CudaNoiseSquashingBootstrappingKey::Classic(_) => {
                 self.lwe_classic_fft_128_pbs(input, output, accumulator, side_resources)
+            }
+            CudaNoiseSquashingBootstrappingKey::Halfhalf(_) => {
+                panic!("Halfhalf bootstrapping keys are not supported by the noise simulation")
             }
             // Multi-bit PBS128: the input already holds the multi-bit mod-switched buffer
             // (layout: [original_input | ms_variant_0 | ... | ms_variant_n]), produced by
             // multi_bit_mod_switch. We call the noise-test variant that consumes this layout
             // directly, outputting a u128 LWE ciphertext after blind rotation.
-            CudaBootstrappingKey::MultiBit(mb_bsk) => match (input, output) {
+            CudaNoiseSquashingBootstrappingKey::MultiBit(mb_bsk) => match (input, output) {
                 (CudaDynLwe::U64(input_cuda_lwe), CudaDynLwe::U128(output_cuda_lwe)) => {
                     let num_samples = 1u32;
                     let zero_index = vec![0u64];

@@ -2,6 +2,7 @@
 #include "checked_arithmetic.h"
 #include "polynomial/dispatch.cuh"
 #include "programmable_bootstrap_classic.cuh"
+#include "programmable_bootstrap_classic_128_halfhalf.cuh"
 
 void cuda_convert_lwe_programmable_bootstrap_key_32_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
@@ -418,4 +419,43 @@ void cuda_convert_lwe_programmable_bootstrap_key_128_async(
   cuda_convert_lwe_programmable_bootstrap_key_u128_async(
       static_cast<cudaStream_t>(stream), gpu_index, (double *)dest,
       (const __uint128_t *)src, polynomial_size, total_polynomials);
+}
+
+// Converts the halfhalf BSK: two groups stored contiguously, each with its own
+// max(level_count_mask, level_count_body) levels per GGSW entry.
+// Group 1: split_index entries, group 2: (input_lwe_dim - split_index) entries.
+void cuda_convert_lwe_programmable_bootstrap_key_128_halfhalf_async(
+    void *stream, uint32_t gpu_index, void *dest, void const *src,
+    CudaHalfhalfPbsParamsFFI p) {
+
+  validate_halfhalf_params(p);
+
+  uint32_t glwe_dim = p.glwe_dimension;
+  uint32_t poly_size = p.polynomial_size;
+  size_t glwe_size = (size_t)(glwe_dim + 1);
+
+  size_t group1_polys = safe_mul(
+      (size_t)p.split_index, glwe_size,
+      (size_t)(glwe_dim * p.level_count_1_mask + p.level_count_1_body));
+  size_t group2_polys = safe_mul(
+      (size_t)(p.input_lwe_dimension - p.split_index), glwe_size,
+      (size_t)(glwe_dim * p.level_count_2_mask + p.level_count_2_body));
+
+  // f128 Fourier domain: 4 doubles per coefficient, poly_size/2 complex pairs
+  size_t doubles_per_poly = safe_mul((size_t)(poly_size / 2), (size_t)4);
+  size_t group1_offset_doubles = safe_mul(group1_polys, doubles_per_poly);
+
+  auto s = static_cast<cudaStream_t>(stream);
+  auto src_u128 = static_cast<const __uint128_t *>(src);
+  auto dest_f128 = static_cast<double *>(dest);
+
+  // u128 domain: 1 u128 per coefficient, poly_size elements per polynomial
+  size_t group1_offset_u128 = safe_mul(group1_polys, (size_t)poly_size);
+
+  cuda_convert_lwe_programmable_bootstrap_key_u128_async(
+      s, gpu_index, dest_f128, src_u128, poly_size, group1_polys);
+
+  cuda_convert_lwe_programmable_bootstrap_key_u128_async(
+      s, gpu_index, dest_f128 + group1_offset_doubles,
+      src_u128 + group1_offset_u128, poly_size, group2_polys);
 }

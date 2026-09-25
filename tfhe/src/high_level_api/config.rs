@@ -70,6 +70,30 @@ impl ConfigBuilder {
         self
     }
 
+    /// Build the noise squashing key in the "halfhalf" (half-product plus half-rotate) format.
+    ///
+    /// The squashed ciphertexts keep the GLWE dimension, polynomial size and moduli given to
+    /// [`Self::enable_noise_squashing`]; only the bootstrap key's shape changes. That key is
+    /// generated directly into GPU memory by [`crate::CudaServerKey::new`] and has no CPU or
+    /// seeded form, so [`crate::ServerKey`] and [`crate::CompressedServerKey`] reject a
+    /// [`crate::ClientKey`] built from this configuration.
+    ///
+    /// # Panics
+    ///
+    /// This requires noise squashing to be enabled first via [Self::enable_noise_squashing].
+    ///
+    /// The halfhalf decomposition shape is fixed and was only derived for one parameter pair, so
+    /// this also panics unless the compute parameters have an LWE dimension of 918 and the noise
+    /// squashing parameters are the Classic ones with GLWE dimension 2, polynomial size 2048 and
+    /// a TUniform noise bound of 2^30, as in
+    /// `NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128`.
+    #[cfg(feature = "gpu")]
+    pub fn enable_gpu_halfhalf_noise_squashing(mut self) -> Self {
+        self.config.inner.enable_gpu_halfhalf_noise_squashing();
+
+        self
+    }
+
     /// Enable the generation of keys needed for [crate::CompressedSquashedNoiseCiphertextList]
     ///
     /// # Note
@@ -179,6 +203,7 @@ impl From<MetaParameters> for Config {
                 cpk_re_randomization_params: meta_params.rerandomization_parameters(),
                 dedicated_oprf_key: true,
                 transciphering_parameters: meta_params.transciphering_parameters,
+                gpu_halfhalf_noise_squashing: false,
             },
         }
     }

@@ -2846,7 +2846,7 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks, lut->buffer,
         glwe_dimension, small_lwe_dimension, polynomial_size, pbs_base_log,
         pbs_level, grouping_factor, lwe_array_out->num_radix_blocks,
-        params.pbs_type, 0, 0);
+        params.pbs_type, 0, 0, params.halfhalf_params);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
@@ -2873,8 +2873,8 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
         lut->lut_vec, lwe_trivial_indexes_vec, lwe_after_ks_vec,
         lwe_trivial_indexes_vec, bsks, lut->buffer, glwe_dimension,
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        grouping_factor, lwe_array_out->num_radix_blocks, params.pbs_type, 0,
-        0);
+        grouping_factor, lwe_array_out->num_radix_blocks, params.pbs_type, 0, 0,
+        params.halfhalf_params);
 
     /// Copy data back to GPU 0 and release vecs
     /// In apply noise squashing we always use trivial indexes

@@ -1,7 +1,8 @@
 #![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
-    CudaBskParams, CudaModulusSwitchNoiseReductionConfiguration,
+    CudaBskParams, CudaHalfhalfBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+    CudaPbs128BootstrapKey,
 };
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
@@ -6678,6 +6679,125 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+}
+
+#[allow(clippy::too_many_arguments)]
+/// Noise squashing driven by a halfhalf (half-product plus half-rotate) bootstrap key.
+///
+/// Mirrors [`cuda_backend_noise_squashing`], except that the key's shape cannot be described by a
+/// `CudaLweBootstrapKeyParamsFFI` (its two sections carry four independent decompositions), so the
+/// backend receives a [`CudaHalfhalfPbsParamsFFI`] instead.
+///
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_noise_squashing_halfhalf<
+    T: UnsignedInteger,
+    KST: UnsignedInteger,
+>(
+    streams: &CudaStreams,
+    output: &mut CudaSliceMut<T>,
+    output_degrees: &mut Vec<u64>,
+    output_noise_levels: &mut Vec<u64>,
+    input: &CudaSlice<u64>,
+    input_degrees: &mut Vec<u64>,
+    input_noise_levels: &mut Vec<u64>,
+    bootstrapping_key: &CudaHalfhalfBootstrapKey,
+    keyswitch_key: &CudaVec<KST>,
+    input_glwe_dimension: GlweDimension,
+    input_polynomial_size: PolynomialSize,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    original_num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let halfhalf_params = bootstrapping_key.params_ffi();
+    let d_bsk = &bootstrapping_key.d_vec;
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        d_bsk.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        d_bsk.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    // `CudaHalfhalfPbsParamsFFI` has no `big_lwe_dimension` field, unlike
+    // `CudaLweBootstrapKeyParamsFFI`, so the output LWE dimension comes from the key itself.
+    let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
+        output,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        u32::try_from(bootstrapping_key.output_lwe_dimension().0).unwrap(),
+    );
+    let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
+        input,
+        input_degrees,
+        input_noise_levels,
+        original_num_blocks,
+        u32::try_from(
+            input_glwe_dimension
+                .to_equivalent_lwe_dimension(input_polynomial_size)
+                .0,
+        )
+        .unwrap(),
+    );
+
+    scratch_cuda_apply_noise_squashing_halfhalf_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        halfhalf_params,
+        u32::try_from(input_glwe_dimension.0).unwrap(),
+        u32::try_from(input_polynomial_size.0).unwrap(),
+        ksk_params,
+        num_blocks,
+        original_num_blocks,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        true,
+        noise_reduction_type as u32,
+    );
+
+    // The halfhalf key shape is recorded in `mem_ptr` by the scratch call above, so the apply and
+    // cleanup steps are the same ones the classic and multi-bit keys use.
+    cuda_apply_noise_squashing_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_input,
+        mem_ptr,
+        keyswitch_key.ptr.as_ptr(),
+        d_bsk.ptr.as_ptr(),
     );
 
     cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
