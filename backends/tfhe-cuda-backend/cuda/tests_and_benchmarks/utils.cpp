@@ -1,10 +1,11 @@
 #include <algorithm>
 #include "pbs/programmable_bootstrap.h"
 #include "pbs/programmable_bootstrap_multibit.h"
-#include "pbs/programmable_bootstrap_testing.h"
+#include "programmable_bootstrap_testing.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <device.h>
 #include <functional>
 #include <random>
@@ -344,4 +345,96 @@ void generate_lwe_keyswitch_keys(
   }
   cuda_synchronize_stream(stream, gpu_index);
   free(ksk_array);
+}
+
+// u128 key generation (single repetition, no GPU upload)
+
+static void check_c_api_status(int status, const char *func_name) {
+  if (status != 0) {
+    fprintf(stderr, "%s failed with status %d\n", func_name, status);
+    abort();
+  }
+}
+
+void generate_lwe_secret_keys_u128(__uint128_t **lwe_sk_array, int lwe_dimension,
+                                   Seed *seed) {
+  *lwe_sk_array =
+      (__uint128_t *)malloc(safe_mul_sizeof<__uint128_t>(lwe_dimension));
+  check_c_api_status(
+      core_crypto_lwe_secret_key_u128((void *)*lwe_sk_array, lwe_dimension,
+                                      seed->lo, seed->hi),
+      "core_crypto_lwe_secret_key_u128");
+}
+
+void generate_glwe_secret_keys_u128(__uint128_t **glwe_sk_array,
+                                    int glwe_dimension, int polynomial_size,
+                                    Seed *seed) {
+  size_t glwe_sk_size = safe_mul(glwe_dimension, polynomial_size);
+  *glwe_sk_array =
+      (__uint128_t *)malloc(safe_mul_sizeof<__uint128_t>(glwe_sk_size));
+  check_c_api_status(
+      core_crypto_lwe_secret_key_u128((void *)*glwe_sk_array, glwe_sk_size,
+                                      seed->lo, seed->hi),
+      "core_crypto_lwe_secret_key_u128");
+}
+
+void generate_lwe_bootstrapping_key_u128(__uint128_t **bsk_array,
+                                         __uint128_t *lwe_sk_in,
+                                         __uint128_t *glwe_sk_out,
+                                         int lwe_dimension, int glwe_dimension,
+                                         int polynomial_size, int pbs_level,
+                                         int pbs_base_log, Seed *seed,
+                                         DynamicDistribution noise_distribution) {
+  size_t bsk_element_count = 0;
+  check_c_api_status(
+      core_crypto_lwe_bootstrapping_key_element_count_u128(
+          lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
+          &bsk_element_count),
+      "core_crypto_lwe_bootstrapping_key_element_count_u128");
+  *bsk_array =
+      (__uint128_t *)malloc(safe_mul_sizeof<__uint128_t>(bsk_element_count));
+  check_c_api_status(
+      core_crypto_par_generate_lwe_bootstrapping_key_u128(
+          (void *)*bsk_array, pbs_base_log, pbs_level, (void *)lwe_sk_in,
+          lwe_dimension, (void *)glwe_sk_out, glwe_dimension, polynomial_size,
+          noise_distribution, seed->lo, seed->hi),
+      "core_crypto_par_generate_lwe_bootstrapping_key_u128");
+}
+
+__uint128_t *generate_identity_lut_pbs_u128(int polynomial_size,
+                                            int glwe_dimension,
+                                            int payload_modulus,
+                                            __uint128_t delta) {
+  int box_size = polynomial_size / payload_modulus;
+
+  __uint128_t *plaintext_lut_pbs =
+      (__uint128_t *)malloc(safe_mul_sizeof<__uint128_t>(polynomial_size));
+
+  for (int i = 0; i < payload_modulus; i++) {
+    int index = i * box_size;
+    for (int j = index; j < index + box_size; j++) {
+      plaintext_lut_pbs[j] = (__uint128_t)i * delta;
+    }
+  }
+
+  int half_box_size = box_size / 2;
+
+  // Negate the first half_box_size coefficients to manage negacyclicity.
+  // Unsigned wraparound gives the same result as Rust's wrapping_neg.
+  for (int i = 0; i < half_box_size; i++) {
+    plaintext_lut_pbs[i] = -plaintext_lut_pbs[i];
+  }
+
+  std::rotate(plaintext_lut_pbs, plaintext_lut_pbs + half_box_size,
+              plaintext_lut_pbs + polynomial_size);
+
+  __uint128_t *lut_pbs = (__uint128_t *)malloc(
+      safe_mul_sizeof<__uint128_t>(polynomial_size, glwe_dimension + 1));
+  memset(lut_pbs, 0,
+         safe_mul_sizeof<__uint128_t>(polynomial_size, glwe_dimension));
+  memcpy(lut_pbs + (ptrdiff_t)(glwe_dimension * polynomial_size),
+         plaintext_lut_pbs, safe_mul_sizeof<__uint128_t>(polynomial_size));
+
+  free(plaintext_lut_pbs);
+  return lut_pbs;
 }
