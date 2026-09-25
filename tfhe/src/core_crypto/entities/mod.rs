@@ -14,12 +14,16 @@ pub mod glwe_ciphertext_list;
 pub mod glwe_keyswitch_key;
 pub mod glwe_secret_key;
 pub mod gsw_ciphertext;
+pub mod half_product_ggsw_ciphertext;
 pub mod lwe_bootstrap_key;
 pub mod lwe_bootstrap_key_chunk;
 pub mod lwe_ciphertext;
 pub mod lwe_ciphertext_list;
 pub mod lwe_compact_ciphertext_list;
 pub mod lwe_compact_public_key;
+pub mod lwe_half_product_bootstrap_key;
+pub mod lwe_half_product_half_rotate_bootstrap_key;
+pub mod lwe_half_rotate_bootstrap_key;
 pub mod lwe_keyswitch_key;
 pub mod lwe_keyswitch_key_chunk;
 pub mod lwe_multi_bit_bootstrap_key;
@@ -55,8 +59,21 @@ pub mod seeded_lwe_public_key;
 pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::{
     Fourier128LweBootstrapKey, Fourier128LweBootstrapKeyOwned,
 };
+pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_product::{
+    Fourier128HalfProductLweBootstrapKey, Fourier128HalfProductLweBootstrapKeyOwned,
+};
+pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_product_half_rotate::{
+    Fourier128HalfProductHalfRotateLweBootstrapKey,
+    Fourier128HalfProductHalfRotateLweBootstrapKeyOwned,
+};
+pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_rotate::{
+    Fourier128HalfRotateLweBootstrapKey, Fourier128HalfRotateLweBootstrapKeyOwned,
+};
 pub use crate::core_crypto::fft_impl::fft128::crypto::ggsw::{
     Fourier128GgswCiphertext, Fourier128GgswLevelMatrix, Fourier128GgswLevelRow,
+};
+pub use crate::core_crypto::fft_impl::fft128::crypto::ggsw_half_product::{
+    Fourier128HalfProductGgswCiphertext, Fourier128HalfProductGgswLevelMatrix,
 };
 pub use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::{
     FourierLweBootstrapKey, FourierLweBootstrapKeyOwned,
@@ -77,12 +94,16 @@ pub use glwe_ciphertext_list::*;
 pub use glwe_keyswitch_key::*;
 pub use glwe_secret_key::*;
 pub use gsw_ciphertext::*;
+pub use half_product_ggsw_ciphertext::*;
 pub use lwe_bootstrap_key::*;
 pub use lwe_bootstrap_key_chunk::*;
 pub use lwe_ciphertext::*;
 pub use lwe_ciphertext_list::*;
 pub use lwe_compact_ciphertext_list::*;
 pub use lwe_compact_public_key::*;
+pub use lwe_half_product_bootstrap_key::*;
+pub use lwe_half_product_half_rotate_bootstrap_key::*;
+pub use lwe_half_rotate_bootstrap_key::*;
 pub use lwe_keyswitch_key::*;
 pub use lwe_keyswitch_key_chunk::*;
 pub use lwe_multi_bit_bootstrap_key::*;
