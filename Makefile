@@ -1073,7 +1073,7 @@ test_zk_pok_gpu_valgrind: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
 	export SANITIZER_CARGO_PACKAGE=tfhe-zk-pok && \
-	export SANITIZER_CARGO_FEATURES_CPU=gpu && \
+	export SANITIZER_CARGO_FEATURES_GPU_DEBUG=gpu && \
 	export SANITIZER_TEST_FILTER_CPU='gpu::' && \
 	export SANITIZER_TEST_EXCLUDES_CPU='conversion_roundtrip|scalar_validation|long_run' && \
 	export SANITIZER_TEST_EXE_GLOB='tfhe_zk_pok-*' && \
