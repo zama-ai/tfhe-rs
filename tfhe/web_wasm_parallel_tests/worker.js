@@ -155,7 +155,7 @@ async function compactPublicKeyBench32Bit(params_name) {
   let bench_id = cpk_gen_id(params_name_str, 32);
   bench_results[mean_name(bench_id, cross_origin)] = timing_1;
 
-  let values = [0, 1, 2, 2394, U32_MAX].map(BigInt);
+  let values = [0, 1, 2, 2394, U32_MAX];
 
   // Bench the encryption for bench_loops iterations
   start = performance.now();
@@ -163,7 +163,7 @@ async function compactPublicKeyBench32Bit(params_name) {
   for (let i = 0; i < bench_loops; i++) {
     let builder = CompactCiphertextList.builder(publicKey);
     for (let value of values) {
-      builder.push_u256(value);
+      builder.push_u32(value);
     }
     compact_list = builder.build();
   }
