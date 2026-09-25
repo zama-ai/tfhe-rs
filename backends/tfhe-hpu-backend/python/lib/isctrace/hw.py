@@ -15,9 +15,9 @@ A trace event
 """
 class Event:
     EVENT_MAP = {
-        "Issue": lambda x: analysis.Issue(fmt.Insn(x.insn).to_analysis()),
-        "Retire": lambda x: analysis.Retire(fmt.Insn(x.insn).to_analysis()),
-        "RdUnlock": lambda x: analysis.RdUnlock(fmt.Insn(x.insn).to_analysis()),
+        "Issue": lambda x: analysis.Issue(fmt.Insn(x.insn, x.insn_asm).to_analysis()),
+        "Retire": lambda x: analysis.Retire(fmt.Insn(x.insn, x.insn_asm).to_analysis()),
+        "RdUnlock": lambda x: analysis.RdUnlock(fmt.Insn(x.insn, x.insn_asm).to_analysis()),
         "Refill": lambda x: analysis.Refill(None),
         "None": lambda x: analysis.Refill(None),
     }
@@ -66,7 +66,7 @@ class Trace:
         for event in self:
             id_map[0].append(event)
             opcode = next(iter(event.insn.keys())) if event.insn is not None else None
-            is_inner = event.insn[opcode]["is_inner_sync"] if opcode == "SYNC" else None
+            is_inner = event.insn[opcode]["is_inner"] if opcode == "SYNC" else None
 
             if opcode == "SYNC" and event.cmd == "Issue" and is_inner == False:
                 yield Trace(id_map[0])
