@@ -19,6 +19,8 @@ pub mod numeric;
 pub mod parameters;
 pub mod plan;
 pub mod utils;
+#[cfg(feature = "__tracing")]
+pub mod tracing_helper;
 
 // Refactor modules
 pub mod traits;

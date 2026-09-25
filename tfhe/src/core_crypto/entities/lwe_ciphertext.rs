@@ -572,6 +572,37 @@ where
     }
 }
 
+#[cfg(feature = "__tracing")]
+mod tracing {
+    use super::*;
+    use crate::core_crypto::commons::tracing_helper::EntityMemoryTracer;
+
+    impl<T, C> AsMemoryTracer for LweCiphertext<C>
+    where
+        T: UnsignedInteger,
+        C: Container<Element = T>,
+    {
+        fn as_memory_tracer(&self, with_metadata: bool) -> EntityMemoryTracer {
+            let metadata = if with_metadata {
+                let meta: Vec<Box<dyn core::fmt::Debug>> = vec![
+                    Box::new(self.lwe_size()),
+                    Box::new(self.ciphertext_modulus()),
+                ];
+                Some(meta)
+            } else {
+                None
+            };
+
+            EntityMemoryTracer::new(
+                "LweCiphertext",
+                metadata,
+                self.as_ref(),
+                Some(self.ciphertext_modulus()),
+            )
+        }
+    }
+}
+
 /// Return the number of mask samples used during encryption of an [`LweCiphertext`] given an
 /// [`LweDimension`].
 pub fn lwe_ciphertext_encryption_mask_sample_count(

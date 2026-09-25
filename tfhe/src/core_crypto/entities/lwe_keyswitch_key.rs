@@ -101,6 +101,40 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for LweKeyswit
     }
 }
 
+#[cfg(feature = "__tracing")]
+mod tracing {
+    use super::*;
+    use crate::core_crypto::commons::tracing_helper::EntityMemoryTracer;
+
+    impl<T, C> AsMemoryTracer for LweKeyswitchKey<C>
+    where
+        T: UnsignedInteger,
+        C: Container<Element = T>,
+    {
+        fn as_memory_tracer(&self, with_metadata: bool) -> EntityMemoryTracer {
+            let metadata = if with_metadata {
+                let meta: Vec<Box<dyn core::fmt::Debug>> = vec![
+                    Box::new(self.input_key_lwe_dimension()),
+                    Box::new(self.decomposition_base_log()),
+                    Box::new(self.decomposition_level_count()),
+                    Box::new(self.output_lwe_size()),
+                    Box::new(self.ciphertext_modulus()),
+                ];
+                Some(meta)
+            } else {
+                None
+            };
+
+            EntityMemoryTracer::new(
+                "LweKeyswitchKey",
+                metadata,
+                self.as_ref(),
+                Some(self.ciphertext_modulus()),
+            )
+        }
+    }
+}
+
 /// Return the number of elements in an encryption of an input [`LweSecretKey`] element for a
 /// [`LweKeyswitchKey`] given a [`DecompositionLevelCount`] and output [`LweSize`].
 pub fn lwe_keyswitch_key_input_key_element_encrypted_size(

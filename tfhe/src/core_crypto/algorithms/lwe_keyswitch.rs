@@ -134,6 +134,14 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 /// Panics if the modulus of the inputs are not power of twos.
 /// Panics if the output `output_lwe_ciphertext` modulus is not equal to the `lwe_keyswitch_key`
 /// modulus.
+#[cfg_attr(
+    feature = "__tracing",
+    tracing::instrument(
+        target = "keyswitch_lwe_ciphertext_native_mod_compatible",
+        level = tracing::Level::TRACE,
+        skip_all,
+    )
+)]
 pub fn keyswitch_lwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont, OutputCont>(
     lwe_keyswitch_key: &LweKeyswitchKey<KSKCont>,
     input_lwe_ciphertext: &LweCiphertext<InputCont>,
@@ -183,6 +191,19 @@ pub fn keyswitch_lwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont
         "This operation currently only supports power of 2 moduli"
     );
 
+    #[cfg(feature = "__tracing")]
+    {
+        tracing::trace!(
+            target: "keyswitch_lwe_ciphertext_native_mod_compatible::input_lwe_ciphertext",
+            input_lwe_ciphertext = ?input_lwe_ciphertext.as_memory_tracer(true),
+        );
+
+        tracing::trace!(
+            target: "keyswitch_lwe_ciphertext_native_mod_compatible::lwe_keyswitch_key",
+            lwe_keyswitch_key = ?lwe_keyswitch_key.as_memory_tracer(true),
+        );
+    }
+
     // Clear the output ciphertext, as it will get updated gradually
     output_lwe_ciphertext.as_mut().fill(Scalar::ZERO);
 
@@ -217,6 +238,19 @@ pub fn keyswitch_lwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont
         // Loop over the levels
         for (level_key_ciphertext, decomposed) in keyswitch_key_block.iter().zip(decomposition_iter)
         {
+            #[cfg(feature = "__tracing")]
+            {
+                tracing::trace!(
+                    target: "keyswitch_lwe_ciphertext_native_mod_compatible::decomposed",
+                    decomposed = ?decomposed,
+                );
+
+                tracing::trace!(
+                    target: "keyswitch_lwe_ciphertext_native_mod_compatible::level_key_ciphertext",
+                    level_key_ciphertext = ?level_key_ciphertext.as_memory_tracer(true),
+                );
+            }
+
             slice_wrapping_sub_scalar_mul_assign(
                 output_lwe_ciphertext.as_mut(),
                 level_key_ciphertext.as_ref(),
@@ -224,6 +258,12 @@ pub fn keyswitch_lwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont
             );
         }
     }
+
+    #[cfg(feature = "__tracing")]
+    tracing::trace!(
+        target: "keyswitch_lwe_ciphertext_native_mod_compatible::output_lwe_ciphertext",
+        output_lwe_ciphertext = ?output_lwe_ciphertext.as_memory_tracer(true)
+    );
 }
 
 /// Specialized implementation of an LWE keyswitch when inputs have non power of two moduli.
