@@ -33,7 +33,7 @@ trait ArmKey: Sized {
             )
         }
 
-        // SAFETY: we checked for aes and sse2 availability
+        // SAFETY: we checked for aes and neon availability
         unsafe { self.unchecked_generate_round_keys() }
     }
 
