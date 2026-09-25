@@ -547,6 +547,43 @@ where
     ciphertext_modulus: CiphertextModulus<C::Element>,
 }
 
+// dbg! add feature
+mod tracing {
+    use super::*;
+    use crate::core_crypto::commons::tracing_helper::EntityMemoryTracer;
+
+    impl<T, C> AsMemoryTracer for LweCiphertext<C>
+    where
+        T: UnsignedInteger,
+        C: Container<Element = T>,
+    {
+        fn as_memory_tracer(&self, with_metadata: bool) -> EntityMemoryTracer {
+            let metadata = if with_metadata {
+                let meta: Vec<Box<dyn core::fmt::Debug>> = vec![
+                    Box::new(self.lwe_size()),
+                    Box::new(self.ciphertext_modulus()),
+                ];
+                Some(meta)
+            } else {
+                None
+            };
+
+            // dbg! add the ciphertext modulus processing of the data
+
+            EntityMemoryTracer::new(
+                "LweCiphertext",
+                metadata,
+                self.as_ref()
+                    .iter()
+                    .copied()
+                    .map(|x| x.cast_into())
+                    .collect(),
+                T::BITS as u32,
+            )
+        }
+    }
+}
+
 impl<T: UnsignedInteger, C: Container<Element = T>> AsRef<[T]> for LweCiphertext<C> {
     fn as_ref(&self) -> &[T] {
         self.data.as_ref()

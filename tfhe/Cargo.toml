@@ -107,6 +107,10 @@ bytemuck = { workspace = true }
 
 tfhe-hpu-backend = { version = "0.7.0", path = "../backends/tfhe-hpu-backend", optional = true }
 
+# dbg!
+# tracing = { version = "0.1.44", optional = true }
+tracing = { version = "0.1.44" }
+
 [features]
 default = ["avx512"]
 boolean = []
@@ -173,6 +177,8 @@ nightly-avx512 = ["avx512"]
 
 # Private features
 __profiling = []
+# dbg!
+# __tracing = ["dep:tracing"]
 
 software-prng = ["tfhe-csprng/software-prng"]
 

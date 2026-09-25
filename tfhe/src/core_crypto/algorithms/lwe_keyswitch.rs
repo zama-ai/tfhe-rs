@@ -134,6 +134,16 @@ pub fn keyswitch_lwe_ciphertext<Scalar, KSKCont, InputCont, OutputCont>(
 /// Panics if the modulus of the inputs are not power of twos.
 /// Panics if the output `output_lwe_ciphertext` modulus is not equal to the `lwe_keyswitch_key`
 /// modulus.
+// #[cfg_attr(feature = "__tracing", tracing::instrument)]
+#[tracing::instrument(
+    level = tracing::Level::TRACE,
+    skip_all,
+    fields(
+        lwe_keyswitch_key,
+        input_lwe_ciphertext = ?input_lwe_ciphertext.as_memory_tracer(true),
+        output_lwe_ciphertext,
+    ),
+)]
 pub fn keyswitch_lwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont, OutputCont>(
     lwe_keyswitch_key: &LweKeyswitchKey<KSKCont>,
     input_lwe_ciphertext: &LweCiphertext<InputCont>,

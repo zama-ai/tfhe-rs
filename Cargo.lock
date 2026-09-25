@@ -3632,6 +3632,7 @@ dependencies = [
  "tfhe-safe-serialize",
  "tfhe-versionable",
  "tfhe-zk-pok",
+ "tracing",
  "tracing-subscriber",
  "wasm-bindgen",
  "wasm-bindgen-futures",
