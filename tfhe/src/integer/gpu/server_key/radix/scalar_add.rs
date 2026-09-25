@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::SignedNumeric;
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
@@ -63,7 +63,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
+        Scalar: FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -77,7 +77,7 @@ impl CudaServerKey {
         scalar: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
+        Scalar: FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if scalar != Scalar::ZERO {
@@ -148,7 +148,7 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_add<Scalar, T>(&self, ct: &T, scalar: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
+        Scalar: FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -166,7 +166,7 @@ impl CudaServerKey {
 
     pub fn scalar_add_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
     where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
+        Scalar: FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
@@ -249,7 +249,7 @@ impl CudaServerKey {
         stream: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
+        Scalar: FixedDecomposableInto<u8> + CastInto<u64>,
     {
         let mut result;
         result = ct_left.duplicate(stream);
@@ -264,7 +264,7 @@ impl CudaServerKey {
         stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
+        Scalar: FixedDecomposableInto<u8> + CastInto<u64>,
     {
         if !ct_left.block_carries_are_empty() {
             self.full_propagate_assign(ct_left, stream);
@@ -279,7 +279,7 @@ impl CudaServerKey {
         stream: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
+        Scalar: FixedDecomposableInto<u8> + CastInto<u64>,
     {
         let mut result;
         result = ct_left.duplicate(stream);
@@ -295,7 +295,7 @@ impl CudaServerKey {
         stream: &CudaStreams,
     ) -> CudaBooleanBlock
     where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
+        Scalar: FixedDecomposableInto<u8> + CastInto<u64>,
     {
         self.unchecked_scalar_add_assign(ct_left, scalar, stream);
         let mut carry_out;
@@ -359,7 +359,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock)
     where
-        Scalar: SignedNumeric + DecomposableInto<u64> + CastInto<u64>,
+        Scalar: SignedNumeric + FixedDecomposableInto<u64> + CastInto<u64>,
     {
         let mut tmp_lhs;
         tmp_lhs = ct_left.duplicate(streams);

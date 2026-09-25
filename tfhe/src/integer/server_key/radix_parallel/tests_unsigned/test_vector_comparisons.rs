@@ -14,7 +14,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::core_crypto::prelude::Numeric;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::tests::create_parameterized_test;
 use rand::prelude::*;
 
@@ -144,7 +144,7 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
 ) where
     E: for<'a> FunctionExecutor<(&'a [Ciphertext], &'a [Ciphertext]), BooleanBlock>,
     F: Fn(&RadixClientKey, Clear) -> Ciphertext,
-    Clear: SampleUniform + Numeric + DecomposableInto<u8>,
+    Clear: SampleUniform + Numeric + FixedDecomposableInto<u8>,
     Ciphertext: IntegerRadixCiphertext,
     Range<Clear>: SampleRange<Clear> + Clone,
 {

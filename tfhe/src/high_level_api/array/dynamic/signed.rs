@@ -11,7 +11,7 @@ use crate::high_level_api::array::{
 };
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntId;
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
+use crate::integer::block_decomposition::{FixedDecomposableInto, RecomposableSignedInteger};
 use crate::integer::SignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use crate::{ClientKey, Device, Error};
@@ -302,7 +302,7 @@ impl BitwiseArrayBackend for DynIntBackend {
 
 impl<Clear> ClearBitwiseArrayBackend<Clear> for DynIntBackend
 where
-    Clear: DecomposableInto<u8>,
+    Clear: FixedDecomposableInto<u8>,
 {
     fn bitand_slice(
         lhs: TensorSlice<'_, Self::Slice<'_>>,
@@ -367,7 +367,7 @@ where
 impl<'a, Clear, Id> FheTryEncrypt<&'a [Clear], ClientKey> for FheArrayBase<InnerIntArray, Id>
 where
     Id: FheIntId,
-    Clear: DecomposableInto<u64> + SignedNumeric,
+    Clear: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Error = Error;
 

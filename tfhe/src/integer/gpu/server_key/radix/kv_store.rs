@@ -1,7 +1,7 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweCiphertextCount;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{
     AsShortintCiphertextSlice, DataKind, Expandable, IntegerRadixCiphertext,
 };
@@ -397,7 +397,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (Ct, CudaBooleanBlock, CudaLweCiphertextList<u64>)
     where
-        Key: DecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
+        Key: FixedDecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
         Ct: CudaIntegerRadixCiphertext + Send,
     {
         let num_blocks_per_value = if let Some(n) = kv_store.blocks_per_radix() {
@@ -511,7 +511,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         Ct: CudaIntegerRadixCiphertext + Send,
-        Key: DecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
+        Key: FixedDecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
     {
         if map.is_empty() {
             return CudaBooleanBlock::from_cuda_radix_ciphertext(
@@ -593,7 +593,7 @@ impl CudaServerKey {
     where
         Ct: CudaIntegerRadixCiphertext + Send,
         Key: Ord + Sync,
-        Clear: DecomposableInto<u64>,
+        Clear: FixedDecomposableInto<u64>,
     {
         let values: Vec<_> = map.iter().map(|(_, v)| v.duplicate(streams)).collect();
         self.contains_clear(&values, clear_value, streams)
@@ -607,7 +607,7 @@ impl CudaServerKey {
     ) -> (Ct, CudaBooleanBlock)
     where
         Ct: CudaIntegerRadixCiphertext + Send,
-        Key: DecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
+        Key: FixedDecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
     {
         let (result, check_block, _selectors) = self.kv_store_get_impl(map, encrypted_key, streams);
         (result, check_block)
@@ -631,7 +631,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         Ct: CudaIntegerRadixCiphertext + Send,
-        Key: DecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
+        Key: FixedDecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
     {
         let num_blocks_per_value = match map.blocks_per_radix() {
             Some(n) => n.get(),
@@ -729,7 +729,7 @@ impl CudaServerKey {
     ) -> (Ct, Ct, CudaBooleanBlock)
     where
         Ct: CudaIntegerRadixCiphertext + Send,
-        Key: DecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
+        Key: FixedDecomposableInto<u64> + CastInto<usize> + Ord + Copy + Sync,
         F: Fn(Ct) -> Ct,
     {
         let (old_value, _, selectors) = self.kv_store_get_impl(map, encrypted_key, streams);

@@ -1,6 +1,6 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
 use crate::integer::gpu::{
@@ -16,7 +16,7 @@ impl CudaServerKey {
         op: BitOpType,
         streams: &CudaStreams,
     ) where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
@@ -103,7 +103,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -117,7 +117,7 @@ impl CudaServerKey {
         rhs: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarAnd, streams);
@@ -125,7 +125,7 @@ impl CudaServerKey {
 
     pub fn unchecked_scalar_bitor<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -139,7 +139,7 @@ impl CudaServerKey {
         rhs: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarOr, streams);
@@ -152,7 +152,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -166,7 +166,7 @@ impl CudaServerKey {
         rhs: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarXor, streams);
@@ -174,7 +174,7 @@ impl CudaServerKey {
 
     pub fn scalar_bitand_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
@@ -185,7 +185,7 @@ impl CudaServerKey {
 
     pub fn scalar_bitand<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -195,7 +195,7 @@ impl CudaServerKey {
 
     pub fn scalar_bitor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
@@ -206,7 +206,7 @@ impl CudaServerKey {
 
     pub fn scalar_bitor<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -216,7 +216,7 @@ impl CudaServerKey {
 
     pub fn scalar_bitxor_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
@@ -227,7 +227,7 @@ impl CudaServerKey {
 
     pub fn scalar_bitxor<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);

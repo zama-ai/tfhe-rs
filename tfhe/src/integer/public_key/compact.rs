@@ -3,7 +3,7 @@ use crate::core_crypto::commons::traits::Container;
 use crate::integer::backward_compatibility::public_key::{
     CompactPrivateKeyVersions, CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
 };
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::CompactCiphertextList;
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::integer::ClientKey;
@@ -129,7 +129,9 @@ impl CompactPublicKey {
         Self { key }
     }
 
-    pub fn encrypt_radix_compact<T: DecomposableInto<u64> + std::ops::Shl<usize, Output = T>>(
+    pub fn encrypt_radix_compact<
+        T: FixedDecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
+    >(
         &self,
         message: T,
         num_blocks_per_integer: usize,
@@ -140,7 +142,7 @@ impl CompactPublicKey {
     }
 
     pub fn encrypt_slice_radix_compact<
-        T: DecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
+        T: FixedDecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
     >(
         &self,
         messages: &[T],
@@ -150,7 +152,7 @@ impl CompactPublicKey {
     }
 
     pub fn encrypt_iter_radix_compact<
-        T: DecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
+        T: FixedDecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
     >(
         &self,
         message_iter: impl Iterator<Item = T>,

@@ -16,7 +16,7 @@ use criterion::{Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
 use tfhe::core_crypto::prelude::Numeric;
-use tfhe::integer::block_decomposition::DecomposableInto;
+use tfhe::integer::block_decomposition::FixedDecomposableInto;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::{
@@ -27,7 +27,7 @@ use tfhe::{
 fn bench_kv_store<Key, FheKey, Value>(c: &mut Criterion, cks: &ClientKey, num_elements: u64)
 where
     rand::distributions::Standard: Distribution<Key>,
-    Key: Numeric + DecomposableInto<u64> + Ord + CastInto<usize> + TypeDisplay,
+    Key: Numeric + FixedDecomposableInto<u64> + Ord + CastInto<usize> + TypeDisplay,
     Value: FheEncrypt<u128, ClientKey> + FheIntegerType + Clone + Send + Sync + TypeDisplay,
     Value::Id: FheUintId,
     FheKey: FheEncrypt<Key, ClientKey> + FheIntegerType + Send + Sync,

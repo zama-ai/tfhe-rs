@@ -3,7 +3,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
+use crate::integer::block_decomposition::{FixedDecomposableInto, RecomposableSignedInteger};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
@@ -44,7 +44,7 @@ where
 impl<Id, T> FheTryEncrypt<T, ClientKey> for FheInt<Id>
 where
     Id: FheIntId,
-    T: DecomposableInto<u64> + SignedNumeric,
+    T: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Error = crate::Error;
 
@@ -64,7 +64,7 @@ where
 impl<Id, T> FheTryEncrypt<T, PublicKey> for FheInt<Id>
 where
     Id: FheIntId,
-    T: DecomposableInto<u64> + SignedNumeric,
+    T: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Error = crate::Error;
 
@@ -83,7 +83,7 @@ where
 impl<Id, T> FheTryEncrypt<T, CompressedPublicKey> for FheInt<Id>
 where
     Id: FheIntId,
-    T: DecomposableInto<u64> + SignedNumeric,
+    T: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Error = crate::Error;
 
@@ -101,7 +101,7 @@ where
 
 impl<Id, T> FheTryTrivialEncrypt<T> for FheInt<Id>
 where
-    T: DecomposableInto<u64>,
+    T: FixedDecomposableInto<u64>,
     Id: FheIntId,
 {
     type Error = crate::Error;
@@ -149,7 +149,7 @@ where
 
 impl<Id, T> FheTrivialEncrypt<T> for FheInt<Id>
 where
-    T: DecomposableInto<u64>,
+    T: FixedDecomposableInto<u64>,
     Id: FheIntId,
 {
     /// Creates a trivial encryption of a signed integer.

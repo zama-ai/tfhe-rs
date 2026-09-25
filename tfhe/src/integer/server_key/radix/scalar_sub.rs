@@ -1,5 +1,7 @@
 use crate::core_crypto::prelude::Numeric;
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto, PaddingBitValue};
+use crate::integer::block_decomposition::{
+    BlockDecomposer, FixedDecomposableInto, PaddingBitValue,
+};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
@@ -51,7 +53,7 @@ impl ServerKey {
     pub fn unchecked_scalar_sub<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         let mut result = ct.clone();
         self.unchecked_scalar_sub_assign(&mut result, scalar);
@@ -70,7 +72,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> Option<impl Iterator<Item = u8>>
     where
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         if scalar == Scalar::ZERO {
             return None;
@@ -104,7 +106,7 @@ impl ServerKey {
     pub fn unchecked_scalar_sub_assign<T, Scalar>(&self, ct: &mut T, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
             // subtraction by zero
@@ -143,7 +145,7 @@ impl ServerKey {
     ) -> Result<(), CheckError>
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
             // subtraction by zero
@@ -190,7 +192,7 @@ impl ServerKey {
     pub fn checked_scalar_sub<T, Scalar>(&self, ct: &T, scalar: Scalar) -> Result<T, CheckError>
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         self.is_scalar_sub_possible(ct, scalar)?;
         Ok(self.unchecked_scalar_sub(ct, scalar))
@@ -230,7 +232,7 @@ impl ServerKey {
     ) -> Result<(), CheckError>
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         self.is_scalar_sub_possible(ct, scalar)?;
         self.unchecked_scalar_sub_assign(ct, scalar);
@@ -264,7 +266,7 @@ impl ServerKey {
     pub fn smart_scalar_sub<T, Scalar>(&self, ct: &mut T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         if self.is_scalar_sub_possible(ct, scalar).is_err() {
             self.full_propagate(ct);
@@ -278,7 +280,7 @@ impl ServerKey {
     pub fn smart_scalar_sub_assign<T, Scalar>(&self, ct: &mut RadixCiphertext, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: TwosComplementNegation + FixedDecomposableInto<u8>,
     {
         if self.is_scalar_sub_possible(ct, scalar).is_err() {
             self.full_propagate(ct);

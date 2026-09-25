@@ -1,4 +1,4 @@
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
@@ -37,7 +37,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_add<T, C>(&self, ct: &C, scalar: T) -> C
     where
-        T: DecomposableInto<u8>,
+        T: FixedDecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
         let mut result = ct.clone();
@@ -53,7 +53,7 @@ impl ServerKey {
     /// The result is assigned to the `ct_left` ciphertext.
     pub fn unchecked_scalar_add_assign<T, C>(&self, ct: &mut C, scalar: T)
     where
-        T: DecomposableInto<u8>,
+        T: FixedDecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
         let bits_in_message = self.key.message_modulus.0.ilog2();
@@ -88,7 +88,7 @@ impl ServerKey {
     /// ```
     pub fn is_scalar_add_possible<T, C>(&self, ct: &C, scalar: T) -> Result<(), CheckError>
     where
-        T: DecomposableInto<u8>,
+        T: FixedDecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
         let block_metadata_iter = ct
@@ -104,7 +104,7 @@ impl ServerKey {
         scalar: T,
     ) -> Result<(), CheckError>
     where
-        T: DecomposableInto<u8>,
+        T: FixedDecomposableInto<u8>,
         Iter: Iterator<Item = (Degree, MessageModulus, CarryModulus)>,
     {
         let bits_in_message = self.key.message_modulus.0.ilog2();
@@ -156,7 +156,7 @@ impl ServerKey {
     /// ```
     pub fn checked_scalar_add<T, C>(&self, ct: &C, scalar: T) -> Result<C, CheckError>
     where
-        T: DecomposableInto<u8>,
+        T: FixedDecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
         self.is_scalar_add_possible(ct, scalar)?;
@@ -169,7 +169,7 @@ impl ServerKey {
     /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     pub fn checked_scalar_add_assign<T, C>(&self, ct: &mut C, scalar: T) -> Result<(), CheckError>
     where
-        T: DecomposableInto<u8>,
+        T: FixedDecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
         self.is_scalar_add_possible(ct, scalar)?;
@@ -205,7 +205,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_add<T, C>(&self, ct: &mut C, scalar: T) -> C
     where
-        T: DecomposableInto<u8>,
+        T: FixedDecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
         if self.is_scalar_add_possible(ct, scalar).is_err() {
@@ -247,7 +247,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_add_assign<T, C>(&self, ct: &mut C, scalar: T)
     where
-        T: DecomposableInto<u8>,
+        T: FixedDecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
         if self.is_scalar_add_possible(ct, scalar).is_err() {

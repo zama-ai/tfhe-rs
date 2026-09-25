@@ -17,7 +17,7 @@ use crate::high_level_api::traits::{
     RotateRightAssign,
 };
 use crate::integer::bigint::{I1024, I2048, U1024, U2048};
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::{I256, I512, U256, U512};
 use crate::{FheBool, FheInt};
 use std::ops::{
@@ -27,7 +27,7 @@ use std::ops::{
 
 impl<Id, Clear> FheMax<Clear> for FheInt<Id>
 where
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
     Id: FheIntId,
 {
     type Output = Self;
@@ -87,7 +87,7 @@ where
 impl<Id, Clear> FheMin<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     type Output = Self;
 
@@ -145,7 +145,7 @@ where
 
 impl<Id, Clear> FheEq<Clear> for FheInt<Id>
 where
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
     Id: FheIntId,
 {
     /// Test for equality between a [FheInt] and a clear
@@ -256,7 +256,7 @@ where
 impl<Id, Clear> FheOrd<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     /// Test for less than between [FheInt] and a clear value
     ///
@@ -467,7 +467,7 @@ where
 impl<Id, Clear> FheOrdSizeOnGpu<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     fn get_gt_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
@@ -527,7 +527,7 @@ where
 impl<Id, Clear> FheEqSizeOnGpu<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     fn get_eq_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
@@ -561,7 +561,7 @@ where
 impl<Id, Clear> FheMinSizeOnGpu<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     fn get_min_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
@@ -581,7 +581,7 @@ where
 impl<Id, Clear> FheMaxSizeOnGpu<Clear> for FheInt<Id>
 where
     Id: FheIntId,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 {
     fn get_max_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {

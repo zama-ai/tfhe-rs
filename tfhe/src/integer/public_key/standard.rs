@@ -2,7 +2,7 @@ use tfhe_versionable::Versionize;
 
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::backward_compatibility::public_key::PublicKeyVersions;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
@@ -73,14 +73,14 @@ impl PublicKey {
 
     pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
     where
-        T: DecomposableInto<u64> + UnsignedNumeric,
+        T: FixedDecomposableInto<u64> + UnsignedNumeric,
     {
         encrypt_words_radix_impl(&self.key, message, num_blocks, ShortintPublicKey::encrypt)
     }
 
     pub fn encrypt_signed_radix<T>(&self, message: T, num_blocks: usize) -> SignedRadixCiphertext
     where
-        T: DecomposableInto<u64> + SignedNumeric,
+        T: FixedDecomposableInto<u64> + SignedNumeric,
     {
         encrypt_words_radix_impl(&self.key, message, num_blocks, ShortintPublicKey::encrypt)
     }

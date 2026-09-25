@@ -4,7 +4,7 @@ use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKeyRef;
 use crate::high_level_api::traits::Tagged;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{Compactable, DataKind};
 use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
@@ -974,7 +974,7 @@ pub trait HlCompactable: Compactable {}
 impl HlCompactable for bool {}
 
 impl<T> HlCompactable for T where
-    T: Numeric + DecomposableInto<u64> + std::ops::Shl<usize, Output = T>
+    T: Numeric + FixedDecomposableInto<u64> + std::ops::Shl<usize, Output = T>
 {
 }
 

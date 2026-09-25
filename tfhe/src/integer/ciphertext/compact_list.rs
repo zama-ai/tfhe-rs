@@ -6,7 +6,7 @@ use crate::core_crypto::prelude::{LweCiphertextListConformanceParams, Numeric};
 use crate::integer::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 #[cfg(feature = "zk-pok")]
 use crate::integer::backward_compatibility::ciphertext::ProvenCompactCiphertextListVersions;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::encryption::{create_clear_radix_block_iterator, KnowsMessageModulus};
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
 pub use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
@@ -136,7 +136,7 @@ impl Compactable for bool {
 
 impl<T> Compactable for T
 where
-    T: Numeric + DecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
+    T: Numeric + FixedDecomposableInto<u64> + std::ops::Shl<usize, Output = T>,
 {
     fn compact_into(
         self,

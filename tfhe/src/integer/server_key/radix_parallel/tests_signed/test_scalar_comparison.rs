@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::SignedNumeric;
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
+use crate::integer::block_decomposition::{FixedDecomposableInto, RecomposableSignedInteger};
 use crate::integer::ciphertext::SignedRadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
@@ -26,7 +26,7 @@ pub(crate) fn test_signed_unchecked_scalar_function<P, T, ClearF, Scalar>(
     clear_fn: ClearF,
 ) where
     P: Into<TestParameters>,
-    Scalar: SignedNumeric + RecomposableSignedInteger + DecomposableInto<u64> + From<bool>,
+    Scalar: SignedNumeric + RecomposableSignedInteger + FixedDecomposableInto<u64> + From<bool>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
@@ -94,7 +94,7 @@ pub(crate) fn test_signed_smart_scalar_function<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: SignedNumeric
         + RecomposableSignedInteger
-        + DecomposableInto<u64>
+        + FixedDecomposableInto<u64>
         + WrappingAdd
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a mut SignedRadixCiphertext, Scalar), BooleanBlock>,
@@ -161,7 +161,7 @@ pub(crate) fn test_signed_default_scalar_function<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: SignedNumeric
         + RecomposableSignedInteger
-        + DecomposableInto<u64>
+        + FixedDecomposableInto<u64>
         + WrappingAdd
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, Scalar), BooleanBlock>,
@@ -385,7 +385,7 @@ pub(crate) fn test_signed_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
     clear_fn: ClearF,
 ) where
     P: Into<TestParameters>,
-    Scalar: SignedNumeric + RecomposableSignedInteger + DecomposableInto<u64>,
+    Scalar: SignedNumeric + RecomposableSignedInteger + FixedDecomposableInto<u64>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, Scalar), SignedRadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
@@ -451,7 +451,7 @@ pub(crate) fn test_signed_smart_scalar_minmax<P, T, ClearF, Scalar>(
     clear_fn: ClearF,
 ) where
     P: Into<TestParameters>,
-    Scalar: SignedNumeric + RecomposableSignedInteger + DecomposableInto<u64> + WrappingAdd,
+    Scalar: SignedNumeric + RecomposableSignedInteger + FixedDecomposableInto<u64> + WrappingAdd,
     T: for<'a> FunctionExecutor<(&'a mut SignedRadixCiphertext, Scalar), SignedRadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
@@ -514,7 +514,7 @@ pub(crate) fn test_signed_default_scalar_minmax<P, T, ClearF, Scalar>(
     clear_fn: ClearF,
 ) where
     P: Into<TestParameters>,
-    Scalar: SignedNumeric + RecomposableSignedInteger + DecomposableInto<u64> + WrappingAdd,
+    Scalar: SignedNumeric + RecomposableSignedInteger + FixedDecomposableInto<u64> + WrappingAdd,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, Scalar), SignedRadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,

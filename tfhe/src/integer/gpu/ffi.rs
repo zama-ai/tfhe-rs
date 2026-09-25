@@ -13,7 +13,7 @@ use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
     LweCiphertextCount, LweDimension, Numeric, PolynomialSize, UnsignedInteger,
 };
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext, KsType};
 use crate::integer::gpu::list_compression::server_keys::CudaPackedGlweCiphertextList;
@@ -542,7 +542,7 @@ pub(crate) fn cuda_backend_get_scalar_div_size_on_gpu<Scalar>(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
-    Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
 {
     let bsk_params = bsk.params_ffi();
     let numerator_bits = message_modulus.0.ilog2() * num_blocks;
@@ -2913,7 +2913,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
-    Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
 {
     let bsk_params = bsk.params_ffi();
     let num_blocks = u32::try_from(quotient.d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -3110,7 +3110,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
-    Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
 {
     let bsk_params = bsk.params_ffi();
@@ -3280,7 +3280,7 @@ pub(crate) fn cuda_backend_get_scalar_div_rem_size_on_gpu<Scalar>(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
-    Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: Reciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
 {
     let bsk_params = bsk.params_ffi();
     let numerator_bits = message_modulus.0.ilog2() * num_blocks;
@@ -3387,7 +3387,7 @@ pub(crate) fn cuda_backend_get_signed_scalar_div_rem_size_on_gpu<Scalar>(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
-    Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
 {
     let bsk_params = bsk.params_ffi();
@@ -3655,7 +3655,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
-    Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: SignedReciprocable + ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
 {
     let bsk_params = bsk.params_ffi();
@@ -7338,7 +7338,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     T: UnsignedInteger,
     B: Numeric,
     R: CudaIntegerRadixCiphertext,
-    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+    Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
     lwe_array_out_result: &mut R,
@@ -7385,7 +7385,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         .flat_map(|input_value: Clear| {
             BlockDecomposer::new(input_value, num_bits_in_message)
                 .take(num_input_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<u64>>()
         })
         .collect();
@@ -7419,7 +7419,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         .flat_map(|output_value: Clear| {
             BlockDecomposer::new(output_value, 2 * num_bits_in_message)
                 .take(num_output_packed_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<u64>>()
         })
         .collect();
@@ -7531,7 +7531,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
     T: UnsignedInteger,
     B: Numeric,
     R: CudaIntegerRadixCiphertext,
-    Clear: DecomposableInto<u64> + CastInto<usize>,
+    Clear: FixedDecomposableInto<u64> + CastInto<usize>,
 >(
     streams: &CudaStreams,
     lwe_array_out_result: &mut R,
@@ -7590,7 +7590,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
         .flat_map(|key| {
             BlockDecomposer::new(*key, num_bits_in_message)
                 .take(num_input_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<u64>>()
         })
         .collect();
@@ -7736,7 +7736,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
 pub(crate) unsafe fn cuda_backend_kv_store_update<
     T: UnsignedInteger,
     B: Numeric,
-    Clear: DecomposableInto<u64> + CastInto<usize>,
+    Clear: FixedDecomposableInto<u64> + CastInto<usize>,
 >(
     streams: &CudaStreams,
     lwe_check_out_block: &mut CudaRadixCiphertext,
@@ -7789,7 +7789,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
         .flat_map(|key| {
             BlockDecomposer::new(*key, num_bits_in_message)
                 .take(num_input_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<u64>>()
         })
         .collect();
@@ -8105,7 +8105,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
 pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
     T: UnsignedInteger,
     B: Numeric,
-    Clear: DecomposableInto<u64> + CastInto<usize>,
+    Clear: FixedDecomposableInto<u64> + CastInto<usize>,
 >(
     streams: &CudaStreams,
     lwe_array_out_boolean: &mut CudaBooleanBlock,
@@ -8148,7 +8148,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
         .flat_map(|key| {
             BlockDecomposer::new(*key, num_bits_in_message)
                 .take(num_input_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<u64>>()
         })
         .collect();
@@ -8238,7 +8238,12 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu<Clear>(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
-    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
+    Clear: UnsignedInteger
+        + FixedDecomposableInto<u64>
+        + CastInto<usize>
+        + CastInto<u64>
+        + Sync
+        + Send,
 {
     let bsk_params = bsk.params_ffi();
     let num_input_blocks = u32::try_from(ct.d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -8309,7 +8314,12 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_or_size_on_gpu<Clear>(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
-    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
+    Clear: UnsignedInteger
+        + FixedDecomposableInto<u64>
+        + CastInto<usize>
+        + CastInto<u64>
+        + Sync
+        + Send,
 {
     let bsk_params = bsk.params_ffi();
     let num_input_blocks = u32::try_from(ct.d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -8454,7 +8464,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     T: UnsignedInteger,
     B: Numeric,
     R: CudaIntegerRadixCiphertext,
-    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
+    Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
 >(
     streams: &CudaStreams,
     lwe_array_out: &mut R,
@@ -8494,7 +8504,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         .flat_map(|input_value: Clear| {
             BlockDecomposer::new(input_value, num_bits_in_message)
                 .take(num_input_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<u64>>()
         })
         .collect();
@@ -8522,7 +8532,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         .flat_map(|output_value: Clear| {
             BlockDecomposer::new(output_value, 2 * num_bits_in_message)
                 .take(num_match_packed_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<u64>>()
         })
         .collect();
@@ -8532,7 +8542,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
 
     let h_or_value: Vec<u64> = BlockDecomposer::new(or_value, num_bits_in_message)
         .take(num_final_blocks as usize)
-        .map(|block_value: Clear| block_value.cast_into())
+        .map(|block_value: u128| block_value.cast_into())
         .collect();
 
     let max_output_is_zero = max_output_value == Clear::ZERO;
@@ -8730,7 +8740,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
     T: UnsignedInteger,
     B: Numeric,
     C: CudaIntegerRadixCiphertext,
-    Clear: DecomposableInto<u64>,
+    Clear: FixedDecomposableInto<u64>,
 >(
     streams: &CudaStreams,
     output: &mut CudaBooleanBlock,
@@ -8839,7 +8849,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
 pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
     T: UnsignedInteger,
     B: Numeric,
-    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+    Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
     output: &mut CudaBooleanBlock,
@@ -8867,7 +8877,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
         .flat_map(|input_value| {
             BlockDecomposer::new(*input_value, num_bits_in_message)
                 .take(num_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
@@ -8928,7 +8938,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
 pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
     T: UnsignedInteger,
     B: Numeric,
-    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+    Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
     index_ct: &mut CudaRadixCiphertext,
@@ -8958,7 +8968,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
         .flat_map(|input_value| {
             BlockDecomposer::new(*input_value, num_bits_in_message)
                 .take(num_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
@@ -9038,7 +9048,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
 pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
     T: UnsignedInteger,
     B: Numeric,
-    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
+    Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
 >(
     streams: &CudaStreams,
     index_ct: &mut CudaRadixCiphertext,
@@ -9075,7 +9085,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         .flat_map(|(_, input_value)| {
             BlockDecomposer::new(**input_value, num_bits_in_message)
                 .take(num_blocks as usize)
-                .map(|block_value: Clear| block_value.cast_into())
+                .map(|block_value: u128| block_value.cast_into())
                 .collect::<Vec<_>>()
         })
         .collect();
@@ -9175,7 +9185,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     T: UnsignedInteger,
     B: Numeric,
     C: CudaIntegerRadixCiphertext,
-    Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+    Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
     index_ct: &mut CudaRadixCiphertext,
@@ -9566,7 +9576,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     T: UnsignedInteger,
     B: Numeric,
     C: CudaIntegerRadixCiphertext,
-    Clear: DecomposableInto<u64> + CastInto<usize>,
+    Clear: FixedDecomposableInto<u64> + CastInto<usize>,
 >(
     streams: &CudaStreams,
     index_ct: &mut CudaRadixCiphertext,

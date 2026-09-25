@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
@@ -56,7 +56,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
-        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -70,7 +70,7 @@ impl CudaServerKey {
         scalar: Scalar,
         streams: &CudaStreams,
     ) where
-        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if scalar == Scalar::ZERO {
@@ -198,7 +198,7 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_mul<Scalar, T>(&self, ct: &T, scalar: Scalar, streams: &CudaStreams) -> T
     where
-        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let mut result = ct.duplicate(streams);
@@ -208,7 +208,7 @@ impl CudaServerKey {
 
     pub fn scalar_mul_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
     where
-        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         if !ct.block_carries_are_empty() {
@@ -225,7 +225,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> u64
     where
-        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8> + CastInto<u64>,
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
