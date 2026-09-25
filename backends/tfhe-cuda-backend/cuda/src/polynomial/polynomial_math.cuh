@@ -109,7 +109,8 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_2_2_params(
 // If init_accumulator is set, assumes that result was not initialized and does
 // that with the outcome of first * second
 template <class params>
-__device__ void polynomial_product_accumulate_in_fourier_domain_128(
+__device__ __forceinline__ void
+polynomial_product_accumulate_in_fourier_domain_128(
     double *result, double *first, const double *second,
     bool init_accumulator = false) {
   int tid = threadIdx.x;

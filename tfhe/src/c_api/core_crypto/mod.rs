@@ -2,6 +2,7 @@ use super::utils::*;
 use crate::core_crypto::commons::dispersion::StandardDev;
 use crate::core_crypto::commons::math::random::DynamicDistribution as RustDynamicDistribution;
 use crate::core_crypto::commons::numeric::UnsignedInteger;
+use std::ffi::c_void;
 use std::os::raw::c_int;
 
 // f64 will be aligned as a u64, use the same alignment
@@ -658,6 +659,166 @@ pub unsafe extern "C" fn core_crypto_par_generate_lwe_private_functional_keyswit
             &input_lwe_sk,
             &output_glwe_sk,
             lwe_noise_distribution,
+            &mut encryption_random_generator,
+        )
+    })
+}
+
+// u128 variants: pointer parameters use `*mut c_void` / `*const c_void` (void*
+// in C) and are internally cast to u128. Dimension parameters are in u128-element
+// counts; the caller allocates `dim * sizeof(__uint128_t)` bytes.
+//
+// SAFETY for all u128 functions below: callers must ensure pointers are valid for
+// the documented element count, have at least 16-byte alignment (guaranteed by
+// malloc/cudaMalloc on x86_64 and aarch64), and are not aliased by any other
+// mutable reference.
+
+#[no_mangle]
+pub unsafe extern "C" fn core_crypto_lwe_secret_key_u128(
+    output_lwe_sk_ptr: *mut c_void,
+    lwe_sk_dim: usize,
+    seed_low_bytes: u64,
+    seed_high_bytes: u64,
+) -> c_int {
+    catch_panic(|| {
+        use crate::core_crypto::commons::math::random::Seed;
+        use crate::core_crypto::prelude::*;
+
+        let seed_low_bytes: u128 = seed_low_bytes.into();
+        let seed_high_bytes: u128 = seed_high_bytes.into();
+        let seed = (seed_high_bytes << 64) | seed_low_bytes;
+
+        let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(Seed(seed));
+
+        let output_lwe_sk_slice =
+            std::slice::from_raw_parts_mut(output_lwe_sk_ptr as *mut u128, lwe_sk_dim);
+        let mut lwe_sk = LweSecretKey::from_container(output_lwe_sk_slice);
+
+        generate_binary_lwe_secret_key(&mut lwe_sk, &mut secret_generator);
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn core_crypto_lwe_decrypt_u128(
+    output_pt_low: *mut u64,
+    output_pt_high: *mut u64,
+    input_ct_ptr: *const c_void,
+    lwe_sk_ptr: *const c_void,
+    lwe_sk_dim: usize,
+) -> c_int {
+    catch_panic(|| {
+        use crate::core_crypto::prelude::*;
+
+        let lwe_sk_slice = std::slice::from_raw_parts(lwe_sk_ptr as *const u128, lwe_sk_dim);
+        let lwe_sk = LweSecretKey::from_container(lwe_sk_slice);
+
+        let input_ct = std::slice::from_raw_parts(input_ct_ptr as *const u128, lwe_sk_dim + 1);
+        let ct = LweCiphertext::from_container(input_ct, CiphertextModulus::new_native());
+
+        let plaintext = decrypt_lwe_ciphertext(&lwe_sk, &ct);
+
+        *output_pt_low = plaintext.0 as u64;
+        *output_pt_high = (plaintext.0 >> 64) as u64;
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn core_crypto_lwe_bootstrapping_key_element_count_u128(
+    input_lwe_sk_dim: usize,
+    output_glwe_sk_dim: usize,
+    output_glwe_sk_poly_size: usize,
+    bsk_level_count: usize,
+    result: *mut usize,
+) -> c_int {
+    catch_panic(|| {
+        use crate::core_crypto::entities::lwe_bootstrap_key::lwe_bootstrap_key_size;
+        use crate::core_crypto::prelude::*;
+
+        let result = get_mut_checked(result).unwrap();
+
+        *result = lwe_bootstrap_key_size(
+            LweDimension(input_lwe_sk_dim),
+            GlweDimension(output_glwe_sk_dim).to_glwe_size(),
+            PolynomialSize(output_glwe_sk_poly_size),
+            DecompositionLevelCount(bsk_level_count),
+        );
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn core_crypto_par_generate_lwe_bootstrapping_key_u128(
+    output_bsk_ptr: *mut c_void,
+    bsk_base_log: usize,
+    bsk_level_count: usize,
+    input_lwe_sk_ptr: *const c_void,
+    input_lwe_sk_dim: usize,
+    output_glwe_sk_ptr: *const c_void,
+    output_glwe_sk_dim: usize,
+    output_glwe_sk_poly_size: usize,
+    glwe_noise_distribution: DynamicDistribution,
+    seed_low_bytes: u64,
+    seed_high_bytes: u64,
+) -> c_int {
+    catch_panic(|| {
+        use crate::core_crypto::commons::generators::DeterministicSeeder;
+        use crate::core_crypto::commons::math::random::Seed;
+        use crate::core_crypto::entities::lwe_bootstrap_key::lwe_bootstrap_key_size;
+        use crate::core_crypto::prelude::*;
+
+        let input_lwe_sk_slice =
+            std::slice::from_raw_parts(input_lwe_sk_ptr as *const u128, input_lwe_sk_dim);
+        let input_lwe_sk = LweSecretKey::from_container(input_lwe_sk_slice);
+
+        let output_glwe_sk_dim_val = GlweDimension(output_glwe_sk_dim);
+        let output_glwe_sk_poly_size_val = PolynomialSize(output_glwe_sk_poly_size);
+        let output_glwe_sk_size =
+            glwe_ciphertext_mask_size(output_glwe_sk_dim_val, output_glwe_sk_poly_size_val);
+        let output_glwe_sk_slice =
+            std::slice::from_raw_parts(output_glwe_sk_ptr as *const u128, output_glwe_sk_size);
+        let output_glwe_sk =
+            GlweSecretKey::from_container(output_glwe_sk_slice, output_glwe_sk_poly_size_val);
+
+        let seed_low_bytes: u128 = seed_low_bytes.into();
+        let seed_high_bytes: u128 = seed_high_bytes.into();
+        let seed = (seed_high_bytes << 64) | seed_low_bytes;
+
+        let mut deterministic_seeder =
+            DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
+        let mut encryption_random_generator =
+            EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+                deterministic_seeder.seed(),
+                &mut deterministic_seeder,
+            );
+
+        let lwe_base_log = DecompositionBaseLog(bsk_base_log);
+        let lwe_level_count = DecompositionLevelCount(bsk_level_count);
+
+        let lwe_slice_len = lwe_bootstrap_key_size(
+            input_lwe_sk.lwe_dimension(),
+            output_glwe_sk.glwe_dimension().to_glwe_size(),
+            output_glwe_sk.polynomial_size(),
+            lwe_level_count,
+        );
+
+        let bsk_slice = std::slice::from_raw_parts_mut(output_bsk_ptr as *mut u128, lwe_slice_len);
+
+        let mut bsk = LweBootstrapKey::from_container(
+            bsk_slice,
+            output_glwe_sk.glwe_dimension().to_glwe_size(),
+            output_glwe_sk.polynomial_size(),
+            lwe_base_log,
+            lwe_level_count,
+            CiphertextModulus::new_native(),
+        );
+
+        let glwe_noise_distribution: RustDynamicDistribution<u128> =
+            glwe_noise_distribution.try_into().unwrap();
+
+        par_generate_lwe_bootstrap_key(
+            &input_lwe_sk,
+            &output_glwe_sk,
+            &mut bsk,
+            glwe_noise_distribution,
             &mut encryption_random_generator,
         )
     })
