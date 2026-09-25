@@ -176,6 +176,21 @@ fn test_case_uint32_scalar_arith(cks: &ClientKey) {
     let c = &a * clear_b;
     let decrypted: u32 = c.decrypt(cks);
     assert_eq!(decrypted, clear_a.wrapping_mul(clear_b));
+
+    // Scalar on the left-hand side.
+    let c = clear_b - &a;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_b.wrapping_sub(clear_a));
+
+    // A zero scalar is a boundary case for `ct - cte`, and for `0 - ct` which has no borrow only
+    // when `ct` is zero.
+    let c = &a - 0u32;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a);
+
+    let c = 0u32 - &a;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_neg());
 }
 
 fn test_case_uint32_scalar_arith_assign(cks: &ClientKey) {
@@ -338,7 +353,7 @@ fn test_case_uint32_shift(cks: &ClientKey) {
     }
 
     // clear shifts
-    if cfg!(not(feature = "hpu")) {
+    {
         let c = &a << clear_b;
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a << clear_b);
@@ -356,8 +371,6 @@ fn test_case_uint32_shift(cks: &ClientKey) {
         c <<= clear_b;
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a << clear_b);
-    } else {
-        println!("WARN: HPU currently not support Shift by a scalar");
     }
 }
 
@@ -468,7 +481,7 @@ fn test_case_uint32_rotate(cks: &ClientKey) {
     }
 
     // clear rotate
-    if cfg!(not(feature = "hpu")) {
+    {
         let c = (&a).rotate_left(clear_b);
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a.rotate_left(clear_b));
@@ -486,8 +499,6 @@ fn test_case_uint32_rotate(cks: &ClientKey) {
         c.rotate_left_assign(clear_b);
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a.rotate_left(clear_b));
-    } else {
-        println!("WARN: HPU currently not support Shift by a scalar");
     }
 }
 

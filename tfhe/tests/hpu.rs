@@ -139,6 +139,134 @@ mod hpu_test {
         (std::sync::Mutex::new(hpu_device), cks, key_seed)
     }
 
+    /// Right shift, with the overshift semantics the HPU implements.
+    ///
+    /// An amount at or beyond the integer width empties the result — that is what ZHC's
+    /// `iop_overshift_zero` does, for the `Ct x Ct` and the scalar form alike. `checked_shr` takes
+    /// a `u32`, so a `u128` amount has already lost everything above bit 32 by the time it is
+    /// checked; comparing at full width is what makes this model match the hardware.
+    fn shift_r<T: UnsignedInteger>(value: T, amount: T) -> u128 {
+        let amount: u128 = amount.cast_into();
+        let value: u128 = value.cast_into();
+        if amount >= T::BITS as u128 {
+            0
+        } else {
+            value >> amount
+        }
+    }
+
+    /// Left shift, with the overshift semantics the HPU implements. See [`shift_r`].
+    fn shift_l<T: UnsignedInteger>(value: T, amount: T) -> u128 {
+        let amount: u128 = amount.cast_into();
+        let value: u128 = value.cast_into();
+        if amount >= T::BITS as u128 {
+            0
+        } else {
+            // Bits pushed past the integer width are dropped by the cast back to `T`.
+            value << amount
+        }
+    }
+
+    // NB: rotations need no equivalent helper. `T::rotate_left` already reduces its amount modulo
+    // `T::BITS`, and for a power of two width `W <= 2^32` we have `(a mod 2^32) mod W == a mod W`,
+    // so truncating the amount with `as u32` first is harmless — unlike a shift, where `>= BITS`
+    // is not a modular comparison. The test cases below therefore keep `rotate_left(imm as u32)`.
+
+    /// The reference model above is the only thing the IOp tests compare the hardware against, and
+    /// it is deliberately not Rust's own shift — so pin it down here, where it runs without a
+    /// board.
+    #[test]
+    fn test_shift_reference() {
+        // Below the integer width, everything agrees with Rust.
+        for amount in 0..8u8 {
+            assert_eq!(shift_l(0xA5u8, amount) as u8, 0xA5u8 << amount);
+            assert_eq!(shift_r(0xA5u8, amount) as u8, 0xA5u8 >> amount);
+        }
+
+        // At or beyond the width a shift empties the result.
+        assert_eq!(shift_l(0xA5u8, 8), 0);
+        assert_eq!(shift_r(0xA5u8, 200), 0);
+
+        // Regression guard, not just another overshift: the assertions above pass even with the
+        // old `checked_shr(amount as u32)`, because truncating 200 to u32 leaves it >= 8. Only an
+        // amount that is >= BITS yet looks in-range after `as u32` discriminates -- 1 << 32 is the
+        // smallest. Random draws hit that window with probability ~2^-25, so it needs stating here.
+        assert_eq!(shift_r(u128::MAX, 1u128 << 32), 0);
+        assert_eq!(shift_l(u128::MAX, 1u128 << 32), 0);
+    }
+
+    /// Which operand of an IOp a random value is being drawn for.
+    #[derive(Copy, Clone)]
+    enum OperandKind {
+        /// A ciphertext source.
+        Src,
+        /// A cleartext immediate.
+        Imm,
+    }
+
+    /// How a random operand should be drawn.
+    ///
+    /// Drawing uniformly over the whole width leaves some IOps all but untested. A uniform 64-bit
+    /// shift amount is at least 64 with probability `1 - 2^-58`, so every iteration of `SHIFT_R`
+    /// only ever exercised the overshift path and never a real shift. A uniform 64-bit divisor is
+    /// bigger than the dividend half the time, which makes the quotient 0 and the remainder the
+    /// dividend. These biases aim such operands at the values that actually exercise the
+    /// operation, while still drawing the degenerate ones often enough to keep them covered.
+    #[derive(Copy, Clone)]
+    enum OperandBias {
+        /// Uniform over the operand's whole range.
+        Uniform,
+        /// A shift/rotate amount: usually below the integer width, occasionally beyond it.
+        ShiftAmount,
+        /// A divisor: log-uniform, so small divisors dominate and 0 still turns up.
+        Divisor,
+    }
+
+    /// Returns the bias to use for the operand at `pos` of `iop`.
+    fn operand_bias(iop: hpu_asm::StaticIOp, kind: OperandKind, pos: usize) -> OperandBias {
+        use hpu_asm::StaticIOp as Op;
+        match (iop, kind, pos) {
+            // Ct x Ct: the second source holds the amount or the divisor.
+            (Op::RightShift | Op::LeftShift | Op::RightRot | Op::LeftRot, OperandKind::Src, 1) => {
+                OperandBias::ShiftAmount
+            }
+            (Op::Div | Op::Mod, OperandKind::Src, 1) => OperandBias::Divisor,
+            // Ct x Imm: the amount or the divisor is the immediate.
+            (
+                Op::RightShifts | Op::LeftShifts | Op::RightRots | Op::LeftRots,
+                OperandKind::Imm,
+                0,
+            ) => OperandBias::ShiftAmount,
+            (Op::Divs | Op::Mods, OperandKind::Imm, 0) => OperandBias::Divisor,
+            _ => OperandBias::Uniform,
+        }
+    }
+
+    /// Draws one random operand of `bw` bits, whose largest value is `max`, honouring `bias`.
+    fn gen_operand(rng: &mut StdRng, bias: OperandBias, bw: usize, max: u128) -> u128 {
+        match bias {
+            OperandBias::Uniform => rng.gen_range(0..=max),
+            // Seven draws out of eight land in `0..bw`, the only range where a shift keeps any of
+            // the operand's bits. The eighth overshoots on purpose, so the zeroing path stays
+            // covered — it is the one ZHC has dedicated logic for.
+            OperandBias::ShiftAmount => {
+                if rng.gen_ratio(7, 8) {
+                    rng.gen_range(0..bw as u128)
+                } else {
+                    rng.gen_range(0..=max)
+                }
+            }
+            // Draw a bit-length first, then a value of that length. Small divisors then come up
+            // far more often than a uniform draw would ever allow, quotients span many magnitudes
+            // instead of being 0 half the time, and 0 itself still turns up often enough to
+            // exercise the division-by-zero path.
+            OperandBias::Divisor => {
+                let bits = rng.gen_range(1..=bw);
+                rng.gen_range(0..=(max >> (bw - bits)))
+            }
+        }
+    }
+
     fn hpu_check_iop_proto<T, F>(
         iop: hpu_asm::StaticIOp,
         behav: F,
@@ -192,11 +320,14 @@ mod hpu_test {
                         zhc::builder::Type::Ciphertext(spec) => Some(spec),
                         zhc::builder::Type::Plaintext(_) => None,
                     })
-                    .map(|spec| {
+                    // NB: enumerate *after* the filter, so `pos` counts ciphertext operands only
+                    .enumerate()
+                    .map(|(pos, spec)| {
                         let bw = spec.int_size() as usize;
                         let block = bw / device.params().pbs_params.message_width;
 
-                        let clear = rng.gen_range(0_u128..=max_val >> (width - bw));
+                        let bias = operand_bias(iop, OperandKind::Src, pos);
+                        let clear = gen_operand(rng, bias, bw, max_val >> (width - bw));
                         let fhe = if test_trivial {
                             sks.as_ref().unwrap().create_trivial_radix(clear, block)
                         } else {
@@ -217,7 +348,10 @@ mod hpu_test {
                     .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
                     .count();
                 let imms_u128 = (0..imm_count)
-                    .map(|_pos| rng.gen_range(0_u128..max_val))
+                    .map(|pos| {
+                        let bias = operand_bias(iop, OperandKind::Imm, pos);
+                        gen_operand(rng, bias, width, max_val)
+                    })
                     .collect::<Vec<_>>();
                 let imms_typed = imms_u128
                     .iter()
@@ -444,9 +578,9 @@ mod hpu_test {
 
     // Shift/Rotation with Scalar IOp
     hpu_testcase!("SHIFTS_R" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0].checked_shr(imm[0] as u32).unwrap_or(0)] );
+    |ct, imm| [shift_r(ct[0], imm[0])] );
     hpu_testcase!("SHIFTS_L" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0].checked_shl(imm[0] as u32).unwrap_or(0)] );
+    |ct, imm| [shift_l(ct[0], imm[0])] );
     hpu_testcase!("ROTS_R" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].rotate_right(imm[0] as u32)] );
     hpu_testcase!("ROTS_L" => [u8, u16, u32, u64, u128]
@@ -482,9 +616,9 @@ mod hpu_test {
 
     // Shift/Rotation IOp
     hpu_testcase!("SHIFT_R" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0].checked_shr(ct[1] as u32).unwrap_or(0)] );
+    |ct, imm| [shift_r(ct[0], ct[1])] );
     hpu_testcase!("SHIFT_L" => [u8, u16, u32, u64, u128]
-    |ct, imm| [ct[0].checked_shl(ct[1] as u32).unwrap_or(0)] );
+    |ct, imm| [shift_l(ct[0], ct[1])] );
     hpu_testcase!("ROT_R" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].rotate_right(ct[1] as u32)] );
     hpu_testcase!("ROT_L" => [u8, u16, u32, u64, u128]
@@ -587,18 +721,16 @@ mod hpu_test {
         "ovf_ssub",
         "ovf_muls"
     ]);
-    // NB: Currently disable shift/rot with scalar.
-    // This is a known limitation, associated IOps aren't implemented
-    // #[cfg(feature = "hpu")]
-    // hpu_testbundle!("rots"::[8,16,32,64,128] => [
-    //     "rots_r",
-    //     "rots_l"
-    // ]);
-    // #[cfg(feature = "hpu")]
-    // hpu_testbundle!("shifts"::[8,16,32,64,128] => [
-    //     "shifts_r",
-    //     "shifts_l"
-    // ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rots"::[8,16,32,64,128] => [
+        "rots_r",
+        "rots_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shifts"::[8,16,32,64,128] => [
+        "shifts_r",
+        "shifts_l"
+    ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::[8,16,32,64,128] => [
         "add",

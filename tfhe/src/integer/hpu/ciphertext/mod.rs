@@ -282,3 +282,62 @@ map_ct_scalar!(Subs -> "Sub");
 map_scalar_ct!(Ssub -> "Sub");
 map_ct_scalar!(Muls -> "Mul");
 map_scalar_ct!(Muls -> "Mul");
+// Shift by a clear amount. The immediate is the amount itself: ZHC lifts it into the ciphertext
+// domain with a trivial encryption and runs the very same datapath as the `Ct x Ct` form, so
+// shifting by the integer width or more yields zero, just like `SHIFT_L`/`SHIFT_R`.
+map_ct_scalar!(LeftShifts -> "Shl");
+map_ct_scalar!(RightShifts -> "Shr");
+
+/// Rotations by a clear amount.
+///
+/// `std::ops` has no rotate trait, hence named methods rather than a `map_ct_scalar!`. The amount
+/// is taken modulo the integer width, so no amount is out of range.
+impl HpuRadixCiphertext {
+    pub fn rotate_left(&self, amount: HpuImm) -> Self {
+        let opcode = IOpcode::from(StaticIOp::LeftRots);
+
+        let res = HpuCmd::exec(
+            FwMode::Static,
+            opcode,
+            std::slice::from_ref(&self.0),
+            &[amount],
+            None,
+        );
+        Self::new(res[0].clone())
+    }
+
+    pub fn rotate_left_assign(&mut self, amount: HpuImm) {
+        let opcode = IOpcode::from(StaticIOp::LeftRots);
+
+        HpuCmd::exec_assign(
+            FwMode::Static,
+            opcode,
+            std::slice::from_ref(&self.0),
+            &[amount],
+        )
+    }
+
+    pub fn rotate_right(&self, amount: HpuImm) -> Self {
+        let opcode = IOpcode::from(StaticIOp::RightRots);
+
+        let res = HpuCmd::exec(
+            FwMode::Static,
+            opcode,
+            std::slice::from_ref(&self.0),
+            &[amount],
+            None,
+        );
+        Self::new(res[0].clone())
+    }
+
+    pub fn rotate_right_assign(&mut self, amount: HpuImm) {
+        let opcode = IOpcode::from(StaticIOp::RightRots);
+
+        HpuCmd::exec_assign(
+            FwMode::Static,
+            opcode,
+            std::slice::from_ref(&self.0),
+            &[amount],
+        )
+    }
+}
