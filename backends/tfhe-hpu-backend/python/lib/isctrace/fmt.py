@@ -24,7 +24,7 @@ class PBS(BaseInstruction):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} R{self.src_rid} @{self.gid}'
+        return f'R{self.dst["addr"]} R{self.src["addr"]} @{self.lut["id"]}'
 
 class LD(BaseInstruction):
     def __init__(self, d):
@@ -32,10 +32,10 @@ class LD(BaseInstruction):
 
     def args(self):
         try:
-            return f'R{self.rid} @{hex(self.slot["Addr"])}'
+            return f'R{self.dst["addr"]} @{hex(self.src["Io"]["addr"])}'
         except:
             # It can happen that an IOP is not translated by the FW
-            return f'R{self.rid} @{self.slot}'
+            return f'R{self.dst} @{self.src}'
 
 class ST(BaseInstruction):
     def __init__(self, d):
@@ -43,60 +43,60 @@ class ST(BaseInstruction):
 
     def args(self):
         try:
-            return f'@{hex(self.slot["Addr"])} R{self.rid}'
+            return f'@{hex(self.dst["Io"]["addr"])} R{self.src["addr"]}'
         except:
             # It can happen that an IOP is not translated by the FW
-            return f'@{self.slot} R{self.rid}'
+            return f'@{self.dst} R{self.src}'
 
 class MAC(BaseInstruction):
     def __init__(self, d):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} R{self.src0_rid} ' +\
-               f'R{self.src1_rid} X{self.mul_factor} '
+        return f'R{self.dst["addr"]} R{self.src1["addr"]} ' +\
+               f'R{self.src2["addr"]} X{self.cst["Const"]["val"]} '
 
 class ADD(BaseInstruction):
     def __init__(self, d):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} R{self.src0_rid} R{self.src1_rid}'
+        return f'R{self.dst["addr"]} R{self.src1["addr"]} R{self.src2["addr"]}'
 
 class ADDS(BaseInstruction):
     def __init__(self, d):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} R{self.src_rid} {self.msg_cst["Cst"]}'
+        return f'R{self.dst["addr"]} R{self.src["addr"]} {self.cst["Const"]["val"]}'
 
 class SUB(BaseInstruction):
     def __init__(self, d):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} R{self.src0_rid} R{self.src1_rid}'
+        return f'R{self.dst["addr"]} R{self.src1["addr"]} R{self.src2["addr"]}'
 
 class SSUB(BaseInstruction):
     def __init__(self, d):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} {self.msg_cst["Cst"]} R{self.src_rid}'
+        return f'R{self.dst["addr"]} {self.cst["Const"]["val"]} R{self.src["addr"]}'
 
 class SUBS(BaseInstruction):
     def __init__(self, d):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} R{self.src_rid} {self.msg_cst["Cst"]}'
+        return f'R{self.dst["addr"]} R{self.src["addr"]} {self.cst["Const"]["val"]}'
 
 class SYNC(BaseInstruction):
     def __init__(self, d):
         self.__dict__ = d
 
     def args(self):
-        return f"{self.iid}"
+        return f"{self.iid} {self.is_inner}"
 
 PBS_ML2   = PBS
 PBS_ML4   = PBS

@@ -66,7 +66,7 @@ class Trace:
         for event in self:
             id_map[0].append(event)
             opcode = next(iter(event.insn.keys())) if event.insn is not None else None
-            is_inner = event.insn[opcode]["is_inner_sync"] if opcode == "SYNC" else None
+            is_inner = event.insn[opcode]["is_inner"] if opcode == "SYNC" else None
 
             if opcode == "SYNC" and event.cmd == "Issue" and is_inner == False:
                 yield Trace(id_map[0])
