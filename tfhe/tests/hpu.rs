@@ -108,8 +108,12 @@ mod hpu_test {
             let mut hpu_config = HpuConfig::from_toml(config_file.expand().as_str());
             let force_reload = update_config_node(&mut hpu_config);
 
-            HpuDevice::new(hpu_config, force_reload)
-                .expect("Impossible to create HpuDevice from current configuration")
+            HpuDevice::new(
+                hpu_config,
+                force_reload,
+                &tfhe::core_crypto::hpu::create_hpu_lookuptable,
+            )
+            .expect("Impossible to create HpuDevice from current configuration")
         };
 
         // Check if user force a seed for the key generation
@@ -136,8 +140,7 @@ mod hpu_test {
     }
 
     fn hpu_check_iop_proto<T, F>(
-        iop: hpu_asm::AsmIOpcode,
-        proto: hpu_asm::IOpProto,
+        iop: hpu_asm::StaticIOp,
         behav: F,
         iter: usize,
         device: &mut HpuDevice,
@@ -148,11 +151,15 @@ mod hpu_test {
         T: UnsignedInteger,
         F: Fn(&[T], &[T]) -> Vec<T>,
     {
+        let opcode = hpu_asm::IOpcode::from(iop);
+        let width = T::BITS;
+        let (signature, used_nodes) =
+            device.get_signature(hpu_asm::FwMode::Static, opcode, width as u16);
+
         // Check if current configured cluster has enough node
         let nodes = device.config().fpga.node_id.len();
-        let proto_max_nodes = proto.used_nodes.max_node() as usize;
-        if proto_max_nodes > nodes {
-            println!("HpuDevice hasn't enough node to execute {iop:?} [get: {nodes}, req: {proto_max_nodes}].",);
+        if (used_nodes as usize) > nodes {
+            println!("HpuDevice hasn't enough node to execute {iop:?} [get: {nodes}, req: {used_nodes}].",);
             return false;
         }
 
@@ -168,9 +175,7 @@ mod hpu_test {
             _ => (false, None),
         };
 
-        let width = T::BITS;
         let max_val: u128 = T::MAX.cast_into();
-        let num_block = width / device.params().pbs_params.message_width;
         // NB: To support both mono-hpu IOp and multi-hpu IOp,
         // input are generated only on the first node.
         // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
@@ -180,15 +185,16 @@ mod hpu_test {
         (0..iter)
             .map(|_| {
                 // Generate inputs ciphertext
-                let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                    .src
+                let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
+                    .get_args()
                     .iter()
-                    .map(|mode| {
-                        let (bw, block) = match mode {
-                            hpu_asm::iop::VarMode::Native => (width, num_block),
-                            hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                            hpu_asm::iop::VarMode::Bool => (1, 1),
-                        };
+                    .filter_map(|ty| match ty {
+                        zhc::builder::Type::Ciphertext(spec) => Some(spec),
+                        zhc::builder::Type::Plaintext(_) => None,
+                    })
+                    .map(|spec| {
+                        let bw = spec.int_size() as usize;
+                        let block = bw / device.params().pbs_params.message_width;
 
                         let clear = rng.gen_range(0_u128..=max_val >> (width - bw));
                         let fhe = if test_trivial {
@@ -205,7 +211,12 @@ mod hpu_test {
                     })
                     .unzip();
 
-                let imms_u128 = (0..proto.imm)
+                let imm_count = signature
+                    .get_args()
+                    .iter()
+                    .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                    .count();
+                let imms_u128 = (0..imm_count)
                     .map(|_pos| rng.gen_range(0_u128..max_val))
                     .collect::<Vec<_>>();
                 let imms_typed = imms_u128
@@ -215,9 +226,8 @@ mod hpu_test {
 
                 // execute on Hpu
                 let res_hpu = HpuRadixCiphertext::exec(
-                    &proto,
                     hpu_asm::FwMode::Static,
-                    iop.opcode(),
+                    opcode,
                     &srcs_enc,
                     &imms_u128,
                     None,
@@ -341,13 +351,7 @@ mod hpu_test {
                 #[cfg(feature = "hpu")]
                 #[allow(unused)]
                 pub fn [<hpu_ $iop:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
-                    let iop = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode ");
-                    let proto = if let Some(format) = iop.format() {
-                        format.proto.clone()
-                    } else {
-                        eprintln!("Hpu testcase only work on specified operations. Check test definition");
-                        return false;
-                    };
+                    let iop = hpu_asm::StaticIOp::from_str($iop).expect("Invalid StaticIOp mnemonic");
                     let behav = |ct:&[$user_type], imm: &[$user_type]| {
                             let $ct = ct;
                             let $imm = imm;
@@ -356,7 +360,6 @@ mod hpu_test {
 
                     hpu_check_iop_proto::<$user_type, _>(
                         iop,
-                        proto,
                         behav,
                         iter,
                         device,
@@ -374,14 +377,13 @@ mod hpu_test {
     // There are specialized hand crafted test for Hpu validation
     // Prototype must be specified by hand
     macro_rules! hpu_custom_testcase {
-        ($cust_id: literal, $inproto: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
+        ($cust_id: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
             ::paste::paste! {
                 $(
                 #[cfg(feature = "hpu")]
                 #[allow(unused)]
                 pub fn [<hpu_custom $cust_id:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
-                    let iop = hpu_asm::AsmIOpcode::from_opcode(hpu_asm::IOpcode($cust_id));
-                    let proto = $inproto.parse::<hpu_asm::IOpProto>().unwrap();
+                    let iop = hpu_asm::StaticIOp::IOp($cust_id);
                     let behav = |ct:&[$user_type], imm: &[$user_type]| {
                             let $ct = ct;
                             let $imm = imm;
@@ -390,7 +392,6 @@ mod hpu_test {
 
                     hpu_check_iop_proto::<$user_type, _>(
                         iop,
-                        proto,
                         behav,
                         iter,
                         device,
@@ -548,24 +549,22 @@ mod hpu_test {
     |ct, imm| [ct[0].trailing_ones()]);
 
     // Custom IOp
-    hpu_custom_testcase!(32, "[2]<N,N>::<N,N><0>" => [u8]
+    hpu_custom_testcase!(32 => [u8]
     |ct, imm| [(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
-    hpu_custom_testcase!(33, "[2]<N>::<N><0>" => [u8, u32, u64]
+    hpu_custom_testcase!(33 => [u8, u32, u64]
     |ct, imm| [ct[0]]);
-    hpu_custom_testcase!(34, "[2]<N>::<N,N><0>" => [u8]
+    hpu_custom_testcase!(34 => [u8]
     |ct, imm| [ct[0].wrapping_add(ct[1])]);
-    hpu_custom_testcase!(35, "[2]<N>::<N><0>" => [u8]
+    hpu_custom_testcase!(35 => [u8]
     |ct, imm| [ct[0]]);
-    hpu_custom_testcase!(36, "[2]<N>::<N,N><0>" => [u8]
-    |ct, imm| [ct[0].wrapping_mul(ct[1])]);
-    hpu_custom_testcase!(37, "[4]<N,N>::<N,N><0>" => [u8]
+    hpu_custom_testcase!(36 => [u8]
     |ct, imm| [(ct[0] & 0xF) + (ct[1] & 0xF).wrapping_shl(4), (ct[0] & 0xF0).wrapping_shr(4) + (ct[1] & 0xF0)]);
-    hpu_custom_testcase!(40, "[2]<H,H>::<N,N><0>" => [u32]
+    hpu_custom_testcase!(40 => [u32]
     |ct, imm| {
         let res = ct[0].wrapping_mul(ct[1]);
         [res & 0xFFFF, (res >>16) & 0xFFFF]
     });
-    hpu_custom_testcase!(40, "[2]<H,H>::<N,N><0>" => [u64]
+    hpu_custom_testcase!(40 => [u64]
     |ct, imm| {
         let res = ct[0].wrapping_mul(ct[1]);
         [res & 0xFFFFFFFF, (res >>32) & 0xFFFFFFFF]
@@ -672,8 +671,7 @@ mod hpu_test {
         "custom33",
         "custom34",
         "custom35",
-        "custom36",
-        "custom37"
+        "custom36"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("multi-hpu"::[32,64] => [
@@ -817,12 +815,14 @@ mod hpu_test {
         // Since all inputs are generated upfront, iteration number is fixed to 256 here.
         // This prevent deadlock on ciphertext allocation
         let iter = 128;
+        let width = $user_type::BITS as usize;
+
         // Check if current configured cluster has enough node
-        let proto = "[2]<H,H>::<N,N><0>".parse::<hpu_asm::IOpProto>().unwrap();
+        // NB: Custom IOp 40 is the multi-hpu mult: 2 Native srcs -> 2 Half dsts
+        let (signature, used_nodes) = device.get_signature(hpu_asm::FwMode::Static, hpu_asm::IOpcode(40), width as u16);
         let nodes = device.config().fpga.node_id.len();
-        let proto_max_nodes = proto.used_nodes.max_node() as usize;
-        if proto_max_nodes > nodes {
-            println!("HpuDevice hasn't enough node to execute mhdma_test [get: {nodes}, req: {proto_max_nodes}].",);
+        if (used_nodes as usize) > nodes {
+            println!("HpuDevice hasn't enough node to execute mhdma_test [get: {nodes}, req: {used_nodes}].",);
             return false;
         }
 
@@ -838,8 +838,6 @@ mod hpu_test {
             _ => (false, None),
         };
 
-        let width = $user_type::BITS as usize;
-        let num_block = width / device.params().pbs_params.message_width;
         // NB: To support both mono-hpu IOp and multi-hpu IOp,
         // input are generated only on the first node.
         // If you want to select a specific node for test, use `HPU_SELECTED_NODE` env variable
@@ -849,16 +847,16 @@ mod hpu_test {
         let test_inputs = (0..iter)
             .map(|_| {
                 // Generate inputs ciphertext
-                let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                    .src
+                let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
+                    .get_args()
                     .iter()
-                    .enumerate()
-                    .map(|(_pos, mode)| {
-                        let (bw, block) = match mode {
-                            hpu_asm::iop::VarMode::Native => (width, num_block),
-                            hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                            hpu_asm::iop::VarMode::Bool => (1, 1),
-                        };
+                    .filter_map(|ty| match ty {
+                        zhc::builder::Type::Ciphertext(spec) => Some(spec),
+                        zhc::builder::Type::Plaintext(_) => None,
+                    })
+                    .map(|spec| {
+                        let bw = spec.int_size() as usize;
+                        let block = bw / device.params().pbs_params.message_width;
 
                         let clear = rng.gen_range(0..u128::MAX >> (u128::BITS - (bw as u32)));
                         let fhe = if test_trivial {
@@ -875,7 +873,12 @@ mod hpu_test {
                     })
                     .unzip();
 
-                let imms = (0..proto.imm)
+                let imm_count = signature
+                    .get_args()
+                    .iter()
+                    .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                    .count();
+                let imms = (0..imm_count)
                     .map(|_pos| rng.gen_range(0..u128::MAX) as u128)
                     .collect::<Vec<_>>();
                 (srcs_clear, srcs_enc, imms)
@@ -886,15 +889,13 @@ mod hpu_test {
         .iter()
         .map(|(srcs_clear, srcs_enc, imms)| {
             let res_hpu = {
-                let local_proto = "[2]<N>::<N><0>".parse::<hpu_asm::IOpProto>().unwrap();
                 let lsrcs_enc = srcs_enc.split_at(1);
-                let hpu_enc_res_1 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
-                let hpu_enc_res_2 = HpuRadixCiphertext::exec(&local_proto, hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let hpu_enc_res_1 = HpuRadixCiphertext::exec(hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &lsrcs_enc.0, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
+                let hpu_enc_res_2 = HpuRadixCiphertext::exec(hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &lsrcs_enc.1, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
                 let combined_inputs = [hpu_enc_res_1[0].clone(),hpu_enc_res_2[0].clone()];
-                let hpu_enc_res_3 = HpuRadixCiphertext::exec(&proto, hpu_asm::FwMode::Static, hpu_asm::IOpcode(40), &combined_inputs, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
-                let local_proto2 = "[2]<H>::<H><0>".parse::<hpu_asm::IOpProto>().unwrap();
-                let hpu_enc_res_4 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
-                let hpu_enc_res_5 = HpuRadixCiphertext::exec(&local_proto2, hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
+                let hpu_enc_res_3 = HpuRadixCiphertext::exec(hpu_asm::FwMode::Static, hpu_asm::IOpcode(40), &combined_inputs, imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let hpu_enc_res_4 = HpuRadixCiphertext::exec(hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &[hpu_enc_res_3[0].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[1])));
+                let hpu_enc_res_5 = HpuRadixCiphertext::exec(hpu_asm::FwMode::Static, hpu_asm::IOpcode(33), &[hpu_enc_res_3[1].clone()], imms, Some(hpu_asm::PhysId(device.config().fpga.node_id[0])));
                 vec![hpu_enc_res_4[0].clone(), hpu_enc_res_5[0].clone()]
             };
             let res_fhe = res_hpu

@@ -24,7 +24,7 @@ use rand::{Rng, SeedableRng};
 /// Define CLI arguments
 pub use clap::Parser;
 pub use clap_num::maybe_hex;
-#[derive(clap::Parser, Debug, Clone, serde::Serialize)]
+#[derive(clap::Parser, Debug, Clone)]
 #[command(
     long_about = "HPU stimulus generation application: Start operation on HPU for RTL test purpose."
 )]
@@ -49,7 +49,7 @@ pub struct Args {
     /// Iop to expand and simulate
     /// If None default to All IOp
     #[arg(long)]
-    pub iop: Vec<hpu_asm::AsmIOpcode>,
+    pub iop: Vec<hpu_asm::StaticIOp>,
 
     /// Number of iteration for each IOp
     #[arg(long, default_value_t = 1)]
@@ -69,17 +69,6 @@ pub struct Args {
     #[arg(long, value_parser = maybe_hex::<u128>)]
     pub imm: Vec<u128>,
 
-    /// Fallback prototype
-    /// Only apply to IOp with unspecified prototype
-    /// Used for custom IOp testing when prototype isn't known
-    /// Syntax example: "<N B> <- <N N> <0>"
-    /// Each entry options are (case incensitive):
-    /// * N, Nat, Native -> Full size integer;
-    /// * H, Half -> Half size integer;
-    /// * B, Bool -> boolean value;
-    #[arg(long)]
-    pub user_proto: Option<hpu_asm::IOpProto>,
-
     /// Seed used for some rngs
     #[arg(long)]
     pub seed: Option<u128>,
@@ -93,10 +82,6 @@ pub struct Args {
     /// Use trivial encrypt ciphertext
     #[arg(long)]
     pub trivial: bool,
-
-    /// Override the firmware implementation used
-    #[arg(long)]
-    pub fw_impl: Option<String>,
 }
 
 #[derive(Debug)]
@@ -180,14 +165,14 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         set_hpu_io_dump(dump_path);
     }
 
-    // Override some configuration settings
-    let mut hpu_config = HpuConfig::from_toml(args.config.expand().as_str());
-    if let Some(name) = args.fw_impl {
-        hpu_config.firmware.implementation = name;
-    }
+    let hpu_config = HpuConfig::from_toml(args.config.expand().as_str());
 
     // Instantiate HpuDevice --------------------------------------------------
-    let hpu_device = HpuDevice::new(hpu_config, args.force_reload)?;
+    let hpu_device = HpuDevice::new(
+        hpu_config,
+        args.force_reload,
+        &tfhe::core_crypto::hpu::create_hpu_lookuptable,
+    )?;
 
     // Force key seeder if seed specified by user
     if let Some(seed) = args.seed {
@@ -210,7 +195,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let bench_iop = if !args.iop.is_empty() {
         args.iop.clone()
     } else {
-        hpu_asm::iop::IOP_LIST.to_vec()
+        hpu_asm::StaticIOp::ALL.to_vec()
     };
 
     let bench_w = if !args.integer_w.is_empty() {
@@ -229,17 +214,11 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Execute based on required integer_w ------------------------------------
     let mut report = Vec::with_capacity(bench_w.len());
     for width in bench_w.iter() {
-        let num_block = width / hpu_device.params().pbs_params.message_width;
-
         let mut width_report = BenchReport::new();
         for iop in bench_iop.iter() {
-            let proto = if let Some(format) = iop.format() {
-                format.proto.clone()
-            } else {
-                args.user_proto.clone().expect(
-                    "Use of user defined IOp required a explicit prototype -> C.f. --user-proto",
-                )
-            };
+            let opcode = hpu_asm::IOpcode::from(*iop);
+            let (signature, _used_nodes) =
+                hpu_device.get_signature(hpu_asm::FwMode::Static, opcode, *width as u16);
 
             let hpu_nodes = if args.tput {
                 &hpu_device.config().fpga.node_id
@@ -251,16 +230,17 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let bench_inputs = hpu_nodes
                 .iter()
                 .map(|node| {
-                    let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                        .src
+                    let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
+                        .get_args()
                         .iter()
+                        .filter_map(|ty| match ty {
+                            zhc::builder::Type::Ciphertext(spec) => Some(spec),
+                            zhc::builder::Type::Plaintext(_) => None,
+                        })
                         .enumerate()
-                        .map(|(pos, mode)| {
-                            let (bw, block) = match mode {
-                                hpu_asm::iop::VarMode::Native => (*width, num_block),
-                                hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                                hpu_asm::iop::VarMode::Bool => (1, 1),
-                            };
+                        .map(|(pos, spec)| {
+                            let bw = spec.int_size() as usize;
+                            let block = bw / hpu_device.params().pbs_params.message_width;
 
                             let clear = *args.src.get(pos).unwrap_or(
                                 &rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))),
@@ -279,7 +259,12 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                         })
                         .unzip();
 
-                    let imms = (0..proto.imm)
+                    let imm_count = signature
+                        .get_args()
+                        .iter()
+                        .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                        .count();
+                    let imms = (0..imm_count)
                         .map(|pos| {
                             *args.imm.get(pos).unwrap_or(
                                 &rng.gen_range(0..u128::MAX >> (u128::BITS - (*width as u32))),
@@ -299,9 +284,8 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                         .iter()
                         .map(|(_, srcs_enc, imms)| {
                             HpuRadixCiphertext::exec(
-                                &proto,
                                 hpu_asm::FwMode::Static,
-                                iop.opcode(),
+                                opcode,
                                 srcs_enc,
                                 imms,
                                 None,

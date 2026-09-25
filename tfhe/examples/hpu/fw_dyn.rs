@@ -3,17 +3,15 @@
 use std::str::FromStr;
 
 use crate::tfhe_hpu_backend::prelude::*;
+use integer::hpu::ciphertext::HpuRadixCiphertext;
+use std::path::PathBuf;
 pub use std::time::{Duration, Instant};
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
+use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
+use tfhe::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe::*;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 
-use integer::hpu::ciphertext::HpuRadixCiphertext;
-use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
-
-use tfhe::shortint::parameters::KeySwitch32PBSParameters;
-
-use zhc::builder::CiphertextSpec;
 use zhc::config::multi_hpu::MultiHpuConfig;
 
 use rand::rngs::StdRng;
@@ -62,6 +60,10 @@ pub struct Args {
     /// Use trivial encrypt ciphertext
     #[arg(long)]
     pub trivial: bool,
+
+    /// Use trivial encrypt ciphertext
+    #[arg(long)]
+    pub dump_asm: Option<PathBuf>,
 }
 
 /// Simple enum that let user select the desired operation
@@ -160,8 +162,13 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Instantiate HpuDevice --------------------------------------------------
     println!("\n A.0. Hpu backend default configuration");
     println!("   Open hardware with given configuration...");
-    let hpu_device = HpuDevice::from_config(&args.config.expand(), args.force_reload)
-        .expect("Hpu device init failed");
+    let hpu_config = HpuConfig::from_toml(args.config.expand().as_str());
+    let hpu_device = HpuDevice::new(
+        hpu_config.clone(),
+        args.force_reload,
+        &tfhe::core_crypto::hpu::create_hpu_lookuptable,
+    )
+    .expect("Hpu device init failed");
 
     println!("   Generate client and server keys...");
     // Force key seeder if seed specified by user
@@ -184,47 +191,62 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     for width in args.integer_w {
         // Define associated config and spec for Zhc
-        let zhc_config = new_zhc_config(hpu_device.params());
+        let zhc_config = new_zhc_config(&hpu_config, hpu_device.params());
         let zhc_spec = zhc::builder::CiphertextSpec::new(width as u16, 2, 2);
 
         for zhc_op in args.zhc_ops.iter() {
             // Build custom IOp Ir ----------------------------------------------------
             println!("FwDyn_{width}b:: Start fw generation for {zhc_op} ...");
-            let (mh_factor, mut mh_pipeline) = match zhc_op {
+            let mut mh_pipeline = match zhc_op {
                 ZhcDynOp::MhMul(mh_factor) => {
                     let mh_config = MultiHpuConfig {
                         n_hpus: *mh_factor as u8,
                         hpu_config: zhc_config.clone(),
                     };
-                    (
-                        *mh_factor,
-                        zhc::pipeline::compat::mh_mul(zhc_spec, mh_config),
-                    )
+                    zhc::compat::mh_mul(zhc_spec, mh_config)
                 }
                 _ => unimplemented!("Current op not defined"),
             };
 
-            let proto = zhc_to_native_proto(mh_factor, &zhc_spec, mh_pipeline.get_prototype());
-            let stream = ZhcStream::new(None, mh_pipeline.into_multi_hpu_stream());
-            let hash = ZhcStreamHash::from(&stream);
+            // Dump assembly if required
+            if let Some(asm_p) = args.dump_asm.as_ref() {
+                // Create folder if needed
+                if asm_p.exists() {
+                    if asm_p.is_file() {
+                        panic!("ASM_DUMP: given path is a file. Directory expected");
+                    }
+                } else {
+                    // Create it
+                    std::fs::create_dir_all(asm_p).unwrap();
+                }
+                // generate assembly
+                let asm_v = mh_pipeline.get_multi_hpu_assembly().clone();
+
+                for (hid, mut asm) in asm_v.into_iter().enumerate() {
+                    let filename = format!("{zhc_op}_v{hid}.asm");
+                    let asm_f = asm_p.join(filename);
+                    asm.move_to(asm_f).expect("Issue with asm generation");
+                }
+            }
 
             // Register fw on Hpu -----------------------------------------------------
-            let iopcode = hpu_device.fw_dyn(hash, stream, proto.clone())?;
+            let fw_entry = hpu_device
+                .fw_dyn_init(mh_pipeline, &tfhe::core_crypto::hpu::create_hpu_lookuptable)?;
+            let (signature, _used_nodes) = fw_entry.sig();
 
             // Execution ROI ----------------------------------------------------------
-            let num_block = width / hpu_device.params().pbs_params.message_width;
-
             // Generate inputs
-            let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                .src
+            let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
+                .get_args()
                 .iter()
+                .filter_map(|ty| match ty {
+                    zhc::builder::Type::Ciphertext(spec) => Some(spec),
+                    zhc::builder::Type::Plaintext(_) => None,
+                })
                 .enumerate()
-                .map(|(pos, mode)| {
-                    let (bw, block) = match mode {
-                        hpu_asm::iop::VarMode::Native => (width, num_block),
-                        hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                        hpu_asm::iop::VarMode::Bool => (1, 1),
-                    };
+                .map(|(pos, spec)| {
+                    let bw = spec.int_size() as usize;
+                    let block = bw / hpu_device.params().pbs_params.message_width;
 
                     let clear = *args
                         .src
@@ -241,7 +263,12 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 })
                 .unzip();
 
-            let imms = (0..proto.imm)
+            let imm_count = signature
+                .get_args()
+                .iter()
+                .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                .count();
+            let imms = (0..imm_count)
                 .map(|pos| {
                     *args
                         .imm
@@ -256,9 +283,8 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let res_hpu = (0..args.iter)
                 .filter_map(|i| {
                     let res = HpuRadixCiphertext::exec(
-                        &proto,
                         hpu_asm::FwMode::Dynamic,
-                        iopcode,
+                        fw_entry.iop(),
                         &srcs_enc,
                         &imms,
                         None,
@@ -304,78 +330,4 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(())
-}
-
-/// Utility function to convert Zhc Operation signature in IOpPrototype
-/// Generate a set of DOpStream for multi-hpu multiplication
-fn zhc_to_native_proto(
-    mh_factor: usize,
-    ct_spec: &CiphertextSpec,
-    zhc_sig: &zhc::ir::Signature<zhc::builder::Type>,
-) -> hpu_asm::IOpProto {
-    use zhc::builder::Type;
-    use zhc::ir::Signature;
-
-    let native_w = ct_spec.int_size();
-    let half_w = native_w / 2;
-
-    let Signature(sig_src, sig_dst) = zhc_sig;
-    let dst_mode = sig_dst
-        .iter()
-        .filter_map(|sig| {
-            if let Type::Ciphertext(spec) = sig {
-                Some(spec)
-            } else {
-                None
-            }
-        })
-        .map(|spec| {
-            if spec.int_size() == native_w {
-                hpu_asm::iop::VarMode::Native
-            } else if spec.int_size() == half_w {
-                hpu_asm::iop::VarMode::Half
-            } else if spec.int_size() == 1 {
-                hpu_asm::iop::VarMode::Bool
-            } else {
-                panic!("Unexpected Ciphertext Type");
-            }
-        })
-        .collect::<Vec<_>>();
-    let src_mode = sig_src
-        .iter()
-        .filter_map(|sig| {
-            if let Type::Ciphertext(spec) = sig {
-                Some(spec)
-            } else {
-                None
-            }
-        })
-        .map(|spec| {
-            if spec.int_size() == native_w {
-                hpu_asm::iop::VarMode::Native
-            } else if spec.int_size() == half_w {
-                hpu_asm::iop::VarMode::Half
-            } else if spec.int_size() == 1 {
-                hpu_asm::iop::VarMode::Bool
-            } else {
-                panic!("Unexpected Ciphertext Type");
-            }
-        })
-        .collect::<Vec<_>>();
-    let imm = sig_src
-        .iter()
-        .filter_map(|sig| {
-            if let Type::Plaintext(_) = sig {
-                Some(())
-            } else {
-                None
-            }
-        })
-        .count();
-    hpu_asm::IOpProto {
-        used_nodes: hpu_asm::iop::NodesMap::new(&[mh_factor as u8]),
-        dst: dst_mode,
-        src: src_mode,
-        imm,
-    }
 }

@@ -12,11 +12,13 @@ pub use zhc;
 pub use hw_regmap as hpu_regmap;
 
 /// Load zhc bridging stuff
-pub use super::interface::{new_zhc_config, ZhcStream, ZhcStreamHash};
+/// TODO clean this, use proper From trait impl
+pub use super::interface::new_zhc_config;
+
 /// Load Hw-interface stuff
 pub use super::interface::{
     page_align, BoardConfig, FFIMode, HpuCmd, HpuConfig, HpuDevice, HpuError, HpuImm,
-    HpuVarWrapped, QueueConfig, ShellString, UcoreConfig, ACKQ_EMPTY, FW_RUNTIME_MAX_WORD,
+    HpuVarWrapped, LutMap, QueueConfig, ShellString, UcoreConfig, ACKQ_EMPTY, FW_RUNTIME_MAX_WORD,
 };
 
 #[cfg(feature = "utils")]

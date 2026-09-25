@@ -2747,14 +2747,30 @@ mod hpu {
     use tfhe::prelude::CastFrom;
     use tfhe::tfhe_hpu_backend::prelude::*;
 
+    /// Splits a zhc `Signature`'s argument types into (ciphertext specs, immediate count).
+    fn split_signature_args(
+        signature: &zhc::ir::Signature<zhc::builder::Type>,
+    ) -> (Vec<zhc::builder::CiphertextSpec>, usize) {
+        let mut ct_specs = Vec::new();
+        let mut imm_count = 0;
+        for ty in signature.get_args() {
+            match ty {
+                zhc::builder::Type::Ciphertext(spec) => ct_specs.push(*spec),
+                zhc::builder::Type::Plaintext(_) => imm_count += 1,
+            }
+        }
+        (ct_specs, imm_count)
+    }
+
     /// Base function to bench an hpu operations.
-    /// Inputs/Output types and length are inferred based on associated iop prototype
+    /// Inputs/Output types and length are inferred based on associated iop signature
     fn bench_hpu_iop_clean_inputs(
         c: &mut Criterion,
         integer_op: IntegerOp,
         display_name: &str,
-        iop: &hpu_asm::AsmIOpcode,
+        iop: hpu_asm::StaticIOp,
     ) {
+        let opcode = hpu_asm::IOpcode::from(iop);
         let mut bench_group = c.benchmark_group(integer_op.to_string());
         bench_group
             .sample_size(15)
@@ -2765,6 +2781,7 @@ mod hpu {
             if bit_size > ScalarType::BITS {
                 break;
             }
+            let _ = num_block;
             let param_name = param.name();
 
             let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS - bit_size);
@@ -2779,35 +2796,29 @@ mod hpu {
             );
             let bench_id = benchmark_spec.to_string();
 
-            let proto = if let Some(format) = iop.format() {
-                format.proto.clone()
-            } else {
-                panic!("HPU only IOp with defined prototype could be benched");
-            };
-
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                         let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
                         let hpu_device = hpu_device_mutex.lock().unwrap();
+                        let (signature, _used_nodes) = hpu_device.get_signature(
+                            hpu_asm::FwMode::Static,
+                            opcode,
+                            bit_size as u16,
+                        );
+                        let (ct_specs, imm_count) = split_signature_args(&signature);
 
                         let gen_inputs = || {
-                            let srcs = proto
-                                .src
+                            let srcs = ct_specs
                                 .iter()
-                                .map(|mode| {
-                                    let (bw, block) = match mode {
-                                        hpu_asm::iop::VarMode::Native => (bit_size, num_block),
-                                        hpu_asm::iop::VarMode::Half => {
-                                            (bit_size / 2, num_block / 2)
-                                        }
-                                        hpu_asm::iop::VarMode::Bool => (1, 1),
-                                    };
+                                .map(|spec| {
+                                    let bw = spec.int_size() as usize;
+                                    let block = bw / hpu_device.params().pbs_params.message_width;
 
                                     let clear = rng
                                         .gen_range(0..u128::cast_from(max_value_for_bit_size))
-                                        & if bw < u128::BITS {
+                                        & if bw < u128::BITS.try_into().unwrap() {
                                             (1_u128 << bw) - 1
                                         } else {
                                             !0_u128
@@ -2821,7 +2832,7 @@ mod hpu {
                                 })
                                 .collect::<Vec<_>>();
 
-                            let imms = (0..proto.imm)
+                            let imms = (0..imm_count)
                                 .map(|_| rng.gen_range(0..u128::cast_from(max_value_for_bit_size)))
                                 .collect::<Vec<_>>();
                             (srcs, imms)
@@ -2831,9 +2842,8 @@ mod hpu {
                             gen_inputs,
                             |(srcs, imms)| {
                                 let res = HpuRadixCiphertext::exec(
-                                    &proto,
                                     hpu_asm::FwMode::Static,
-                                    iop.opcode(),
+                                    opcode,
                                     &srcs,
                                     &imms,
                                     None,
@@ -2871,24 +2881,25 @@ mod hpu {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                         let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
                         let hpu_device = hpu_device_mutex.lock().unwrap();
+                        let (signature, _used_nodes) = hpu_device.get_signature(
+                            hpu_asm::FwMode::Static,
+                            opcode,
+                            bit_size as u16,
+                        );
+                        let (ct_specs, imm_count) = split_signature_args(&signature);
 
                         let inputs = (0..elements)
                             .map(|i| {
-                                let srcs = proto
-                                    .src
+                                let srcs = ct_specs
                                     .iter()
-                                    .map(|mode| {
-                                        let (bw, block) = match mode {
-                                            hpu_asm::iop::VarMode::Native => (bit_size, num_block),
-                                            hpu_asm::iop::VarMode::Half => {
-                                                (bit_size / 2, num_block / 2)
-                                            }
-                                            hpu_asm::iop::VarMode::Bool => (1, 1),
-                                        };
+                                    .map(|spec| {
+                                        let bw = spec.int_size() as usize;
+                                        let block =
+                                            bw / hpu_device.params().pbs_params.message_width;
 
                                         let clear = rng
                                             .gen_range(0..u128::cast_from(max_value_for_bit_size))
-                                            & if bw < u128::BITS {
+                                            & if bw < u128::BITS.try_into().unwrap() {
                                                 (1_u128 << bw) - 1
                                             } else {
                                                 !0_u128
@@ -2905,7 +2916,7 @@ mod hpu {
                                     })
                                     .collect::<Vec<_>>();
 
-                                let imms = (0..proto.imm)
+                                let imms = (0..imm_count)
                                     .map(|_| {
                                         rng.gen_range(0..u128::cast_from(max_value_for_bit_size))
                                     })
@@ -2919,9 +2930,8 @@ mod hpu {
                                 .iter()
                                 .map(|input| {
                                     HpuRadixCiphertext::exec(
-                                        &proto,
                                         hpu_asm::FwMode::Static,
-                                        iop.opcode(),
+                                        opcode,
                                         &input.0,
                                         &input.1,
                                         None,
@@ -2951,14 +2961,14 @@ mod hpu {
     }
 
     macro_rules! define_hpu_bench_default_fn (
-    (iop_name: $iop:ident, display_name:$name:ident) => {
+    (iop_name: $iop:ident, display_name:$name:ident, static_iop: $variant:ident) => {
         ::paste::paste!{
         fn [< default_hpu_ $iop:lower >](c: &mut Criterion) {
             bench_hpu_iop_clean_inputs(
                 c,
                 IntegerOp::[< $iop:camel >],
                 stringify!($name),
-                &hpu_asm::iop::[< IOP_ $iop:upper >],
+                hpu_asm::StaticIOp::$variant,
             )
         }
         }
@@ -2966,14 +2976,14 @@ mod hpu {
     );
 
     macro_rules! define_hpu_bench_default_fn_scalar (
-    (iop_name: $iop:ident, display_name:$name:ident) => {
+    (iop_name: $iop:ident, display_name:$name:ident, static_iop: $variant:ident) => {
         ::paste::paste!{
         fn [< default_hpu_ $iop:lower >](c: &mut Criterion) {
             bench_hpu_iop_clean_inputs(
                 c,
                 IntegerOp::[< Scalar $iop:camel >],
                 stringify!($name),
-                &hpu_asm::iop::[< IOP_ $iop:upper >],
+                hpu_asm::StaticIOp::$variant,
             )
         }
         }
@@ -2983,35 +2993,43 @@ mod hpu {
     // Alu ------------------------------------------------------------------------
     define_hpu_bench_default_fn!(
         iop_name: add,
-        display_name: add
+        display_name: add,
+        static_iop: Add
     );
     define_hpu_bench_default_fn!(
         iop_name: sub,
-        display_name: sub
+        display_name: sub,
+        static_iop: Sub
     );
     define_hpu_bench_default_fn!(
         iop_name: mul,
-        display_name: mul
+        display_name: mul,
+        static_iop: Mul
     );
     define_hpu_bench_default_fn!(
         iop_name: div,
-        display_name: div_mod
+        display_name: div_mod,
+        static_iop: Div
     );
     define_hpu_bench_default_fn!(
         iop_name: mod,
-        display_name: modulo
+        display_name: modulo,
+        static_iop: Mod
     );
     define_hpu_bench_default_fn!(
         iop_name: ovf_add,
-        display_name: overflowing_add
+        display_name: overflowing_add,
+        static_iop: OvfAdd
     );
     define_hpu_bench_default_fn!(
         iop_name: ovf_sub,
-        display_name: overflowing_sub
+        display_name: overflowing_sub,
+        static_iop: OvfSub
     );
     define_hpu_bench_default_fn!(
         iop_name: ovf_mul,
-        display_name: overflowing_mul
+        display_name: overflowing_mul,
+        static_iop: OvfMul
     );
 
     criterion_group!(
@@ -3029,23 +3047,28 @@ mod hpu {
     // Alu Scalar -----------------------------------------------------------------
     define_hpu_bench_default_fn_scalar!(
         iop_name: adds,
-        display_name: add
+        display_name: add,
+        static_iop: Adds
     );
     define_hpu_bench_default_fn_scalar!(
         iop_name: subs,
-        display_name: sub
+        display_name: sub,
+        static_iop: Subs
     );
     //define_hpu_bench_default_fn!(
     //    iop_name: ssub,
-    //    display_name: scalar_sub
+    //    display_name: scalar_sub,
+    //    static_iop: Ssub
     //);
     define_hpu_bench_default_fn_scalar!(
         iop_name: muls,
-        display_name: mul
+        display_name: mul,
+        static_iop: Muls
     );
     define_hpu_bench_default_fn_scalar!(
         iop_name: divs,
-        display_name: div
+        display_name: div,
+        static_iop: Divs
     );
     criterion_group!(
         default_hpu_ops_scalar,
@@ -3053,26 +3076,29 @@ mod hpu {
         default_hpu_subs,
         //default_hpu_ssub,
         default_hpu_muls,
-        default_hpu_divs,
         default_hpu_divs
     );
 
     // Shift/Rot -----------------------------------------------------------
     define_hpu_bench_default_fn!(
         iop_name: shift_r,
-        display_name: right_shift
+        display_name: right_shift,
+        static_iop: RightShift
     );
     define_hpu_bench_default_fn!(
         iop_name: shift_l,
-        display_name: left_shift
+        display_name: left_shift,
+        static_iop: LeftShift
     );
     define_hpu_bench_default_fn!(
         iop_name: rot_r,
-        display_name: rotate_right
+        display_name: rotate_right,
+        static_iop: RightRot
     );
     define_hpu_bench_default_fn!(
         iop_name: rot_l,
-        display_name: rotate_left
+        display_name: rotate_left,
+        static_iop: LeftRot
     );
     criterion_group!(
         default_hpu_shiftrot,
@@ -3085,19 +3111,23 @@ mod hpu {
     // Scalar Shift/Rot -----------------------------------------------------------
     define_hpu_bench_default_fn_scalar!(
         iop_name: shifts_r,
-        display_name: right_shift
+        display_name: right_shift,
+        static_iop: RightShifts
     );
     define_hpu_bench_default_fn_scalar!(
         iop_name: shifts_l,
-        display_name: left_shift
+        display_name: left_shift,
+        static_iop: LeftShifts
     );
     define_hpu_bench_default_fn_scalar!(
         iop_name: rots_r,
-        display_name: rotate_right
+        display_name: rotate_right,
+        static_iop: RightRots
     );
     define_hpu_bench_default_fn_scalar!(
         iop_name: rots_l,
-        display_name: rotate_left
+        display_name: rotate_left,
+        static_iop: LeftRots
     );
     criterion_group!(
         default_hpu_shiftrot_scalar,
@@ -3109,19 +3139,23 @@ mod hpu {
     // Bitwise --------------------------------------------------------------------
     define_hpu_bench_default_fn!(
         iop_name: bw_and,
-        display_name: bitand
+        display_name: bitand,
+        static_iop: BwAnd
     );
     define_hpu_bench_default_fn!(
         iop_name: bw_or,
-        display_name: bitor
+        display_name: bitor,
+        static_iop: BwOr
     );
     define_hpu_bench_default_fn!(
         iop_name: bw_xor,
-        display_name: bitxor
+        display_name: bitxor,
+        static_iop: BwXor
     );
     define_hpu_bench_default_fn!(
         iop_name: bw_not,
-        display_name: bitnot
+        display_name: bitnot,
+        static_iop: BwNot
     );
     criterion_group!(
         default_hpu_bitwise,
@@ -3133,27 +3167,33 @@ mod hpu {
     // Comparison ----------------------------------------------------------------
     define_hpu_bench_default_fn!(
         iop_name: cmp_eq,
-        display_name: equal
+        display_name: equal,
+        static_iop: CmpEq
     );
     define_hpu_bench_default_fn!(
         iop_name: cmp_neq,
-        display_name: not_equal
+        display_name: not_equal,
+        static_iop: CmpNeq
     );
     define_hpu_bench_default_fn!(
         iop_name: cmp_gt,
-        display_name: greater_than
+        display_name: greater_than,
+        static_iop: CmpGt
     );
     define_hpu_bench_default_fn!(
         iop_name: cmp_gte,
-        display_name: greater_or_equal
+        display_name: greater_or_equal,
+        static_iop: CmpGte
     );
     define_hpu_bench_default_fn!(
         iop_name: cmp_lt,
-        display_name: less_than
+        display_name: less_than,
+        static_iop: CmpLt
     );
     define_hpu_bench_default_fn!(
         iop_name: cmp_lte,
-        display_name: less_or_equal
+        display_name: less_or_equal,
+        static_iop: CmpLte
     );
     criterion_group!(
         default_hpu_cmp,
@@ -3167,11 +3207,13 @@ mod hpu {
     // Ternary --------------------------------------------------------------------
     define_hpu_bench_default_fn!(
         iop_name: if_then_else,
-        display_name: if_then_else
+        display_name: if_then_else,
+        static_iop: IfThenElse
     );
     define_hpu_bench_default_fn!(
         iop_name: if_then_zero,
-        display_name: if_then_zero
+        display_name: if_then_zero,
+        static_iop: IfThenZero
     );
     criterion_group!(
         default_hpu_select,
@@ -3181,31 +3223,38 @@ mod hpu {
     // Bitcnt ---------------------------------------------------------------------
     define_hpu_bench_default_fn!(
         iop_name: trail0,
-        display_name: trailing_zeros
+        display_name: trailing_zeros,
+        static_iop: TrailingZeros
     );
     define_hpu_bench_default_fn!(
         iop_name: trail1,
-        display_name: trailing_ones
+        display_name: trailing_ones,
+        static_iop: TrailingOnes
     );
     define_hpu_bench_default_fn!(
         iop_name: lead0,
-        display_name: leading_zeros
+        display_name: leading_zeros,
+        static_iop: LeadingZeros
     );
     define_hpu_bench_default_fn!(
         iop_name: lead1,
-        display_name: leading_ones
+        display_name: leading_ones,
+        static_iop: LeadingOnes
     );
     define_hpu_bench_default_fn!(
         iop_name: count0,
-        display_name: count_zeros
+        display_name: count_zeros,
+        static_iop: CountZeros
     );
     define_hpu_bench_default_fn!(
         iop_name: count1,
-        display_name: count_ones
+        display_name: count_ones,
+        static_iop: CountOnes
     );
     define_hpu_bench_default_fn!(
         iop_name: ilog2,
-        display_name: ilog2
+        display_name: ilog2,
+        static_iop: Ilog2
     );
     criterion_group!(
         default_hpu_bitcnt,

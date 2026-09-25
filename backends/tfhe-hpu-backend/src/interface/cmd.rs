@@ -1,9 +1,9 @@
 //! Help with IOp management over HPU
 //! Track IOp status and handle backward update of associated HpuVariable
 use super::*;
-use crate::asm::iop::{IOpMapping, Immediate, Operand, OperandKind};
-use crate::asm::{FwMode, IOp, IOpId, IOpcode};
+use crate::asm::{FwMode, IOp, IOpId, IOpMapping, IOpcode, Immediate, Operand, OperandKind};
 use variable::HpuVarWrapped;
+use zhc::builder::Type;
 
 use std::sync::atomic;
 
@@ -33,39 +33,55 @@ impl HpuCmd {
         src: &[HpuVarWrapped],
         imm: &[HpuImm],
     ) -> Self {
-        // Check arguments compliance with IOp prototype if any
+        // Check arguments compliance with IOp signature
         #[cfg(debug_assertions)]
-        if let Some(format) = crate::asm::iop::IOP_LUT.hex.get(&opcode) {
+        {
+            let first_src = src
+                .first()
+                .expect("IOp must contains at least 1 source operand");
+            let (signature, _used_nodes) =
+                first_src
+                    .parent
+                    .get_signature(fw_mode, opcode, first_src.bit_width());
+            let (src_arity, imm_arity) =
+                signature
+                    .get_args()
+                    .iter()
+                    .fold((0_usize, 0_usize), |(src, imm), ty| match ty {
+                        Type::Ciphertext(_) => (src + 1, imm),
+                        Type::Plaintext(_) => (src, imm + 1),
+                    });
             assert_eq!(
                 dst.len(),
-                format.proto.dst.len(),
-                "Error {}: Invalid number of dst arguments",
-                format.name
+                signature.get_returns().len(),
+                "Error {opcode:?}: Invalid number of dst arguments"
             );
             assert_eq!(
                 src.len(),
-                format.proto.src.len(),
-                "Error {}: Invalid number of dst arguments",
-                format.name
+                src_arity,
+                "Error {opcode:?}: Invalid number of src arguments"
             );
             assert_eq!(
                 imm.len(),
-                format.proto.imm,
-                "Error {}: Invalid number of dst arguments",
-                format.name
+                imm_arity,
+                "Error {opcode:?}: Invalid number of imm arguments"
             );
         }
         let pdg_sync = atomic::AtomicUsize::new(map.len());
 
         // Extract Operands definition from HpuVar
+        // NB: every operand is expected to be dispatched by `exec_raw` beforehand
         let dst_op = dst
             .iter()
             .map(|var| {
+                let (pos, slot) = var
+                    .position()
+                    .expect("Dst variable must be dispatched before IOp creation");
                 Operand::new(
-                    var.width as u8,
-                    var.id.0 as u16,
+                    var.blocks(),
+                    slot.0 as u16,
                     1, /* TODO handle vec source !? */
-                    var.hpu_id,
+                    pos,
                     iid,
                     Some(OperandKind::Dst),
                 )
@@ -74,13 +90,16 @@ impl HpuCmd {
         let src_op = src
             .iter()
             .map(|var| {
+                let (pos, slot) = var
+                    .position()
+                    .expect("Src variable must be dispatched before IOp creation");
                 // TODO should be able to get inner_iid without lock
                 let iid = var.inner.lock().unwrap().iid();
                 Operand::new(
-                    var.width as u8,
-                    var.id.0 as u16,
+                    var.blocks(),
+                    slot.0 as u16,
                     1, /* TODO handle vec source !? */
-                    var.hpu_id,
+                    pos,
                     iid,
                     Some(OperandKind::Src),
                 )
@@ -132,7 +151,6 @@ impl HpuCmd {
 /// Generic interface
 impl HpuCmd {
     pub fn exec_raw(
-        proto: &crate::asm::iop::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         dst: &[HpuVarWrapped],
@@ -146,9 +164,41 @@ impl HpuCmd {
             .expect("Try to generate an IOp without any destination");
         let cluster = &first_dst.parent;
 
-        // Compute mapping based on workload and operand position
+        // Look up the IOp's required number of Hpu nodes
+        let first_src = rhs_ct
+            .first()
+            .expect("IOp must contains at least 1 source operand");
+        let (_signature, used_nodes) =
+            cluster.get_signature(fw_mode, opcode, first_src.bit_width());
+
+        // Compute mapping based on workload and already dispatched operand position
         let hpu_id = cluster.keys().copied().collect::<Vec<_>>();
-        let map = cluster.compute_cmd_map(&hpu_id, proto, dst, rhs_ct);
+        let map = cluster.compute_cmd_map(&hpu_id, used_nodes, dst, rhs_ct);
+
+        // Late allocation
+        // Variables that aren't bound to a node yet land on the first node of the mapping.
+        // Doing it here -- and not at variable creation -- let the workload/position heuristic
+        // select the node once the operation is known, and prevent needless board to board
+        // transfer.
+        // TODO: Enhance this fallback position once multi-hpu Signature gave more insight on
+        //       per node variables read/write
+        //
+        // For src only:
+        // Enforce that sources are readable by the Hw.
+        // NB: must be done before `HpuCmd::new` since the latter flags destinations as
+        // Hpu-only, and dst aliases src for assign-style IOp.
+        let home = *map
+            .first()
+            .expect("IOp mapping must contains at least one node");
+
+        for var in dst.iter() {
+            var.dispatch_on(home);
+        }
+        for var in rhs_ct.iter() {
+            var.dispatch_and_sync(home, true)
+                .unwrap_or_else(|err| panic!("Couldn't sync {var:?} on Hpu: {err}"));
+        }
+
         let iop_id = cluster.gen_iop_id();
 
         // Create associated command
@@ -169,41 +219,53 @@ impl HpuCmd {
     }
 
     pub fn exec(
-        proto: &crate::asm::iop::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],
         rhs_imm: &[HpuImm],
         dst_pos: Option<crate::asm::PhysId>,
     ) -> Vec<HpuVarWrapped> {
-        // Use given position or default to node likely to be used
-        let pos = dst_pos.unwrap_or(rhs_ct[0].hpu_id);
-        let dst = proto
-            .dst
+        let cluster = &rhs_ct[0].parent;
+        let (signature, _used_nodes) =
+            cluster.get_signature(fw_mode, opcode, rhs_ct[0].bit_width());
+        // Destinations are built from the IOp's declared returns: each of them already carries
+        // its absolute `CiphertextSpec`, no need to derive it from an existing variable.
+        //
+        // _NB_: `dst_pos` honors an explicit placement request, which makes the targeted node
+        // part of the computed IOp mapping. Left to `None`, destinations stay un-dispatched
+        // and `exec_raw` places them on the first node of the mapping.
+        let dst = signature
+            .get_returns()
             .iter()
-            .map(|m| rhs_ct[0].fork(*m, pos))
+            .map(|ty| match ty {
+                Type::Ciphertext(spec) => HpuVarWrapped::new(cluster.clone(), *spec, dst_pos, None),
+                Type::Plaintext(_) => panic!("Error {opcode:?}: IOp couldn't return a plaintext"),
+            })
             .collect::<Vec<_>>();
-        Self::exec_raw(proto, fw_mode, opcode, &dst, rhs_ct, rhs_imm);
+        Self::exec_raw(fw_mode, opcode, &dst, rhs_ct, rhs_imm);
         dst
     }
 
     pub fn exec_assign(
-        proto: &crate::asm::iop::IOpProto,
         fw_mode: crate::asm::FwMode,
         opcode: crate::asm::IOpcode,
         rhs_ct: &[HpuVarWrapped],
         rhs_imm: &[HpuImm],
     ) {
+        let (signature, _used_nodes) =
+            rhs_ct[0]
+                .parent
+                .get_signature(fw_mode, opcode, rhs_ct[0].bit_width());
         // Clone dst sub-array from srcs
-        let dst = std::iter::zip(proto.dst.iter(), rhs_ct.iter())
-            .map(|(p, v)| {
-                debug_assert_eq!(
-                    *p, v.mode,
+        let dst = std::iter::zip(signature.get_returns().iter(), rhs_ct.iter())
+            .map(|(ty, v)| {
+                debug_assert!(
+                    v.matches_type(ty),
                     "Assign with invalid prototype, rhs mode don't match"
                 );
                 v.clone()
             })
             .collect::<Vec<_>>();
-        Self::exec_raw(proto, fw_mode, opcode, &dst, rhs_ct, rhs_imm);
+        Self::exec_raw(fw_mode, opcode, &dst, rhs_ct, rhs_imm);
     }
 }

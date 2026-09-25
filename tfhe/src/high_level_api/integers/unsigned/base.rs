@@ -228,7 +228,11 @@ impl<Id> FheHpu for FheUint<Id>
 where
     Id: FheUintId,
 {
-    fn iop_exec(iop: &hpu_asm::AsmIOpcode, src: HpuHandle<&Self>) -> HpuHandle<Self> {
+    fn iop_exec(
+        fw_mode: hpu_asm::FwMode,
+        opcode: hpu_asm::IOpcode,
+        src: HpuHandle<&Self>,
+    ) -> HpuHandle<Self> {
         use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
         global_state::with_thread_local_hpu_device(|device| {
             let mut srcs = Vec::new();
@@ -239,21 +243,8 @@ where
                 srcs.push(b.ciphertext.on_hpu(device).clone());
             }
 
-            let (opcode, proto) = {
-                (
-                    iop.opcode(),
-                    &iop.format().expect("Unspecified IOP format").proto,
-                )
-            };
             // These clones are cheap as they are just Arc
-            let hpu_res = HpuRadixCiphertext::exec(
-                proto,
-                hpu_asm::FwMode::Static,
-                opcode,
-                &srcs,
-                &src.imm,
-                None,
-            );
+            let hpu_res = HpuRadixCiphertext::exec(fw_mode, opcode, &srcs, &src.imm, None);
             HpuHandle {
                 native: hpu_res
                     .iter()
@@ -648,15 +639,8 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_self = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_LEAD0;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::LeadingZeros);
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
@@ -729,15 +713,8 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_self = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_LEAD1;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::LeadingOnes);
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
@@ -810,15 +787,8 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_self = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_TRAIL0;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::TrailingZeros);
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
@@ -891,15 +861,8 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_self = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_TRAIL1;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::TrailingOnes);
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
@@ -959,15 +922,8 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_self = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_COUNT0;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::CountZeros);
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
@@ -1027,15 +983,8 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_self = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_COUNT1;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::CountOnes);
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),
@@ -1110,15 +1059,8 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_self = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_ILOG2;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Ilog2);
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     std::slice::from_ref(&hpu_self),

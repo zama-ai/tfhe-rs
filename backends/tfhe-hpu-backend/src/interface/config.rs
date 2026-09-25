@@ -2,7 +2,6 @@
 //! Provide mechanism to load it from Toml-file
 
 use crate::ffi;
-use crate::fw::rtl::config::RtlCfg;
 use std::collections::{HashMap, HashSet};
 
 /// ShellString
@@ -14,17 +13,31 @@ impl ShellString {
         Self(from)
     }
     pub fn expand(&self) -> String {
+        self.try_expand()
+            .unwrap_or_else(|err| panic!("Error: {err}"))
+    }
+
+    /// Fallible variant of [`Self::expand`].
+    /// Useful on paths that mustn't abort the program when unresolvable (e.g. expanded from a
+    /// `Drop` implementation).
+    pub fn try_expand(&self) -> Result<String, String> {
         // Regex that match on $MY_VAR or ${MY_VAR}
         let shell_regex = regex::Regex::new(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?").unwrap();
 
         // Replace each bash var occurrence with the associated environment variable value
+        let mut missing = None;
         let cow = shell_regex.replace_all(&self.0, |caps: &regex::Captures| {
             let shell_var = &caps[1];
             std::env::var(shell_var).unwrap_or_else(|_| {
-                panic!("Error: ShellString used env_var <{shell_var}> not found")
+                missing.get_or_insert_with(|| shell_var.to_string());
+                String::new()
             })
         });
-        cow.to_string()
+
+        match missing {
+            Some(shell_var) => Err(format!("ShellString used env_var <{shell_var}> not found")),
+            None => Ok(cow.to_string()),
+        }
     }
 }
 
@@ -119,9 +132,9 @@ pub struct BoardConfig {
     /// Depict the memory connected to ucore master_axi for Fw table
     pub fw_pc: ffi::MemKind,
     /// Expressed the size in u32 word allocated to Zhc dynamic Fw table
-    pub zhc_size: usize,
+    pub dyn_fw_size: usize,
     /// Depict the memory connected to ucore master_axi for zhc dynamic Fw table
-    pub zhc_pc: ffi::MemKind,
+    pub dyn_fw_pc: ffi::MemKind,
     /// Depict the memory connected to trace manager
     pub trace_pc: ffi::MemKind,
     /// The trace memory depth in MB
@@ -140,23 +153,23 @@ pub struct FwConfig {
     /// NB: Currently only one width is supported at a time
     pub integer_w: HashSet<usize>,
 
-    /// Kogge config filename
-    /// Used to depicts best tradeoff for kogge Add/Sub algorithm
-    pub kogge_cfg: ShellString,
-
     /// List of custom iop to load
     /// IopName -> Iop asm file
     pub custom_iop: HashMap<String, HashMap<String, ShellString>>,
 
-    /// A per IOP configuration
-    pub op_cfg: RtlCfg,
-
-    /// Defines the firmware implementation to use
-    pub implementation: String,
-
     /// Defines the minimum batch size for an accurate FW simulation (use this
     /// while this information is not available as a register in the hardware)
     pub min_batch_size: usize,
+
+    /// Dump the on-board LUT in a json file when the cluster is released.
+    /// Mainly useful for post-mortem analysis (c.f. [`crate::interface::LutMap`]).
+    ///
+    /// The node id is appended to the file stem, i.e. `lut_map.json` gives `lut_map_n0.json`,
+    /// `lut_map_n1.json`, ... so that nodes of a cluster don't overwrite each other.
+    ///
+    /// Left unset, no dump occurs.
+    #[serde(default)]
+    pub dump_lut_map: Option<ShellString>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

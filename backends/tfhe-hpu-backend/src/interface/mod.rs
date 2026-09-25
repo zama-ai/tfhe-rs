@@ -22,7 +22,7 @@ pub const ACKQ_EMPTY: u32 = 0xdeadc0de;
 pub const FW_RUNTIME_MAX_WORD: usize = 64;
 pub const FW_TABLE_ENTRY: usize = 128;
 pub const IOP_NUMBER: usize = 256;
-pub use cache::{ZhcStream, ZhcStreamHash};
+pub use cache::LutMap;
 pub use config::{BoardConfig, FFIMode, HpuConfig, QueueConfig, ShellString};
 pub use device::HpuDevice;
 pub use memory::page_align;
@@ -30,6 +30,20 @@ pub use node::{new_zhc_config, UcoreConfig};
 pub use variable::HpuVarWrapped;
 
 use crate::prelude::HpuParameters;
+
+/// Common error type reported by Hpu
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub(crate) enum HpuInternalError {
+    #[error("Couldn't sync uninitialized variable.")]
+    UnInitData,
+
+    #[error("Unallocated data. HpuVar must be dispatch before sync.")]
+    UnAllocData,
+
+    // Recoreverable errors
+    #[error("Couldn't sync yet. Operation is pending")]
+    OperationPending,
+}
 
 /// Common error type exposed to user
 #[derive(Error, Clone, Debug)]

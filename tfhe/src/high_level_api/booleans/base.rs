@@ -536,16 +536,9 @@ where
                 let hpu_else = ct_else.ciphertext.on_hpu(device);
                 let hpu_cond = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_IF_THEN_ELSE;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::IfThenElse);
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_then.clone(), hpu_else.clone(), hpu_cond.clone()],
@@ -598,16 +591,9 @@ where
                 let hpu_then = ct_then.ciphertext.on_hpu(device);
                 let hpu_cond = self.ciphertext.on_hpu(device);
 
-                let (opcode, proto) = {
-                    let asm_iop = &hpu_asm::iop::IOP_IF_THEN_ZERO;
-                    (
-                        asm_iop.opcode(),
-                        &asm_iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
+                let opcode = hpu_asm::IOpcode::from(hpu_asm::StaticIOp::IfThenZero);
                 // These clones are cheap are they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(
-                    proto,
                     hpu_asm::FwMode::Static,
                     opcode,
                     &[hpu_then.clone(), hpu_cond.clone()],

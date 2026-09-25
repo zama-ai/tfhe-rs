@@ -5,14 +5,16 @@
 //! HpuDevice is a collection of HpuNode (i.e. cluster) backed in a common structure.
 //! Hpu nodes work concurrently and thus must have same configuration/parameters
 
-use super::cache::{CacheError, ZhcStream, ZhcStreamHash};
+use super::cache::{DynFwEntry, DynFwError};
 use super::config::HpuConfig;
-use super::{HpuClusterWrapped, HpuInstError, HpuVarWrapped};
-use crate::asm;
+use super::{HpuClusterWrapped, HpuInstError, HpuVarWrapped, LutMap};
+use crate::asm::PhysId;
 use crate::entities::*;
+use std::path::Path;
 use std::sync::Arc;
 
 use rayon::prelude::*;
+use zhc::prelude::Pipeline;
 
 pub struct HpuDevice {
     config: Arc<HpuConfig>,
@@ -20,15 +22,25 @@ pub struct HpuDevice {
 }
 
 impl HpuDevice {
-    pub fn from_config(config_toml: &str, force_reload: bool) -> Result<Self, HpuInstError> {
+    pub fn from_config<F>(
+        config_toml: &str,
+        force_reload: bool,
+        gen_lut: &F,
+    ) -> Result<Self, HpuInstError>
+    where
+        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
+    {
         let config = HpuConfig::from_toml(config_toml);
 
-        Self::new(config, force_reload)
+        Self::new(config, force_reload, gen_lut)
     }
 
-    pub fn new(config: HpuConfig, force_reload: bool) -> Result<Self, HpuInstError> {
+    pub fn new<F>(config: HpuConfig, force_reload: bool, gen_lut: &F) -> Result<Self, HpuInstError>
+    where
+        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
+    {
         let config = Arc::new(config);
-        let cluster = HpuClusterWrapped::new_wrapped(&config, force_reload)?;
+        let cluster = HpuClusterWrapped::new_wrapped(&config, force_reload, gen_lut)?;
         Ok(Self { config, cluster })
     }
 
@@ -36,14 +48,7 @@ impl HpuDevice {
     /// Upload them in on-board memory and configure associated register entries
     /// Also use the given server key to generate required set of GlweLut
     /// Upload them in on-board memory and configure associated register entries
-    pub fn init<F>(
-        &self,
-        bsk: HpuLweBootstrapKeyView<u64>,
-        ksk: HpuLweKeyswitchKeyView<u64>,
-        gen_lut: &F,
-    ) where
-        F: Fn(&HpuParameters, &asm::Pbs) -> HpuGlweLookuptableOwned<u64> + Sync,
-    {
+    pub fn init(&self, bsk: HpuLweBootstrapKeyView<u64>, ksk: HpuLweKeyswitchKeyView<u64>) {
         self.cluster.par_iter().for_each(|(_id, node)| {
             let mut node_lock = node.lock().expect("Error with backend mutex");
             // Properly reset keys
@@ -52,43 +57,19 @@ impl HpuDevice {
 
             node_lock.bsk_set(bsk.as_view());
             node_lock.ksk_set(ksk.as_view());
-
-            // Init GlweLut ciphertext
-            node_lock.lut_init(gen_lut);
-
-            // Init Fw Lut and Translation table
-            node_lock.fw_init(&self.config);
-
-            // Init HW trace offset
-            node_lock.trace_init();
-
-            // Init MHDMA
-            node_lock.mhdma_cfg();
         })
     }
 
     /// Register a new dynamic fw entry in each nodes
-    pub fn fw_dyn(
+    pub fn fw_dyn_init<F>(
         &self,
-        hash: ZhcStreamHash,
-        stream: ZhcStream,
-        proto: asm::IOpProto,
-    ) -> Result<asm::IOpcode, CacheError> {
-        let iops = self
-            .cluster
-            .par_iter()
-            .map(|(_id, node)| {
-                let mut node_lock = node.lock().expect("Error with backend mutex");
-                node_lock.fw_dyn(hash.clone(), stream.clone(), proto.clone())
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let all_match = iops.windows(2).all(|w| w[0] == w[1]);
-        if !all_match {
-            Err(CacheError::UnsyncView)
-        } else {
-            Ok(iops[0])
-        }
+        pipeline: Pipeline,
+        gen_lut: &F,
+    ) -> Result<Arc<DynFwEntry>, DynFwError>
+    where
+        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
+    {
+        self.cluster.fw_dyn_init(pipeline, gen_lut)
     }
 }
 
@@ -100,19 +81,61 @@ impl HpuDevice {
     pub fn config(&self) -> &HpuConfig {
         &self.config
     }
+
+    /// Look up the zhc `Signature`/required-node-count of a given IOp. Mainly useful for
+    /// tooling/benchmarks that need to introspect an IOp's expected src/dst/imm shape ahead of
+    /// building a matching `HpuCmd` (which does this same lookup internally and doesn't need it
+    /// specified explicitly).
+    pub fn get_signature(
+        &self,
+        fw_mode: crate::asm::FwMode,
+        opcode: crate::asm::IOpcode,
+        integer_w: u16,
+    ) -> crate::asm::IOpSig {
+        self.cluster.get_signature(fw_mode, opcode, integer_w)
+    }
 }
 
 /// Allocate new Hpu variable to hold ciphertext
 /// Only here to expose function to the user. Associated logic is handled by the cluster
 impl HpuDevice {
     /// Construct an Hpu variable from a vector of HpuLweCiphertext
+    ///
+    /// With `pos` left to `None` the variable is created host-side only: on-board memory is
+    /// allocated -- and the node selected -- when the first IOp uses it. Providing `pos`
+    /// forces an early allocation on the given node.
     pub fn new_var_from(
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
-        mode: crate::asm::iop::VarMode,
+        spec: zhc::builder::CiphertextSpec,
         pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
-        self.cluster.new_var_from(ct, mode, pos)
+        self.cluster.new_var_from(ct, spec, pos)
+    }
+}
+
+/// Post-mortem analysis helpers
+impl HpuDevice {
+    /// Snapshot the LUT currently uploaded on node `hid`
+    pub fn get_lut_map(&self, hid: PhysId) -> LutMap {
+        self.cluster.get_lut_map(hid)
+    }
+
+    /// Dump the LUT currently uploaded on node `hid` in a json file
+    ///
+    /// Missing parent directories are created along the way.
+    ///
+    /// _NB_: A dump of every node could also be requested through the configuration file, it
+    /// then occurs on device release (c.f. `FwConfig::dump_lut_map`).
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the file couldn't be written.
+    pub fn dump_lut_map<P: AsRef<Path>>(&self, hid: PhysId, path: P) {
+        let path = path.as_ref();
+        self.cluster
+            .dump_lut_map(hid, path)
+            .unwrap_or_else(|err| panic!("Couldn't dump LutMap in `{}`:: {err}", path.display()));
     }
 }
 

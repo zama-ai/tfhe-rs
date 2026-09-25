@@ -1,27 +1,24 @@
 /// Implement inner-view of Hpu backend
 use super::*;
-use crate::asm::dop::MAX_HPU_IN_CLUSTER;
-use crate::asm::iop::opcode::{USER_RANGE_LB, USER_RANGE_UB};
-use crate::asm::PbsLut;
+use crate::asm::{IOpSig, MAX_HPU_IN_CLUSTER};
 use crate::entities::*;
-use crate::fw::isc_sim::PeConfigStore;
-use crate::fw::{Fw, FwParameters};
+use crate::interface::cache::{DynFwEntry, DynFwError};
 use crate::{asm, ffi};
 use bytemuck::{Pod, Zeroable};
 use rtl::FromRtl;
 
-use itertools::Itertools;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::str::FromStr;
 use std::sync::{atomic, Arc, Mutex};
-use strum::VariantNames;
+use zhc::crypto::integer_semantics::lut::{LutId, LutRegistry};
+use zhc::ir::IR;
+use zhc::langs::doplang;
+use zhc::prelude::Fingerprint;
 
 use zhc::builder::CiphertextSpec;
-use zhc::pipeline::compat::Iop;
 
 use tracing::{debug, info, trace};
 
-use rayon::prelude::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Runtime configuration of the ucore
@@ -37,8 +34,8 @@ pub struct UcoreConfig {
     pub user_size: u16,
     pub b2b_size: u16,
     _padding: [u8; 2],
-    pub zhc_cache_addr: u32,
-    pub zhc_cache_size: u32,
+    pub dyn_iop_addr: u32,
+    pub dyn_iop_size: u32,
     // NB: modification in this file must match the one in amc.c
     _reserved_word: [u32; 59],
 }
@@ -52,8 +49,8 @@ impl UcoreConfig {
         node_mask: u8,
         user_size: u16,
         b2b_size: u16,
-        zhc_cache_addr: u32,
-        zhc_cache_size: u32,
+        dyn_iop_addr: u32,
+        dyn_iop_size: u32,
     ) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -67,8 +64,8 @@ impl UcoreConfig {
             user_size,
             b2b_size,
             _padding: [0; 2],
-            zhc_cache_addr,
-            zhc_cache_size,
+            dyn_iop_addr,
+            dyn_iop_size,
             _reserved_word: [u32::MAX; 59],
         }
     }
@@ -103,10 +100,9 @@ pub struct HpuNode {
     ksk_key: memory::HugeMemory<u64>,
 
     // Lut and Fw memory
-    lut_mem: memory::HugeMemory<u64>,
+    lut_cache: cache::LutCache,
     fw_mem: memory::HugeMemory<u32>,
-    init_fw_width: Vec<usize>,
-    zhc_cache: cache::ZhcCache,
+    dyn_fw_cache: cache::DynFwCache,
 
     // Memory management
     // Board memory is abstract as a bunch of ciphertext slot
@@ -214,8 +210,6 @@ impl HpuNode {
         // Ensure that no residue from previous execution were stall in the pipe
         hpu_hw.iop_ack_rd();
 
-        // TODO add ack flush to prevent error with previous stall execution
-
         // Apply Rtl configuration
         // Bpip use
         let bpip_use_reg = regmap
@@ -299,12 +293,13 @@ impl HpuNode {
         let ksk_key = memory::HugeMemory::alloc(&mut hpu_hw, ksk_props);
 
         // Allocate memory for GlweLut
-        let lut_props = memory::HugeMemoryProperties {
-            mem_cut: vec![config.board.lut_pc],
-            cut_coefs: config.board.lut_mem * params.pbs_params.polynomial_size,
-        };
-        debug!("[N{hid}] Lut_mem properties -> {:?}", lut_props);
-        let lut_mem = memory::HugeMemory::alloc(&mut hpu_hw, lut_props);
+        let lut_cache = cache::LutCache::new(
+            &mut hpu_hw,
+            config.board.lut_pc,
+            config.board.lut_mem,
+            params.pbs_params.polynomial_size,
+        );
+        debug!("[N{hid}] Lut_cache entries -> {:?}", config.board.lut_mem);
 
         // Allocate memory for Fw translation table
         let fw_props = memory::HugeMemoryProperties {
@@ -315,8 +310,11 @@ impl HpuNode {
         let fw_mem = memory::HugeMemory::alloc(&mut hpu_hw, fw_props);
 
         // Allocate cache structure for Zhc dynamic Iop handling
-        let zhc_cache =
-            cache::ZhcCache::new(&mut hpu_hw, config.board.zhc_pc, config.board.zhc_size);
+        let dyn_fw_cache = cache::DynFwCache::new(
+            &mut hpu_hw,
+            config.board.dyn_fw_pc,
+            config.board.dyn_fw_size,
+        );
 
         // Allocate memory pool for Ct
         // NB: Compute size of each cut.
@@ -354,10 +352,9 @@ impl HpuNode {
             params,
             bsk_key,
             ksk_key,
-            lut_mem,
+            lut_cache,
             fw_mem,
-            zhc_cache,
-            init_fw_width: Vec::new(),
+            dyn_fw_cache,
             ct_mem,
             ct_base_addr,
             trace_mem,
@@ -699,41 +696,19 @@ impl HpuNode {
 /// Handle Glwe Lut initialisation
 /// Lut and Fw are merged since
 impl HpuNode {
-    #[tracing::instrument(level = "debug", skip(self, gen_lut), ret)]
-    pub(crate) fn lut_init<F>(&mut self, gen_lut: &F)
-    where
-        F: Fn(&HpuParameters, &asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
-    {
+    /// Snapshot the LUT currently uploaded on this node
+    pub(crate) fn lut_map(&self) -> cache::LutMap {
+        self.lut_cache.lut_map()
+    }
+
+    #[tracing::instrument(level = "debug", skip(self), ret)]
+    pub(crate) fn lut_init(&mut self) {
         let Self {
             ref mut hpu_hw,
             regmap,
-            params,
-            lut_mem,
+            lut_cache,
             ..
         } = self;
-
-        // Iterate over HwHpu::PbsLut
-        // Construct them with associated parameters set
-        // And upload them in memory
-        for lut_impl in asm::Pbs::list_all() {
-            let lut_gid = lut_impl.gid().0 as usize;
-
-            // Write it in on-board memory
-            // Lut are encoded as trivial ciphertext.
-            // Thus to prevent useless memory xfer, only the Body polynomial is uploaded on Hw
-            let hpu_lut = gen_lut(params, &lut_impl);
-
-            // NB: lut_mem are always on 1cut
-            let ofst = lut_gid * params.pbs_params.polynomial_size;
-            lut_mem.write_cut_at(0, ofst, hpu_lut.as_view().into_container());
-            #[cfg(feature = "io-dump")]
-            io_dump::dump(
-                hpu_lut.as_ref(),
-                params,
-                io_dump::DumpKind::Glwe,
-                io_dump::DumpId::Lut(lut_gid),
-            );
-        }
 
         // Configure Hpu register accordingly
         // Extract register from regmap
@@ -746,7 +721,7 @@ impl HpuNode {
             .get("hbm_axi4_addr_1in3::glwe_pc0_msb")
             .expect("Unknown register, check regmap definition");
 
-        let lut_addr = lut_mem.cut_paddr()[0];
+        let lut_addr = lut_cache.get_pool_paddr();
         hpu_hw.write_reg(
             *reg_msb.offset() as u64,
             ((lut_addr >> u32::BITS) & (u32::MAX) as u64) as u32,
@@ -792,7 +767,7 @@ impl HpuNode {
     }
 }
 
-pub fn new_zhc_config(params: &HpuParameters) -> zhc::config::hpu::HpuConfig {
+pub fn new_zhc_config(config: &HpuConfig, params: &HpuParameters) -> zhc::config::hpu::HpuConfig {
     use zhc::config::hpu::HpuConfig;
     use zhc::utils::units::{Cycle, MHz};
 
@@ -854,6 +829,7 @@ pub fn new_zhc_config(params: &HpuParameters) -> zhc::config::hpu::HpuConfig {
         pbs_processing_latency_b: kspbs_cnst_cost,
         pbs_processing_latency_m: min_batch_size,
         regf_size: 64,
+        heap_size: config.board.heap_size,
     }
 }
 
@@ -861,11 +837,24 @@ pub fn new_zhc_config(params: &HpuParameters) -> zhc::config::hpu::HpuConfig {
 /// NB: First part of the translation table in the ucore runtime configuration
 /// Two kinds of fw are available:
 /// * Static firmware: Upload during setup time, contains OffTheShelf IOp supported by Hpu
-/// * Dyn firmware: All IOp uploaded by User at runtime. There are tracked by a local zhc cache to
+/// * Dyn firmware: All IOp uploaded by User at runtime. There are tracked by a local cache to
 ///   handle on-chip memory.
+///
+/// Both share same TfheLut, a local cache is used to patch DOp stream with virtual LutId into
+/// physical Gid
 impl HpuNode {
-    #[tracing::instrument(skip(self, config))]
-    pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
+    #[tracing::instrument(skip(self, config, gen_lut))]
+    pub(crate) fn fw_init<F>(
+        &mut self,
+        config: &config::HpuConfig,
+        fw_sig: &mut Option<HashMap<(asm::StaticIOp, u16), IOpSig>>,
+        gen_lut: &F,
+    ) where
+        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
+    {
+        // Prevent borrow/borrow mut at same time
+        let params = self.params.clone();
+
         // Fw-table memory layout is as follow: [NB: Offset expressed in WORDS]
         // |---> Hbm/Ddr Offset <- from HpuConfig
         // |0x00: ...
@@ -877,11 +866,11 @@ impl HpuNode {
         // |      DOp stream [Size_in_word] [Dop stream]
         // |--->
 
-        // Extract zhc_cache_addr
-        let zhc_cache_addr = if let ffi::MemKind::Ddr { offset } = config.board.zhc_pc {
+        // Extract dyn_iop_addr
+        let dyn_iop_addr = if let ffi::MemKind::Ddr { offset } = config.board.dyn_fw_pc {
             offset
         } else {
-            panic!("ZhcCachePc must be in DDR");
+            panic!("DynFwPc must be in DDR");
         };
 
         // Write runtime configuration
@@ -891,54 +880,17 @@ impl HpuNode {
             self.node_mask,
             config.board.user_size as u16,
             config.board.b2b_size as u16,
-            zhc_cache_addr as u32,
-            config.board.zhc_size as u32,
+            dyn_iop_addr as u32,
+            config.board.dyn_fw_size as u32,
         );
         let fw_cfg_raw_u8 = bytemuck::bytes_of(&fw_cfg);
         let fw_cfg_raw_u32 = bytemuck::cast_slice::<u8, u32>(fw_cfg_raw_u8);
         self.fw_mem.write_cut_at(0, 0, fw_cfg_raw_u32);
         tracing::debug!("[N{}] {fw_cfg}", self.hid);
 
-        // Create Asm architecture properties and Fw instantiation
-        let pe_cfg = PeConfigStore::from((&*self.params, config));
-        let fw_name =
-            crate::fw::FwName::from_str(&config.firmware.implementation).unwrap_or_else(|_| {
-                panic!(
-                    "Unknown firmware name {}, list of possible firmware names: {}",
-                    config.firmware.implementation,
-                    crate::fw::AvlblFw::VARIANTS.iter().join(",")
-                );
-            });
-        let fw = crate::fw::AvlblFw::new(&fw_name);
-
-        // TODO Add RTL register for the nu value
-        let mut fw_params = FwParameters {
-            register: self.params.regf_params.reg_nb,
-            isc_depth: self.params.isc_params.depth,
-            heap_size: config.board.heap_size,
-            min_iop_size: self.params.isc_params.min_iop_size,
-            min_pbs_batch_w: self
-                .params
-                .ntt_params
-                .min_pbs_nb
-                .unwrap_or(self.params.ntt_params.batch_pbs_nb),
-            pbs_batch_w: self.params.ntt_params.batch_pbs_nb,
-            total_pbs_nb: self.params.ntt_params.total_pbs_nb,
-            msg_w: self.params.pbs_params.message_width,
-            carry_w: self.params.pbs_params.carry_width,
-            nu: 5,
-            integer_w: 0,
-            use_ipip: !config.rtl.bpip_use,
-            kogge_cfg: config.firmware.kogge_cfg.expand(),
-            op_cfg: config.firmware.op_cfg.clone(),
-            cur_op_cfg: config.firmware.op_cfg.default(),
-            pe_cfg,
-            op_name: None,
-        };
-
         // Check that required number of integer_w don't overflow the lookup table space
         let integer_w_max = config.firmware.integer_w.iter().max().unwrap_or(&0);
-        let blk_w_max = integer_w_max / fw_params.msg_w;
+        let blk_w_max = integer_w_max / params.pbs_params.message_width;
         assert!(
             blk_w_max < FW_TABLE_ENTRY,
             "ERROR: requested {} fw configuration but current implementation only support {} entries",
@@ -949,7 +901,7 @@ impl HpuNode {
         // For each blk_w there are IOp_number * MAX_HPU_IN_CLUSTER
         // Opcode is 8bit -> 256 words entry
         // WARN: tr_table_ofst is relative expressed from DOP_LUT_ADDR i.e. after the runtime config
-        let mut tr_table_ofst = FW_TABLE_ENTRY * IOP_NUMBER * asm::dop::MAX_HPU_IN_CLUSTER;
+        let mut tr_table_ofst = FW_TABLE_ENTRY * IOP_NUMBER * asm::MAX_HPU_IN_CLUSTER;
 
         // Fallback entry
         // All uninit IOp will point to 0 length firmware for error detection
@@ -963,32 +915,41 @@ impl HpuNode {
         for integer_w in config.firmware.integer_w.iter() {
             // Update fw parameters with concrete integer_width
             assert_eq!(
-                integer_w % fw_params.msg_w,
+                integer_w % params.pbs_params.message_width,
                 0,
                 "ERROR: requested integer_w {integer_w} isn't compliant with MSG_W {}",
-                fw_params.msg_w
+                params.pbs_params.message_width
             );
-            let blk_w = integer_w / fw_params.msg_w;
-            fw_params.integer_w = *integer_w;
+            let blk_w = integer_w / params.pbs_params.message_width;
 
             // Generate Fw for standard operation
             // -> All operation with an associated alias
-            let mut id_fw = asm::iop::IOP_LIST
-                .par_iter()
+            //    => allocate lut but gather upload on real hw outside of the loop
+            let mut id_fw = asm::StaticIOp::ALL
+                .iter()
                 .map(|iop| {
-                    let translation_table = match iop.format().unwrap().name.as_str().parse::<Iop>()
-                    {
-                        Ok(iop) => iop.get_translation_table(
-                            &new_zhc_config(&self.params),
-                            CiphertextSpec::new(*integer_w as u16, 2, 2),
-                        ),
-                        Err(()) => {
-                            let prog = fw.expand(&fw_params, iop);
-                            prog.tr_table()
-                        }
-                    };
+                    // Get pipeline
+                    let mut pipeline = iop.get_hpu_pipeline(
+                        &new_zhc_config(config, &params),
+                        CiphertextSpec::new(*integer_w as u16, 2, 2),
+                    );
+                    // NB: Currently all StaticIOp target 1 node
+                    // TODO get number of nodes from pipeline
+                    let sign_tuple = (pipeline.get_prototype().clone(), 1);
 
-                    ((iop.opcode().0 as usize, 0), translation_table)
+                    // Kept track of associated signature
+                    if let Some(sig) = fw_sig {
+                        let _ = sig.insert((*iop, *integer_w as u16), sign_tuple);
+                    }
+
+                    // Upload required Lut if needed and generate relocation table
+                    let lut_remap = self.update_lut_registry(pipeline.get_lut_registry(), gen_lut);
+                    let dop_stream = pipeline
+                        .with_hpu_lut_relocation(lut_remap)
+                        .get_hpu_stream()
+                        .to_owned();
+
+                    ((iop.get_opcode(), 0), dop_stream)
                 })
                 .collect::<Vec<_>>();
 
@@ -999,61 +960,71 @@ impl HpuNode {
                 .get(&format!("integer_w_{integer_w}"))
             {
                 for (name, asm_base_file) in custom.iter() {
-                    let iop = asm::AsmIOpcode::from_str(name)
+                    let iop = asm::StaticIOp::from_str(name)
                         .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
-                    let opcode = iop.opcode();
+                    let opcode = iop.get_opcode();
                     let mut used_vid = 0;
-                    if !(USER_RANGE_LB..=USER_RANGE_UB).contains(&opcode.0) {
-                        panic!("Custom Iop [{integer_w}::{}] outside of USER_RANGE [{USER_RANGE_LB}; {USER_RANGE_UB}]", opcode.0);
+                    if !(asm::StaticIOp::USER_RANGE_LB..=asm::StaticIOp::USER_RANGE_UB)
+                        .contains(&opcode)
+                    {
+                        panic!(
+                            "Custom Iop [{integer_w}::{opcode}] outside of USER_RANGE [{}; {}]",
+                            asm::StaticIOp::USER_RANGE_LB,
+                            asm::StaticIOp::USER_RANGE_UB
+                        );
                     }
 
+                    let mut used_preamble: Option<doplang::Preamble> = None;
                     for vid in 0..MAX_HPU_IN_CLUSTER {
                         let asm_file = format!("{}_v{vid}.asm", asm_base_file.expand());
+                        if std::path::Path::new(&asm_file).exists() {
+                            // TODO rework parse_assembly and used buffered read instead ?
+                            let asm_src = std::fs::read_to_string(&asm_file).unwrap_or_else(|e| {
+                                panic!(" Custom asm file {asm_file} unreadable: {e}")
+                            });
+                            let (preamble, cust_ir) = doplang::parse_assembly(&asm_src)
+                                .unwrap_or_else(|e| {
+                                    panic!(" Custom asm file {asm_file} contains error: {e}")
+                                });
+                            debug!("Read custom asm file: {asm_file}");
+                            used_vid += 1;
+                            // Check validity
+                            let sync = doplang::sync_usage(&cust_ir);
+                            assert!(
+                                sync.0 == 0,
+                                "Error: {asm_file} contain SYNC. This break the min_iop_size requirement and
+                            could lead to sync_id overflow"
+                            );
 
-                        match asm::Program::<asm::DOp>::read_asm(&asm_file) {
-                            Ok(prog) => {
-                                debug!("Read custom asm file: {asm_file}");
-                                used_vid += 1;
-                                id_fw.push(((opcode.0 as usize, vid), prog.tr_table()));
-                            }
-                            Err(e) => {
-                                if let Some(_io_err) = e.downcast_ref::<std::io::Error>() {
-                                    trace!("Custom asm file: {asm_file} unavailable")
-                                } else {
-                                    panic!("Custom iop parsing encountered an error: {e:?}");
-                                }
-                            }
+                            let mix = doplang::instruction_mix(&cust_ir);
+                            assert!(
+                                mix.total() >= self.params.isc_params.min_iop_size,
+                                "Error: {asm_file} is too short and could lead to sync_id overflow",
+                            );
+
+                            // Upload required Lut if needed and generate relocation table
+                            let lut_remap = self.update_lut_registry(&preamble.luts, gen_lut);
+                            let dop_stream = zhc::pipeline::passes::hpu_generate_translation_table(
+                                &cust_ir,
+                                Some(&lut_remap),
+                            );
+                            used_preamble = Some(preamble);
+                            id_fw.push(((opcode, vid), dop_stream));
+                        } else {
+                            trace!("Custom asm file: {asm_file} unavailable")
                         }
                     }
-                    assert!(
-                        used_vid > 0,
+                    // Kept track of associated signature
+                    let preamble = used_preamble.unwrap_or_else(|| {
+                        panic!(
                         "Custom IOp: {opcode:?} failed. No file match given path {}_v{{[0-7]}}.asm",
-                        asm_base_file.expand()
-                    );
+                        asm_base_file.expand())
+                    });
+                    if let Some(sig) = fw_sig {
+                        let _ =
+                            sig.insert((iop, *integer_w as u16), (preamble.signature, used_vid));
+                    }
                 }
-            }
-
-            // Sanity check
-            let sync_opcode = asm::dop::DOpSync::opcode();
-            for (id, fw_bytes) in id_fw.iter() {
-                // All IOp entry must be gte (MIN_IOP_SIZE-1)
-                // NB fw_bytes contain size + DOps -> gte MIN_IOP_SIZE
-                assert!(
-                    fw_bytes.len() >= self.params.isc_params.min_iop_size,
-                    "Error: IOp[0x{:x}].v{} is too short and could lead to sync_id overflow",
-                    id.0,
-                    id.1
-                );
-                // All IOp mustn't contain SYNC token
-                let mut sync_dop = fw_bytes
-                    .iter()
-                    .filter(|w| (((*w >> 24) & 0xff) as u8) == sync_opcode)
-                    .peekable();
-                assert!(
-                    sync_dop.peek().is_none(),
-                    "Error: IOp[0x{:x}].v{} contain SYNC. This break the min_iop_size requirement and
-                could lead to sync_id overflow",id.0, id.1
-                );
             }
 
             // Sort by opcode/vid and write Lut and translation table into memory
@@ -1077,7 +1048,7 @@ impl HpuNode {
             for (id, fw_bytes) in id_fw.into_iter() {
                 // Store lookup addr
                 let byte_ofst = (tr_table_ofst * std::mem::size_of::<u32>()) as u32;
-                tr_lut[id.0 * MAX_HPU_IN_CLUSTER + id.1] = byte_ofst;
+                tr_lut[(id.0 as usize) * MAX_HPU_IN_CLUSTER + id.1] = byte_ofst;
 
                 // Write tr-table
                 let fw_words = bytemuck::cast_slice::<_, u32>(fw_bytes.as_slice());
@@ -1100,22 +1071,76 @@ impl HpuNode {
                 blk_ofst * std::mem::size_of::<u32>()
             );
             tracing::trace!("[{integer_w}]::LutTable=> {tr_lut:x?}");
-
-            // Update init_fw_width list enable to runtime check
-            self.init_fw_width.push(*integer_w);
         }
     }
 
-    #[tracing::instrument(skip(self, stream))]
-    pub(crate) fn fw_dyn(
+    #[tracing::instrument(skip(self, doplang, gen_lut))]
+    pub(crate) fn fw_dyn_init<F>(
         &mut self,
-        hash: ZhcStreamHash,
-        stream: ZhcStream,
-        proto: asm::IOpProto,
-    ) -> Result<asm::IOpcode, cache::CacheError> {
-        self.zhc_cache
-            .get_or_insert(hash, stream, proto)
-            .map(|entry| entry.iop())
+        fingerprint: Fingerprint,
+        proto: IOpSig,
+        doplang: &[IR<doplang::DopLang>],
+        lut_registry: &LutRegistry,
+        gen_lut: &F,
+    ) -> Result<Arc<DynFwEntry>, DynFwError>
+    where
+        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
+    {
+        // Try hit
+        if let Some(entry) = self.dyn_fw_cache.get_by_hash(&fingerprint) {
+            Ok(entry)
+        } else {
+            // Upload required Lut if needed and generate relocation table
+            let lut_remap = self.update_lut_registry(lut_registry, gen_lut);
+
+            // Generate specialized DOp stream
+            // Construct a owned copy while enforcing correct number of stream
+            let streams = doplang
+                .iter()
+                .map(|hpu_ir| {
+                    zhc::pipeline::passes::hpu_generate_translation_table(hpu_ir, Some(&lut_remap))
+                })
+                .collect::<Vec<_>>();
+
+            // Enforce correct number of stream
+            let mut owned_streams: [Vec<u32>; MAX_HPU_IN_CLUSTER] =
+                std::array::from_fn(|_i| Vec::new());
+            for (o, i) in std::iter::zip(owned_streams.iter_mut(), streams) {
+                *o = i;
+            }
+
+            let entry = self
+                .dyn_fw_cache
+                .get_or_insert(fingerprint, proto, owned_streams)?;
+
+            Ok(entry)
+        }
+    }
+
+    fn update_lut_registry<F>(&mut self, registry: &LutRegistry, gen_lut: &F) -> Vec<LutId>
+    where
+        F: Fn(&HpuParameters, &[u64]) -> HpuGlweLookuptableOwned<u64> + Sync,
+    {
+        let params = self.params.clone();
+        // Erase parameters args from current lut_gen
+        // NB: lut_cache doesn't have access to hpu_parameters
+        let curried_lut_gen = |raw_lut: &zhc::crypto::integer_semantics::lut::RawLut| {
+            let lut_u64 = (0..raw_lut.lut().len())
+                .map(|i| raw_lut.entry(i).raw_complete_bits() as u64)
+                .collect::<Vec<_>>();
+            gen_lut(&params, &lut_u64)
+        };
+
+        // Upload required Lut if needed and generate relocation table
+        let mut lut_remap = Vec::new();
+        for (_lid, lut) in registry.iter_luts() {
+            let hw_entry = self
+                .lut_cache
+                .get_or_insert(lut.clone(), &curried_lut_gen)
+                .expect("Unable to upload required Lut. Check size of lut_mem");
+            lut_remap.push(*hw_entry.id());
+        }
+        lut_remap
     }
 }
 
@@ -1128,17 +1153,8 @@ impl HpuNode {
             hid,
             ..
         } = self;
-
-        // Check if targeted width is properly configured
-        // NB: fw_blk_width is 0 encoded => 0 ~ 1 block ciphertext
-        assert!(
-            self.init_fw_width.contains(&((cmd.op.fw_blk_width()+1)*self.params.pbs_params.message_width)
-            ),
-            "Requested integer width {:?} isn't configured in [Hpu: {:?}] and could lead to Undefined Behavior. Please check Hpu configuration file.",
-            (cmd.op.fw_blk_width()+1) * self.params.pbs_params.message_width,
-            self.init_fw_width
-        );
         // Check if targeted IOp firmware is properly loaded
+        // TODO to be verified must have been done earlier
 
         // Issue work to Hpu through workq
         // Convert Iop in a stream of bytes
@@ -1218,8 +1234,9 @@ impl Drop for HpuNode {
         // ffi backend
         self.bsk_key.release(&mut self.hpu_hw);
         self.ksk_key.release(&mut self.hpu_hw);
-        self.lut_mem.release(&mut self.hpu_hw);
+        self.lut_cache.release(&mut self.hpu_hw);
         self.fw_mem.release(&mut self.hpu_hw);
+        self.dyn_fw_cache.release(&mut self.hpu_hw);
         self.ct_mem.release(&mut self.hpu_hw);
     }
 }
