@@ -1275,11 +1275,12 @@ negacyclic_backward_fft_f128_relaxed(double *buffer, double2 acc_re_hi,
 }
 
 // Backward FFT with relaxed butterflies for the DEFAULT step kernels: same
-// radix-2 structure as the cluster variant negacyclic_backward_fft_f128_relaxed,
-// including its split between warp-shuffle levels and shared-memory levels,
-// but reads its input from shared memory, synchronizes with __syncthreads(),
-// and uses the cheaper cplx_f128_relaxed_ibutterfly_assign butterflies of the
-// host-driven TBC flavor.
+// radix-2 structure as the cluster variant
+// negacyclic_backward_fft_f128_relaxed, including its split between
+// warp-shuffle levels and shared-memory levels, but reads its input from shared
+// memory, synchronizes with __syncthreads(), and uses the cheaper
+// cplx_f128_relaxed_ibutterfly_assign butterflies of the host-driven TBC
+// flavor.
 template <class params, bool USE_AOS_TWIDDLES = false>
 __device__ void negacyclic_backward_fft_f128_relaxed_default(double *dt_re_hi,
                                                              double *dt_re_lo,

@@ -380,11 +380,10 @@ __global__ void __launch_bounds__(params::degree / params::opt,
   extern __shared__ int8_t sharedmem[];
   uint32_t glwe_dimension = gridDim.x - 1;
 
-  // Only the Fourier-domain running sum lives in fast memory. The Torus
-  // accumulator this kernel used to stage in shared memory was written once by
-  // add_to_torus_128 and never re-read, so adding into the global accumulator
-  // directly is bit-exact and halves the shared-memory footprint. The
-  // PARTIALSM layout becomes the only shared layout.
+  // Only the Fourier-domain running sum lives in fast memory: the Torus
+  // accumulator is written once by add_to_torus_128 and never re-read, so
+  // adding into the global accumulator directly is bit-exact and halves the
+  // shared-memory footprint. PARTIALSM is the only shared layout.
   double *accumulator_fft;
   if constexpr (SMD == NOSM) {
     int block_index = blockIdx.x + blockIdx.y * gridDim.x +
@@ -1080,7 +1079,8 @@ supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
 }
 
 // The noise-squashing shape the host-driven TBC flavor is compiled for; the
-// dispatcher never selects another shape and the host entry point panics on one.
+// dispatcher never selects another shape and the host entry point panics on
+// one.
 constexpr uint32_t PBS128_SNS_POLYNOMIAL_SIZE = 2048;
 constexpr uint32_t PBS128_SNS_GLWE_DIMENSION = 2;
 constexpr uint32_t PBS128_SNS_LEVEL_COUNT = 3;
@@ -1493,6 +1493,17 @@ inline bool is_relaxed_default_pbs128_requested() {
 inline bool is_force_tbc_pbs128_requested() {
   static const bool requested = []() {
     const char *env = std::getenv("TFHE_RS_GPU_PBS128_FORCE_TBC");
+    return env != nullptr && std::string(env) == "1";
+  }();
+  return requested;
+}
+
+// Only the halfhalf dispatcher reads this: it stops latency-sized batches from
+// auto-selecting CG. The classical dispatcher runs DEFAULT unless a TBC flavor
+// is requested, so it has nothing to force.
+inline bool is_force_default_pbs128_requested() {
+  static const bool requested = []() {
+    const char *env = std::getenv("TFHE_RS_GPU_PBS128_FORCE_DEFAULT");
     return env != nullptr && std::string(env) == "1";
   }();
   return requested;

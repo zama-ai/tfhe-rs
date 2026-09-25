@@ -24,15 +24,12 @@ use tfhe::keycache::NamedParam;
 type InputScalar = u64;
 type OutputScalar = u128;
 
-/// Everything the PBS-128 variants have in common: key material, input ciphertext, accumulator,
-/// output ciphertext, scratch buffer and criterion configuration.
+/// Shared harness for the PBS-128 variants: a variant provides only its benchmark node, key
+/// builder, scratch size and bootstrap call, so the four measurements differ by the key and
+/// nothing else.
 ///
-/// A variant only provides its benchmark node, how to build its bootstrap key, how much scratch
-/// that key needs and how to run one bootstrap with it. Keeping the rest shared is what makes the
-/// four measurements comparable: they differ by the key and nothing else.
-///
-/// The variant is carried by `cc_bench` rather than by a suffix on the parameter name: criterion
-/// truncates benchmark ids when deriving the result directory, so a discriminator at the end of an
+/// The variant is carried by `cc_bench`, not by a suffix on the parameter name: criterion
+/// truncates benchmark ids when deriving the result directory, so a trailing discriminator on an
 /// id this long collides across variants and gets silently renamed to `… #2`, `… #3`.
 fn bench_pbs_128_variant<Bsk>(
     c: &mut Criterion,

@@ -2986,6 +2986,44 @@ unsafe extern "C" {
         number_of_samples: u32,
     );
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaHalfhalfDecompositionFFI {
+    pub base_log_1_mask: u32,
+    pub level_count_1_mask: u32,
+    pub base_log_1_body: u32,
+    pub level_count_1_body: u32,
+    pub base_log_2_mask: u32,
+    pub level_count_2_mask: u32,
+    pub base_log_2_body: u32,
+    pub level_count_2_body: u32,
+    pub split_index: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaHalfhalfDecompositionFFI"]
+        [::std::mem::size_of::<CudaHalfhalfDecompositionFFI>() - 36usize];
+    ["Alignment of CudaHalfhalfDecompositionFFI"]
+        [::std::mem::align_of::<CudaHalfhalfDecompositionFFI>() - 4usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::base_log_1_mask"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, base_log_1_mask) - 0usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::level_count_1_mask"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, level_count_1_mask) - 4usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::base_log_1_body"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, base_log_1_body) - 8usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::level_count_1_body"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, level_count_1_body) - 12usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::base_log_2_mask"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, base_log_2_mask) - 16usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::level_count_2_mask"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, level_count_2_mask) - 20usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::base_log_2_body"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, base_log_2_body) - 24usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::level_count_2_body"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, level_count_2_body) - 28usize];
+    ["Offset of field: CudaHalfhalfDecompositionFFI::split_index"]
+        [::std::mem::offset_of!(CudaHalfhalfDecompositionFFI, split_index) - 32usize];
+};
 unsafe extern "C" {
     pub fn cuda_fourier_polynomial_mul_async(
         stream: *mut ffi::c_void,
@@ -3175,6 +3213,55 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cleanup_cuda_programmable_bootstrap_128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_convert_lwe_programmable_bootstrap_key_128_halfhalf_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        dest: *mut ffi::c_void,
+        src: *const ffi::c_void,
+        input_lwe_dim: u32,
+        glwe_dim: u32,
+        halfhalf_decomposition: CudaHalfhalfDecompositionFFI,
+        polynomial_size: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_programmable_bootstrap_128_halfhalf_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        halfhalf_decomposition: CudaHalfhalfDecompositionFFI,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_programmable_bootstrap_128_halfhalf_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lut_vector: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        bootstrapping_key: *const ffi::c_void,
+        buffer: *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        halfhalf_decomposition: CudaHalfhalfDecompositionFFI,
+        num_samples: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_programmable_bootstrap_128_halfhalf(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         buffer: *mut *mut i8,

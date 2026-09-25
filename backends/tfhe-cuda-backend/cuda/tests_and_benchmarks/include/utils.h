@@ -87,6 +87,18 @@ void generate_lwe_bootstrapping_key_u128(
     int lwe_dimension, int glwe_dimension, int polynomial_size, int pbs_level,
     int pbs_base_log, Seed *seed, DynamicDistribution noise_distribution);
 
+// Assemble a halfhalf BSK from four standard u128 BSKs.
+// For each GGSW entry i, mask rows come from the mask-param BSK and the body
+// row from the body-param BSK. level_count_mask >= level_count_body is
+// required.
+void assemble_halfhalf_bsk_u128(
+    __uint128_t *output_bsk, const __uint128_t *bsk_group1_mask,
+    int level_count_group1_mask, const __uint128_t *bsk_group1_body,
+    int level_count_group1_body, const __uint128_t *bsk_group2_mask,
+    int level_count_group2_mask, const __uint128_t *bsk_group2_body,
+    int level_count_group2_body, int lwe_dimension, int glwe_dimension,
+    int polynomial_size, int split_index);
+
 // Identity-function GLWE LUT for the u128 classical PBS, mirroring
 // generate_identity_lut_pbs but over __uint128_t and a single combined
 // payload_modulus (no separate message/carry split).

@@ -325,7 +325,8 @@ __device__ void decompose_and_compress_next_level_128(double *result,
     res_re -= carry_re << base_log;
     res_im -= carry_im << base_log;
     // A negative digit is a wrapped __uint128_t whose low 32 bits are the
-    // digit as int32_t, so cvt.rn.f64.s32 is bit-identical to u128_to_signed_to_f128.
+    // digit as int32_t, so cvt.rn.f64.s32 is bit-identical to
+    // u128_to_signed_to_f128.
     f128 out_re(__int2double_rn(static_cast<int32_t>(res_re)), 0.0);
     f128 out_im(__int2double_rn(static_cast<int32_t>(res_im)), 0.0);
 
