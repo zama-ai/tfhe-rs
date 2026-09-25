@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <pbs/pbs_utilities.h>
-#include <pbs/programmable_bootstrap_testing.h>
+#include <programmable_bootstrap_testing.h>
 #include <setup_and_teardown.h>
 #include <thread>
 #include <utils.h>

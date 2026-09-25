@@ -1,7 +1,8 @@
 #ifndef CUDA_BOOTSTRAP_TESTING_HEADERS_H
 #define CUDA_BOOTSTRAP_TESTING_HEADERS_H
 
-#include "pbs_enums.h"
+#include "pbs/pbs_enums.h"
+#include "pbs/programmable_bootstrap.h"
 #include <stdint.h>
 
 template <typename Torus>
