@@ -1,9 +1,12 @@
 use crate::core_crypto::algorithms::test::*;
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::*;
 
 mod fft;
 mod glwe_dot_product_with_clear;
 mod glwe_sample_extraction;
+mod halfhalf_lwe_programmable_bootstrapping_128;
 mod lwe_keyswitch;
 mod lwe_multi_bit_programmable_bootstrapping;
 mod lwe_multi_bit_programmable_bootstrapping_128;
@@ -80,6 +83,51 @@ pub(crate) fn should_check_determinism(message_modulus_log: MessageModulusLog) -
 
 pub(crate) fn is_sanitizer_run() -> bool {
     std::env::var("TFHE_RS_COMPUTE_SANITIZER").is_ok_and(|v| v == "1")
+}
+
+/// Replicates one input LWE ciphertext into a device list of `batch_size` identical copies.
+///
+/// A fixed input replicated across the batch lets every lane of a batched run be compared against
+/// a single CPU reference bootstrap.
+pub(crate) fn replicated_input(
+    lwe_ciphertext_in: &LweCiphertextOwned<u64>,
+    stream: &CudaStreams,
+    batch_size: usize,
+) -> CudaLweCiphertextList<u64> {
+    let lwe_size = lwe_ciphertext_in.lwe_size();
+    let mut container = Vec::with_capacity(lwe_size.0 * batch_size);
+    for _ in 0..batch_size {
+        container.extend_from_slice(lwe_ciphertext_in.as_ref());
+    }
+    let h_input = LweCiphertextList::from_container(
+        container,
+        lwe_size,
+        lwe_ciphertext_in.ciphertext_modulus(),
+    );
+    CudaLweCiphertextList::from_lwe_ciphertext_list(&h_input, stream)
+}
+
+/// Uploads a list of distinct input LWE ciphertexts as a single batch.
+pub(crate) fn batched_input(
+    lwe_ciphertexts_in: &[LweCiphertextOwned<u64>],
+    streams: &CudaStreams,
+) -> CudaLweCiphertextList<u64> {
+    let lwe_size = lwe_ciphertexts_in[0].lwe_size();
+    let mut container = Vec::with_capacity(lwe_size.0 * lwe_ciphertexts_in.len());
+    for ct in lwe_ciphertexts_in {
+        assert_eq!(
+            ct.lwe_size(),
+            lwe_size,
+            "every lane must share the same LWE size"
+        );
+        container.extend_from_slice(ct.as_ref());
+    }
+    let h_input = LweCiphertextList::from_container(
+        container,
+        lwe_size,
+        lwe_ciphertexts_in[0].ciphertext_modulus(),
+    );
+    CudaLweCiphertextList::from_lwe_ciphertext_list(&h_input, streams)
 }
 
 /// Counterpart of [`MULTI_BIT_2_2_2_PARAMS`] and [`MULTI_BIT_2_2_3_PARAMS`] for a grouping factor

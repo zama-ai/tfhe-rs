@@ -12,13 +12,17 @@ use crate::integer::gpu::ciphertext::{
     CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
+use crate::integer::gpu::noise_squashing::noise_squashing_keys::assert_halfhalf_key_has_reference_shape;
+use crate::integer::gpu::server_key::{
+    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaNoiseSquashingBootstrappingKey,
+};
 use crate::integer::gpu::{
     cuda_backend_apply_many_univariate_lut, cuda_backend_apply_univariate_lut,
     cuda_backend_cast_to_signed, cuda_backend_cast_to_unsigned,
     cuda_backend_extend_radix_with_trivial_zero_blocks_msb, cuda_backend_full_propagate_assign,
-    cuda_backend_noise_squashing, cuda_backend_propagate_single_carry_assign,
-    cuda_backend_trim_radix_blocks_lsb, cuda_backend_trim_radix_blocks_msb, CudaServerKey,
+    cuda_backend_noise_squashing, cuda_backend_noise_squashing_halfhalf,
+    cuda_backend_propagate_single_carry_assign, cuda_backend_trim_radix_blocks_lsb,
+    cuda_backend_trim_radix_blocks_msb, CudaServerKey,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -1190,7 +1194,7 @@ impl CudaServerKey {
 
         unsafe {
             match &d_bootstrapping_key {
-                CudaBootstrappingKey::Classic(bsk) => {
+                CudaNoiseSquashingBootstrappingKey::Classic(bsk) => {
                     assert_eq!(
                         computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
                         bsk.input_lwe_dimension,
@@ -1217,7 +1221,7 @@ impl CudaServerKey {
                         bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
-                CudaBootstrappingKey::MultiBit(mb_bsk) => {
+                CudaNoiseSquashingBootstrappingKey::MultiBit(mb_bsk) => {
                     assert_eq!(
                         computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
                         mb_bsk.input_lwe_dimension,
@@ -1242,6 +1246,37 @@ impl CudaServerKey {
                         self.message_modulus,
                         self.carry_modulus,
                         None,
+                    );
+                }
+                CudaNoiseSquashingBootstrappingKey::Halfhalf(hh_bsk) => {
+                    // The halfhalf key's two sections cover the keyswitch output together, so the
+                    // dimension to compare against is the sum of the sections, which is what
+                    // `input_lwe_dimension` reports.
+                    assert_eq!(
+                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                        hh_bsk.input_lwe_dimension,
+                        "KS key output LWE dimension mismatch with halfhalf BSK input LWE \
+                         dimension"
+                    );
+                    assert_halfhalf_key_has_reference_shape(hh_bsk);
+                    cuda_backend_noise_squashing_halfhalf(
+                        streams,
+                        &mut output_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &input_slice,
+                        &mut input_degrees,
+                        &mut input_noise_levels,
+                        hh_bsk,
+                        &computing_ks_key.d_vec,
+                        input_glwe_dimension,
+                        input_polynomial_size,
+                        computing_ks_key.params_ffi(),
+                        num_output_blocks as u32,
+                        input.d_blocks.lwe_ciphertext_count().0 as u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        hh_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
             }

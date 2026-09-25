@@ -292,10 +292,10 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
                  bool allocate_gpu_memory,
                  PBS_MS_REDUCTION_T noise_reduction_type,
                  uint64_t &size_tracker)
-      // Only the variants that carry the accumulator across launches (DEFAULT
-      // and TBC_HOST_DRIVEN) allocate it, and release() only frees it for
-      // those. Starting null keeps the other variants from holding an
-      // indeterminate pointer.
+      // Only the variants that carry the accumulator across launches (DEFAULT,
+      // TBC_HOST_DRIVEN and the halfhalf CG) allocate it, and release() only
+      // frees it for those. Starting null keeps the other variants from holding
+      // an indeterminate pointer.
       : global_accumulator(nullptr),
         noise_reduction_type(noise_reduction_type) {
     gpu_memory_allocated = allocate_gpu_memory;
@@ -382,6 +382,14 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
       global_join_buffer = (double *)cuda_malloc_with_size_tracking_async(
           global_join_buffer_size, stream, gpu_index, size_tracker,
           allocate_gpu_memory);
+
+      // Accumulator for inter-launch persistence in the two-launch halfhalf
+      // split
+      global_accumulator = (__uint128_t *)cuda_malloc_with_size_tracking_async(
+          safe_mul_sizeof<__uint128_t>((size_t)(glwe_dimension + 1),
+                                       (size_t)input_lwe_ciphertext_count,
+                                       (size_t)polynomial_size),
+          stream, gpu_index, size_tracker, allocate_gpu_memory);
     } break;
 #if CUDA_ARCH >= 900
     case PBS_VARIANT::TBC: {
@@ -456,7 +464,11 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
                                        gpu_memory_allocated);
 
-    if (pbs_variant == DEFAULT || pbs_variant == TBC_HOST_DRIVEN)
+    // CG allocates the accumulator too: the halfhalf blind rotation is split
+    // into one launch per section, so the accumulator has to survive across
+    // them in global memory. TBC is the only variant that never allocates it.
+    if (pbs_variant == DEFAULT || pbs_variant == CG ||
+        pbs_variant == TBC_HOST_DRIVEN)
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
     cuda_synchronize_stream(stream, gpu_index);

@@ -114,6 +114,34 @@ mod cpu {
             true,
         );
     }
+
+    /// `ConfigBuilder::enable_gpu_halfhalf_noise_squashing` only exists with the `gpu` feature,
+    /// but the flag it sets is serialized, so a client key built by a GPU build can be loaded by
+    /// a CPU-only build. Setting the flag directly reproduces that case without the feature.
+    #[test]
+    fn test_xof_key_set_rejects_halfhalf_noise_squashing() {
+        let mut config: Config =
+            TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128.into();
+        config.inner.gpu_halfhalf_noise_squashing = true;
+
+        let mut seeder = new_seeder();
+        let private_seed_bytes = seeder.seed().0.to_le_bytes().to_vec();
+        let max_norm_hwt = NormalizedHammingWeightBound::new(0.8).unwrap();
+
+        let Err(err) = CompressedXofKeySet::generate(
+            config,
+            private_seed_bytes,
+            128,
+            max_norm_hwt,
+            Tag::default(),
+        ) else {
+            panic!("CompressedXofKeySet::generate accepted a halfhalf noise squashing client key");
+        };
+        assert!(
+            err.to_string().contains("Cannot build an XofKeySet"),
+            "unexpected error: {err}"
+        );
+    }
 }
 
 #[cfg(feature = "gpu")]

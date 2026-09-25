@@ -378,6 +378,10 @@ struct int_radix_params {
   uint32_t message_modulus;
   uint32_t carry_modulus;
   PBS_MS_REDUCTION_T noise_reduction_type;
+  /// Decompositions of a halfhalf (HP+HR) bootstrap key. Only meaningful when
+  /// pbs_type is HALFHALF, in which case pbs_level and pbs_base_log above are
+  /// unused: that key has one decomposition per section and per mask/body row.
+  CudaHalfhalfPbsParamsFFI halfhalf_params{};
 
   int_radix_params(PBS_TYPE pbs_type, uint32_t glwe_dimension,
                    uint32_t polynomial_size, uint32_t big_lwe_dimension,
@@ -409,6 +413,44 @@ struct int_radix_params {
         grouping_factor(bsk_params.grouping_factor),
         message_modulus(message_modulus), carry_modulus(carry_modulus),
         noise_reduction_type(noise_reduction_type){};
+
+  /// @brief Builds the radix parameters of a bootstrap onto a halfhalf
+  /// (HP+HR) key, whose decompositions cannot be described by a single
+  /// base_log/level_count pair.
+  ///
+  /// @param halfhalf_params    Per-section, per-row decompositions and
+  ///                           dimensions of the halfhalf bootstrap key
+  /// @param ksk_params         Keyswitch key feeding the bootstrap
+  /// @param noise_reduction_type  Modulus switch noise reduction to apply
+  int_radix_params(CudaHalfhalfPbsParamsFFI halfhalf_params,
+                   CudaLweKeyswitchKeyParamsFFI ksk_params,
+                   uint32_t message_modulus, uint32_t carry_modulus,
+                   PBS_MS_REDUCTION_T noise_reduction_type)
+      : pbs_type(PBS_TYPE::HALFHALF),
+        glwe_dimension(halfhalf_params.glwe_dimension),
+        polynomial_size(halfhalf_params.polynomial_size),
+        big_lwe_dimension(halfhalf_params.glwe_dimension *
+                          halfhalf_params.polynomial_size),
+        small_lwe_dimension(halfhalf_params.input_lwe_dimension),
+        ks_level(ksk_params.level_count), ks_base_log(ksk_params.base_log),
+        // A halfhalf key has no global decomposition, so there is nothing
+        // meaningful to put in pbs_level/pbs_base_log; the 128-bit dispatchers
+        // ignore them for HALFHALF and read halfhalf_params instead.
+        pbs_level(0), pbs_base_log(0), grouping_factor(0),
+        message_modulus(message_modulus), carry_modulus(carry_modulus),
+        noise_reduction_type(noise_reduction_type),
+        halfhalf_params(halfhalf_params) {
+    // The keyswitch output feeds the bootstrap input directly, so a mismatch
+    // here would make the bootstrap read past the keyswitched ciphertext. The
+    // two dimensions come from two separate Rust-side keys, so nothing but
+    // this check ties them together.
+    PANIC_IF_FALSE(
+        ksk_params.output_lwe_dimension == halfhalf_params.input_lwe_dimension,
+        "Cuda error (halfhalf noise squashing): the keyswitch key "
+        "outputs an LWE dimension of %u but the halfhalf bootstrap "
+        "key expects an input LWE dimension of %u.",
+        ksk_params.output_lwe_dimension, halfhalf_params.input_lwe_dimension);
+  };
 
   int_radix_params() = default;
 
@@ -566,7 +608,8 @@ struct int_radix_lut_custom_input_output {
           &gpu_pbs_buffer_raw, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory, params.noise_reduction_type, size);
+          allocate_gpu_memory, params.noise_reduction_type, size,
+          params.halfhalf_params);
       if (i == 0) {
         size_tracker += size;
       }

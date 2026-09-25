@@ -329,3 +329,23 @@ void cleanup_cuda_apply_noise_squashing(CudaStreamsFFI streams,
   *mem_ptr_void = nullptr;
   POP_RANGE()
 }
+
+uint64_t scratch_cuda_apply_noise_squashing_halfhalf_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaHalfhalfPbsParamsFFI halfhalf_params, uint32_t input_glwe_dimension,
+    uint32_t input_polynomial_size, CudaLweKeyswitchKeyParamsFFI ksk_params,
+    uint32_t num_radix_blocks, uint32_t num_original_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+  // Tagging the params as HALFHALF is what routes the buffer allocation to
+  // scratch_cuda_programmable_bootstrap_128_halfhalf_async, which sizes the
+  // accumulator and join buffer on the largest mask level count of the two
+  // sections instead of on a single global level count.
+  int_radix_params params(halfhalf_params, ksk_params, message_modulus,
+                          carry_modulus, noise_reduction_type);
+
+  return scratch_cuda_apply_noise_squashing_mem(
+      streams, params, (int_noise_squashing_lut<uint64_t> **)mem_ptr,
+      input_glwe_dimension, input_polynomial_size, num_radix_blocks,
+      num_original_blocks, allocate_gpu_memory);
+}

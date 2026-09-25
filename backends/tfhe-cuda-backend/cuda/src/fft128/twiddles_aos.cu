@@ -19,11 +19,13 @@ static __global__ void device_build_neg_twiddles_aos() {
  * The stream is synchronized before returning: the table is read by kernels
  * that may be launched on a different stream of the same GPU.
  *
- * The kernels that read the table are the classical 128-bit PBS step kernels
- * and the host-driven TBC kernel. They are reachable only through a buffer
- * built by their scratch function (scratch_programmable_bootstrap_128 and
- * scratch_programmable_bootstrap_host_driven_tbc_128), which calls this once
- * per GPU before the first launch. Keeping the call out of the per-iteration
+ * The kernels that read the table are the classical 128-bit PBS step kernels,
+ * the host-driven TBC kernel, and the halfhalf DEFAULT step kernels (under
+ * TFHE_RS_GPU_PBS128_RELAXED_DEFAULT). They are reachable only through a buffer
+ * built by their scratch function (scratch_programmable_bootstrap_128,
+ * scratch_programmable_bootstrap_host_driven_tbc_128 and
+ * scratch_programmable_bootstrap_128_halfhalf), which calls this once per GPU
+ * before the first launch. Keeping the call out of the per-iteration
  * launchers matters: they run about 2 * lwe_dimension times per bootstrap, and
  * a process-wide mutex there would serialize the host threads driving different
  * GPUs.

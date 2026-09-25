@@ -375,6 +375,7 @@ impl ClientKey {
                 cpk_re_randomization_params: config.inner.cpk_re_randomization_params,
                 dedicated_oprf_private_key,
                 transciphering_private_key,
+                gpu_halfhalf_noise_squashing: config.inner.gpu_halfhalf_noise_squashing,
             },
             tag,
         })

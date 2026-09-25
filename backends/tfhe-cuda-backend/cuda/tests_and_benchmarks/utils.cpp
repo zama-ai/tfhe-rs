@@ -2,6 +2,7 @@
 #include "pbs/programmable_bootstrap.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "pbs/programmable_bootstrap_testing.h"
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -399,6 +400,118 @@ void generate_lwe_bootstrapping_key_u128(__uint128_t **bsk_array,
           lwe_dimension, (void *)glwe_sk_out, glwe_dimension, polynomial_size,
           noise_distribution, seed->lo, seed->hi),
       "core_crypto_par_generate_lwe_bootstrapping_key_u128");
+}
+
+void assemble_halfhalf_bsk_u128(
+    __uint128_t *output_bsk,
+    const __uint128_t *bsk_group1_mask, int level_count_group1_mask,
+    const __uint128_t *bsk_group1_body, int level_count_group1_body,
+    const __uint128_t *bsk_group2_mask, int level_count_group2_mask,
+    const __uint128_t *bsk_group2_body, int level_count_group2_body,
+    int lwe_dimension, int glwe_dimension, int polynomial_size,
+    int split_index) {
+
+  if (level_count_group1_mask < level_count_group1_body) {
+    fprintf(stderr,
+            "assemble_halfhalf_bsk_u128: level_count_group1_mask (%d) < "
+            "level_count_group1_body (%d)\n",
+            level_count_group1_mask, level_count_group1_body);
+    abort();
+  }
+  if (level_count_group2_mask < level_count_group2_body) {
+    fprintf(stderr,
+            "assemble_halfhalf_bsk_u128: level_count_group2_mask (%d) < "
+            "level_count_group2_body (%d)\n",
+            level_count_group2_mask, level_count_group2_body);
+    abort();
+  }
+  if (split_index < 0 || split_index > lwe_dimension) {
+    fprintf(stderr,
+            "assemble_halfhalf_bsk_u128: split_index (%d) out of range "
+            "[0, %d]\n",
+            split_index, lwe_dimension);
+    abort();
+  }
+
+  const int glwe_size = glwe_dimension + 1;
+  // k mask rows per GGSW entry
+  const int k = glwe_dimension;
+
+  struct GroupParams {
+    const __uint128_t *mask_bsk;
+    const __uint128_t *body_bsk;
+    int level_mask;
+    int level_body;
+    int entry_count;
+  };
+
+  GroupParams groups[2] = {
+      {bsk_group1_mask, bsk_group1_body, level_count_group1_mask,
+       level_count_group1_body, split_index},
+      {bsk_group2_mask, bsk_group2_body, level_count_group2_mask,
+       level_count_group2_body, lwe_dimension - split_index},
+  };
+
+  // Compact layout: each GGSW entry stores a mask block of k * level_mask GLWE
+  // ciphertexts followed by a body block of level_body GLWE ciphertexts, both
+  // level-major (see get_halfhalf_bsk_slice). Each GLWE ciphertext is
+  // glwe_size polynomials of polynomial_size u128 elements.
+
+  size_t out_offset = 0;
+
+  // Source BSK entry layout is level-major: each entry has level_count levels,
+  // each level has glwe_size rows of glwe_size * polynomial_size u128 elements.
+  const size_t glwe_ct_size = safe_mul(glwe_size, polynomial_size);
+  const size_t level_matrix_size = safe_mul(glwe_size, glwe_ct_size);
+
+  for (int g = 0; g < 2; g++) {
+    const auto &gp = groups[g];
+
+    const size_t mask_entry_size =
+        safe_mul(glwe_size, gp.level_mask, glwe_size, polynomial_size);
+    const size_t body_entry_size =
+        safe_mul(glwe_size, gp.level_body, glwe_size, polynomial_size);
+
+    // Compact output entry: glwe_size * (k * level_mask + level_body) polys
+    const size_t out_entry_size = safe_mul(
+        (size_t)glwe_size, (size_t)(k * gp.level_mask + gp.level_body),
+        (size_t)polynomial_size);
+
+    for (int i = 0; i < gp.entry_count; i++) {
+      int bsk_entry_idx = (g == 0) ? i : (split_index + i);
+
+      const __uint128_t *mask_entry =
+          gp.mask_bsk + bsk_entry_idx * mask_entry_size;
+      const __uint128_t *body_entry =
+          gp.body_bsk + bsk_entry_idx * body_entry_size;
+      __uint128_t *out_entry = output_bsk + out_offset;
+
+      size_t entry_cursor = 0;
+
+      // Mask block: level-major, the k GLev rows nested inside the level
+      for (int l = 0; l < gp.level_mask; l++) {
+        for (int j = 0; j < k; j++) {
+          const __uint128_t *src =
+              mask_entry + l * level_matrix_size + j * glwe_ct_size;
+          memcpy(out_entry + entry_cursor, src,
+                 glwe_ct_size * sizeof(__uint128_t));
+          entry_cursor += glwe_ct_size;
+        }
+      }
+
+      // Body GLev row: 1 row with level_body levels
+      for (int l = 0; l < gp.level_body; l++) {
+        const __uint128_t *src =
+            body_entry + l * level_matrix_size + k * glwe_ct_size;
+        memcpy(out_entry + entry_cursor, src,
+               glwe_ct_size * sizeof(__uint128_t));
+        entry_cursor += glwe_ct_size;
+      }
+
+      assert(entry_cursor == out_entry_size);
+      out_offset += out_entry_size;
+    }
+  }
 }
 
 __uint128_t *generate_identity_lut_pbs_u128(int polynomial_size,

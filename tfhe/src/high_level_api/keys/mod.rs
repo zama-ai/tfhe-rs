@@ -29,6 +29,7 @@ pub(crate) use server::{InternalServerKey, InternalServerKeyRef};
 pub(in crate::high_level_api) use inner::{
     IntegerClientKey, IntegerCompactPublicKey, IntegerCompressedCompactPublicKey,
     IntegerCompressedServerKey, IntegerConfig, IntegerServerKey, IntegerServerKeyConformanceParams,
+    HALFHALF_NOISE_SQUASHING_IS_GPU_ONLY,
 };
 
 /// Generates keys using the provided config.

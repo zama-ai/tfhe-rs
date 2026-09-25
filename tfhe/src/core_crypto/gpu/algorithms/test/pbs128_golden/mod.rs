@@ -173,26 +173,6 @@ fn deterministic_generators() -> (
     (secret_random_generator, encryption_random_generator)
 }
 
-/// Replicates one input LWE ciphertext into a device list of `batch_size`
-/// identical copies.
-fn replicated_input(
-    lwe_ciphertext_in: &LweCiphertextOwned<u64>,
-    stream: &CudaStreams,
-    batch_size: usize,
-) -> CudaLweCiphertextList<u64> {
-    let lwe_size = lwe_ciphertext_in.lwe_size();
-    let mut container = Vec::with_capacity(lwe_size.0 * batch_size);
-    for _ in 0..batch_size {
-        container.extend_from_slice(lwe_ciphertext_in.as_ref());
-    }
-    let h_input = LweCiphertextList::from_container(
-        container,
-        lwe_size,
-        lwe_ciphertext_in.ciphertext_modulus(),
-    );
-    CudaLweCiphertextList::from_lwe_ciphertext_list(&h_input, stream)
-}
-
 /// Everything the golden runs share: the deterministic key material (device
 /// bootstrap key plus the output secret key used by the correctness sanity
 /// check), the accumulator and the deterministically encrypted golden inputs.
