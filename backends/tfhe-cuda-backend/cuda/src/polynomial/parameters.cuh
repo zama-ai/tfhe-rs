@@ -4,6 +4,15 @@
 #include "device.h"
 #include <cstdint>
 
+// -G disables inlining except for __forceinline__; an inlined unoptimized
+// callee can push the caller past its __launch_bounds__ register cap at
+// device link.
+#ifdef __CUDACC_DEBUG__
+#define FORCEINLINE_UNLESS_DEVICE_DEBUG
+#else
+#define FORCEINLINE_UNLESS_DEVICE_DEBUG __forceinline__
+#endif
+
 // If decide to support something else than 32 and 64 bits, this method will
 // need to be adjusted
 template <typename T> constexpr unsigned log2_int(T n) {

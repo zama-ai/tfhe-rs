@@ -292,7 +292,12 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>
                  bool allocate_gpu_memory,
                  PBS_MS_REDUCTION_T noise_reduction_type,
                  uint64_t &size_tracker)
-      : noise_reduction_type(noise_reduction_type) {
+      // Only the variants that carry the accumulator across launches (DEFAULT
+      // and TBC_HOST_DRIVEN) allocate it, and release() only frees it for
+      // those. Starting null keeps the other variants from holding an
+      // indeterminate pointer.
+      : global_accumulator(nullptr),
+        noise_reduction_type(noise_reduction_type) {
     gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
     this->pbs_variant = pbs_variant;
