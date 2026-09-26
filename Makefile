@@ -1045,14 +1045,31 @@ test_gpu_racecheck: install_cargo_nextest
 	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
 		scripts/check_memory_errors.sh --racecheck
 
-# The relaxed flavor is opted into process-wide, and the 128-bit PBS panics on any
-# shape other than the noise-squashing one, so the filter is narrowed to the single
-# classical PBS128 test instead of the default racecheck set. Needs an sm_90 GPU.
-.PHONY: test_gpu_racecheck_relaxed_pbs128 # Run compute-sanitizer racecheck on the 128-bit PBS with the relaxed (host-driven TBC) flavor
-test_gpu_racecheck_relaxed_pbs128: install_cargo_nextest
+# The relaxed TBC flavor is opted into process-wide, and the 128-bit PBS panics
+# on any shape other than the noise-squashing one, so the filter is narrowed to
+# the single classical PBS128 test instead of the default racecheck set. The
+# filter is an unanchored regex, so the N = 4096 variant of that test is
+# excluded explicitly. Needs an sm_90 GPU.
+.PHONY: test_gpu_racecheck_relaxed_tbc_pbs128 # Run compute-sanitizer racecheck on the 128-bit PBS with the relaxed host-driven TBC flavor
+test_gpu_racecheck_relaxed_tbc_pbs128: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
-	export TFHE_RS_GPU_PBS128_RELAXED=1 && \
+	export TFHE_RS_GPU_PBS128_RELAXED_TBC=1 && \
+	export SANITIZER_TEST_FILTER_GPU_RACECHECK='test_bootstrap_u128_with_squashing' && \
+	export SANITIZER_TEST_EXCLUDES_GPU_RACECHECK='test_bootstrap_u128_with_squashing_n4096' && \
+		scripts/check_memory_errors.sh --racecheck
+
+# The relaxed DEFAULT flavor is opted into process-wide the same way; unlike
+# relaxed TBC it is not shape-restricted at the dispatch level (it runs
+# whenever the DEFAULT step-two kernel is compiled with opt == 4), so it does
+# not need distributed shared memory and runs on any GPU. The filter still
+# targets the noise-squashing tests, since the noise-squashing shape is the one
+# the relaxed flavor is tuned for.
+.PHONY: test_gpu_racecheck_relaxed_default_pbs128 # Run compute-sanitizer racecheck on the 128-bit PBS with the relaxed DEFAULT flavor
+test_gpu_racecheck_relaxed_default_pbs128: install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	export TFHE_RS_GPU_PBS128_RELAXED_DEFAULT=1 && \
 	export SANITIZER_TEST_FILTER_GPU_RACECHECK='test_bootstrap_u128_with_squashing' && \
 	export SANITIZER_TEST_EXCLUDES_GPU_RACECHECK='' && \
 		scripts/check_memory_errors.sh --racecheck
@@ -1431,9 +1448,15 @@ test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/)"
 
-.PHONY: test_high_level_api_noise_squash_relaxed_pbs128_gpu # Run the GPU noise squashing tests of high_level_api with the experimental relaxed 128-bit PBS
-test_high_level_api_noise_squash_relaxed_pbs128_gpu: install_cargo_nextest
-	TFHE_RS_GPU_PBS128_RELAXED=1 RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+.PHONY: test_high_level_api_noise_squash_relaxed_tbc_pbs128_gpu # Run the GPU noise squashing tests of high_level_api with the experimental relaxed host-driven TBC 128-bit PBS
+test_high_level_api_noise_squash_relaxed_tbc_pbs128_gpu: install_cargo_nextest
+	TFHE_RS_GPU_PBS128_RELAXED_TBC=1 RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
+		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
+		-E "test(/high_level_api::tests::noise_squashing::.*gpu.*/)"
+
+.PHONY: test_high_level_api_noise_squash_relaxed_default_pbs128_gpu # Run the GPU noise squashing tests of high_level_api with the experimental relaxed DEFAULT 128-bit PBS
+test_high_level_api_noise_squash_relaxed_default_pbs128_gpu: install_cargo_nextest
+	TFHE_RS_GPU_PBS128_RELAXED_DEFAULT=1 RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::tests::noise_squashing::.*gpu.*/)"
 

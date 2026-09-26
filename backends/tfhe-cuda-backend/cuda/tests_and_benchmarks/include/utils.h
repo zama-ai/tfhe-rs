@@ -72,4 +72,27 @@ void generate_lwe_keyswitch_keys(
     int ksk_base_log, Seed *seed, DynamicDistribution noise_distribution,
     const unsigned repetitions);
 
+// u128 key generation helpers. Buffers are typed __uint128_t* but passed
+// through the C API as void* (the Rust side casts to u128 internally).
+
+void generate_lwe_secret_keys_u128(__uint128_t **lwe_sk_array,
+                                   int lwe_dimension, Seed *seed);
+
+void generate_glwe_secret_keys_u128(__uint128_t **glwe_sk_array,
+                                    int glwe_dimension, int polynomial_size,
+                                    Seed *seed);
+
+void generate_lwe_bootstrapping_key_u128(
+    __uint128_t **bsk_array, __uint128_t *lwe_sk_in, __uint128_t *glwe_sk_out,
+    int lwe_dimension, int glwe_dimension, int polynomial_size, int pbs_level,
+    int pbs_base_log, Seed *seed, DynamicDistribution noise_distribution);
+
+// Identity-function GLWE LUT for the u128 classical PBS, mirroring
+// generate_identity_lut_pbs but over __uint128_t and a single combined
+// payload_modulus (no separate message/carry split).
+__uint128_t *generate_identity_lut_pbs_u128(int polynomial_size,
+                                            int glwe_dimension,
+                                            int payload_modulus,
+                                            __uint128_t delta);
+
 #endif

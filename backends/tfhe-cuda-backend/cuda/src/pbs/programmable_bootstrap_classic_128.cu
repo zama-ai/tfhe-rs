@@ -262,3 +262,161 @@ void cleanup_cuda_programmable_bootstrap_128(void *stream, uint32_t gpu_index,
   delete pbs_buf;
   *buffer = nullptr;
 }
+
+// Test-only per-variant entry points for 128-bit PBS.
+// These bypass the env-driven dispatch of
+// scratch_cuda_programmable_bootstrap_128_vector.
+
+uint64_t scratch_cuda_programmable_bootstrap_128_default_async(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  auto buffer = (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> **)pbs_buffer;
+  switch (polynomial_size) {
+  case 256:
+    return scratch_programmable_bootstrap_128<uint64_t, Degree<256>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  case 512:
+    return scratch_programmable_bootstrap_128<uint64_t, Degree<512>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  case 1024:
+    return scratch_programmable_bootstrap_128<uint64_t, Degree<1024>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  case 2048:
+    return scratch_programmable_bootstrap_128<uint64_t, Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  case 4096:
+    return scratch_programmable_bootstrap_128<uint64_t, AmortizedDegree<4096>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  default:
+    PANIC("Cuda error (classical PBS128 DEFAULT test): unsupported polynomial "
+          "size. Supported N's are powers of two in [256..4096].")
+  }
+}
+
+void cuda_programmable_bootstrap_128_default_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lut_vector, void const *lwe_array_in,
+    void const *bootstrapping_key, int8_t *mem_ptr, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples) {
+
+  auto *buffer = (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> *)mem_ptr;
+
+  executor_cuda_programmable_bootstrap_128<uint64_t>(
+      stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+      static_cast<const __uint128_t *>(lut_vector),
+      static_cast<uint64_t const *>(lwe_array_in),
+      static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+      glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+}
+
+uint64_t scratch_cuda_programmable_bootstrap_128_cg_async(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  auto buffer = (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> **)pbs_buffer;
+  switch (polynomial_size) {
+  case 256:
+    return scratch_programmable_bootstrap_cg_128<uint64_t, Degree<256>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  case 512:
+    return scratch_programmable_bootstrap_cg_128<uint64_t, Degree<512>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  case 1024:
+    return scratch_programmable_bootstrap_cg_128<uint64_t, Degree<1024>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  case 2048:
+    return scratch_programmable_bootstrap_cg_128<uint64_t, Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  case 4096:
+    return scratch_programmable_bootstrap_cg_128<uint64_t,
+                                                 AmortizedDegree<4096>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  default:
+    PANIC("Cuda error (classical PBS128 CG test): unsupported polynomial "
+          "size. Supported N's are powers of two in [256..4096].")
+  }
+}
+
+void cuda_programmable_bootstrap_128_cg_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lut_vector, void const *lwe_array_in,
+    void const *bootstrapping_key, int8_t *mem_ptr, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples) {
+
+  auto *buffer = (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> *)mem_ptr;
+
+  executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128<uint64_t>(
+      stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+      static_cast<const __uint128_t *>(lut_vector),
+      static_cast<uint64_t const *>(lwe_array_in),
+      static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+      glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+}
+
+uint64_t scratch_cuda_programmable_bootstrap_128_tbc_async(
+    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+
+  auto buffer = (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> **)pbs_buffer;
+  switch (polynomial_size) {
+  case 2048:
+    return scratch_programmable_bootstrap_tbc_128<uint64_t, Degree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  default:
+    PANIC("Cuda error (classical PBS128 TBC test): unsupported polynomial "
+          "size. Only N=2048 is supported for TBC.")
+  }
+}
+
+void cuda_programmable_bootstrap_128_tbc_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lut_vector, void const *lwe_array_in,
+    void const *bootstrapping_key, int8_t *mem_ptr, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples) {
+
+#if CUDA_ARCH >= 900
+  auto *buffer = (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> *)mem_ptr;
+
+  executor_cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_128<uint64_t>(
+      stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+      static_cast<const __uint128_t *>(lut_vector),
+      static_cast<uint64_t const *>(lwe_array_in),
+      static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+      glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+#else
+  PANIC("Cuda error (classical PBS128 TBC): TBC requires compute "
+        "capability >= 9.0")
+#endif
+}
