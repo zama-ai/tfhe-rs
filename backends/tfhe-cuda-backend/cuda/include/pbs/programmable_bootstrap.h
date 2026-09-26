@@ -4,6 +4,30 @@
 #include "pbs_enums.h"
 #include <stdint.h>
 
+// Halfhalf (HP+HR) generalized bootstrapping key parameters.
+// Two groups of BSK entries, each with separate mask/body decomposition params.
+// Belorgey et al., "Revisiting key decomposition techniques for FHE",
+// ePrint 2023/771.
+// Bernard & Joye, "Bootstrapping (t)FHE ciphertexts via automorphisms",
+// ePrint 2025/163.
+struct CudaHalfhalfPbsParamsFFI {
+  uint32_t input_lwe_dimension;
+  uint32_t glwe_dimension;
+  uint32_t polynomial_size;
+
+  uint32_t base_log_1_mask;
+  uint32_t level_count_1_mask;
+  uint32_t base_log_1_body;
+  uint32_t level_count_1_body;
+
+  uint32_t base_log_2_mask;
+  uint32_t level_count_2_mask;
+  uint32_t base_log_2_body;
+  uint32_t level_count_2_body;
+
+  uint32_t split_index;
+};
+
 extern "C" {
 void cuda_fourier_polynomial_mul_async(void *stream, uint32_t gpu_index,
                                        void const *input1, void const *input2,
@@ -101,5 +125,25 @@ void cleanup_cuda_programmable_bootstrap_64(void *stream, uint32_t gpu_index,
 
 void cleanup_cuda_programmable_bootstrap_128(void *stream, uint32_t gpu_index,
                                              int8_t **buffer);
+
+void cuda_convert_lwe_programmable_bootstrap_key_128_halfhalf_async(
+    void *stream, uint32_t gpu_index, void *dest, void const *src,
+    CudaHalfhalfPbsParamsFFI halfhalf_params);
+
+uint64_t scratch_cuda_programmable_bootstrap_128_halfhalf_async(
+    void *stream, uint32_t gpu_index, int8_t **buffer,
+    CudaHalfhalfPbsParamsFFI halfhalf_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_programmable_bootstrap_128_halfhalf_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lut_vector, void const *lwe_array_in,
+    void const *bootstrapping_key, int8_t *buffer,
+    CudaHalfhalfPbsParamsFFI halfhalf_params, uint32_t num_samples);
+
+void cleanup_cuda_programmable_bootstrap_128_halfhalf(void *stream,
+                                                      uint32_t gpu_index,
+                                                      int8_t **buffer);
 }
 #endif // CUDA_BOOTSTRAP_H

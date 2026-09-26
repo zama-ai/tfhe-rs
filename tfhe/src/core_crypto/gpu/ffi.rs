@@ -197,6 +197,65 @@ pub unsafe fn programmable_bootstrap_128<T: UnsignedInteger>(
     );
 }
 
+/// Programmable bootstrap on a vector of 128 bit LWE ciphertexts, with a "halfhalf" (half-product
+/// plus half-rotate) bootstrap key
+///
+/// The two sections of the key and their decomposition parameters are carried by
+/// `halfhalf_params`, which also holds the index at which the input LWE mask is split.
+///
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn programmable_bootstrap_128_halfhalf<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    test_vector: &CudaVec<T>,
+    lwe_array_in: &CudaVec<u64>,
+    bootstrapping_key: &CudaVec<f64>,
+    halfhalf_params: CudaHalfhalfPbsParamsFFI,
+    num_samples: u32,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+
+    // Initializes as NoReduction and change variables later if otherwise
+    let noise_reduction_type = ms_noise_reduction_configuration
+        .map_or(PBSMSNoiseReductionType::NoReduction, |_config| {
+            PBSMSNoiseReductionType::Centered
+        });
+
+    scratch_cuda_programmable_bootstrap_128_halfhalf_async(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(pbs_buffer),
+        halfhalf_params,
+        num_samples,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_programmable_bootstrap_128_halfhalf_async(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        test_vector.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        bootstrapping_key.as_c_ptr(0),
+        pbs_buffer,
+        halfhalf_params,
+        num_samples,
+    );
+
+    cleanup_cuda_programmable_bootstrap_128_halfhalf(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(pbs_buffer),
+    );
+}
+
 /// Programmable multi-bit bootstrap on a vector of LWE ciphertexts
 ///
 /// # Safety
@@ -776,6 +835,33 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
         } else {
             panic!("Unsupported torus size for bsk conversion")
         }
+    }
+}
+
+/// Convert a "halfhalf" (half-product plus half-rotate) programmable bootstrap key to the Fourier
+/// domain on the device
+///
+/// `src` holds the two sections of the key back to back; the device side conversion splits them
+/// into its two groups using `halfhalf_params`.
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn convert_lwe_programmable_bootstrap_key_128_halfhalf_async(
+    streams: &CudaStreams,
+    dest: &mut CudaVec<f64>,
+    src: &[u128],
+    halfhalf_params: CudaHalfhalfPbsParamsFFI,
+) {
+    for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
+        cuda_convert_lwe_programmable_bootstrap_key_128_halfhalf_async(
+            stream_ptr,
+            streams.gpu_indexes[i].get(),
+            dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
+            src.as_ptr().cast(),
+            halfhalf_params,
+        );
     }
 }
 

@@ -1593,6 +1593,17 @@ inline bool is_force_tbc_pbs128_requested() {
   return requested;
 }
 
+// Only the halfhalf dispatcher reads this: it stops latency-sized batches from
+// auto-selecting CG. The classical dispatcher runs DEFAULT unless a TBC flavor
+// is requested, so it has nothing to force.
+inline bool is_force_default_pbs128_requested() {
+  static const bool requested = []() {
+    const char *env = std::getenv("TFHE_RS_GPU_PBS128_FORCE_DEFAULT");
+    return env != nullptr && std::string(env) == "1";
+  }();
+  return requested;
+}
+
 template <typename InputTorus>
 uint64_t scratch_cuda_programmable_bootstrap_128_vector(
     void *stream, uint32_t gpu_index,

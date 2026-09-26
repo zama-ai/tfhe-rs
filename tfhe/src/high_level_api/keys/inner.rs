@@ -57,6 +57,14 @@ pub(crate) struct IntegerConfig {
     // Oprf uses the same parameters as the bootstrap key from the block_parameters
     pub(crate) dedicated_oprf_key: bool,
     pub(crate) transciphering_parameters: Option<TranscipheringParameters>,
+    /// GPU-specific: build the noise squashing key in the "halfhalf" (half-product plus
+    /// half-rotate) format instead of the Classic/MultiBit one.
+    ///
+    /// The GLWE parameters of the squashed ciphertexts still come from
+    /// [`Self::noise_squashing_parameters`]; only the shape of the bootstrap key changes. The
+    /// halfhalf key exists on the GPU only, so a CPU `ServerKey` or a `CompressedServerKey`
+    /// cannot be built from a configuration that sets this flag.
+    pub(crate) gpu_halfhalf_noise_squashing: bool,
 }
 
 impl IntegerConfig {
@@ -72,6 +80,7 @@ impl IntegerConfig {
             cpk_re_randomization_params: None,
             dedicated_oprf_key: true,
             transciphering_parameters: None,
+            gpu_halfhalf_noise_squashing: false,
         }
     }
 
@@ -84,6 +93,22 @@ impl IntegerConfig {
         noise_squashing_parameters: NoiseSquashingParameters,
     ) {
         self.noise_squashing_parameters = Some(noise_squashing_parameters);
+    }
+
+    #[cfg(feature = "gpu")]
+    pub(crate) fn enable_gpu_halfhalf_noise_squashing(&mut self) {
+        let noise_squashing_parameters = self
+            .noise_squashing_parameters
+            .expect("Noise squashing must be enabled first");
+
+        // Same check the key generation runs, so a configuration the halfhalf shape is not
+        // defined for fails here rather than at server key creation.
+        crate::integer::gpu::noise_squashing::noise_squashing_keys::halfhalf_classic_parameters(
+            self.block_parameters.lwe_dimension(),
+            noise_squashing_parameters,
+        );
+
+        self.gpu_halfhalf_noise_squashing = true;
     }
 
     pub(crate) fn enable_noise_squashing_compression(
@@ -186,6 +211,9 @@ pub(crate) struct IntegerClientKey {
     pub(crate) cpk_re_randomization_params: Option<ReRandomizationParameters>,
     pub(crate) dedicated_oprf_private_key: Option<OprfPrivateKey>,
     pub(crate) transciphering_private_key: Option<TranscipheringPrivateKey>,
+    /// Mirrors [`IntegerConfig::gpu_halfhalf_noise_squashing`]: the server keys are built from
+    /// the client key, so the choice of noise squashing key format has to travel with it.
+    pub(crate) gpu_halfhalf_noise_squashing: bool,
 }
 
 impl IntegerClientKey {
@@ -248,6 +276,7 @@ impl IntegerClientKey {
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
             transciphering_private_key,
+            gpu_halfhalf_noise_squashing: config.gpu_halfhalf_noise_squashing,
         }
     }
 
@@ -274,6 +303,9 @@ impl IntegerClientKey {
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
             transciphering_private_key,
+            // A configuration choice rather than key material, so it is not part of the raw
+            // parts; `from_raw_parts` rebuilds a key that targets the Classic/MultiBit format.
+            gpu_halfhalf_noise_squashing: _,
         } = self;
         (
             key,
@@ -333,6 +365,7 @@ impl IntegerClientKey {
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
             transciphering_private_key,
+            gpu_halfhalf_noise_squashing: false,
         }
     }
 
@@ -426,6 +459,7 @@ impl From<IntegerConfig> for IntegerClientKey {
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
             transciphering_private_key,
+            gpu_halfhalf_noise_squashing: config.gpu_halfhalf_noise_squashing,
         }
     }
 }
@@ -449,8 +483,22 @@ pub struct IntegerServerKey {
     pub(crate) transciphering_key: Option<TranscipheringServerKey>,
 }
 
+/// The halfhalf noise squashing key is generated straight into device memory by
+/// [`crate::CudaServerKey::new`]; it has neither a CPU nor a seeded (compressed) counterpart, so
+/// both of those key types refuse a client key configured for it instead of silently falling back
+/// to the Classic/MultiBit format.
+pub(crate) const HALFHALF_NOISE_SQUASHING_IS_GPU_ONLY: &str =
+    "this ClientKey was built with ConfigBuilder::enable_gpu_halfhalf_noise_squashing, whose \
+     noise squashing key only exists on the GPU. Build the server key with CudaServerKey::new, \
+     or remove that option to get a Classic/MultiBit noise squashing key.";
+
 impl IntegerServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
+        assert!(
+            !client_key.gpu_halfhalf_noise_squashing,
+            "Cannot build a CPU ServerKey: {HALFHALF_NOISE_SQUASHING_IS_GPU_ONLY}"
+        );
+
         let cks = &client_key.key;
 
         let (compression_key, decompression_key) = client_key.compression_key.as_ref().map_or_else(
@@ -706,6 +754,28 @@ pub struct IntegerCompressedServerKey {
 
 impl IntegerCompressedServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
+        assert!(
+            !client_key.gpu_halfhalf_noise_squashing,
+            "Cannot build a CompressedServerKey: {HALFHALF_NOISE_SQUASHING_IS_GPU_ONLY}"
+        );
+
+        Self::new_inner(client_key, true)
+    }
+
+    /// Everything a [`Self::new`] key holds except the noise squashing bootstrap key. The noise
+    /// squashing compression key, which does not depend on it, is still generated.
+    ///
+    /// GPU-specific: used to reach the GPU through the usual expand-then-upload path for a client
+    /// key whose noise squashing key is the halfhalf one, which has no seeded form and is
+    /// generated directly into device memory instead.
+    #[cfg(feature = "gpu")]
+    pub(in crate::high_level_api) fn new_without_noise_squashing_key(
+        client_key: &IntegerClientKey,
+    ) -> Self {
+        Self::new_inner(client_key, false)
+    }
+
+    fn new_inner(client_key: &IntegerClientKey, with_noise_squashing_key: bool) -> Self {
         let cks = &client_key.key;
 
         let key = crate::integer::CompressedServerKey::new_radix_compressed_server_key(cks);
@@ -741,8 +811,9 @@ impl IntegerCompressedServerKey {
             .noise_squashing_private_key
             .as_ref()
             .map_or((None, None), |noise_squashing_private_key| {
-                let noise_squashing_key =
-                    noise_squashing_private_key.new_compressed_noise_squashing_key(&client_key.key);
+                let noise_squashing_key = with_noise_squashing_key.then(|| {
+                    noise_squashing_private_key.new_compressed_noise_squashing_key(&client_key.key)
+                });
 
                 let noise_squashing_compression_key = client_key
                     .noise_squashing_compression_private_key
@@ -751,7 +822,7 @@ impl IntegerCompressedServerKey {
                         noise_squashing_private_key
                             .new_compressed_noise_squashing_compression_key(comp_private_key)
                     });
-                (Some(noise_squashing_key), noise_squashing_compression_key)
+                (noise_squashing_key, noise_squashing_compression_key)
             });
 
         let cpk_re_randomization_key = client_key

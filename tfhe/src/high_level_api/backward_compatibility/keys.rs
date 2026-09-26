@@ -15,7 +15,9 @@ use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, EncryptionKeyChoice, NoiseSquashingCompressionParameters,
     NoiseSquashingParameters, ReRandomizationParameters, ShortintKeySwitchingParameters,
+    TranscipheringParameters,
 };
+use crate::transciphering::TranscipheringPrivateKey;
 use crate::Tag;
 use std::convert::Infallible;
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
@@ -213,10 +215,10 @@ pub(crate) struct IntegerConfigV1 {
     pub(crate) dedicated_oprf_key: bool,
 }
 
-impl Upgrade<IntegerConfig> for IntegerConfigV1 {
+impl Upgrade<IntegerConfigV2> for IntegerConfigV1 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<IntegerConfig, Self::Error> {
+    fn upgrade(self) -> Result<IntegerConfigV2, Self::Error> {
         let Self {
             block_parameters,
             dedicated_compact_public_key_parameters,
@@ -226,7 +228,7 @@ impl Upgrade<IntegerConfig> for IntegerConfigV1 {
             cpk_re_randomization_params,
             dedicated_oprf_key,
         } = self;
-        Ok(IntegerConfig {
+        Ok(IntegerConfigV2 {
             block_parameters,
             dedicated_compact_public_key_parameters,
             compression_parameters,
@@ -239,12 +241,56 @@ impl Upgrade<IntegerConfig> for IntegerConfigV1 {
     }
 }
 
+#[derive(Version)]
+pub(crate) struct IntegerConfigV2 {
+    pub(crate) block_parameters: crate::shortint::atomic_pattern::AtomicPatternParameters,
+    pub(crate) dedicated_compact_public_key_parameters: Option<(
+        CompactPublicKeyEncryptionParameters,
+        ShortintKeySwitchingParameters,
+    )>,
+    pub(crate) compression_parameters: Option<CompressionParameters>,
+    pub(crate) noise_squashing_parameters: Option<NoiseSquashingParameters>,
+    pub(crate) noise_squashing_compression_parameters: Option<NoiseSquashingCompressionParameters>,
+    pub(crate) cpk_re_randomization_params: Option<ReRandomizationParameters>,
+    pub(crate) dedicated_oprf_key: bool,
+    pub(crate) transciphering_parameters: Option<TranscipheringParameters>,
+}
+
+impl Upgrade<IntegerConfig> for IntegerConfigV2 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerConfig, Self::Error> {
+        let Self {
+            block_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+            noise_squashing_compression_parameters,
+            cpk_re_randomization_params,
+            dedicated_oprf_key,
+            transciphering_parameters,
+        } = self;
+        Ok(IntegerConfig {
+            block_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+            noise_squashing_compression_parameters,
+            cpk_re_randomization_params,
+            dedicated_oprf_key,
+            transciphering_parameters,
+            gpu_halfhalf_noise_squashing: false,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 #[allow(unused)]
 pub(crate) enum IntegerConfigVersions {
     V0(IntegerConfigV0),
     V1(IntegerConfigV1),
-    V2(IntegerConfig),
+    V2(IntegerConfigV2),
+    V3(IntegerConfig),
 }
 
 impl Deprecable for IntegerClientKey {
@@ -475,7 +521,46 @@ pub(crate) struct IntegerClientKeyV8 {
     pub(crate) dedicated_oprf_private_key: Option<OprfPrivateKey>,
 }
 
-impl Upgrade<IntegerClientKey> for IntegerClientKeyV8 {
+impl Upgrade<IntegerClientKeyV9> for IntegerClientKeyV8 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerClientKeyV9, Self::Error> {
+        let Self {
+            key,
+            dedicated_compact_private_key,
+            compression_key,
+            noise_squashing_private_key,
+            noise_squashing_compression_private_key,
+            cpk_re_randomization_params,
+            dedicated_oprf_private_key,
+        } = self;
+
+        Ok(IntegerClientKeyV9 {
+            key,
+            dedicated_compact_private_key,
+            compression_key,
+            noise_squashing_private_key,
+            noise_squashing_compression_private_key,
+            cpk_re_randomization_params,
+            dedicated_oprf_private_key,
+            transciphering_private_key: None,
+        })
+    }
+}
+
+#[derive(Version)]
+pub(crate) struct IntegerClientKeyV9 {
+    pub(crate) key: crate::integer::ClientKey,
+    pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
+    pub(crate) compression_key: Option<CompressionPrivateKeys>,
+    pub(crate) noise_squashing_private_key: Option<NoiseSquashingPrivateKey>,
+    pub(crate) noise_squashing_compression_private_key: Option<NoiseSquashingCompressionPrivateKey>,
+    pub(crate) cpk_re_randomization_params: Option<ReRandomizationParameters>,
+    pub(crate) dedicated_oprf_private_key: Option<OprfPrivateKey>,
+    pub(crate) transciphering_private_key: Option<TranscipheringPrivateKey>,
+}
+
+impl Upgrade<IntegerClientKey> for IntegerClientKeyV9 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<IntegerClientKey, Self::Error> {
@@ -487,6 +572,7 @@ impl Upgrade<IntegerClientKey> for IntegerClientKeyV8 {
             noise_squashing_compression_private_key,
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
+            transciphering_private_key,
         } = self;
 
         Ok(IntegerClientKey {
@@ -497,7 +583,8 @@ impl Upgrade<IntegerClientKey> for IntegerClientKeyV8 {
             noise_squashing_compression_private_key,
             cpk_re_randomization_params,
             dedicated_oprf_private_key,
-            transciphering_private_key: None,
+            transciphering_private_key,
+            gpu_halfhalf_noise_squashing: false,
         })
     }
 }
@@ -514,7 +601,8 @@ pub(crate) enum IntegerClientKeyVersions {
     V6(IntegerClientKeyV6),
     V7(IntegerClientKeyV7),
     V8(IntegerClientKeyV8),
-    V9(IntegerClientKey),
+    V9(IntegerClientKeyV9),
+    V10(IntegerClientKey),
 }
 
 impl Deprecable for IntegerServerKey {

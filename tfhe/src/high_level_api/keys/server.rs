@@ -611,6 +611,91 @@ pub struct CudaServerKey {
 
 #[cfg(feature = "gpu")]
 impl CudaServerKey {
+    /// Generates a server key straight into GPU memory from a [`ClientKey`].
+    ///
+    /// Prefer [`CompressedServerKey::decompress_to_gpu`] when the key has to travel from a client
+    /// to a server. This constructor exists for the case that path cannot serve: a client key
+    /// built with [`crate::ConfigBuilder::enable_gpu_halfhalf_noise_squashing`], whose noise
+    /// squashing key has no seeded form and is generated on the device.
+    pub fn new(client_key: &ClientKey) -> Self {
+        Self::new_on_specific_gpu(client_key, crate::CudaGpuChoice::default())
+    }
+
+    /// Same as [`Self::new`], on the chosen GPUs.
+    pub fn new_on_specific_gpu(
+        client_key: &ClientKey,
+        gpu_choice: impl Into<crate::CudaGpuChoice>,
+    ) -> Self {
+        let mut keys = Self::new_on_each_gpu_choice(client_key, &[gpu_choice.into()]);
+        keys.pop().unwrap()
+    }
+
+    /// One server key per entry of `gpu_choices`, sharing the host side key material.
+    ///
+    /// The host side keys (the seeded compute keys and their expansion, and for a halfhalf
+    /// configuration the standard domain noise squashing bootstrap key, which is several
+    /// gigabytes) are built once and uploaded to each GPU in turn. Building one key per GPU with
+    /// [`Self::new_on_specific_gpu`] would regenerate all of that per GPU instead.
+    pub fn new_on_each_gpu_choice(
+        client_key: &ClientKey,
+        gpu_choices: &[crate::CudaGpuChoice],
+    ) -> Vec<Self> {
+        assert!(
+            !gpu_choices.is_empty(),
+            "at least one GPU is needed to build a CudaServerKey"
+        );
+
+        let integer_client_key = &client_key.key;
+        let halfhalf_noise_squashing = integer_client_key.gpu_halfhalf_noise_squashing;
+
+        let compressed_key = if halfhalf_noise_squashing {
+            IntegerCompressedServerKey::new_without_noise_squashing_key(integer_client_key)
+        } else {
+            IntegerCompressedServerKey::new(integer_client_key)
+        };
+        let expanded_key = compressed_key.expand();
+
+        let halfhalf_noise_squashing_key = halfhalf_noise_squashing.then(|| {
+            let noise_squashing_private_key = integer_client_key
+                .noise_squashing_private_key
+                .as_ref()
+                .expect("Halfhalf noise squashing requires noise squashing to be enabled");
+            let std_bsk =
+                crate::integer::gpu::noise_squashing::noise_squashing_keys::generate_halfhalf_noise_squashing_bootstrap_key(
+                    &integer_client_key.key,
+                    noise_squashing_private_key,
+                );
+            (std_bsk, noise_squashing_private_key)
+        });
+
+        gpu_choices
+            .iter()
+            .map(|gpu_choice| {
+                let streams = gpu_choice.clone().build_streams();
+                let mut key = expanded_key
+                    .convert_to_gpu(&streams)
+                    .expect("Unsupported configuration");
+
+                if let Some((std_bsk, noise_squashing_private_key)) = &halfhalf_noise_squashing_key
+                {
+                    key.noise_squashing_key = Some(
+                        crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey::from_halfhalf_bootstrap_key(
+                            std_bsk,
+                            noise_squashing_private_key,
+                            &streams,
+                        ),
+                    );
+                }
+
+                Self {
+                    key: Arc::new(key),
+                    tag: client_key.tag.clone(),
+                    streams,
+                }
+            })
+            .collect()
+    }
+
     pub(crate) fn message_modulus(&self) -> crate::shortint::MessageModulus {
         self.key.key.message_modulus
     }

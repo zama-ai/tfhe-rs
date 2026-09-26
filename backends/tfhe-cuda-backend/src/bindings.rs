@@ -117,6 +117,7 @@ unsafe extern "C" {
 }
 pub const PBS_TYPE_MULTI_BIT: PBS_TYPE = 0;
 pub const PBS_TYPE_CLASSICAL: PBS_TYPE = 1;
+pub const PBS_TYPE_HALFHALF: PBS_TYPE = 2;
 pub type PBS_TYPE = ffi::c_uint;
 pub const PBS_MS_REDUCTION_T_NO_REDUCTION: PBS_MS_REDUCTION_T = 0;
 pub const PBS_MS_REDUCTION_T_CENTERED: PBS_MS_REDUCTION_T = 1;
@@ -293,6 +294,287 @@ unsafe extern "C" {
         output: *mut ffi::c_void,
         base_log: u32,
         level_count: u32,
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaHalfhalfPbsParamsFFI {
+    pub input_lwe_dimension: u32,
+    pub glwe_dimension: u32,
+    pub polynomial_size: u32,
+    pub base_log_1_mask: u32,
+    pub level_count_1_mask: u32,
+    pub base_log_1_body: u32,
+    pub level_count_1_body: u32,
+    pub base_log_2_mask: u32,
+    pub level_count_2_mask: u32,
+    pub base_log_2_body: u32,
+    pub level_count_2_body: u32,
+    pub split_index: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaHalfhalfPbsParamsFFI"]
+        [::std::mem::size_of::<CudaHalfhalfPbsParamsFFI>() - 48usize];
+    ["Alignment of CudaHalfhalfPbsParamsFFI"]
+        [::std::mem::align_of::<CudaHalfhalfPbsParamsFFI>() - 4usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::input_lwe_dimension"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, input_lwe_dimension) - 0usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::glwe_dimension"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, glwe_dimension) - 4usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::polynomial_size"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, polynomial_size) - 8usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::base_log_1_mask"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, base_log_1_mask) - 12usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::level_count_1_mask"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, level_count_1_mask) - 16usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::base_log_1_body"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, base_log_1_body) - 20usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::level_count_1_body"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, level_count_1_body) - 24usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::base_log_2_mask"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, base_log_2_mask) - 28usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::level_count_2_mask"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, level_count_2_mask) - 32usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::base_log_2_body"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, base_log_2_body) - 36usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::level_count_2_body"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, level_count_2_body) - 40usize];
+    ["Offset of field: CudaHalfhalfPbsParamsFFI::split_index"]
+        [::std::mem::offset_of!(CudaHalfhalfPbsParamsFFI, split_index) - 44usize];
+};
+unsafe extern "C" {
+    pub fn cuda_fourier_polynomial_mul_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        input1: *const ffi::c_void,
+        input2: *const ffi::c_void,
+        output: *mut ffi::c_void,
+        polynomial_size: u32,
+        total_polynomials: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_fourier_polynomial_mul_fft16x4x16_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        input1: *const ffi::c_void,
+        input2: *const ffi::c_void,
+        output: *mut ffi::c_void,
+        polynomial_size: u32,
+        total_polynomials: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_forward_fft_classic_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        input: *const ffi::c_void,
+        output: *mut ffi::c_void,
+        polynomial_size: u32,
+        total_polynomials: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_forward_fft16x4x16_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        input: *const ffi::c_void,
+        output: *mut ffi::c_void,
+        polynomial_size: u32,
+        total_polynomials: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_backward_fft16x4x16_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        input: *const ffi::c_void,
+        output: *mut ffi::c_void,
+        polynomial_size: u32,
+        total_polynomials: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_fft16x4x16_is_supported_async(gpu_index: u32) -> bool;
+}
+unsafe extern "C" {
+    pub fn cuda_convert_lwe_programmable_bootstrap_key_32_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        dest: *mut ffi::c_void,
+        src: *const ffi::c_void,
+        input_lwe_dim: u32,
+        glwe_dim: u32,
+        level_count: u32,
+        polynomial_size: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_convert_lwe_programmable_bootstrap_key_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        dest: *mut ffi::c_void,
+        src: *const ffi::c_void,
+        input_lwe_dim: u32,
+        glwe_dim: u32,
+        level_count: u32,
+        polynomial_size: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_convert_lwe_programmable_bootstrap_key_128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        dest: *mut ffi::c_void,
+        src: *const ffi::c_void,
+        input_lwe_dim: u32,
+        glwe_dim: u32,
+        level_count: u32,
+        polynomial_size: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_programmable_bootstrap_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        level_count: u32,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_programmable_bootstrap_128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        level_count: u32,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lut_vector: *const ffi::c_void,
+        lut_vector_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        bootstrapping_key: *const ffi::c_void,
+        buffer: *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        num_many_lut: u32,
+        lut_stride: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_programmable_bootstrap_64_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_output_indexes: *const ffi::c_void,
+        lut_vector: *const ffi::c_void,
+        lut_vector_indexes: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        lwe_input_indexes: *const ffi::c_void,
+        bootstrapping_key: *const ffi::c_void,
+        buffer: *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+        num_many_lut: u32,
+        lut_stride: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_programmable_bootstrap_128_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lut_vector: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        bootstrapping_key: *const ffi::c_void,
+        buffer: *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+        num_samples: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_programmable_bootstrap_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_programmable_bootstrap_128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_convert_lwe_programmable_bootstrap_key_128_halfhalf_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        dest: *mut ffi::c_void,
+        src: *const ffi::c_void,
+        halfhalf_params: CudaHalfhalfPbsParamsFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_programmable_bootstrap_128_halfhalf_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
+        halfhalf_params: CudaHalfhalfPbsParamsFFI,
+        input_lwe_ciphertext_count: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_programmable_bootstrap_128_halfhalf_async(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lut_vector: *const ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        bootstrapping_key: *const ffi::c_void,
+        buffer: *mut i8,
+        halfhalf_params: CudaHalfhalfPbsParamsFFI,
+        num_samples: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_programmable_bootstrap_128_halfhalf(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        buffer: *mut *mut i8,
     );
 }
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_SHIFT: SHIFT_OR_ROTATE_TYPE = 0;
@@ -1359,6 +1641,22 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cleanup_cuda_apply_noise_squashing(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_apply_noise_squashing_halfhalf_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        halfhalf_params: CudaHalfhalfPbsParamsFFI,
+        input_glwe_dimension: u32,
+        input_polynomial_size: u32,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        num_radix_blocks: u32,
+        num_original_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
@@ -2984,200 +3282,6 @@ unsafe extern "C" {
         im1: *const ffi::c_void,
         N: u32,
         number_of_samples: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_fourier_polynomial_mul_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        input1: *const ffi::c_void,
-        input2: *const ffi::c_void,
-        output: *mut ffi::c_void,
-        polynomial_size: u32,
-        total_polynomials: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_fourier_polynomial_mul_fft16x4x16_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        input1: *const ffi::c_void,
-        input2: *const ffi::c_void,
-        output: *mut ffi::c_void,
-        polynomial_size: u32,
-        total_polynomials: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_forward_fft_classic_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        input: *const ffi::c_void,
-        output: *mut ffi::c_void,
-        polynomial_size: u32,
-        total_polynomials: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_forward_fft16x4x16_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        input: *const ffi::c_void,
-        output: *mut ffi::c_void,
-        polynomial_size: u32,
-        total_polynomials: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_backward_fft16x4x16_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        input: *const ffi::c_void,
-        output: *mut ffi::c_void,
-        polynomial_size: u32,
-        total_polynomials: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_fft16x4x16_is_supported_async(gpu_index: u32) -> bool;
-}
-unsafe extern "C" {
-    pub fn cuda_convert_lwe_programmable_bootstrap_key_32_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        dest: *mut ffi::c_void,
-        src: *const ffi::c_void,
-        input_lwe_dim: u32,
-        glwe_dim: u32,
-        level_count: u32,
-        polynomial_size: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_convert_lwe_programmable_bootstrap_key_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        dest: *mut ffi::c_void,
-        src: *const ffi::c_void,
-        input_lwe_dim: u32,
-        glwe_dim: u32,
-        level_count: u32,
-        polynomial_size: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_convert_lwe_programmable_bootstrap_key_128_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        dest: *mut ffi::c_void,
-        src: *const ffi::c_void,
-        input_lwe_dim: u32,
-        glwe_dim: u32,
-        level_count: u32,
-        polynomial_size: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_programmable_bootstrap_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        buffer: *mut *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
-        input_lwe_ciphertext_count: u32,
-        allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_programmable_bootstrap_128_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        buffer: *mut *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
-        input_lwe_ciphertext_count: u32,
-        allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_output_indexes: *const ffi::c_void,
-        lut_vector: *const ffi::c_void,
-        lut_vector_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_input_indexes: *const ffi::c_void,
-        bootstrapping_key: *const ffi::c_void,
-        buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        base_log: u32,
-        level_count: u32,
-        num_samples: u32,
-        num_many_lut: u32,
-        lut_stride: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_programmable_bootstrap_64_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lwe_output_indexes: *const ffi::c_void,
-        lut_vector: *const ffi::c_void,
-        lut_vector_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        lwe_input_indexes: *const ffi::c_void,
-        bootstrapping_key: *const ffi::c_void,
-        buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        base_log: u32,
-        level_count: u32,
-        num_samples: u32,
-        num_many_lut: u32,
-        lut_stride: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_programmable_bootstrap_128_async(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        lwe_array_out: *mut ffi::c_void,
-        lut_vector: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
-        bootstrapping_key: *const ffi::c_void,
-        buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        base_log: u32,
-        level_count: u32,
-        num_samples: u32,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_programmable_bootstrap_64(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        buffer: *mut *mut i8,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_programmable_bootstrap_128(
-        stream: *mut ffi::c_void,
-        gpu_index: u32,
-        buffer: *mut *mut i8,
     );
 }
 unsafe extern "C" {
