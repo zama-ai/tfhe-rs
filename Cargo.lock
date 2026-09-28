@@ -1412,6 +1412,7 @@ name = "fuzz-utils"
 version = "0.1.0"
 dependencies = [
  "afl",
+ "bincode",
  "tfhe",
 ]
 
@@ -1526,6 +1527,14 @@ dependencies = [
 
 [[package]]
 name = "harness-compute"
+version = "0.1.0"
+dependencies = [
+ "fuzz-utils",
+ "tfhe",
+]
+
+[[package]]
+name = "harness-cuda-compute"
 version = "0.1.0"
 dependencies = [
  "fuzz-utils",

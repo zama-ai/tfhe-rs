@@ -1,0 +1,154 @@
+# Weekly AFL++ GPU fuzzing campaign for harness-cuda-compute.
+# Runs on the internal mirror only, the public repo skips every job.
+name: gpu-fuzzing
+
+env:
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration-seconds:
+        # Fuzzing time only, not total wall-time.
+        description: 'Campaign duration in seconds'
+        default: '1200' # 20 min
+        required: false
+  schedule:
+    # Saturday 05:00 UTC (day after the CPU campaign).
+    - cron: '0 5 * * 6'
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow_ref }}
+  # Don't kill a running campaign when a new one is queued.
+  cancel-in-progress: false
+
+jobs:
+  setup-instance:
+    name: gpu-fuzzing/setup-instance
+    # Skip on the public repo so fuzz logs are not exposed publicly.
+    if: github.repository != 'zama-ai/tfhe-rs'
+    runs-on: ubuntu-latest
+    outputs:
+      runner-name: ${{ steps.start-instance.outputs.label }}
+    steps:
+      - name: Start instance
+        id: start-instance
+        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: terraform
+          profile: scaleway-1-l40-tests
+
+  fuzz:
+    name: gpu-fuzzing/run-campaign
+    needs: setup-instance
+    if: needs.setup-instance.result == 'success'
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    # 2h: covers a 20min campaign + CUDA build (~90m) + pre/post with headroom.
+    timeout-minutes: 120
+    env:
+      FUZZ_DURATION_SECONDS: ${{ inputs['duration-seconds'] }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Install cargo-afl
+        run: make install_cargo_afl
+
+      - name: Configure AFL kernel settings
+        run: make fuzz_system_config
+
+      - name: Build GPU harness and seed GPU corpus
+        run: make fuzz_gpu_precampaign
+
+      - name: Run GPU campaign
+        run: make fuzz_gpu_run
+
+      - name: Save GPU crashes
+        if: always()
+        run: |
+          crash_src=utils/fuzz/sync_dir/cuda_compute_m/crashes
+          crash_dst=utils/fuzz/stored_crashes
+          mkdir -p "$crash_dst"
+          if compgen -G "${crash_src}/id:*" > /dev/null 2>&1; then
+            cp "${crash_src}"/id:* "$crash_dst"/
+          fi
+
+      - name: Generate GPU summary
+        if: always()
+        run: |
+          stats=utils/fuzz/sync_dir/cuda_compute_m/fuzzer_stats
+          n_crashes=$(find utils/fuzz/stored_crashes/ -name "id:*" 2>/dev/null | wc -l | tr -d ' ')
+          execs=unknown
+          run_time=unknown
+          if [[ -f "$stats" ]]; then
+            execs=$(awk -F': *' '/^execs_done/{print $2}' "$stats")
+            run_time=$(awk -F': *' '/^run_time/{print $2}' "$stats")
+          fi
+          printf '*%s crashes* | harness: harness-cuda-compute | execs: %s | run_time: %ss\n' \
+            "$n_crashes" "$execs" "$run_time" > utils/fuzz/summary.md
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gpu-fuzz-results-${{ github.run_id }}
+          path: |
+            utils/fuzz/stored_crashes/
+            utils/fuzz/aux_data/
+            utils/fuzz/corpus/gpu_input.bin
+            utils/fuzz/summary.md
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Build Slack message
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./ci/build_fuzz_slack_message.sh
+
+      - name: Slack notification
+        # Report after every campaign.
+        if: always()
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
+
+  teardown-instance:
+    name: gpu-fuzzing/teardown-instance
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
+    needs: [setup-instance, fuzz]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop instance
+        id: stop-instance
+        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack notification
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "gpu-fuzzing teardown finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
