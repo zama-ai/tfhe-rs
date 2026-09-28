@@ -12,8 +12,11 @@
 use super::tests_cases_unsigned::FunctionExecutor;
 use super::tests_unsigned::{blocks_not_clean_or_trivial, MAX_NB_CTXT};
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::tests::int::Int;
 use crate::integer::tests::uint::Uint;
-use crate::integer::{BooleanBlock, ClientKey, IntegerKeyKind, RadixCiphertext, ServerKey};
+use crate::integer::{
+    BooleanBlock, ClientKey, IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext,
+};
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::parameters::*;
 use crate::shortint::Ciphertext;
@@ -67,8 +70,8 @@ pub(crate) struct TestContext {
     params: TestParameters,
     /// Used for encrypting and decrypting every ciphertext flowing through the tests
     cks: ClientKey,
-    /// The CPU server key. The harness prepares inputs with it (carries, noise) and CPU
-    /// executors run with it (see [`Self::server_key`]); GPU executors bring their own key.
+    /// The CPU server key.
+    /// The harness prepares inputs with it (carries, noise) and CPU executors run with it
     cpu_sks: Arc<ServerKey>,
     seed: u128,
 }
@@ -605,20 +608,30 @@ fn saturate_noise(
 /// Brings every block to the maximum degree, without adding noise
 ///
 /// Returns the clear the radix encrypts after the modifications done
+/// Brings every block to the maximum degree by adding clear amounts to it.
+///
+/// Returns the total amount added to the radix value on a u128,
+/// thus the `blocks` cannot exceed 128 bits of precision.
 fn saturate_degree(
     cks: &crate::shortint::ClientKey,
     sks: &crate::shortint::ServerKey,
-    clear: Uint,
     blocks: &mut [Ciphertext],
-) -> Uint {
+) -> u128 {
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
+    assert!(
+        blocks.len() as u32 * bits_per_block <= MAX_RADIX_BITS,
+        "{} blocks of {bits_per_block} bits exceed the {MAX_RADIX_BITS} bits of the clear models",
+        blocks.len()
+    );
+
     let max_degree = MaxDegree::from_msg_carry_modulus(
         cks.parameters().message_modulus(),
         cks.parameters().carry_modulus(),
     )
     .get();
 
-    let mut current_clear = clear;
     let msg_mod = u128::from(cks.parameters().message_modulus().0);
+    let mut added = 0u128;
     for (i, block) in blocks.iter_mut().enumerate() {
         let amount = max_degree
             .checked_sub(block.degree.get())
@@ -628,14 +641,11 @@ fn saturate_degree(
         sks.unchecked_scalar_add_assign(block, amount_u8);
         assert_eq!(block.degree.get(), max_degree);
 
-        let added = Uint::new(
-            u128::from(amount).wrapping_mul(msg_mod.checked_pow(i as u32).unwrap()),
-            current_clear.bits(),
-        );
-        current_clear = current_clear.wrapping_add(added);
+        added = added
+            .wrapping_add(u128::from(amount).wrapping_mul(msg_mod.checked_pow(i as u32).unwrap()));
     }
 
-    current_clear
+    added
 }
 
 impl TestClearInput for Uint {
@@ -644,6 +654,14 @@ impl TestClearInput for Uint {
     fn generate_random(rng: &mut dyn RngCore, n_blocks: u32, ctx: &TestContext) -> Self {
         // The Uint stores the number of bits, this is what the radix will use to create
         // its proper size
+        Self::random(ctx.radix_bits(n_blocks))(rng)
+    }
+}
+
+impl TestClearInput for Int {
+    type Input = SignedRadixCiphertext;
+
+    fn generate_random(rng: &mut dyn RngCore, n_blocks: u32, ctx: &TestContext) -> Self {
         Self::random(ctx.radix_bits(n_blocks))(rng)
     }
 }
@@ -672,8 +690,8 @@ impl TestInput for RadixCiphertext {
             }
             RadixState::Saturated => {
                 saturate_noise(&ctx.cks.key, &ctx.cpu_sks.key, &mut encrypted.blocks);
-                clear =
-                    saturate_degree(&ctx.cks.key, &ctx.cpu_sks.key, clear, &mut encrypted.blocks);
+                let added = saturate_degree(&ctx.cks.key, &ctx.cpu_sks.key, &mut encrypted.blocks);
+                clear = clear.wrapping_add(Uint::new(added, clear.bits()));
                 let dec: u128 = ctx.cks.decrypt_radix(&encrypted);
                 assert_eq!(
                     dec,
@@ -691,32 +709,228 @@ impl TestInput for RadixCiphertext {
     }
 }
 
+impl TestInput for SignedRadixCiphertext {
+    type Clear = Int;
+
+    type Ref<'a>
+        = &'a Self
+    where
+        Self: 'a;
+
+    type State = RadixState;
+
+    fn prepare(
+        mut clear: Self::Clear,
+        state: Self::State,
+        _rng: &mut dyn RngCore,
+        ctx: &TestContext,
+    ) -> (Self, Self::Clear) {
+        let n_blocks = ctx.num_blocks_for_bits(clear.bits()) as usize;
+        let mut encrypted = ctx.cks.encrypt_signed_radix(clear.value(), n_blocks);
+
+        match state {
+            RadixState::Clean => {}
+            RadixState::FullNoise => {
+                saturate_noise(&ctx.cks.key, &ctx.cpu_sks.key, &mut encrypted.blocks);
+                assert!(encrypted.block_carries_are_empty());
+            }
+            RadixState::Saturated => {
+                saturate_noise(&ctx.cks.key, &ctx.cpu_sks.key, &mut encrypted.blocks);
+                let added = saturate_degree(&ctx.cks.key, &ctx.cpu_sks.key, &mut encrypted.blocks);
+                // The amount wraps at the radix width like the encrypted value does
+                clear = clear.wrapping_add(Int::new(added as i128, clear.bits()));
+                let dec: i128 = ctx.cks.decrypt_signed_radix(&encrypted);
+                assert_eq!(
+                    dec,
+                    clear.value(),
+                    "Test setup failed: radix and clear no longer in sync"
+                );
+            }
+        }
+
+        (encrypted, clear)
+    }
+
+    fn as_ref(&self) -> Self::Ref<'_> {
+        self
+    }
+}
+
+/// Clear model of a radix ciphertext, [`Uint`] or [`Int`], as the scalar machinery sees it.
+pub(crate) trait ClearInteger:
+    Copy + Eq + std::fmt::Debug + std::fmt::Display + 'static
+{
+    /// The value reduced to `bits` bits.
+    fn cast(self, bits: u32) -> Self;
+
+    /// Zero, one and the bounds of a radix of `bits` bits.
+    fn radix_edges(bits: u32) -> Vec<Self>;
+
+    /// Scalars of `type_bits` bits worth testing against a radix of `radix_bits` bits: zero,
+    /// one, the radix bounds, just past them, and the type bounds.
+    ///
+    /// "Just past" includes values with every radix bit set plus a single excess bit.
+    /// Implementations decompose the scalar in blocks, and an excess confined to the block
+    /// holding the radix's top bits, combined with a non zero in-range part, is a known blind
+    /// spot that `radix_max + 1` alone does not exercise.
+    fn scalar_edges(radix_bits: u32, type_bits: u32) -> Vec<Self>;
+
+    /// Random scalar of `type_bits` bits: half of the draws fit in a radix of `radix_bits`
+    /// bits, the other half exceed it (when the type allows).
+    ///
+    /// To pick values out of the radix range, 2 steps are involved:
+    /// 1) Randomly pick a bit length in `radix_bits + 1..=type_bits`
+    /// 2) Pick a random value needing exactly that many bits
+    ///
+    /// This is done this way to augment the chances of picking values that are "just" past
+    /// the radix range, and not always values way beyond it.
+    fn random_scalar(rng: &mut dyn RngCore, radix_bits: u32, type_bits: u32) -> Self;
+}
+
+impl ClearInteger for Uint {
+    fn cast(self, bits: u32) -> Self {
+        self.cast(bits)
+    }
+
+    fn radix_edges(bits: u32) -> Vec<Self> {
+        let mut edges = vec![Self::zero(bits), Self::one(bits), Self::max(bits)];
+        edges.dedup();
+        edges
+    }
+
+    fn scalar_edges(radix_bits: u32, type_bits: u32) -> Vec<Self> {
+        let type_max = Self::max(type_bits).value();
+        let radix_max = Self::max(radix_bits).value();
+        let mut values = vec![0, 1, radix_max, type_max];
+        if radix_max < type_max {
+            // radix_bits < type_bits, so the largest of these, 2^(radix_bits + 1) - 1, fits
+            // in the type and in u128
+            values.extend([radix_max + 1, radix_max + 2, 2 * radix_max + 1]);
+        }
+        values.sort_unstable();
+        values.dedup();
+        values
+            .into_iter()
+            .map(|value| Self::new(value, type_bits))
+            .collect()
+    }
+
+    fn random_scalar(rng: &mut dyn RngCore, radix_bits: u32, type_bits: u32) -> Self {
+        let radix_bits = radix_bits.min(type_bits);
+        let value = if radix_bits < type_bits && rng.gen_bool(0.5) {
+            let bit_length = rng.gen_range(radix_bits + 1..=type_bits);
+            rng.gen_range(1u128 << (bit_length - 1)..=Self::max(bit_length).value())
+        } else {
+            rng.gen_range(0..=Self::max(radix_bits).value())
+        };
+        Self::new(value, type_bits)
+    }
+}
+
+impl ClearInteger for Int {
+    fn cast(self, bits: u32) -> Self {
+        self.cast(bits)
+    }
+
+    fn radix_edges(bits: u32) -> Vec<Self> {
+        let mut edges = vec![
+            Self::min(bits),
+            Self::new(-1, bits),
+            Self::zero(bits),
+            Self::one(bits),
+            Self::max(bits),
+        ];
+        edges.dedup();
+        edges
+    }
+
+    fn scalar_edges(radix_bits: u32, type_bits: u32) -> Vec<Self> {
+        let type_range = Self::value_range(type_bits);
+        let radix_min = Self::min(radix_bits).value();
+        let radix_max = Self::max(radix_bits).value();
+        let mut values = vec![
+            0,
+            1,
+            -1,
+            radix_min,
+            radix_max,
+            *type_range.start(),
+            *type_range.end(),
+        ];
+        if radix_bits < type_bits {
+            let candidates = [
+                radix_max.checked_add(1),
+                radix_max.checked_add(2),
+                radix_min.checked_sub(1),
+                radix_min.checked_sub(2),
+                // Every radix bit set plus a single excess bit: 2^radix_bits - 1 and its
+                // negative counterpart -2^radix_bits - 1, then 2^(radix_bits + 1) - 1
+                Some(Self::max(radix_bits + 1).value()),
+                Self::min(radix_bits + 1).value().checked_sub(1),
+                (radix_bits + 2 <= MAX_RADIX_BITS).then(|| Self::max(radix_bits + 2).value()),
+            ];
+            values.extend(
+                candidates
+                    .into_iter()
+                    .flatten()
+                    .filter(|value| type_range.contains(value)),
+            );
+        }
+        values.sort_unstable();
+        values.dedup();
+        values
+            .into_iter()
+            .map(|value| Self::new(value, type_bits))
+            .collect()
+    }
+
+    fn random_scalar(rng: &mut dyn RngCore, radix_bits: u32, type_bits: u32) -> Self {
+        let radix_bits = radix_bits.min(type_bits);
+        let value = if radix_bits < type_bits && rng.gen_bool(0.5) {
+            // A value needing exactly `bit_length` bits is in the range of `bit_length` bits
+            // but out of the range of `bit_length - 1` bits, on either side of it
+            let bit_length = rng.gen_range(radix_bits + 1..=type_bits);
+            let inner = Self::value_range(bit_length - 1);
+            let outer = Self::value_range(bit_length);
+            if rng.gen_bool(0.5) {
+                rng.gen_range(inner.end() + 1..=*outer.end())
+            } else {
+                rng.gen_range(*outer.start()..=inner.start() - 1)
+            }
+        } else {
+            rng.gen_range(Self::value_range(radix_bits))
+        };
+        Self::new(value, type_bits)
+    }
+}
+
 /// Rust scalar types accepted by the `scalar_*` operations, as seen by the harness.
 pub(crate) trait ScalarType: Copy + std::fmt::Debug + 'static {
     const BITS: u32;
-    /// `Self::MAX` as a `u128`, the type the clear model stores values in.
-    const MAX: u128;
-    fn from_u128(value: u128) -> Self;
+    /// The clear model matching the type's signedness.
+    type Clear: ClearInteger;
+    fn from_clear(value: Self::Clear) -> Self;
 }
 
 macro_rules! impl_scalar_type {
-    ($($ty:ty),+) => {
+    ($clear:ty: $($ty:ty),+) => {
         $(
             impl ScalarType for $ty {
                 const BITS: u32 = <$ty>::BITS;
-                const MAX: u128 = <$ty>::MAX as u128;
+                type Clear = $clear;
 
-                fn from_u128(value: u128) -> Self {
-                    value as $ty
+                fn from_clear(value: $clear) -> Self {
+                    value.value() as $ty
                 }
             }
         )+
     };
 }
 
-impl_scalar_type!(u8, u16, u32, u64, u128);
+impl_scalar_type!(Uint: u8, u16, u32, u64, u128);
+impl_scalar_type!(Int: i8, i16, i32, i64, i128);
 
-/// Wraps a Uint to use T::BITS bits of precision
+/// Wraps a clear model to use `T::BITS` bits of precision
 ///
 /// The purpose of this is that in radix scalar operations, the scalar is on some type
 /// `T` which can allow to represent values bigger that what the radix type used in the same
@@ -728,106 +942,76 @@ impl_scalar_type!(u8, u16, u32, u64, u128);
 ///
 /// So in the tests harness, to allow representing these cases we use this wrapper.
 /// e.g using `TestScalar<u64>` when building a test for a scalar test, means the value of the
-/// random scalar used will be in the range of a u64 (but stored on a Uint)
+/// random scalar used will be in the range of a u64 (but stored on a [`Uint`]); with
+/// `TestScalar<i64>` it is stored on an [`Int`].
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub(crate) struct TestScalar<T> {
-    value: Uint,
+pub(crate) struct TestScalar<T: ScalarType> {
+    value: T::Clear,
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<T> std::fmt::Debug for TestScalar<T> {
+impl<T: ScalarType> std::fmt::Debug for TestScalar<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "TestScalar<{}>({})",
             std::any::type_name::<T>(),
-            self.value.value()
+            self.value
         )
     }
 }
 
 impl<T: ScalarType> TestScalar<T> {
-    pub(crate) fn new(value: u128) -> Self {
+    pub(crate) fn new(value: T::Clear) -> Self {
         Self {
-            value: Uint::new(value, T::BITS),
+            value: value.cast(T::BITS),
             _marker: std::marker::PhantomData,
         }
     }
 
-    /// The scalar as a `Uint` of `T::BITS` bits, for operations working at full precision
+    /// The scalar as a clear of `T::BITS` bits, for operations working at full precision
     /// (comparisons).
-    pub(crate) fn uint(self) -> Uint {
+    pub(crate) fn clear(self) -> T::Clear {
         self.value
     }
 
     /// The scalar reduced to `bits` bits, i.e. what operations that truncate the scalar to
     /// the radix width see.
-    pub(crate) fn cast(self, bits: u32) -> Uint {
+    pub(crate) fn cast(self, bits: u32) -> T::Clear {
         self.value.cast(bits)
     }
 
     fn to_scalar(self) -> T {
-        T::from_u128(self.value.value())
+        T::from_clear(self.value)
     }
 }
 
 /// Fixed cases for an operation between a radix of `radix_bits` bits and a scalar of type
-/// `T`: the radix bounds (zero, one, max) against the scalar edge values (see
-/// [`scalar_edge_values`]).
+/// `T`: the radix edges against the scalar edge values (see [`ClearInteger`]).
 pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(
     radix_bits: u32,
-) -> Vec<(Uint, TestScalar<T>)> {
-    let radix_edges = [
-        Uint::zero(radix_bits),
-        Uint::one(radix_bits),
-        Uint::max(radix_bits),
-    ];
-    let scalar_edges = scalar_edge_values::<T>(radix_bits);
-    iproduct!(radix_edges, scalar_edges).collect()
-}
-
-/// TestScalar values worth testing against a radix of `radix_bits` bits: zero, one, the radix
-/// bounds, just past them, and the type maximum.
-///
-/// "Just past" includes `2 * radix_max + 1`: every radix bit set plus a single excess bit.
-/// Implementations decompose the scalar in blocks, and an excess confined to the block
-/// holding the radix's top bits, combined with a non zero in-range part, is a known blind
-/// spot that `radix_max + 1` alone does not exercise.
-fn scalar_edge_values<T: ScalarType>(radix_bits: u32) -> Vec<TestScalar<T>> {
-    let type_max = T::MAX;
-    let radix_max = Uint::max(radix_bits).value();
-    let mut values = vec![0, 1, radix_max, type_max];
-    if radix_max < type_max {
-        // radix_bits < T::BITS, so the largest of these, 2^(radix_bits + 1) - 1, fits in the
-        // type and in u128
-        values.extend([radix_max + 1, radix_max + 2, 2 * radix_max + 1]);
-    }
-    values.sort_unstable();
-    values.dedup();
-    values.into_iter().map(TestScalar::new).collect()
+) -> Vec<(T::Clear, TestScalar<T>)> {
+    let scalar_edges: Vec<TestScalar<T>> =
+        <T::Clear as ClearInteger>::scalar_edges(radix_bits, T::BITS)
+            .into_iter()
+            .map(TestScalar::new)
+            .collect();
+    iproduct!(
+        <T::Clear as ClearInteger>::radix_edges(radix_bits),
+        scalar_edges
+    )
+    .collect()
 }
 
 impl<T: ScalarType> TestClearInput for TestScalar<T> {
     type Input = T;
 
-    /// Half of the draws fit in the radix, the other half exceed it (when the type allows).
-    ///
-    /// To pick values out of the normal range, 2 steps are involved:
-    /// 1) Randomly pick a bit length in `radix_bits + 1..=T::BITS` (so a bit length greater than
-    ///    the normal bit length)
-    /// 2) Pick a random value that is within the [min, max] corresponding to the bit length
-    ///
-    /// This is done this way to augment the chances of picking values that are
-    /// "just" past the radix size, and not always pick values way beyond the radix range.
     fn generate_random(rng: &mut dyn RngCore, n_blocks: u32, ctx: &TestContext) -> Self {
-        let radix_bits = ctx.radix_bits(n_blocks).min(T::BITS);
-        let value = if radix_bits < T::BITS && rng.gen_bool(0.5) {
-            let bit_length = rng.gen_range(radix_bits + 1..=T::BITS);
-            rng.gen_range(1u128 << (bit_length - 1)..=Uint::max(bit_length).value())
-        } else {
-            rng.gen_range(0..=Uint::max(radix_bits).value())
-        };
-        Self::new(value)
+        Self::new(<T::Clear as ClearInteger>::random_scalar(
+            rng,
+            ctx.radix_bits(n_blocks),
+            T::BITS,
+        ))
     }
 }
 
@@ -859,7 +1043,7 @@ macro_rules! impl_test_input_for_scalar {
     };
 }
 
-impl_test_input_for_scalar!(u8, u16, u32, u64, u128);
+impl_test_input_for_scalar!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
 
 /// Implements the [`TestInput`] trait for tuples, this is how we handle
 /// different arity (unary, binary)
@@ -933,6 +1117,29 @@ impl TestOutput for RadixCiphertext {
         }
 
         let decrypted: u128 = ctx.cks.decrypt_radix(self);
+        if decrypted != expected.value() {
+            failures.value_mismatch(expected.value(), decrypted);
+        }
+
+        for (block, reason) in blocks_not_clean_or_trivial(self, &ctx.cks) {
+            failures.push(FailureKind::NotClean { block, reason });
+        }
+    }
+}
+
+impl TestOutput for SignedRadixCiphertext {
+    type Clear = Int;
+
+    fn validate(&self, expected: Self::Clear, ctx: &TestContext, failures: &mut FailureSink) {
+        let expected_n_blocks = ctx.num_blocks_for_bits(expected.bits());
+        if self.blocks.len() as u32 != expected_n_blocks {
+            failures.push(FailureKind::BlockCountMismatch {
+                expected: expected_n_blocks,
+                got: self.blocks.len() as u32,
+            });
+        }
+
+        let decrypted: i128 = ctx.cks.decrypt_signed_radix(self);
         if decrypted != expected.value() {
             failures.value_mismatch(expected.value(), decrypted);
         }
