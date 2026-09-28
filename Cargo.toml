@@ -20,6 +20,7 @@ members = [
     "utils/fuzz/fuzz-stats",
     "utils/fuzz/fuzz-utils",
     "utils/fuzz/harness-compute",
+    "utils/fuzz/harness-cuda-compute",
     "utils/fuzz/harness-deser",
     "utils/fuzz/harness-verify",
     "utils/param_dedup",

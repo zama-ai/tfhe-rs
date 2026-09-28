@@ -6,12 +6,13 @@
 # findings between harnesses automatically.
 #
 # Usage:
-#   ./run.sh                          # defaults: auto-size to nproc, 4h
+#   ./run.sh                          # defaults: auto-size to nproc, 24h
+#   ./run.sh --gpu                    # single GPU harness (cuda_compute_m)
 #   ./run.sh --duration-seconds 3600  # 1-hour run
 #   ./run.sh --deser-secondary 5      # force the number of secondaries for harness-deser
 #   ./run.sh --total-cores 16         # simulate a 16-core machine
 #
-# Sizing model:
+# Sizing model (CPU only):
 #   3 masters (one per harness), nproc-3 secondaries split by harness weight.
 #   Default ratio deser:verify:compute = 1:3:8 reflects the per-exec cost of each
 #   harness (compute is slowest and gets the largest share). This ratio can be improved
@@ -41,12 +42,16 @@ COMPUTE_WEIGHT=8
 DESER_SECONDARY=""
 VERIFY_SECONDARY=""
 COMPUTE_SECONDARY=""
+GPU=0
 
 # ── Parse arguments ────────────────────────────────────────────────────────
 usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Sizing options:"
+    echo "Mode:"
+    echo "  --gpu                    GPU campaign: single cuda_compute_m harness"
+    echo ""
+    echo "Sizing options (CPU mode only):"
     echo "  --total-cores N          Override auto-detected core count (default: nproc)"
     echo "  --deser-weight N         Weight for deser secondaries (default: 1)"
     echo "  --verify-weight N        Weight for verify secondaries (default: 3)"
@@ -59,12 +64,13 @@ usage() {
     echo "  --corpus-dir DIR         Initial corpus directory (default: $SCRIPT_DIR/corpus)"
     echo "  --sync-dir DIR           AFL sync/output directory (default: $SCRIPT_DIR/sync_dir)"
     echo "  --duration-seconds N     Campaign duration in seconds (default: $DURATION_SECONDS)"
-    echo "  --logs MODE              Per-instance logs: all|masters|none (default: $LOG_MODE)"
+    echo "  --logs MODE              Per-instance logs: all|masters|none (default: $LOG_MODE) [CPU only]"
     echo "                           'all' costs ~8 G/h of AFL status text at 192 instances"
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --gpu)               GPU=1; shift ;;
         --corpus-dir)        CORPUS_DIR="$2"; shift 2 ;;
         --sync-dir)          SYNC_DIR="$2"; shift 2 ;;
         --duration-seconds)  DURATION_SECONDS="$2"; shift 2 ;;
@@ -80,6 +86,44 @@ while [[ $# -gt 0 ]]; do
         *)                   echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
     esac
 done
+
+TARGET_DIR="$(cargo metadata --format-version=1 --no-deps --manifest-path "$REPO_ROOT/Cargo.toml" \
+    | python3 -c 'import sys, json; print(json.load(sys.stdin)["target_directory"])')"
+
+# ── GPU path ───────────────────────────────────────────────────────────────
+if (( GPU )); then
+    CUDA_BIN="$TARGET_DIR/release/harness-cuda-compute"
+
+    if [[ ! -x "$CUDA_BIN" ]]; then
+        echo "ERROR: $CUDA_BIN not found. Run: cd utils/fuzz && ./build.sh --gpu" >&2
+        exit 1
+    fi
+
+    if [[ ! -d "$CORPUS_DIR" ]] || [[ -z "$(ls -A "$CORPUS_DIR" 2>/dev/null)" ]]; then
+        echo "ERROR: Corpus directory '$CORPUS_DIR' is missing or empty." >&2
+        echo "       Run: make fuzz_gpu_precampaign" >&2
+        exit 1
+    fi
+
+    mkdir -p "$SYNC_DIR"
+
+    echo "==> Launching GPU campaign: cuda-compute_m (duration: ${DURATION_SECONDS}s)"
+    echo "    sync_dir: $SYNC_DIR"
+    echo ""
+
+    export AFL_NO_UI=1
+    export AFL_SKIP_CPUFREQ=1
+    export RAYON_NUM_THREADS=1
+
+    exec cargo afl fuzz -M cuda-compute_m \
+        -t 100000 \
+        -V "$DURATION_SECONDS" \
+        -i "$CORPUS_DIR" \
+        -o "$SYNC_DIR" \
+        "$CUDA_BIN"
+fi
+
+# ── CPU path ───────────────────────────────────────────────────────────────
 
 # ── Derive per-harness instance counts from cores + weights ────────────────
 [[ -z "$TOTAL_CORES" ]] && TOTAL_CORES="$(nproc)"
@@ -108,8 +152,6 @@ VERIFY_SECONDARY="${VERIFY_SECONDARY:-$default_verify}"
 COMPUTE_SECONDARY="${COMPUTE_SECONDARY:-$default_compute}"
 
 # ── Validate ───────────────────────────────────────────────────────────────
-TARGET_DIR="$(cargo metadata --format-version=1 --no-deps --manifest-path "$REPO_ROOT/Cargo.toml" \
-    | python3 -c 'import sys, json; print(json.load(sys.stdin)["target_directory"])')"
 DESER_BIN="$TARGET_DIR/release/harness-deser"
 VERIFY_BIN="$TARGET_DIR/release/harness-verify"
 COMPUTE_BIN="$TARGET_DIR/release/harness-compute"
