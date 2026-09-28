@@ -171,11 +171,11 @@ Here is an example of how to call the re-randomized PRF in the same setting:
 
 ```rust
 use std::num::NonZeroU64;
-use tfhe::prelude::{FheDecrypt, FheTryEncrypt};
+use tfhe::prelude::FheDecrypt;
 use tfhe::shortint::parameters::v1_9::meta::cpu::V1_9_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
 use tfhe::{
-    generate_keys, re_randomized_keys_bitonic_shuffle, set_server_key, BitonicShuffleKeySize,
-    FheInt8, FheUint8, PrfReRandomizationContext, RangeForRandom, ReRandomizationMode, Seed,
+    generate_keys, set_server_key, FheInt8, FheUint8, PrfReRandomizationContext, RangeForRandom,
+    ReRandomizationMode, Seed,
 };
 
 pub fn main() {
@@ -253,23 +253,73 @@ pub fn main() {
     .unwrap();
     let dec_result: i8 = ct_res.decrypt(&client_key);
     assert!(dec_result < (1 << random_bits_count));
+}
+```
 
-    // Shuffle
-    let mut clear_values: Vec<u8> = (0..15).map(|_| rand::random()).collect();
+## Re-Randomized shuffle
 
-    let encrypted: Vec<FheUint8> = clear_values
+`re_randomized_keys_bitonic_shuffle` re-randomizes the random sort keys generated with the PRF, but not the elements to shuffle: like any other encrypted input, they must be re-randomized beforehand, as done below. See [Shuffle](shuffle.md) for how to choose the key size:
+
+```rust
+use std::num::NonZeroU32;
+use tfhe::prelude::*;
+use tfhe::shortint::parameters::v1_9::meta::cpu::V1_9_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128;
+use tfhe::{
+    generate_keys, re_randomized_keys_bitonic_shuffle, set_server_key, BitonicShuffleKeySize,
+    FheUint8, PrfReRandomizationContext, ReRandomizationContext, ReRandomizationMode, Seed,
+};
+
+pub fn main() {
+    // The chosen parameters have re-rand enabled and don't require an extra CompactPublicKey
+    let (client_key, server_key) =
+        generate_keys(V1_9_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128);
+
+    let compact_public_encryption_domain_separator = *b"TFHE_Enc";
+    let rerand_domain_separator = *b"TFHE_Rrd";
+
+    set_server_key(server_key);
+
+    // A small deck of cards numbered 0..8
+    let deck: Vec<u8> = (0..8).collect();
+
+    let mut encrypted: Vec<FheUint8> = deck
         .iter()
-        .map(|&v| FheUint8::try_encrypt(v, &client_key).unwrap())
+        .map(|&v| FheUint8::encrypt(v, &client_key))
         .collect();
 
-    // Depending on applications this won't be enough to guarantee a low enough collision
-    // probability to have an unbiased shuffle, adapt to your use case
-    let key_size = BitonicShuffleKeySize::num_bits(32);
+    // Simulate a 256 bits nonce to make the execution unique
+    let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rand::random());
+
+    let mut re_rand_context = ReRandomizationContext::new(
+        rerand_domain_separator,
+        // First is the function description, second is a nonce
+        [b"re_randomized_keys_bitonic_shuffle".as_slice(), nonce.as_slice()],
+        compact_public_encryption_domain_separator,
+    );
+
+    for ct in &encrypted {
+        re_rand_context.add_ciphertext(ct);
+    }
+
+    let mut seed_gen = re_rand_context.finalize();
+    let rerand_mode = ReRandomizationMode::default();
+
+    // Re-randomize the elements to shuffle
+    for ct in &mut encrypted {
+        ct.re_randomize(rerand_mode, seed_gen.next_seed().unwrap()).unwrap();
+    }
+
+    // Attacks involving at most 2 positions of the shuffled deck (observed + guessed)
+    // succeed at most 1% more often than against a perfectly uniform shuffle
+    let key_size = BitonicShuffleKeySize::attacker_advantage(0.01, NonZeroU32::new(2));
+
+    // Uses default domain separators and Blake3 for hashing during re-randomization
+    let prf_rerand_context = PrfReRandomizationContext::default();
 
     // DANGER: Static Seed(0) given as an example only
     // use proper seeding strategy depending on use case
-    let rerand_result = re_randomized_keys_bitonic_shuffle(
-        encrypted.clone(),
+    let shuffled = re_randomized_keys_bitonic_shuffle(
+        encrypted,
         key_size,
         Seed(0),
         rerand_mode,
@@ -277,18 +327,11 @@ pub fn main() {
     )
     .unwrap();
 
-    clear_values.sort_unstable();
+    let mut drawn: Vec<u8> = shuffled.iter().map(|ct| ct.decrypt(&client_key)).collect();
 
-    let mut decrypted_rerand: Vec<u8> = rerand_result
-        .iter()
-        .map(|ct| ct.decrypt(&client_key))
-        .collect();
-
-    // Check the input values are still there
-    decrypted_rerand.sort_unstable();
-    assert_eq!(clear_values, decrypted_rerand);
+    drawn.sort_unstable();
+    assert_eq!(drawn, deck);
 }
-
 ```
 
 ## Managing legacy Re-Randomization API
