@@ -554,12 +554,12 @@ mod cuda {
             ShortintKeySwitchingParameters,
             tfhe::shortint::AtomicPatternParameters,
         ) = match get_param_type() {
-            ParamType::Classical => (
+            ParamType::Classical | ParamType::ClassicalDocumentation => (
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
-            _ => (
+            ParamType::MultiBit | ParamType::MultiBitDocumentation => (
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
@@ -874,120 +874,109 @@ mod cuda {
             .sample_size(15)
             .measurement_time(std::time::Duration::from_secs(60));
 
-        let params: [(
-            CompactPublicKeyEncryptionParameters,
-            ShortintKeySwitchingParameters,
-            PBSParameters,
-        ); 2] = [
-            (
-                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-            ),
-            (
-                BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                BENCH_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-            ),
-        ];
+        let (param_pke, param_fhe): (CompactPublicKeyEncryptionParameters, PBSParameters) =
+            match get_param_type() {
+                ParamType::Classical | ParamType::ClassicalDocumentation => (
+                    BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                ),
+                ParamType::MultiBit | ParamType::MultiBitDocumentation => (
+                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                ),
+            };
 
-        for (param_pke, _param_ksk, param_fhe) in params.iter() {
-            let param_name = param_fhe.name();
-            let param_name = param_name.as_str();
-            let compact_private_key = CompactPrivateKey::new(*param_pke);
-            let pk = CompactPublicKey::new(&compact_private_key);
+        let param_name = param_fhe.name();
+        let param_name = param_name.as_str();
+        let compact_private_key = CompactPrivateKey::new(param_pke);
+        let pk = CompactPublicKey::new(&compact_private_key);
 
-            // We have a use case with 320 bits of metadata
-            let mut metadata = [0u8; (320 / u8::BITS) as usize];
-            let mut rng = rand::thread_rng();
-            metadata.fill_with(|| rng.gen());
+        // We have a use case with 320 bits of metadata
+        let mut metadata = [0u8; (320 / u8::BITS) as usize];
+        let mut rng = rand::thread_rng();
+        metadata.fill_with(|| rng.gen());
 
-            let scheme = zk_scheme(*param_pke);
+        let scheme = zk_scheme(param_pke);
 
-            for proof_config in default_proof_config().iter() {
-                let msg_bits =
-                    (param_pke.message_modulus.0 * param_pke.carry_modulus.0).ilog2() as usize;
-                println!("Generating CRS... ");
-                let crs_size = proof_config.crs_size;
-                let crs = CompactPkeCrs::from_shortint_params(
-                    *param_pke,
-                    LweCiphertextCount(crs_size / msg_bits),
-                )
-                .unwrap();
+        for proof_config in default_proof_config().iter() {
+            let msg_bits =
+                (param_pke.message_modulus.0 * param_pke.carry_modulus.0).ilog2() as usize;
+            println!("Generating CRS... ");
+            let crs_size = proof_config.crs_size;
+            let crs = CompactPkeCrs::from_shortint_params(
+                param_pke,
+                LweCiphertextCount(crs_size / msg_bits),
+            )
+            .unwrap();
 
-                for bits in proof_config.bits_to_prove.iter() {
-                    assert_eq!(bits % 64, 0);
-                    // Packing, so we take the message and carry modulus to compute our block count
-                    let num_block = 64usize.div_ceil(msg_bits);
+            for bits in proof_config.bits_to_prove.iter() {
+                assert_eq!(bits % 64, 0);
+                // Packing, so we take the message and carry modulus to compute our block count
+                let num_block = 64usize.div_ceil(msg_bits);
 
-                    let fhe_uint_count = bits / 64;
+                let fhe_uint_count = bits / 64;
 
-                    for compute_load in compute_load_config() {
-                        let spec = zk_spec(
-                            ZkPkeBench::Proof,
-                            param_name,
-                            proven_list_tag(*bits, crs_size, compute_load, scheme),
-                            get_bench_type(),
-                        );
-                        let bench_id = spec.to_string();
+                for compute_load in compute_load_config() {
+                    let spec = zk_spec(
+                        ZkPkeBench::Proof,
+                        param_name,
+                        proven_list_tag(*bits, crs_size, compute_load, scheme),
+                        get_bench_type(),
+                    );
+                    let bench_id = spec.to_string();
 
-                        match get_bench_type() {
-                            BenchmarkType::Latency => {
-                                bench_group.bench_function(&bench_id, |b| {
-                                    let input_msg = rng.gen::<u64>();
-                                    let messages = vec![input_msg; fhe_uint_count];
+                    match get_bench_type() {
+                        BenchmarkType::Latency => {
+                            bench_group.bench_function(&bench_id, |b| {
+                                let input_msg = rng.gen::<u64>();
+                                let messages = vec![input_msg; fhe_uint_count];
 
-                                    b.iter(|| {
-                                        let _ct1 =
-                                            tfhe::integer::ProvenCompactCiphertextList::builder(
-                                                &pk,
-                                            )
+                                b.iter(|| {
+                                    let _ct1 =
+                                        tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                             .extend(messages.iter().copied())
                                             .build_with_proof_packed(&crs, &metadata, compute_load)
                                             .unwrap();
+                                })
+                            });
+                        }
+                        BenchmarkType::Throughput => {
+                            // Each proof uses GPU MSM internally, and
+                            // select_gpu_for_msm() distributes across GPUs by rayon
+                            // thread index, so we scale by GPU count and use par_iter.
+                            let elements = gpu_zk_proof_throughput_elements(crs_size, *bits)
+                                * get_number_of_gpus() as u64;
+                            bench_group.throughput(Throughput::Elements(elements));
+
+                            bench_group.bench_function(&bench_id, |b| {
+                                let messages = (0..elements)
+                                    .map(|_| {
+                                        let input_msg = rng.gen::<u64>();
+                                        vec![input_msg; fhe_uint_count]
                                     })
-                                });
-                            }
-                            BenchmarkType::Throughput => {
-                                // Each proof uses GPU MSM internally, and
-                                // select_gpu_for_msm() distributes across GPUs by rayon
-                                // thread index, so we scale by GPU count and use par_iter.
-                                let elements = gpu_zk_proof_throughput_elements(crs_size, *bits)
-                                    * get_number_of_gpus() as u64;
-                                bench_group.throughput(Throughput::Elements(elements));
+                                    .collect::<Vec<_>>();
 
-                                bench_group.bench_function(&bench_id, |b| {
-                                    let messages = (0..elements)
-                                        .map(|_| {
-                                            let input_msg = rng.gen::<u64>();
-                                            vec![input_msg; fhe_uint_count]
-                                        })
-                                        .collect::<Vec<_>>();
-
-                                    b.iter(|| {
-                                        messages.par_iter().for_each(|msg| {
-                                            tfhe::integer::ProvenCompactCiphertextList::builder(
-                                                &pk,
-                                            )
+                                b.iter(|| {
+                                    messages.par_iter().for_each(|msg| {
+                                        tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                             .extend(msg.iter().copied())
                                             .build_with_proof_packed(&crs, &metadata, compute_load)
                                             .unwrap();
-                                        })
                                     })
-                                });
-                            }
+                                })
+                            });
                         }
-
-                        let shortint_params: PBSParameters = *param_fhe;
-
-                        write_to_json(
-                            &spec,
-                            "pke_zk_proof",
-                            &OperatorType::Atomic,
-                            shortint_params.message_modulus().0,
-                            vec![shortint_params.message_modulus().0.ilog2(); num_block],
-                        );
                     }
+
+                    let shortint_params: PBSParameters = param_fhe;
+
+                    write_to_json(
+                        &spec,
+                        "pke_zk_proof",
+                        &OperatorType::Atomic,
+                        shortint_params.message_modulus().0,
+                        vec![shortint_params.message_modulus().0.ilog2(); num_block],
+                    );
                 }
             }
         }

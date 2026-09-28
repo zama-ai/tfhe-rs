@@ -2628,17 +2628,11 @@ endif
 	--features=integer,gpu,internal-keycache,pbs-stats -p tfhe-benchmark --profile release_lto_off -- '::no_cmux::'
 
 	# ZK
-	# Proof is done on CPU node of the instance
+	# Proof and verify are done on GPUs (gpu-zk enables the GPU prover and verifier)
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=fast_default __TFHE_RS_BENCH_BIT_SIZES_SET=fast \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-zk-pke \
-	--features=integer,internal-keycache,zk-pok,pbs-stats \
-	-p tfhe-benchmark -- 'tfhe::integer::zk::proof'
-	# Verify is done on GPUs
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=fast_default __TFHE_RS_BENCH_BIT_SIZES_SET=fast \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench integer-zk-pke \
-	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p tfhe-benchmark --
+	--features=integer,internal-keycache,gpu,gpu-zk,pbs-stats,zk-pok -p tfhe-benchmark --
 
 	# Compression
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_BIT_SIZES_SET=FAST \
