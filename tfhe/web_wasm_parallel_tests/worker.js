@@ -1,5 +1,4 @@
 import * as Comlink from "comlink";
-import { threads } from "wasm-feature-detect";
 import init, {
   init_panic_hook,
   set_server_key,
@@ -35,6 +34,8 @@ import initSpec, {
 
 const U32_MAX = 4294967295;
 const U64_MAX = BigInt("0xffffffffffffffff");
+// A dedicated worker inherits the isolation status of the page that spawned it
+const CROSS_ORIGIN = !crossOriginIsolated;
 
 function assert(cond, text) {
   if (cond) return;
@@ -130,7 +131,6 @@ async function publicKeyTest() {
 async function compactPublicKeyBench32Bit(params_name) {
   const bench_loops = 100;
   let bench_results = {};
-  const cross_origin = !(await threads());
 
   const params_name_str = shortint_params_name(params_name);
   let config = get_tfhe_config(params_name);
@@ -153,7 +153,7 @@ async function compactPublicKeyBench32Bit(params_name) {
   const timing_1 = (end - start) / bench_loops;
   console.log("CompactPublicKey Gen bench: ", timing_1, " ms");
   let bench_id = cpk_gen_id(params_name_str, 32);
-  bench_results[mean_name(bench_id, cross_origin)] = timing_1;
+  bench_results[mean_name(bench_id, CROSS_ORIGIN)] = timing_1;
 
   let values = [0, 1, 2, 2394, U32_MAX];
 
@@ -175,7 +175,7 @@ async function compactPublicKeyBench32Bit(params_name) {
     32,
     BigInt(values.length),
   );
-  bench_results[mean_name(bench_id, cross_origin)] = timing_2;
+  bench_results[mean_name(bench_id, CROSS_ORIGIN)] = timing_2;
 
   let serialized_list = compact_list.safe_serialize(BigInt(10000000));
   console.log("Serialized CompactFheUint32List size: ", serialized_list.length);
@@ -193,7 +193,7 @@ async function compactPublicKeyBench32Bit(params_name) {
     32,
     BigInt(values.length),
   );
-  bench_results[mean_name(bench_id, cross_origin)] = timing_3;
+  bench_results[mean_name(bench_id, CROSS_ORIGIN)] = timing_3;
 
   return bench_results;
 }
@@ -492,7 +492,6 @@ async function compressedCompactPublicKeyTest256BitSmall() {
 async function compactPublicKeyBench256Bit(params_name) {
   const bench_loops = 100;
   let bench_results = {};
-  const cross_origin = !(await threads());
 
   const params_name_str = shortint_params_name(params_name);
   let config = get_tfhe_config(params_name);
@@ -515,7 +514,7 @@ async function compactPublicKeyBench256Bit(params_name) {
   const timing_1 = (end - start) / bench_loops;
   console.log("CompactPublicKey Gen bench: ", timing_1, " ms");
   let bench_id = cpk_gen_id(params_name_str, 256);
-  bench_results[mean_name(bench_id, cross_origin)] = timing_1;
+  bench_results[mean_name(bench_id, CROSS_ORIGIN)] = timing_1;
 
   let values = [0, 1, 2, 2394, U32_MAX].map((e) => BigInt(e));
 
@@ -539,7 +538,7 @@ async function compactPublicKeyBench256Bit(params_name) {
     256,
     BigInt(values.length),
   );
-  bench_results[mean_name(bench_id, cross_origin)] = timing_2;
+  bench_results[mean_name(bench_id, CROSS_ORIGIN)] = timing_2;
 
   let serialized_list = compact_list.safe_serialize(BigInt(10000000));
   console.log(
@@ -560,7 +559,7 @@ async function compactPublicKeyBench256Bit(params_name) {
     256,
     BigInt(values.length),
   );
-  bench_results[mean_name(bench_id, cross_origin)] = timing_3;
+  bench_results[mean_name(bench_id, CROSS_ORIGIN)] = timing_3;
 
   return bench_results;
 }
@@ -574,7 +573,6 @@ async function compactPublicKeyBench256BitBig() {
 async function compressedServerKeyBench(params_name) {
   const bench_loops = 5;
   let bench_results = {};
-  const cross_origin = !(await threads());
 
   const params_name_str = shortint_params_name(params_name);
   let config = get_tfhe_config(params_name);
@@ -591,7 +589,7 @@ async function compressedServerKeyBench(params_name) {
   const timing_1 = (end - start) / bench_loops;
   console.log("CompressedServerKey Gen bench: ", timing_1, " ms");
   let bench_id = compressed_server_key_gen_id(params_name_str);
-  bench_results[mean_name(bench_id, cross_origin)] = timing_1;
+  bench_results[mean_name(bench_id, CROSS_ORIGIN)] = timing_1;
 
   let serverKey = TfheCompressedServerKey.new(clientKey);
   let serialized_key = serverKey.safe_serialize(BigInt(1000000000));
@@ -606,7 +604,7 @@ async function compressedServerKeyBench(params_name) {
   const timing_2 = (end - start) / bench_loops;
   console.log("CompressedServerKey serialization bench: ", timing_2, " ms");
   bench_id = compressed_server_key_serialize_id(params_name_str);
-  bench_results[mean_name(bench_id, cross_origin)] = timing_2;
+  bench_results[mean_name(bench_id, CROSS_ORIGIN)] = timing_2;
 
   return bench_results;
 }
@@ -638,7 +636,6 @@ async function compactPublicKeyZeroKnowledgeBench() {
   ];
 
   let bench_results = {};
-  const cross_origin = !(await threads());
 
   for (const params of params_to_bench) {
     let block_params_name_str = params.name_str;
@@ -714,12 +711,12 @@ async function compactPublicKeyZeroKnowledgeBench() {
 
           const bench_str_1 = mean_name(
             zk_proof_id(...spec_args),
-            cross_origin,
+            CROSS_ORIGIN,
           );
           console.log(bench_str_1, ": ", mean, " ms");
           const bench_str_2 = mean_name(
             zk_proven_list_size_id(...spec_args),
-            cross_origin,
+            CROSS_ORIGIN,
           );
           console.log(bench_str_2, ": ", serialized_size, " bytes");
 
@@ -736,19 +733,15 @@ async function compactPublicKeyZeroKnowledgeBench() {
 async function main() {
   await init();
   await initSpec();
-  let supportsThreads = await threads();
-  if (supportsThreads) {
-    const { initThreadPool } = await import("./pkg/tfhe.js");
-    await initThreadPool(navigator.hardwareConcurrency);
-  } else {
-    console.warn(
-      "This browser does not support threads, using cross-origin workers",
-    );
+  if (CROSS_ORIGIN) {
     // We are already in a web Worker, from_worker will reuse it as SyncExecutor
     const { init_cross_origin_worker_pool_from_worker } = await import(
       "./pkg/tfhe.js"
     );
     await init_cross_origin_worker_pool_from_worker();
+  } else {
+    const { initThreadPool } = await import("./pkg/tfhe.js");
+    await initThreadPool(navigator.hardwareConcurrency);
   }
   await init_panic_hook();
 
