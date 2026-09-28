@@ -1,5 +1,6 @@
 use crate::backward_compatibility::compressed_ciphertext_list::CompressedSquashedNoiseCiphertextListVersions;
 use crate::high_level_api::booleans::InnerSquashedNoiseBoolean;
+use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state::try_with_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::{
@@ -44,7 +45,17 @@ impl Versionize for InnerCompressedSquashedNoiseCiphertextList {
         <IntegerCompressedSquashedNoiseCiphertextList as VersionizeOwned>::VersionedOwned;
 
     fn versionize(&self) -> Self::Versioned<'_> {
-        self.on_cpu().versionize_owned()
+        match self {
+            Self::Cpu(inner) => inner.clone().versionize_owned(),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => {
+                let cpu_data = with_thread_local_cuda_streams_for_gpu_indexes(
+                    inner.gpu_indexes(),
+                    |streams| inner.to_compressed_squashed_noise_ciphertext_list(streams),
+                );
+                cpu_data.versionize_owned()
+            }
+        }
     }
 }
 
@@ -92,16 +103,16 @@ impl<'de> Deserialize<'de> for InnerCompressedSquashedNoiseCiphertextList {
 impl InnerCompressedSquashedNoiseCiphertextList {
     /// Returns the inner cpu compressed ciphertext list if self is on the CPU, otherwise, returns a
     /// copy that is on the CPU
-    fn on_cpu(&self) -> IntegerCompressedSquashedNoiseCiphertextList {
+    fn on_cpu(&self) -> MaybeCloned<'_, IntegerCompressedSquashedNoiseCiphertextList> {
         match self {
-            Self::Cpu(cpu_ct) => cpu_ct.clone(),
+            Self::Cpu(cpu_ct) => MaybeCloned::Borrowed(cpu_ct),
             #[cfg(feature = "gpu")]
             Self::Cuda(cuda_ct) => {
                 let cpu_ct = with_thread_local_cuda_streams_for_gpu_indexes(
                     cuda_ct.gpu_indexes(),
                     |streams| cuda_ct.to_compressed_squashed_noise_ciphertext_list(streams),
                 );
-                cpu_ct
+                MaybeCloned::Cloned(cpu_ct)
             }
         }
     }
