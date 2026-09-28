@@ -34,6 +34,7 @@ OUT_DIR="$SCRIPT_DIR/stored_corpus"
 CRASHES_OUT="$SCRIPT_DIR/stored_crashes"
 JOBS="$(nproc)"
 HARNESSES=(harness-deser harness-verify harness-compute)
+GPU=0
 
 # ── Parse arguments ────────────────────────────────────────────────────────
 usage() {
@@ -42,6 +43,7 @@ usage() {
     echo "Build the stored corpus (afl-cmin) + minimized crashes, and write summary.md."
     echo ""
     echo "Options:"
+    echo "  --gpu              GPU campaign (single cuda-compute_m harness)"
     echo "  --sync-dir DIR     AFL sync/output directory (default: $SCRIPT_DIR/sync_dir)"
     echo "  --out DIR          Stored corpus output (default: $SCRIPT_DIR/stored_corpus)"
     echo "  --crashes-out DIR  Minimized crashes output (default: $SCRIPT_DIR/stored_crashes)"
@@ -51,6 +53,7 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --gpu)         GPU=1; shift ;;
         --sync-dir)    SYNC_DIR="$2";    shift 2 ;;
         --out)         OUT_DIR="$2";     shift 2 ;;
         --crashes-out) CRASHES_OUT="$2"; shift 2 ;;
@@ -59,6 +62,8 @@ while [[ $# -gt 0 ]]; do
         *)             echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
     esac
 done
+
+(( GPU )) && HARNESSES=(harness-cuda-compute)
 
 cd "$REPO_ROOT"
 
@@ -157,7 +162,12 @@ for harness in "${HARNESSES[@]}"; do
     crash_counts[$prefix]=$n
     total_crashes=$((total_crashes + n))
 done
-echo "==> Crashes: $total_crashes unique (deser: ${crash_counts[deser]}, verify: ${crash_counts[verify]}, compute: ${crash_counts[compute]}) ($CRASHES_OUT)"
+crash_summary=""
+for harness in "${HARNESSES[@]}"; do
+    prefix="${harness#harness-}"
+    crash_summary="${crash_summary:+$crash_summary, }$prefix: ${crash_counts[$prefix]:-0}"
+done
+echo "==> Crashes: $total_crashes unique ($crash_summary) ($CRASHES_OUT)"
 
 # ── Corpus: gather queues → dedup → per-harness cmin → union → dedup → stored corpus ──
 shopt -s nullglob # return an empty array if dir does not exist
@@ -275,13 +285,20 @@ if [[ -d "$CORPUS_CRASHES_DIR" ]]; then
 fi
 total_crashes=$((total_crashes + corpus_panic_count))
 
+# Use the first harness's duration as the campaign wall-clock time (all harnesses
+# start and stop together; GPU has only one harness so this is always correct).
+first_harness="${HARNESSES[0]#harness-}"
 {
-    echo "*${total_crashes} crashes* - ran for $(fmt_age "${duration_seconds[deser]-}")"
+    echo "*${total_crashes} crashes* - ran for $(fmt_age "${duration_seconds[$first_harness]-}")"
     echo ""
     echo '```'
     cat "$STATS_TABLE"
     echo ""
-    crash_breakdown="deser: ${crash_counts[deser]}, verify: ${crash_counts[verify]}, compute: ${crash_counts[compute]}"
+    crash_breakdown=""
+    for harness in "${HARNESSES[@]}"; do
+        prefix="${harness#harness-}"
+        crash_breakdown="${crash_breakdown:+$crash_breakdown, }$prefix: ${crash_counts[$prefix]:-0}"
+    done
     if (( corpus_panic_count > 0 )); then
         # "corpus" = panics found by re-running the stored corpus (likely flaky crashes AFL kept
         # in the queue instead of crashes/).
