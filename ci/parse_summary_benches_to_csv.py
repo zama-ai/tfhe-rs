@@ -72,6 +72,18 @@ def _kv_store_label(op_name):
     return label
 
 
+def _zk_proof(point):
+    if "::zk::proof::" not in point["id"]:
+        return False
+    # The zk-pke bench binary has two prover ids: the GPU prover
+    # (`tfhe::integer::zk::proof::cuda::<params>`) and the CPU prover
+    # (`tfhe::integer::zk::proof::<params>`). A GPU summary must only report
+    # the GPU prover.
+    if point["backend"] == "cuda":
+        return "::zk::proof::cuda::" in point["id"]
+    return True
+
+
 RULES = [
     ("Add", lambda p: _unsigned64_ct(p, "::add")),
     ("Mul", lambda p: _unsigned64_ct(p, "::mul")),
@@ -92,7 +104,7 @@ RULES = [
         "Decompress",
         lambda p: "packing_compression" in p["id"] and "unpack_u64" in p["id"],
     ),
-    ("ZKPoK Proof (server)", lambda p: "::zk::proof::" in p["id"]),
+    ("ZKPoK Proof (server)", _zk_proof),
     (
         "ZKPoK Proof (verification)",
         lambda p: "::zk::verify_and_expand::" in p["id"],
