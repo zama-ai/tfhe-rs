@@ -3,7 +3,7 @@
 {% hint style="warning" %}
 If your usage of **TFHE-rs** falls under the sIND-CPA^D security model described in [Ciphertexts Rerandomization](./rerand.md) then you **must** use the re-randomized variants of the PRF APIs.
 This includes array shuffling which calls the PRF.
-You can check how to use these APIS [here](./rerand.md#re-randomized-prf)
+You can check how to use these APIs [here](./rerand.md#re-randomized-prf), and [here](./rerand.md#re-randomized-shuffle) for shuffling.
 {% endhint %}
 
 This document explains the mechanism and steps to generate an oblivious encrypted random value using only server keys.
@@ -91,6 +91,8 @@ pub fn main() {
     assert!(dec_result < (1 << random_bits_count));
 }
 ```
+
+To shuffle an encrypted array using random keys generated with the PRF, see [Shuffle](../operations/shuffle.md).
 
 ## Example: roulette game
 
