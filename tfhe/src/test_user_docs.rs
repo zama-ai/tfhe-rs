@@ -29,6 +29,10 @@ mod test_cpu_doc {
         advanced_features_encrypted_prf
     );
     doctest!(
+        "../docs/fhe-computation/advanced-features/shuffle.md",
+        advanced_features_shuffle
+    );
+    doctest!(
         "../docs/fhe-computation/advanced-features/noise-squashing.md",
         advanced_features_noise_squashing
     );

@@ -53,6 +53,7 @@
   * [Data versioning](fhe-computation/data-handling/data-versioning.md)
 * [Advanced features](fhe-computation/advanced-features/README.md)
   * [Encrypted pseudo random values](fhe-computation/advanced-features/encrypted-prf.md)
+  * [Encrypted shuffle](fhe-computation/advanced-features/shuffle.md)
   * [Overflow detection](fhe-computation/advanced-features/overflow-operations.md)
   * [Public key encryption](fhe-computation/advanced-features/public-key.md)
   * [Trivial ciphertexts](fhe-computation/advanced-features/trivial-ciphertext.md)

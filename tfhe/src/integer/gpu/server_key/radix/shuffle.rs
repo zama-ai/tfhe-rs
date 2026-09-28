@@ -19,8 +19,11 @@ use crate::shortint::OprfSeed;
 use std::borrow::Borrow;
 
 impl CudaServerKey {
-    /// Shuffles `data` into a uniformly random permutation using a bitonic sorting network
-    /// with OPRF-generated random sort keys.
+    /// Obliviously shuffles `data` with a permutation chosen almost uniformly at random,
+    /// using a bitonic sorting network with OPRF-generated random sort keys.
+    ///
+    /// See [`crate::integer::ServerKey::bitonic_shuffle`] for how `key_size` affects the
+    /// uniformity of the permutation.
     ///
     /// The sort keys are derived from `seed` with `oprf_key` (the dedicated OPRF key),
     /// then `data` is sorted by them. For an OPRF key shared with the

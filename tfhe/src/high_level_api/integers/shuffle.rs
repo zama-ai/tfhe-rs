@@ -7,16 +7,39 @@ use crate::high_level_api::re_randomization::{
 pub use crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize;
 use crate::OprfSeed;
 
-/// Shuffles `data` into a uniformly random permutation using a bitonic
-/// sorting network with OPRF-generated random keys.
+/// Obliviously shuffles `data` with a permutation chosen almost uniformly at random.
 ///
-/// `key_size` controls the bit-width of the random sort keys used internally,
-/// either by specifying a target collision probability or by passing a raw
-/// bit count. Larger keys reduce collision probability (improving shuffle
-/// uniformity) at the cost of more computation per comparison.
+/// Each element gets a random sort key generated with the encrypted PRF from `seed`.
+/// The elements are then sorted by key using a bitonic sorting network.
 ///
-/// The re-randomization metadata of the input elements is not preserved
-/// through the shuffle.
+/// # Uniformity
+///
+/// If all keys are distinct, the output permutation is **exactly** uniform.
+/// If two keys collide, the sorting network orders them deterministically,
+/// which biases the permutation.
+/// `key_size` sets the key bit-width `k`: a larger `k` makes collisions less likely
+/// but makes each comparison more expensive.
+///
+/// For `n = data.len()` elements, choose `key_size` with one of:
+///
+/// - [`BitonicShuffleKeySize::attacker_advantage`] (recommended): a guess succeeding with
+///   probability `p` against a uniform shuffle succeeds with probability at most `p * (1 +
+///   advantage)`. `involved_slot_count = Some(t)` allows smaller keys, but only covers attacks
+///   involving at most `t` slots of the shuffled array: those the attacker observes plus those they
+///   try to guess. For example, observing `m` slots and guessing one more gives `t = m + 1`.
+/// - [`BitonicShuffleKeySize::collision_probability`]: keeps the probability of any collision at or
+///   below `proba`. If your concern is an attacker exploiting collisions to guess the shuffle, use
+///   `attacker_advantage` instead.
+/// - [`BitonicShuffleKeySize::num_bits`]: sets `k` directly, with **no** guarantee. Only use it if
+///   you have done the analysis for your use case.
+///
+/// `k` is rounded up to a multiple of the number of message bits per block.
+/// See the "Shuffle" page of the user documentation for the bounds and worked examples.
+///
+/// # Re-randomization
+///
+/// The outputs carry empty re-randomization metadata.
+/// In the sIND-CPA^D setting, use [`re_randomized_keys_bitonic_shuffle`] instead.
 ///
 /// # Errors
 ///
@@ -65,6 +88,10 @@ where
     })
 }
 
+/// Variant of [`bitonic_shuffle`] re-randomizing the random sort keys.
+///
+/// The elements of `data` are not re-randomized: like any other encrypted input,
+/// they must be re-randomized beforehand.
 pub fn re_randomized_keys_bitonic_shuffle<T, S>(
     data: Vec<T>,
     key_size: BitonicShuffleKeySize,
