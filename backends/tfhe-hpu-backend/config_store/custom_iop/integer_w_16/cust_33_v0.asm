@@ -45,3 +45,5 @@ NOTIFY N1 F7 TH.6
 ST TH.7 R7
 SUB R7 R7 R7
 NOTIFY N1 F8 TH.7
+; Other thread has read the data
+WAIT F1

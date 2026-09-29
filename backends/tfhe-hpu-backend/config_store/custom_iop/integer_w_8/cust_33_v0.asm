@@ -26,3 +26,5 @@ NOTIFY N1 F4 TH.3
 NOTIFY N1 F1 TH.0
 NOTIFY N1 F2 TH.1
 NOTIFY N1 F3 TH.2
+; Other thread has read the data
+WAIT F1

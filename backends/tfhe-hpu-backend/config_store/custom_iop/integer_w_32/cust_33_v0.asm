@@ -77,3 +77,5 @@ NOTIFY N1 F15 TH.14
 ST TH.15 R15
 SUB R15 R15 R15
 NOTIFY N1 F16 TH.15
+; Other thread has read the data
+WAIT F1
