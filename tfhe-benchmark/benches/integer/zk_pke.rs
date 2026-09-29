@@ -659,7 +659,8 @@ mod cuda {
                             let gpu_ct1 =
                                     CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                         &ct1, &streams,
-                                    );
+                                    )
+                                    .unwrap();
 
                             let proven_ciphertext_list_serialized =
                                 bincode::serialize(&ct1).unwrap();
@@ -795,6 +796,7 @@ mod cuda {
                                             CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                                 ct, local_stream,
                                             )
+                                            .unwrap()
                                         }).collect_vec();
 
                                         gpu_cts
@@ -822,6 +824,7 @@ mod cuda {
                                             CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                                 ct, &local_streams[i % local_streams.len()],
                                             )
+                                            .unwrap()
                                         }).collect_vec();
 
                                         gpu_cts

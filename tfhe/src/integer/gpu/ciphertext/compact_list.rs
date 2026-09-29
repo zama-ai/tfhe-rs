@@ -205,13 +205,37 @@ pub struct CudaFlattenedVecCompactCiphertextList {
     pub(crate) ciphertext_modulus: CiphertextModulus<u64>,
 }
 
+/// Checks that the metadata of a compact ciphertext list describes something the GPU backend is
+/// able to expand.
+fn check_data_info_is_supported_on_gpu(data_info: &[DataKind]) -> crate::Result<()> {
+    if data_info
+        .iter()
+        .any(|kind| matches!(kind, DataKind::String { .. }))
+    {
+        return Err(crate::error!(
+            "Strings are not supported on GPUs, a compact ciphertext list holding a string \
+             cannot be expanded with a CUDA server key"
+        ));
+    }
+
+    Ok(())
+}
+
 impl CudaFlattenedVecCompactCiphertextList {
     pub(crate) fn from_vec_shortint_compact_ciphertext_list(
-        vec_compact_list: Vec<crate::shortint::ciphertext::CompactCiphertextList>,
+        vec_compact_list: &[crate::shortint::ciphertext::CompactCiphertextList],
         data_info: Vec<DataKind>,
         streams: &CudaStreams,
-    ) -> Self {
-        let first = vec_compact_list.first().unwrap();
+    ) -> crate::Result<Self> {
+        check_data_info_is_supported_on_gpu(&data_info)?;
+
+        // An empty list is conformant, so this has to be an error and not an unwrap
+        if data_info.is_empty() || vec_compact_list.is_empty() {
+            return Err(crate::error!(
+                "Cannot move an empty compact ciphertext list to the GPU"
+            ));
+        }
+        let first = &vec_compact_list[0];
 
         // We assume all ciphertexts will have the same lwe dimension
         let lwe_dimension = first.ct_list.lwe_size().to_lwe_dimension();
@@ -227,41 +251,73 @@ impl CudaFlattenedVecCompactCiphertextList {
         // for expand(), we compute it directly in the Vec<u32> format that will be needed
         let num_lwe_per_compact_list = vec_compact_list
             .iter()
-            .map(|x| x.ct_list.lwe_ciphertext_count().0 as u32)
-            .collect_vec();
+            .map(|x| u32::try_from(x.ct_list.lwe_ciphertext_count().0).ok())
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| {
+                crate::error!("A compact ciphertext list holds more than u32::MAX ciphertexts")
+            })?;
 
-        let total_num_blocks =
-            LweCiphertextCount(num_lwe_per_compact_list.iter().sum::<u32>() as usize);
+        let total_num_blocks = num_lwe_per_compact_list
+            .iter()
+            .try_fold(0usize, |acc, count| acc.checked_add(*count as usize))
+            .map(LweCiphertextCount)
+            .ok_or_else(|| {
+                crate::error!("The total number of ciphertexts of the list overflowed")
+            })?;
         let total_size = num_lwe_per_compact_list
             .iter()
-            .map(|lwe_ciphertext_count| {
-                lwe_compact_ciphertext_list_size(
+            .try_fold(0usize, |acc, lwe_ciphertext_count| {
+                acc.checked_add(lwe_compact_ciphertext_list_size(
                     lwe_dimension,
                     LweCiphertextCount(*lwe_ciphertext_count as usize),
-                )
+                ))
             })
-            .sum();
+            .ok_or_else(|| crate::error!("The total size of the list overflowed"))?;
 
-        let total_blocks: usize = data_info
-            .iter()
-            .map(|kind| kind.num_blocks(message_modulus))
-            .sum();
+        let total_blocks = DataKind::total_block_count(&data_info, message_modulus)
+            .map_err(|()| crate::error!("The total number of blocks of the list overflowed"))?;
+
+        // Every supported parameter set has a power of two message modulus. A malformed list can
+        // carry anything, and anything else would silently truncate `is_boolean` below
+        if message_modulus.0 < 2 || !message_modulus.0.is_power_of_two() {
+            return Err(crate::error!(
+                "Invalid message modulus {}, it must be a power of 2 greater than 1",
+                message_modulus.0
+            ));
+        }
+
+        // The backend indexes the input using the block count implied by `data_info`, so a list
+        // whose metadata disagrees with the ciphertexts it carries would read out of bounds.
+        // Conformance already rejects that, but expansion is reachable without it.
+        let is_packed = degree.get() > message_modulus.corresponding_max_degree().get();
+        let expected_lwe_count = if is_packed {
+            total_blocks.div_ceil(2)
+        } else {
+            total_blocks
+        };
+        if expected_lwe_count != total_num_blocks.0 {
+            return Err(crate::error!(
+                "Invalid compact ciphertext list: its metadata describes {total_blocks} blocks, \
+                 which needs {expected_lwe_count} ciphertexts, but the list holds {}",
+                total_num_blocks.0
+            ));
+        }
 
         // Calculate the actual output size after unpacking
         let log_message_modulus = message_modulus.0.ilog2() as usize;
-        let output_size = log_message_modulus * total_blocks.div_ceil(2);
+        let output_size = log_message_modulus
+            .checked_mul(total_blocks.div_ceil(2))
+            .ok_or_else(|| crate::error!("The unpacked size of the list overflowed"))?;
 
         // `is_boolean` is a vector indicating whether each LWE corresponds to a boolean value or is
         // part of something else
+        //
+        // Strings have been rejected above, so for every remaining kind `num_blocks` is the number
+        // of LWEs the kind spans
         let mut is_boolean = data_info
             .iter()
             .flat_map(|data_kind| {
-                let repetitions = match data_kind {
-                    DataKind::Boolean => 1,
-                    DataKind::Signed(x) => x.get(),
-                    DataKind::Unsigned(x) => x.get(),
-                    DataKind::String { .. } => panic!("DataKind not supported on GPUs"),
-                };
+                let repetitions = data_kind.num_blocks(message_modulus);
                 std::iter::repeat_n(matches!(data_kind, DataKind::Boolean), repetitions)
             })
             .collect_vec();
@@ -270,17 +326,42 @@ impl CudaFlattenedVecCompactCiphertextList {
         // backend, we need to pad to output_size when the block count is odd
         is_boolean.resize(output_size, false);
 
-        // d_vec is an array with the concatenated compact lists
-        let d_flattened_d_vec = unsafe {
-            let mut d_flattened_d_vec = CudaVec::new_async(total_size, streams, 0);
-            let mut offset: usize = 0;
-            for compact_list in vec_compact_list {
-                let container = compact_list.ct_list.clone().into_container();
+        // Validate the containers before allocating anything on the device: their length is part of
+        // the deserialized data and must match what the lwe dimension and ciphertext count imply
+        let expected_lengths = vec_compact_list
+            .iter()
+            .map(|compact_list| {
                 let expected_length = lwe_compact_ciphertext_list_size(
                     lwe_dimension,
                     compact_list.ct_list.lwe_ciphertext_count(),
                 );
-                assert_eq!(container.len(), expected_length);
+                let actual_length = compact_list.ct_list.as_ref().len();
+
+                if actual_length == expected_length {
+                    Ok(expected_length)
+                } else {
+                    Err(crate::error!(
+                        "Invalid compact ciphertext list: expected a container of \
+                         {expected_length} elements, got {actual_length}"
+                    ))
+                }
+            })
+            .collect::<crate::Result<Vec<_>>>()?;
+
+        // A list carrying no ciphertext at all would end up allocating a zero sized buffer on the
+        // device, reject it here rather than handing it over to the backend
+        if total_size == 0 || total_blocks == 0 {
+            return Err(crate::error!(
+                "Cannot move an empty compact ciphertext list to the GPU"
+            ));
+        }
+
+        // d_vec is an array with the concatenated compact lists
+        let d_flattened_d_vec = unsafe {
+            let mut d_flattened_d_vec = CudaVec::new_async(total_size, streams, 0);
+            let mut offset: usize = 0;
+            for (compact_list, expected_length) in vec_compact_list.iter().zip(expected_lengths) {
+                let container = compact_list.ct_list.as_ref();
 
                 let dest_ptr = d_flattened_d_vec
                     .as_mut_c_ptr(0)
@@ -299,7 +380,7 @@ impl CudaFlattenedVecCompactCiphertextList {
         };
         streams.synchronize();
 
-        Self {
+        Ok(Self {
             d_flattened_vec: d_flattened_d_vec,
             lwe_dimension,
             lwe_ciphertext_count: total_num_blocks,
@@ -311,16 +392,15 @@ impl CudaFlattenedVecCompactCiphertextList {
             num_lwe_per_compact_list,
             data_info,
             is_boolean,
-        }
+        })
     }
 
     pub(crate) fn from_integer_compact_ciphertext_list(
         compact_list: &crate::integer::ciphertext::CompactCiphertextList,
         streams: &CudaStreams,
-    ) -> Self {
-        let single_element_vec = vec![compact_list.ct_list.clone()];
+    ) -> crate::Result<Self> {
         Self::from_vec_shortint_compact_ciphertext_list(
-            single_element_vec,
+            std::slice::from_ref(&compact_list.ct_list),
             compact_list.info.clone(),
             streams,
         )
@@ -383,8 +463,13 @@ impl CudaFlattenedVecCompactCiphertextList {
         streams: &CudaStreams,
     ) -> crate::Result<crate::integer::ciphertext::CompactCiphertextList> {
         let shortint_compact_list = self.to_vec_shortint_compact_ciphertext_list(streams)?;
+        let ct_list = shortint_compact_list
+            .into_iter()
+            .next()
+            .ok_or_else(|| crate::error!("The compact ciphertext list is empty"))?;
+
         Ok(crate::integer::ciphertext::CompactCiphertextList {
-            ct_list: shortint_compact_list.first().unwrap().clone(),
+            ct_list,
             info: self.data_info.clone(),
         })
     }
@@ -395,13 +480,7 @@ impl CudaFlattenedVecCompactCiphertextList {
         zk_type: crate::integer::gpu::ZKType,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        assert!(
-            !self
-                .data_info
-                .iter()
-                .any(|x| matches!(x, DataKind::String { .. })),
-            "Strings are not supported on GPUs"
-        );
+        check_data_info_is_supported_on_gpu(&self.data_info)?;
 
         let lwe_dimension = self.lwe_dimension;
         let ciphertext_modulus = self.ciphertext_modulus;
@@ -563,8 +642,7 @@ impl<'de> serde::Deserialize<'de> for CudaFlattenedVecCompactCiphertextList {
             crate::integer::ciphertext::CompactCiphertextList::deserialize(deserializer)?;
         let streams = CudaStreams::new_multi_gpu();
 
-        Ok(Self::from_integer_compact_ciphertext_list(
-            &cpu_list, &streams,
-        ))
+        Self::from_integer_compact_ciphertext_list(&cpu_list, &streams)
+            .map_err(serde::de::Error::custom)
     }
 }

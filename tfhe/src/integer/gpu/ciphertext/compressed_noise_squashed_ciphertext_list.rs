@@ -209,19 +209,20 @@ impl CudaCompressedSquashedNoiseCiphertextListBuilder {
     }
 }
 
-fn create_error_message(tried: DataKind, actual: DataKind) -> crate::Error {
-    fn name(kind: DataKind) -> &'static str {
-        match kind {
-            DataKind::Unsigned(_) => "CudaSquashedNoiseRadixCiphertext",
-            DataKind::Signed(_) => "CudaSquashedNoiseSignedRadixCiphertext",
-            DataKind::Boolean => "CudaSquashedNoiseBooleanBlock",
-            DataKind::String { .. } => "Unsupported type",
-        }
+fn data_kind_name(kind: DataKind) -> &'static str {
+    match kind {
+        DataKind::Unsigned(_) => "CudaSquashedNoiseRadixCiphertext",
+        DataKind::Signed(_) => "CudaSquashedNoiseSignedRadixCiphertext",
+        DataKind::Boolean => "CudaSquashedNoiseBooleanBlock",
+        DataKind::String { .. } => "Unsupported type",
     }
+}
+
+fn create_error_message(tried: &str, actual: DataKind) -> crate::Error {
     error!(
         "Tried to expand a {}, but a {} is stored in this slot",
-        name(tried),
-        name(actual)
+        tried,
+        data_kind_name(actual)
     )
 }
 
@@ -247,7 +248,7 @@ impl CudaSquashedNoiseExpandable for CudaSquashedNoiseRadixCiphertext {
             })
         } else {
             Err(create_error_message(
-                DataKind::Unsigned(NonZeroUsize::new(0).unwrap()),
+                "CudaSquashedNoiseRadixCiphertext",
                 kind,
             ))
         }
@@ -270,7 +271,7 @@ impl CudaSquashedNoiseExpandable for CudaSquashedNoiseSignedRadixCiphertext {
             })
         } else {
             Err(create_error_message(
-                DataKind::Signed(NonZeroUsize::new(0).unwrap()),
+                "CudaSquashedNoiseSignedRadixCiphertext",
                 kind,
             ))
         }
@@ -292,7 +293,7 @@ impl CudaSquashedNoiseExpandable for CudaSquashedNoiseBooleanBlock {
                 },
             })
         } else {
-            Err(create_error_message(DataKind::Boolean, kind))
+            Err(create_error_message("CudaSquashedNoiseBooleanBlock", kind))
         }
     }
 }
@@ -384,11 +385,13 @@ impl CudaCompressedSquashedNoiseCiphertextList {
         &self,
         index: usize,
         streams: &CudaStreams,
-    ) -> Option<(
-        CudaLweCiphertextList<u128>,
-        CudaRadixCiphertextInfo,
-        DataKind,
-    )> {
+    ) -> Option<
+        crate::Result<(
+            CudaLweCiphertextList<u128>,
+            CudaRadixCiphertextInfo,
+            DataKind,
+        )>,
+    > {
         let preceding_infos = self.info.get(..index)?;
         let current_data_kind = self.info.get(index).copied()?;
         let message_modulus = self.packed_list.message_modulus()?;
@@ -400,18 +403,23 @@ impl CudaCompressedSquashedNoiseCiphertextList {
             .map(|kind| kind.num_blocks(message_modulus).div_ceil(2))
             .sum();
 
-        let end_block_index =
-            start_block_index + current_data_kind.num_blocks(message_modulus).div_ceil(2) - 1;
+        // `end_block_index` is inclusive, so a kind spanning no block at all (a zero char string
+        // for instance) would make the subtraction below underflow
+        let block_count = current_data_kind.num_blocks(message_modulus).div_ceil(2);
+        if block_count == 0 {
+            return None;
+        }
+        let end_block_index = start_block_index + block_count - 1;
 
-        let (unpacked, info) = self
-            .unpack(
+        Some(
+            self.unpack(
                 current_data_kind,
                 start_block_index,
                 end_block_index,
                 streams,
             )
-            .unwrap();
-        Some((unpacked, info, current_data_kind))
+            .map(|(unpacked, info)| (unpacked, info, current_data_kind)),
+        )
     }
 
     pub fn get<T>(&self, index: usize, streams: &CudaStreams) -> crate::Result<Option<T>>
@@ -419,7 +427,10 @@ impl CudaCompressedSquashedNoiseCiphertextList {
         T: CudaSquashedNoiseExpandable,
     {
         self.blocks_of(index, streams)
-            .map(|(blocks, info, kind)| T::from_expanded_blocks(blocks, info, kind))
+            .map(|blocks_info_and_kind| {
+                let (blocks, info, kind) = blocks_info_and_kind?;
+                T::from_expanded_blocks(blocks, info, kind)
+            })
             .transpose()
     }
 }

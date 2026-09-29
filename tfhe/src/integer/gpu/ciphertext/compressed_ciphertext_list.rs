@@ -92,13 +92,12 @@ impl CudaCompressedCiphertextList {
         self.info.get(index).copied()
     }
 
-    #[allow(clippy::unnecessary_wraps)]
     fn blocks_of(
         &self,
         index: usize,
         decomp_key: &CudaDecompressionKey,
         streams: &CudaStreams,
-    ) -> Option<(CudaRadixCiphertext, DataKind)> {
+    ) -> Option<crate::Result<(CudaRadixCiphertext, DataKind)>> {
         let preceding_infos = self.info.get(..index)?;
         let current_info = self.info.get(index).copied()?;
         let message_modulus = self.packed_list.message_modulus()?;
@@ -109,9 +108,15 @@ impl CudaCompressedCiphertextList {
             .map(|kind| kind.num_blocks(message_modulus))
             .sum();
 
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
+        // `end_block_index` is inclusive, so a kind spanning no block at all (a zero char string
+        // for instance) would make the subtraction below underflow
+        let block_count = current_info.num_blocks(message_modulus);
+        if block_count == 0 {
+            return None;
+        }
+        let end_block_index = start_block_index + block_count - 1;
 
-        Some((
+        Some(
             decomp_key
                 .unpack(
                     &self.packed_list,
@@ -120,9 +125,8 @@ impl CudaCompressedCiphertextList {
                     end_block_index,
                     streams,
                 )
-                .unwrap(),
-            current_info,
-        ))
+                .map(|blocks| (blocks, current_info)),
+        )
     }
 
     fn get_blocks_of_size_on_gpu(
@@ -141,7 +145,11 @@ impl CudaCompressedCiphertextList {
             .map(|kind| kind.num_blocks(message_modulus))
             .sum();
 
-        let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
+        let block_count = current_info.num_blocks(message_modulus);
+        if block_count == 0 {
+            return None;
+        }
+        let end_block_index = start_block_index + block_count - 1;
 
         Some(decomp_key.get_gpu_list_unpack_size_on_gpu(
             &self.packed_list,
@@ -161,7 +169,10 @@ impl CudaCompressedCiphertextList {
         T: CudaExpandable,
     {
         self.blocks_of(index, decomp_key, streams)
-            .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
+            .map(|blocks_and_kind| {
+                let (blocks, kind) = blocks_and_kind?;
+                T::from_expanded_blocks(blocks, kind)
+            })
             .transpose()
     }
 

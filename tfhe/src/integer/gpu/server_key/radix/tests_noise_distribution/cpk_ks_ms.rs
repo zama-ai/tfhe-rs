@@ -139,10 +139,11 @@ fn cpk_ks_any_ms_inner_helper_gpu(
         let data_info = vec![DataKind::Unsigned(NonZeroUsize::new(num_blocks).unwrap())];
         let cuda_casting_compact_list =
             CudaFlattenedVecCompactCiphertextList::from_vec_shortint_compact_ciphertext_list(
-                vec![compact_list],
+                &[compact_list],
                 data_info,
                 &cuda_side_resources.streams,
-            );
+            )
+            .unwrap();
         let cuda_compact_list_expander = cuda_casting_compact_list
             .expand(
                 cuda_ksk,
@@ -628,10 +629,11 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
             //This is for the ap
             let cuda_no_casting_compact_list =
                 CudaFlattenedVecCompactCiphertextList::from_vec_shortint_compact_ciphertext_list(
-                    vec![no_casting_compact_list.clone()],
+                    std::slice::from_ref(&no_casting_compact_list),
                     data_info,
                     &cuda_side_resources.streams,
-                );
+                )
+                .unwrap();
 
             //This is for the verification
             let cuda_casting_compact_list =
