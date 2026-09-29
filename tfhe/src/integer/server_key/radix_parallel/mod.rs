@@ -34,6 +34,8 @@ mod slice;
 #[cfg(test)]
 pub(crate) mod test_harness;
 #[cfg(test)]
+pub(crate) mod tests_boolean;
+#[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
 #[cfg(test)]
 pub(crate) mod tests_long_run;
