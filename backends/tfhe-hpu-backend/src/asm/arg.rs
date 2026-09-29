@@ -8,6 +8,7 @@ use super::*;
 use field::{
     FwMode, IOpHeader, IOpcode, ImmBundle, Immediate, Operand, OperandBlock, OperandBundle,
 };
+use static_iop::ASM_OPCODE_WIDTH;
 
 /// A minimal recursive-descent cursor over an iop.asm token, supporting the small set of
 /// productions (`str` literals, single-character delimiters, decimal/hex unsigned integers)
@@ -157,8 +158,7 @@ pub enum ParsingError {
 #[derive(Debug, Clone)]
 pub struct Properties {
     fw_mode: FwMode,
-    dst_align: OperandBlock,
-    src_align: OperandBlock,
+    align: OperandBlock,
 }
 
 impl std::fmt::Display for Properties {
@@ -167,13 +167,7 @@ impl std::fmt::Display for Properties {
             FwMode::Static => "",
             FwMode::Dynamic => "dyn ",
         };
-        write!(
-            f,
-            "{}I{} I{}",
-            mode,
-            (self.dst_align.0 + 1) * MSG_WIDTH,
-            (self.src_align.0 + 1) * MSG_WIDTH,
-        )
+        write!(f, "{}I{}", mode, (self.align.0 + 1) * MSG_WIDTH)
     }
 }
 
@@ -182,8 +176,7 @@ impl From<&IOpHeader> for Properties {
     fn from(value: &IOpHeader) -> Self {
         Self {
             fw_mode: value.fw_mode,
-            dst_align: value.dst_align,
-            src_align: value.src_align,
+            align: value.align,
         }
     }
 }
@@ -191,8 +184,7 @@ impl From<&IOpHeader> for Properties {
 impl std::str::FromStr for Properties {
     type Err = Box<ParsingError>;
 
-    /// Parses `[dyn] I<dst_width> I<src_width>` (destination alignment first, then source, per
-    /// `iop.md`'s Feature section).
+    /// Parses `[dyn] I<width>`, the alignment shared by every destination and source operand.
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut c = Cursor::new(s);
@@ -204,15 +196,11 @@ impl std::str::FromStr for Properties {
         };
         c.skip_ws();
         c.expect_char('I', s)?;
-        let dst_width: u16 = c.parse_uint(s, "destination width")?;
-        c.skip_ws();
-        c.expect_char('I', s)?;
-        let src_width: u16 = c.parse_uint(s, "source width")?;
+        let width: u16 = c.parse_uint(s, "operand width")?;
         c.expect_eof(s)?;
         Ok(Properties {
             fw_mode,
-            dst_align: OperandBlock::new((dst_width / MSG_WIDTH as u16) as u8),
-            src_align: OperandBlock::new((src_width / MSG_WIDTH as u16) as u8),
+            align: OperandBlock::new((width / MSG_WIDTH as u16) as u8),
         })
     }
 }
@@ -252,24 +240,28 @@ impl std::fmt::Display for Operand {
         // -> Transform them in one indexed for human readability
         let block = self.props.block.0 + 1;
         let vec_size = self.props.vec_size.0 + 1;
+        // A destination is produced by the IOp that carries it: its iid is the one already
+        // rendered next to the opcode, so it's left implicit here.
+        let iid = match self.props.kind {
+            OperandKind::Dst => String::new(),
+            _ => format!("@{}", self.props.iid.0),
+        };
         if vec_size != 1 {
             write!(
                 f,
-                "I{}[{}]@0x{:0>2x}{{Hpu{}@{}}}",
+                "I{}[{}]@0x{:0>2x}{{Hpu{}{iid}}}",
                 block * MSG_WIDTH,
                 vec_size,
                 self.addr.base_cid.0,
                 self.props.pos.0,
-                self.props.iid.0,
             )
         } else {
             write!(
                 f,
-                "I{}@0x{:0>2x}{{Hpu{}@{}}}",
+                "I{}@0x{:0>2x}{{Hpu{}{iid}}}",
                 block * MSG_WIDTH,
                 self.addr.base_cid.0,
                 self.props.pos.0,
-                self.props.iid.0
             )
         }
     }
@@ -289,9 +281,19 @@ impl std::fmt::Display for OperandBundle {
     }
 }
 
+/// How the optional `@<iid>` suffix of an operand token is resolved.
+#[derive(Debug, Clone, Copy)]
+enum IidCtx {
+    /// Destination operand: it is produced by the IOp being parsed, so its iid is implicit.
+    /// An explicitly written one is only accepted when it matches.
+    Dst(IOpId),
+    /// Source operand: `@<iid>` names the IOp that produced it, and defaults to [`SW_IOP_ID`].
+    Src,
+}
+
 /// Parses one operand token: `I<width>@<addr>{Hpu<pos>[@<iid>]}` (single) or
 /// `I<width>[<len>]@<addr>{Hpu<pos>[@<iid>]}` (vector).
-fn parse_operand(tok: &str) -> Result<Operand, Box<ParsingError>> {
+fn parse_operand(tok: &str, ctx: IidCtx) -> Result<Operand, Box<ParsingError>> {
     let mut c = Cursor::new(tok);
     c.expect_char('I', tok)?;
     let width: u16 = c.parse_uint(tok, "operand width")?;
@@ -314,32 +316,36 @@ fn parse_operand(tok: &str) -> Result<Operand, Box<ParsingError>> {
         ))));
     }
     let pos: u8 = c.parse_uint(tok, "hpu position")?;
-    let iid: u8 = if c.eat_str("@") {
-        c.parse_uint(tok, "iop id")?
+    let iid = if c.eat_str("@") {
+        let iid = IOpId(c.parse_uint(tok, "iop id")?);
+        if let IidCtx::Dst(own) = ctx {
+            if iid != own {
+                return Err(Box::new(ParsingError::InvalidArg(format!(
+                    "`{tok}`: destination {iid} must match the IOp own {own}"
+                ))));
+            }
+        }
+        iid
     } else {
-        0
+        match ctx {
+            IidCtx::Dst(own) => own,
+            IidCtx::Src => SW_IOP_ID,
+        }
     };
     c.expect_char('}', tok)?;
     c.expect_eof(tok)?;
 
-    Ok(Operand::new(
-        block,
-        base_cid,
-        len,
-        PhysId(pos),
-        IOpId(iid),
-        None,
-    ))
+    Ok(Operand::new(block, base_cid, len, PhysId(pos), iid, None))
 }
 
-impl std::str::FromStr for OperandBundle {
-    type Err = Box<ParsingError>;
-
+impl OperandBundle {
+    /// Parses a whitespace separated list of operand tokens, `ctx` driving how each `@<iid>`
+    /// suffix is resolved.
     #[tracing::instrument(level = "trace", ret)]
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn parse(s: &str, ctx: IidCtx) -> Result<Self, Box<ParsingError>> {
         let mut operands = s
             .split_whitespace()
-            .map(parse_operand)
+            .map(|tok| parse_operand(tok, ctx))
             .collect::<Result<Vec<_>, Box<ParsingError>>>()?;
 
         // Empty OperandBundle is considered as parsing error
@@ -352,6 +358,17 @@ impl std::str::FromStr for OperandBundle {
             operands.last_mut().unwrap().props.is_last = true;
             Ok(operands.into())
         }
+    }
+}
+
+impl std::str::FromStr for OperandBundle {
+    type Err = Box<ParsingError>;
+
+    /// Parses a standalone bundle, i.e. without a surrounding IOp to bind destinations to: every
+    /// `@<iid>` is read as-is (c.f. [`OperandBundle::parse`] for the IOp-aware entry point).
+    #[tracing::instrument(level = "trace", ret)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s, IidCtx::Src)
     }
 }
 
@@ -458,9 +475,10 @@ impl std::str::FromStr for Arg {
 
 impl std::fmt::Display for IOp {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let opcode = StaticIOp::from(self);
-        write!(f, "{opcode}")?;
-        write!(f, "{{{}}}", self.get_iid())?;
+        // Opcode and iid are rendered as one token, padded as a whole
+        let opcode = StaticIOp::from(self).mnemonic();
+        let iid = self.header.iid.0;
+        write!(f, "{: <ASM_OPCODE_WIDTH$}", format!("{opcode}@{iid}"))?;
 
         let props = Properties::from(&self.header);
         write!(f, " <{props}>")?;
@@ -484,10 +502,10 @@ impl std::fmt::Display for IOp {
 
 /// Use FromStr trait to decode from asm file
 ///
-/// Grammar: `OPCODE <PROPS> <MAP> <DST> <SRC> [<IMM>]` — the mnemonic/raw-opcode token, then each
-/// remaining section in its own `<...>` group (angle brackets don't nest here, so each group is
-/// found by its next `<`/matching `>` via [`take_group`], then delegated to that section's own
-/// parser).
+/// Grammar: `OPCODE@<iid> <PROPS> <MAP> <DST> <SRC> [<IMM>]` — the mnemonic/raw-opcode token
+/// suffixed by the IOp own id, then each remaining section in its own `<...>` group (angle
+/// brackets don't nest here, so each group is found by its next `<`/matching `>` via
+/// [`take_group`], then delegated to that section's own parser).
 impl std::str::FromStr for IOp {
     type Err = Box<ParsingError>;
 
@@ -500,7 +518,17 @@ impl std::str::FromStr for IOp {
             )))
         })?;
         let (opcode_tok, rest) = trimmed.split_at(opcode_end);
-        let opcode = StaticIOp::from_str(opcode_tok.trim())?;
+        // `@<iid>` is optional, an omitted one defaults to the Sw reserved id
+        let (opcode_tok, iid) = match opcode_tok.trim().split_once('@') {
+            Some((opcode_tok, iid_tok)) => {
+                let mut c = Cursor::new(iid_tok);
+                let iid: u8 = c.parse_uint(s, "iop id")?;
+                c.expect_eof(s)?;
+                (opcode_tok, IOpId(iid))
+            }
+            None => (opcode_tok.trim(), SW_IOP_ID),
+        };
+        let opcode = StaticIOp::from_str(opcode_tok)?;
 
         let (props_tok, rest) = take_group(rest, s)?;
         let props = Properties::from_str(props_tok.trim())?;
@@ -508,13 +536,13 @@ impl std::str::FromStr for IOp {
         let map = IOpMapping::from_str(map_tok.trim())?;
         let (dst_tok, rest) = take_group(rest, s)?;
         let dst = {
-            let mut bundle = OperandBundle::from_str(dst_tok.trim())?;
+            let mut bundle = OperandBundle::parse(dst_tok.trim(), IidCtx::Dst(iid))?;
             bundle.set_kind(OperandKind::Dst);
             bundle
         };
         let (src_tok, rest) = take_group(rest, s)?;
         let src = {
-            let mut bundle = OperandBundle::from_str(src_tok.trim())?;
+            let mut bundle = OperandBundle::parse(src_tok.trim(), IidCtx::Src)?;
             bundle.set_kind(OperandKind::Src);
             bundle
         };
@@ -535,11 +563,11 @@ impl std::str::FromStr for IOp {
 
         // Aggregate some fields together to build real IOp
         let header = IOpHeader {
-            fw_mode: props.fw_mode,
+            iid,
+            align: props.align,
             has_imm,
+            fw_mode: props.fw_mode,
             opcode: IOpcode(opcode.get_opcode()),
-            dst_align: props.dst_align,
-            src_align: props.src_align,
         };
 
         Ok(IOp {
@@ -558,21 +586,23 @@ mod tests {
 
     #[test]
     fn parses_raw_opcode_with_mapping_and_single_operands() {
-        let iop: IOp =
-            "IOP[0x35] <I8 I8> <2,0,1,3> <I8@0x08{Hpu2@1}> <I8@0x0{Hpu2@0} I8@0x4{Hpu2@0}>"
-                .parse()
-                .expect("valid line must parse");
+        let iop: IOp = "IOP[0x35]@1 <I8> <2,0,1,3> <I8@0x08{Hpu2}> <I8@0x0{Hpu2@0} I8@0x4{Hpu2@7}>"
+            .parse()
+            .expect("valid line must parse");
         assert_eq!(iop.opcode(), IOpcode(0x35));
         assert_eq!(iop.fw_mode(), FwMode::Static);
         assert_eq!(iop.dst().len(), 1);
         assert_eq!(iop.src().len(), 2);
-        assert_eq!(iop.get_iid(), IOpId(1));
+        assert_eq!(iop.iid(), IOpId(1));
+        // Destinations inherit the IOp own iid, sources keep the one of their producer
+        assert_eq!(iop.dst()[0].props.iid, IOpId(1));
+        assert_eq!(iop.src()[1].props.iid, IOpId(7));
         assert!(iop.imm().is_empty());
     }
 
     #[test]
     fn parses_dyn_mnemonic_alias_vector_operand_and_immediate() {
-        let iop: IOp = "MULS <dyn I8 I8> <0,1,2,3> <I8@0x8{Hpu0}> <I8[2]@0x0{Hpu2}> <0xaf>"
+        let iop: IOp = "MULS@3 <dyn I8> <0,1,2,3> <I8@0x8{Hpu0}> <I8[2]@0x0{Hpu2}> <0xaf>"
             .parse()
             .expect("valid line must parse");
         assert_eq!(iop.fw_mode(), FwMode::Dynamic);
@@ -580,16 +610,42 @@ mod tests {
         // Operand entries.
         assert_eq!(iop.src().len(), 1);
         assert_eq!(iop.src()[0].props.vec_size.len(), 2);
+        // An omitted source iid falls back on the Sw reserved one
+        assert_eq!(iop.src()[0].props.iid, SW_IOP_ID);
         assert_eq!(iop.imm().len(), 1);
         assert_eq!(iop.imm()[0].cst_value(), 0xaf);
     }
 
     #[test]
+    fn defaults_iid_when_opcode_is_unsuffixed() {
+        let iop: IOp = "MUL <I64> <1> <I64@0x08{Hpu1}> <I64@0x0{Hpu1@2}>"
+            .parse()
+            .expect("valid line must parse");
+        assert_eq!(iop.iid(), SW_IOP_ID);
+    }
+
+    #[test]
+    fn rejects_destination_iid_mismatching_the_iop_one() {
+        let err = "MUL@4 <I64> <1> <I64@0x08{Hpu1@2}> <I64@0x0{Hpu1@2}>"
+            .parse::<IOp>()
+            .unwrap_err();
+        assert!(err.to_string().contains("must match"), "{err}");
+    }
+
+    #[test]
+    fn round_trips_through_display() {
+        let src = "MUL@2 <I64> <1, 2> <I64@0x08{Hpu1}> <I64@0x10{Hpu2@3}>";
+        let iop: IOp = src.parse().expect("valid line must parse");
+        let reparsed: IOp = format!("{iop}").parse().expect("emitted line must reparse");
+        assert_eq!(format!("{iop}"), format!("{reparsed}"));
+        assert_eq!(reparsed.iid(), IOpId(2));
+        assert_eq!(reparsed.src()[0].props.iid, IOpId(3));
+    }
+
+    #[test]
     fn round_trips_operand_bundle_through_display() {
-        // `Display for IOp` decorates its output with a `{iid}` marker straight after the
-        // opcode name that the input grammar itself has no production for (the iid lives
-        // per-operand, in each `{Hpu<pos>@<iid>}`) — so `IOp`'s `Display` and `FromStr` aren't
-        // meant to round-trip end-to-end. Each operand bundle's grammar is symmetric, though.
+        // A standalone bundle has no IOp to bind destinations to, so every iid is explicit and
+        // the grammar is symmetric.
         let src = "I64@0x08{Hpu1@0} I64@0x10{Hpu2@3}";
         let bundle: OperandBundle = src.parse().expect("valid bundle must parse");
         let reparsed: OperandBundle = format!("{bundle}")
@@ -600,7 +656,7 @@ mod tests {
 
     #[test]
     fn rejects_opcode_out_of_user_range() {
-        let err = "IOP[0x80] <I8 I8> <0> <I8@0x0{Hpu0}> <I8@0x0{Hpu0}>"
+        let err = "IOP[0x80]@0 <I8> <0> <I8@0x0{Hpu0}> <I8@0x0{Hpu0}>"
             .parse::<IOp>()
             .unwrap_err();
         assert!(matches!(*err, ParsingError::Opcode(0x80)));
@@ -608,7 +664,7 @@ mod tests {
 
     #[test]
     fn rejects_unknown_alias() {
-        let err = "BOGUS <I8 I8> <0> <I8@0x0{Hpu0}> <I8@0x0{Hpu0}>"
+        let err = "BOGUS@0 <I8> <0> <I8@0x0{Hpu0}> <I8@0x0{Hpu0}>"
             .parse::<IOp>()
             .unwrap_err();
         assert!(matches!(*err, ParsingError::Opalias(_)));
@@ -616,7 +672,7 @@ mod tests {
 
     #[test]
     fn rejects_malformed_operand() {
-        let err = "MUL <I64 I64> <1> <I64@0x08{Hpu1}> <I64@BOGUS{Hpu1}>"
+        let err = "MUL@0 <I64> <1> <I64@0x08{Hpu1}> <I64@BOGUS{Hpu1}>"
             .parse::<IOp>()
             .unwrap_err();
         assert!(err.to_string().contains("ct id"), "{err}");
@@ -624,7 +680,7 @@ mod tests {
 
     #[test]
     fn rejects_missing_section() {
-        let err = "MUL <I64 I64> <1> <I64@0x08{Hpu1}>"
+        let err = "MUL@0 <I64> <1> <I64@0x08{Hpu1}>"
             .parse::<IOp>()
             .unwrap_err();
         assert!(err.to_string().contains("expected"), "{err}");
@@ -632,7 +688,7 @@ mod tests {
 
     #[test]
     fn rejects_trailing_garbage_after_immediate() {
-        let err = "MULS <I8 I8> <0> <I8@0x8{Hpu0}> <I8@0x0{Hpu0}> <0xaf> <extra>"
+        let err = "MULS@0 <I8> <0> <I8@0x8{Hpu0}> <I8@0x0{Hpu0}> <0xaf> <extra>"
             .parse::<IOp>()
             .unwrap_err();
         assert!(err.to_string().contains("trailing"), "{err}");
