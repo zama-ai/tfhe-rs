@@ -12,16 +12,16 @@
 
 bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples, uint32_t max_shared_memory) {
+    uint32_t num_samples, uint32_t max_shared_memory, uint32_t gpu_index) {
   return supports_cooperative_groups_on_multibit_programmable_bootstrap<
       uint64_t>(glwe_dimension, polynomial_size, level_count, num_samples,
-                max_shared_memory);
+                max_shared_memory, gpu_index);
 }
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory) {
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index) {
 #if CUDA_ARCH >= 900
   if ((glwe_dimension + 1) * level_count > 8)
     return false;
@@ -30,8 +30,9 @@ bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
       polynomial_size, AmortizedDegreePolicy,
       return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
           Torus, Params>(num_samples, glwe_dimension, polynomial_size,
-                         level_count, max_shared_memory));
+                         level_count, max_shared_memory, gpu_index));
 #else
+  (void)gpu_index;
   return false;
 #endif
 }
@@ -339,7 +340,8 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64_async(
   bool supports_cg =
       supports_cooperative_groups_on_multibit_programmable_bootstrap<uint64_t>(
           glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index));
+          input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index),
+          gpu_index);
 #if (CUDA_ARCH >= 900)
   // On H100s we should be using TBC until num_samples < num_sms / 2.
   // After that we switch to CG until not supported anymore.
@@ -351,7 +353,7 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64_async(
   bool supports_tbc =
       has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          level_count, cuda_get_max_shared_memory(gpu_index));
+          level_count, cuda_get_max_shared_memory(gpu_index), gpu_index);
 
   if (supports_tbc)
     return scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
@@ -641,7 +643,7 @@ cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
 template bool
 has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory);
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index);
 
 #if (CUDA_ARCH >= 900)
 template <typename Torus>

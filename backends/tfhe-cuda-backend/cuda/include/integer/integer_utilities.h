@@ -547,7 +547,7 @@ struct int_radix_lut_custom_input_output {
     int classical_threshold =
         sizeof(OutputTorus) == 16
             ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
-            : get_threshold_multi_gpu_classical();
+            : get_threshold_multi_gpu_classical(active_streams.gpu_index(0));
     int threshold = (params.pbs_type == PBS_TYPE::MULTI_BIT)
                         ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
                         : classical_threshold;
@@ -994,7 +994,7 @@ public:
     int classical_threshold =
         sizeof(OutputTorus) == 16
             ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
-            : get_threshold_multi_gpu_classical();
+            : get_threshold_multi_gpu_classical(active_streams.gpu_index(0));
     int threshold = (params.pbs_type == PBS_TYPE::MULTI_BIT)
                         ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
                         : classical_threshold;

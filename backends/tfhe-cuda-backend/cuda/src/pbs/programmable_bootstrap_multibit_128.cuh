@@ -1192,10 +1192,10 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128(
     int glwe_dimension, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_index) {
 
   // If Cooperative Groups is not supported, no need to check anything else
-  if (!cuda_check_support_cooperative_groups())
+  if (!cuda_check_support_cooperative_groups(gpu_index))
     return false;
 
   // Calculate the dimension of the kernel
@@ -1252,8 +1252,8 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128(
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
-  check_cuda_error(
-      cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0));
+  check_cuda_error(cudaDeviceGetAttribute(
+      &number_of_sm, cudaDevAttrMultiProcessorCount, gpu_index));
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
 
@@ -1263,13 +1263,13 @@ template <typename Torus>
 __host__ bool
 supports_cooperative_groups_on_multibit_programmable_bootstrap_128(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_index) {
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
   DISPATCH_POLY_SIZE(
       polynomial_size, Multibit128DegreePolicy,
       return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
           Torus, Params>(glwe_dimension, level_count, num_samples,
-                         max_shared_memory));
+                         max_shared_memory, gpu_index));
 }
 
 // Noise tests variant: identical to
