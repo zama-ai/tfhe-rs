@@ -237,6 +237,15 @@ impl StaticIOp {
         }
     }
 
+    /// The asm token this operation renders as, unpadded: either its mnemonic alias or the raw
+    /// `IOP[0x..]` form (c.f. [`Display`](std::fmt::Display) for the padded flavor).
+    pub fn mnemonic(&self) -> String {
+        match *self {
+            Self::IOp(n) => format!("IOP[0x{n:x}]"),
+            named => named.name().to_string(),
+        }
+    }
+
     /// Bridges this IOp to the `zhc_builder` function that compiles it into a circuit.
     pub fn to_builder(&self, spec: CiphertextSpec) -> Builder {
         use zhc::builder::*;
@@ -317,11 +326,7 @@ pub const ASM_OPCODE_WIDTH: usize = 8;
 
 impl std::fmt::Display for StaticIOp {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let name = match *self {
-            Self::IOp(n) => format!("IOP[0x{n:x}]"),
-            named => named.name().to_string(),
-        };
-        write!(f, "{name: <ASM_OPCODE_WIDTH$}")
+        write!(f, "{: <ASM_OPCODE_WIDTH$}", self.mnemonic())
     }
 }
 
