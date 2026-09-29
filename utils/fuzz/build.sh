@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# Build all fuzz harnesses with AFL instrumentation.
+# Build fuzz harnesses with AFL instrumentation.
 #
 # Usage:
 #   ./build.sh              # build CPU harnesses only
 #   ./build.sh --corpusgen  # also run corpusgen to generate corpus + aux data
-#   ./build.sh --gpu        # also build the GPU harness (requires CUDA)
-#   ./build.sh --gpu --corpusgen  # build both CPU+GPU harnesses, generate all corpus
+#   ./build.sh --gpu        # build GPU harness only (requires CUDA + afl++)
+#   ./build.sh --gpu --corpusgen  # build GPU harness + generate GPU corpus
 #
 set -euo pipefail
 
@@ -21,8 +21,8 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --corpusgen    Also run corpusgen to (re)generate corpus + aux data"
-    echo "  --gpu          Also build the GPU harness (harness-cuda-compute); requires CUDA"
-    echo "                 Combined with --corpusgen: also runs gpu-corpusgen (no-GPU needed)"
+    echo "  --gpu          Build GPU harness only (harness-cuda-compute); requires CUDA + afl++"
+    echo "                 Combined with --corpusgen: also runs gpu-corpusgen (CPU-only)"
     echo "  -h, --help     Show this help message"
 }
 
@@ -43,27 +43,30 @@ TARGET_DIR="$(cargo metadata --format-version=1 --no-deps \
     | python3 -c 'import sys, json; print(json.load(sys.stdin)["target_directory"])')"
 
 # ── Step 0: optionally (re)generate corpus + aux data ──────────────────────
-if [[ "$CORPUSGEN" == "1" ]]; then
-    echo "==> Building and running corpusgen"
-    cargo run --release -p corpusgen --bin corpusgen
-    echo "    corpus and aux_data written"
-fi
-
-if [[ "$CORPUSGEN" == "1" && "$GPU" == "1" ]]; then
-    echo "==> Building and running gpu-corpusgen"
-    cargo run --release -p corpusgen --bin gpu-corpusgen
-    echo "    GPU corpus and aux_data written"
-fi
-
-# ── Build harnesses with full AFL instrumentation ──────────────────────────
-HARNESSES=(harness-deser harness-verify harness-compute)
 if [[ "$GPU" == "1" ]]; then
-    HARNESSES+=(harness-cuda-compute)
+    if [[ "$CORPUSGEN" == "1" ]]; then
+        echo "==> Building and running gpu-corpusgen"
+        cargo run --release -p corpusgen --bin gpu-corpusgen
+        echo "    GPU corpus and aux_data written"
+    fi
+    HARNESSES=(harness-cuda-compute)
+else
+    if [[ "$CORPUSGEN" == "1" ]]; then
+        echo "==> Building and running corpusgen"
+        cargo run --release -p corpusgen --bin corpusgen
+        echo "    corpus and aux_data written"
+    fi
+    HARNESSES=(harness-deser harness-verify harness-compute)
 fi
 
 for harness in "${HARNESSES[@]}"; do
     echo "==> Building $harness"
-    cargo afl build --release -p "$harness"
+    if [[ "$harness" == "harness-cuda-compute" ]]; then
+        # Instrument host-side C++ via AFL's clang wrappers so NVCC uses them as -ccbin.
+        AFL_CXX=afl-clang-fast++ cargo afl build -vv --release -j16 -p "$harness"
+    else
+        cargo afl build --release -p "$harness"
+    fi
 done
 
 echo "==> All harnesses built successfully"

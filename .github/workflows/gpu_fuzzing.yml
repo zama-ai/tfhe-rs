@@ -69,6 +69,9 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install clang-14 and OpenMP for AFL C++ instrumentation
+        run: sudo apt-get install -y clang-14 libomp-14-dev
+
       - name: Install cargo-afl
         run: make install_cargo_afl
 
