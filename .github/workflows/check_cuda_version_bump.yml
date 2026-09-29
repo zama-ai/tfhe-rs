@@ -25,4 +25,4 @@ jobs:
           fetch-depth: 0
 
       - name: Check CUDA backend version bumps
-        run: ./scripts/check_cuda_version_bump.sh
+        run: make check_cuda_version_bump
