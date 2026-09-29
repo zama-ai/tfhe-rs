@@ -1776,6 +1776,42 @@ mod zk_pok_tests {
         }
     }
 
+    /// A proven list that only holds an empty string has no ciphertext. This corner case is not
+    /// officially supported, so conformance must reject it
+    #[cfg(feature = "strings")]
+    #[test]
+    fn test_proven_list_with_empty_string() {
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let metadata = b"integer";
+
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(16)).unwrap();
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        // Unpacked lists are allowed, so that the list is only rejected for being empty
+        let conformance_params =
+            IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                pke_params, &crs,
+            );
+
+        let empty_string = crate::strings::ciphertext::ClearString::new(String::new());
+
+        for is_packed in [false, true] {
+            let mut builder = CompactCiphertextList::builder(&pk);
+            builder.push(&empty_string);
+
+            let proven_ct = if is_packed {
+                builder.build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
+            } else {
+                builder.build_with_proof(&crs, metadata, ZkComputeLoad::Proof)
+            }
+            .unwrap();
+
+            assert!(!proven_ct.is_conformant(&conformance_params));
+            assert!(!proven_ct.is_conformant(&conformance_params.allow_unpacked()));
+        }
+    }
+
     /// In this test we check the behavior of the proven list when the info vec
     /// is modified
     #[test]
