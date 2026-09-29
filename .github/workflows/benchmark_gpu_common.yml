@@ -285,7 +285,7 @@ jobs:
           IFS=','
           for filename in $filenames_list; do
             cargo run --release -p tfhe-benchmark-parser -- -i "tfhe-benchmark/${filename}" -o "${RESULTS_FILENAME}" \
-            --object-sizes \
+            --csv \
             --backend cuda \
             --append-results
           done
