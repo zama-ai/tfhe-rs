@@ -136,17 +136,17 @@ impl From<&field::ImmediateHeader> for ImmediateHeaderHex {
 #[bitfield(u32)]
 pub struct IOpHeaderHex {
     #[bits(8)]
-    src_align: u8,
+    iid: u8,
     #[bits(8)]
-    dst_align: u8,
-    #[bits(8)]
-    opcode: u8,
+    align: u8,
     #[bits(1)]
     has_imm: bool,
     #[bits(1)]
     fw_mode: bool,
     #[bits(6)]
     _reserved: u8,
+    #[bits(8)]
+    opcode: u8,
 }
 
 impl From<&IOpHeaderHex> for field::IOpHeader {
@@ -157,11 +157,11 @@ impl From<&IOpHeaderHex> for field::IOpHeader {
         };
 
         Self {
-            src_align: field::OperandBlock(value.src_align()),
-            dst_align: field::OperandBlock(value.dst_align()),
-            opcode: field::IOpcode(value.opcode()),
+            iid: IOpId(value.iid()),
+            align: field::OperandBlock(value.align()),
             has_imm: value.has_imm(),
             fw_mode,
+            opcode: field::IOpcode(value.opcode()),
         }
     }
 }
@@ -174,11 +174,11 @@ impl From<&field::IOpHeader> for IOpHeaderHex {
         };
 
         Self::new()
-            .with_src_align(value.src_align.0)
-            .with_dst_align(value.dst_align.0)
-            .with_opcode(value.opcode.0)
+            .with_iid(value.iid.0)
+            .with_align(value.align.0)
             .with_has_imm(value.has_imm)
             .with_fw_mode(fw_mode)
+            .with_opcode(value.opcode.0)
     }
 }
 
