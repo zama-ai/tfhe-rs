@@ -245,15 +245,12 @@ jobs:
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
-          --name-suffix regression \
-          --bench-type "${BENCH_TYPE}"
-
+          --name-suffix regression
           echo "RESULTS_FILE_SHA=$(sha256sum "${RESULTS_FILENAME}" | cut -d " " -f1)" >> "${GITHUB_ENV}"
         env:
           HARDWARE_NAME: ${{ needs.prepare-benchmarks.outputs.hardware-name }}
           TFHE_BACKEND: ${{ needs.prepare-benchmarks.outputs.tfhe-backend }}
           REF_NAME: ${{ github.head_ref || github.ref_name }}
-          BENCH_TYPE: ${{ env.__TFHE_RS_BENCH_TYPE }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
