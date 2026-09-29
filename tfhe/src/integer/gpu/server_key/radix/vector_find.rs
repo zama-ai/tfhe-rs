@@ -1,6 +1,6 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::UnsignedInteger;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::{
@@ -27,8 +27,12 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
-        Clear:
-            UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
+        Clear: UnsignedInteger
+            + FixedDecomposableInto<u64>
+            + CastInto<usize>
+            + CastInto<u64>
+            + Sync
+            + Send,
     {
         let num_matches = matches.get_values().len();
 
@@ -137,8 +141,12 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> u64
     where
-        Clear:
-            UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
+        Clear: UnsignedInteger
+            + FixedDecomposableInto<u64>
+            + CastInto<usize>
+            + CastInto<u64>
+            + Sync
+            + Send,
     {
         if matches.get_values().is_empty() {
             return 0;
@@ -261,7 +269,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if ct.block_carries_are_empty() {
             self.unchecked_match_value(ct, matches, streams)
@@ -290,7 +298,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + CastInto<u64>,
     {
         if matches.get_values().is_empty() {
             let num_blocks = self.num_blocks_to_represent_unsigned_value(or_value);
@@ -390,8 +398,12 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> u64
     where
-        Clear:
-            UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
+        Clear: UnsignedInteger
+            + FixedDecomposableInto<u64>
+            + CastInto<usize>
+            + CastInto<u64>
+            + Sync
+            + Send,
     {
         if matches.get_values().is_empty() {
             return 0;
@@ -515,7 +527,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if ct.block_carries_are_empty() {
             self.unchecked_match_value_or(ct, matches, or_value, streams)
@@ -690,7 +702,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: DecomposableInto<u64>,
+        Clear: FixedDecomposableInto<u64>,
     {
         if cts.is_empty() {
             let trivial_ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(0, 1, streams);
@@ -813,7 +825,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: DecomposableInto<u64>,
+        Clear: FixedDecomposableInto<u64>,
     {
         let mut tmp_cts = Vec::<T>::with_capacity(cts.len());
         let cts = if cts.iter().any(|ct| !ct.block_carries_are_empty()) {
@@ -842,7 +854,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
     {
         if clears.is_empty() {
             let trivial_ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(0, 1, streams);
@@ -964,7 +976,7 @@ impl CudaServerKey {
     ) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
     {
         let mut tmp_ct;
         let ct = if ct.block_carries_are_empty() {
@@ -992,7 +1004,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
     {
         if clears.is_empty() {
             let trivial_ct2: CudaUnsignedRadixCiphertext = self.create_trivial_radix(
@@ -1138,7 +1150,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
     {
         let mut tmp_ct;
         let ct = if ct.block_carries_are_empty() {
@@ -1168,7 +1180,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
     {
         if clears.is_empty() {
             let trivial_ct2: CudaUnsignedRadixCiphertext = self.create_trivial_radix(
@@ -1313,7 +1325,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
     {
         let mut tmp_ct;
         let ct = if ct.block_carries_are_empty() {
@@ -1524,7 +1536,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if cts.is_empty() {
             let trivial_ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(0, 1, streams);
@@ -1668,7 +1680,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         let mut tmp_cts = Vec::<T>::with_capacity(cts.len());
 
@@ -1704,7 +1716,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
     {
         if cts.is_empty() {
             let trivial_ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(0, 1, streams);
@@ -1847,7 +1859,7 @@ impl CudaServerKey {
     ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
     where
         T: CudaIntegerRadixCiphertext,
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize> + Sync + Send,
     {
         let mut tmp_cts = Vec::<T>::with_capacity(cts.len());
 

@@ -15,7 +15,7 @@ use super::ciphertext::{
 };
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{
-    BlockRecomposer, DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
+    BlockRecomposer, FixedDecomposableInto, FixedRecomposableFrom, RecomposableSignedInteger,
 };
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
@@ -157,7 +157,7 @@ impl ClientKey {
     #[cfg(test)]
     pub fn create_trivial_radix<T, C>(&self, value: T, num_blocks: usize) -> C
     where
-        T: DecomposableInto<u64>,
+        T: FixedDecomposableInto<u64>,
         C: super::IntegerRadixCiphertext + From<Vec<crate::shortint::Ciphertext>>,
     {
         encrypt_words_radix_impl(
@@ -189,7 +189,7 @@ impl ClientKey {
     /// ```
     pub fn encrypt_radix<T>(&self, message: T, num_blocks: usize) -> RadixCiphertext
     where
-        T: DecomposableInto<u64> + UnsignedNumeric,
+        T: FixedDecomposableInto<u64> + UnsignedNumeric,
     {
         self.encrypt_words_radix(message, num_blocks, crate::shortint::ClientKey::encrypt)
     }
@@ -213,7 +213,7 @@ impl ClientKey {
     /// let dec: u64 = cks.decrypt_radix_without_padding(&ct);
     /// assert_eq!(msg, dec);
     /// ```
-    pub fn encrypt_radix_without_padding<T: DecomposableInto<u64> + UnsignedNumeric>(
+    pub fn encrypt_radix_without_padding<T: FixedDecomposableInto<u64> + UnsignedNumeric>(
         &self,
         message: T,
         num_blocks: usize,
@@ -225,7 +225,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_compressed<T: DecomposableInto<u64> + UnsignedNumeric>(
+    pub fn encrypt_radix_compressed<T: FixedDecomposableInto<u64> + UnsignedNumeric>(
         &self,
         message: T,
         num_blocks: usize,
@@ -237,7 +237,9 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_radix_without_padding_compressed<T: DecomposableInto<u64> + UnsignedNumeric>(
+    pub fn encrypt_radix_without_padding_compressed<
+        T: FixedDecomposableInto<u64> + UnsignedNumeric,
+    >(
         &self,
         message: T,
         num_blocks: usize,
@@ -262,7 +264,7 @@ impl ClientKey {
         encrypt_block: F,
     ) -> RadixCiphertextType
     where
-        T: DecomposableInto<u64> + UnsignedNumeric,
+        T: FixedDecomposableInto<u64> + UnsignedNumeric,
         F: Fn(&crate::shortint::ClientKey, u64) -> Block,
         RadixCiphertextType: From<Vec<Block>>,
     {
@@ -289,7 +291,7 @@ impl ClientKey {
     /// ```
     pub fn decrypt_radix<T>(&self, ctxt: &RadixCiphertext) -> T
     where
-        T: RecomposableFrom<u64> + UnsignedNumeric,
+        T: FixedRecomposableFrom<u64> + UnsignedNumeric,
     {
         self.decrypt_radix_impl(
             &ctxt.blocks,
@@ -317,7 +319,7 @@ impl ClientKey {
     /// ```
     pub fn decrypt_radix_without_padding<T>(&self, ctxt: &RadixCiphertext) -> T
     where
-        T: RecomposableFrom<u64> + UnsignedNumeric,
+        T: FixedRecomposableFrom<u64> + UnsignedNumeric,
     {
         self.decrypt_radix_impl(
             &ctxt.blocks,
@@ -334,7 +336,7 @@ impl ClientKey {
         decrypt_block: F,
     ) -> T
     where
-        T: RecomposableFrom<u64>,
+        T: FixedRecomposableFrom<u64>,
         F: Fn(&crate::shortint::ClientKey, &crate::shortint::Ciphertext) -> u64,
     {
         if blocks.is_empty() {
@@ -342,13 +344,14 @@ impl ClientKey {
         }
 
         let bits_in_block = self.key.parameters().message_modulus().0.ilog2();
+        let bit_width = bits_in_block * u32::try_from(blocks.len()).unwrap();
         let decrypted_block_iter = blocks.iter().map(|block| decrypt_block(&self.key, block));
-        BlockRecomposer::recompose_unsigned(decrypted_block_iter, bits_in_block)
+        BlockRecomposer::recompose_unsigned(decrypted_block_iter, bits_in_block, bit_width)
     }
 
     pub fn encrypt_signed_radix<T>(&self, message: T, num_blocks: usize) -> SignedRadixCiphertext
     where
-        T: DecomposableInto<u64> + SignedNumeric,
+        T: FixedDecomposableInto<u64> + SignedNumeric,
     {
         encrypt_words_radix_impl(
             &self.key,
@@ -364,7 +367,7 @@ impl ClientKey {
         num_blocks: usize,
     ) -> SignedRadixCiphertext
     where
-        T: DecomposableInto<u64> + SignedNumeric,
+        T: FixedDecomposableInto<u64> + SignedNumeric,
     {
         encrypt_words_radix_impl(
             &self.key,
@@ -374,7 +377,7 @@ impl ClientKey {
         )
     }
 
-    pub fn encrypt_signed_radix_compressed<T: DecomposableInto<u64> + SignedNumeric>(
+    pub fn encrypt_signed_radix_compressed<T: FixedDecomposableInto<u64> + SignedNumeric>(
         &self,
         message: T,
         num_blocks: usize,
@@ -388,7 +391,7 @@ impl ClientKey {
     }
 
     pub fn encrypt_signed_radix_without_padding_compressed<
-        T: DecomposableInto<u64> + SignedNumeric,
+        T: FixedDecomposableInto<u64> + SignedNumeric,
     >(
         &self,
         message: T,
@@ -426,11 +429,12 @@ impl ClientKey {
         }
 
         let bits_in_block = self.key.parameters().message_modulus().0.ilog2();
+        let bit_width = bits_in_block * u32::try_from(ctxt.blocks.len()).unwrap();
         let decrypted_block_iter = ctxt
             .blocks
             .iter()
             .map(|block| decrypt_block(&self.key, block));
-        BlockRecomposer::recompose_signed(decrypted_block_iter, bits_in_block)
+        BlockRecomposer::recompose_signed(decrypted_block_iter, bits_in_block, bit_width)
     }
 
     /// Encrypts one block.

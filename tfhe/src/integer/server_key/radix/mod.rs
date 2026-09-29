@@ -11,7 +11,7 @@ pub(super) mod slice;
 mod sub;
 
 use super::ServerKey;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::encryption::encrypt_words_radix_impl;
 use crate::integer::{BooleanBlock, SignedRadixCiphertext};
@@ -125,7 +125,7 @@ impl ServerKey {
     /// ```
     pub fn create_trivial_radix<T, C>(&self, value: T, num_blocks: usize) -> C
     where
-        T: DecomposableInto<u64>,
+        T: FixedDecomposableInto<u64>,
         C: IntegerRadixCiphertext + From<Vec<crate::shortint::Ciphertext>>,
     {
         encrypt_words_radix_impl(

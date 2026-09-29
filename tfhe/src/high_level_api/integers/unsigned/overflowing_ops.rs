@@ -3,7 +3,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::prelude::{CastInto, OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub};
 use crate::{FheBool, FheUint};
 
@@ -165,7 +165,7 @@ where
 impl<Id, Clear> OverflowingAdd<Clear> for &FheUint<Id>
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8> + CastInto<u64>,
+    Clear: UnsignedNumeric + FixedDecomposableInto<u8> + CastInto<u64>,
 {
     type Output = FheUint<Id>;
 
@@ -279,7 +279,7 @@ where
 impl<Id, Clear> OverflowingAdd<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8> + CastInto<u64>,
+    Clear: UnsignedNumeric + FixedDecomposableInto<u8> + CastInto<u64>,
 {
     type Output = Self;
 
@@ -316,7 +316,7 @@ where
 impl<Id, Clear> OverflowingAdd<&FheUint<Id>> for Clear
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8> + CastInto<u64>,
+    Clear: UnsignedNumeric + FixedDecomposableInto<u8> + CastInto<u64>,
 {
     type Output = FheUint<Id>;
 
@@ -505,7 +505,8 @@ where
 impl<Id, Clear> OverflowingSub<Clear> for &FheUint<Id>
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Clear> + CastInto<u64>,
+    Clear:
+        UnsignedNumeric + FixedDecomposableInto<u8> + std::ops::Not<Output = Clear> + CastInto<u64>,
 {
     type Output = FheUint<Id>;
 
@@ -602,7 +603,8 @@ where
 impl<Id, Clear> OverflowingSub<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Clear> + CastInto<u64>,
+    Clear:
+        UnsignedNumeric + FixedDecomposableInto<u8> + std::ops::Not<Output = Clear> + CastInto<u64>,
 {
     type Output = Self;
 

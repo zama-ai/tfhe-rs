@@ -23,7 +23,7 @@ pub use traits::{IOwnedArray, Slicing, SlicingMut};
 
 use crate::array::stride::DynDimensions;
 use crate::core_crypto::prelude::{Numeric, OverflowingAdd, SignedNumeric, UnsignedNumeric};
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::RadixCiphertext;
@@ -512,7 +512,7 @@ fn fhe_bool_dot_product<Clear>(
 ) -> (Vec<crate::shortint::Ciphertext>, Tag)
 where
     Clear: Numeric
-        + DecomposableInto<u64>
+        + FixedDecomposableInto<u64>
         + CastInto<usize>
         + CastFrom<u128>
         + Mul<Clear, Output = Clear>
@@ -547,7 +547,7 @@ where
 impl<Id, Clear> traits::FheSliceDotProduct<FheBool, Clear> for FheUint<Id>
 where
     Clear: UnsignedNumeric
-        + DecomposableInto<u64>
+        + FixedDecomposableInto<u64>
         + CastInto<usize>
         + CastFrom<u128>
         + Mul<Clear, Output = Clear>
@@ -591,7 +591,7 @@ where
 impl<Id, Clear> traits::FheSliceDotProduct<FheBool, Clear> for FheInt<Id>
 where
     Clear: SignedNumeric
-        + DecomposableInto<u64>
+        + FixedDecomposableInto<u64>
         + CastInto<usize>
         + CastFrom<u128>
         + Mul<Clear, Output = Clear>

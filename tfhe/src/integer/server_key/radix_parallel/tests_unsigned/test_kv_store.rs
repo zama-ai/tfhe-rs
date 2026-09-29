@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
@@ -193,7 +193,7 @@ pub fn default_kv_store_get_update_test<Key, P, T1, T2>(
     store_sizes: &[usize],
     max_probes: usize,
 ) where
-    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
+    Key: FixedDecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
         (&'a KVStore<Key, RadixCiphertext>, &'a RadixCiphertext),
@@ -290,7 +290,7 @@ pub fn default_kv_store_get_update_test<Key, P, T1, T2>(
 
 pub fn default_kv_store_map_test<Key, P, T>(params: P, mut kv_store_map: T)
 where
-    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
+    Key: FixedDecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (
@@ -450,7 +450,7 @@ pub fn default_kv_store_contains_test<Key, P, T1>(
     store_sizes: &[usize],
     max_probes: usize,
 ) where
-    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
+    Key: FixedDecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
         (&'a KVStore<Key, RadixCiphertext>, &'a RadixCiphertext),
@@ -509,7 +509,7 @@ pub fn default_kv_store_contains_test<Key, P, T1>(
 
 pub fn default_kv_store_contains_value_test<Key, P, T1>(params: P, mut kv_store_contains_value: T1)
 where
-    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
+    Key: FixedDecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
         (&'a KVStore<Key, RadixCiphertext>, &'a RadixCiphertext),
@@ -571,7 +571,7 @@ pub fn default_kv_store_contains_clear_value_test<Key, P, T1>(
     params: P,
     mut kv_store_contains_clear_value: T1,
 ) where
-    Key: DecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
+    Key: FixedDecomposableInto<u64> + UnsignedNumeric + CastFrom<u64> + Ord + Copy + Display,
     P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<(&'a KVStore<Key, RadixCiphertext>, u64), BooleanBlock>,
 {

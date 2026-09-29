@@ -1,4 +1,4 @@
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
@@ -138,7 +138,7 @@ where
 
 impl<Scalar> ServerKeyDefaultCMux<&RadixCiphertext, Scalar> for ServerKey
 where
-    Scalar: DecomposableInto<u64>,
+    Scalar: FixedDecomposableInto<u64>,
 {
     type Output = RadixCiphertext;
 
@@ -210,7 +210,7 @@ where
 
 impl<Scalar> ServerKeyDefaultCMux<Scalar, &RadixCiphertext> for ServerKey
 where
-    Scalar: DecomposableInto<u64>,
+    Scalar: FixedDecomposableInto<u64>,
 {
     type Output = RadixCiphertext;
 
@@ -274,7 +274,7 @@ where
 
 impl<Scalar> ServerKeyDefaultCMux<&SignedRadixCiphertext, Scalar> for ServerKey
 where
-    Scalar: DecomposableInto<u64>,
+    Scalar: FixedDecomposableInto<u64>,
 {
     type Output = SignedRadixCiphertext;
 
@@ -309,7 +309,7 @@ where
 
 impl<Scalar> ServerKeyDefaultCMux<Scalar, &SignedRadixCiphertext> for ServerKey
 where
-    Scalar: DecomposableInto<u64>,
+    Scalar: FixedDecomposableInto<u64>,
 {
     type Output = SignedRadixCiphertext;
 
@@ -552,7 +552,7 @@ impl ServerKey {
     ) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         assert!(true_ct
             .blocks()
@@ -601,7 +601,7 @@ impl ServerKey {
         n_blocks: usize,
     ) -> T
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: IntegerRadixCiphertext,
     {
         self.scalar_if_then_else_parallelized(condition, true_value, false_value, n_blocks)
@@ -615,7 +615,7 @@ impl ServerKey {
         n_blocks: usize,
     ) -> T
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: IntegerRadixCiphertext,
     {
         self.scalar_if_then_else_parallelized(condition, true_value, false_value, n_blocks)
@@ -629,7 +629,7 @@ impl ServerKey {
         n_blocks: usize,
     ) -> T
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: IntegerRadixCiphertext,
     {
         let true_iter = BlockDecomposer::with_block_count(
@@ -1045,7 +1045,7 @@ impl ServerKey {
         b: Scalar,
     ) -> (T, T)
     where
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
         T: IntegerRadixCiphertext,
     {
         let a = self.clean_for_default_op(a);

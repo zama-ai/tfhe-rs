@@ -11,7 +11,7 @@ use crate::high_level_api::re_randomization::{
 use crate::high_level_api::traits::{
     FheEq, Flip, IfThenElse, IfThenZero, ReRandomize, ScalarIfThenElse, Tagged,
 };
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::ReRandomizationSeed;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -237,7 +237,7 @@ impl FheBool {
 impl<Id, Scalar> ScalarIfThenElse<&FheUint<Id>, Scalar> for FheBool
 where
     Id: FheUintId,
-    Scalar: DecomposableInto<u64> + UnsignedNumeric,
+    Scalar: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Output = FheUint<Id>;
 
@@ -292,7 +292,7 @@ where
 impl<Id, Scalar> ScalarIfThenElse<Scalar, &FheUint<Id>> for FheBool
 where
     Id: FheUintId,
-    Scalar: DecomposableInto<u64> + UnsignedNumeric,
+    Scalar: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Output = FheUint<Id>;
 
@@ -347,7 +347,7 @@ where
 impl<Id, Scalar> ScalarIfThenElse<&FheInt<Id>, Scalar> for FheBool
 where
     Id: FheIntId,
-    Scalar: DecomposableInto<u64> + SignedNumeric,
+    Scalar: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Output = FheInt<Id>;
 
@@ -402,7 +402,7 @@ where
 impl<Id, Scalar> ScalarIfThenElse<Scalar, &FheInt<Id>> for FheBool
 where
     Id: FheIntId,
-    Scalar: DecomposableInto<u64> + SignedNumeric,
+    Scalar: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Output = FheInt<Id>;
 
@@ -876,7 +876,7 @@ where
 impl<Id, T> Flip<&FheUint<Id>, T> for FheBool
 where
     Id: FheUintId,
-    T: DecomposableInto<u64> + UnsignedNumeric,
+    T: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Output = FheUint<Id>;
 
@@ -909,7 +909,7 @@ where
 impl<Id, T> Flip<&FheInt<Id>, T> for FheBool
 where
     Id: FheIntId,
-    T: DecomposableInto<u64> + SignedNumeric,
+    T: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Output = FheInt<Id>;
 
@@ -942,7 +942,7 @@ where
 impl<Id, T> Flip<T, &FheInt<Id>> for FheBool
 where
     Id: FheIntId,
-    T: DecomposableInto<u64> + SignedNumeric,
+    T: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Output = FheInt<Id>;
 
@@ -975,7 +975,7 @@ where
 impl<Id, T> Flip<T, &FheUint<Id>> for FheBool
 where
     Id: FheUintId,
-    T: DecomposableInto<u64> + UnsignedNumeric,
+    T: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Output = FheUint<Id>;
 

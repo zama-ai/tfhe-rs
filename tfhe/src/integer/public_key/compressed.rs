@@ -1,7 +1,7 @@
 use tfhe_versionable::Versionize;
 
 use crate::integer::backward_compatibility::public_key::CompressedPublicKeyVersions;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
 use crate::integer::client_key::ClientKey;
 use crate::integer::encryption::{
@@ -74,7 +74,7 @@ impl CompressedPublicKey {
         self.key.parameters.pbs_parameters().unwrap()
     }
 
-    pub fn encrypt_radix<T: DecomposableInto<u64>>(
+    pub fn encrypt_radix<T: FixedDecomposableInto<u64>>(
         &self,
         message: T,
         num_blocks: usize,
@@ -86,7 +86,7 @@ impl CompressedPublicKey {
         )
     }
 
-    pub fn encrypt_signed_radix<T: DecomposableInto<u64>>(
+    pub fn encrypt_signed_radix<T: FixedDecomposableInto<u64>>(
         &self,
         message: T,
         num_blocks: usize,
@@ -123,7 +123,7 @@ impl CompressedPublicKey {
         encrypt_blocks: F,
     ) -> RadixCiphertextType
     where
-        T: DecomposableInto<u64>,
+        T: FixedDecomposableInto<u64>,
         F: Fn(&crate::shortint::CompressedPublicKey, ClearRadixBlockIterator<T>) -> Vec<Block>,
         RadixCiphertextType: From<Vec<Block>>,
     {

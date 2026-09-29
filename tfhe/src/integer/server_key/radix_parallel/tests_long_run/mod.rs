@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::CastFrom;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::{
     BooleanBlock, IntegerCiphertext, RadixCiphertext, RadixClientKey, SignedRadixCiphertext,
 };
@@ -111,7 +111,10 @@ pub(crate) struct RandomOpSequenceDataGenerator<P, C> {
 }
 
 impl<
-        P: RadixEncryptable<Output = C> + DecomposableInto<u64> + CastFrom<u128> + std::fmt::Display,
+        P: RadixEncryptable<Output = C>
+            + FixedDecomposableInto<u64>
+            + CastFrom<u128>
+            + std::fmt::Display,
         C: IntegerCiphertext,
     > RandomOpSequenceDataGenerator<P, C>
 {

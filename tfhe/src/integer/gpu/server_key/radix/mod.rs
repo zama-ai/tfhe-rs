@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{ContiguousEntityContainerMut, LweCiphertextCount};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
@@ -158,7 +158,7 @@ impl CudaServerKey {
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let res = unsafe { self.create_trivial_radix_async(scalar, num_blocks, streams) };
         streams.synchronize();
@@ -186,7 +186,7 @@ impl CudaServerKey {
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")

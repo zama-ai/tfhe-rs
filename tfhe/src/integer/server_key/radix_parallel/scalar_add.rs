@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::Ciphertext;
@@ -14,7 +14,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         self.clean_inplace_for_default_op(lhs);
 
@@ -58,7 +58,7 @@ impl ServerKey {
     ) -> (T, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
     {
         let mut result = lhs.clone();
         let overflowed = self.overflowing_scalar_add_assign_parallelized(&mut result, scalar);
@@ -71,7 +71,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> BooleanBlock
     where
-        Scalar: UnsignedNumeric + DecomposableInto<u8>,
+        Scalar: UnsignedNumeric + FixedDecomposableInto<u8>,
     {
         self.overflowing_scalar_add_assign_parallelized(lhs, scalar)
     }
@@ -82,7 +82,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> (RadixCiphertext, BooleanBlock)
     where
-        Scalar: UnsignedNumeric + DecomposableInto<u8>,
+        Scalar: UnsignedNumeric + FixedDecomposableInto<u8>,
     {
         self.overflowing_scalar_add_parallelized(lhs, scalar)
     }
@@ -93,7 +93,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> BooleanBlock
     where
-        Scalar: SignedNumeric + DecomposableInto<u8>,
+        Scalar: SignedNumeric + FixedDecomposableInto<u8>,
     {
         self.overflowing_scalar_add_assign_parallelized(lhs, scalar)
     }
@@ -104,7 +104,7 @@ impl ServerKey {
         scalar: Scalar,
     ) -> (SignedRadixCiphertext, BooleanBlock)
     where
-        Scalar: SignedNumeric + DecomposableInto<u8>,
+        Scalar: SignedNumeric + FixedDecomposableInto<u8>,
     {
         self.overflowing_scalar_add_parallelized(lhs, scalar)
     }
@@ -137,7 +137,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_add_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
         if self.is_scalar_add_possible(ct, scalar).is_err() {
@@ -175,7 +175,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_add_assign_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar)
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
         if self.is_scalar_add_possible(ct, scalar).is_err() {
@@ -222,7 +222,7 @@ impl ServerKey {
     /// ```
     pub fn scalar_add_parallelized<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
         let mut ct_res = ct.clone();
@@ -267,7 +267,7 @@ impl ServerKey {
     /// ```
     pub fn scalar_add_assign_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar)
     where
-        Scalar: DecomposableInto<u8>,
+        Scalar: FixedDecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
         self.clean_inplace_for_default_op(ct);

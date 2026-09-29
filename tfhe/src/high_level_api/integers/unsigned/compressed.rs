@@ -12,7 +12,7 @@ use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::traits::{FheTryEncrypt, Tagged};
 use crate::high_level_api::{global_state, ClientKey};
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::FixedDecomposableInto;
 use crate::integer::ciphertext::{
     CompressedModulusSwitchedRadixCiphertext,
     CompressedModulusSwitchedRadixCiphertextConformanceParams,
@@ -136,7 +136,7 @@ where
 impl<Id, T> FheTryEncrypt<T, ClientKey> for CompressedFheUint<Id>
 where
     Id: FheUintId,
-    T: DecomposableInto<u64> + UnsignedNumeric,
+    T: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = crate::Error;
 

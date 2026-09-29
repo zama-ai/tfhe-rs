@@ -1,4 +1,4 @@
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix::scalar_mul::ScalarMultiplier;
 use crate::integer::ServerKey;
@@ -8,7 +8,7 @@ impl ServerKey {
     pub fn unchecked_scalar_mul_parallelized<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: ScalarMultiplier + DecomposableInto<u8>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         let mut ct_res = ct.clone();
         self.unchecked_scalar_mul_assign_parallelized(&mut ct_res, scalar);
@@ -18,7 +18,7 @@ impl ServerKey {
     pub fn unchecked_scalar_mul_assign_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: ScalarMultiplier + DecomposableInto<u8>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if scalar == Scalar::ZERO || lhs.blocks().is_empty() {
             for block in lhs.blocks_mut() {
@@ -113,7 +113,7 @@ impl ServerKey {
     pub fn smart_scalar_mul_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: ScalarMultiplier + DecomposableInto<u8>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -125,7 +125,7 @@ impl ServerKey {
     pub fn smart_scalar_mul_assign_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: ScalarMultiplier + DecomposableInto<u8>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -171,7 +171,7 @@ impl ServerKey {
     pub fn scalar_mul_parallelized<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: ScalarMultiplier + DecomposableInto<u8>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         let mut ct_res = ct.clone();
         self.scalar_mul_assign_parallelized(&mut ct_res, scalar);
@@ -181,7 +181,7 @@ impl ServerKey {
     pub fn scalar_mul_assign_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: ScalarMultiplier + DecomposableInto<u8>,
+        Scalar: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);

@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::UnsignedInteger;
-use crate::integer::block_decomposition::{BlockDecomposer, Decomposable, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext, ServerKey};
 use crate::prelude::CastInto;
 use crate::shortint::atomic_pattern::AtomicPattern;
@@ -76,7 +76,7 @@ impl ServerKey {
         matches: &MatchValues<Clear>,
     ) -> (RadixCiphertext, BooleanBlock)
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if matches.0.is_empty() {
             return (
@@ -148,7 +148,7 @@ impl ServerKey {
         matches: &MatchValues<Clear>,
     ) -> (RadixCiphertext, BooleanBlock)
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -172,7 +172,7 @@ impl ServerKey {
         matches: &MatchValues<Clear>,
     ) -> (RadixCiphertext, BooleanBlock)
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if ct.block_carries_are_empty() {
             self.unchecked_match_value_parallelized(ct, matches)
@@ -200,7 +200,7 @@ impl ServerKey {
         or_value: Clear,
     ) -> RadixCiphertext
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if matches.0.is_empty() {
             return self.create_trivial_radix(
@@ -238,7 +238,7 @@ impl ServerKey {
         or_value: Clear,
     ) -> RadixCiphertext
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -262,7 +262,7 @@ impl ServerKey {
         or_value: Clear,
     ) -> RadixCiphertext
     where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
+        Clear: UnsignedInteger + FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if ct.block_carries_are_empty() {
             self.unchecked_match_value_or_parallelized(ct, matches, or_value)
@@ -342,7 +342,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64>,
+        Clear: FixedDecomposableInto<u64>,
     {
         if cts.is_empty() {
             return self.create_trivial_boolean_block(false);
@@ -362,7 +362,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64>,
+        Clear: FixedDecomposableInto<u64>,
     {
         let mut tmp_cts;
 
@@ -384,7 +384,7 @@ impl ServerKey {
     pub fn contains_clear_parallelized<T, Clear>(&self, cts: &[T], clear: Clear) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64>,
+        Clear: FixedDecomposableInto<u64>,
     {
         if cts.is_empty() {
             return self.create_trivial_boolean_block(false);
@@ -404,7 +404,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if clears.is_empty() {
             return self.create_trivial_boolean_block(false);
@@ -425,7 +425,7 @@ impl ServerKey {
     ) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -437,7 +437,7 @@ impl ServerKey {
     pub fn is_in_clears_parallelized<T, Clear>(&self, ct: &T, clears: &[Clear]) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         let mut tmp_ct;
         let ct = if ct.block_carries_are_empty() {
@@ -465,7 +465,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if clears.is_empty() {
             return (
@@ -492,7 +492,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -516,7 +516,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         let mut tmp_ct;
         let ct = if ct.block_carries_are_empty() {
@@ -544,7 +544,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize> + Hash,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize> + Hash,
     {
         if clears.is_empty() {
             return (
@@ -598,7 +598,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize> + Hash,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize> + Hash,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_parallelized(ct);
@@ -621,7 +621,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize> + Hash,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize> + Hash,
     {
         let mut tmp_ct;
         let ct = if ct.block_carries_are_empty() {
@@ -744,7 +744,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if cts.is_empty() {
             return (
@@ -775,7 +775,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         cts.par_iter_mut()
             .filter(|ct| !ct.block_carries_are_empty())
@@ -799,7 +799,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         let mut tmp_cts;
 
@@ -831,7 +831,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         if cts.is_empty() {
             return (
@@ -864,7 +864,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         cts.par_iter_mut()
             .filter(|ct| !ct.block_carries_are_empty())
@@ -887,7 +887,7 @@ impl ServerKey {
     ) -> (RadixCiphertext, BooleanBlock)
     where
         T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
+        Clear: FixedDecomposableInto<u64> + CastInto<usize>,
     {
         let mut tmp_cts;
 
@@ -1041,7 +1041,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
         Iter: ParallelIterator<Item = Clear>,
-        Clear: Decomposable + CastInto<usize>,
+        Clear: FixedDecomposableInto<usize>,
     {
         assert!(
             ct.block_carries_are_empty(),
@@ -1084,7 +1084,7 @@ impl ServerKey {
                     .take(num_blocks)
                     .enumerate()
                     .map(|(block_index, block_value)| {
-                        blocks_cmps[block_index][block_value.cast_into()].clone()
+                        blocks_cmps[block_index][block_value as usize].clone()
                     })
                     .collect::<Vec<_>>();
 

@@ -4,7 +4,9 @@ use crate::high_level_api::errors::UninitializedServerKey;
 use crate::high_level_api::global_state::try_with_internal_keys;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
-use crate::integer::block_decomposition::{BlockRecomposer, DecomposableInto, RecomposableFrom};
+use crate::integer::block_decomposition::{
+    BlockRecomposer, FixedDecomposableInto, FixedRecomposableFrom,
+};
 use crate::integer::ciphertext::Expandable;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable;
@@ -73,7 +75,7 @@ impl HlStreamEncryptable for bool {
 
 impl<T> HlStreamEncryptable for T
 where
-    T: DecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>,
+    T: FixedDecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>,
 {
     fn hl_stream_encrypt<C>(
         self,
@@ -121,7 +123,7 @@ impl HlStreamDecryptable for bool {
 
 impl<T> HlStreamDecryptable for T
 where
-    T: RecomposableFrom<u8>
+    T: FixedRecomposableFrom<u8>
         + Numeric
         + std::ops::Shl<usize, Output = T>
         + std::ops::Shr<usize, Output = T>,

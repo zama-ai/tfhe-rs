@@ -5,7 +5,7 @@ use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::Numeric;
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::{BooleanBlock, DataKind};
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::transciphering::{
@@ -127,7 +127,7 @@ pub trait IntegerStreamCipher {
         input: T,
     ) -> Result<IntegerStreamCiphertext, InsufficientKeystream>
     where
-        T: DecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>;
+        T: FixedDecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>;
 
     /// Encrypt an integer as a radix stream ciphertext of width `n_bits`.
     ///
@@ -143,7 +143,7 @@ pub trait IntegerStreamCipher {
         n_bits: usize,
     ) -> Result<IntegerStreamCiphertext, InsufficientKeystream>
     where
-        T: DecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>;
+        T: FixedDecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>;
 
     /// Encrypt a single boolean bit.
     fn encrypt_bool(
@@ -158,7 +158,7 @@ impl<C: StreamCipher + ?Sized> IntegerStreamCipher for C {
         input: T,
     ) -> Result<IntegerStreamCiphertext, InsufficientKeystream>
     where
-        T: DecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>,
+        T: FixedDecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>,
     {
         self.encrypt_integer_with_num_bits(input, T::BITS)
     }
@@ -169,7 +169,7 @@ impl<C: StreamCipher + ?Sized> IntegerStreamCipher for C {
         n_bits: usize,
     ) -> Result<IntegerStreamCiphertext, InsufficientKeystream>
     where
-        T: DecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>,
+        T: FixedDecomposableInto<u8> + Numeric + std::ops::Shl<usize, Output = T>,
     {
         assert!(
             n_bits > 0,
@@ -205,7 +205,7 @@ fn encrypt_le_bits<C, T>(
 ) -> Result<StreamCiphertext, InsufficientKeystream>
 where
     C: StreamCipher + ?Sized,
-    T: DecomposableInto<u8>,
+    T: FixedDecomposableInto<u8>,
 {
     let n_bytes = n_bits.div_ceil(8);
     let mut bytes: Vec<u8> = BlockDecomposer::with_block_count(input, 8, n_bytes)

@@ -1,6 +1,6 @@
 use super::ServerKey;
 use crate::core_crypto::prelude::{lwe_ciphertext_sub_assign, Numeric};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::comparator::ZeroComparisonType;
@@ -27,7 +27,7 @@ impl ServerKey {
     ) -> std::cmp::Ordering
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(scalar, self.key.message_modulus.0.ilog2())
@@ -428,7 +428,7 @@ impl ServerKey {
     pub fn unchecked_scalar_eq_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         debug_assert!(lhs.block_carries_are_empty());
 
@@ -521,7 +521,7 @@ impl ServerKey {
     pub fn unchecked_scalar_ne_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         debug_assert!(lhs.block_carries_are_empty());
 
@@ -618,7 +618,7 @@ impl ServerKey {
     pub fn smart_scalar_eq_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -629,7 +629,7 @@ impl ServerKey {
     pub fn scalar_eq_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {
@@ -645,7 +645,7 @@ impl ServerKey {
     pub fn smart_scalar_ne_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -656,7 +656,7 @@ impl ServerKey {
     pub fn scalar_ne_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {
@@ -681,7 +681,7 @@ impl ServerKey {
     fn scalar_compare<T, Scalar>(&self, a: &T, b: Scalar, compare: ComparisonKind) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: Numeric + DecomposableInto<u64>,
+        Scalar: Numeric + FixedDecomposableInto<u64>,
     {
         assert!(a.block_carries_are_empty(), "Block carries must be empty");
         assert_eq!(
@@ -1057,7 +1057,7 @@ impl ServerKey {
     pub fn unchecked_scalar_gt_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         self.scalar_compare(lhs, rhs, ComparisonKind::Greater)
     }
@@ -1065,7 +1065,7 @@ impl ServerKey {
     pub fn unchecked_scalar_ge_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         self.scalar_compare(lhs, rhs, ComparisonKind::GreaterOrEqual)
     }
@@ -1073,7 +1073,7 @@ impl ServerKey {
     pub fn unchecked_scalar_lt_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         self.scalar_compare(lhs, rhs, ComparisonKind::Less)
     }
@@ -1081,7 +1081,7 @@ impl ServerKey {
     pub fn unchecked_scalar_le_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         self.scalar_compare(lhs, rhs, ComparisonKind::LessOrEqual)
     }
@@ -1089,7 +1089,7 @@ impl ServerKey {
     pub fn unchecked_scalar_max_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let is_superior = self.unchecked_scalar_gt_parallelized(lhs, rhs);
         let luts = BlockDecomposer::with_block_count(
@@ -1126,7 +1126,7 @@ impl ServerKey {
     pub fn unchecked_scalar_min_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let is_inferior = self.unchecked_scalar_lt_parallelized(lhs, rhs);
         let luts = BlockDecomposer::with_block_count(
@@ -1167,7 +1167,7 @@ impl ServerKey {
     pub fn smart_scalar_gt_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -1179,7 +1179,7 @@ impl ServerKey {
     pub fn smart_scalar_ge_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -1191,7 +1191,7 @@ impl ServerKey {
     pub fn smart_scalar_lt_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -1203,7 +1203,7 @@ impl ServerKey {
     pub fn smart_scalar_le_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -1215,7 +1215,7 @@ impl ServerKey {
     pub fn smart_scalar_max_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -1227,7 +1227,7 @@ impl ServerKey {
     pub fn smart_scalar_min_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         if !lhs.block_carries_are_empty() {
             self.full_propagate_parallelized(lhs);
@@ -1243,7 +1243,7 @@ impl ServerKey {
     pub fn scalar_gt_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {
@@ -1259,7 +1259,7 @@ impl ServerKey {
     pub fn scalar_ge_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {
@@ -1275,7 +1275,7 @@ impl ServerKey {
     pub fn scalar_lt_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {
@@ -1291,7 +1291,7 @@ impl ServerKey {
     pub fn scalar_le_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {
@@ -1307,7 +1307,7 @@ impl ServerKey {
     pub fn scalar_max_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {
@@ -1323,7 +1323,7 @@ impl ServerKey {
     pub fn scalar_min_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
+        Scalar: FixedDecomposableInto<u64>,
     {
         let mut tmp_lhs;
         let lhs = if lhs.block_carries_are_empty() {

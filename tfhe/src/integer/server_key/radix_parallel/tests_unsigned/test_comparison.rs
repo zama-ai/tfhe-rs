@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::UnsignedNumeric;
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
+use crate::integer::block_decomposition::{FixedDecomposableInto, FixedRecomposableFrom};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
@@ -28,8 +28,8 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>
         + std::ops::Shr<usize, Output = Scalar>
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
@@ -89,8 +89,8 @@ pub(crate) fn test_smart_function<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, &'a mut RadixCiphertext), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -176,8 +176,8 @@ pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -408,8 +408,8 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>
         + std::ops::Shr<usize, Output = Scalar>
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
@@ -469,8 +469,8 @@ pub(crate) fn test_smart_minmax<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>
         + From<bool>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
@@ -559,8 +559,8 @@ pub(crate) fn test_default_minmax<P, T, ClearF, Scalar>(
     P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
+        + FixedDecomposableInto<u64>
+        + FixedRecomposableFrom<u64>
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,

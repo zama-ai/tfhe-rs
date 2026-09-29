@@ -12,7 +12,7 @@ use crate::high_level_api::re_randomization::{
     ReRandContextAdd, ReRandomizationContext, ReRandomizationMetadata, ReRandomizationMode,
 };
 use crate::high_level_api::traits::{FheWait, ReRandomize, Tagged};
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
+use crate::integer::block_decomposition::{FixedDecomposableInto, RecomposableSignedInteger};
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
@@ -1001,7 +1001,7 @@ where
     /// ```
     pub fn if_then_else<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
     where
-        Clear: SignedNumeric + DecomposableInto<u64>,
+        Clear: SignedNumeric + FixedDecomposableInto<u64>,
     {
         global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(cpu_key) => {
@@ -1035,7 +1035,7 @@ where
     /// Same as [Self::if_then_else] but with a different name
     pub fn select<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
     where
-        Clear: SignedNumeric + DecomposableInto<u64>,
+        Clear: SignedNumeric + FixedDecomposableInto<u64>,
     {
         Self::if_then_else(condition, true_value, false_value)
     }
@@ -1043,7 +1043,7 @@ where
     /// Same as [Self::if_then_else] but with a different name
     pub fn cmux<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
     where
-        Clear: SignedNumeric + DecomposableInto<u64>,
+        Clear: SignedNumeric + FixedDecomposableInto<u64>,
     {
         Self::if_then_else(condition, true_value, false_value)
     }

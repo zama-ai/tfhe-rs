@@ -5,7 +5,7 @@ use crate::integer::backward_compatibility::ciphertext::{
     BaseCrtCiphertextVersions, BaseRadixCiphertextVersions, BaseSignedRadixCiphertextVersions,
 };
 use crate::integer::block_decomposition::{
-    BlockRecomposer, RecomposableFrom, RecomposableSignedInteger,
+    BlockRecomposer, FixedRecomposableFrom, RecomposableSignedInteger,
 };
 use crate::integer::ciphertext::{
     re_randomize_ciphertext_blocks, ReRandomizationKey, ReRandomizationSeed,
@@ -104,13 +104,14 @@ impl RadixCiphertext {
     /// ```
     pub fn decrypt_trivial<Clear>(&self) -> Result<Clear, NotTrivialCiphertextError>
     where
-        Clear: UnsignedNumeric + RecomposableFrom<u64>,
+        Clear: UnsignedNumeric + FixedRecomposableFrom<u64>,
     {
         if !self.blocks.iter().all(|b| b.is_trivial()) {
             return Err(NotTrivialCiphertextError);
         }
 
         let bits_in_block = self.blocks[0].message_modulus.0.ilog2();
+        let bit_width = bits_in_block * u32::try_from(self.blocks.len()).unwrap();
 
         let decrypted_block_iter = self
             .blocks
@@ -120,6 +121,7 @@ impl RadixCiphertext {
         Ok(BlockRecomposer::recompose_unsigned(
             decrypted_block_iter,
             bits_in_block,
+            bit_width,
         ))
     }
 
@@ -229,6 +231,7 @@ impl SignedRadixCiphertext {
         }
 
         let bits_in_block = self.blocks[0].message_modulus.0.ilog2();
+        let bit_width = bits_in_block * u32::try_from(self.blocks.len()).unwrap();
 
         let decrypted_block_iter = self
             .blocks
@@ -238,6 +241,7 @@ impl SignedRadixCiphertext {
         Ok(BlockRecomposer::recompose_signed(
             decrypted_block_iter,
             bits_in_block,
+            bit_width,
         ))
     }
 

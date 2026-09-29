@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::{Numeric, SignedInteger};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, FixedDecomposableInto};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
@@ -383,7 +383,7 @@ impl ServerKey {
     /// ```
     pub fn smart_scalar_mul<T>(&self, ctxt: &mut RadixCiphertext, scalar: T) -> RadixCiphertext
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         if scalar == T::ZERO {
             return self.create_trivial_zero_radix(ctxt.blocks.len());
@@ -434,7 +434,7 @@ impl ServerKey {
 
     pub fn smart_scalar_mul_assign<T>(&self, ctxt: &mut RadixCiphertext, scalar: T)
     where
-        T: ScalarMultiplier + DecomposableInto<u8>,
+        T: ScalarMultiplier + FixedDecomposableInto<u8>,
     {
         *ctxt = self.smart_scalar_mul(ctxt, scalar);
     }

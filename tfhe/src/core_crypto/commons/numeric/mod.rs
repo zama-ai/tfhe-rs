@@ -49,6 +49,40 @@ pub trait Numeric:
     const MAX: Self;
 }
 
+/// A numeric type whose width is a property of the value rather than of the type.
+/// i.e the bitwidth is set at runtime, not compile time.
+///
+/// This is the counterpart of [`Numeric`] for types like the dynamically sized clear integers,
+/// which have no `BITS` or `ZERO` constants because their width is only known at runtime.
+pub trait DynamicNumeric: Clone + PartialEq + std::fmt::Debug + Send + Sync {
+    /// Number of bits of the value (`T::BITS` for fixed width types).
+    fn bit_width(&self) -> u32;
+
+    /// The null element, with the given number of bits.
+    ///
+    /// Fixed width types ignore `bit_width`.
+    fn zero_with_width(bit_width: u32) -> Self;
+
+    fn is_zero(&self) -> bool;
+}
+
+impl<T: Numeric> DynamicNumeric for T {
+    #[inline]
+    fn bit_width(&self) -> u32 {
+        T::BITS as u32
+    }
+
+    #[inline]
+    fn zero_with_width(_bit_width: u32) -> Self {
+        T::ZERO
+    }
+
+    #[inline]
+    fn is_zero(&self) -> bool {
+        *self == T::ZERO
+    }
+}
+
 pub trait UnsignedNumeric: Numeric {
     /// The signed type of the same precision
     ///

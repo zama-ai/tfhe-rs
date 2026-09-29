@@ -16,7 +16,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::block_decomposition::{
-    DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
+    FixedDecomposableInto, FixedRecomposableFrom, RecomposableSignedInteger,
 };
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
@@ -181,7 +181,7 @@ where
 impl<Clear> ClearArithmeticArrayBackend<Clear>
     for GpuIntegerArrayBackend<CudaUnsignedRadixCiphertext>
 where
-    Clear: DecomposableInto<u8>
+    Clear: FixedDecomposableInto<u8>
         + std::ops::Not<Output = Clear>
         + std::ops::Add<Clear, Output = Clear>
         + ScalarMultiplier
@@ -246,7 +246,7 @@ where
 
 impl<Clear> ClearArithmeticArrayBackend<Clear> for GpuIntegerArrayBackend<CudaSignedRadixCiphertext>
 where
-    Clear: DecomposableInto<u8>
+    Clear: FixedDecomposableInto<u8>
         + std::ops::Not<Output = Clear>
         + std::ops::Add<Clear, Output = Clear>
         + ScalarMultiplier
@@ -346,7 +346,7 @@ where
 impl<Clear, T> ClearBitwiseArrayBackend<Clear> for GpuIntegerArrayBackend<T>
 where
     T: CudaIntegerRadixCiphertext + Send + Sync,
-    Clear: DecomposableInto<u8>,
+    Clear: FixedDecomposableInto<u8>,
 {
     fn bitand_slice(
         lhs: TensorSlice<'_, Self::Slice<'_>>,
@@ -485,7 +485,7 @@ impl<'a, Clear, Id> FheTryEncrypt<&'a [Clear], ClientKey>
     for FheArrayBase<GpuOwned<CudaUnsignedRadixCiphertext>, Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64> + UnsignedNumeric,
+    Clear: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = Error;
 
@@ -514,7 +514,7 @@ impl<'a, Clear, Id> FheTryEncrypt<(&'a [Clear], Vec<usize>), ClientKey>
     for FheArrayBase<GpuOwned<CudaUnsignedRadixCiphertext>, Id>
 where
     Id: FheUintId,
-    Clear: DecomposableInto<u64> + UnsignedNumeric,
+    Clear: FixedDecomposableInto<u64> + UnsignedNumeric,
 {
     type Error = Error;
 
@@ -549,7 +549,7 @@ where
 impl<Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheUintArray<Id>
 where
     Id: FheUintId,
-    Clear: RecomposableFrom<u64> + UnsignedNumeric,
+    Clear: FixedRecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
         self.as_slice().decrypt(key)
@@ -559,7 +559,7 @@ where
 impl<Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheUintSliceMut<'_, Id>
 where
     Id: FheUintId,
-    Clear: RecomposableFrom<u64> + UnsignedNumeric,
+    Clear: FixedRecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
         self.as_slice().decrypt(key)
@@ -569,7 +569,7 @@ where
 impl<Clear, Id> FheDecrypt<Vec<Clear>> for GpuFheUintSlice<'_, Id>
 where
     Id: FheUintId,
-    Clear: RecomposableFrom<u64> + UnsignedNumeric,
+    Clear: FixedRecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
         with_cuda_internal_keys(|cuda_key| {
@@ -587,7 +587,7 @@ where
 impl<'a, Clear, Id> FheTryEncrypt<&'a [Clear], ClientKey> for GpuFheIntArray<Id>
 where
     Id: FheIntId,
-    Clear: DecomposableInto<u64> + SignedNumeric,
+    Clear: FixedDecomposableInto<u64> + SignedNumeric,
 {
     type Error = Error;
 

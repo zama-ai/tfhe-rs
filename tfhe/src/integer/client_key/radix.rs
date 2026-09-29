@@ -4,7 +4,7 @@ use super::{ClientKey, SecretEncryptionKeyView};
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::backward_compatibility::client_key::RadixClientKeyVersions;
 use crate::integer::block_decomposition::{
-    DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
+    FixedDecomposableInto, FixedRecomposableFrom, RecomposableSignedInteger,
 };
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::compression_keys::{
@@ -71,14 +71,14 @@ impl RadixClientKey {
         }
     }
 
-    pub fn encrypt<T: DecomposableInto<u64> + UnsignedNumeric>(
+    pub fn encrypt<T: FixedDecomposableInto<u64> + UnsignedNumeric>(
         &self,
         message: T,
     ) -> RadixCiphertext {
         self.key.encrypt_radix(message, self.num_blocks)
     }
 
-    pub fn encrypt_without_padding<T: DecomposableInto<u64> + UnsignedNumeric>(
+    pub fn encrypt_without_padding<T: FixedDecomposableInto<u64> + UnsignedNumeric>(
         &self,
         message: T,
     ) -> RadixCiphertext {
@@ -86,7 +86,7 @@ impl RadixClientKey {
             .encrypt_radix_without_padding(message, self.num_blocks)
     }
 
-    pub fn encrypt_signed<T: DecomposableInto<u64> + SignedNumeric>(
+    pub fn encrypt_signed<T: FixedDecomposableInto<u64> + SignedNumeric>(
         &self,
         message: T,
     ) -> SignedRadixCiphertext {
@@ -99,14 +99,14 @@ impl RadixClientKey {
 
     pub fn decrypt<T>(&self, ciphertext: &RadixCiphertext) -> T
     where
-        T: RecomposableFrom<u64> + UnsignedNumeric,
+        T: FixedRecomposableFrom<u64> + UnsignedNumeric,
     {
         self.key.decrypt_radix(ciphertext)
     }
 
     pub fn decrypt_without_padding<T>(&self, ctxt: &RadixCiphertext) -> T
     where
-        T: RecomposableFrom<u64> + UnsignedNumeric,
+        T: FixedRecomposableFrom<u64> + UnsignedNumeric,
     {
         self.key.decrypt_radix_without_padding(ctxt)
     }

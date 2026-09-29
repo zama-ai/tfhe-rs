@@ -1,7 +1,7 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::numeric::UnsignedNumeric;
 use crate::integer::backward_compatibility::noise_squashing::*;
-use crate::integer::block_decomposition::{BlockRecomposer, RecomposableFrom, SignExtendable};
+use crate::integer::block_decomposition::{BlockRecomposer, FixedRecomposableFrom, SignExtendable};
 use crate::integer::ciphertext::{
     BooleanBlock, RadixCiphertext, SignedRadixCiphertext, SquashedNoiseBooleanBlock,
     SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
@@ -77,7 +77,7 @@ impl CompressedNoiseSquashingKey {
 impl NoiseSquashingPrivateKeyView<'_> {
     pub fn decrypt_radix<T>(&self, ct: &SquashedNoiseRadixCiphertext) -> crate::Result<T>
     where
-        T: RecomposableFrom<u128> + UnsignedNumeric,
+        T: FixedRecomposableFrom<u128> + UnsignedNumeric,
     {
         let SquashedNoiseRadixCiphertext {
             packed_blocks,
@@ -144,7 +144,7 @@ impl NoiseSquashingPrivateKeyView<'_> {
         ct: &SquashedNoiseSignedRadixCiphertext,
     ) -> crate::Result<T>
     where
-        T: RecomposableFrom<u128> + SignExtendable,
+        T: FixedRecomposableFrom<u128> + SignExtendable,
     {
         let SquashedNoiseSignedRadixCiphertext {
             packed_blocks,
@@ -262,7 +262,7 @@ impl NoiseSquashingPrivateKey {
 
     pub fn decrypt_radix<T>(&self, ct: &SquashedNoiseRadixCiphertext) -> crate::Result<T>
     where
-        T: RecomposableFrom<u128> + UnsignedNumeric,
+        T: FixedRecomposableFrom<u128> + UnsignedNumeric,
     {
         self.as_view().decrypt_radix(ct)
     }
@@ -272,7 +272,7 @@ impl NoiseSquashingPrivateKey {
         ct: &SquashedNoiseSignedRadixCiphertext,
     ) -> crate::Result<T>
     where
-        T: RecomposableFrom<u128> + SignExtendable,
+        T: FixedRecomposableFrom<u128> + SignExtendable,
     {
         self.as_view().decrypt_signed_radix(ct)
     }
