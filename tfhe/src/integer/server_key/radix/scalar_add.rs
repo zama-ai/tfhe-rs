@@ -127,56 +127,6 @@ impl ServerKey {
         Ok(())
     }
 
-    /// Computes homomorphically an addition between a scalar and a ciphertext.
-    ///
-    /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg = 4;
-    /// let scalar = 40;
-    ///
-    /// let ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let ct_res = sks.checked_scalar_add(&ct, scalar).unwrap();
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg + scalar, dec);
-    /// ```
-    pub fn checked_scalar_add<T, C>(&self, ct: &C, scalar: T) -> Result<C, CheckError>
-    where
-        T: DecomposableInto<u8>,
-        C: IntegerRadixCiphertext,
-    {
-        self.is_scalar_add_possible(ct, scalar)?;
-        Ok(self.unchecked_scalar_add(ct, scalar))
-    }
-
-    /// Computes homomorphically an addition between a scalar and a ciphertext.
-    ///
-    /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
-    pub fn checked_scalar_add_assign<T, C>(&self, ct: &mut C, scalar: T) -> Result<(), CheckError>
-    where
-        T: DecomposableInto<u8>,
-        C: IntegerRadixCiphertext,
-    {
-        self.is_scalar_add_possible(ct, scalar)?;
-        self.unchecked_scalar_add_assign(ct, scalar);
-        Ok(())
-    }
-
     /// Computes homomorphically the addition of ciphertext with a scalar.
     ///
     /// The result is returned in a new ciphertext.

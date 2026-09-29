@@ -1,4 +1,3 @@
-use crate::integer::server_key::CheckError;
 use crate::integer::{CrtCiphertext, ServerKey};
 use rayon::prelude::*;
 
@@ -69,64 +68,6 @@ impl ServerKey {
                         .unchecked_scalar_mul_lsb_small_carry_modulus_assign(ct_i, scalar_i);
                 }
             });
-    }
-
-    /// Computes homomorphically a multiplication between a scalar and a ciphertext.
-    ///
-    /// If the operation can be performed, the result is returned in a new ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_crt;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // Generate the client key and the server key:
-    /// let basis = vec![2, 3, 5];
-    /// let modulus: u64 = basis.iter().product();
-    /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128, basis);
-    ///
-    /// let clear_1 = 14;
-    /// let clear_2 = 2;
-    /// // Encrypt two messages
-    /// let mut ctxt_1 = cks.encrypt(clear_1);
-    ///
-    /// sks.checked_crt_scalar_mul_assign_parallelized(&mut ctxt_1, clear_2)
-    ///     .unwrap();
-    ///
-    /// // Decrypt
-    /// let res = cks.decrypt(&ctxt_1);
-    /// assert_eq!((clear_1 * clear_2) % modulus, res);
-    /// ```
-    pub fn checked_crt_scalar_mul_parallelized(
-        &self,
-        ct: &CrtCiphertext,
-        scalar: u64,
-    ) -> Result<CrtCiphertext, CheckError> {
-        let mut ct_result = ct.clone();
-
-        // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
-        self.is_crt_scalar_mul_possible(ct, scalar)?;
-        ct_result = self.unchecked_crt_scalar_mul(&ct_result, scalar);
-
-        Ok(ct_result)
-    }
-
-    /// Computes homomorphically a multiplication between a scalar and a ciphertext.
-    ///
-    /// If the operation can be performed, the result is assigned to the ciphertext given
-    /// as parameter.
-    /// Otherwise a [CheckError] is returned.
-    pub fn checked_crt_scalar_mul_assign_parallelized(
-        &self,
-        ct: &mut CrtCiphertext,
-        scalar: u64,
-    ) -> Result<(), CheckError> {
-        // If the ciphertext cannot be multiplied without exceeding the capacity of a ciphertext
-        self.is_crt_scalar_mul_possible(ct, scalar)?;
-        self.unchecked_crt_scalar_mul_assign_parallelized(ct, scalar);
-        Ok(())
     }
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
