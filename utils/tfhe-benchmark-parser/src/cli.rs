@@ -1,4 +1,4 @@
-use benchmark_spec::{Backend, BenchmarkMetric};
+use benchmark_spec::Backend;
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -9,7 +9,7 @@ use std::path::PathBuf;
 )]
 pub struct Cli {
     /// Location of criterion benchmark results directory.
-    /// If --object-sizes or --key-gen is used, this must point to a CSV file.
+    /// If --csv is used, this must point to a CSV file.
     #[arg(short = 'i', long)]
     pub input_results_file: PathBuf,
 
@@ -62,32 +62,14 @@ pub struct Cli {
     #[arg(long = "walk-subdirs")]
     pub walk_subdirs: bool,
 
-    /// Parse only the results regarding keys size measurements.
-    #[arg(long = "object-sizes", conflicts_with = "key_gen")]
-    pub object_sizes: bool,
-
-    /// Parse only the results regarding keys generation time measurements.
-    #[arg(long = "key-gen")]
-    pub key_gen: bool,
-
-    /// Fetch results for latency or throughput benchmarks.
-    #[arg(long = "bench-type",value_parser = parse_cli_bench_metric,default_value = "latency")]
-    pub bench_type: BenchmarkMetric,
+    /// Parse a CSV of `id,value` rows instead of a criterion directory.
+    #[arg(long = "csv")]
+    pub csv: bool,
 
     /// Backend on which benchmarks have run.
     /// Required even with --append-results, as it is stamped on every parsed point.
     #[arg(long, value_parser = parse_cli_backend)]
     pub backend: Backend,
-}
-
-fn parse_cli_bench_metric(s: &str) -> Result<BenchmarkMetric, String> {
-    let m: BenchmarkMetric = s
-        .parse()
-        .map_err(|_| format!("unknown benchmark type: {s}"))?;
-    match m {
-        BenchmarkMetric::Latency | BenchmarkMetric::Throughput => Ok(m),
-        _ => Err(format!("--bench-type does not support {m:?}")),
-    }
 }
 
 fn parse_cli_backend(s: &str) -> Result<Backend, String> {
