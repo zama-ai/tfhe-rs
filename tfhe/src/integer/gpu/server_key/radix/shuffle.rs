@@ -45,16 +45,16 @@ impl CudaServerKey {
             ));
         }
 
+        if data.len() <= 1 {
+            return Ok(data);
+        }
+
         let key_num_blocks = key_size.num_blocks_of_keys(data.len(), self.message_modulus) as u64;
 
         if key_num_blocks == 0 {
             return Err(crate::Error::new(
                 "key_num_blocks must be at least 1".to_string(),
             ));
-        }
-
-        if data.len() <= 1 {
-            return Ok(data);
         }
 
         let data_num_blocks = data[0].as_ref().d_blocks.lwe_ciphertext_count().0;
@@ -199,16 +199,16 @@ impl CudaServerKey {
             ));
         }
 
+        if data.len() <= 1 {
+            return Ok(data);
+        }
+
         let key_num_blocks = key_size.num_blocks_of_keys(data.len(), self.message_modulus) as u64;
 
         if key_num_blocks == 0 {
             return Err(crate::Error::new(
                 "key_num_blocks must be at least 1".to_string(),
             ));
-        }
-
-        if data.len() <= 1 {
-            return Ok(data);
         }
 
         let data_num_blocks = data[0].as_ref().d_blocks.lwe_ciphertext_count().0;
