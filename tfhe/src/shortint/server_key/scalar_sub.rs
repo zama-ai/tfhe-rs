@@ -215,69 +215,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
     /// Compute homomorphically a subtraction of a ciphertext by a scalar.
     ///
-    /// If the operation is possible, the result is returned in a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// // Encrypt a message
-    /// let ct = cks.encrypt(5);
-    ///
-    /// // Compute homomorphically a subtraction multiplication:
-    /// let ct_res = sks.checked_scalar_sub(&ct, 2).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, 3);
-    /// ```
-    pub fn checked_scalar_sub(
-        &self,
-        ct: &Ciphertext,
-        scalar: u8,
-    ) -> Result<Ciphertext, CheckError> {
-        self.checked_scalar_add(ct, neg_scalar(scalar, ct.message_modulus))
-    }
-
-    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
-    ///
-    /// If the operation is possible, the result is stored _in_ the input ciphertext.
-    /// Otherwise a [CheckError] is returned and the ciphertext is not
-    /// modified.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(5);
-    ///
-    /// // Compute homomorphically a scalar subtraction:
-    /// sks.checked_scalar_sub_assign(&mut ct, 2).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct);
-    /// assert_eq!(clear_res, 3);
-    /// ```
-    pub fn checked_scalar_sub_assign(
-        &self,
-        ct: &mut Ciphertext,
-        scalar: u8,
-    ) -> Result<(), CheckError> {
-        self.checked_scalar_add_assign(ct, neg_scalar(scalar, ct.message_modulus))
-    }
-
-    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
-    ///
     /// The result is returned in a _new_ ciphertext.
     ///
     /// This checks that the scalar subtraction is possible. In the case where the carry buffers are
