@@ -576,6 +576,40 @@ void cuda_programmable_bootstrap_specialized_2_2_64_async(
       num_many_lut, lut_stride);
 }
 
+void cuda_programmable_bootstrap_specialized_2_2_throughput_64_async(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_output_indexes, void const *lut_vector,
+    void const *lut_vector_indexes, void const *lwe_array_in,
+    void const *lwe_input_indexes, void const *bootstrapping_key,
+    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  bool supports_throughput = specialized_2_2_use_throughput_oriented<uint64_t>(
+      polynomial_size, glwe_dimension, level_count, lwe_dimension,
+      max_shared_memory);
+  PANIC_IF_FALSE(supports_throughput,
+                 "Cuda error (classical PBS): specialized 2_2 throughput "
+                 "requires (N=2048, level_count=1, glwe_dimension=1, "
+                 "lwe_dimension<=1024, sufficient shared memory).");
+
+  pbs_buffer<uint64_t, CLASSICAL> *buffer =
+      (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
+
+  host_programmable_bootstrap_specialized_2_2_throughput<uint64_t,
+                                                         Degree<2048>>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<const uint64_t *>(lwe_output_indexes),
+      static_cast<const uint64_t *>(lut_vector),
+      static_cast<const uint64_t *>(lut_vector_indexes),
+      static_cast<const uint64_t *>(lwe_array_in),
+      static_cast<const uint64_t *>(lwe_input_indexes),
+      static_cast<const double2 *>(bootstrapping_key), buffer, glwe_dimension,
+      lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+      num_many_lut, lut_stride);
+}
+
 /*
  * This cleanup function frees the data on GPU for the PBS buffer for 32 or 64
  * bits inputs.
@@ -595,6 +629,15 @@ template bool has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
 template bool specialized_2_2_params_checker<uint64_t>(
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
     uint32_t max_shared_memory);
+
+template bool specialized_2_2_use_throughput_oriented<uint64_t>(
+    uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
+    uint32_t lwe_dimension, uint32_t max_shared_memory);
+
+template bool cg_params_checker<uint64_t>(int glwe_dimension,
+                                          int polynomial_size, int level_count,
+                                          int num_samples,
+                                          uint32_t max_shared_memory);
 
 template void
 cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async<uint64_t>(
