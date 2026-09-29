@@ -210,7 +210,7 @@ impl ServerKey {
     ///
     /// # Errors
     ///
-    /// Returns an error if the resolved key block count is 0.
+    /// Returns an error if `data` has at least 2 elements and the resolved key size is 0 blocks.
     pub fn bitonic_shuffle<T, S, C>(
         &self,
         oprf_key: &GenericOprfServerKey<C>,
@@ -272,16 +272,16 @@ impl ServerKey {
             &[u64], // chunks
         ) -> crate::Result<Vec<Vec<Ciphertext>>>,
     {
+        if data.len() <= 1 {
+            return Ok(data);
+        }
+
         let key_num_blocks = key_size.num_blocks_of_keys(data.len(), self.message_modulus()) as u64;
 
         if key_num_blocks == 0 {
             return Err(crate::Error::new(
                 "key_num_blocks must be at least 1".to_string(),
             ));
-        }
-
-        if data.len() <= 1 {
-            return Ok(data);
         }
 
         let key_num_bits = key_num_blocks * self.message_modulus().0.ilog2() as u64;

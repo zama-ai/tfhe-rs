@@ -20,7 +20,7 @@ use crate::OprfSeed;
 ///
 /// # Errors
 ///
-/// Returns an error if the resolved key block count is 0
+/// Returns an error if `data` has at least 2 elements and the resolved key size is 0 blocks.
 pub fn bitonic_shuffle<T, S>(
     data: Vec<T>,
     key_size: BitonicShuffleKeySize,
