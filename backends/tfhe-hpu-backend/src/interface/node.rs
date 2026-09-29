@@ -1158,20 +1158,27 @@ impl HpuNode {
 
         // Issue work to Hpu through workq
         // Convert Iop in a stream of bytes
-        let op_words = cmd.op.to_words();
-        tracing::debug!("[N{hid}] Op Asm {}", cmd.op);
+        // NB: Hpu outside of the mapping only get the preamble. They have no use for the
+        //     operands and sparing them keeps the link free, which matters for SIMD IOp that
+        //     carry a lot of them.
+        let is_targeted = cmd.op.mapping().virt_id(asm::PhysId(*hid)).is_some();
+        let op_words = if is_targeted {
+            tracing::debug!("[N{hid}] Op Asm {}", cmd.op);
+            let op_words = cmd.op.to_words();
+            // Keep track of op in cmdq for lifetime tracking
+            // Only for involved Hpu, other one just dispatch iop for keeping iid in sync
+            // and required no ack back
+            cmdq.push_back(cmd);
+
+            op_words
+        } else {
+            cmd.op.to_preamble_words()
+        };
         tracing::trace!("[N{hid}] Op Words {:x?}", op_words);
 
         // Write them in workq entry
         // NB: No queue full check was done ...
         hpu_hw.iop_push(op_words.as_slice());
-
-        // Keep track of op in cmdq for lifetime tracking
-        // Only for involved Hpu, other one just dispatch iop for keeping iid in sync
-        // and required no ack back
-        if cmd.op.mapping().virt_id(asm::PhysId(*hid)).is_some() {
-            cmdq.push_back(cmd);
-        }
     }
 
     /// flush ack_q

@@ -676,13 +676,22 @@ impl IOp {
         })
     }
 
+    /// Emit the IOp preamble only, i.e. header and mapping.
+    /// Since the header carries the iid, those two words are all a node needs to keep track of
+    /// the IOp issued on the cluster, without the operands it has no use for.
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn to_preamble_words(&self) -> Vec<IOpWordRepr> {
+        vec![
+            // 1. Header
+            fmt::IOpHeaderHex::from(&self.header).into_bits(),
+            // 2. Mapping
+            fmt::IOpMappingHex::from(&self.map).into_bits(),
+        ]
+    }
+
     #[tracing::instrument(level = "trace", ret)]
     pub fn to_words(&self) -> Vec<IOpWordRepr> {
-        let mut words = Vec::new();
-        // 1. Header
-        words.push(fmt::IOpHeaderHex::from(&self.header).into_bits());
-        // 2. Mapping
-        words.push(fmt::IOpMappingHex::from(&self.map).into_bits());
+        let mut words = self.to_preamble_words();
         // 3. Destination
         words.extend(self.dst.to_words());
         // 4. Sources
