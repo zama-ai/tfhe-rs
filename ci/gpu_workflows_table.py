@@ -121,10 +121,14 @@ def parse_workflow(path: Path, slab: dict) -> dict:
     has_any_auto = pr_regular or pr_approved or cron or has_push
     manual_only = has_dispatch and not has_any_auto
 
-    # --- Profile: walk jobs to find the slab-github-runner start step ---
+    # --- Profile: walk jobs to find the slab_setup call or the slab-github-runner start step ---
     profile = None
     jobs = data.get("jobs", {})
     for job in jobs.values():
+        if str(job.get("uses", "")).endswith("/slab_setup.yml"):
+            profile = str((job.get("with", {}) or {}).get("profile", "")).strip() or None
+            if profile:
+                break
         steps = job.get("steps", [])
         for step in steps:
             uses = step.get("uses", "") or ""

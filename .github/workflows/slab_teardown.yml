@@ -1,0 +1,64 @@
+name: slab_teardown
+
+on:
+  workflow_call:
+    inputs:
+      runner-name:
+        type: string
+        required: true
+      notification-context:
+        description: Short name displayed in the Slack notification sent on failure
+        type: string
+        required: true
+    secrets:
+      SLAB_ACTION_TOKEN:
+        required: false
+      SLAB_BASE_URL:
+        required: false
+      JOB_SECRET:
+        required: false
+      SLACK_CHANNEL:
+        required: false
+      BOT_USERNAME:
+        required: false
+      SLACK_WEBHOOK:
+        required: false
+
+env:
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
+
+jobs:
+  stop-instance:
+    name: slab_teardown/stop-instance
+    # The caller's always() does not propagate to the jobs of a reusable workflow.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    env:
+      SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+    steps:
+      - name: Stop remote instance
+        if: always() && env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ inputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() && env.SLACK_WEBHOOK != '' }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (${{ inputs.notification-context }}) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
