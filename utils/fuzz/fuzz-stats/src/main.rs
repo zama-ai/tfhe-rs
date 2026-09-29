@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use fuzz_utils::{ExecEndCause, FUZZ_DOMAIN_SEPARATOR, FuzzContext, INPUT_MAX_SIZE, use_list};
+#[cfg(feature = "gpu")]
+use fuzz_utils::GpuCorpusCpuContext;
 use rayon::prelude::*;
 use serde::Serialize;
 use tfhe::ProvenCompactCiphertextList;
@@ -130,10 +132,10 @@ fn classify(input: &[u8], ctx: &FuzzContext) -> Histogram {
 fn process(
     path: &Path,
     input: &[u8],
-    ctx: &FuzzContext,
+    classify_fn: impl Fn(&[u8]) -> Histogram,
     save_crashes_dir: Option<&Path>,
 ) -> Histogram {
-    match std::panic::catch_unwind(AssertUnwindSafe(|| classify(input, ctx))) {
+    match std::panic::catch_unwind(AssertUnwindSafe(|| classify_fn(input))) {
         Ok(hist) => hist,
         Err(_) => {
             if let Some(dir) = save_crashes_dir
@@ -210,6 +212,41 @@ fn print_json(hist: &Histogram, dir: &Path) {
     println!("{}", serde_json::to_string(&report).unwrap());
 }
 
+/// GPU campaign classify: deserialize then expand+compute on CPU (no ZK verify step,
+/// mirroring what harness-cuda-compute does). Uses a CPU ServerKey so no CUDA backend
+/// is needed and the polynomial_size=32 CUDA restriction does not apply.
+#[cfg(feature = "gpu")]
+fn classify_gpu(input: &[u8], ctx: &GpuCorpusCpuContext) -> Histogram {
+    let mut hist = Histogram {
+        input_samples_count: 1,
+        ..Default::default()
+    };
+
+    let Ok(ct_list) = safe_deserialize_conformant::<ProvenCompactCiphertextList>(
+        input,
+        INPUT_MAX_SIZE,
+        &ctx.conformance_params,
+    ) else {
+        hist.safe_deserialization_failed = 1;
+        return hist;
+    };
+
+    let compute_result = match ct_list.expand_without_verification() {
+        Ok(exp) => use_list(&exp),
+        Err(_) => ExecEndCause::ExpandFailed,
+    };
+    match compute_result {
+        ExecEndCause::ExpandFailed => hist.expand_failed = 1,
+        ExecEndCause::ExpanderGetFailed => hist.expander_get_failed = 1,
+        ExecEndCause::UnsupportedType => hist.unsupported_type = 1,
+        ExecEndCause::CompressionFailed => hist.compression_failed = 1,
+        ExecEndCause::SafeDeserializationFailed | ExecEndCause::ZkVerificationFailed => {}
+        ExecEndCause::ExecSuccess => hist.exec_success = 1,
+    }
+
+    hist
+}
+
 /// Run every input in a corpus directory through deser + verify + compute and report a histogram
 /// of outcomes.
 #[derive(Parser)]
@@ -226,11 +263,54 @@ struct Args {
     /// (nondeterministic) crashes in the queue instead of the crashes/ dir; this promotes them.
     #[arg(long, value_name = "DIR")]
     save_crashes: Option<PathBuf>,
+
+    /// Process a GPU campaign corpus (uses GpuFuzzContext; requires --features gpu).
+    #[cfg(feature = "gpu")]
+    #[arg(long)]
+    gpu: bool,
 }
 
 fn main() {
     let args = Args::parse();
     let dir = args.corpus_dir;
+
+    #[cfg(feature = "gpu")]
+    if args.gpu {
+        let ctx = GpuCorpusCpuContext::load();
+        ctx.set_server_key();
+        rayon::broadcast(|_| ctx.set_server_key());
+
+        if let Some(save_dir) = &args.save_crashes
+            && let Err(e) = std::fs::create_dir_all(save_dir)
+        {
+            eprintln!(
+                "error: cannot create --save-crashes directory {}: {e}",
+                save_dir.display()
+            );
+            std::process::exit(1);
+        }
+        let save_crashes = args.save_crashes.as_deref();
+
+        let files = collect_input_files(&dir);
+
+        let hist = files
+            .par_iter()
+            .map(|path| match std::fs::read(path) {
+                Ok(input) => process(path, &input, |b| classify_gpu(b, &ctx), save_crashes),
+                Err(_) => Histogram {
+                    input_samples_count: 1,
+                    ..Default::default()
+                },
+            })
+            .reduce(Histogram::default, Histogram::merge);
+
+        if args.json {
+            print_json(&hist, &dir);
+        } else {
+            print_table(&hist);
+        }
+        return;
+    }
 
     let ctx = FuzzContext::load();
     ctx.set_server_key();
@@ -252,7 +332,7 @@ fn main() {
     let hist = files
         .par_iter()
         .map(|path| match std::fs::read(path) {
-            Ok(input) => process(path, &input, &ctx, save_crashes),
+            Ok(input) => process(path, &input, |b| classify(b, &ctx), save_crashes),
             Err(_) => Histogram {
                 input_samples_count: 1,
                 ..Default::default()

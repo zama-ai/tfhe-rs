@@ -37,9 +37,9 @@ pub const AUX_MAX_SIZE: u64 = 64 * MEGA;
 pub const FUZZ_DOMAIN_SEPARATOR: &[u8] = b"fuzz";
 
 pub const INSECURE_FUZZ_GPU_PARAMS: ClassicPBSParameters = ClassicPBSParameters {
-    lwe_dimension: LweDimension(64),
+    lwe_dimension: LweDimension(16),
     glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(256),
+    polynomial_size: PolynomialSize(32),
     lwe_noise_distribution: DynamicDistribution::new_t_uniform(0),
     glwe_noise_distribution: DynamicDistribution::new_t_uniform(0),
     pbs_base_log: DecompositionBaseLog(24),
@@ -100,16 +100,17 @@ pub const INSECURE_FUZZ_PKE_PARAMS: CompactPublicKeyEncryptionParameters =
     }
     .validate();
 
-// GPU compact PKE must encrypt under the big LWE key (polynomial_size × glwe_dimension = 256)
+// GPU compact PKE must encrypt under the big LWE key (polynomial_size × glwe_dimension = 32)
 // so that the ZK expand output dimension matches the compute key's big LWE dimension. The CPU
 // harness reuses INSECURE_FUZZ_PKE_PARAMS (encryption_lwe_dimension=32) because the CPU path
 // is not constrained by DISPATCH_POLY_SIZE, but the GPU ZK expansion kernel in zk.cuh uses
 // casting_params.big_lwe_dimension = max(PKE_dim, KSK_output_dim) as both the parsing
 // dimension for compact input and the output dimension of expanded ciphertexts — so PKE_dim
 // must equal big_compute_dim for the expanded ciphertexts to land in the right LWE space.
+// polynomial_size=32 requires TFHE_CUDA_FUZZING in dispatch.cuh (gated in build.rs on AFL_CXX).
 pub const INSECURE_FUZZ_GPU_PKE_PARAMS: CompactPublicKeyEncryptionParameters =
     CompactPublicKeyEncryptionParameters {
-        encryption_lwe_dimension: LweDimension(256), // = polynomial_size × glwe_dimension
+        encryption_lwe_dimension: LweDimension(32), // = polynomial_size × glwe_dimension
         encryption_noise_distribution: DynamicDistribution::new_t_uniform(0),
         message_modulus: MessageModulus(4),
         carry_modulus: CarryModulus(4),
@@ -366,10 +367,15 @@ impl FuzzContext {
 pub struct GpuFuzzContext {
     pub cuda_server_key: CudaServerKey,
     pub conformance_params: IntegerProvenCompactCiphertextListConformanceParams,
+    pub public_key: CompactPublicKey,
 }
 
 #[cfg(feature = "gpu")]
 impl GpuFuzzContext {
+    pub fn set_server_key(&self) {
+        set_server_key(self.cuda_server_key.clone());
+    }
+
     pub fn load() -> Self {
         let aux = AuxDataDir::new();
 
@@ -386,10 +392,54 @@ impl GpuFuzzContext {
             )
             .allow_unpacked();
 
+        let f = File::open(aux.gpu_public_key_path()).unwrap();
+        let public_key: CompactPublicKey = safe_deserialize(f, AUX_MAX_SIZE).unwrap();
+
         Self {
             cuda_server_key,
             conformance_params,
+            public_key,
         }
+    }
+}
+
+/// CPU-side context for GPU campaign corpus analysis.
+///
+/// Loads the same GPU aux files as `GpuFuzzContext` but decompresses the client key to a
+/// CPU `ServerKey` instead of a `CudaServerKey`. This lets `fuzz-stats --gpu` run without
+/// the CUDA backend, avoiding the `TFHE_CUDA_FUZZING` / polynomial_size=32 requirement.
+#[cfg(feature = "gpu")]
+pub struct GpuCorpusCpuContext {
+    pub server_key: ServerKey,
+    pub conformance_params: IntegerProvenCompactCiphertextListConformanceParams,
+}
+
+#[cfg(feature = "gpu")]
+impl GpuCorpusCpuContext {
+    pub fn load() -> Self {
+        let aux = AuxDataDir::new();
+
+        let f = File::open(aux.gpu_client_key_path()).unwrap();
+        let client_key: ClientKey = safe_deserialize(f, AUX_MAX_SIZE).unwrap();
+        let server_key = CompressedServerKey::new(&client_key).decompress();
+
+        let f = File::open(aux.gpu_crs_path()).unwrap();
+        let crs: CompactPkeCrs = safe_deserialize(f, AUX_MAX_SIZE).unwrap();
+        let conformance_params =
+            IntegerProvenCompactCiphertextListConformanceParams::from_public_key_encryption_parameters_and_crs_parameters(
+                INSECURE_FUZZ_GPU_PKE_PARAMS,
+                &crs,
+            )
+            .allow_unpacked();
+
+        Self {
+            server_key,
+            conformance_params,
+        }
+    }
+
+    pub fn set_server_key(&self) {
+        set_server_key(self.server_key.clone());
     }
 }
 
