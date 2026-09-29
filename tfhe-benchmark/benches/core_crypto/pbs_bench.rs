@@ -295,6 +295,18 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
         let benchmark_spec = BenchmarkSpec::new_core_crypto(cc_bench, name, bench_type);
         let bench_id = benchmark_spec.to_string();
 
+        let fft = Fft::new(fourier_bsk.polynomial_size());
+        let fft = fft.as_view();
+
+        let batched_pbs_mem_req =
+            batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                fourier_bsk.glwe_size(),
+                fourier_bsk.polynomial_size(),
+                CiphertextCount(count),
+                fft,
+            )
+            .unaligned_bytes_required();
+
         match bench_type {
             BenchmarkType::Latency => {
                 // Allocate a new LweCiphertext and encrypt our plaintext
@@ -331,18 +343,7 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
 
                 let mut buffers = ComputationBuffers::new();
 
-                let fft = Fft::new(fourier_bsk.polynomial_size());
-                let fft = fft.as_view();
-
-                buffers.resize(
-            batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
-                fourier_bsk.glwe_size(),
-                fourier_bsk.polynomial_size(),
-                CiphertextCount(count),
-                fft,
-            )
-            .unaligned_bytes_required(),
-        );
+                buffers.resize(batched_pbs_mem_req);
 
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter(|| {
@@ -359,7 +360,6 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
                 });
             }
             BenchmarkType::Throughput => {
-                let fft = Fft::new(fourier_bsk.polynomial_size());
                 let mut setup = |batch_size: usize| {
                     let input_cts = (0..batch_size)
                         .map(|_| {
@@ -410,16 +410,7 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
                         .map(|_| {
                             let mut buffer = ComputationBuffers::new();
 
-                            buffer.resize(
-                                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<
-                                    Scalar,
-                                >(
-                                    fourier_bsk.glwe_size(),
-                                    fourier_bsk.polynomial_size(),
-                                    fft.as_view(),
-                                )
-                                .unaligned_bytes_required(),
-                            );
+                            buffer.resize(batched_pbs_mem_req);
 
                             buffer
                         })
@@ -446,7 +437,7 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
                                 output_ct_list,
                                 &accumulator.as_view(),
                                 &fourier_bsk,
-                                fft.as_view(),
+                                fft,
                                 buffer.stack(),
                             );
                         })
