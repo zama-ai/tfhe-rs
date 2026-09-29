@@ -170,7 +170,7 @@ jobs:
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
-          --key-gen
+          --csv
           rm tfhe-benchmark/wasm_pk_gen.csv
         env:
           REF_NAME: ${{ github.ref_name }}

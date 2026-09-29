@@ -1,4 +1,5 @@
 use super::ParseOutcome;
+use super::metric::declared_metric;
 use super::parameters::get_parameters;
 use anyhow::{Context, Result};
 use benchmark_spec::{Backend, BenchmarkMetric, Statistic, measured_name};
@@ -16,7 +17,6 @@ const EXCLUDED_DIRECTORIES: [&str; 4] = ["child_generate", "fork", "parent_gener
 
 pub fn recursive_parse(
     directory: &Path,
-    bench_type: BenchmarkMetric,
     walk_subdirs: bool,
     name_suffix: &str,
     extra_params_dirs: &[std::path::PathBuf],
@@ -65,7 +65,6 @@ pub fn recursive_parse(
 
             process_leaf(
                 &subdir,
-                bench_type,
                 name_suffix,
                 extra_params_dirs,
                 backend,
@@ -80,7 +79,6 @@ pub fn recursive_parse(
 
 fn process_leaf(
     subdir: &Path,
-    bench_type: BenchmarkMetric,
     name_suffix: &str,
     extra_params_dirs: &[std::path::PathBuf],
     backend: Backend,
@@ -98,21 +96,43 @@ fn process_leaf(
         }
     };
 
-    // For throughput benchmarks we need the `Elements` count from criterion to convert
-    // ns/op -> ops/s. For latency benchmarks it is irrelevant.
-    let throughput_elements = benchmark.throughput.as_ref().and_then(|t| t.elements);
-    let throughput_elements = match (bench_type, throughput_elements) {
-        (BenchmarkMetric::Throughput, None) => return, // latency-only subdir, skip
-        (BenchmarkMetric::Throughput, Some(n)) => Some(n),
-        _ => None,
-    };
-
     let test_name = match benchmark.function_id {
         Some(name) => name,
         None => {
             failures.push(ParsingFailure {
                 source: benchmark.full_id,
                 error: "'function_id' field is null in report".to_string(),
+            });
+            return;
+        }
+    };
+
+    let metric = match declared_metric(&test_name) {
+        Ok(metric) => metric,
+        Err(failure) => {
+            failures.push(failure);
+            return;
+        }
+    };
+
+    // Needed to convert ns/op to ops/s.
+    let elements = benchmark.throughput.as_ref().and_then(|t| t.elements);
+    let throughput_elements = match metric {
+        BenchmarkMetric::Latency => None,
+        BenchmarkMetric::Throughput => match elements {
+            Some(n) => Some(n),
+            None => {
+                failures.push(ParsingFailure {
+                    source: test_name,
+                    error: "throughput id but criterion recorded no element count".to_string(),
+                });
+                return;
+            }
+        },
+        other => {
+            failures.push(ParsingFailure {
+                source: test_name,
+                error: format!("criterion does not measure {other:?}"),
             });
             return;
         }
@@ -165,7 +185,7 @@ fn process_leaf(
             test: measured_name(&test_name, stat, Some(name_suffix)),
             name: display_name.clone(),
             class: PointClass::Evaluate,
-            point_type: bench_type,
+            point_type: metric,
             operator: operator.clone(),
             params: params.clone(),
             backend,
