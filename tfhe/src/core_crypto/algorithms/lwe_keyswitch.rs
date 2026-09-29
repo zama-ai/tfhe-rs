@@ -242,7 +242,7 @@ pub fn keyswitch_lwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCont
             {
                 tracing::trace!(
                     target: "keyswitch_lwe_ciphertext_native_mod_compatible::decomposed",
-                    decomposed = ?decomposed,
+                    decomposed = ?decomposed.as_memory_tracer(true),
                 );
 
                 tracing::trace!(

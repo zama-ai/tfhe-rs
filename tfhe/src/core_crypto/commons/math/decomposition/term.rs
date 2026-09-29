@@ -89,6 +89,33 @@ where
     }
 }
 
+#[cfg(feature = "__tracing")]
+mod tracing {
+    use super::*;
+    use crate::core_crypto::commons::tracing_helper::EntityMemoryTracer;
+    use crate::core_crypto::commons::traits::tracing_helper::AsMemoryTracer;
+
+    impl<T: UnsignedInteger> AsMemoryTracer for DecompositionTerm<T> {
+        fn as_memory_tracer(&self, with_metadata: bool) -> EntityMemoryTracer {
+            let metadata: Option<Vec<Box<dyn core::fmt::Debug>>> = if with_metadata {
+                Some(vec![
+                    Box::new(self.level()),
+                    Box::new(DecompositionBaseLog(self.base_log)),
+                ])
+            } else {
+                None
+            };
+
+            EntityMemoryTracer::new(
+                format!("DecompositionTerm<{}>", std::any::type_name::<T>()),
+                metadata,
+                [self.value].as_slice(),
+                Some(CiphertextModulus::<T>::new_native()),
+            )
+        }
+    }
+}
+
 /// A member of the decomposition.
 ///
 /// If we decompose a value $\theta$ as a sum
