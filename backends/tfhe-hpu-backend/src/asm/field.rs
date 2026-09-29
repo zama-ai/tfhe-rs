@@ -585,8 +585,29 @@ impl IOp {
 /// Implement parsing logic from stream of word
 /// Only consume the VecDeque on Success
 impl IOp {
-    #[tracing::instrument(level = "trace", ret)]
+    /// Parse a complete IOp, i.e. with all its operands.
+    /// Used when there is no Hpu context, e.g. while reading back a hex file.
     pub fn from_words(stream: &mut VecDeque<IOpWordRepr>) -> Result<Self, HexParsingError> {
+        Self::from_stream(None, stream)
+    }
+
+    /// Parse an IOp as received by Hpu `hid`.
+    /// Hpu outside of the mapping only receive the preamble (c.f. [`Self::to_preamble_words`]),
+    /// in which case the parsed IOp comes without operand.
+    pub fn from_words_as(
+        hid: PhysId,
+        stream: &mut VecDeque<IOpWordRepr>,
+    ) -> Result<Self, HexParsingError> {
+        Self::from_stream(Some(hid), stream)
+    }
+
+    /// `hid` is the Hpu that received the stream, `None` when unknown and operands are always
+    /// expected.
+    #[tracing::instrument(level = "trace", ret)]
+    fn from_stream(
+        hid: Option<PhysId>,
+        stream: &mut VecDeque<IOpWordRepr>,
+    ) -> Result<Self, HexParsingError> {
         // Keep track of the current peak index
         let mut peak_words = 0;
 
@@ -609,59 +630,73 @@ impl IOp {
             return Err(HexParsingError::EmptyStream);
         };
 
-        // 3. Parse Destination operands
-        let dst = {
-            let (dst, peaked) = OperandBundle::from_words(&stream.as_slices().0[peak_words..])?;
-            for op in dst.iter() {
-                // Check flags
-                if op.props.kind != OperandKind::Dst {
-                    return Err(HexParsingError::Kind(format!(
-                        "Get {:?} instead of {:?}",
-                        op.props.kind,
-                        OperandKind::Dst
-                    )));
-                }
-                if op.props.block > header.align {
-                    return Err(HexParsingError::Kind(format!(
-                        "Get {:?} > {:?}",
-                        op.props.block, header.align
-                    )));
-                }
-            }
-            peak_words += peaked;
-            dst
-        };
+        // Operands are only broadcasted to the Hpu that belong to the mapping
+        let is_targeted = hid.is_none_or(|hid| map.virt_id(hid).is_some());
 
-        // 4. Parse Source operands
-        let src = {
-            let (src, peaked) = OperandBundle::from_words(&stream.as_slices().0[peak_words..])?;
-            for op in src.iter() {
-                // Check flags
-                if op.props.kind != OperandKind::Src {
-                    return Err(HexParsingError::Kind(format!(
-                        "Get {:?} instead of {:?}",
-                        op.props.kind,
-                        OperandKind::Src
-                    )));
+        let (dst, src, imm) = if is_targeted {
+            // 3. Parse Destination operands
+            let dst = {
+                let (dst, peaked) = OperandBundle::from_words(&stream.as_slices().0[peak_words..])?;
+                for op in dst.iter() {
+                    // Check flags
+                    if op.props.kind != OperandKind::Dst {
+                        return Err(HexParsingError::Kind(format!(
+                            "Get {:?} instead of {:?}",
+                            op.props.kind,
+                            OperandKind::Dst
+                        )));
+                    }
+                    if op.props.block > header.align {
+                        return Err(HexParsingError::Kind(format!(
+                            "Get {:?} > {:?}",
+                            op.props.block, header.align
+                        )));
+                    }
                 }
-                if op.props.block > header.align {
-                    return Err(HexParsingError::Kind(format!(
-                        "Get {:?} > {:?}",
-                        op.props.block, header.align
-                    )));
-                }
-            }
-            peak_words += peaked;
-            src
-        };
+                peak_words += peaked;
+                dst
+            };
 
-        // 5. Parse Immediate [Optional]
-        let (imm, peaked) = if header.has_imm {
-            ImmBundle::from_words(&stream.as_slices().0[peak_words..])?
+            // 4. Parse Source operands
+            let src = {
+                let (src, peaked) = OperandBundle::from_words(&stream.as_slices().0[peak_words..])?;
+                for op in src.iter() {
+                    // Check flags
+                    if op.props.kind != OperandKind::Src {
+                        return Err(HexParsingError::Kind(format!(
+                            "Get {:?} instead of {:?}",
+                            op.props.kind,
+                            OperandKind::Src
+                        )));
+                    }
+                    if op.props.block > header.align {
+                        return Err(HexParsingError::Kind(format!(
+                            "Get {:?} > {:?}",
+                            op.props.block, header.align
+                        )));
+                    }
+                }
+                peak_words += peaked;
+                src
+            };
+
+            // 5. Parse Immediate [Optional]
+            let (imm, peaked) = if header.has_imm {
+                ImmBundle::from_words(&stream.as_slices().0[peak_words..])?
+            } else {
+                (ImmBundle(Vec::new()), 0)
+            };
+            peak_words += peaked;
+
+            (dst, src, imm)
         } else {
-            (ImmBundle(Vec::new()), 0)
+            // Preamble only, nothing more to consume
+            (
+                OperandBundle(Vec::new()),
+                OperandBundle(Vec::new()),
+                ImmBundle(Vec::new()),
+            )
         };
-        peak_words += peaked;
 
         // Successful extraction from the dequeue
         // Consume the associated words
@@ -676,13 +711,22 @@ impl IOp {
         })
     }
 
+    /// Emit the IOp preamble only, i.e. header and mapping.
+    /// Since the header carries the iid, those two words are all a node needs to keep track of
+    /// the IOp issued on the cluster, without the operands it has no use for.
+    #[tracing::instrument(level = "trace", ret)]
+    pub fn to_preamble_words(&self) -> Vec<IOpWordRepr> {
+        vec![
+            // 1. Header
+            fmt::IOpHeaderHex::from(&self.header).into_bits(),
+            // 2. Mapping
+            fmt::IOpMappingHex::from(&self.map).into_bits(),
+        ]
+    }
+
     #[tracing::instrument(level = "trace", ret)]
     pub fn to_words(&self) -> Vec<IOpWordRepr> {
-        let mut words = Vec::new();
-        // 1. Header
-        words.push(fmt::IOpHeaderHex::from(&self.header).into_bits());
-        // 2. Mapping
-        words.push(fmt::IOpMappingHex::from(&self.map).into_bits());
+        let mut words = self.to_preamble_words();
         // 3. Destination
         words.extend(self.dst.to_words());
         // 4. Sources
