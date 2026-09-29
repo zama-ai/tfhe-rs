@@ -24,14 +24,8 @@ uint64_t scratch_cuda_integer_mult_inplace_64_async(
     uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
-  const uint32_t polynomial_size = bsk_params.polynomial_size;
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus, noise_reduction_type);
-
-  if (polynomial_size < 256 || polynomial_size > 16384 ||
-      (polynomial_size & (polynomial_size - 1)) != 0)
-    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
-          "Supported N's are powers of two in the interval [256..16384].")
 
   return scratch_cuda_integer_mult_radix_ciphertext<uint64_t>(
       CudaStreams(streams), (int_mul_memory<uint64_t> **)mem_ptr,
