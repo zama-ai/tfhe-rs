@@ -467,13 +467,13 @@ impl ServerKeyDefaultCMux<&BooleanBlock, &BooleanBlock> for ServerKey {
         true_ct: &BooleanBlock,
         false_ct: &BooleanBlock,
     ) -> (Self::Output, Self::Output) {
-        let flip_if_false_fn = |packed| {
+        let zero_out_if_false_fn = |packed| {
             let condition = (packed / 2) & 1;
             let value = packed % 2;
             value * condition
         };
 
-        let flip_if_true_fn = |packed| {
+        let zero_out_if_true_fn = |packed| {
             let condition = (packed / 2) & 1;
             let value = packed % 2;
             (1 - condition) * value
@@ -481,7 +481,7 @@ impl ServerKeyDefaultCMux<&BooleanBlock, &BooleanBlock> for ServerKey {
 
         let lut = self
             .key
-            .generate_many_lookup_table(&[&flip_if_false_fn, &flip_if_true_fn]);
+            .generate_many_lookup_table(&[&zero_out_if_false_fn, &zero_out_if_true_fn]);
 
         let scaled_condition = self.key.unchecked_scalar_mul(&condition.0, 2);
 
@@ -496,29 +496,32 @@ impl ServerKeyDefaultCMux<&BooleanBlock, &BooleanBlock> for ServerKey {
             },
         );
 
-        let [mut a_if_cond, mut a_if_not_cond] = vec_a.try_into().unwrap();
-        let [b_if_cond, b_if_not_cond] = vec_b.try_into().unwrap();
+        let [mut a_if_true_0_if_false, mut a_if_false_0_if_true] = vec_a.try_into().unwrap();
+        let [b_if_true_0_if_false, b_if_false_0_if_true] = vec_b.try_into().unwrap();
 
         self.key
-            .unchecked_add_assign(&mut a_if_cond, &b_if_not_cond);
+            .unchecked_add_assign(&mut a_if_false_0_if_true, &b_if_true_0_if_false);
         self.key
-            .unchecked_add_assign(&mut a_if_not_cond, &b_if_cond);
+            .unchecked_add_assign(&mut a_if_true_0_if_false, &b_if_false_0_if_true);
+
+        let mut a_if_false_b_if_true = a_if_false_0_if_true;
+        let mut a_if_true_b_if_false = a_if_true_0_if_false;
 
         let clean_lut = self.key.generate_lookup_table(|x| x % 2);
         rayon::join(
             || {
                 self.key
-                    .apply_lookup_table_assign(&mut a_if_cond, &clean_lut)
+                    .apply_lookup_table_assign(&mut a_if_false_b_if_true, &clean_lut)
             },
             || {
                 self.key
-                    .apply_lookup_table_assign(&mut a_if_not_cond, &clean_lut)
+                    .apply_lookup_table_assign(&mut a_if_true_b_if_false, &clean_lut)
             },
         );
 
         (
-            BooleanBlock::new_unchecked(a_if_cond),
-            BooleanBlock::new_unchecked(a_if_not_cond),
+            BooleanBlock::new_unchecked(a_if_false_b_if_true),
+            BooleanBlock::new_unchecked(a_if_true_b_if_false),
         )
     }
 }

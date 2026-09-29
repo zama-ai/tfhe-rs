@@ -160,6 +160,11 @@ where
         }
     }
 
+    pub(crate) fn block_counts(&mut self, block_counts: Vec<u32>) -> &mut Self {
+        self.block_counts = block_counts;
+        self
+    }
+
     /// Number of random cases per block count (run with clean inputs).
     pub(crate) fn n_random(&mut self, n: u32) -> &mut Self {
         self.n_random = n;
@@ -535,6 +540,7 @@ macro_rules! impl_input_state_for_tuple {
 
 impl_input_state_for_tuple!(A);
 impl_input_state_for_tuple!(A, B);
+impl_input_state_for_tuple!(A, B, C);
 
 /// Trait for types representing clear inputs of a test
 pub(crate) trait TestClearInput: Copy + std::fmt::Debug {
@@ -648,6 +654,14 @@ impl TestClearInput for Uint {
     }
 }
 
+impl TestClearInput for bool {
+    type Input = BooleanBlock;
+
+    fn generate_random(rng: &mut dyn RngCore, _n_blocks: u32, _ctx: &TestContext) -> Self {
+        rng.gen_bool(0.5)
+    }
+}
+
 impl TestInput for RadixCiphertext {
     type Clear = Uint;
 
@@ -683,6 +697,31 @@ impl TestInput for RadixCiphertext {
             }
         }
 
+        (encrypted, clear)
+    }
+
+    fn as_ref(&self) -> Self::Ref<'_> {
+        self
+    }
+}
+
+impl TestInput for BooleanBlock {
+    type Clear = bool;
+
+    type Ref<'a>
+        = &'a Self
+    where
+        Self: 'a;
+
+    type State = ();
+
+    fn prepare(
+        clear: Self::Clear,
+        _state: Self::State,
+        _rng: &mut dyn RngCore,
+        ctx: &TestContext,
+    ) -> (Self, Self::Clear) {
+        let encrypted = ctx.cks.encrypt_bool(clear);
         (encrypted, clear)
     }
 
@@ -909,6 +948,7 @@ macro_rules! impl_test_input_for_tuple {
 
 impl_test_input_for_tuple!(A.0);
 impl_test_input_for_tuple!(A.0, B.1);
+impl_test_input_for_tuple!(A.0, B.1, C.2);
 
 /// Trait for outputs of a FHE function that is tested
 ///
@@ -1023,3 +1063,4 @@ macro_rules! impl_execute_on_for_tuple {
 
 impl_execute_on_for_tuple!(A.0);
 impl_execute_on_for_tuple!(A.0, B.1);
+impl_execute_on_for_tuple!(A.0, B.1, C.2);
