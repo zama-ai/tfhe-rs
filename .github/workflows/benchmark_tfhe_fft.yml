@@ -47,7 +47,7 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: aws
-          profile: bench
+          profile: bench-hpc8
 
   fft-benchmarks:
     name: benchmark_tfhe_fft/fft-benchmarks
