@@ -11,6 +11,7 @@ required-features = ["gpu"]
 
 [features]
 gpu = ["tfhe/gpu", "fuzz-utils/gpu"]
+rerand = []
 
 [dependencies]
 tfhe = { path = "../../../tfhe", features = ["zk-pok", "integer"] }

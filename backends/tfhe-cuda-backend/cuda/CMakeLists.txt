@@ -9,6 +9,18 @@ check_language(CUDA)
 # If so, enable CUDA to check the version.
 if(CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
+  # AFL coverage flags are added after enable_language so the cmake CUDA compiler
+  # test (which runs inside enable_language) doesn't require the AFL runtime at link time.
+  if(AFL_CUDA_INSTRUMENT)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} \
+      -Xcompiler -fsanitize-coverage=trace-pc-guard \
+      -Xcompiler -D__AFL_COMPILER=1 \
+      -Xcompiler -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION=1")
+  endif()
+  if(TFHE_CUDA_FUZZING)
+    add_compile_definitions(TFHE_CUDA_FUZZING=1)
+    message(STATUS "TFHE_CUDA_FUZZING enabled: polynomial_size=32 supported in dispatch")
+  endif()
 endif()
 # If CUDA is not available, or the minimum version is too low do not build
 if(NOT CMAKE_CUDA_COMPILER)
@@ -112,8 +124,12 @@ endif()
 
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging to use
 # nvtx when profiling -lnvToolsExt
+string(FIND "${CMAKE_CUDA_FLAGS}" "-ccbin" _cuda_has_ccbin)
+if(_cuda_has_ccbin EQUAL -1)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER}")
+endif()
 set(CMAKE_CUDA_FLAGS
-    "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
+    "${CMAKE_CUDA_FLAGS} ${OPTIMIZATION_FLAGS}\
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
   --use_fast_math -Xcompiler -fPIC ")
 

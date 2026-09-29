@@ -718,9 +718,9 @@ fuzz_gpu_precampaign: install_cargo_afl
 fuzz_gpu_build: install_cargo_afl
 	cd utils/fuzz && ./build.sh --gpu
 
-.PHONY: fuzz_gpu_run # Run the GPU AFL harness as a single master instance
+.PHONY: fuzz_gpu_run # Run GPU AFL harness: 2 instances per GPU, auto-detected via nvidia-smi
 fuzz_gpu_run: check_fuzz_system_config
-	cd utils/fuzz && ./run.sh --gpu $(if $(FUZZ_DURATION_SECONDS),--duration-seconds $(FUZZ_DURATION_SECONDS))
+	cd utils/fuzz && ./run_gpu.sh $(if $(FUZZ_DURATION_SECONDS),--duration-seconds $(FUZZ_DURATION_SECONDS))
 
 .PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
 clippy_wasm_par_mq: install_rs_check_toolchain
