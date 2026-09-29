@@ -4,7 +4,7 @@
 
 use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::experimental::entities::fourier_pseudo_ggsw_ciphertext::PseudoFourierGgswCiphertext;
+use crate::core_crypto::experimental::entities::fourier_pseudo_ggsw_ciphertext::FourierPseudoGgswCiphertext;
 use crate::core_crypto::experimental::entities::pseudo_ggsw_ciphertext::PseudoGgswCiphertext;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
 use dyn_stack::{PodStack, StackReq};
@@ -17,7 +17,7 @@ use tfhe_fft::c64;
 /// [`convert_standard_pseudo_ggsw_ciphertext_to_fourier_mem_optimized`].
 pub fn convert_standard_pseudo_ggsw_ciphertext_to_fourier<Scalar, InputCont, OutputCont>(
     input_ggsw: &PseudoGgswCiphertext<InputCont>,
-    output_ggsw: &mut PseudoFourierGgswCiphertext<OutputCont>,
+    output_ggsw: &mut FourierPseudoGgswCiphertext<OutputCont>,
 ) where
     Scalar: UnsignedTorus,
     InputCont: Container<Element = Scalar>,
@@ -47,7 +47,7 @@ pub fn convert_standard_pseudo_ggsw_ciphertext_to_fourier_mem_optimized<
     OutputCont,
 >(
     input_ggsw: &PseudoGgswCiphertext<InputCont>,
-    output_ggsw: &mut PseudoFourierGgswCiphertext<OutputCont>,
+    output_ggsw: &mut FourierPseudoGgswCiphertext<OutputCont>,
     fft: FftView<'_>,
     stack: &mut PodStack,
 ) where
