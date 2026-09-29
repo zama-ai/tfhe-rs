@@ -83,22 +83,14 @@ jobs:
   setup-instance:
     name: benchmark_gpu_coprocessor/setup-instance
     needs: parse-inputs
-    runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-    outputs:
-      runner-name: ${{ steps.start-remote-instance.outputs.label }}
-    steps:
-      - name: Start remote instance
-        id: start-remote-instance
-        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: ${{ needs.parse-inputs.outputs.backend }}
-          profile: ${{ needs.parse-inputs.outputs.profile }}
+    uses: ./.github/workflows/slab_setup.yml
+    with:
+      backend: ${{ needs.parse-inputs.outputs.backend }}
+      profile: ${{ needs.parse-inputs.outputs.profile }}
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
 
   benchmark-gpu:
     name: benchmark_gpu_coprocessor/benchmark-gpu (bpr)
@@ -332,18 +324,16 @@ jobs:
 
   teardown-instance:
     name: benchmark_gpu_coprocessor/teardown-instance
-    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
     needs: [ setup-instance, benchmark-gpu ]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-    steps:
-      - name: Stop remote instance
-        id: stop-instance
-        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
+    uses: ./.github/workflows/slab_teardown.yml
+    with:
+      runner-name: ${{ needs.setup-instance.outputs.runner-name }}
+      notification-context: benchmark-gpu-coprocessor
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

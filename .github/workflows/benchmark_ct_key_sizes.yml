@@ -27,20 +27,14 @@ jobs:
     name: Setup instance (sizes-benchmarks)
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
-    runs-on: ubuntu-latest
-    outputs:
-      runner-name: ${{ steps.start-instance.outputs.label }}
-    steps:
-      - name: Start instance
-        id: start-instance
-        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: cpu-big
+    uses: ./.github/workflows/slab_setup.yml
+    with:
+      backend: aws
+      profile: cpu-big
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
 
   sizes-benchmarks:
     name: Execute sizes client benchmarks
@@ -133,23 +127,16 @@ jobs:
 
   teardown-instance:
     name: Teardown instance (sizes-benchmarks)
-    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
     needs: [ setup-instance, sizes-benchmarks ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop instance
-        id: stop-instance
-        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (sizes-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+    uses: ./.github/workflows/slab_teardown.yml
+    with:
+      runner-name: ${{ needs.setup-instance.outputs.runner-name }}
+      notification-context: sizes-benchmarks
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
