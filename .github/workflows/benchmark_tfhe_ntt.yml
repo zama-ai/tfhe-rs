@@ -47,7 +47,7 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: aws
-          profile: bench
+          profile: bench-hpc8
 
   ntt-benchmarks:
     name: benchmark_tfhe_ntt/ntt-benchmarks
