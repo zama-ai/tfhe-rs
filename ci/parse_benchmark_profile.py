@@ -9,6 +9,8 @@ BACKEND_MAP = {
     "hyperstack": "hyperstack",
     "scaleway": "terraform",
     "nebius": "terraform",
+    # Direct terraform prefix: profile name is used as-is (no cloud provider prefix prepended).
+    "terraform": "terraform",
 }
 
 
@@ -43,7 +45,7 @@ def parse_profile(profile_string, output_file, slab_toml):
         sys.exit(1)
 
     slab_backend = BACKEND_MAP[backend_prefix]
-    if slab_backend == "terraform":
+    if slab_backend == "terraform" and backend_prefix != "terraform":
         profile = backend_prefix + "-" + profile_name
     else:
         profile = profile_name

@@ -61,7 +61,40 @@ fn main() {
             cmake_config.define("TFHE_CUDA_COMMON_CHECK_CUDA_DIR", &check_cuda_dir);
         }
 
+        // When building under cargo-afl, instrument host-side C++ for AFL coverage.
+        // We bypass afl-clang-fast++ (which has a bug duplicating flags once per argument)
+        // and use clang++ directly with -fsanitize-coverage=trace-pc-guard — the same
+        // mechanism AFL PCGUARD uses internally. No LLVM plugin is loaded, so there is no
+        // LLVM version matching requirement. AFL's runtime (linked by cargo-afl into the
+        // Rust binary) intercepts __sanitizer_cov_trace_pc_guard callbacks automatically.
+        println!("cargo::rerun-if-env-changed=AFL_CXX");
+        println!("cargo::rerun-if-env-changed=TFHE_CUDA_FUZZING");
+        let afl_build = std::env::var("AFL_CXX").is_ok();
+        // TFHE_CUDA_FUZZING=1 enables polynomial_size=32 in the CUDA dispatch table, which the
+        // fuzzer needs (its generated inputs use small parameters). Set this independently of
+        // AFL_CXX so plain `cargo build` can reproduce crashes without AFL instrumentation.
+        let cuda_fuzzing = afl_build || std::env::var("TFHE_CUDA_FUZZING").as_deref() == Ok("1");
+        if afl_build {
+            // clang-14 satisfies all constraints: NVCC accepts clang < 15, and clang
+            // supports -fsanitize-coverage=trace-pc-guard for AFL coverage instrumentation.
+            cmake_config.define("CMAKE_CXX_COMPILER", "clang++-14");
+            cmake_config.define("CMAKE_C_COMPILER", "clang-14");
+            // Coverage flags for CXX (.cpp files) and CUDA (.cu files via -Xcompiler) are
+            // both added by CMakeLists.txt after project()/enable_language() so the cmake
+            // compiler tests don't fail trying to link without the AFL runtime.
+            // -ccbin must be in CMAKE_CUDA_FLAGS from the start so the cmake CUDA compiler
+            // test (inside enable_language) uses clang++-14 as host, not g++.
+            cmake_config.define("CMAKE_CUDA_FLAGS", "-ccbin clang++-14");
+            cmake_config.define("AFL_CUDA_INSTRUMENT", "ON");
+            cmake_config.define("CMAKE_VERBOSE_MAKEFILE", "ON");
+        }
+        if cuda_fuzzing {
+            cmake_config.define("TFHE_CUDA_FUZZING", "ON");
+        }
+
         // Build the CMake project
+        let jobs = std::env::var("NUM_JOBS").unwrap_or_else(|_| "1".to_string());
+        cmake_config.build_arg(format!("-j{jobs}"));
         let dest = cmake_config.build();
         println!("cargo:rustc-link-search=native={}", dest.display());
         println!("cargo:rustc-link-lib=static=tfhe_cuda_backend");

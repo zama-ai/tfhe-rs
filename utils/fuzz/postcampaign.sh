@@ -130,14 +130,16 @@ cmin_into() {
 # its own binary. cmin -C keeps crashing inputs and minimizes by crash coverage, giving a
 # unique-crash count (a coverage proxy for distinct bugs, not exact bug dedup).
 rm -rf "$CRASHES_OUT"
+mkdir -p "$CRASHES_OUT"
 declare -A crash_counts
 total_crashes=0
 for harness in "${HARNESSES[@]}"; do
     prefix="${harness#harness-}"
+    sync_prefix="${prefix//-/_}"  # AFL instance names use underscores (cuda_compute_m, not cuda-compute_m)
     crash_counts[$prefix]=0
 
     shopt -s nullglob # return an empty array if dir does not exist
-    crash_dirs=("$SYNC_DIR/${prefix}"_*/crashes)
+    crash_dirs=("$SYNC_DIR/${sync_prefix}"_*/crashes)
     shopt -u nullglob
     [[ ${#crash_dirs[@]} -eq 0 ]] && continue
 
@@ -215,12 +217,13 @@ get_stat() {
     echo "${v:-0}"
 }
 
-declare -A last_find_age duration_seconds total_execs instance_count
+declare -A last_find_age duration_seconds total_execs instance_count max_edges
 for harness in "${HARNESSES[@]}"; do
     prefix="${harness#harness-}"
+    sync_prefix="${prefix//-/_}"
 
     shopt -s nullglob
-    stats_files=("$SYNC_DIR/${prefix}"_*/fuzzer_stats)
+    stats_files=("$SYNC_DIR/${sync_prefix}"_*/fuzzer_stats)
     shopt -u nullglob
     instance_count[$prefix]=${#stats_files[@]}
     [[ ${#stats_files[@]} -eq 0 ]] && continue
@@ -230,17 +233,20 @@ for harness in "${HARNESSES[@]}"; do
     #   max_lu  = most recent last_update    (campaign stop)
     #   min_st  = earliest start_time        (campaign start)
     #   execs   = total execs across instances (execs_done is per-instance)
-    max_lf=0; max_lu=0; min_st=0; execs=0
+    #   max_ef  = max edges_found across instances (main fuzzer sees most after syncing secondaries)
+    max_lf=0; max_lu=0; min_st=0; execs=0; max_ef=0
     for sf in "${stats_files[@]}"; do
         lf=$(get_stat last_find   "$sf")
         lu=$(get_stat last_update "$sf")
         st=$(get_stat start_time  "$sf")
         ex=$(get_stat execs_done  "$sf")
+        ef=$(get_stat edges_found "$sf")
 
         (( lf > max_lf )) && max_lf=$lf
         (( lu > max_lu )) && max_lu=$lu
         (( min_st == 0 || st < min_st )) && min_st=$st
         execs=$(( execs + ex ))
+        (( ef > max_ef )) && max_ef=$ef
     done
 
     if (( max_lf > 0 && max_lu > 0 )); then
@@ -250,6 +256,7 @@ for harness in "${HARNESSES[@]}"; do
     fi
     (( min_st > 0 && max_lu > 0 )) && duration_seconds[$prefix]=$(( max_lu - min_st ))
     total_execs[$prefix]=$execs
+    max_edges[$prefix]=$max_ef
 done
 
 fmt_age() {
@@ -270,14 +277,20 @@ fmt_num() {
 
 # ── Statistics + summary.md ────────────────────────────────────────────────
 echo "==> Computing statistics"
-cargo build --release -p fuzz-stats
+STATS_BUILD_ARGS=(--release -p fuzz-stats)
+STATS_RUN_FLAGS=()
+if (( GPU )); then
+    STATS_BUILD_ARGS+=(--features gpu)
+    STATS_RUN_FLAGS+=(--gpu)
+fi
+cargo build "${STATS_BUILD_ARGS[@]}"
 STATS_BIN="$TARGET_DIR/release/fuzz-stats"
 
 SUMMARY="$SCRIPT_DIR/summary.md"
 STATS_TABLE="$WORK/stats_table.txt"
 
 CORPUS_CRASHES_DIR="$CRASHES_OUT/from-corpus"
-"$STATS_BIN" --save-crashes "$CORPUS_CRASHES_DIR" "$OUT_DIR" > "$STATS_TABLE"
+"$STATS_BIN" "${STATS_RUN_FLAGS[@]}" --save-crashes "$CORPUS_CRASHES_DIR" "$OUT_DIR" > "$STATS_TABLE"
 
 corpus_panic_count=0
 if [[ -d "$CORPUS_CRASHES_DIR" ]]; then
@@ -322,6 +335,12 @@ first_harness="${HARNESSES[0]#harness-}"
     for harness in "${HARNESSES[@]}"; do
         prefix="${harness#harness-}"
         echo "  $prefix: $(fmt_age "${last_find_age[$prefix]-}")"
+    done
+    echo ""
+    echo "Edge coverage (max across instances):"
+    for harness in "${HARNESSES[@]}"; do
+        prefix="${harness#harness-}"
+        echo "  $prefix: $(fmt_num "${max_edges[$prefix]-}") edges"
     done
     echo '```'
 } > "$SUMMARY"
