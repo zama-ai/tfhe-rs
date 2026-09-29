@@ -11,7 +11,7 @@ use super::super::{FheBackendArray, FheBackendArraySlice, FheBackendArraySliceMu
 use crate::array::traits::TensorSlice;
 use crate::integer::BooleanBlock;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
-use crate::{ClientKey, Device};
+use crate::{ClientKey, CpuFheBoolArray, Device, FheBool};
 use std::borrow::{Borrow, Cow};
 use std::ops::RangeBounds;
 
@@ -31,6 +31,43 @@ impl ArrayBackend for DynFheBoolArrayBackend {
     where
         Self: 'a;
     type Owned = InnerBoolArray;
+}
+
+impl TryFrom<Vec<FheBool>> for FheBoolArray {
+    type Error = crate::Error;
+
+    fn try_from(values: Vec<FheBool>) -> Result<Self, Self::Error> {
+        if values.is_empty() {
+            return Ok(Self::new(InnerBoolArray::Cpu(vec![]), vec![0]));
+        }
+
+        let shape = vec![values.len()];
+        let device_of_first = values[0].current_device();
+        let inner = match device_of_first {
+            Device::Cpu => {
+                let new_values = values
+                    .into_iter()
+                    .map(|value| value.ciphertext.into_cpu())
+                    .collect::<Vec<_>>();
+
+                InnerBoolArray::Cpu(new_values)
+            }
+            #[cfg(feature = "gpu")]
+            Device::CudaGpu => return Err(crate::error!("Array do not support GPU")),
+            #[cfg(feature = "hpu")]
+            Device::Hpu => return Err(crate::error!("Array do not support HPU")),
+        };
+
+        Ok(Self::new(inner, shape))
+    }
+}
+
+impl From<CpuFheBoolArray> for FheBoolArray {
+    fn from(cpu_array: CpuFheBoolArray) -> Self {
+        let CpuFheBoolArray { elems, dims, _id } = cpu_array;
+
+        Self::new(InnerBoolArray::Cpu(elems), dims)
+    }
 }
 
 impl BitwiseArrayBackend for DynFheBoolArrayBackend {
