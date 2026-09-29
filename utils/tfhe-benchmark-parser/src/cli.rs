@@ -9,7 +9,7 @@ use std::path::PathBuf;
 )]
 pub struct Cli {
     /// Location of criterion benchmark results directory.
-    /// If --object-sizes or --key-gen is used, this must point to a CSV file.
+    /// If --csv is used, this must point to a CSV file.
     #[arg(short = 'i', long)]
     pub input_results_file: PathBuf,
 
@@ -62,17 +62,13 @@ pub struct Cli {
     #[arg(long = "walk-subdirs")]
     pub walk_subdirs: bool,
 
-    /// Parse only the results regarding keys size measurements.
-    #[arg(long = "object-sizes", conflicts_with = "key_gen")]
-    pub object_sizes: bool,
+    /// Parse a CSV of `id,value` rows instead of a criterion directory.
+    #[arg(long = "csv", conflicts_with = "bench_type")]
+    pub csv: bool,
 
-    /// Parse only the results regarding keys generation time measurements.
-    #[arg(long = "key-gen")]
-    pub key_gen: bool,
-
-    /// Fetch results for latency or throughput benchmarks.
-    #[arg(long = "bench-type",value_parser = parse_cli_bench_metric,default_value = "latency")]
-    pub bench_type: BenchmarkMetric,
+    /// Keep only the criterion results whose id declares this metric.
+    #[arg(long = "bench-type", value_parser = parse_cli_bench_metric)]
+    pub bench_type: Option<BenchmarkMetric>,
 
     /// Backend on which benchmarks have run.
     /// Required even with --append-results, as it is stamped on every parsed point.

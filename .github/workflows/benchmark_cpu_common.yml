@@ -32,9 +32,6 @@ on:
         type: string # Use comma separated values to generate an array
       additional_file_to_parse: # Other files to parse, located under tfhe-benchmark/ directory
         type: string # Use comma separated values to generate an array
-      additional_results_type:
-        type: string
-        default: object-sizes
     secrets:
       REPO_CHECKOUT_TOKEN:
         required: true
@@ -227,13 +224,12 @@ jobs:
           IFS=','
           for filename in $filenames_list; do
             cargo run --release -p tfhe-benchmark-parser -- -i "tfhe-benchmark/${filename}" -o "${RESULTS_FILENAME}" \
-            --"${results_type}" \
+            --csv \
             --backend cpu \
             --append-results
           done
         env:
           filenames: ${{ inputs.additional_file_to_parse }}
-          results_type: ${{ inputs.additional_results_type }}
 
       - name: Download protocol results table of the other bench type
         if: ${{ contains(matrix.command, 'protocol') }}

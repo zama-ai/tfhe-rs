@@ -85,7 +85,7 @@ jobs:
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
-          --object-sizes
+          --csv
         env:
           REF_NAME: ${{ github.ref_name }}
 
@@ -96,7 +96,7 @@ jobs:
       - name: Parse key sizes results
         run: |
           cargo run --release -p tfhe-benchmark-parser -- -i tfhe-benchmark/shortint_key_sizes.csv -o "${RESULTS_FILENAME}" \
-          --object-sizes \
+          --csv \
           --backend cpu \
           --append-results
 
