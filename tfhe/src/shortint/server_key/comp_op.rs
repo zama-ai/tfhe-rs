@@ -1,5 +1,5 @@
 use crate::shortint::atomic_pattern::AtomicPattern;
-use crate::shortint::server_key::{CheckError, GenericServerKey};
+use crate::shortint::server_key::GenericServerKey;
 use crate::shortint::Ciphertext;
 
 // # Note:
@@ -95,44 +95,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
             u64::from(lhs > rhs)
         });
-    }
-
-    /// Implement the "greater" (`>`) operator between two ciphertexts with checks.
-    ///
-    /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 1;
-    /// let msg_2 = 2;
-    ///
-    /// // Encrypt two messages:
-    /// let ct_left = cks.encrypt(msg_1);
-    /// let ct_right = cks.encrypt(msg_2);
-    ///
-    /// let res = sks.checked_greater(&ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&res);
-    /// assert_eq!((msg_1 > msg_2) as u64, clear_res);
-    /// ```
-    pub fn checked_greater(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        Ok(self.unchecked_greater(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `>` between two ciphertexts encrypting integer values.
@@ -290,44 +252,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ) -> Ciphertext {
         self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs >= rhs))
     }
-    /// Implement the "greater or equal" (`>=`) operator between two ciphertexts with checks.
-    ///
-    /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 1;
-    /// let msg_2 = 2;
-    ///
-    /// // Encrypt two messages:
-    /// let ct_left = cks.encrypt(msg_1);
-    /// let ct_right = cks.encrypt(msg_2);
-    ///
-    /// let res = sks.checked_greater_or_equal(&ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&res);
-    /// assert_eq!((msg_1 >= msg_2) as u64, clear_res);
-    /// ```
-    pub fn checked_greater_or_equal(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        Ok(self.unchecked_greater_or_equal(ct_left, ct_right))
-    }
-
     /// Compute homomorphically a `<` between two ciphertexts encrypting integer values.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
@@ -415,44 +339,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
             u64::from(lhs < rhs)
         });
-    }
-
-    /// Implement the "less" (`<`) operator between two ciphertexts with checks.
-    ///
-    /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 1;
-    /// let msg_2 = 2;
-    ///
-    /// // Encrypt two messages:
-    /// let ct_left = cks.encrypt(msg_1);
-    /// let ct_right = cks.encrypt(msg_2);
-    ///
-    /// let res = sks.checked_less(&ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&res);
-    /// assert_eq!((msg_1 < msg_2) as u64, clear_res);
-    /// ```
-    pub fn checked_less(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        Ok(self.unchecked_less(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `<` between two ciphertexts encrypting integer values.
@@ -577,44 +463,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         });
     }
 
-    /// Implement the "less or equal" (`<=`) operator between two ciphertexts with checks.
-    ///
-    /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 1;
-    /// let msg_2 = 2;
-    ///
-    /// // Encrypt two messages:
-    /// let ct_left = cks.encrypt(msg_1);
-    /// let ct_right = cks.encrypt(msg_2);
-    ///
-    /// let res = sks.checked_less_or_equal(&ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&res);
-    /// assert_eq!((msg_1 <= msg_2) as u64, clear_res);
-    /// ```
-    pub fn checked_less_or_equal(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        Ok(self.unchecked_less_or_equal(ct_left, ct_right))
-    }
-
     /// Compute homomorphically a `<=` between two ciphertexts encrypting integer values.
     ///
     /// This checks that the operation is possible. In the case where the carry buffers are full,
@@ -737,44 +585,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         });
     }
 
-    /// Implement the "equal" (`==`) operator between two ciphertexts with checks.
-    ///
-    /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 1;
-    /// let msg_2 = 2;
-    ///
-    /// // Encrypt two messages:
-    /// let ct_left = cks.encrypt(msg_1);
-    /// let ct_right = cks.encrypt(msg_2);
-    ///
-    /// let res = sks.checked_equal(&ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&res);
-    /// assert_eq!((msg_1 == msg_2) as u64, clear_res);
-    /// ```
-    pub fn checked_equal(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        Ok(self.unchecked_equal(ct_left, ct_right))
-    }
-
     /// Compute homomorphically a `==` between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
@@ -891,44 +701,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
             u64::from(lhs != rhs)
         });
-    }
-
-    /// Implement the "not equal" (`!=`) operator between two ciphertexts with checks.
-    ///
-    /// If the operation can be performed, the result is returned in a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 1;
-    /// let msg_2 = 2;
-    ///
-    /// // Encrypt two messages:
-    /// let ct_left = cks.encrypt(msg_1);
-    /// let ct_right = cks.encrypt(msg_2);
-    ///
-    /// let res = sks.checked_not_equal(&ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&res);
-    /// assert_eq!((msg_1 != msg_2) as u64, clear_res);
-    /// ```
-    pub fn checked_not_equal(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        Ok(self.unchecked_not_equal(ct_left, ct_right))
     }
 
     /// Compute homomorphically a `!=` between two ciphertexts encrypting integer values.

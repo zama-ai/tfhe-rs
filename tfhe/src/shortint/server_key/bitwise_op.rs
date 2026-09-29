@@ -2,7 +2,7 @@ use crate::core_crypto::algorithms::lwe_ciphertext_opposite_assign;
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::GenericServerKey;
-use crate::shortint::{CheckError, Ciphertext};
+use crate::shortint::Ciphertext;
 
 impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
@@ -154,86 +154,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         let new_degree = ct_left.degree.after_bitand(ct_right.degree);
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs & rhs);
         ct_left.degree = new_degree;
-    }
-
-    /// Compute bitwise AND between two ciphertexts without checks.
-    ///
-    /// If the operation can be performed, the result is returned a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an AND:
-    /// let ct_res = sks.checked_bitand(&ct1, &ct2).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, msg);
-    /// ```
-    pub fn checked_bitand(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        let ct_result = self.unchecked_bitand(ct_left, ct_right);
-        Ok(ct_result)
-    }
-
-    /// Compute bitwise AND between two ciphertexts without checks.
-    ///
-    /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_left = cks.encrypt(msg);
-    /// let ct_right = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an AND:
-    /// sks.checked_bitand_assign(&mut ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, msg);
-    /// ```
-    pub fn checked_bitand_assign(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<(), CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        self.unchecked_bitand_assign(ct_left, ct_right);
-        Ok(())
     }
 
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
@@ -456,86 +376,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         ct_left.degree = new_degree;
     }
 
-    /// Compute bitwise XOR between two ciphertexts without checks.
-    ///
-    /// If the operation can be performed, the result is returned a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a xor:
-    /// let ct_res = sks.checked_bitxor(&ct1, &ct2).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, 0);
-    /// ```
-    pub fn checked_bitxor(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        let ct_result = self.unchecked_bitxor(ct_left, ct_right);
-        Ok(ct_result)
-    }
-
-    /// Compute bitwise XOR between two ciphertexts without checks.
-    ///
-    /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_left = cks.encrypt(msg);
-    /// let ct_right = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a xor:
-    /// sks.checked_bitxor_assign(&mut ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, 0);
-    /// ```
-    pub fn checked_bitxor_assign(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<(), CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        self.unchecked_bitxor_assign(ct_left, ct_right);
-        Ok(())
-    }
-
     /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
     ///
     /// This checks that the addition is possible. In the case where the carry buffers are full,
@@ -756,86 +596,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         let resulting_degree = ct_left.degree.after_bitor(ct_right.degree);
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs | rhs);
         ct_left.degree = resulting_degree;
-    }
-
-    /// Compute bitwise OR between two ciphertexts without checks.
-    ///
-    /// If the operation can be performed, the result is returned a _new_ ciphertext.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a or:
-    /// let ct_res = sks.checked_bitor(&ct1, &ct2).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(clear_res, msg);
-    /// ```
-    pub fn checked_bitor(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        let ct_result = self.unchecked_bitor(ct_left, ct_right);
-        Ok(ct_result)
-    }
-
-    /// Compute bitwise OR between two ciphertexts without checks.
-    ///
-    /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_left = cks.encrypt(msg);
-    /// let ct_right = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an or:
-    /// sks.checked_bitor_assign(&mut ct_left, &ct_right).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct_left);
-    /// assert_eq!(clear_res, msg);
-    /// ```
-    pub fn checked_bitor_assign(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<(), CheckError> {
-        self.is_functional_bivariate_pbs_possible(
-            ct_left.noise_degree(),
-            ct_right.noise_degree(),
-            None,
-        )?;
-        self.unchecked_bitor_assign(ct_left, ct_right);
-        Ok(())
     }
 
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.

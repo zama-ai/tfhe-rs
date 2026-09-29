@@ -1,7 +1,6 @@
 use super::add::unchecked_add_assign;
 use super::CiphertextNoiseDegree;
 use crate::shortint::atomic_pattern::AtomicPattern;
-use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::{CheckError, GenericServerKey};
 use crate::shortint::Ciphertext;
 
@@ -218,134 +217,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         self.is_functional_bivariate_pbs_possible(ct1, ct2, None)
     }
 
-    /// Multiply two ciphertexts together with checks.
-    ///
-    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
-    /// message_modulus.
-    ///
-    /// If the operation can be performed, a _new_ ciphertext with the result is returned.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// // Encrypt two messages:
-    /// let ct_1 = cks.encrypt(2);
-    /// let ct_2 = cks.encrypt(1);
-    ///
-    /// // Compute homomorphically a multiplication:
-    /// let ct_res = sks.checked_mul_lsb(&ct_1, &ct_2).unwrap();
-    ///
-    /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(clear_res % modulus, 2);
-    /// ```
-    pub fn checked_mul_lsb(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_mul_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
-        let ct_result = self.unchecked_mul_lsb(ct_left, ct_right);
-        Ok(ct_result)
-    }
-
-    /// Multiply two ciphertexts together with checks.
-    ///
-    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
-    /// message_modulus.
-    ///
-    /// If the operation can be performed, the result is assigned to the first ciphertext given
-    /// as a parameter.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_1 = cks.encrypt(2);
-    /// let ct_2 = cks.encrypt(1);
-    ///
-    /// // Compute homomorphically a multiplication:
-    /// sks.checked_mul_lsb_assign(&mut ct_1, &ct_2).unwrap();
-    ///
-    /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(clear_res % modulus, 2);
-    /// ```
-    pub fn checked_mul_lsb_assign(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<(), CheckError> {
-        self.is_mul_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
-        self.unchecked_mul_lsb_assign(ct_left, ct_right);
-        Ok(())
-    }
-
-    /// Multiply two ciphertexts together without checks.
-    ///
-    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
-    /// buffer.
-    ///
-    /// If the operation can be performed, a _new_ ciphertext with the result is returned.
-    /// Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 2;
-    /// let msg_2 = 2;
-    ///
-    /// // Encrypt two messages:
-    /// let ct_1 = cks.encrypt(msg_1);
-    /// let ct_2 = cks.encrypt(msg_2);
-    ///
-    /// // Compute homomorphically a multiplication:
-    /// let ct_res = sks.checked_mul_msb(&ct_1, &ct_2).unwrap();
-    ///
-    /// // 2*2 == 4 == 01_00 (base 2)
-    /// // however the ciphertext will contain only the carry buffer
-    /// // as the message, the ct_res is actually:
-    /// // |      ct_res     |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  0 0  |   0 1   |
-    ///
-    /// let clear_res = cks.decrypt(&ct_res);
-    /// assert_eq!(
-    ///     clear_res,
-    ///     (msg_1 * msg_2) / cks.parameters().message_modulus().0
-    /// );
-    /// ```
-    pub fn checked_mul_msb(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_mul_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
-        let ct_result = self.unchecked_mul_msb(ct_left, ct_right);
-        Ok(ct_result)
-    }
-
     /// Multiply two ciphertexts together using one bit of carry only.
     ///
     /// The algorithm uses the (.)^2/4 trick.
@@ -451,47 +322,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         self.is_add_possible(ct_left, ct_right)?;
         self.is_sub_possible(ct_left, ct_right)?;
         Ok(())
-    }
-
-    /// Compute homomorphically a multiplication between two ciphertexts encrypting integer values.
-    ///
-    /// The operation is done using a small carry buffer.
-    ///
-    /// If the operation can be performed, a _new_ ciphertext with the result of the
-    /// multiplication is returned. Otherwise a [CheckError] is returned.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 2;
-    /// let msg_2 = 3;
-    ///
-    /// // Encrypt two messages:
-    /// let ct_1 = cks.encrypt(msg_1);
-    /// let ct_2 = cks.encrypt(msg_2);
-    ///
-    /// // Compute homomorphically a multiplication
-    /// let ct_res = sks.checked_mul_lsb_with_small_carry(&ct_1, &ct_2).unwrap();
-    ///
-    /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
-    /// ```
-    pub fn checked_mul_lsb_with_small_carry(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-    ) -> Result<Ciphertext, CheckError> {
-        self.is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
-        let mut ct_result = self.unchecked_mul_lsb_small_carry(ct_left, ct_right);
-        ct_result.degree = Degree::new(ct_left.degree.get() * 2);
-        Ok(ct_result)
     }
 
     /// Multiply two ciphertexts together
