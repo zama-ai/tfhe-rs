@@ -1,32 +1,40 @@
 #!/usr/bin/env bash
 #
-# Launch an AFL fuzzing campaign with master/secondary topology.
+# Launch an AFL fuzzing campaign (CPU or GPU) with master/secondary topology.
 #
 # All instances share a single sync directory so cross-sync propagates
 # findings between harnesses automatically.
 #
-# Usage:
-#   ./run.sh                          # defaults: auto-size to nproc, 24h
-#   ./run.sh --gpu                    # single GPU harness (cuda_compute_m)
+# Usage (CPU, default):
+#   ./run.sh                          # auto-size to nproc, 24h
 #   ./run.sh --duration-seconds 3600  # 1-hour run
 #   ./run.sh --deser-secondary 5      # force the number of secondaries for harness-deser
 #   ./run.sh --total-cores 16         # simulate a 16-core machine
 #
-# Sizing model (CPU only):
-#   3 masters (one per harness), nproc-3 secondaries split by harness weight.
-#   Default ratio deser:verify:compute = 1:3:8 reflects the per-exec cost of each
-#   harness (compute is slowest and gets the largest share). This ratio can be improved
-#   over time based on the campaign reports.
+# Usage (GPU):
+#   ./run.sh --gpu                         # auto-detect GPUs, 24h
+#   ./run.sh --gpu --duration-seconds 3600 # 1-hour GPU run
+#   ./run.sh --gpu --compute-secondary 5   # force secondary count (overrides 2*NUM_GPUS-1)
+#
+# CPU sizing model:
+#   3 masters (one per harness: deser, verify, compute), nproc-3 secondaries
+#   split by harness weight.  Default ratio deser:verify:compute = 1:3:8 reflects
+#   per-exec cost (compute is slowest and gets the largest share).  This ratio can
+#   be improved over time based on campaign reports.
+#
+# GPU sizing model:
+#   1 master + (2*NUM_GPUS-1) secondaries for the cuda_compute harness.
+#   Instances are pinned to GPUs via CUDA_VISIBLE_DEVICES (round-robin).
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# ── Defaults ───────────────────────────────────────────────────────────────
+# ── Shared defaults ─────────────────────────────────────────────────────────
 CORPUS_DIR="$SCRIPT_DIR/corpus"
 SYNC_DIR="$SCRIPT_DIR/sync_dir"
-# Also set in .github/workflows/fuzzing.yml and utils/fuzzing/README.md
+# Also set in .github/workflows/fuzzing.yml and .github/workflows/gpu_fuzzing.yml
 DURATION_SECONDS=86400  # 24 hours
 # Which instances keep a per-instance log: all | masters | none.
 #
@@ -34,6 +42,9 @@ DURATION_SECONDS=86400  # 24 hours
 # Use 'all' to debug an intermittent issue. But beware that it may consume a lot of disk space in
 # real-life campaigns.
 LOG_MODE=masters
+GPU_MODE=0
+
+# ── CPU-specific defaults ────────────────────────────────────────────────────
 TOTAL_CORES=""  # empty = auto-detect via nproc
 DESER_WEIGHT=1
 VERIFY_WEIGHT=3
@@ -42,35 +53,38 @@ COMPUTE_WEIGHT=8
 DESER_SECONDARY=""
 VERIFY_SECONDARY=""
 COMPUTE_SECONDARY=""
-GPU=0
 
 # ── Parse arguments ────────────────────────────────────────────────────────
 usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Mode:"
-    echo "  --gpu                    GPU campaign: single cuda_compute_m harness"
+    echo "  --gpu                    GPU mode: fuzz the cuda_compute harness (default: CPU)"
     echo ""
-    echo "Sizing options (CPU mode only):"
+    echo "CPU sizing options (ignored in --gpu mode):"
     echo "  --total-cores N          Override auto-detected core count (default: nproc)"
     echo "  --deser-weight N         Weight for deser secondaries (default: 1)"
     echo "  --verify-weight N        Weight for verify secondaries (default: 3)"
     echo "  --compute-weight N       Weight for compute secondaries (default: 8)"
     echo "  --deser-secondary N      Force deser secondaries count (overrides derivation)"
     echo "  --verify-secondary N     Force verify secondaries count (overrides derivation)"
-    echo "  --compute-secondary N    Force compute secondaries count (overrides derivation)"
+    echo ""
+    echo "Sizing options (both modes):"
+    echo "  --compute-secondary N    Force compute/cuda_compute secondaries count"
+    echo "                           CPU default: derived from weights; GPU default: 2*NUM_GPUS-1"
     echo ""
     echo "Other options:"
     echo "  --corpus-dir DIR         Initial corpus directory (default: $SCRIPT_DIR/corpus)"
     echo "  --sync-dir DIR           AFL sync/output directory (default: $SCRIPT_DIR/sync_dir)"
     echo "  --duration-seconds N     Campaign duration in seconds (default: $DURATION_SECONDS)"
-    echo "  --logs MODE              Per-instance logs: all|masters|none (default: $LOG_MODE) [CPU only]"
+    echo "  --logs MODE              Per-instance logs: all|masters|none (default: $LOG_MODE)"
     echo "                           'all' costs ~8 G/h of AFL status text at 192 instances"
+    echo "  -h, --help               Show this help message"
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --gpu)               GPU=1; shift ;;
+        --gpu)               GPU_MODE=1; shift ;;
         --corpus-dir)        CORPUS_DIR="$2"; shift 2 ;;
         --sync-dir)          SYNC_DIR="$2"; shift 2 ;;
         --duration-seconds)  DURATION_SECONDS="$2"; shift 2 ;;
@@ -90,88 +104,85 @@ done
 TARGET_DIR="$(cargo metadata --format-version=1 --no-deps --manifest-path "$REPO_ROOT/Cargo.toml" \
     | python3 -c 'import sys, json; print(json.load(sys.stdin)["target_directory"])')"
 
-# ── GPU path ───────────────────────────────────────────────────────────────
-if (( GPU )); then
-    CUDA_BIN="$TARGET_DIR/release/harness-cuda-compute"
+# ── Mode-specific sizing and harness list ───────────────────────────────────
+# HARNESS_NAMES:     logical names; binary path is harness-${name//_/-} under release/.
+# HARNESS_SECONDARY: parallel array of secondary counts (one entry per harness).
+# EXTRA_AFL_FLAGS:   extra flags forwarded to every `cargo afl fuzz` invocation.
+# NUM_GPUS:          0 on CPU (device id is always 0 and ignored); actual count on GPU.
+HARNESS_NAMES=()
+HARNESS_SECONDARY=()
+EXTRA_AFL_FLAGS=()
+NUM_GPUS=0
 
-    if [[ ! -x "$CUDA_BIN" ]]; then
-        echo "ERROR: $CUDA_BIN not found. Run: cd utils/fuzz && ./build.sh --gpu" >&2
+if [[ "$GPU_MODE" == 1 ]]; then
+    NUM_GPUS=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | wc -l) || true
+    if (( NUM_GPUS == 0 )); then
+        echo "ERROR: No GPUs detected (nvidia-smi returned nothing)." >&2
         exit 1
     fi
-
-    if [[ ! -d "$CORPUS_DIR" ]] || [[ -z "$(ls -A "$CORPUS_DIR" 2>/dev/null)" ]]; then
-        echo "ERROR: Corpus directory '$CORPUS_DIR' is missing or empty." >&2
-        echo "       Run: make fuzz_gpu_precampaign" >&2
+    COMPUTE_SECONDARY="${COMPUTE_SECONDARY:-$(( 2 * NUM_GPUS - 1 ))}"
+    HARNESS_NAMES=(cuda_compute)
+    HARNESS_SECONDARY=("$COMPUTE_SECONDARY")
+    EXTRA_AFL_FLAGS=(-t 100000)
+else
+    [[ -z "$TOTAL_CORES" ]] && TOTAL_CORES="$(nproc)"
+    if (( TOTAL_CORES < 3 )); then
+        echo "ERROR: need at least 3 cores (one master per harness); got $TOTAL_CORES" >&2
         exit 1
     fi
-
-    mkdir -p "$SYNC_DIR"
-
-    echo "==> Launching GPU campaign: cuda-compute_m (duration: ${DURATION_SECONDS}s)"
-    echo "    sync_dir: $SYNC_DIR"
-    echo ""
-
-    export AFL_NO_UI=1
-    export AFL_SKIP_CPUFREQ=1
-    export RAYON_NUM_THREADS=1
-
-    exec cargo afl fuzz -M cuda-compute_m \
-        -t 100000 \
-        -V "$DURATION_SECONDS" \
-        -i "$CORPUS_DIR" \
-        -o "$SYNC_DIR" \
-        "$CUDA_BIN"
+    sum_weights=$(( DESER_WEIGHT + VERIFY_WEIGHT + COMPUTE_WEIGHT ))
+    if (( sum_weights <= 0 )); then
+        echo "ERROR: sum of --*-weight must be > 0; got $sum_weights" >&2
+        exit 1
+    fi
+    # 3 masters consume 3 cores; the rest is the secondaries budget.
+    budget=$(( TOTAL_CORES - 3 ))
+    default_deser=$(( budget * DESER_WEIGHT / sum_weights ))
+    default_verify=$(( budget * VERIFY_WEIGHT / sum_weights ))
+    # Compute absorbs the floor-division remainder (it's the slowest harness, so an extra worker
+    # there has the biggest impact on coverage rate).
+    default_compute=$(( budget - default_deser - default_verify ))
+    DESER_SECONDARY="${DESER_SECONDARY:-$default_deser}"
+    VERIFY_SECONDARY="${VERIFY_SECONDARY:-$default_verify}"
+    COMPUTE_SECONDARY="${COMPUTE_SECONDARY:-$default_compute}"
+    HARNESS_NAMES=(deser verify compute)
+    HARNESS_SECONDARY=("$DESER_SECONDARY" "$VERIFY_SECONDARY" "$COMPUTE_SECONDARY")
 fi
 
-# ── CPU path ───────────────────────────────────────────────────────────────
-
-# ── Derive per-harness instance counts from cores + weights ────────────────
-[[ -z "$TOTAL_CORES" ]] && TOTAL_CORES="$(nproc)"
-if (( TOTAL_CORES < 3 )); then
-    echo "ERROR: need at least 3 cores (one master per harness); got $TOTAL_CORES" >&2
-    exit 1
-fi
+# ── Validate ───────────────────────────────────────────────────────────────
 case "$LOG_MODE" in
     all|masters|none) ;;
     *) echo "ERROR: --logs must be one of all|masters|none; got '$LOG_MODE'" >&2; exit 1 ;;
 esac
-sum_weights=$((DESER_WEIGHT + VERIFY_WEIGHT + COMPUTE_WEIGHT))
-if (( sum_weights <= 0 )); then
-    echo "ERROR: sum of --*-weight must be > 0; got $sum_weights" >&2
-    exit 1
-fi
-# 3 masters consume 3 cores; the rest is the secondaries budget.
-budget=$((TOTAL_CORES - 3))
-default_deser=$((budget * DESER_WEIGHT / sum_weights))
-default_verify=$((budget * VERIFY_WEIGHT / sum_weights))
-# Compute absorbs the floor-division remainder (it's the slowest harness, so an extra worker
-# there has the biggest impact on coverage rate).
-default_compute=$((budget - default_deser - default_verify))
-DESER_SECONDARY="${DESER_SECONDARY:-$default_deser}"
-VERIFY_SECONDARY="${VERIFY_SECONDARY:-$default_verify}"
-COMPUTE_SECONDARY="${COMPUTE_SECONDARY:-$default_compute}"
 
-# ── Validate ───────────────────────────────────────────────────────────────
-DESER_BIN="$TARGET_DIR/release/harness-deser"
-VERIFY_BIN="$TARGET_DIR/release/harness-verify"
-COMPUTE_BIN="$TARGET_DIR/release/harness-compute"
-
-for bin in "$DESER_BIN" "$VERIFY_BIN" "$COMPUTE_BIN"; do
+for name in "${HARNESS_NAMES[@]}"; do
+    bin="$TARGET_DIR/release/harness-${name//_/-}"
     if [[ ! -x "$bin" ]]; then
-        echo "ERROR: $bin not found. Run build.sh first."
+        if [[ "$GPU_MODE" == 1 ]]; then
+            echo "ERROR: $bin not found. Run: cd utils/fuzz && ./build.sh --gpu" >&2
+        else
+            echo "ERROR: $bin not found. Run build.sh first." >&2
+        fi
         exit 1
     fi
 done
 
 if [[ ! -d "$CORPUS_DIR" ]] || [[ -z "$(ls -A "$CORPUS_DIR" 2>/dev/null)" ]]; then
-    echo "ERROR: Corpus directory '$CORPUS_DIR' is missing or empty."
-    echo "       Run: build.sh --corpusgen"
+    echo "ERROR: Corpus directory '$CORPUS_DIR' is missing or empty." >&2
+    if [[ "$GPU_MODE" == 1 ]]; then
+        echo "       Run: make fuzz_gpu_precampaign" >&2
+    else
+        echo "       Run: build.sh --corpusgen" >&2
+    fi
     exit 1
 fi
 
-TOTAL=$((3 + DESER_SECONDARY + VERIFY_SECONDARY + COMPUTE_SECONDARY))
-# Per-instance stdout/stderr is redirected here so the terminal stays quiet during the run.
-# Cleaned along with sync_dir by `make fuzz_clean`.
+# ── Summary ────────────────────────────────────────────────────────────────
+TOTAL=0
+for secondary in "${HARNESS_SECONDARY[@]}"; do
+    TOTAL=$(( TOTAL + 1 + secondary ))
+done
+
 LOGS_DIR="$SYNC_DIR/_logs"
 mkdir -p "$LOGS_DIR"
 
@@ -184,10 +195,15 @@ instance_log() {
         echo /dev/null
     fi
 }
-echo "==> Launching $TOTAL AFL instances (duration: ${DURATION_SECONDS}s)"
-echo "    deser:   1 master + $DESER_SECONDARY secondary"
-echo "    verify:  1 master + $VERIFY_SECONDARY secondary"
-echo "    compute: 1 master + $COMPUTE_SECONDARY secondary"
+
+if [[ "$GPU_MODE" == 1 ]]; then
+    echo "==> Launching GPU campaign: $TOTAL instances across $NUM_GPUS GPU(s) (duration: ${DURATION_SECONDS}s)"
+else
+    echo "==> Launching $TOTAL AFL instances (duration: ${DURATION_SECONDS}s)"
+fi
+for idx in "${!HARNESS_NAMES[@]}"; do
+    echo "    ${HARNESS_NAMES[$idx]}: 1 master + ${HARNESS_SECONDARY[$idx]} secondary"
+done
 echo "    sync_dir: $SYNC_DIR"
 case "$LOG_MODE" in
     all)     echo "    per-instance logs: $LOGS_DIR/<instance>.log (all $TOTAL instances)" ;;
@@ -234,41 +250,31 @@ cleanup() {
 
 trap cleanup EXIT
 
-# Each instance runs under `setsid`, so that we can easily clean any spawned subprocess.
-# Each instance's stdout+stderr goes where instance_log says, per $LOG_MODE.
-#
-# ── Master instances ──────────────────────────────────────────────────────
-setsid cargo afl fuzz -M deser_m   -i "$CORPUS_DIR" -o "$SYNC_DIR" "$DESER_BIN" \
-    > "$(instance_log deser_m)" 2>&1 &
-PIDS+=($!)
+# Each instance runs under `setsid` so we can kill spawned subprocesses as a group.
+# Args: <-M|-S> <instance-name> <binary> <device-id>
+#   device-id is forwarded as CUDA_VISIBLE_DEVICES; always 0 on CPU (ignored there).
+fuzz_instance() {
+    local flag="$1" iname="$2" bin="$3" device="$4"
 
-setsid cargo afl fuzz -M verify_m  -i "$CORPUS_DIR" -o "$SYNC_DIR" "$VERIFY_BIN" \
-    > "$(instance_log verify_m)" 2>&1 &
-PIDS+=($!)
-
-setsid cargo afl fuzz -M compute_m -i "$CORPUS_DIR" -o "$SYNC_DIR" "$COMPUTE_BIN" \
-    > "$(instance_log compute_m)" 2>&1 &
-PIDS+=($!)
-
-# ── Secondaries ───────────────────────────────────────────────────────────
-# `-c -` explicitly disables CMPLOG on secondaries. In the current setup, harnesses are not compiled
-# for cmplog anyway but it is harmless and would be necessary if we enable it later.
-for i in $(seq 1 "$DESER_SECONDARY"); do
-    setsid cargo afl fuzz -S "deser_s$i" -c - -i "$CORPUS_DIR" -o "$SYNC_DIR" "$DESER_BIN" \
-        > "$(instance_log "deser_s$i")" 2>&1 &
+    CUDA_VISIBLE_DEVICES="$device" setsid cargo afl fuzz "$flag" "$iname" \
+        "${EXTRA_AFL_FLAGS[@]}" -i "$CORPUS_DIR" -o "$SYNC_DIR" "$bin" \
+        > "$(instance_log "$iname")" 2>&1 &
     PIDS+=($!)
-done
+}
 
-for i in $(seq 1 "$VERIFY_SECONDARY"); do
-    setsid cargo afl fuzz -S "verify_s$i" -c - -i "$CORPUS_DIR" -o "$SYNC_DIR" "$VERIFY_BIN" \
-        > "$(instance_log "verify_s$i")" 2>&1 &
-    PIDS+=($!)
-done
+# ── Launch instances ───────────────────────────────────────────────────────
+# Masters always get device 0.  Secondaries are distributed round-robin across GPUs;
+# on CPU NUM_GPUS=0 so device is always 0 (ignored anyway).
+for idx in "${!HARNESS_NAMES[@]}"; do
+    name="${HARNESS_NAMES[$idx]}"
+    bin="$TARGET_DIR/release/harness-${name//_/-}"
+    secondary="${HARNESS_SECONDARY[$idx]}"
 
-for i in $(seq 1 "$COMPUTE_SECONDARY"); do
-    setsid cargo afl fuzz -S "compute_s$i" -c - -i "$CORPUS_DIR" -o "$SYNC_DIR" "$COMPUTE_BIN" \
-        > "$(instance_log "compute_s$i")" 2>&1 &
-    PIDS+=($!)
+    fuzz_instance -M "${name}_m" "$bin" 0
+
+    for i in $(seq 1 "$secondary"); do
+        fuzz_instance -S "${name}_s$i" "$bin" "$(( NUM_GPUS > 0 ? i % NUM_GPUS : 0 ))"
+    done
 done
 
 # ── Wait for campaign duration ─────────────────────────────────────────────
