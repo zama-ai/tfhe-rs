@@ -21,8 +21,7 @@ on:
       - .github/workflows/benchmark_tfhe_fft.yml
   schedule:
     # Job will be triggered each Thursday at 11p.m.
-    - cron: '0 23 * * 4'
-
+    - cron: "0 23 * * 4"
 
 permissions: {}
 
@@ -34,20 +33,14 @@ jobs:
     if:
       (github.event_name != 'workflow_dispatch' && github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      runner-name: ${{ steps.start-instance.outputs.label }}
-    steps:
-      - name: Start instance
-        id: start-instance
-        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
-        with:
-          mode: start
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: bench-hpc8
+    uses: ./.github/workflows/slab_setup.yml
+    with:
+      backend: aws
+      profile: bench-hpc8
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
 
   fft-benchmarks:
     name: benchmark_tfhe_fft/fft-benchmarks
@@ -61,7 +54,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -108,7 +101,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
@@ -130,23 +123,16 @@ jobs:
 
   teardown-instance:
     name: benchmark_tfhe_fft/teardown-instance
-    if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [ setup-instance, fft-benchmarks ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Stop instance
-        id: stop-instance
-        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
-        with:
-          mode: stop
-          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
-          job-secret: ${{ secrets.JOB_SECRET }}
-          label: ${{ needs.setup-instance.outputs.runner-name }}
-
-      - name: Slack Notification
-        if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (fft-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+    if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
+    needs: [setup-instance, fft-benchmarks]
+    uses: ./.github/workflows/slab_teardown.yml
+    with:
+      runner-name: ${{ needs.setup-instance.outputs.runner-name }}
+      notification-context: fft-benchmarks
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

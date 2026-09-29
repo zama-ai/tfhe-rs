@@ -1,0 +1,70 @@
+name: slab_setup
+
+on:
+  workflow_call:
+    inputs:
+      backend:
+        type: string
+        required: true
+      profile:
+        type: string
+        required: true
+      fallback-runner:
+        description: Runner used when Slab secrets are not available (e.g. pull-request from a forked repository). Leave empty to fail instead.
+        type: string
+        default: ""
+    outputs:
+      runner-name:
+        value: ${{ jobs.start-instance.outputs.runner-name }}
+      cloud-provider:
+        value: ${{ jobs.start-instance.outputs.cloud-provider }}
+    secrets:
+      SLAB_ACTION_TOKEN:
+        required: false
+      SLAB_BASE_URL:
+        required: false
+      JOB_SECRET:
+        required: false
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
+
+jobs:
+  start-instance:
+    name: slab_setup/start-instance
+    runs-on: ubuntu-latest
+    env:
+      SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+    outputs:
+      runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-fallback-instance.outputs.runner_group }}
+      cloud-provider: ${{ steps.start-fallback-instance.outputs.cloud-provider }}
+    steps:
+      - name: Start remote instance
+        id: start-remote-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@7543a9f2c12d01bcd839b4ef9f52c10b0da5cc73 # v1.6.4
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: ${{ inputs.backend }}
+          profile: ${{ inputs.profile }}
+
+      - name: Use fallback runner
+        id: start-fallback-instance
+        if: env.SECRETS_AVAILABLE == 'false' && inputs.fallback-runner != ''
+        env:
+          FALLBACK_RUNNER: ${{ inputs.fallback-runner }}
+        run: |
+          {
+            echo "runner_group=${FALLBACK_RUNNER}";
+            echo "cloud-provider=github";
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Fail without secrets
+        if: env.SECRETS_AVAILABLE == 'false' && inputs.fallback-runner == ''
+        run: |
+          echo "Cannot start a Slab instance without secrets"
+          exit 1
