@@ -276,6 +276,7 @@ rotate_and_decompose_first_level_128(double *result, uint64_t *state,
 
     const auto out_re = small_signed_to_f128((__uint128_t)res_re);
     const auto out_im = small_signed_to_f128((__uint128_t)res_im);
+
     out_re_hi[tid] = out_re.hi;
     out_re_lo[tid] = out_re.lo;
     out_im_hi[tid] = out_im.hi;
@@ -283,6 +284,65 @@ rotate_and_decompose_first_level_128(double *result, uint64_t *state,
 
     tid += params::degree / params::opt;
   }
+}
+
+/*
+ * Single-digit variant of decompose_and_compress_level_128_tbc: extracts one
+ * digit and advances `state`. Calling it level_count times in a row produces
+ * the digits for levels level_count-1, ..., 0, bit-identical to the
+ * multi-digit variant (same deterministic recurrence from the same starting
+ * state).
+ */
+template <typename T, class params, uint32_t base_log>
+__device__ void decompose_and_compress_next_level_128(double *result,
+                                                      T *state) {
+  // Digits lie in [-2^(base_log-1), 2^(base_log-1)] and are silently narrowed
+  // to int32_t before the double conversion, so base_log must be <= 31.
+  static_assert(base_log <= 31,
+                "the int32_t digit narrowing below loses the largest digit for "
+                "base_log > 31");
+
+  constexpr T mask_mod_b = (1ll << base_log) - 1ll;
+
+  uint32_t tid = threadIdx.x;
+  for (int i = 0; i < params::opt / 2; i++) {
+    auto input1 = state[i];
+    auto input2 = state[i + params::opt / 2];
+    T res_re = input1 & mask_mod_b;
+    T res_im = input2 & mask_mod_b;
+
+    input1 = signed_shift_right<T>(input1, base_log); // Update state
+    input2 = signed_shift_right<T>(input2, base_log); // Update state
+
+    T carry_re = ((res_re - 1ll) | input1) & res_re;
+    T carry_im = ((res_im - 1ll) | input2) & res_im;
+    carry_re >>= (base_log - 1);
+    carry_im >>= (base_log - 1);
+
+    state[i] = input1 + carry_re;                   // Update state
+    state[i + params::opt / 2] = input2 + carry_im; // Update state
+
+    res_re -= carry_re << base_log;
+    res_im -= carry_im << base_log;
+    // A negative digit is a wrapped __uint128_t whose low 32 bits are the
+    // digit as int32_t, so cvt.rn.f64.s32 is bit-identical to
+    // u128_to_signed_to_f128.
+    f128 out_re(__int2double_rn(static_cast<int32_t>(res_re)), 0.0);
+    f128 out_im(__int2double_rn(static_cast<int32_t>(res_im)), 0.0);
+
+    auto out_re_hi = result + 0 * params::degree / 2;
+    auto out_re_lo = result + 1 * params::degree / 2;
+    auto out_im_hi = result + 2 * params::degree / 2;
+    auto out_im_lo = result + 3 * params::degree / 2;
+
+    out_re_hi[tid] = out_re.hi;
+    out_re_lo[tid] = out_re.lo;
+    out_im_hi[tid] = out_im.hi;
+    out_im_lo[tid] = out_im.lo;
+
+    tid += params::degree / params::opt;
+  }
+  __syncthreads();
 }
 
 // One level of the gadget decomposition, walking a NARROW decomposer state.
@@ -376,6 +436,12 @@ __device__ void rotate_and_decompose_all_levels_128(double *fft,
 // is that that this uses the states in registers and all the level calculations
 // are done in registers as well, shared memory writing is only done once at
 // the end of the function.
+//
+// To produce level `level` it recomputes the decomposition from the start of
+// `state`, extracting level_count - level digits and discarding the
+// intermediates: producing every digit costs level_count + ... + 1 extractions
+// and one block launch per level, each repeating the monomial rotation and the
+// decomposition rounding.
 template <typename T, class params, uint32_t base_log, uint32_t level_count>
 __device__ void decompose_and_compress_level_128_tbc(double *result, T *state,
                                                      int level) {

@@ -395,6 +395,14 @@ struct int_radix_params {
         message_modulus(message_modulus), carry_modulus(carry_modulus),
         noise_reduction_type(noise_reduction_type){};
 
+  /// @brief Builds the radix parameters from the server key's keyswitch and
+  /// bootstrap keys.
+  ///
+  /// @param bsk_params            Bootstrap key applied after the keyswitch
+  /// @param ksk_params            Keyswitch key feeding the bootstrap
+  /// @param message_modulus       Message modulus of a radix block
+  /// @param carry_modulus         Carry modulus of a radix block
+  /// @param noise_reduction_type  Modulus switch noise reduction to apply
   int_radix_params(CudaLweBootstrapKeyParamsFFI bsk_params,
                    CudaLweKeyswitchKeyParamsFFI ksk_params,
                    uint32_t message_modulus, uint32_t carry_modulus,
@@ -408,7 +416,17 @@ struct int_radix_params {
         pbs_level(bsk_params.level_count), pbs_base_log(bsk_params.base_log),
         grouping_factor(bsk_params.grouping_factor),
         message_modulus(message_modulus), carry_modulus(carry_modulus),
-        noise_reduction_type(noise_reduction_type){};
+        noise_reduction_type(noise_reduction_type) {
+    // The keyswitch output feeds the bootstrap input directly, so a mismatch
+    // here would make the bootstrap read past the keyswitched ciphertext. The
+    // two dimensions come from two separate Rust-side keys, so nothing but
+    // this check ties them together.
+    PANIC_IF_FALSE(
+        ksk_params.output_lwe_dimension == bsk_params.input_lwe_dimension,
+        "Cuda error: the keyswitch key outputs an LWE dimension of %u but the "
+        "bootstrap key expects an input LWE dimension of %u.",
+        ksk_params.output_lwe_dimension, bsk_params.input_lwe_dimension);
+  };
 
   int_radix_params() = default;
 

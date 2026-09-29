@@ -358,7 +358,13 @@ fn par_encrypt_constant_ggsw_level_matrix<Scalar, NoiseDistribution, KeyCont, Ou
 /// encryption.
 ///
 /// You probably don't want to use this function directly.
-fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, OutputCont, Gen>(
+pub(crate) fn encrypt_constant_ggsw_level_matrix_row<
+    Scalar,
+    NoiseDistribution,
+    KeyCont,
+    OutputCont,
+    Gen,
+>(
     glwe_secret_key: &GlweSecretKey<KeyCont>,
     (row_index, last_row_index): (usize, usize),
     factor: Scalar,
