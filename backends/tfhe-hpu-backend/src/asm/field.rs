@@ -417,11 +417,11 @@ pub enum FwMode {
 /// IOpHeader
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct IOpHeader {
-    pub(super) src_align: OperandBlock,
-    pub(super) dst_align: OperandBlock,
-    pub(super) opcode: IOpcode,
+    pub(super) iid: IOpId,
+    pub(super) align: OperandBlock,
     pub(super) has_imm: bool,
     pub(super) fw_mode: FwMode,
+    pub(super) opcode: IOpcode,
 }
 
 /// Define mapping between virtual/physical Hpu Id
@@ -498,6 +498,7 @@ use std::collections::VecDeque;
 /// Used to construct IOp from Backend HpuVar
 impl IOp {
     pub fn new(
+        iid: IOpId,
         fw_mode: FwMode,
         opcode: IOpcode,
         map: IOpMapping,
@@ -505,16 +506,24 @@ impl IOp {
         src: Vec<Operand>,
         imm: Vec<Immediate>,
     ) -> Self {
-        let dst_align = dst.iter().map(|x| x.props.block).max().unwrap();
-        let src_align = src.iter().map(|x| x.props.block).max().unwrap();
+        let align = dst
+            .iter()
+            .chain(src.iter())
+            .map(|x| x.props.block)
+            .max()
+            .unwrap();
         let has_imm = !imm.is_empty();
+        debug_assert!(
+            dst.iter().all(|x| x.props.iid == iid),
+            "Destinations must be tagged with the IOp own {iid}"
+        );
 
         let header = IOpHeader {
-            src_align,
-            dst_align,
-            opcode,
+            iid,
+            align,
             has_imm,
             fw_mode,
+            opcode,
         };
         Self {
             header,
@@ -539,20 +548,14 @@ impl IOp {
         &self.map
     }
 
-    /// IOp doesn't store IOpId explicitly
-    /// This information is contained in the destination operands.
-    pub fn get_iid(&self) -> IOpId {
-        self.dst()
-            .first()
-            .expect("IOp must contains at least 1 destination operands")
-            .props
-            .iid
+    pub fn iid(&self) -> IOpId {
+        self.header.iid
     }
 
     /// Compute associated fw block size
     /// Used to compute fw_entry offset and fw translation validity
     pub fn fw_blk_width(&self) -> usize {
-        std::cmp::max(self.header.dst_align.0, self.header.src_align.0) as usize
+        self.header.align.0 as usize
     }
 
     /// Compute fw table entry for given IOp
@@ -618,10 +621,10 @@ impl IOp {
                         OperandKind::Dst
                     )));
                 }
-                if op.props.block > header.dst_align {
+                if op.props.block > header.align {
                     return Err(HexParsingError::Kind(format!(
                         "Get {:?} > {:?}",
-                        op.props.block, header.dst_align
+                        op.props.block, header.align
                     )));
                 }
             }
@@ -641,10 +644,10 @@ impl IOp {
                         OperandKind::Src
                     )));
                 }
-                if op.props.block > header.src_align {
+                if op.props.block > header.align {
                     return Err(HexParsingError::Kind(format!(
                         "Get {:?} > {:?}",
-                        op.props.block, header.src_align
+                        op.props.block, header.align
                     )));
                 }
             }

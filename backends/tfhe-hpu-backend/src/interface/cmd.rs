@@ -110,7 +110,7 @@ impl HpuCmd {
             .map(|var| Immediate::from_cst(*var))
             .collect::<Vec<_>>();
 
-        let op = IOp::new(fw_mode, opcode, map, dst_op, src_op, imm_op);
+        let op = IOp::new(iid, fw_mode, opcode, map, dst_op, src_op, imm_op);
 
         // Update HpuVar state and keep track for lifetime enforcement
         // i.e. Prevent release of associated variable while IOp is pending
