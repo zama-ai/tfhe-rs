@@ -173,3 +173,5 @@ ST TH.31 R31
 SUB R31 R31 R31
 SUB R31 R31 R31
 NOTIFY N1 F32 TH.31
+; Other thread has read the data
+WAIT F1

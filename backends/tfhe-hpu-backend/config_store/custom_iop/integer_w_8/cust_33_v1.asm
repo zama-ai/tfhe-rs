@@ -32,3 +32,5 @@ ST TD[0].0 R0
 ST TD[0].1 R1 
 ST TD[0].2 R2 
 ST TD[0].3 R3 
+; All data retrieved, notify the other thread
+NOTIFY N0 F1 @0

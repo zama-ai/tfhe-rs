@@ -174,3 +174,5 @@ WAIT F32 TH.41
 LD R31 TH.41
 SUBS R31 R31 0
 ST TD[0].31 R31
+; All data retrieved, notify the other thread
+NOTIFY N0 F1 @0

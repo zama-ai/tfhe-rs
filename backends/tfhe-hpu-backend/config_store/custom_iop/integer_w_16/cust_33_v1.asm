@@ -47,3 +47,5 @@ ST TD[0].6 R6
 WAIT F8 TH.17
 LD R7 TH.17
 ST TD[0].7 R7
+; All data retrieved, notify the other thread
+NOTIFY N0 F1 @0
