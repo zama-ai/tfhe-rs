@@ -47,7 +47,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
                                             allocate_gpu_memory, size_tracker);
 
     auto active_streams =
-        streams.active_gpu_subset(max_chunks, params.pbs_type);
+        streams.active_gpu_subset(max_chunks, params.pbs_type());
 
     auto is_max_value_f = [max_value](Torus x) -> Torus {
       return x == max_value;
@@ -107,7 +107,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
                                  allocate_gpu_memory, size_tracker);
 
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     is_non_zero_lut->generate_and_broadcast_lut(
         active_streams, {0}, {is_non_zero_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
@@ -229,7 +229,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
                                  allocate_gpu_memory, size_tracker);
 
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     tree_inner_leaf_lut->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {block_selector_f}, LUT_0_FOR_ALL_BLOCKS);
   }
@@ -413,7 +413,7 @@ template <typename Torus> struct int_comparison_buffer {
     tmp_packed_input = nullptr;
 
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
 
     identity_lut_f = [](Torus x) -> Torus { return x; };
 
@@ -538,7 +538,7 @@ template <typename Torus> struct int_comparison_buffer {
         PANIC("Cuda error: sign_lut creation failed due to wrong function.")
       };
 
-      auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+      auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
       signed_lut->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {signed_lut_f}, LUT_0_FOR_ALL_BLOCKS);
     }
@@ -563,7 +563,7 @@ template <typename Torus> struct int_comparison_buffer {
 
       lut_borrow_flag_cmp = new int_radix_lut<Torus>(
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
-      auto active_streams_one = streams.active_gpu_subset(1, params.pbs_type);
+      auto active_streams_one = streams.active_gpu_subset(1, params.pbs_type());
       lut_borrow_flag_cmp->generate_and_broadcast_lut(
           active_streams_one, {0}, {f_borrow_flag_cmp}, LUT_0_FOR_ALL_BLOCKS);
 

@@ -6,6 +6,24 @@
 #include "pbs_enums.h"
 #include "vector_types.h"
 #include <stdint.h>
+#include <variant>
+
+struct classical_pbs_params {
+  PBS_MS_REDUCTION_T noise_reduction_type;
+};
+
+struct multi_bit_pbs_params {
+  uint32_t grouping_factor;
+};
+
+using pbs_type_params =
+    std::variant<classical_pbs_params, multi_bit_pbs_params>;
+
+template <typename... PbsTypeFns> struct pbs_type_visitor : PbsTypeFns... {
+  using PbsTypeFns::operator()...;
+};
+template <typename... PbsTypeFns>
+pbs_type_visitor(PbsTypeFns...) -> pbs_type_visitor<PbsTypeFns...>;
 
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_programmable_bootstrap_step_one(

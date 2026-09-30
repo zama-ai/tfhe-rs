@@ -44,7 +44,7 @@ template <typename Torus> struct int_trivium_lut_buffers {
         [](Torus a, Torus b) -> Torus { return (a & 1) & (b & 1); };
 
     auto active_streams_and =
-        streams.active_gpu_subset(total_lut_ops, params.pbs_type);
+        streams.active_gpu_subset(total_lut_ops, params.pbs_type());
     this->and_lut->generate_and_broadcast_bivariate_lut(
         active_streams_and, {0}, {and_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
@@ -59,7 +59,7 @@ template <typename Torus> struct int_trivium_lut_buffers {
     };
 
     auto active_streams_flush =
-        streams.active_gpu_subset(total_flush_ops, params.pbs_type);
+        streams.active_gpu_subset(total_flush_ops, params.pbs_type());
     this->flush_lut->generate_and_broadcast_lut(
         active_streams_flush, {0}, {flush_lambda}, LUT_0_FOR_ALL_BLOCKS);
   }

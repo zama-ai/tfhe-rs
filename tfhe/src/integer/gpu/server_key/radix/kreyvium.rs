@@ -108,7 +108,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     ),
                     KreyviumVariant::Fast => cuda_backend_fast_kreyvium_init(
                         streams,
@@ -127,7 +126,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     ),
                 },
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => match variant {
@@ -148,7 +146,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     ),
                     KreyviumVariant::Fast => cuda_backend_fast_kreyvium_init(
                         streams,
@@ -167,7 +164,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     ),
                 },
             }
@@ -211,7 +207,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     ),
                     KreyviumVariant::Fast => cuda_backend_fast_kreyvium_step(
                         streams,
@@ -230,7 +225,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     ),
                 },
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => match variant {
@@ -251,7 +245,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     ),
                     KreyviumVariant::Fast => cuda_backend_fast_kreyvium_step(
                         streams,
@@ -270,7 +263,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     ),
                 },
             }

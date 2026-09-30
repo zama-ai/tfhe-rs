@@ -227,7 +227,7 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
     // Use this level's precomputed LUT-index buffer instead of regenerating
     // the LUT per level.
     auto active =
-        streams.active_gpu_subset(total_chunks, mem_ptr->params.pbs_type);
+        streams.active_gpu_subset(total_chunks, mem_ptr->params.pbs_type());
     is_max_value_lut->set_lut_indexes_and_broadcast_from_gpu(
         active, mem_ptr->d_level_lut_indexes[level], total_chunks);
 

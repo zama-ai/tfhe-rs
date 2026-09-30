@@ -67,7 +67,7 @@ template <typename Torus> struct int_kreyvium_lut_buffers {
         [](Torus lhs, Torus rhs) -> Torus { return (lhs & 1) & (rhs & 1); };
 
     auto active_streams_and =
-        streams.active_gpu_subset(and_ops, params.pbs_type);
+        streams.active_gpu_subset(and_ops, params.pbs_type());
 
     this->and_lut->generate_and_broadcast_bivariate_lut(
         active_streams_and, {0}, {and_lambda}, LUT_0_FOR_ALL_BLOCKS);
@@ -80,7 +80,7 @@ template <typename Torus> struct int_kreyvium_lut_buffers {
     this->flush_lut = new int_radix_lut<Torus>(
         streams, params, 1, flush_ops, allocate_gpu_memory, size_tracker);
     auto active_streams_flush =
-        streams.active_gpu_subset(flush_ops, params.pbs_type);
+        streams.active_gpu_subset(flush_ops, params.pbs_type());
 
     this->flush_lut->generate_and_broadcast_lut(
         active_streams_flush, {0}, {flush_lambda}, LUT_0_FOR_ALL_BLOCKS);

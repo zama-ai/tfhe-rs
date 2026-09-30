@@ -76,7 +76,7 @@ template <typename Torus> struct int_overflowing_sub_memory {
                                            allocate_gpu_memory, size_tracker);
 
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     luts_borrow_propagation_sum->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {f_luts_borrow_propagation_sum},
         LUT_0_FOR_ALL_BLOCKS);
