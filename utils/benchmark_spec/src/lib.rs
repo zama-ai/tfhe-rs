@@ -33,6 +33,7 @@ pub use zk::proof::{ComputeLoad, ZkProofVariant, ZkScheme};
 use crate::segment::OptionalSegment;
 use crate::zk::ZkLayer;
 use crate::zk::msm::MsmBench;
+use crate::zk::pke::PkeBench;
 use std::fmt;
 
 /// Enforces the naming convention for benchmark IDs.
@@ -278,6 +279,24 @@ impl BenchmarkSpec {
             type_tag: None,
             metric: bench_type.into(),
             num_elements,
+        }
+    }
+
+    pub fn new_zk_pke(
+        pke_bench: PkeBench,
+        backend: Backend,
+        param_name: &str,
+        config: ZkPkeConfig,
+        bench_type: impl Into<BenchmarkMetric>,
+    ) -> Self {
+        Self {
+            bench_path: BenchPath::Zk(ZkLayer::Pke(pke_bench)),
+            backend,
+            param_name: param_name.to_string(),
+            operand_type: OperandType::CipherText,
+            type_tag: Some(config.into()),
+            metric: bench_type.into(),
+            num_elements: None,
         }
     }
 }
