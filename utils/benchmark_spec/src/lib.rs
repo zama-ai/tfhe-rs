@@ -23,14 +23,12 @@ pub use metric::{BenchmarkMetric, BenchmarkType, OperandType, get_bench_type};
 pub use tfhe::hlapi::HlapiBench;
 pub use tfhe::{
     BooleanBench, CiphertextKind, CoreCryptoBench, HlIntegerOp, IntegerBench, IntegerOp,
-    IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, KeyKind, ShortintBench,
-    ShortintCastingOp, ShortintOp, ShortintPackingOp, TfheLayer, TranscipheringBench, VectorFindOp,
-    ZkPkeBench,
+    IntegerOpBySign, IntegerOprf, IntegerPackingOp, IntegerRerandMode, KeyKind, KsIndices,
+    KsVariant, ShortintBench, ShortintCastingOp, ShortintOp, ShortintPackingOp, TfheLayer,
+    TranscipheringBench, VectorFindOp, ZkPkeBench, ZkPkeBenchKind,
 };
-pub use type_tag::{
-    ComputeLoad, CudaKeyswitchConfig, FheType, PrecisionTag, ShuffleConfig, TypeTag, ZkPkeConfig,
-    ZkScheme,
-};
+pub use type_tag::{FheType, PrecisionTag, ShuffleConfig, TypeTag, ZkPkeConfig};
+pub use zk::proof::{ComputeLoad, ZkProofVariant, ZkScheme};
 
 use crate::segment::OptionalSegment;
 use crate::zk::ZkLayer;
