@@ -15,7 +15,7 @@ use strum::{Display, EnumDiscriminants, EnumString};
 pub use oprf::IntegerOprf;
 pub use packing::IntegerPackingOp;
 pub use rerand::IntegerRerandMode;
-pub use zk_pke::ZkPkeBench;
+pub use zk_pke::{ZkPkeBench, ZkPkeBenchKind};
 
 #[derive(Debug, Clone, Copy, Display, EnumDiscriminants, enum_iterator::Sequence)]
 #[strum(serialize_all = "snake_case")]
