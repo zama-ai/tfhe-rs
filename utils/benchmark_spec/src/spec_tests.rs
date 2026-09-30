@@ -453,6 +453,29 @@ fn core_crypto_keyswitch_variants() {
     );
 }
 
+#[test]
+fn zk_pke_verify() {
+    use crate::zk::pke::{PkeBench, PkeVerify, ZkBound, ZkPairingMode};
+
+    let spec = BenchmarkSpec::new_zk_pke(
+        PkeBench::Verify(PkeVerify::V2(ZkPairingMode::TwoSteps(ZkBound::Ghl(
+            ComputeLoad::Verify,
+        )))),
+        Backend::Cuda,
+        "PKEV2_TEST_PARAMS",
+        ZkPkeConfig {
+            bits_packed: Some(4096),
+            crs_bits: 4096,
+        },
+        BenchmarkMetric::Latency,
+    );
+    assert_eq!(
+        spec.to_string(),
+        "zk::pke::verify::v2::two_steps::ghl::compute_load_verify::cuda\
+         ::PKEV2_TEST_PARAMS::4096_bits_packed::4096_bits_crs"
+    );
+}
+
 /// `Display` writes the trailing segments in a fixed order and `FromStr`
 /// consumes them in the same one, with nothing tying the two together.
 #[test]
