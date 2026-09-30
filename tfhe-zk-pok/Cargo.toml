@@ -39,6 +39,8 @@ cross-origin-wasm = ["dep:wasm-par-mq"]
 gpu = ["dep:zk-cuda-backend", "dep:tfhe-cuda-common"]
 
 [dev-dependencies]
+benchmark_spec = { path = "../utils/benchmark_spec" }
+tfhe-benchmark-parser = { path = "../utils/tfhe-benchmark-parser" }
 serde_json = { workspace = true }
 itertools = { workspace = true }
 bincode = { workspace = true }
