@@ -207,6 +207,11 @@ impl DecompressionKey {
         let glwe_dimension = packed.modulus_switched_glwe_ciphertext_list[0].glwe_dimension();
 
         let lwe_per_glwe = meta.lwe_per_glwe.0;
+        if lwe_per_glwe == 0 {
+            return Err(error!(
+                "Invalid CompressedCiphertextList metadata: lwe_per_glwe is 0"
+            ));
+        }
 
         let lwe_size = glwe_dimension
             .to_equivalent_lwe_dimension(polynomial_size)
@@ -214,7 +219,17 @@ impl DecompressionKey {
 
         let glwe_index = index / lwe_per_glwe;
 
-        let packed_glwe = packed.modulus_switched_glwe_ciphertext_list[glwe_index].extract();
+        let packed_glwe = packed
+            .modulus_switched_glwe_ciphertext_list
+            .get(glwe_index)
+            .ok_or_else(|| {
+                error!(
+                    "Invalid CompressedCiphertextList: index {index} is in GLWE {glwe_index}, \
+                    but the list only has {} GLWEs",
+                    packed.modulus_switched_glwe_ciphertext_list.len()
+                )
+            })?
+            .extract();
 
         let monomial_degree = MonomialDegree(index % lwe_per_glwe);
 

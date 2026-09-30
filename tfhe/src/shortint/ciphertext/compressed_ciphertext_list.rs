@@ -227,9 +227,25 @@ impl CompressedSquashedNoiseCiphertextList {
         })?;
 
         let lwe_per_glwe = meta.lwe_per_glwe.0;
+        if lwe_per_glwe == 0 {
+            return Err(error!(
+                "Invalid CompressedSquashedNoiseCiphertextList metadata: lwe_per_glwe is 0"
+            ));
+        }
+
         let glwe_idx = index / lwe_per_glwe;
 
-        let glwe = self.glwe_ciphertext_list[glwe_idx].extract();
+        let glwe = self
+            .glwe_ciphertext_list
+            .get(glwe_idx)
+            .ok_or_else(|| {
+                error!(
+                    "Invalid CompressedSquashedNoiseCiphertextList: index {index} is in GLWE \
+                    {glwe_idx}, but the list only has {} GLWEs",
+                    self.glwe_ciphertext_list.len()
+                )
+            })?
+            .extract();
 
         let glwe_dimension = glwe.glwe_size().to_glwe_dimension();
         let polynomial_size = glwe.polynomial_size();
