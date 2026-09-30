@@ -134,20 +134,6 @@ impl ServerKey {
         Ok(())
     }
 
-    pub fn smart_add_assign<T>(&self, ct_left: &mut T, ct_right: &mut T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        //If the ciphertext cannot be added together without exceeding the capacity of a ciphertext
-        if self.is_add_possible(ct_left, ct_right).is_err() {
-            self.full_propagate(ct_left);
-            self.full_propagate(ct_right);
-        }
-        self.is_add_possible(ct_left, ct_right).unwrap();
-
-        self.unchecked_add_assign(ct_left, ct_right);
-    }
-
     pub fn unchecked_signed_overflowing_add(
         &self,
         lhs: &SignedRadixCiphertext,

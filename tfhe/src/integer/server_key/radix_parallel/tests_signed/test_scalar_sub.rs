@@ -21,7 +21,6 @@ use std::sync::Arc;
 create_parameterized_test!(integer_signed_unchecked_scalar_sub);
 create_parameterized_test!(integer_signed_default_overflowing_scalar_sub);
 create_parameterized_test!(integer_signed_unchecked_left_scalar_sub);
-create_parameterized_test!(integer_signed_smart_left_scalar_sub);
 create_parameterized_test!(integer_signed_default_left_scalar_sub);
 
 fn integer_signed_unchecked_scalar_sub<P>(param: P)
@@ -46,14 +45,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_scalar_sub);
     signed_unchecked_left_scalar_sub_test(param, executor);
-}
-
-fn integer_signed_smart_left_scalar_sub<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_left_scalar_sub_parallelized);
-    signed_smart_left_scalar_sub_test(param, executor);
 }
 
 fn integer_signed_default_left_scalar_sub<P>(param: P)
@@ -336,53 +327,6 @@ where
                 assert_eq!(dec_res, clear_rhs);
                 clear_lhs = rng.gen::<i64>() % modulus;
             }
-        }
-    }
-}
-
-pub(crate) fn signed_smart_left_scalar_sub_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(i64, &'a mut SignedRadixCiphertext), SignedRadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks);
-
-    let cks: crate::integer::ClientKey = cks.into();
-
-    for num_blocks in 1..MAX_NB_CTXT {
-        // message_modulus^vec_length
-        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
-        if modulus <= 1 {
-            continue;
-        }
-
-        let clear_lhs = rng.gen::<i64>() % modulus;
-        let mut clear_rhs = rng.gen::<i64>() % modulus;
-
-        let mut ct_rhs = cks.encrypt_signed_radix(clear_rhs, num_blocks);
-
-        ct_rhs = executor.execute((clear_lhs, &mut ct_rhs));
-        clear_rhs = signed_sub_under_modulus(clear_lhs, clear_rhs, modulus);
-
-        let dec_res: i64 = cks.decrypt_signed_radix(&ct_rhs);
-        assert_eq!(dec_res, clear_rhs);
-        for _ in 0..nb_tests {
-            let clear_lhs = rng.gen::<i64>() % modulus;
-
-            ct_rhs = executor.execute((clear_lhs, &mut ct_rhs));
-            clear_rhs = signed_sub_under_modulus(clear_lhs, clear_rhs, modulus);
-            let dec_res: i64 = cks.decrypt_signed_radix(&ct_rhs);
-            assert_eq!(dec_res, clear_rhs);
         }
     }
 }

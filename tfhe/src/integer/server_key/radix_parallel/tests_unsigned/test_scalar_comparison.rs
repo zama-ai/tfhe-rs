@@ -133,13 +133,12 @@ pub(crate) fn test_default_scalar_function<P, T, ClearF, Scalar>(
 
 /// This macro generates the tests for a given scalar comparison fn
 ///
-/// All our scalar comparison function have 3 variants:
+/// All our scalar comparison function have 2 variants:
 /// - unchecked_scalar_$comparison_name_parallelized
-/// - smart_scalar_$comparison_name_parallelized
 /// - scalar_$comparison_name_parallelized
 ///
 /// So, for example, for the `gt` comparison fn,
-/// this macro will generate the tests for the 3 variants described above
+/// this macro will generate the tests for the 2 variants described above
 macro_rules! define_scalar_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{

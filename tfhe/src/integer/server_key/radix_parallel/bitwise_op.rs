@@ -27,7 +27,7 @@ impl ServerKey {
 
     /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertexts block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always
     /// empty.
@@ -128,7 +128,7 @@ impl ServerKey {
 
     /// Computes homomorphically a bitor between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertexts block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always
     /// empty.
@@ -229,7 +229,7 @@ impl ServerKey {
 
     /// Computes homomorphically a bitxor between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertexts block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always
     /// empty.
@@ -308,7 +308,7 @@ impl ServerKey {
 
     /// Computes homomorphically a bitnot on a ciphertext encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always
     /// empty.
