@@ -1,4 +1,5 @@
 use std::num::NonZero;
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 use super::details::MaybeCloned;
@@ -10,6 +11,7 @@ use super::GpuIndex;
 use crate::backward_compatibility::compressed_ciphertext_list::CompressedCiphertextListVersions;
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::GlweCiphertextConformanceParams;
 use crate::high_level_api::booleans::InnerBoolean;
 use crate::high_level_api::errors::UninitializedServerKey;
 #[cfg(feature = "gpu")]
@@ -33,10 +35,14 @@ use crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey;
 use crate::integer::parameters::LweDimension;
 use crate::named::Named;
 use crate::prelude::{CiphertextList, Tagged};
-use crate::shortint::Ciphertext;
+use crate::shortint::parameters::{
+    CompressedCiphertextListConformanceParams as ShortintCompressedCiphertextListConformanceParams,
+    CompressionParameters,
+};
+use crate::shortint::{AtomicPatternParameters, Ciphertext};
 #[cfg(feature = "gpu")]
 use crate::shortint::{CarryModulus, MessageModulus};
-use crate::{Device, FheBool, FheInt, FheUint, Tag};
+use crate::{Device, FheBool, FheInt, FheUint, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
 
 impl<Id: FheUintId> HlCompressible for FheUint<Id> {
@@ -540,6 +546,69 @@ impl Tagged for CompressedCiphertextList {
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct CompressedCiphertextListConformanceParams {
+    params: ShortintCompressedCiphertextListConformanceParams,
+}
+
+impl<P: Into<AtomicPatternParameters>> From<(P, CompressionParameters)>
+    for CompressedCiphertextListConformanceParams
+{
+    fn from((compute_params, compression_params): (P, CompressionParameters)) -> Self {
+        Self {
+            params: ShortintCompressedCiphertextListConformanceParams::from_params(
+                compute_params.into(),
+                compression_params,
+            ),
+        }
+    }
+}
+
+impl TryFrom<&ServerKey> for CompressedCiphertextListConformanceParams {
+    type Error = crate::Error;
+
+    fn try_from(sks: &ServerKey) -> Result<Self, Self::Error> {
+        let compression_key = &sks
+            .key
+            .compression_key
+            .as_ref()
+            .ok_or_else(|| crate::Error::new("Compression key not set in server key".to_owned()))?
+            .key;
+        let packing_ksk = &compression_key.packing_key_switching_key;
+        let compute_params = sks.key.pbs_key().key.conformance_params();
+
+        Ok(Self {
+            params: ShortintCompressedCiphertextListConformanceParams {
+                ct_params: GlweCiphertextConformanceParams {
+                    glwe_dim: packing_ksk.output_glwe_size().to_glwe_dimension(),
+                    polynomial_size: packing_ksk.output_polynomial_size(),
+                    ct_modulus: compute_params.ct_params.ct_modulus,
+                },
+                lwe_per_glwe: compression_key.lwe_per_glwe,
+                message_modulus: compute_params.message_modulus,
+                carry_modulus: compute_params.carry_modulus,
+                atomic_pattern: compute_params.atomic_pattern,
+                storage_log_modulus: compression_key.storage_log_modulus,
+            },
+        })
+    }
+}
+
+impl ParameterSetConformant for CompressedCiphertextList {
+    type ParameterSet = CompressedCiphertextListConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            inner,
+            tag: _,
+            re_randomization_metadata,
+        } = self;
+
+        re_randomization_metadata.len() == inner.info().len()
+            && inner.on_cpu().is_conformant(&parameter_set.params)
+    }
+}
+
 impl CiphertextList for CompressedCiphertextList {
     fn len(&self) -> usize {
         match &self.inner {
@@ -955,6 +1024,7 @@ pub mod gpu {
 
 #[cfg(test)]
 mod tests {
+    use crate::conformance::ParameterSetConformant;
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
     #[cfg(feature = "gpu")]
@@ -962,6 +1032,7 @@ mod tests {
     #[cfg(not(feature = "gpu"))]
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     use crate::shortint::parameters::{
+        CompressionParameters,
         COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -971,7 +1042,8 @@ mod tests {
     use crate::GpuIndex;
     use crate::{
         set_server_key, unset_server_key, ClientKey, CompressedCiphertextList,
-        CompressedCiphertextListBuilder, FheBool, FheInt64, FheUint16, FheUint2, FheUint32,
+        CompressedCiphertextListBuilder, CompressedCiphertextListConformanceParams, FheBool,
+        FheInt64, FheUint16, FheUint2, FheUint32, ReRandomizationMetadata,
     };
 
     #[test]
@@ -1027,6 +1099,32 @@ mod tests {
                 safe_serialize(&compressed_list, &mut serialized, 1024 * 1024 * 16).unwrap();
                 let compressed_list: CompressedCiphertextList =
                     safe_deserialize(serialized.as_slice(), 1024 * 1024 * 16).unwrap();
+
+                let conformance_params_from_key =
+                    CompressedCiphertextListConformanceParams::try_from(&sk.decompress()).unwrap();
+                let conformance_params_from_params =
+                    CompressedCiphertextListConformanceParams::from((params, comp_params));
+                assert!(compressed_list.is_conformant(&conformance_params_from_key));
+                assert!(compressed_list.is_conformant(&conformance_params_from_params));
+
+                let mut wrong_comp_params = comp_params;
+                match &mut wrong_comp_params {
+                    CompressionParameters::Classic(p) => p.storage_log_modulus.0 += 1,
+                    CompressionParameters::MultiBit(p) => p.storage_log_modulus.0 += 1,
+                }
+                let wrong_conformance_params =
+                    CompressedCiphertextListConformanceParams::from((params, wrong_comp_params));
+                assert!(!compressed_list.is_conformant(&wrong_conformance_params));
+
+                let mut missing_metadata = compressed_list.clone();
+                missing_metadata.re_randomization_metadata.pop();
+                assert!(!missing_metadata.is_conformant(&conformance_params_from_params));
+
+                let mut extra_metadata = compressed_list.clone();
+                extra_metadata
+                    .re_randomization_metadata
+                    .push(ReRandomizationMetadata::default());
+                assert!(!extra_metadata.is_conformant(&conformance_params_from_params));
 
                 check_is_correct(&compressed_list, &ck);
 
