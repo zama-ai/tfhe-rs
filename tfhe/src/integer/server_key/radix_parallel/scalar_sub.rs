@@ -10,54 +10,6 @@ use rayon::prelude::*;
 impl ServerKey {
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
     ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg = 165;
-    /// let scalar = 112;
-    ///
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let ct_res = sks.smart_scalar_sub_parallelized(&mut ct, scalar);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg - scalar, dec);
-    /// ```
-    pub fn smart_scalar_sub_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar) -> T
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
-    {
-        if self.is_scalar_sub_possible(ct, scalar).is_err() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.is_scalar_sub_possible(ct, scalar).unwrap();
-        self.unchecked_scalar_sub(ct, scalar)
-    }
-
-    pub fn smart_scalar_sub_assign_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar)
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
-    {
-        if self.is_scalar_sub_possible(ct, scalar).is_err() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.is_scalar_sub_possible(ct, scalar).unwrap();
-        self.unchecked_scalar_sub_assign(ct, scalar);
-    }
-
-    /// Computes homomorphically a subtraction of a ciphertext by a scalar.
-    ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
     /// check that the input ciphertexts block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always

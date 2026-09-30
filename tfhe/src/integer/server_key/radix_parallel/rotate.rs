@@ -23,44 +23,6 @@ impl ServerKey {
         self.unchecked_shift_rotate_bits_assign(ct, n, BarrelShifterOperation::RightRotate);
     }
 
-    pub fn smart_rotate_right_assign_parallelized<T>(&self, ct: &mut T, n: &mut RadixCiphertext)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(ct);
-                }
-            },
-            || {
-                if !n.block_carries_are_empty() {
-                    self.full_propagate_parallelized(n);
-                }
-            },
-        );
-        self.unchecked_rotate_right_assign_parallelized(ct, n);
-    }
-
-    pub fn smart_rotate_right_parallelized<T>(&self, ct: &mut T, rotate: &mut RadixCiphertext) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(ct);
-                }
-            },
-            || {
-                if !rotate.block_carries_are_empty() {
-                    self.full_propagate_parallelized(rotate);
-                }
-            },
-        );
-        self.unchecked_rotate_right_parallelized(ct, rotate)
-    }
-
     /// Computes homomorphically a rotation of bits.
     ///
     /// Shifts the bits to the right by a specified amount,
@@ -150,44 +112,6 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         self.unchecked_shift_rotate_bits_assign(ct, n, BarrelShifterOperation::LeftRotate);
-    }
-
-    pub fn smart_rotate_left_assign_parallelized<T>(&self, ct: &mut T, n: &mut RadixCiphertext)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(ct);
-                }
-            },
-            || {
-                if !n.block_carries_are_empty() {
-                    self.full_propagate_parallelized(n);
-                }
-            },
-        );
-        self.unchecked_rotate_left_assign_parallelized(ct, n);
-    }
-
-    pub fn smart_rotate_left_parallelized<T>(&self, ct: &mut T, rotate: &mut RadixCiphertext) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(ct);
-                }
-            },
-            || {
-                if !rotate.block_carries_are_empty() {
-                    self.full_propagate_parallelized(rotate);
-                }
-            },
-        );
-        self.unchecked_rotate_left_parallelized(ct, rotate)
     }
 
     pub fn rotate_left_assign_parallelized<T>(&self, ct: &mut T, rotate: &RadixCiphertext)

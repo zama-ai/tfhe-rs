@@ -323,51 +323,6 @@ impl ServerKey {
         self.block_barrel_shifter(ct, amount, BarrelShifterOperation::LeftShift)
     }
 
-    pub fn smart_block_rotate_right<T>(&self, ct: &mut T, amount: &RadixCiphertext) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.block_barrel_shifter(ct, amount, BarrelShifterOperation::RightRotate)
-    }
-
-    pub fn smart_block_rotate_left<T>(&self, ct: &mut T, amount: &RadixCiphertext) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.block_barrel_shifter(ct, amount, BarrelShifterOperation::LeftRotate)
-    }
-
-    pub fn smart_block_shift_right<T>(&self, ct: &mut T, amount: &RadixCiphertext) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.block_barrel_shifter(ct, amount, BarrelShifterOperation::RightShift)
-    }
-
-    /// shift blocks to the left
-    ///
-    /// Note that as shifting blocks to the left is equivalent to shifting bits to the right
-    /// this will perform an 'arithmetic' shift when left shifting a SignedRadixInteger
-    /// If this is not the wanted behaviour, you can first cast the input to unsigned radix
-    pub fn smart_block_shift_left<T>(&self, ct: &mut T, amount: &RadixCiphertext) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.block_barrel_shifter(ct, amount, BarrelShifterOperation::LeftShift)
-    }
-
     pub fn block_rotate_right<T>(&self, ct: &T, amount: &RadixCiphertext) -> T
     where
         T: IntegerRadixCiphertext,

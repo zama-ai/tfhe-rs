@@ -688,44 +688,6 @@ impl ServerKey {
         self.unchecked_if_then_else_parallelized(&is_inferior, lhs, rhs)
     }
 
-    pub fn smart_eq_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !lhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(lhs);
-                }
-            },
-            || {
-                if !rhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(rhs);
-                }
-            },
-        );
-        self.unchecked_eq_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_ne_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !lhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(lhs);
-                }
-            },
-            || {
-                if !rhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(rhs);
-                }
-            },
-        );
-        self.unchecked_ne_parallelized(lhs, rhs)
-    }
-
     pub fn smart_gt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
@@ -737,45 +699,6 @@ impl ServerKey {
             self.full_propagate_parallelized(rhs);
         }
         self.unchecked_gt_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_ge_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(rhs);
-        }
-        self.unchecked_ge_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_lt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(rhs);
-        }
-        self.unchecked_lt_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_le_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(rhs);
-        }
-        self.unchecked_le_parallelized(lhs, rhs)
     }
 
     pub fn smart_max_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T

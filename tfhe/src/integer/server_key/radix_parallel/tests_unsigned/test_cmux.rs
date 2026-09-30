@@ -14,7 +14,6 @@ use rand::Rng;
 use std::sync::Arc;
 
 create_parameterized_test!(integer_unchecked_left_scalar_if_then_else);
-create_parameterized_test!(integer_smart_if_then_else);
 create_parameterized_test!(integer_default_if_then_else);
 create_parameterized_test!(integer_default_scalar_if_then_else);
 create_parameterized_test!(integer_default_flip);
@@ -34,14 +33,6 @@ where
     }
     let executor = CpuFunctionExecutor::new(&func);
     unchecked_left_scalar_if_then_else_test(param, executor);
-}
-
-fn integer_smart_if_then_else<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_if_then_else_parallelized);
-    smart_if_then_else_test(param, executor);
 }
 
 fn integer_default_if_then_else<P>(param: P)
@@ -88,73 +79,6 @@ where
     };
     let executor = CpuFunctionExecutor::new(&func);
     default_left_scalar_flip_test(param, executor);
-}
-
-pub(crate) fn smart_if_then_else_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (
-            &'a mut BooleanBlock,
-            &'a mut RadixCiphertext,
-            &'a mut RadixCiphertext,
-        ),
-        RadixCiphertext,
-    >,
-{
-    let param = param.into();
-    let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
-
-    executor.setup(&cks, sks.clone());
-
-    for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let clear_condition = rng.gen_bool(0.5);
-
-        let mut ctxt_0 = cks.encrypt(clear_0);
-        let mut ctxt_1 = cks.encrypt(clear_1);
-        let mut ctxt_condition = cks.encrypt_bool(clear_condition);
-
-        let ct_res = executor.execute((&mut ctxt_condition, &mut ctxt_0, &mut ctxt_1));
-
-        let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(dec_res, if clear_condition { clear_0 } else { clear_1 });
-
-        let clear_2 = rng.gen::<u64>() % modulus;
-        let clear_3 = rng.gen::<u64>() % modulus;
-
-        let ctxt_2 = cks.encrypt(clear_2);
-        let ctxt_3 = cks.encrypt(clear_3);
-
-        // Add to have non empty carries
-        sks.unchecked_add_assign(&mut ctxt_0, &ctxt_2);
-        sks.unchecked_add_assign(&mut ctxt_1, &ctxt_3);
-        assert!(!ctxt_0.block_carries_are_empty());
-        assert!(!ctxt_1.block_carries_are_empty());
-
-        let ct_res = executor.execute((&mut ctxt_condition, &mut ctxt_0, &mut ctxt_1));
-        assert!(ctxt_0.block_carries_are_empty());
-        assert!(ctxt_1.block_carries_are_empty());
-
-        let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(
-            dec_res,
-            if clear_condition {
-                (clear_0 + clear_2) % modulus
-            } else {
-                (clear_1 + clear_3) % modulus
-            }
-        );
-    }
 }
 
 pub(crate) fn default_if_then_else_test<P, T>(param: P, mut executor: T)

@@ -389,19 +389,6 @@ impl ServerKey {
         self.unchecked_eq(lhs, rhs)
     }
 
-    pub fn smart_ne<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.full_propagate(rhs);
-        }
-        self.unchecked_ne(lhs, rhs)
-    }
-
     /// Compares if lhs is strictly greater than rhs
     ///
     /// Returns a ciphertext containing 1 if lhs == rhs, otherwise 0
@@ -436,74 +423,6 @@ impl ServerKey {
         Comparator::new(self).smart_gt(lhs, rhs)
     }
 
-    /// Compares if lhs is greater or equal than rhs
-    ///
-    /// Returns a ciphertext containing 1 if lhs >= rhs, otherwise 0
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let size = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg1 = 14u64;
-    /// let msg2 = 97u64;
-    ///
-    /// let mut ct1 = cks.encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// let ct_res = sks.smart_gt(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let dec_result = cks.decrypt_bool(&ct_res);
-    /// assert_eq!(dec_result, msg1 >= msg2);
-    /// ```
-    pub fn smart_ge<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        Comparator::new(self).smart_ge(lhs, rhs)
-    }
-
-    /// Compares if lhs is strictly lower than rhs
-    ///
-    /// Returns a ciphertext containing 1 if lhs < rhs, otherwise 0
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let size = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg1 = 14u64;
-    /// let msg2 = 97u64;
-    ///
-    /// let mut ct1 = cks.encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// let ct_res = sks.smart_lt(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let dec_result = cks.decrypt_bool(&ct_res);
-    /// assert_eq!(dec_result, msg1 < msg2);
-    /// ```
-    pub fn smart_lt<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        Comparator::new(self).smart_lt(lhs, rhs)
-    }
-
     /// Compares if lhs is lower or equal than rhs
     ///
     /// Returns a ciphertext containing 1 if lhs <= rhs, otherwise 0
@@ -536,40 +455,6 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         Comparator::new(self).smart_le(lhs, rhs)
-    }
-
-    /// Computes the max of two encrypted values
-    ///
-    /// Returns a ciphertext containing 1 if lhs < rhs, otherwise 0
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let size = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg1 = 14u64;
-    /// let msg2 = 97u64;
-    ///
-    /// let mut ct1 = cks.encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// let ct_res = sks.smart_max(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, std::cmp::max(msg1, msg2));
-    /// ```
-    pub fn smart_max<T>(&self, lhs: &mut T, rhs: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        Comparator::new(self).smart_max(lhs, rhs)
     }
 
     /// Computes the min of two encrypted values

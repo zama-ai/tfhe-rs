@@ -43,24 +43,6 @@ impl ServerKey {
     }
 
     /// Returns an encryption of true if the value is even
-    #[allow(unused_mut)]
-    pub fn smart_is_even_parallelized<T>(&self, ct: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        self.unchecked_is_even(ct)
-    }
-
-    /// Returns an encryption of true if the value is odd
-    #[allow(unused_mut)]
-    pub fn smart_is_odd_parallelized<T>(&self, ct: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        self.unchecked_is_odd(ct)
-    }
-
-    /// Returns an encryption of true if the value is even
     pub fn is_even_parallelized<T>(&self, ct: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,

@@ -18,7 +18,6 @@ use rand::Rng;
 use std::sync::Arc;
 
 create_parameterized_test!(integer_signed_unchecked_neg);
-create_parameterized_test!(integer_signed_smart_neg);
 create_parameterized_test!(integer_signed_default_neg);
 create_parameterized_test!(integer_signed_default_overflowing_neg);
 
@@ -28,14 +27,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_neg);
     signed_unchecked_neg_test(param, executor);
-}
-
-fn integer_signed_smart_neg<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_neg_parallelized);
-    signed_smart_neg_test(param, executor);
 }
 
 fn integer_signed_default_neg<P>(param: P)
@@ -104,44 +95,6 @@ where
         let ct_res = executor.execute(&ctxt_zero);
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
         assert_eq!(0, dec_res);
-    }
-}
-
-pub(crate) fn signed_smart_neg_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<&'a mut SignedRadixCiphertext, SignedRadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    executor.setup(&cks, sks);
-
-    for _ in 0..nb_tests_smaller {
-        let clear = rng.gen::<i64>() % modulus;
-
-        let mut ctxt = cks.encrypt_signed(clear);
-
-        let mut ct_res = executor.execute(&mut ctxt);
-        let mut clear_res = signed_neg_under_modulus(clear, modulus);
-        let dec: i64 = cks.decrypt_signed(&ct_res);
-        assert_eq!(clear_res, dec);
-
-        for _ in 0..nb_tests_smaller {
-            ct_res = executor.execute(&mut ct_res);
-            clear_res = signed_neg_under_modulus(clear_res, modulus);
-
-            let dec: i64 = cks.decrypt_signed(&ct_res);
-            println!("clear_res: {clear_res}, dec : {dec}");
-            assert_eq!(clear_res, dec);
-        }
     }
 }
 

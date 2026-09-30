@@ -142,30 +142,6 @@ impl ServerKey {
     ///
     /// Returns a boolean block that encrypts `true` if the input `ct`
     /// matched one of the possible inputs
-    pub fn smart_match_value_parallelized<Clear>(
-        &self,
-        ct: &mut RadixCiphertext,
-        matches: &MatchValues<Clear>,
-    ) -> (RadixCiphertext, BooleanBlock)
-    where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-
-        self.unchecked_match_value_parallelized(ct, matches)
-    }
-
-    /// `match` an input value to an output value
-    ///
-    /// - Input values are not required to span all possible values that `ct` could hold.
-    ///
-    /// - The output radix has a number of blocks that depends on the maximum possible output value
-    ///   from the `MatchValues`
-    ///
-    /// Returns a boolean block that encrypts `true` if the input `ct`
-    /// matched one of the possible inputs
     pub fn match_value_parallelized<Clear>(
         &self,
         ct: &RadixCiphertext,
@@ -222,30 +198,6 @@ impl ServerKey {
         self.unchecked_if_then_else_parallelized(&selected, &result, &or_value)
     }
 
-    /// `map` an input value to an output value
-    ///
-    /// - Input values are not required to span all possible values that `ct` could hold.
-    ///
-    /// - The output radix has a number of blocks that depends on the maximum possible output value
-    ///   from the `MatchValues`
-    ///
-    /// If none of the input matched the `ct` then, `ct` will encrypt the
-    /// value given to `or_value`
-    pub fn smart_match_value_or_parallelized<Clear>(
-        &self,
-        ct: &mut RadixCiphertext,
-        matches: &MatchValues<Clear>,
-        or_value: Clear,
-    ) -> RadixCiphertext
-    where
-        Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize>,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.unchecked_match_value_or_parallelized(ct, matches, or_value)
-    }
-
     /// `match` an input value to an output value
     ///
     /// - Input values are not required to span all possible values that `ct` could hold.
@@ -286,22 +238,6 @@ impl ServerKey {
             .map(|ct| self.eq_parallelized(ct, value).0)
             .collect::<Vec<_>>();
         BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors))
-    }
-
-    /// Returns an encrypted `true` if the encrypted `value` is found in the encrypted slice
-    pub fn smart_contains_parallelized<T>(&self, cts: &mut [T], value: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !value.block_carries_are_empty() {
-            self.full_propagate_parallelized(value);
-        }
-
-        cts.par_iter_mut()
-            .filter(|ct| !ct.block_carries_are_empty())
-            .for_each(|ct| self.full_propagate_parallelized(ct));
-
-        self.unchecked_contains_parallelized(cts, value)
     }
 
     /// Returns an encrypted `true` if the encrypted `value` is found in the encrypted slice
@@ -355,32 +291,6 @@ impl ServerKey {
     }
 
     /// Returns an encrypted `true` if the clear `value` is found in the encrypted slice
-    pub fn smart_contains_clear_parallelized<T, Clear>(
-        &self,
-        cts: &mut [T],
-        clear: Clear,
-    ) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64>,
-    {
-        let mut tmp_cts;
-
-        let cts = if cts.iter().any(|ct| !ct.block_carries_are_empty()) {
-            tmp_cts = cts.to_vec();
-            tmp_cts
-                .par_iter_mut()
-                .filter(|ct| !ct.block_carries_are_empty())
-                .for_each(|ct| self.full_propagate_parallelized(ct));
-            tmp_cts.as_slice()
-        } else {
-            cts
-        };
-
-        self.unchecked_contains_clear_parallelized(cts, clear)
-    }
-
-    /// Returns an encrypted `true` if the clear `value` is found in the encrypted slice
     pub fn contains_clear_parallelized<T, Clear>(&self, cts: &[T], clear: Clear) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
@@ -415,22 +325,6 @@ impl ServerKey {
             .map(|x| x.0)
             .collect::<Vec<_>>();
         BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(selectors))
-    }
-
-    /// Returns an encrypted `true` if the encrypted `value` is found in the clear slice
-    pub fn smart_is_in_clears_parallelized<T, Clear>(
-        &self,
-        ct: &mut T,
-        clears: &[Clear],
-    ) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.unchecked_is_in_clears_parallelized(ct, clears)
     }
 
     /// Returns an encrypted `true` if the encrypted `value` is found in the clear slice
@@ -475,30 +369,6 @@ impl ServerKey {
         }
         let selectors = self.compute_equality_selectors(ct, clears.par_iter().copied());
         self.compute_final_index_from_selectors(&selectors)
-    }
-
-    /// Returns the encrypted index of the encrypted `value` in the clear slice
-    /// also returns an encrypted boolean that is `true` if the encrypted value was found.
-    ///
-    /// # Notes
-    ///
-    /// - clear values in the slice must be unique (otherwise use
-    ///   [Self::smart_first_index_in_clears_parallelized])
-    /// - If the encrypted value is not in the clear slice, the returned index is 0
-    pub fn smart_index_in_clears_parallelized<T, Clear>(
-        &self,
-        ct: &mut T,
-        clears: &[Clear],
-    ) -> (RadixCiphertext, BooleanBlock)
-    where
-        T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-
-        self.unchecked_index_in_clears_parallelized(ct, clears)
     }
 
     /// Returns the encrypted index of the encrypted `value` in the clear slice
@@ -591,29 +461,6 @@ impl ServerKey {
     /// # Notes
     ///
     /// - If the encrypted value is not in the clear slice, the returned index is 0
-    pub fn smart_first_index_in_clears_parallelized<T, Clear>(
-        &self,
-        ct: &mut T,
-        clears: &[Clear],
-    ) -> (RadixCiphertext, BooleanBlock)
-    where
-        T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize> + Hash,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-
-        self.unchecked_first_index_in_clears_parallelized(ct, clears)
-    }
-
-    /// Returns the encrypted index of the _first_ occurrence of encrypted `value` in the clear
-    /// slice also, it returns an encrypted boolean that is `true` if the encrypted value was
-    /// found.
-    ///
-    /// # Notes
-    ///
-    /// - If the encrypted value is not in the clear slice, the returned index is 0
     pub fn first_index_in_clears_parallelized<T, Clear>(
         &self,
         ct: &T,
@@ -663,33 +510,6 @@ impl ServerKey {
             .collect::<Vec<_>>();
 
         self.compute_final_index_from_selectors(&selectors)
-    }
-
-    /// Returns the encrypted index of the of encrypted `value` in the ciphertext slice
-    /// also, it returns an encrypted boolean that is `true` if the encrypted value was found.
-    ///
-    /// # Notes
-    ///
-    /// - clear values in the slice must be unique (otherwise use
-    ///   [Self::smart_first_index_of_parallelized])
-    /// - If the encrypted value is not in the encrypted slice, the returned index is 0
-    pub fn smart_index_of_parallelized<T>(
-        &self,
-        cts: &mut [T],
-        value: &mut T,
-    ) -> (RadixCiphertext, BooleanBlock)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !value.block_carries_are_empty() {
-            self.full_propagate_parallelized(value);
-        }
-
-        cts.par_iter_mut()
-            .filter(|ct| !ct.block_carries_are_empty())
-            .for_each(|ct| self.full_propagate_parallelized(ct));
-
-        self.unchecked_index_of_parallelized(cts, value)
     }
 
     /// Returns the encrypted index of the of encrypted `value` in the ciphertext slice
@@ -766,30 +586,6 @@ impl ServerKey {
     /// # Notes
     ///
     /// - clear values in the slice must be unique (otherwise use
-    ///   [Self::smart_first_index_of_clear_parallelized])
-    /// - If the clear value is not in the encrypted slice, the returned index is 0
-    pub fn smart_index_of_clear_parallelized<T, Clear>(
-        &self,
-        cts: &mut [T],
-        clear: Clear,
-    ) -> (RadixCiphertext, BooleanBlock)
-    where
-        T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
-    {
-        cts.par_iter_mut()
-            .filter(|ct| !ct.block_carries_are_empty())
-            .for_each(|ct| self.full_propagate_parallelized(ct));
-
-        self.unchecked_index_of_clear_parallelized(cts, clear)
-    }
-
-    /// Returns the encrypted index of the of clear `value` in the ciphertext slice
-    /// also, it returns an encrypted boolean that is `true` if the encrypted value was found.
-    ///
-    /// # Notes
-    ///
-    /// - clear values in the slice must be unique (otherwise use
     ///   [Self::first_index_of_clear_parallelized])
     /// - If the clear value is not in the encrypted slice, the returned index is 0
     pub fn index_of_clear_parallelized<T, Clear>(
@@ -857,29 +653,6 @@ impl ServerKey {
     /// # Notes
     ///
     /// - If the clear value is not in the clear slice, the returned index is 0
-    pub fn smart_first_index_of_clear_parallelized<T, Clear>(
-        &self,
-        cts: &mut [T],
-        clear: Clear,
-    ) -> (RadixCiphertext, BooleanBlock)
-    where
-        T: IntegerRadixCiphertext,
-        Clear: DecomposableInto<u64> + CastInto<usize>,
-    {
-        cts.par_iter_mut()
-            .filter(|ct| !ct.block_carries_are_empty())
-            .for_each(|ct| self.full_propagate_parallelized(ct));
-
-        self.unchecked_first_index_of_clear_parallelized(cts, clear)
-    }
-
-    /// Returns the encrypted index of the _first_ occurrence of clear `value` in the ciphertext
-    /// slice also, it returns an encrypted boolean that is `true` if the encrypted value was
-    /// found.
-    ///
-    /// # Notes
-    ///
-    /// - If the clear value is not in the clear slice, the returned index is 0
     pub fn first_index_of_clear_parallelized<T, Clear>(
         &self,
         cts: &[T],
@@ -935,32 +708,6 @@ impl ServerKey {
         let selectors = self.only_keep_first_true(selectors);
 
         self.compute_final_index_from_selectors(&selectors)
-    }
-
-    /// Returns the encrypted index of the _first_ occurrence of encrypted `value` in the ciphertext
-    /// slice also, it returns an encrypted boolean that is `true` if the encrypted value was
-    /// found.
-    ///
-    /// # Notes
-    ///
-    /// - If the encrypted value is not in the clear slice, the returned index is 0
-    pub fn smart_first_index_of_parallelized<T>(
-        &self,
-        cts: &mut [T],
-        value: &mut T,
-    ) -> (RadixCiphertext, BooleanBlock)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !value.block_carries_are_empty() {
-            self.full_propagate_parallelized(value);
-        }
-
-        cts.par_iter_mut()
-            .filter(|ct| !ct.block_carries_are_empty())
-            .for_each(|ct| self.full_propagate_parallelized(ct));
-
-        self.unchecked_first_index_of_parallelized(cts, value)
     }
 
     /// Returns the encrypted index of the _first_ occurrence of encrypted `value` in the ciphertext

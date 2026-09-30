@@ -60,39 +60,6 @@ impl ServerKey {
     ///
     /// * The returned result has enough blocks to encrypt 32bits (e.g. 1_1 parameters -> 32 blocks,
     ///   3_3 parameters -> 11 blocks == 33 bits)
-    pub fn smart_count_ones_parallelized<T>(&self, ct: &mut T) -> RadixCiphertext
-    where
-        T: IntegerRadixCiphertext,
-    {
-        self.smart_count_bits_parallelized(ct, BitCountKind::One)
-    }
-
-    /// Returns the number of zeros in the binary representation of `ct`
-    ///
-    /// * The returned result has enough blocks to encrypt 32bits (e.g. 1_1 parameters -> 32 blocks,
-    ///   3_3 parameters -> 11 blocks == 33 bits)
-    pub fn smart_count_zeros_parallelized<T>(&self, ct: &mut T) -> RadixCiphertext
-    where
-        T: IntegerRadixCiphertext,
-    {
-        self.smart_count_bits_parallelized(ct, BitCountKind::Zero)
-    }
-
-    fn smart_count_bits_parallelized<T>(&self, ct: &mut T, kind: BitCountKind) -> RadixCiphertext
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-
-        self.unchecked_count_bits_parallelized(ct, kind)
-    }
-
-    /// Returns the number of ones in the binary representation of `ct`
-    ///
-    /// * The returned result has enough blocks to encrypt 32bits (e.g. 1_1 parameters -> 32 blocks,
-    ///   3_3 parameters -> 11 blocks == 33 bits)
     pub fn count_ones_parallelized<T>(&self, ct: &T) -> RadixCiphertext
     where
         T: IntegerRadixCiphertext,

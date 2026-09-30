@@ -17,18 +17,9 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parameterized_test!(integer_smart_neg);
 create_parameterized_test!(integer_default_neg);
 create_parameterized_test!(integer_default_overflowing_neg);
 create_parameterized_test!(integer_is_neg_possible);
-
-fn integer_smart_neg<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_neg_parallelized);
-    smart_neg_test(param, executor);
-}
 
 fn integer_default_neg<P>(param: P)
 where
@@ -114,61 +105,6 @@ where
         let ct_res = executor.execute(&trivial0);
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(0, dec_res);
-    }
-}
-
-//=============================================================================
-// Smart Tests
-//=============================================================================
-
-pub(crate) fn smart_neg_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<&'a mut RadixCiphertext, RadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
-
-    let max_noise_level = sks.key.max_noise_level;
-    let max_degree = sks.key.max_degree;
-
-    executor.setup(&cks, sks);
-
-    // negation involves either scalar operation or pbs, noise is always nominal
-    let expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
-
-    for _ in 0..nb_tests_smaller {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let mut ctxt = cks.encrypt(clear);
-
-        let mut ct_res = executor.execute(&mut ctxt);
-        let mut clear_res = clear.wrapping_neg() % modulus;
-        let dec: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear_res, dec);
-
-        for _ in 0..nb_tests_smaller {
-            ct_res = executor.execute(&mut ct_res);
-
-            expected_noise_levels.panic_if_any_is_not_equal(&ct_res);
-            panic_if_any_block_info_exceeds_max_degree_or_noise(
-                &ct_res,
-                max_degree,
-                max_noise_level,
-            );
-            panic_if_any_block_values_exceeds_its_degree(&ct_res, &cks);
-
-            clear_res = clear_res.wrapping_neg() % modulus;
-            let dec: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear_res, dec);
-        }
     }
 }
 

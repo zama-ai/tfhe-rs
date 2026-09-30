@@ -23,16 +23,6 @@ impl ServerKey {
         }
     }
 
-    pub fn smart_abs_parallelized<T>(&self, ct: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
-        self.unchecked_abs_parallelized(ct)
-    }
-
     pub fn abs_parallelized<T>(&self, ct: &T) -> T
     where
         T: IntegerRadixCiphertext,

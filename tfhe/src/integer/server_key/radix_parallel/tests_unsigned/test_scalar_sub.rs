@@ -5,7 +5,7 @@ use crate::integer::server_key::radix_parallel::test_harness::{
     default_scalar_fixed_cases, ExecuteOn, TestBuilder, TestContext, TestScalar,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    default_scalar_sub_test, smart_scalar_sub_test, FunctionExecutor,
+    default_scalar_sub_test, FunctionExecutor,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, random_non_zero_value, CpuFunctionExecutor,
@@ -21,20 +21,11 @@ use rand::prelude::*;
 
 use super::{MAX_NB_CTXT, NB_CTXT};
 
-create_parameterized_test!(integer_smart_scalar_sub);
 create_parameterized_test!(integer_default_scalar_sub);
 create_parameterized_test!(integer_unchecked_left_scalar_sub);
 create_parameterized_test!(integer_smart_left_scalar_sub);
 create_parameterized_test!(integer_default_left_scalar_sub);
 create_parameterized_test!(integer_default_overflowing_scalar_sub);
-
-fn integer_smart_scalar_sub<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_sub_parallelized);
-    smart_scalar_sub_test(param, executor);
-}
 
 fn integer_default_scalar_sub<P>(param: P)
 where

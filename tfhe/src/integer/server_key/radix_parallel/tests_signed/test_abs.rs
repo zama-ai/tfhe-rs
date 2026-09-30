@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 create_parameterized_test!(integer_signed_default_absolute_value);
 create_parameterized_test!(integer_signed_unchecked_absolute_value);
-create_parameterized_test!(integer_signed_smart_absolute_value);
 
 fn integer_signed_default_absolute_value<P>(param: P)
 where
@@ -33,14 +32,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_abs_parallelized);
     signed_unchecked_absolute_value_test(param, executor);
-}
-
-fn integer_signed_smart_absolute_value<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_abs_parallelized);
-    signed_smart_absolute_value_test(param, executor);
 }
 
 pub(crate) fn signed_unchecked_absolute_value_test<P, T>(param: P, mut executor: T)
@@ -88,47 +79,6 @@ where
         let ctxt_0 = cks.encrypt_signed(clear_0);
 
         let ct_res = executor.execute(&ctxt_0);
-        let dec_res: i64 = cks.decrypt_signed(&ct_res);
-        let clear_res = absolute_value_under_modulus(clear_0, modulus);
-        assert_eq!(clear_res, dec_res);
-    }
-}
-
-pub(crate) fn signed_smart_absolute_value_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<&'a mut SignedRadixCiphertext, SignedRadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    executor.setup(&cks, sks.clone());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-    {
-        let clear_0 = -modulus;
-        let mut ctxt_0 = cks.encrypt_signed(clear_0);
-        let ct_res = executor.execute(&mut ctxt_0);
-        let dec_res: i64 = cks.decrypt_signed(&ct_res);
-        assert_eq!(dec_res, -modulus);
-    }
-
-    for _ in 0..nb_tests {
-        let mut clear_0 = rng.gen::<i64>() % modulus;
-        let clear_to_add = rng.gen::<i64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt_signed(clear_0);
-        sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_to_add);
-        clear_0 = signed_add_under_modulus(clear_0, clear_to_add, modulus);
-
-        let ct_res = executor.execute(&mut ctxt_0);
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
         let clear_res = absolute_value_under_modulus(clear_0, modulus);
         assert_eq!(clear_res, dec_res);
