@@ -208,29 +208,70 @@ pub struct CiphertextConformanceParams {
     pub atomic_pattern: AtomicPatternKind,
 }
 
-/// Structure to store the expected properties of a compressed ciphertext
+/// Structure to store the expected properties of a compressed ciphertext list
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
 #[derive(Copy, Clone)]
-pub struct CompressedCiphertextConformanceParams {
+pub struct CompressedCiphertextListConformanceParams {
     pub ct_params: GlweCiphertextConformanceParams<u64>,
     pub lwe_per_glwe: LweCiphertextCount,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub degree: Degree,
-    pub noise_level: NoiseLevel,
     pub atomic_pattern: AtomicPatternKind,
+    pub storage_log_modulus: CiphertextModulusLog,
+}
+
+impl CompressedCiphertextListConformanceParams {
+    pub fn from_params(
+        compute_params: AtomicPatternParameters,
+        compression_params: CompressionParameters,
+    ) -> Self {
+        let ct_params = GlweCiphertextConformanceParams {
+            glwe_dim: compression_params.packing_ks_glwe_dimension(),
+            polynomial_size: compression_params.packing_ks_polynomial_size(),
+            ct_modulus: compute_params.ciphertext_modulus(),
+        };
+
+        Self {
+            ct_params,
+            lwe_per_glwe: compression_params.lwe_per_glwe(),
+            message_modulus: compute_params.message_modulus(),
+            carry_modulus: compute_params.carry_modulus(),
+            atomic_pattern: compute_params.atomic_pattern(),
+            storage_log_modulus: compression_params.storage_log_modulus(),
+        }
+    }
 }
 
 /// Structure to store the expected properties of a compressed squashed noise ciphertext
 /// Can be used on a server to check if client inputs are well formed before running a computation
 /// on them
 #[derive(Copy, Clone)]
-pub struct CompressedSquashedNoiseCiphertextConformanceParams {
+pub struct CompressedSquashedNoiseCiphertextListConformanceParams {
     pub ct_params: GlweCiphertextConformanceParams<u128>,
     pub lwe_per_glwe: LweCiphertextCount,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
+}
+
+impl CompressedSquashedNoiseCiphertextListConformanceParams {
+    pub fn from_params(
+        noise_squashing_params: NoiseSquashingParameters,
+        compression_params: NoiseSquashingCompressionParameters,
+    ) -> Self {
+        let ct_params = GlweCiphertextConformanceParams {
+            glwe_dim: compression_params.packing_ks_glwe_dimension,
+            polynomial_size: compression_params.packing_ks_polynomial_size,
+            ct_modulus: noise_squashing_params.ciphertext_modulus(),
+        };
+
+        Self {
+            ct_params,
+            lwe_per_glwe: compression_params.lwe_per_glwe,
+            message_modulus: noise_squashing_params.message_modulus(),
+            carry_modulus: noise_squashing_params.carry_modulus(),
+        }
+    }
 }
 
 /// Structure to store the expected properties of a ciphertext list

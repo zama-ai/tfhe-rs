@@ -7,11 +7,13 @@ use crate::integer::compression_keys::{CompressionKey, DecompressionKey};
 use crate::integer::gpu::list_compression::server_keys::CudaDecompressionKey;
 use crate::integer::BooleanBlock;
 use crate::shortint::ciphertext::CompressedCiphertextList as ShortintCompressedCiphertextList;
-use crate::shortint::Ciphertext;
+use crate::shortint::parameters::CompressedCiphertextListConformanceParams;
+use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::num::NonZero;
 use std::ops::Range;
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
 
 pub trait Compressible {
@@ -143,6 +145,11 @@ impl CompressedCiphertextList {
         self.len() == 0
     }
 
+    /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
+    pub fn message_modulus(&self) -> Option<MessageModulus> {
+        self.packed_list.message_modulus()
+    }
+
     /// Kind and range of the ciphertexts of the item at `index`, or None if `index` is out of
     /// bounds
     fn block_range(&self, index: usize) -> crate::Result<Option<(DataKind, Range<usize>)>> {
@@ -223,9 +230,30 @@ impl CompressedCiphertextList {
     }
 }
 
+impl ParameterSetConformant for CompressedCiphertextList {
+    type ParameterSet = CompressedCiphertextListConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { packed_list, info } = self;
+
+        let Some(message_modulus) = packed_list.message_modulus() else {
+            // A list without metadata stores no ciphertext, so it cannot hold any item
+            return info.is_empty() && packed_list.is_empty();
+        };
+
+        let Ok(expected_len) = DataKind::total_block_count(info, message_modulus) else {
+            return false;
+        };
+
+        expected_len == packed_list.len() && packed_list.is_conformant(parameter_set)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core_crypto::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
+    use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount};
     use crate::integer::{gen_keys, IntegerKeyKind};
     use crate::shortint::parameters::test_params::{
         TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -241,6 +269,119 @@ mod tests {
     const NB_TESTS: usize = 10;
     const NB_OPERATOR_TESTS: usize = 10;
     const NUM_BLOCKS: usize = 32;
+
+    /// Check the behavior of the list when the info vec is modified
+    #[test]
+    fn test_attack_list_info() {
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let comp_params = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let (cks, _) = gen_keys::<ShortintParameterSet>(params.into(), IntegerKeyKind::Radix);
+        let private_compression_key = cks.new_compression_private_key(comp_params);
+        let (compression_key, decompression_key) =
+            cks.new_compression_decompression_keys(&private_compression_key);
+
+        let conformance_params =
+            CompressedCiphertextListConformanceParams::from_params(params.into(), comp_params);
+
+        let mut list = CompressedCiphertextListBuilder::new()
+            .push(cks.encrypt_radix(1u8, 4))
+            .push(cks.encrypt_signed_radix(-1i8, 4))
+            .build(&compression_key);
+        assert!(list.is_conformant(&conformance_params));
+
+        // Remove the info vec, conformance should no longer work
+        list.info = Vec::new();
+        assert!(!list.is_conformant(&conformance_params));
+
+        // The info vec is not coherent so conformance fails
+        list.info = vec![DataKind::Signed(4.try_into().unwrap())];
+        assert!(!list.is_conformant(&conformance_params));
+
+        // Info vec does not describe the data that were stored but is coherent with the content of
+        // the ct list, conformance cannot detect that and should pass
+        list.info.push(DataKind::Unsigned(4.try_into().unwrap()));
+        assert!(list.is_conformant(&conformance_params));
+
+        // The info vec now describes more blocks than the list holds, so conformance fails and
+        // getting the extra item is an error
+        list.info.push(DataKind::Boolean);
+        assert!(!list.is_conformant(&conformance_params));
+        assert!(list.get::<BooleanBlock>(2, &decompression_key).is_err());
+
+        // Check that an empty string is rejected. Even if technically legit, this is not
+        // officially supported so we reject it at this step
+        let mut empty_list = CompressedCiphertextListBuilder::new().build(&compression_key);
+        assert!(empty_list.is_conformant(&conformance_params));
+        empty_list.info.push(DataKind::String {
+            n_chars: 0,
+            padded: false,
+        });
+        assert!(!empty_list.is_conformant(&conformance_params));
+    }
+
+    /// In this test we check the behavior of the list when the packed ciphertexts are modified
+    #[test]
+    fn test_attack_list_metadata() {
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let comp_params = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let (cks, _) = gen_keys::<ShortintParameterSet>(params.into(), IntegerKeyKind::Radix);
+        let private_compression_key = cks.new_compression_private_key(comp_params);
+        let (compression_key, decompression_key) =
+            cks.new_compression_decompression_keys(&private_compression_key);
+
+        let conformance_params =
+            CompressedCiphertextListConformanceParams::from_params(params.into(), comp_params);
+
+        let mut list = CompressedCiphertextListBuilder::new()
+            .push(cks.encrypt_radix(1u8, 4))
+            .build(&compression_key);
+        assert!(list.is_conformant(&conformance_params));
+
+        // Remove the list metadata, conformance should no longer work
+        let saved_meta = list.packed_list.meta.take();
+        assert!(!list.is_conformant(&conformance_params));
+        list.packed_list.meta = saved_meta;
+        assert!(list.is_conformant(&conformance_params));
+
+        // Change the number of LWEs per GLWE, conformance fails and getting the item is an error
+        let meta = list.packed_list.meta.as_mut().unwrap();
+        let saved_lwe_per_glwe = meta.lwe_per_glwe;
+        for lwe_per_glwe in [0, 1] {
+            list.packed_list.meta.as_mut().unwrap().lwe_per_glwe = LweCiphertextCount(lwe_per_glwe);
+            assert!(!list.is_conformant(&conformance_params));
+            assert!(list.get::<RadixCiphertext>(0, &decompression_key).is_err());
+        }
+        list.packed_list.meta.as_mut().unwrap().lwe_per_glwe = saved_lwe_per_glwe;
+        assert!(list.is_conformant(&conformance_params));
+
+        // Add a second GLWE after the partial one, with an info vec describing all the stored
+        // blocks: conformance fails because only the last GLWE can be partial
+        let mut two_glwes_list = list.clone();
+        let glwe = two_glwes_list
+            .packed_list
+            .modulus_switched_glwe_ciphertext_list[0]
+            .clone();
+        two_glwes_list
+            .packed_list
+            .modulus_switched_glwe_ciphertext_list
+            .push(glwe);
+        two_glwes_list
+            .info
+            .push(DataKind::Unsigned(4.try_into().unwrap()));
+        assert!(!two_glwes_list.is_conformant(&conformance_params));
+
+        // Store the GLWE with another log modulus, conformance should no longer work
+        let glwe = &mut list.packed_list.modulus_switched_glwe_ciphertext_list[0];
+        let log_modulus = CiphertextModulusLog(glwe.packed_integers().log_modulus().0 - 1);
+        *glwe = CompressedModulusSwitchedGlweCiphertext::compress(
+            &glwe.extract(),
+            log_modulus,
+            glwe.bodies_count(),
+        );
+        assert!(!list.is_conformant(&conformance_params));
+    }
 
     #[test]
     fn test_empty_list_compression() {
