@@ -1,4 +1,5 @@
 pub mod msm;
+pub mod proof;
 
 use std::str::FromStr;
 
