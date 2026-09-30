@@ -748,10 +748,15 @@ impl ServerKey {
             // qsign = EOR(nsign, dsign).
             let qsign = self.unchecked_scalar_bitxor_parallelized(&nsign, dsign);
 
-            let mut new_n = numerator.clone();
-            self.smart_scalar_add_assign_parallelized(&mut new_n, dsign);
-            self.smart_sub_assign_parallelized(&mut new_n, &mut nsign);
-            self.full_propagate_parallelized(&mut new_n);
+            // new_n = n + dsign - nsign
+            //       = n + dsign + (!nsign + 1)
+            let num_blocks = numerator.blocks.len();
+            let trivial_dsign: SignedRadixCiphertext = self.create_trivial_radix(dsign, num_blocks);
+            let not_nsign = self.bitnot(&nsign);
+            let trivial_one: SignedRadixCiphertext = self.create_trivial_radix(1u64, num_blocks);
+            let new_n = self
+                .sum_ciphertexts_parallelized([numerator, &trivial_dsign, &not_nsign, &trivial_one])
+                .expect("sum of non-empty list");
 
             let mut q = self.unchecked_signed_scalar_div_parallelized(&new_n, divisor);
             self.add_assign_parallelized(&mut q, &qsign);

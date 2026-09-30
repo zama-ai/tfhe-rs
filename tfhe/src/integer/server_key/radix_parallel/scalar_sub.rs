@@ -10,7 +10,7 @@ use rayon::prelude::*;
 impl ServerKey {
     /// Computes homomorphically a subtraction of a ciphertext by a scalar.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertexts block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always
     /// empty.
@@ -100,62 +100,30 @@ impl ServerKey {
         self.is_scalar_add_possible_impl(block_metadata_iter, scalar)
     }
 
-    pub fn smart_left_scalar_sub_parallelized<Scalar, T>(&self, scalar: Scalar, rhs: &mut T) -> T
-    where
-        Scalar: DecomposableInto<u8>,
-        T: IntegerRadixCiphertext,
-    {
-        if self.is_neg_possible(rhs).is_err() {
-            self.full_propagate_parallelized(rhs);
-            self.unchecked_left_scalar_sub(scalar, rhs)
-        } else {
-            // a - b <=> a + (-b)
-            let mut neg_rhs = self.unchecked_neg(rhs);
-            if self.is_scalar_add_possible(&neg_rhs, scalar).is_err() {
-                // since adding scalar does not increase the nose, only the
-                // degree can be problematic
-                self.full_propagate_parallelized(&mut neg_rhs);
-            }
-            self.unchecked_scalar_add_assign(&mut neg_rhs, scalar);
-            neg_rhs
-        }
-    }
-
     pub fn left_scalar_sub_parallelized<Scalar, T>(&self, scalar: Scalar, rhs: &T) -> T
     where
         Scalar: DecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
-        if rhs.block_carries_are_empty() {
-            // a - b <=> a + (-b) <=> a + (!b + 1) <=> !b + a + 1
-            let mut flipped_ct = self.bitnot(rhs);
-            let scalar_blocks = BlockDecomposer::with_block_count(
-                scalar,
-                self.message_modulus().0.ilog2(),
-                rhs.blocks().len(),
-            )
-            .iter_as::<u8>()
-            .collect();
-            let (input_carry, compute_overflow) = (true, false);
-            self.add_assign_scalar_blocks_parallelized(
-                &mut flipped_ct,
-                scalar_blocks,
-                input_carry,
-                compute_overflow,
-            );
-            flipped_ct
-        } else {
-            // We could clone rhs and full_propagate, then do the same thing as when the
-            // rhs's carries are clean. This would cost 2 full_propagate, but the second one
-            // would be less expensive because it happens in a scalar_add.
-            //
-            // However, we chose to all the smart version on the cloned_rhs, as maybe the carries
-            // are not so bad that the smart version will be able to avoid the first full_prop
-            let mut tmp_rhs = rhs.clone();
-            let mut res = self.smart_left_scalar_sub_parallelized(scalar, &mut tmp_rhs);
-            self.full_propagate_parallelized(&mut res);
-            res
-        }
+        let rhs = self.clean_for_default_op(rhs);
+
+        // a - b <=> a + (-b) <=> a + (!b + 1) <=> !b + a + 1
+        let mut flipped_ct = self.bitnot(rhs.as_ref());
+        let scalar_blocks = BlockDecomposer::with_block_count(
+            scalar,
+            self.message_modulus().0.ilog2(),
+            rhs.blocks().len(),
+        )
+        .iter_as::<u8>()
+        .collect();
+        let (input_carry, compute_overflow) = (true, false);
+        self.add_assign_scalar_blocks_parallelized(
+            &mut flipped_ct,
+            scalar_blocks,
+            input_carry,
+            compute_overflow,
+        );
+        flipped_ct
     }
 
     pub fn unsigned_overflowing_scalar_sub_assign_parallelized<T>(

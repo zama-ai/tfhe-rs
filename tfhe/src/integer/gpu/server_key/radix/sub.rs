@@ -122,7 +122,7 @@ impl CudaServerKey {
 
     /// Computes homomorphically the subtraction between ct_left and ct_right.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertexts block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always
     /// empty.
