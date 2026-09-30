@@ -17,14 +17,12 @@ extern "C" {
 /// @param num_entries        Number of stored key-value pairs
 /// @param num_key_blocks     Number of radix blocks per key
 /// @param num_value_blocks   Number of radix blocks per value
-/// @param noise_reduction_type  Noise reduction strategy for PBS
 uint64_t scratch_cuda_kv_store_get_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t num_value_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory);
 
 /// @brief Retrieves the encrypted value for a key from an encrypted kv_store.
 ///
@@ -73,14 +71,12 @@ void cleanup_cuda_kv_store_get_64(CudaStreamsFFI streams,
 /// @param num_entries        Number of stored key-value pairs
 /// @param num_key_blocks     Number of radix blocks per key
 /// @param num_value_blocks   Number of radix blocks per value
-/// @param noise_reduction_type  Noise reduction strategy for PBS
 uint64_t scratch_cuda_kv_store_update_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t num_value_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory);
 
 /// @brief Updates the encrypted value for a key in an encrypted kv_store.
 ///
@@ -127,13 +123,12 @@ void cleanup_cuda_kv_store_update_64(CudaStreamsFFI streams,
 /// decomposition)
 /// @param num_entries        Number of stored key-value pairs
 /// @param num_value_blocks   Number of radix blocks per value
-/// @param noise_reduction_type  Noise reduction strategy for PBS
 uint64_t scratch_cuda_kv_store_map_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_value_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    bool allocate_gpu_memory);
 
 /// @brief Applies a conditional update to all entries using pre-computed
 /// selectors.
@@ -179,13 +174,12 @@ void cleanup_cuda_kv_store_map_64(CudaStreamsFFI streams,
 /// decomposition)
 /// @param num_entries        Number of stored keys
 /// @param num_key_blocks     Number of radix blocks per key
-/// @param noise_reduction_type  Noise reduction strategy for PBS
 uint64_t scratch_cuda_kv_store_contains_key_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
+    bool allocate_gpu_memory);
 
 /// @brief Checks whether a clear key exists in the encrypted kv_store.
 ///

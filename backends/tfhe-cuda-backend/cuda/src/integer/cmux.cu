@@ -6,11 +6,10 @@ uint64_t scratch_cuda_cmux_64_async(CudaStreamsFFI streams, int8_t **mem_ptr,
                                     uint32_t lwe_ciphertext_count,
                                     uint32_t message_modulus,
                                     uint32_t carry_modulus,
-                                    bool allocate_gpu_memory,
-                                    PBS_MS_REDUCTION_T noise_reduction_type) {
+                                    bool allocate_gpu_memory) {
   PUSH_RANGE("scratch cmux")
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   std::function<uint64_t(uint64_t)> predicate_lut_f =
       [](uint64_t x) -> uint64_t { return x == 1; };

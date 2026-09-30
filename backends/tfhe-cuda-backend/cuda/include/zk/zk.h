@@ -1,6 +1,7 @@
 #ifndef ZK_H
 #define ZK_H
 
+#include "../integer/integer.h"
 #include "../keyswitch/keyswitch.h"
 #include "../pbs/pbs_enums.h"
 #include "zk_enums.h"
@@ -8,15 +9,14 @@
 
 extern "C" {
 uint64_t scratch_cuda_expand_without_verification_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, CudaLweKeyswitchKeyParamsFFI computing_ksk_params,
-    CudaLweKeyswitchKeyParamsFFI casting_ksk_params, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor,
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI computing_ksk_params,
+    CudaLweKeyswitchKeyParamsFFI casting_ksk_params,
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
     const uint32_t is_boolean_array_len, uint32_t num_compact_lists,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    KS_TYPE casting_key_type, bool allocate_gpu_memory, EXPAND_KIND expand_kind,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    uint32_t message_modulus, uint32_t carry_modulus, KS_TYPE casting_key_type,
+    bool allocate_gpu_memory, EXPAND_KIND expand_kind);
 
 void cuda_expand_without_verification_64_async(
     CudaStreamsFFI streams, void *lwe_array_out,

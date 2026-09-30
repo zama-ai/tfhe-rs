@@ -364,8 +364,27 @@ inline void calculate_final_degrees(uint64_t *const out_degrees,
   }
 }
 
+/// @brief Builds the PBS type parameters matching the bootstrap key type.
+/// @param bsk_params Bootstrap key parameters; its pbs_type selects the
+/// active member of its pbs_params union.
+inline pbs_type_params
+pbs_type_params_from_ffi(const CudaLweBootstrapKeyParamsFFI &bsk_params) {
+  switch (bsk_params.pbs_type) {
+  case PBS_TYPE::CLASSICAL:
+    return classical_pbs_params{static_cast<PBS_MS_REDUCTION_T>(
+        bsk_params.pbs_params.classical.noise_reduction_type)};
+  case PBS_TYPE::MULTI_BIT:
+    return multi_bit_pbs_params{
+        bsk_params.pbs_params.multi_bit.grouping_factor};
+  default:
+    PANIC("Error: unsupported cuda PBS type %u.", bsk_params.pbs_type)
+  }
+}
+
 struct int_radix_params {
-  PBS_TYPE pbs_type;
+  /// Cached copy of pbs_type_and_params' active alternative, set only by the
+  /// constructor.
+  PBS_TYPE pbs_type = PBS_TYPE::CLASSICAL;
   uint32_t glwe_dimension;
   uint32_t polynomial_size;
   uint32_t big_lwe_dimension;
@@ -374,41 +393,35 @@ struct int_radix_params {
   uint32_t ks_base_log;
   uint32_t pbs_level;
   uint32_t pbs_base_log;
-  uint32_t grouping_factor;
   uint32_t message_modulus;
   uint32_t carry_modulus;
-  PBS_MS_REDUCTION_T noise_reduction_type;
 
-  int_radix_params(PBS_TYPE pbs_type, uint32_t glwe_dimension,
+  int_radix_params(pbs_type_params pbs, uint32_t glwe_dimension,
                    uint32_t polynomial_size, uint32_t big_lwe_dimension,
                    uint32_t small_lwe_dimension, uint32_t ks_level,
                    uint32_t ks_base_log, uint32_t pbs_level,
-                   uint32_t pbs_base_log, uint32_t grouping_factor,
-                   uint32_t message_modulus, uint32_t carry_modulus,
-                   PBS_MS_REDUCTION_T noise_reduction_type)
+                   uint32_t pbs_base_log, uint32_t message_modulus,
+                   uint32_t carry_modulus)
 
-      : pbs_type(pbs_type), glwe_dimension(glwe_dimension),
-        polynomial_size(polynomial_size), big_lwe_dimension(big_lwe_dimension),
+      : pbs_type(std::holds_alternative<multi_bit_pbs_params>(pbs)
+                     ? PBS_TYPE::MULTI_BIT
+                     : PBS_TYPE::CLASSICAL),
+        glwe_dimension(glwe_dimension), polynomial_size(polynomial_size),
+        big_lwe_dimension(big_lwe_dimension),
         small_lwe_dimension(small_lwe_dimension), ks_level(ks_level),
         ks_base_log(ks_base_log), pbs_level(pbs_level),
-        pbs_base_log(pbs_base_log), grouping_factor(grouping_factor),
-        message_modulus(message_modulus), carry_modulus(carry_modulus),
-        noise_reduction_type(noise_reduction_type){};
+        pbs_base_log(pbs_base_log), message_modulus(message_modulus),
+        carry_modulus(carry_modulus), pbs_type_and_params(pbs){};
 
   int_radix_params(CudaLweBootstrapKeyParamsFFI bsk_params,
                    CudaLweKeyswitchKeyParamsFFI ksk_params,
-                   uint32_t message_modulus, uint32_t carry_modulus,
-                   PBS_MS_REDUCTION_T noise_reduction_type)
-      : pbs_type((PBS_TYPE)bsk_params.pbs_type),
-        glwe_dimension(bsk_params.glwe_dimension),
-        polynomial_size(bsk_params.polynomial_size),
-        big_lwe_dimension(bsk_params.big_lwe_dimension),
-        small_lwe_dimension(bsk_params.input_lwe_dimension),
-        ks_level(ksk_params.level_count), ks_base_log(ksk_params.base_log),
-        pbs_level(bsk_params.level_count), pbs_base_log(bsk_params.base_log),
-        grouping_factor(bsk_params.grouping_factor),
-        message_modulus(message_modulus), carry_modulus(carry_modulus),
-        noise_reduction_type(noise_reduction_type){};
+                   uint32_t message_modulus, uint32_t carry_modulus)
+      : int_radix_params(pbs_type_params_from_ffi(bsk_params),
+                         bsk_params.glwe_dimension, bsk_params.polynomial_size,
+                         bsk_params.big_lwe_dimension,
+                         bsk_params.input_lwe_dimension, ksk_params.level_count,
+                         ksk_params.base_log, bsk_params.level_count,
+                         bsk_params.base_log, message_modulus, carry_modulus){};
 
   int_radix_params() = default;
 
@@ -417,17 +430,32 @@ struct int_radix_params {
     return (message_modulus * carry_modulus - 1) / (message_modulus - 1);
   }
 
+  /// @brief PBS type tag together with its type specific parameters.
+  pbs_type_params pbs_params() const { return pbs_type_and_params; }
+
   void print() {
     printf("pbs_type: %u, glwe_dimension: %u, "
            "polynomial_size: %u, "
            "big_lwe_dimension: %u, "
            "small_lwe_dimension: %u, ks_level: %u, ks_base_log: %u, pbs_level: "
            "%u, pbs_base_log: "
-           "%u, grouping_factor: %u, message_modulus: %u, carry_modulus: %u\n",
+           "%u, message_modulus: %u, carry_modulus: %u\n",
            pbs_type, glwe_dimension, polynomial_size, big_lwe_dimension,
            small_lwe_dimension, ks_level, ks_base_log, pbs_level, pbs_base_log,
-           grouping_factor, message_modulus, carry_modulus);
+           message_modulus, carry_modulus);
+    std::visit(pbs_type_visitor{[](classical_pbs_params classical) {
+                                  printf("noise_reduction_type: %u\n",
+                                         classical.noise_reduction_type);
+                                },
+                                [](multi_bit_pbs_params multi_bit) {
+                                  printf("grouping_factor: %u\n",
+                                         multi_bit.grouping_factor);
+                                }},
+               pbs_type_and_params);
   };
+
+private:
+  pbs_type_params pbs_type_and_params;
 };
 
 // Store things needed to apply LUTs
@@ -565,8 +593,7 @@ struct int_radix_lut_custom_input_output {
           active_streams.stream(i), active_streams.gpu_index(i),
           &gpu_pbs_buffer_raw, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
-          params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory, params.noise_reduction_type, size);
+          num_blocks_on_gpu, params.pbs_params(), allocate_gpu_memory, size);
       if (i == 0) {
         size_tracker += size;
       }

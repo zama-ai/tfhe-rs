@@ -41,7 +41,6 @@ impl CudaServerKey {
                         d_bsk,
                         computing_ks_key.params_ffi(),
                         num_blocks,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -67,7 +66,6 @@ impl CudaServerKey {
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
                         num_blocks,
-                        None,
                     );
                 }
             }

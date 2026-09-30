@@ -5,11 +5,10 @@ uint64_t scratch_cuda_integer_comparison_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, COMPARISON_TYPE op_type,
-    bool is_signed, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool is_signed, bool allocate_gpu_memory) {
   PUSH_RANGE("scratch comparison")
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   uint64_t size_tracker = 0;
   switch (op_type) {
@@ -41,11 +40,10 @@ uint64_t scratch_cuda_integer_scalar_comparison_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, COMPARISON_TYPE op_type,
-    bool is_signed, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool is_signed, bool allocate_gpu_memory) {
   PUSH_RANGE("scratch scalar comparison")
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   uint64_t size_tracker = 0;
   switch (op_type) {
@@ -165,10 +163,10 @@ uint64_t scratch_cuda_integer_are_all_comparisons_block_true_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_comparison_check<uint64_t>(
       CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,
@@ -205,10 +203,10 @@ uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_comparison_check<uint64_t>(
       CudaStreams(streams), (int_comparison_buffer<uint64_t> **)mem_ptr,

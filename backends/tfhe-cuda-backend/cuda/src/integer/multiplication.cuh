@@ -404,9 +404,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
           luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
           polynomial_size, mem_ptr->params.pbs_base_log,
-          mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
-          total_ciphertexts, mem_ptr->params.pbs_type, num_many_lut,
-          lut_stride);
+          mem_ptr->params.pbs_level, total_ciphertexts,
+          mem_ptr->params.pbs_params(), num_many_lut, lut_stride);
     } else {
 
       // we just need to broadcast the indexes
@@ -456,9 +455,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
           luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
           polynomial_size, mem_ptr->params.pbs_base_log,
-          mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
-          2 * num_radix_blocks, mem_ptr->params.pbs_type, num_many_lut,
-          lut_stride);
+          mem_ptr->params.pbs_level, 2 * num_radix_blocks,
+          mem_ptr->params.pbs_params(), num_many_lut, lut_stride);
     } else {
       uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
       // we just need to broadcast the indexes

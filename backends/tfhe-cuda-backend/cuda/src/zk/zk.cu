@@ -2,15 +2,14 @@
 #include "zk.cuh"
 
 uint64_t scratch_cuda_expand_without_verification_64_async(
-    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t glwe_dimension,
-    uint32_t polynomial_size, CudaLweKeyswitchKeyParamsFFI computing_ksk_params,
-    CudaLweKeyswitchKeyParamsFFI casting_ksk_params, uint32_t pbs_level,
-    uint32_t pbs_base_log, uint32_t grouping_factor,
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI computing_ksk_params,
+    CudaLweKeyswitchKeyParamsFFI casting_ksk_params,
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
     const uint32_t is_boolean_array_len, uint32_t num_compact_lists,
-    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    KS_TYPE casting_key_type, bool allocate_gpu_memory, EXPAND_KIND expand_kind,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t message_modulus, uint32_t carry_modulus, KS_TYPE casting_key_type,
+    bool allocate_gpu_memory, EXPAND_KIND expand_kind) {
 
   // Since CUDA backend works with the concept of "big" and "small" key, instead
   // of "input" and "output", we need to do this or otherwise our PBS will throw
@@ -22,19 +21,22 @@ uint64_t scratch_cuda_expand_without_verification_64_async(
       std::min(casting_ksk_params.input_lwe_dimension,
                casting_ksk_params.output_lwe_dimension);
 
+  // The Rust caller (CudaFlattenedVecCompactCiphertextList::expand) rejects
+  // keys whose bootstrap key and computing keyswitch key LWE dimensions differ.
   int_radix_params computing_params(
-      pbs_type, glwe_dimension, polynomial_size,
-      computing_ksk_params.input_lwe_dimension,
+      pbs_type_params_from_ffi(bsk_params), bsk_params.glwe_dimension,
+      bsk_params.polynomial_size, computing_ksk_params.input_lwe_dimension,
       computing_ksk_params.output_lwe_dimension,
       computing_ksk_params.level_count, computing_ksk_params.base_log,
-      pbs_level, pbs_base_log, grouping_factor, message_modulus, carry_modulus,
-      noise_reduction_type);
+      bsk_params.level_count, bsk_params.base_log, message_modulus,
+      carry_modulus);
 
   int_radix_params casting_params(
-      pbs_type, glwe_dimension, polynomial_size, casting_big_dimension,
+      pbs_type_params_from_ffi(bsk_params), bsk_params.glwe_dimension,
+      bsk_params.polynomial_size, casting_big_dimension,
       casting_small_dimension, casting_ksk_params.level_count,
-      casting_ksk_params.base_log, pbs_level, pbs_base_log, grouping_factor,
-      message_modulus, carry_modulus, noise_reduction_type);
+      casting_ksk_params.base_log, bsk_params.level_count, bsk_params.base_log,
+      message_modulus, carry_modulus);
 
   return scratch_cuda_expand_without_verification<uint64_t>(
       CudaStreams(streams),
