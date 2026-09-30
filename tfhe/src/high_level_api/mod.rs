@@ -141,11 +141,13 @@ pub use compact_list::{
     HlCompactable,
 };
 pub use compressed_ciphertext_list::{
-    CompressedCiphertextList, CompressedCiphertextListBuilder, HlCompressible, HlExpandable,
+    CompressedCiphertextList, CompressedCiphertextListBuilder,
+    CompressedCiphertextListConformanceParams, HlCompressible, HlExpandable,
 };
 pub use compressed_noise_squashed_ciphertext_list::{
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder,
-    HlSquashedNoiseCompressible, HlSquashedNoiseExpandable,
+    CompressedSquashedNoiseCiphertextListConformanceParams, HlSquashedNoiseCompressible,
+    HlSquashedNoiseExpandable,
 };
 pub use re_randomization::{
     PrfReRandomizationContext, ReRandomizationContext, ReRandomizationHashAlgo,
