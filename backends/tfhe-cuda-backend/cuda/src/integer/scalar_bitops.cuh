@@ -43,7 +43,7 @@ host_scalar_bitop(CudaStreams streams, CudaRadixCiphertextFFI *output,
                                          input->degrees, num_clear_blocks);
     }
     auto active_streams = streams.active_gpu_subset(
-        num_clear_blocks, mem_ptr->lut->params.pbs_type);
+        num_clear_blocks, mem_ptr->lut->params.pbs_type());
     lut->set_lut_indexes_and_broadcast_from_gpu(active_streams, clear_blocks,
                                                 num_clear_blocks);
 

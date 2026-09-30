@@ -492,7 +492,7 @@ host_integer_decompress(CudaStreams streams,
     auto lut = h_mem_ptr->decompression_rescale_lut;
     auto active_streams = streams.active_gpu_subset(
         num_blocks_to_decompress,
-        h_mem_ptr->decompression_rescale_lut->params.pbs_type);
+        h_mem_ptr->decompression_rescale_lut->params.pbs_type());
     if (active_streams.count() == 1) {
       execute_pbs_async<Torus, Torus>(
           active_streams, (Torus *)d_lwe_array_out->ptr, lut->lwe_indexes_out,
@@ -501,9 +501,8 @@ host_integer_decompress(CudaStreams streams,
           encryption_params.glwe_dimension,
           compression_params.small_lwe_dimension,
           encryption_params.polynomial_size, encryption_params.pbs_base_log,
-          encryption_params.pbs_level, encryption_params.grouping_factor,
-          num_blocks_to_decompress, encryption_params.pbs_type, num_many_lut,
-          lut_stride);
+          encryption_params.pbs_level, num_blocks_to_decompress,
+          encryption_params.pbs_params(), num_many_lut, lut_stride);
     } else {
       /// For multi GPU execution we create vectors of pointers for inputs and
       /// outputs
@@ -531,9 +530,8 @@ host_integer_decompress(CudaStreams streams,
           encryption_params.glwe_dimension,
           compression_params.small_lwe_dimension,
           encryption_params.polynomial_size, encryption_params.pbs_base_log,
-          encryption_params.pbs_level, encryption_params.grouping_factor,
-          num_blocks_to_decompress, encryption_params.pbs_type, num_many_lut,
-          lut_stride);
+          encryption_params.pbs_level, num_blocks_to_decompress,
+          encryption_params.pbs_params(), num_many_lut, lut_stride);
 
       /// Copy data back to GPU 0 and release vecs
       multi_gpu_gather_lwe_async<Torus>(

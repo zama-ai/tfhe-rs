@@ -230,7 +230,7 @@ template <typename Torus> struct zk_expand_mem {
       }
 
       auto active_streams =
-          streams.active_gpu_subset(2 * num_lwes, params.pbs_type);
+          streams.active_gpu_subset(2 * num_lwes, params.pbs_type());
 
       // SANITY_CHECK uses identity_lut (skipping the full message/carry
       // extraction LUT and the SMALL_TO_BIG intermediate buffer).

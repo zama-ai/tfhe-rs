@@ -101,7 +101,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -115,7 +114,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     );
                 }
             }
@@ -226,7 +224,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -241,7 +238,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     );
                 }
             }
@@ -414,7 +410,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -428,7 +423,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     );
                 }
             }
@@ -539,7 +533,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -554,7 +547,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     );
                 }
             }
@@ -728,7 +720,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                         computing_ks_key.params_ffi(),
                         self.message_modulus,
                         self.carry_modulus,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     )
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -738,7 +729,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                         computing_ks_key.params_ffi(),
                         self.message_modulus,
                         self.carry_modulus,
-                        None,
                     )
                 }
             }
@@ -753,7 +743,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                 d_bsk,
                 computing_ks_key.params_ffi(),
                 num_blocks,
-                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 cuda_backend_get_scalar_div_size_on_gpu(
@@ -764,7 +753,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                     d_multibit_bsk,
                     computing_ks_key.params_ffi(),
                     num_blocks,
-                    None,
                 )
             }
         };
@@ -808,7 +796,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                 d_bsk,
                 computing_ks_key.params_ffi(),
                 num_blocks,
-                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 cuda_backend_get_scalar_div_rem_size_on_gpu(
@@ -819,7 +806,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                     d_multibit_bsk,
                     computing_ks_key.params_ffi(),
                     num_blocks,
-                    None,
                 )
             }
         }
@@ -874,7 +860,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                 d_bsk,
                 computing_ks_key.params_ffi(),
                 num_blocks,
-                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 cuda_backend_get_signed_scalar_div_size_on_gpu(
@@ -885,7 +870,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                     d_multibit_bsk,
                     computing_ks_key.params_ffi(),
                     num_blocks,
-                    None,
                 )
             }
         }
@@ -925,7 +909,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                     d_bsk,
                     computing_ks_key.params_ffi(),
                     num_blocks,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                 )
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -937,7 +920,6 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                     d_multibit_bsk,
                     computing_ks_key.params_ffi(),
                     num_blocks,
-                    None,
                 )
             }
         }

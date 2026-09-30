@@ -316,7 +316,6 @@ impl CudaServerKey {
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
                         compute_overflow,
                         uses_input_borrow,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -334,7 +333,6 @@ impl CudaServerKey {
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
                         compute_overflow,
                         uses_input_borrow,
-                        None,
                     );
                 }
             }
@@ -384,7 +382,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         requested_flag,
                         uses_carry,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -403,7 +400,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         requested_flag,
                         uses_carry,
-                        None,
                     );
                 }
             }

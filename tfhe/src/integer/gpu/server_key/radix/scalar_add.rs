@@ -197,7 +197,6 @@ impl CudaServerKey {
                         computing_ks_key.params_ffi(),
                         self.message_modulus,
                         self.carry_modulus,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     )
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -207,7 +206,6 @@ impl CudaServerKey {
                         computing_ks_key.params_ffi(),
                         self.message_modulus,
                         self.carry_modulus,
-                        None,
                     )
                 }
             }
@@ -224,7 +222,6 @@ impl CudaServerKey {
                     self.message_modulus,
                     self.carry_modulus,
                     OutputFlag::None,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                 )
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -236,7 +233,6 @@ impl CudaServerKey {
                     self.message_modulus,
                     self.carry_modulus,
                     OutputFlag::None,
-                    None,
                 )
             }
         };

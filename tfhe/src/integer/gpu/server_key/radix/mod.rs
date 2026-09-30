@@ -266,7 +266,6 @@ impl CudaServerKey {
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
                         requested_flag,
                         uses_carry,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -284,7 +283,6 @@ impl CudaServerKey {
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
                         requested_flag,
                         uses_carry,
-                        None,
                     );
                 }
             }
@@ -316,7 +314,6 @@ impl CudaServerKey {
                         num_blocks,
                         ciphertext.info.blocks.first().unwrap().message_modulus,
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -330,7 +327,6 @@ impl CudaServerKey {
                         num_blocks,
                         ciphertext.info.blocks.first().unwrap().message_modulus,
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
-                        None,
                     );
                 }
             }
@@ -707,7 +703,6 @@ impl CudaServerKey {
                         num_ct_blocks,
                         self.message_modulus,
                         self.carry_modulus,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -731,7 +726,6 @@ impl CudaServerKey {
                         num_ct_blocks,
                         self.message_modulus,
                         self.carry_modulus,
-                        None,
                     );
                 }
             }
@@ -875,7 +869,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         function_count as u32,
                         lut.sample_extraction_stride as u32,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -901,7 +894,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         function_count as u32,
                         lut.sample_extraction_stride as u32,
-                        None,
                     );
                 }
             }
@@ -1012,7 +1004,6 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1039,7 +1030,6 @@ impl CudaServerKey {
                         &computing_ks_key.d_vec,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     );
                 }
             }
@@ -1121,7 +1111,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1141,7 +1130,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     );
                 }
             }
@@ -1215,7 +1203,6 @@ impl CudaServerKey {
                         input.d_blocks.lwe_ciphertext_count().0 as u32,
                         self.message_modulus,
                         self.carry_modulus,
-                        bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(mb_bsk) => {
@@ -1242,7 +1229,6 @@ impl CudaServerKey {
                         input.d_blocks.lwe_ciphertext_count().0 as u32,
                         self.message_modulus,
                         self.carry_modulus,
-                        None,
                     );
                 }
             }

@@ -71,7 +71,7 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
     }
 
     this->comparison_luts->generate_and_broadcast_many_lut(
-        streams.active_gpu_subset(num_blocks, params.pbs_type), {0}, {fns},
+        streams.active_gpu_subset(num_blocks, params.pbs_type()), {0}, {fns},
         LUT_0_FOR_ALL_BLOCKS);
     fns.clear();
 
@@ -103,8 +103,8 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
           new int_radix_lut<Torus>(streams, params, 1, num_possible_values,
                                    allocate_gpu_memory, size_tracker);
       this->luts_eq[k]->generate_and_broadcast_lut(
-          streams.active_gpu_subset(num_possible_values, params.pbs_type), {0},
-          {f_eq_k}, LUT_0_FOR_ALL_BLOCKS);
+          streams.active_gpu_subset(num_possible_values, params.pbs_type()),
+          {0}, {f_eq_k}, LUT_0_FOR_ALL_BLOCKS);
     }
 
     this->h_map = new Torus[total_blocks];
@@ -206,7 +206,7 @@ template <typename Torus> struct int_eq_selectors_cts_vs_ct_buffer {
     this->equality_lut = new int_radix_lut<Torus>(
         streams, params, 1, biv_batch, allocate_gpu_memory, size_tracker);
     this->equality_lut->generate_and_broadcast_bivariate_lut(
-        streams.active_gpu_subset(biv_batch, params.pbs_type), {0}, {eq_fn},
+        streams.active_gpu_subset(biv_batch, params.pbs_type()), {0}, {eq_fn},
         LUT_0_FOR_ALL_BLOCKS);
 
     create_zero_radix_ciphertext_async<Torus>(
@@ -228,8 +228,8 @@ template <typename Torus> struct int_eq_selectors_cts_vs_ct_buffer {
       this->luts_eq[k] = new int_radix_lut<Torus>(
           streams, params, 1, red_batch, allocate_gpu_memory, size_tracker);
       this->luts_eq[k]->generate_and_broadcast_lut(
-          streams.active_gpu_subset(red_batch, params.pbs_type), {0}, {f_eq_k},
-          LUT_0_FOR_ALL_BLOCKS);
+          streams.active_gpu_subset(red_batch, params.pbs_type()), {0},
+          {f_eq_k}, LUT_0_FOR_ALL_BLOCKS);
     }
 
     this->h_input_ptrs = (Torus **)malloc(safe_mul_sizeof<Torus *>(num_inputs));
@@ -363,7 +363,7 @@ template <typename Torus> struct int_possible_results_buffer {
     }
 
     auto lut_active_streams =
-        streams.active_gpu_subset(total_lut_blocks, params.pbs_type);
+        streams.active_gpu_subset(total_lut_blocks, params.pbs_type());
 
     auto idx_gen = [num_possible_values](Torus *idx, uint32_t count) {
       for (uint32_t b = 0; b < count; b++) {
@@ -478,7 +478,7 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
     this->identity_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
     this->identity_lut->generate_and_broadcast_lut(
-        streams.active_gpu_subset(num_blocks, params.pbs_type), {0}, {id_fn},
+        streams.active_gpu_subset(num_blocks, params.pbs_type()), {0}, {id_fn},
         LUT_0_FOR_ALL_BLOCKS);
 
     uint64_t batched_blocks_u64 = (uint64_t)num_matches * num_blocks;
@@ -489,7 +489,7 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
     this->batched_identity_lut = new int_radix_lut<Torus>(
         streams, params, 1, batched_blocks, allocate_gpu_memory, size_tracker);
     this->batched_identity_lut->generate_and_broadcast_lut(
-        streams.active_gpu_subset(batched_blocks, params.pbs_type), {0},
+        streams.active_gpu_subset(batched_blocks, params.pbs_type()), {0},
         {id_fn}, LUT_0_FOR_ALL_BLOCKS);
 
     std::function<Torus(Torus)> msg_fn = [params](Torus x) -> Torus {
@@ -502,14 +502,14 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
     this->message_extract_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
     this->message_extract_lut->generate_and_broadcast_lut(
-        streams.active_gpu_subset(num_blocks, params.pbs_type), {0}, {msg_fn},
+        streams.active_gpu_subset(num_blocks, params.pbs_type()), {0}, {msg_fn},
         LUT_0_FOR_ALL_BLOCKS);
 
     this->carry_extract_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
     this->carry_extract_lut->generate_and_broadcast_lut(
-        streams.active_gpu_subset(num_blocks, params.pbs_type), {0}, {carry_fn},
-        LUT_0_FOR_ALL_BLOCKS);
+        streams.active_gpu_subset(num_blocks, params.pbs_type()), {0},
+        {carry_fn}, LUT_0_FOR_ALL_BLOCKS);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0),
@@ -1336,7 +1336,7 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
         streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
 
     this->prefix_sum_lut->generate_and_broadcast_bivariate_lut(
-        streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
+        streams.active_gpu_subset(num_inputs, params.pbs_type()), {0},
         {prefix_sum_fn}, LUT_0_FOR_ALL_BLOCKS);
 
     auto cleanup_fn = [ALREADY_SEEN, params](Torus x) -> Torus {
@@ -1348,7 +1348,7 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
     this->cleanup_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
     this->cleanup_lut->generate_and_broadcast_lut(
-        streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
+        streams.active_gpu_subset(num_inputs, params.pbs_type()), {0},
         {cleanup_fn}, LUT_0_FOR_ALL_BLOCKS);
   }
 
@@ -1500,7 +1500,7 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
         streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
 
     this->prefix_sum_lut->generate_and_broadcast_bivariate_lut(
-        streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
+        streams.active_gpu_subset(num_inputs, params.pbs_type()), {0},
         {prefix_sum_fn}, LUT_0_FOR_ALL_BLOCKS);
 
     auto cleanup_fn = [ALREADY_SEEN, params](Torus x) -> Torus {
@@ -1512,7 +1512,7 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
     this->cleanup_lut = new int_radix_lut<Torus>(
         streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
     this->cleanup_lut->generate_and_broadcast_lut(
-        streams.active_gpu_subset(num_inputs, params.pbs_type), {0},
+        streams.active_gpu_subset(num_inputs, params.pbs_type()), {0},
         {cleanup_fn}, LUT_0_FOR_ALL_BLOCKS);
   }
 

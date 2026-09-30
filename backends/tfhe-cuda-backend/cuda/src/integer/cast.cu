@@ -39,10 +39,9 @@ uint64_t scratch_cuda_cast_to_unsigned_64_async(
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks,
     uint32_t target_num_blocks, bool input_is_signed,
     bool requires_full_propagate, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t carry_modulus, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_cast_to_unsigned<uint64_t>(
       CudaStreams(streams), (int_cast_to_unsigned_buffer<uint64_t> **)mem_ptr,
@@ -80,10 +79,9 @@ uint64_t scratch_cuda_cast_to_signed_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks,
     uint32_t target_num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, bool input_is_signed, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t carry_modulus, bool input_is_signed, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_cast_to_signed<uint64_t>(
       CudaStreams(streams), (int_cast_to_signed_buffer<uint64_t> **)mem_ptr,

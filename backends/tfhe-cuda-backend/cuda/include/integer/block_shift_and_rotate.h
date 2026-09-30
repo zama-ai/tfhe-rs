@@ -207,7 +207,7 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
         h_lut_indexes[i] = (i == num_radix_blocks - 1) ? 1 : 0;
     };
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
 
     // Two LUTs (normal + sign-extended) only when the sign-extended variant
     // is actually needed; a logical shift or a rotation uses one for all
@@ -266,7 +266,7 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
       create_zero(&saved_top_block, 1);
 
       auto active_streams_single =
-          streams.active_gpu_subset(1, params.pbs_type);
+          streams.active_gpu_subset(1, params.pbs_type());
       // Extracts the input's sign bit (the MSB of its top block). The
       // overshift fixup needs it to decide between -1 and 0 when the shift
       // amount is >= the bit width.

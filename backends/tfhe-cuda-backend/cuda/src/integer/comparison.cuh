@@ -167,7 +167,7 @@ __host__ void are_all_comparisons_block_true(
 
         auto num_blocks = is_max_value_lut->num_blocks;
         auto active_streams =
-            streams.active_gpu_subset(num_chunks, params.pbs_type);
+            streams.active_gpu_subset(num_chunks, params.pbs_type());
 
         // Index generator: last chunk uses LUT 1, others use LUT 0
         auto index_gen = [num_chunks, num_blocks](Torus *h_lut_indexes,
@@ -196,7 +196,7 @@ __host__ void are_all_comparisons_block_true(
       // Reset max_value_lut_indexes before returning, otherwise if the lut is
       // reused the lut indexes will be wrong
       auto active_gpu_count_is_max = streams.active_gpu_subset(
-          is_max_value_lut->num_blocks, params.pbs_type);
+          is_max_value_lut->num_blocks, params.pbs_type());
       is_max_value_lut->set_lut_indexes_and_broadcast_constant(
           active_gpu_count_is_max, 0);
 
@@ -535,7 +535,7 @@ tree_sign_reduction(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     f = sign_handler_f;
   }
 
-  auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+  auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
   last_lut->generate_and_broadcast_lut(active_streams, {0}, {f},
                                        LUT_0_FOR_ALL_BLOCKS, true,
                                        {tree_buffer->preallocated_h_lut});

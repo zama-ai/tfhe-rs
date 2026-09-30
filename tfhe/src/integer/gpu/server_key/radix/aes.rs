@@ -292,7 +292,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -310,7 +309,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     );
                 }
             }
@@ -337,7 +335,6 @@ impl CudaServerKey {
                 self.carry_modulus,
                 d_bsk,
                 computing_ks_key.params_ffi(),
-                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
@@ -348,7 +345,6 @@ impl CudaServerKey {
                     self.carry_modulus,
                     d_multibit_bsk,
                     computing_ks_key.params_ffi(),
-                    None,
                 )
             }
         }
@@ -389,7 +385,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_bsk,
                         computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -403,7 +398,6 @@ impl CudaServerKey {
                         self.carry_modulus,
                         d_multibit_bsk,
                         computing_ks_key.params_ffi(),
-                        None,
                     );
                 }
             }
@@ -423,7 +417,6 @@ impl CudaServerKey {
                 self.carry_modulus,
                 d_bsk,
                 computing_ks_key.params_ffi(),
-                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 cuda_backend_get_aes_key_expansion_size_on_gpu(
@@ -432,7 +425,6 @@ impl CudaServerKey {
                     self.carry_modulus,
                     d_multibit_bsk,
                     computing_ks_key.params_ffi(),
-                    None,
                 )
             }
         }

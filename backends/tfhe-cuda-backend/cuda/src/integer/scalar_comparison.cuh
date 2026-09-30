@@ -141,7 +141,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
     };
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+    auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
     lut->generate_and_broadcast_lut(
         active_streams, {0}, {scalar_last_leaf_lut_f}, LUT_0_FOR_ALL_BLOCKS,
         true, {mem_ptr->diff_buffer->tree_buffer->preallocated_h_lut});
@@ -233,7 +233,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
     };
 
     auto lut = diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
-    auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+    auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
     lut->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {scalar_bivariate_last_leaf_lut_f},
         LUT_0_FOR_ALL_BLOCKS,
@@ -264,7 +264,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check(
       int_radix_lut<Torus> *one_block_lut =
           new int_radix_lut<Torus>(streams, params, 1, 1, true, size);
 
-      auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+      auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
       one_block_lut->generate_and_broadcast_lut(
           active_streams, {0}, {one_block_lut_f}, LUT_0_FOR_ALL_BLOCKS, true,
           {mem_ptr->preallocated_h_lut});
@@ -407,7 +407,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
 
     auto lut = mem_ptr->diff_buffer->tree_buffer->tree_last_leaf_scalar_lut;
 
-    auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+    auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
     lut->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {scalar_bivariate_last_leaf_lut_f},
         LUT_0_FOR_ALL_BLOCKS,
@@ -507,7 +507,8 @@ __host__ void integer_radix_signed_scalar_difference_check(
     };
 
     auto signed_msb_lut = mem_ptr->signed_msb_lut;
-    auto msb_active_streams = msb_streams.active_gpu_subset(1, params.pbs_type);
+    auto msb_active_streams =
+        msb_streams.active_gpu_subset(1, params.pbs_type());
     signed_msb_lut->generate_and_broadcast_bivariate_lut(
         msb_active_streams, {0}, {lut_f}, LUT_0_FOR_ALL_BLOCKS,
         {mem_ptr->preallocated_h_lut});
@@ -549,7 +550,7 @@ __host__ void integer_radix_signed_scalar_difference_check(
       int_radix_lut<Torus> *one_block_lut =
           new int_radix_lut<Torus>(streams, params, 1, 1, true, size);
 
-      auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+      auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
       one_block_lut->generate_and_broadcast_lut(
           active_streams, {0}, {one_block_lut_f}, LUT_0_FOR_ALL_BLOCKS, true,
           {mem_ptr->preallocated_h_lut});
@@ -756,7 +757,7 @@ __host__ void host_scalar_equality_check(
                                      num_halved_lsb_radix_blocks,
                                      packed_blocks->num_radix_blocks);
     auto active_lsb_streams = lsb_streams.active_gpu_subset(
-        num_halved_scalar_blocks, params.pbs_type);
+        num_halved_scalar_blocks, params.pbs_type());
     if (num_lsb_radix_blocks > 1) {
       pack_blocks<Torus>(lsb_streams.stream(0), lsb_streams.gpu_index(0),
                          packed_blocks, lwe_array_in, num_lsb_radix_blocks,
