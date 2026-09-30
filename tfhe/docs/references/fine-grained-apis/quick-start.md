@@ -149,10 +149,10 @@ fn main() {
     let clear_a = 2382u16;
     let clear_b = 29374u16;
 
-    let mut a = cks.encrypt(clear_a as u64);
-    let mut b = cks.encrypt(clear_b as u64);
+    let a = cks.encrypt(clear_a as u64);
+    let b = cks.encrypt(clear_b as u64);
 
-    let encrypted_max = sks.smart_max_parallelized(&mut a, &mut b);
+    let encrypted_max = sks.max_parallelized(&a, &b);
     let decrypted_max: u64 = cks.decrypt(&encrypted_max);
 
     assert_eq!(decrypted_max as u16, clear_a.max(clear_b))

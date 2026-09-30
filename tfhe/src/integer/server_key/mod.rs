@@ -403,10 +403,10 @@ mod test {
             let modulus = (client_key.parameters().message_modulus().0 as u128)
                 .pow(client_key.num_blocks() as u32);
 
-            let mut ct = client_key.encrypt(modulus - 1);
+            let ct = client_key.encrypt(modulus - 1);
             let mut res_ct = ct.clone();
             for _ in 0..5 {
-                res_ct = evaluation_key.smart_add_parallelized(&mut res_ct, &mut ct);
+                res_ct = evaluation_key.add_parallelized(&res_ct, &ct);
             }
             let res: u128 = client_key.decrypt(&res_ct);
             assert_eq!(modulus - 6, res);

@@ -688,45 +688,6 @@ impl ServerKey {
         self.unchecked_if_then_else_parallelized(&is_inferior, lhs, rhs)
     }
 
-    pub fn smart_gt_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(rhs);
-        }
-        self.unchecked_gt_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_max_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(rhs);
-        }
-        self.unchecked_max_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_min_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(rhs);
-        }
-        self.unchecked_min_parallelized(lhs, rhs)
-    }
-
     pub fn eq_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,

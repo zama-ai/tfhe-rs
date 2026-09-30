@@ -392,33 +392,6 @@ impl ServerKey {
 
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
     ///
-    /// The result is returned as a new ciphertext.
-    ///
-    /// # Warning
-    ///
-    /// - Multithreaded
-    pub fn smart_mul_parallelized<T>(&self, lhs: &mut T, rhs: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !lhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(lhs);
-                }
-            },
-            || {
-                if !rhs.block_carries_are_empty() {
-                    self.full_propagate_parallelized(rhs);
-                }
-            },
-        );
-
-        self.unchecked_mul_parallelized(lhs, rhs)
-    }
-
-    /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
-    ///
     /// The result is assigned to the `ct_left` ciphertext.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
