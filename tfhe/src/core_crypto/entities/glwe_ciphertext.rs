@@ -785,7 +785,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
 /// Structure to store the expected properties of a ciphertext
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct GlweCiphertextConformanceParams<T: UnsignedInteger> {
     pub glwe_dim: GlweDimension,
     pub polynomial_size: PolynomialSize,

@@ -10,7 +10,8 @@ use crate::shortint::backward_compatibility::ciphertext::{
     CompressedSquashedNoiseCiphertextListVersions,
 };
 use crate::shortint::parameters::{
-    CompressedCiphertextConformanceParams, CompressedSquashedNoiseCiphertextConformanceParams,
+    CompressedCiphertextListConformanceParams,
+    CompressedSquashedNoiseCiphertextListConformanceParams,
 };
 use crate::shortint::{AtomicPatternKind, CarryModulus, MessageModulus};
 
@@ -37,10 +38,11 @@ pub struct CompressedCiphertextList {
 
 impl CompressedCiphertextList {
     pub fn len(&self) -> usize {
+        // Since this is used by conformance, it should never panic
         self.modulus_switched_glwe_ciphertext_list
             .iter()
             .map(|comp_glwe| comp_glwe.bodies_count().0)
-            .sum()
+            .fold(0, usize::saturating_add)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -62,19 +64,54 @@ impl CompressedCiphertextList {
     }
 }
 
-impl ParameterSetConformant for CompressedCiphertextList {
-    type ParameterSet = CompressedCiphertextConformanceParams;
+/// Checks the layout of a compressed list packed in GLWEs: every GLWE but the last holds exactly
+/// `lwe_per_glwe` bodies, all GLWEs are stored with `storage_log_modulus` and are conformant with
+/// `ct_params`
+fn is_glwe_list_conformant<Scalar: UnsignedInteger>(
+    glwe_list: &[CompressedModulusSwitchedGlweCiphertext<Scalar>],
+    ct_params: &GlweCiphertextConformanceParams<Scalar>,
+    lwe_per_glwe: LweCiphertextCount,
+    storage_log_modulus: CiphertextModulusLog,
+) -> bool {
+    let Some((last, full_glwes)) = glwe_list.split_last() else {
+        return true;
+    };
 
-    fn is_conformant(&self, params: &CompressedCiphertextConformanceParams) -> bool {
+    let count_is_ok = full_glwes
+        .iter()
+        .all(|glwe| glwe.bodies_count() == lwe_per_glwe)
+        && last.bodies_count().0 <= lwe_per_glwe.0;
+
+    let log_modulus_is_ok = glwe_list
+        .iter()
+        .all(|glwe| glwe.packed_integers().log_modulus() == storage_log_modulus);
+
+    count_is_ok
+        && log_modulus_is_ok
+        && lwe_per_glwe.0 <= ct_params.polynomial_size.0
+        && glwe_list.iter().all(|glwe| glwe.is_conformant(ct_params))
+}
+
+impl ParameterSetConformant for CompressedCiphertextList {
+    type ParameterSet = CompressedCiphertextListConformanceParams;
+
+    fn is_conformant(&self, params: &CompressedCiphertextListConformanceParams) -> bool {
         let Self {
             modulus_switched_glwe_ciphertext_list,
             meta,
         } = self;
 
-        let len = modulus_switched_glwe_ciphertext_list.len();
+        let CompressedCiphertextListConformanceParams {
+            ct_params,
+            lwe_per_glwe: params_lwe_per_glwe,
+            message_modulus: params_message_modulus,
+            carry_modulus: params_carry_modulus,
+            atomic_pattern: params_atomic_pattern,
+            storage_log_modulus,
+        } = params;
 
-        if len == 0 {
-            return true;
+        if self.is_empty() {
+            return modulus_switched_glwe_ciphertext_list.is_empty() && meta.is_none();
         }
 
         let Some(meta) = meta else {
@@ -89,38 +126,16 @@ impl ParameterSetConformant for CompressedCiphertextList {
             lwe_per_glwe,
         } = meta;
 
-        let Some(last_body_count) = modulus_switched_glwe_ciphertext_list
-            .last()
-            .map(|glwe| glwe.bodies_count())
-        else {
-            return false;
-        };
-        let count_is_ok = modulus_switched_glwe_ciphertext_list[..len - 1]
-            .iter()
-            .all(|a| a.bodies_count() == params.lwe_per_glwe)
-            && last_body_count.0 <= params.lwe_per_glwe.0;
-
-        let Some(first_log_modulus) = modulus_switched_glwe_ciphertext_list
-            .first()
-            .map(|glwe| glwe.packed_integers().log_modulus())
-        else {
-            return false;
-        };
-        let log_modulus_is_ok = modulus_switched_glwe_ciphertext_list[1..]
-            .iter()
-            .all(|a| a.packed_integers().log_modulus() == first_log_modulus);
-
-        count_is_ok
-            && log_modulus_is_ok
-            && modulus_switched_glwe_ciphertext_list
-                .iter()
-                .all(|glwe| glwe.is_conformant(&params.ct_params))
-            && lwe_per_glwe.get() <= params.ct_params.polynomial_size.0
-            && LweCiphertextCount::from(*lwe_per_glwe) == params.lwe_per_glwe
-            && *ciphertext_modulus == params.ct_params.ct_modulus
-            && *message_modulus == params.message_modulus
-            && *carry_modulus == params.carry_modulus
-            && *atomic_pattern == params.atomic_pattern
+        is_glwe_list_conformant(
+            modulus_switched_glwe_ciphertext_list,
+            ct_params,
+            *params_lwe_per_glwe,
+            *storage_log_modulus,
+        ) && LweCiphertextCount::from(*lwe_per_glwe) == *params_lwe_per_glwe
+            && *ciphertext_modulus == ct_params.ct_modulus
+            && message_modulus == params_message_modulus
+            && carry_modulus == params_carry_modulus
+            && atomic_pattern == params_atomic_pattern
     }
 }
 
@@ -141,61 +156,59 @@ pub struct CompressedSquashedNoiseCiphertextList {
 }
 
 impl ParameterSetConformant for CompressedSquashedNoiseCiphertextList {
-    type ParameterSet = CompressedSquashedNoiseCiphertextConformanceParams;
+    type ParameterSet = CompressedSquashedNoiseCiphertextListConformanceParams;
 
-    fn is_conformant(&self, params: &CompressedSquashedNoiseCiphertextConformanceParams) -> bool {
+    fn is_conformant(
+        &self,
+        params: &CompressedSquashedNoiseCiphertextListConformanceParams,
+    ) -> bool {
         let Self {
             glwe_ciphertext_list,
             meta,
         } = self;
 
-        let len = glwe_ciphertext_list.len();
+        let CompressedSquashedNoiseCiphertextListConformanceParams {
+            ct_params,
+            lwe_per_glwe: params_lwe_per_glwe,
+            message_modulus: params_message_modulus,
+            carry_modulus: params_carry_modulus,
+        } = params;
 
-        if len == 0 {
-            return true;
+        if self.is_empty() {
+            return glwe_ciphertext_list.is_empty() && meta.is_none();
         }
 
         let Some(meta) = meta.as_ref() else {
             return false;
         };
 
-        let Some(last_body_count) = glwe_ciphertext_list.last().map(|glwe| glwe.bodies_count())
-        else {
-            return false;
-        };
-        let count_is_ok = glwe_ciphertext_list[..len - 1]
-            .iter()
-            .all(|a| a.bodies_count() == params.lwe_per_glwe)
-            && last_body_count.0 <= params.lwe_per_glwe.0;
+        let CompressedSquashedNoiseCiphertextListMeta {
+            message_modulus,
+            carry_modulus,
+            lwe_per_glwe,
+        } = meta;
 
-        let Some(first_log_modulus) = glwe_ciphertext_list
-            .first()
-            .map(|glwe| glwe.packed_integers().log_modulus())
-        else {
-            return false;
-        };
-        let log_modulus_is_ok = glwe_ciphertext_list[1..]
-            .iter()
-            .all(|a| a.packed_integers().log_modulus() == first_log_modulus);
+        // Squashed noise ciphertexts are packed without modulus switch
+        let storage_log_modulus = ct_params.ct_modulus.into_modulus_log();
 
-        count_is_ok
-            && log_modulus_is_ok
-            && glwe_ciphertext_list
-                .iter()
-                .all(|glwe| glwe.is_conformant(&params.ct_params))
-            && meta.lwe_per_glwe.get() <= params.ct_params.polynomial_size.0
-            && LweCiphertextCount::from(meta.lwe_per_glwe) == params.lwe_per_glwe
-            && meta.message_modulus == params.message_modulus
-            && meta.carry_modulus == params.carry_modulus
+        is_glwe_list_conformant(
+            glwe_ciphertext_list,
+            ct_params,
+            *params_lwe_per_glwe,
+            storage_log_modulus,
+        ) && LweCiphertextCount::from(*lwe_per_glwe) == *params_lwe_per_glwe
+            && message_modulus == params_message_modulus
+            && carry_modulus == params_carry_modulus
     }
 }
 
 impl CompressedSquashedNoiseCiphertextList {
     pub fn len(&self) -> usize {
+        // Since this is used by conformance, it should never panic
         self.glwe_ciphertext_list
             .iter()
             .map(|comp_glwe| comp_glwe.bodies_count().0)
-            .sum()
+            .fold(0, usize::saturating_add)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -270,6 +283,7 @@ impl CompressedSquashedNoiseCiphertextList {
         Ok(extracted_lwe)
     }
 
+    /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
     pub fn message_modulus(&self) -> Option<MessageModulus> {
         self.meta.as_ref().map(|meta| meta.message_modulus)
     }
