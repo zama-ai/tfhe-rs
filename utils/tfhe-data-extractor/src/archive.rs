@@ -13,8 +13,8 @@ use benchmark_spec::tfhe::hlapi::dex::{Dex, DexFlavor};
 use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 use benchmark_spec::tfhe::hlapi::noise_squash::NoiseSquashingKind;
 use benchmark_spec::{
-    BenchPath, BenchmarkMetric, HlapiBench, IntegerBench, IntegerOp, IntegerOpBySign,
-    IntegerPackingOp, TfheLayer, ZkPkeBench,
+    BenchPath, BenchmarkMetric, ComputeLoad, HlapiBench, IntegerBench, IntegerOp, IntegerOpBySign,
+    IntegerPackingOp, TfheLayer, ZkPkeBench, ZkProofVariant,
 };
 
 use crate::db::like_escape;
@@ -122,7 +122,20 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
     },
     ArchiveOp {
         label: "zkpok_server",
-        paths: &[integer(IntegerBench::Zk(ZkPkeBench::Proof))],
+        paths: &[
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V1(
+                ComputeLoad::Proof,
+            )))),
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V1(
+                ComputeLoad::Verify,
+            )))),
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V2(
+                ComputeLoad::Proof,
+            )))),
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V2(
+                ComputeLoad::Verify,
+            )))),
+        ],
         bit_size: None,
     },
     // `Verify` rather than `VerifyAndExpand`, the archive publishing the
@@ -130,7 +143,20 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
     // being pre-spec, so this one is a reading of the label and no more.
     ArchiveOp {
         label: "zkpok_verify",
-        paths: &[integer(IntegerBench::Zk(ZkPkeBench::Verify))],
+        paths: &[
+            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::V1(
+                ComputeLoad::Proof,
+            )))),
+            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::V1(
+                ComputeLoad::Verify,
+            )))),
+            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::V2(
+                ComputeLoad::Proof,
+            )))),
+            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::V2(
+                ComputeLoad::Verify,
+            )))),
+        ],
         bit_size: None,
     },
     ArchiveOp {
@@ -172,7 +198,7 @@ pub struct PendingOp {
 
 pub const PENDING_OPS: &[PendingOp] = &[PendingOp {
     label: "zkpok_browser",
-    stored_id: "tfhe::integer::zk::proof::wasm::*_mean_chrome",
+    stored_id: "tfhe::integer::zk::proof::*::wasm::*_mean_chrome",
 }];
 
 /// Every row the published page carries, whether this tool can fill it or not.
@@ -515,8 +541,14 @@ mod tests {
                  tfhe::integer::ops::unsigned::gt",
                 "compress: tfhe::integer::packing_compression::pack",
                 "decompress: tfhe::integer::packing_compression::unpack",
-                "zkpok_server: tfhe::integer::zk::proof",
-                "zkpok_verify: tfhe::integer::zk::verify",
+                "zkpok_server: tfhe::integer::zk::proof::v1::compute_load_proof \
+                 tfhe::integer::zk::proof::v1::compute_load_verify \
+                 tfhe::integer::zk::proof::v2::compute_load_proof \
+                 tfhe::integer::zk::proof::v2::compute_load_verify",
+                "zkpok_verify: tfhe::integer::zk::verify::v1::compute_load_proof \
+                 tfhe::integer::zk::verify::v1::compute_load_verify \
+                 tfhe::integer::zk::verify::v2::compute_load_proof \
+                 tfhe::integer::zk::verify::v2::compute_load_verify",
                 "sns: tfhe::hlapi::noise_squashing::noise_squash",
                 "erc7984_transfer: tfhe::hlapi::erc7984::transfer::overflow",
                 "batch_swap_intents: tfhe::hlapi::dex::swap_request::no_cmux",

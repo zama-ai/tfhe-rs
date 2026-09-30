@@ -3,8 +3,8 @@
 
 use benchmark_spec::{
     Backend, BenchPath, BenchmarkMetric, BenchmarkSpec, CiphertextKind, ComputeLoad, HlapiBench,
-    IntegerBench, KeyKind, OperandType, PrecisionTag, Serializable, SpecParseError, TfheLayer,
-    TypeTag, ZkPkeBench, ZkPkeConfig, ZkScheme,
+    IntegerBench, KeyKind, OperandType, PrecisionTag, SpecParseError, TfheLayer, TypeTag,
+    ZkPkeBench, ZkPkeConfig, ZkProofVariant, ZkScheme, tfhe::Serializable,
 };
 
 fn hlapi(bench: HlapiBench) -> BenchPath {
@@ -84,20 +84,43 @@ pub fn compact_list_serialize(param_name: &str, bits: u32, num_elements: u64) ->
     )
 }
 
-/// `compute_load` is `proof` / `verify`, `scheme` is `v1` / `v2`.
-fn zk_pke_tag(
+/// `compute_load` is `proof` / `verify` as the JS `ZkComputeLoad` reads, the
+/// spec spells it `compute_load_*`. `scheme` is `v1` / `v2`.
+fn zk_variant(compute_load: &str, scheme: &str) -> Result<ZkProofVariant, SpecParseError> {
+    let compute_load = match compute_load {
+        "proof" => ComputeLoad::Proof,
+        "verify" => ComputeLoad::Verify,
+        other => {
+            return Err(SpecParseError::Unknown(format!(
+                "unknown zk compute load: {other}"
+            )));
+        }
+    };
+    Ok(ZkProofVariant::new(scheme.parse::<ZkScheme>()?, compute_load))
+}
+
+fn zk_bench_id(
+    bench: fn(ZkProofVariant) -> ZkPkeBench,
+    metric: BenchmarkMetric,
+    param_name: &str,
     bits_packed: u32,
     crs_bits: u32,
     compute_load: &str,
     scheme: &str,
-) -> Result<TypeTag, SpecParseError> {
-    Ok(ZkPkeConfig {
+) -> Result<String, SpecParseError> {
+    let type_tag: TypeTag = ZkPkeConfig {
         bits_packed: Some(bits_packed),
         crs_bits,
-        compute_load: Some(compute_load.parse::<ComputeLoad>()?),
-        scheme: scheme.parse::<ZkScheme>()?,
     }
-    .into())
+    .into();
+
+    Ok(bench_id(
+        zk(bench(zk_variant(compute_load, scheme)?)),
+        param_name,
+        Some(type_tag),
+        metric,
+        None,
+    ))
 }
 
 pub fn zk_proof(
@@ -107,13 +130,15 @@ pub fn zk_proof(
     compute_load: &str,
     scheme: &str,
 ) -> Result<String, SpecParseError> {
-    Ok(bench_id(
-        zk(ZkPkeBench::Proof),
-        param_name,
-        Some(zk_pke_tag(bits_packed, crs_bits, compute_load, scheme)?),
+    zk_bench_id(
+        ZkPkeBench::Proof,
         BenchmarkMetric::Latency,
-        None,
-    ))
+        param_name,
+        bits_packed,
+        crs_bits,
+        compute_load,
+        scheme,
+    )
 }
 
 pub fn zk_proven_list_size(
@@ -123,13 +148,15 @@ pub fn zk_proven_list_size(
     compute_load: &str,
     scheme: &str,
 ) -> Result<String, SpecParseError> {
-    Ok(bench_id(
-        zk(ZkPkeBench::ProvenList),
-        param_name,
-        Some(zk_pke_tag(bits_packed, crs_bits, compute_load, scheme)?),
+    zk_bench_id(
+        ZkPkeBench::ProvenList,
         BenchmarkMetric::KeySize,
-        None,
-    ))
+        param_name,
+        bits_packed,
+        crs_bits,
+        compute_load,
+        scheme,
+    )
 }
 
 #[cfg(test)]
@@ -169,14 +196,13 @@ mod tests {
         );
         assert_eq!(
             zk_proof(PARAM, 64, 2048, "proof", "v2").unwrap(),
-            "tfhe::integer::zk::proof::wasm::V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128\
-             ::64_bits_packed::2048_bits_crs::compute_load_proof::zk_v2"
+            "tfhe::integer::zk::proof::v2::compute_load_proof::wasm\
+             ::V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128::64_bits_packed::2048_bits_crs"
         );
         assert_eq!(
             zk_proven_list_size(PARAM, 64, 2048, "proof", "v2").unwrap(),
-            "tfhe::integer::zk::proven_list::wasm::key_size\
-             ::V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128\
-             ::64_bits_packed::2048_bits_crs::compute_load_proof::zk_v2"
+            "tfhe::integer::zk::proven_list::v2::compute_load_proof::wasm::key_size\
+             ::V1_8_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128::64_bits_packed::2048_bits_crs"
         );
     }
 
