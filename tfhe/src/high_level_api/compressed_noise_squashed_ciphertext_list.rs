@@ -1,4 +1,5 @@
 use crate::backward_compatibility::compressed_ciphertext_list::CompressedSquashedNoiseCiphertextListVersions;
+use crate::core_crypto::prelude::GlweCiphertextConformanceParams;
 use crate::high_level_api::booleans::InnerSquashedNoiseBoolean;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state::try_with_internal_keys;
@@ -24,13 +25,19 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::named::Named;
 use crate::shortint::ciphertext::SquashedNoiseCiphertext;
+use crate::shortint::parameters::{
+    CompressedSquashedNoiseCiphertextListConformanceParams as ShortintCompressedSquashedNoiseCiphertextListConformanceParams,
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+};
 use crate::{
-    Device, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, Tag, Versionize,
+    Device, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, Tag,
+    Versionize,
 };
 #[cfg(feature = "gpu")]
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::num::NonZero;
+use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::{Unversionize, UnversionizeError, VersionizeOwned};
 
 #[derive(Clone)]
@@ -199,6 +206,81 @@ pub struct CompressedSquashedNoiseCiphertextList {
 
 impl Named for CompressedSquashedNoiseCiphertextList {
     const NAME: &'static str = "high_level_api::CompressedSquashedNoiseCiphertextList";
+}
+
+#[derive(Copy, Clone)]
+pub struct CompressedSquashedNoiseCiphertextListConformanceParams {
+    params: ShortintCompressedSquashedNoiseCiphertextListConformanceParams,
+}
+
+impl
+    From<(
+        NoiseSquashingParameters,
+        NoiseSquashingCompressionParameters,
+    )> for CompressedSquashedNoiseCiphertextListConformanceParams
+{
+    fn from(
+        (noise_squashing_params, compression_params): (
+            NoiseSquashingParameters,
+            NoiseSquashingCompressionParameters,
+        ),
+    ) -> Self {
+        Self {
+            params: ShortintCompressedSquashedNoiseCiphertextListConformanceParams::from_params(
+                noise_squashing_params,
+                compression_params,
+            ),
+        }
+    }
+}
+
+impl TryFrom<&ServerKey> for CompressedSquashedNoiseCiphertextListConformanceParams {
+    type Error = crate::Error;
+
+    fn try_from(sks: &ServerKey) -> Result<Self, Self::Error> {
+        let noise_squashing_key = &sks
+            .key
+            .noise_squashing_key
+            .as_ref()
+            .ok_or_else(|| {
+                crate::Error::new("Noise squashing key not set in server key".to_owned())
+            })?
+            .key;
+        let compression_key = &sks
+            .key
+            .noise_squashing_compression_key
+            .as_ref()
+            .ok_or_else(|| {
+                crate::Error::new(
+                    "Compression key for squashed noise data not set in server key".to_owned(),
+                )
+            })?
+            .key;
+        let packing_ksk = compression_key.packing_key_switching_key();
+
+        Ok(Self {
+            params: ShortintCompressedSquashedNoiseCiphertextListConformanceParams {
+                ct_params: GlweCiphertextConformanceParams {
+                    glwe_dim: packing_ksk.output_glwe_size().to_glwe_dimension(),
+                    polynomial_size: packing_ksk.output_polynomial_size(),
+                    ct_modulus: noise_squashing_key.output_ciphertext_modulus(),
+                },
+                lwe_per_glwe: compression_key.lwe_per_glwe(),
+                message_modulus: noise_squashing_key.message_modulus(),
+                carry_modulus: noise_squashing_key.carry_modulus(),
+            },
+        })
+    }
+}
+
+impl ParameterSetConformant for CompressedSquashedNoiseCiphertextList {
+    type ParameterSet = CompressedSquashedNoiseCiphertextListConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { inner, tag: _ } = self;
+
+        inner.on_cpu().is_conformant(&parameter_set.params)
+    }
 }
 
 impl CompressedSquashedNoiseCiphertextList {
@@ -658,6 +740,14 @@ mod tests {
         let b = FheUint32::encrypt(clear_b, &cks);
         let c = FheBool::encrypt(clear_c, &cks);
 
+        let conformance_params_from_key =
+            CompressedSquashedNoiseCiphertextListConformanceParams::try_from(&sks).unwrap();
+        let conformance_params_from_params =
+            CompressedSquashedNoiseCiphertextListConformanceParams::from((
+                noise_squashing_params,
+                noise_squashing_compression_params,
+            ));
+
         set_server_key(sks);
 
         let ns_a = a.squash_noise().unwrap();
@@ -675,6 +765,9 @@ mod tests {
         safe_serialize(&list, &mut serialized_list, 1 << 24).unwrap();
         let list: CompressedSquashedNoiseCiphertextList =
             safe_deserialize(serialized_list.as_slice(), 1 << 24).unwrap();
+
+        assert!(list.is_conformant(&conformance_params_from_key));
+        assert!(list.is_conformant(&conformance_params_from_params));
 
         let ns_a: SquashedNoiseFheInt = list.get(0).unwrap().unwrap();
         let ns_b: SquashedNoiseFheUint = list.get(1).unwrap().unwrap();
