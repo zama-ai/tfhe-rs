@@ -10,8 +10,8 @@ use rand::{thread_rng, Rng};
 use crate::graph::backends::cpu::{CpuInputList, RuntimeValue};
 use crate::graph::backends::ExecutionBackend;
 use crate::graph::{
-    BuilderError, ClearKind, ExecutionGraphBuilder, FheIntKind, FheKind, HlInstructionSet, ValueId,
-    ValueKind,
+    BuilderError, ClearKind, ExecutionGraphBuilder, FheIntKind, FheKind, HlInstructionSet,
+    ReRandomizationConfig, ReRandomizationParams, ValueId, ValueKind,
 };
 use crate::prelude::*;
 use crate::{ClientKey, FheBool, FheInt32, FheUint32, Seed};
@@ -2187,4 +2187,222 @@ pub(crate) fn fheuint32_ilog2_case<B: ExecutionBackend>(ck: &ClientKey, backend:
         |a| a.ilog2(),
         &[1, 2, u32::MAX, 0xDEAD_BEEF],
     );
+}
+
+// ============================================================
+// Re-randomization
+// ============================================================
+//
+// These cases require `backend` to hold a server key with re-randomization
+// enabled, and that same key to be set as the thread's server key (used to
+// compute the HLAPI reference).
+
+pub(crate) const TEST_RERAND_CONFIG: ReRandomizationConfig = ReRandomizationConfig {
+    algo: crate::ReRandomizationHashAlgo::Blake3,
+    rerand_seeder_domain_separator: *b"TFHE_Rrd",
+    public_encryption_domain_separator: *b"TFHE_Enc",
+};
+
+/// Seeds the HLAPI would use to re-randomize the ciphertexts added by `add`
+/// under `config` and `fn_description`.
+fn hlapi_rerand_seeds(
+    config: &ReRandomizationConfig,
+    fn_description: &[&[u8]],
+    add: impl FnOnce(&mut crate::ReRandomizationContext),
+) -> crate::ReRandomizationSeedGen {
+    let mut context = crate::ReRandomizationContext::new_with_hasher(
+        fn_description.iter().copied(),
+        config.public_encryption_domain_separator,
+        crate::integer::ciphertext::ReRandomizationSeedHasher::new(
+            config.algo,
+            config.rerand_seeder_domain_separator,
+        ),
+    );
+    add(&mut context);
+    context.finalize()
+}
+
+/// Re-randomizes an `FheBool`, an `FheUint32` and an `FheInt32` in a single
+/// `ReRand` op and checks that:
+/// - the decrypted values are unchanged,
+/// - the ciphertexts were actually modified,
+/// - the outputs are bit-identical to re-randomizing the same inputs directly with the HLAPI, using
+///   the static description followed by the runtime one (if `with_runtime_description`, otherwise
+///   the slot is left empty).
+pub(crate) fn rerand_bool_uint_int_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+    with_runtime_description: bool,
+) {
+    use crate::ReRandomizationMode;
+
+    let mut rng = thread_rng();
+    let clear_bool: bool = rng.gen();
+    let clear_uint = rand_u32(&mut rng);
+    let clear_int = rand_i32(&mut rng);
+
+    let a = FheBool::encrypt(clear_bool, ck);
+    let b = FheUint32::encrypt(clear_uint, ck);
+    let c = FheInt32::encrypt(clear_int, ck);
+
+    let static_part: &[u8] = b"FheBool,FheUint32,FheInt32";
+    let nonce: [u8; 256 / 8] = core::array::from_fn(|_| rng.gen());
+
+    let mut builder = ExecutionGraphBuilder::new();
+    let in_a = builder.input(ValueKind::FheBool).unwrap();
+    let in_b = builder.input(ValueKind::FheUint(32)).unwrap();
+    let in_c = builder.input(ValueKind::FheInt(32)).unwrap();
+    let (rerands, slot) = builder.rerand(&[in_a, in_b, in_c], [static_part]).unwrap();
+    assert_eq!(rerands.len(), 3);
+    for r in rerands {
+        builder.output(r).unwrap();
+    }
+    let graph = builder.build().unwrap();
+    assert_eq!(graph.n_rerand_slots(), 1);
+
+    let (params, fn_description) = if with_runtime_description {
+        let mut params = ReRandomizationParams::new(TEST_RERAND_CONFIG);
+        params.insert(slot, [nonce.as_slice()]).unwrap();
+        (params, vec![static_part, nonce.as_slice()])
+    } else {
+        let params = ReRandomizationParams::new(TEST_RERAND_CONFIG).with_missing_slots_as_empty();
+        (params, vec![static_part])
+    };
+
+    let mut inputs = CpuInputList::new();
+    inputs.push(a.clone());
+    inputs.push(b.clone());
+    inputs.push(c.clone());
+    inputs.set_re_rand_params(params);
+    let outputs = backend.execute(&graph, inputs).unwrap();
+
+    let out_a = outputs.get::<FheBool>(0);
+    let out_b = outputs.get::<FheUint32>(1);
+    let out_c = outputs.get::<FheInt32>(2);
+
+    let dec_a: bool = out_a.decrypt(ck);
+    let dec_b: u32 = out_b.decrypt(ck);
+    let dec_c: i32 = out_c.decrypt(ck);
+    assert_eq!(dec_a, clear_bool);
+    assert_eq!(dec_b, clear_uint);
+    assert_eq!(dec_c, clear_int);
+
+    // Reference: re-randomize the same inputs through the HLAPI
+    let mut ref_a = a.clone();
+    let mut ref_b = b.clone();
+    let mut ref_c = c.clone();
+    let mut seeds = hlapi_rerand_seeds(&TEST_RERAND_CONFIG, &fn_description, |context| {
+        context.add_ciphertext(&ref_a);
+        context.add_ciphertext(&ref_b);
+        context.add_ciphertext(&ref_c);
+    });
+    ref_a
+        .re_randomize(
+            ReRandomizationMode::UseAvailableMode,
+            seeds.next_seed().unwrap(),
+        )
+        .unwrap();
+    ref_b
+        .re_randomize(
+            ReRandomizationMode::UseAvailableMode,
+            seeds.next_seed().unwrap(),
+        )
+        .unwrap();
+    ref_c
+        .re_randomize(
+            ReRandomizationMode::UseAvailableMode,
+            seeds.next_seed().unwrap(),
+        )
+        .unwrap();
+
+    let out_a = out_a.into_raw_parts();
+    let (out_b, ..) = out_b.into_raw_parts();
+    let (out_c, ..) = out_c.into_raw_parts();
+
+    assert_ne!(out_a, a.into_raw_parts(), "FheBool was not re-randomized");
+    assert_ne!(
+        out_b,
+        b.into_raw_parts().0,
+        "FheUint32 was not re-randomized"
+    );
+    assert_ne!(
+        out_c,
+        c.into_raw_parts().0,
+        "FheInt32 was not re-randomized"
+    );
+
+    assert_eq!(
+        out_a,
+        ref_a.into_raw_parts(),
+        "FheBool differs from HLAPI re-rand"
+    );
+    assert_eq!(
+        out_b,
+        ref_b.into_raw_parts().0,
+        "FheUint32 differs from HLAPI re-rand"
+    );
+    assert_eq!(
+        out_c,
+        ref_c.into_raw_parts().0,
+        "FheInt32 differs from HLAPI re-rand"
+    );
+}
+
+/// Re-randomizes the same `FheUint32` in two `ReRand` ops with the same static
+/// description but different runtime ones, and checks each output against
+/// the HLAPI re-randomization using its own slot's runtime description.
+pub(crate) fn rerand_two_slots_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
+    use crate::ReRandomizationMode;
+
+    let clear = rand_u32(&mut thread_rng());
+    let ct = FheUint32::encrypt(clear, ck);
+
+    let static_part: &[u8] = b"FheUint32";
+    let runtime_parts: [&[u8]; 2] = [b"first", b"second"];
+
+    let mut builder = ExecutionGraphBuilder::new();
+    let input = builder.input(ValueKind::FheUint(32)).unwrap();
+    let mut slots = Vec::new();
+    for _ in 0..2 {
+        let (rerands, slot) = builder.rerand(&[input], [static_part]).unwrap();
+        builder.output(rerands[0]).unwrap();
+        slots.push(slot);
+    }
+    let graph = builder.build().unwrap();
+    assert_eq!(graph.n_rerand_slots(), 2);
+    assert_ne!(slots[0], slots[1]);
+
+    let mut params = ReRandomizationParams::new(TEST_RERAND_CONFIG);
+    for (slot, runtime_part) in slots.iter().zip(runtime_parts) {
+        params.insert(*slot, [runtime_part]).unwrap();
+    }
+
+    let mut inputs = CpuInputList::new();
+    inputs.push(ct.clone());
+    inputs.set_re_rand_params(params);
+    let outputs = backend.execute(&graph, inputs).unwrap();
+
+    for (i, runtime_part) in runtime_parts.iter().enumerate() {
+        let out = outputs.get::<FheUint32>(i as u32);
+        let dec: u32 = out.decrypt(ck);
+        assert_eq!(dec, clear);
+
+        let mut reference = ct.clone();
+        let mut seeds = hlapi_rerand_seeds(
+            &TEST_RERAND_CONFIG,
+            &[static_part, runtime_part],
+            |context| context.add_ciphertext(&reference),
+        );
+        reference
+            .re_randomize(
+                ReRandomizationMode::UseAvailableMode,
+                seeds.next_seed().unwrap(),
+            )
+            .unwrap();
+        assert_eq!(
+            out.into_raw_parts().0,
+            reference.into_raw_parts().0,
+            "output {i} differs from HLAPI re-rand with its slot's runtime description"
+        );
+    }
 }

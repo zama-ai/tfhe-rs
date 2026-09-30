@@ -1,7 +1,10 @@
 //! Types available in the HlApiDialect
+use std::collections::HashMap;
 use std::num::NonZeroU64;
 
 use super::kinds::FheIntKind;
+use crate::core_crypto::commons::math::random::XofSeed;
+use crate::ReRandomizationHashAlgo;
 use zhc_ir::DialectTypeSystem;
 
 /// The different kinds of values flowing through an HlApiDialect IR.
@@ -179,6 +182,170 @@ impl OprfMode {
         self.into()
     }
 }
+
+/// The config used for all re-randomizations of a graph execution
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct ReRandomizationConfig {
+    pub algo: ReRandomizationHashAlgo,
+    pub rerand_seeder_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+    pub public_encryption_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
+}
+
+/// Function description fed to a re-randomization context.
+///
+/// The parts are concatenated in order. A `ReRand` op's full description is
+/// 1) its static part (given to the builder)
+/// 2) its runtime part (given in the [`ReRandomizationParams`] of an execution).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub struct ReRandomizationFnDescription {
+    pub fn_description: Vec<Vec<u8>>,
+}
+
+impl ReRandomizationFnDescription {
+    pub fn new<'a>(parts: impl IntoIterator<Item = &'a [u8]>) -> Self {
+        Self {
+            fn_description: parts.into_iter().map(<[u8]>::to_vec).collect(),
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &[u8]> {
+        self.fn_description.iter().map(Vec::as_slice)
+    }
+}
+
+/// Identifies a `ReRand` op of a graph, returned by
+/// [`ExecutionGraphBuilder::rerand`](super::ExecutionGraphBuilder::rerand).
+///
+/// Slots are allocated in order (`0..graph.n_rerand_slots()`), so building
+/// the same graph in the same order gives the same slots.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct ReRandSlot(pub(super) u32);
+
+impl std::fmt::Display for ReRandSlot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "re-rand slot {}", self.0)
+    }
+}
+
+/// Runtime re-randomization params of a graph
+///
+/// The config shared by all `ReRand` ops and the runtime part of each op's function description.
+///
+/// By default, every slot of the graph must be given a runtime description
+/// (possibly empty), see [`Self::with_missing_slots_as_empty`] to relax this.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReRandomizationParams {
+    config: ReRandomizationConfig,
+    runtime_descriptions: HashMap<ReRandSlot, ReRandomizationFnDescription>,
+    missing_slots_as_empty: bool,
+}
+
+impl ReRandomizationParams {
+    pub fn new(config: ReRandomizationConfig) -> Self {
+        Self {
+            config,
+            runtime_descriptions: HashMap::new(),
+            missing_slots_as_empty: false,
+        }
+    }
+
+    /// Slots without a runtime description use an empty one instead of
+    /// making the execution fail.
+    pub fn with_missing_slots_as_empty(mut self) -> Self {
+        self.missing_slots_as_empty = true;
+        self
+    }
+
+    pub fn config(&self) -> &ReRandomizationConfig {
+        &self.config
+    }
+
+    /// Sets the runtime part of the function description of `slot`.
+    ///
+    /// `runtime_description` is stored as is (it may be empty), the parts
+    /// are concatenated in order.
+    ///
+    /// Returns an error if `slot` already has one.
+    pub fn insert<'a>(
+        &mut self,
+        slot: ReRandSlot,
+        runtime_description: impl IntoIterator<Item = &'a [u8]>,
+    ) -> Result<&mut Self, ReRandParamsError> {
+        match self.runtime_descriptions.entry(slot) {
+            std::collections::hash_map::Entry::Occupied(_) => {
+                Err(ReRandParamsError::DuplicateSlot(slot))
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(ReRandomizationFnDescription::new(runtime_description));
+                Ok(self)
+            }
+        }
+    }
+
+    /// The runtime description of `slot`, `None` if it was not given.
+    pub fn runtime_description(&self, slot: ReRandSlot) -> Option<&ReRandomizationFnDescription> {
+        self.runtime_descriptions.get(&slot)
+    }
+
+    /// Checks these params against a graph having `n_slots` slots.
+    pub(super) fn check_slots(&self, n_slots: u32) -> Result<(), ReRandParamsError> {
+        if let Some(&slot) = self
+            .runtime_descriptions
+            .keys()
+            .filter(|slot| slot.0 >= n_slots)
+            .min()
+        {
+            return Err(ReRandParamsError::UnknownSlot(slot));
+        }
+        if !self.missing_slots_as_empty {
+            if let Some(slot) = (0..n_slots)
+                .map(ReRandSlot)
+                .find(|slot| !self.runtime_descriptions.contains_key(slot))
+            {
+                return Err(ReRandParamsError::MissingSlot(slot));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Mismatch between a graph's re-randomizations and the
+/// [`ReRandomizationParams`] given for an execution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ReRandParamsError {
+    /// The graph contains `ReRand` ops but no params were given.
+    MissingParams,
+    /// The slot has no runtime description, and missing ones are not allowed.
+    MissingSlot(ReRandSlot),
+    /// A runtime description was given for a slot the graph does not have.
+    UnknownSlot(ReRandSlot),
+    /// A runtime description was given twice for the same slot.
+    DuplicateSlot(ReRandSlot),
+}
+
+impl std::fmt::Display for ReRandParamsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingParams => write!(
+                f,
+                "the graph contains re-randomizations but no re-randomization params were given"
+            ),
+            Self::MissingSlot(slot) => write!(f, "no runtime description given for {slot}"),
+            Self::UnknownSlot(slot) => {
+                write!(
+                    f,
+                    "runtime description given for {slot}, which the graph does not have"
+                )
+            }
+            Self::DuplicateSlot(slot) => {
+                write!(f, "runtime description given twice for {slot}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ReRandParamsError {}
 
 impl std::fmt::Display for ValueKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

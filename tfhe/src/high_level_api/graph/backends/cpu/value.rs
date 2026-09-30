@@ -1,6 +1,7 @@
 //! Runtime value types for the CPU backend: [`RuntimeValue`] and its
 //! conversion impls, plus the input/output list wrappers used by callers.
 
+use crate::graph::dialects::hlapi::ReRandomizationParams;
 use crate::graph::{FheIntKind, KvKeyKind, ScalarValue, ValueKind};
 use crate::high_level_api::kv_store::KVStore as HlKVStore;
 use crate::integer::prelude::*;
@@ -678,11 +679,15 @@ where
 #[derive(Clone)]
 pub struct CpuInputList {
     pub inputs: Vec<RuntimeValue>,
+    pub re_rand_params: Option<ReRandomizationParams>,
 }
 
 impl CpuInputList {
     pub fn new() -> Self {
-        Self { inputs: vec![] }
+        Self {
+            inputs: vec![],
+            re_rand_params: None,
+        }
     }
 
     pub fn push<T>(&mut self, value: T) -> &mut Self
@@ -696,6 +701,11 @@ impl CpuInputList {
     /// Push an OPRF seed input.
     pub fn push_seed(&mut self, seed: impl crate::shortint::OprfSeed) -> &mut Self {
         self.inputs.push(RuntimeValue::Seed(seed.into_vec()));
+        self
+    }
+
+    pub fn set_re_rand_params(&mut self, re_rand_params: ReRandomizationParams) -> &mut Self {
+        self.re_rand_params = Some(re_rand_params);
         self
     }
 }

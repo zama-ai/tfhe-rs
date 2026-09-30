@@ -7,8 +7,9 @@ use crate::graph::backends::cpu::{CpuBackend, CpuError, CpuInputList};
 use crate::graph::backends::ExecutionBackend;
 use crate::graph::dialects::hlapi::{FheIntKind, FheKind};
 use crate::graph::{
-    BuilderError, BuilderErrorKind, ClearKind, ExecutionGraphBuilder, HlInstructionSet, KvKey,
-    KvKeyKind, OprfMode, ScalarValue, ValueKind,
+    BuilderError, BuilderErrorKind, ClearKind, ExecutionGraph, ExecutionGraphBuilder,
+    HlInstructionSet, KvKey, KvKeyKind, OprfMode, ReRandParamsError, ReRandSlot,
+    ReRandomizationParams, ScalarValue, ValueKind,
 };
 use crate::prelude::*;
 use crate::{
@@ -2194,4 +2195,139 @@ fn op_panic_is_reported_with_multiple_workers() {
         }
         other => panic!("expected ExecutionError, got {other:?}"),
     }
+}
+
+// ============================================================
+// Re-randomization
+// ============================================================
+
+/// Backend whose key supports re-randomization, also set as the thread's
+/// server key (the re-rand cases compute an HLAPI reference).
+fn cpu_rerand_backend() -> (ClientKey, CpuBackend) {
+    use crate::shortint::parameters::ReRandomizationParameters;
+
+    let config = ConfigBuilder::default()
+        .enable_ciphertext_re_randomization(ReRandomizationParameters::DerivedCPKWithoutKeySwitch)
+        .build();
+    let (ck, sk) = generate_keys(config);
+    crate::set_server_key(sk.clone());
+    (ck, CpuBackend::new(sk))
+}
+
+#[test]
+fn rerand_bool_uint_int_with_runtime_description() {
+    let (ck, mut be) = cpu_rerand_backend();
+    rerand_bool_uint_int_case(&ck, &mut be, true);
+}
+
+#[test]
+fn rerand_bool_uint_int_static_description_only() {
+    let (ck, mut be) = cpu_rerand_backend();
+    rerand_bool_uint_int_case(&ck, &mut be, false);
+}
+
+#[test]
+fn rerand_two_slots() {
+    let (ck, mut be) = cpu_rerand_backend();
+    rerand_two_slots_case(&ck, &mut be);
+}
+
+/// Graph with `n` re-randomizations of a single `FheUint32` input, and their slots
+fn rerand_graph(n: usize) -> (ExecutionGraph, Vec<ReRandSlot>) {
+    let mut b = ExecutionGraphBuilder::new();
+    let input = b.input(ValueKind::FheUint(32)).unwrap();
+    let mut slots = Vec::new();
+    for _ in 0..n {
+        let (outs, slot) = b.rerand(&[input], []).unwrap();
+        b.output(outs[0]).unwrap();
+        slots.push(slot);
+    }
+    (b.build().unwrap(), slots)
+}
+
+#[test]
+fn rerand_params_strict_requires_every_slot() {
+    let (graph, slots) = rerand_graph(2);
+    let mut params = ReRandomizationParams::new(TEST_RERAND_CONFIG);
+    params.insert(slots[0], []).unwrap();
+    assert_eq!(
+        graph.check_re_rand_params(Some(&params)),
+        Err(ReRandParamsError::MissingSlot(slots[1]))
+    );
+    params.insert(slots[1], []).unwrap();
+    assert_eq!(graph.check_re_rand_params(Some(&params)), Ok(()));
+}
+
+#[test]
+fn rerand_params_missing_slots_as_empty() {
+    let (graph, _) = rerand_graph(2);
+    let params = ReRandomizationParams::new(TEST_RERAND_CONFIG).with_missing_slots_as_empty();
+    assert_eq!(graph.check_re_rand_params(Some(&params)), Ok(()));
+}
+
+#[test]
+fn rerand_params_unknown_slot() {
+    // Slots from a graph with more re-rands than the executed one
+    let (_, other_slots) = rerand_graph(2);
+    let (graph, _) = rerand_graph(1);
+    let mut params = ReRandomizationParams::new(TEST_RERAND_CONFIG).with_missing_slots_as_empty();
+    params.insert(other_slots[1], []).unwrap();
+    assert_eq!(
+        graph.check_re_rand_params(Some(&params)),
+        Err(ReRandParamsError::UnknownSlot(other_slots[1]))
+    );
+
+    // Also rejected for a graph without any re-rand
+    let (graph, _) = rerand_graph(0);
+    assert_eq!(
+        graph.check_re_rand_params(Some(&params)),
+        Err(ReRandParamsError::UnknownSlot(other_slots[1]))
+    );
+}
+
+#[test]
+fn rerand_params_missing_params() {
+    let (graph, _) = rerand_graph(1);
+    assert_eq!(
+        graph.check_re_rand_params(None),
+        Err(ReRandParamsError::MissingParams)
+    );
+    let (graph, _) = rerand_graph(0);
+    assert_eq!(graph.check_re_rand_params(None), Ok(()));
+}
+
+#[test]
+fn rerand_params_duplicate_slot() {
+    let (_, slots) = rerand_graph(1);
+    let mut params = ReRandomizationParams::new(TEST_RERAND_CONFIG);
+    params.insert(slots[0], []).unwrap();
+    assert_eq!(
+        params.insert(slots[0], []).err(),
+        Some(ReRandParamsError::DuplicateSlot(slots[0]))
+    );
+}
+
+#[test]
+fn rerand_failed_op_does_not_consume_a_slot() {
+    let mut b = ExecutionGraphBuilder::new();
+    let clear = b.input(ValueKind::Uint(32)).unwrap();
+    let input = b.input(ValueKind::FheUint(32)).unwrap();
+    assert!(b.rerand(&[clear], []).is_err());
+    let (outs, _) = b.rerand(&[input], []).unwrap();
+    b.output(outs[0]).unwrap();
+    assert_eq!(b.build().unwrap().n_rerand_slots(), 1);
+}
+
+#[test]
+fn rerand_params_are_checked_before_execution() {
+    // The default key does not support re-randomization: this only works
+    // because the params are rejected before any op runs.
+    let (ck, mut be) = cpu_backend();
+    let (graph, _) = rerand_graph(1);
+    let mut inputs = CpuInputList::new();
+    inputs.push(FheUint32::encrypt(1u32, &ck));
+    assert!(matches!(
+        be.execute(&graph, inputs),
+        Err(CpuError::ReRandParams(ReRandParamsError::MissingParams))
+    ));
 }

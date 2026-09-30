@@ -26,7 +26,7 @@ use super::CompactCiphertextList;
 const RERAND_SEED_BITS: usize = 256;
 
 /// The XoF algorithm used to generate the re-randomization seed
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]
 pub enum ReRandomizationHashAlgo {
     /// Used for NIST compliance
     Shake256,

@@ -9,7 +9,9 @@ pub use builder::{
 pub use instruction_set::HlInstructionSet;
 pub use kinds::{ClearKind, FheIntKind, FheKind, KindConvertError};
 pub use type_system::{
-    KvKey, KvKeyKind, NonNanF64, NotANumberError, OprfMode, ScalarValue, ValueKind,
+    KvKey, KvKeyKind, NonNanF64, NotANumberError, OprfMode, ReRandParamsError, ReRandSlot,
+    ReRandomizationConfig, ReRandomizationFnDescription, ReRandomizationParams, ScalarValue,
+    ValueKind,
 };
 
 use zhc_ir::Dialect;

@@ -4,11 +4,15 @@ use zhc_utils::svec;
 
 use super::instruction_set::HlInstructionSet;
 use super::kinds::{ClearKind, FheIntKind, FheKind};
-use super::type_system::{KvKeyKind, NonNanF64, OprfMode, ScalarValue, ValueKind};
+use super::type_system::{
+    KvKeyKind, NonNanF64, OprfMode, ReRandParamsError, ReRandSlot, ReRandomizationFnDescription,
+    ReRandomizationParams, ScalarValue, ValueKind,
+};
 use super::HlApiDialect;
 use crate::graph::KvKey;
 use crate::MatchValues;
 use std::num::NonZeroU64;
+use std::sync::Arc;
 
 /// Handle to a value flowing through a graph being built.
 ///
@@ -53,6 +57,8 @@ pub struct ExecutionGraph {
     inputs: SmallVec<ValueId>,
     /// List of output values, they are used by Output operations
     outputs: SmallVec<ValueId>,
+    /// Number of ReRand ops, their slots are `0..n_rerand_slots`
+    n_rerand_slots: u32,
 }
 
 impl ExecutionGraph {
@@ -92,6 +98,28 @@ impl ExecutionGraph {
     /// Number of graph outputs
     pub fn n_outputs(&self) -> u32 {
         self.outputs.len() as u32
+    }
+
+    /// Number of re-randomization slots, i.e. of `ReRand` ops.
+    ///
+    /// The slots are `0..n_rerand_slots()`.
+    pub fn n_rerand_slots(&self) -> u32 {
+        self.n_rerand_slots
+    }
+
+    /// Checks that `params` can be used to execute this graph.
+    ///
+    /// Backends must call this before executing the graph, after which every
+    /// `ReRand` op can get its config and runtime description from `params`.
+    pub fn check_re_rand_params(
+        &self,
+        params: Option<&ReRandomizationParams>,
+    ) -> Result<(), ReRandParamsError> {
+        match params {
+            Some(params) => params.check_slots(self.n_rerand_slots),
+            None if self.n_rerand_slots > 0 => Err(ReRandParamsError::MissingParams),
+            None => Ok(()),
+        }
     }
 
     /// Returns the [ValueKind] for the input at `pos`
@@ -442,6 +470,8 @@ pub struct ExecutionGraphBuilder {
     inputs: SmallVec<ValueId>,
     /// The output values
     outputs: SmallVec<ValueId>,
+    /// Number of ReRand ops added so far, i.e. the next slot
+    n_rerand_slots: u32,
 }
 
 impl Default for ExecutionGraphBuilder {
@@ -463,6 +493,7 @@ impl ExecutionGraphBuilder {
             ir: IR::empty(),
             inputs: svec![],
             outputs: svec![],
+            n_rerand_slots: 0,
         }
     }
 
@@ -2351,6 +2382,42 @@ impl ExecutionGraphBuilder {
         }
     }
 
+    /// Re-randomizes `inputs` under a single re-randomization context.
+    ///
+    /// Returns the re-randomized values, in the same order as `inputs`, and
+    /// the slot of this re-randomization.
+    ///
+    /// The [`ReRandSlot`] returned can be used  to provide `fn_description`
+    /// as runtime via [`ReRandomizationParams`] to not embed them in the graph definition.
+    ///
+    /// `fn_description` is stored as is (it may be empty), the parts are
+    /// concatenated in order. During execution, the 'static' `fn_description`
+    /// gets the optional runtime fn_description appended
+    pub fn rerand<'a>(
+        &mut self,
+        inputs: &[ValueId],
+        fn_description: impl IntoIterator<Item = &'a [u8]>,
+    ) -> Result<(Vec<ValueId>, ReRandSlot), BuilderError> {
+        const OP: &str = "re-rand";
+        let input_kinds = inputs
+            .iter()
+            .map(|v| self.narrow_to_fhe_kind(*v, OP))
+            .collect::<Result<_, _>>()?;
+        let slot = ReRandSlot(self.n_rerand_slots);
+        let outputs = self.try_add_op(
+            OP,
+            HlInstructionSet::ReRand {
+                fn_description: Arc::new(ReRandomizationFnDescription::new(fn_description)),
+                slot,
+                input_kinds,
+            },
+            inputs.iter().copied().map(|v| v.val_id()).collect(),
+        )?;
+        // Only consume the slot once the op is in the graph
+        self.n_rerand_slots += 1;
+        Ok((outputs.into_iter().collect(), slot))
+    }
+
     fn check_oprf_kind(
         value_kind: ValueKind,
         mode: &OprfMode,
@@ -2418,6 +2485,7 @@ impl ExecutionGraphBuilder {
             ir: self.ir,
             inputs: self.inputs,
             outputs: self.outputs,
+            n_rerand_slots: self.n_rerand_slots,
         })
     }
 }

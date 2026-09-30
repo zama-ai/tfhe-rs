@@ -3,12 +3,15 @@ use std::sync::Arc;
 
 use super::value::RuntimeValue;
 use crate::graph::dialects::hlapi::{
-    ClearKind, FheIntKind, FheKind, HlInstructionSet, NonNanF64, OprfMode, ScalarValue, ValueKind,
+    ClearKind, FheIntKind, FheKind, HlInstructionSet, NonNanF64, OprfMode, ReRandomizationConfig,
+    ReRandomizationFnDescription, ReRandomizationParams, ScalarValue, ValueKind,
 };
 use crate::high_level_api::integers::oprf::num_input_random_bits_for_max_distance;
+use crate::integer::ciphertext::{ReRandomizationContext, ReRandomizationSeedHasher};
 use crate::integer::server_key::radix_parallel::cmux::ServerKeyDefaultCMux;
 use crate::integer::server_key::KVStore;
 use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
+use crate::ReRandomizationMode;
 
 /// Number of radix blocks needed to hold `bits` bits under `sks`'s message
 /// modulus. Integer-layer APIs take block counts as `usize`.
@@ -395,6 +398,86 @@ fn exec_scalar_eq(
     RuntimeValue::FheBool(block)
 }
 
+/// Re-randomize the FHE `inputs` under a single re-randomization context.
+///
+/// The context is built from `config`,
+/// the function descriptions are merged in the order of:
+/// `static_description` followed by `runtime_description`.
+///
+/// Clear inputs are not part of the process and are passed through.
+/// Returns the same number of outputs as there are inputs
+fn exec_re_rand(
+    inputs: &[&RuntimeValue],
+    config: &ReRandomizationConfig,
+    static_description: &ReRandomizationFnDescription,
+    runtime_description: Option<&ReRandomizationFnDescription>,
+    sks: &crate::ServerKey,
+) -> crate::Result<Vec<RuntimeValue>> {
+    let seed_hasher =
+        ReRandomizationSeedHasher::new(config.algo, config.rerand_seeder_domain_separator);
+    let fn_description = static_description
+        .iter()
+        .chain(runtime_description.into_iter().flat_map(|d| d.iter()));
+    let mut context = ReRandomizationContext::new_with_hasher(
+        fn_description,
+        config.public_encryption_domain_separator,
+        seed_hasher,
+    );
+
+    for input in inputs {
+        match input {
+            RuntimeValue::ClearBool(_)
+            | RuntimeValue::ClearUint(_)
+            | RuntimeValue::ClearInt(_)
+            | RuntimeValue::Seed(_) => {
+                // Clears are not part of the re-rand process
+            }
+            RuntimeValue::FheBool(block) => context.add_ciphertext(block),
+            RuntimeValue::FheUint(radix) => context.add_ciphertext(radix),
+            RuntimeValue::FheInt(radix) => context.add_ciphertext(radix),
+            RuntimeValue::FheUintKVStore(_) | RuntimeValue::FheIntKVStore(_) => {
+                // The dialect and builder rejects this currently
+                return Err(crate::error!("Cannot re-rand KVStore"));
+            }
+        }
+    }
+
+    let mut seeds = context.finalize();
+    let re_rand_key =
+        sks.integer_re_randomization_key_from_mode(ReRandomizationMode::UseAvailableMode)?;
+
+    inputs
+        .iter()
+        .map(|input| {
+            let output = match input {
+                RuntimeValue::ClearBool(_)
+                | RuntimeValue::ClearUint(_)
+                | RuntimeValue::ClearInt(_)
+                | RuntimeValue::Seed(_) => (*input).clone(),
+                RuntimeValue::FheBool(block) => {
+                    let mut block = block.clone();
+                    block.re_randomize(re_rand_key, seeds.next_seed()?)?;
+                    block.into()
+                }
+                RuntimeValue::FheUint(radix) => {
+                    let mut radix = radix.clone();
+                    radix.re_randomize(re_rand_key, seeds.next_seed()?)?;
+                    radix.into()
+                }
+                RuntimeValue::FheInt(radix) => {
+                    let mut radix = radix.clone();
+                    radix.re_randomize(re_rand_key, seeds.next_seed()?)?;
+                    radix.into()
+                }
+                RuntimeValue::FheUintKVStore(_) | RuntimeValue::FheIntKVStore(_) => {
+                    unreachable!("KVStore inputs are rejected when building the context")
+                }
+            };
+            Ok(output)
+        })
+        .collect()
+}
+
 // =========================================================================
 
 /// Dispatch one op against the dialect.
@@ -405,6 +488,7 @@ fn exec_scalar_eq(
 /// for a legitimate reason don't exist yet.
 pub(super) fn exec_dialect_op(
     sks: &crate::ServerKey,
+    re_rand_params: Option<&ReRandomizationParams>,
     op: &HlInstructionSet,
     inputs_arc: &mut Vec<Arc<RuntimeValue>>,
     outputs: &mut Vec<RuntimeValue>,
@@ -1494,6 +1578,26 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(value);
             outputs.push(present);
+        }
+        HlInstructionSet::ReRand {
+            fn_description,
+            slot,
+            input_kinds: _,
+        } => {
+            // Both are checked by `ExecutionGraph::check_re_rand_params` before execution
+            let params =
+                re_rand_params.expect("graph has ReRand ops but no re-randomization params");
+            let runtime_description = params.runtime_description(*slot);
+            outputs.extend(
+                exec_re_rand(
+                    inputs,
+                    params.config(),
+                    fn_description,
+                    runtime_description,
+                    sks,
+                )
+                .unwrap(),
+            );
         }
     }
 }

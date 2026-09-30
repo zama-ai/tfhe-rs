@@ -1,12 +1,17 @@
 //! [`HlInstructionSet`] — the high-level dialect's instruction set for `zhc_ir`.
 
+use std::sync::Arc;
+
 use zhc_ir::{sig, DialectInstructionSet, Format, FormatContext, Signature};
+use zhc_utils::small::SmallVec;
 use zhc_utils::svec;
 
 use crate::MatchValues;
 
 use super::kinds::{ClearKind, FheIntKind, FheKind};
-use super::type_system::{KvKey, KvKeyKind, OprfMode, ScalarValue, ValueKind};
+use super::type_system::{
+    KvKey, KvKeyKind, OprfMode, ReRandSlot, ReRandomizationFnDescription, ScalarValue, ValueKind,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, strum::IntoStaticStr)]
 #[non_exhaustive]
@@ -505,6 +510,16 @@ pub enum HlInstructionSet {
         key_kind: KvKeyKind,
         value_kind: FheIntKind,
     },
+
+    /// Re-randomizes its inputs under a single re-randomization context.
+    ///
+    /// The context's function description is `fn_description` (static part)
+    /// followed by the runtime description of `slot` given at execution.
+    ReRand {
+        fn_description: Arc<ReRandomizationFnDescription>,
+        slot: ReRandSlot,
+        input_kinds: SmallVec<FheKind>,
+    },
 }
 
 impl HlInstructionSet {
@@ -864,6 +879,16 @@ impl DialectInstructionSet for HlInstructionSet {
                 let v: ValueKind = (*value_kind).into();
                 sig![(store, encrypted_key, v) -> (store, ValueKind::FheBool)]
             }
+
+            ReRand { input_kinds, .. } => {
+                let args = input_kinds
+                    .iter()
+                    .copied()
+                    .map(ValueKind::from)
+                    .collect::<SmallVec<_>>();
+                let rets = args.clone();
+                Signature(args, rets)
+            }
         }
     }
 }
@@ -1163,6 +1188,16 @@ impl Format for HlInstructionSet {
                     f,
                     ctx,
                 )?;
+                write!(f, ">")
+            }
+            ReRand { input_kinds, .. } => {
+                write!(f, "{name}<")?;
+                for (i, kind) in input_kinds.iter().enumerate() {
+                    Format::fmt(kind, f, ctx)?;
+                    if i != input_kinds.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
                 write!(f, ">")
             }
         }

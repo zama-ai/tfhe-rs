@@ -12,7 +12,9 @@ use std::sync::Arc;
 use super::ops::exec_dialect_op;
 use super::value::{CpuInputList, CpuOutputList, RuntimeValue};
 use super::CpuError;
-use crate::graph::dialects::hlapi::{ExecutionGraph, HlApiDialect, HlInstructionSet};
+use crate::graph::dialects::hlapi::{
+    ExecutionGraph, HlApiDialect, HlInstructionSet, ReRandomizationParams,
+};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use zhc_ir::{AsValId, OpId, OpMap, IR};
 use zhc_utils::small::SmallVec;
@@ -185,6 +187,7 @@ fn dispatch_value(value_id: impl AsValId, value: Arc<RuntimeValue>, ctx: &mut Di
 
 fn worker(
     sks: &crate::ServerKey,
+    re_rand_params: Option<&ReRandomizationParams>,
     in_channel: &Receiver<ReadyOp>,
     graph: &ExecutionGraph,
     out_channel: &Sender<DoneOp>,
@@ -213,7 +216,7 @@ fn worker(
             let op_ref = graph.ir().get_op(id);
             let op = op_ref.get_instruction();
             op_name = op.name();
-            exec_dialect_op(sks, &op, &mut inputs, &mut output_buf);
+            exec_dialect_op(sks, re_rand_params, &op, &mut inputs, &mut output_buf);
             // Release our references to the inputs before notifying the
             // coordinator, to make sure that we don't count as a potential
             // owner. On a panic, the unwinding drops them just the same.
@@ -252,18 +255,26 @@ pub(crate) fn execute_graph(
     inputs: CpuInputList,
     num_workers: NonZeroUsize,
 ) -> Result<CpuOutputList, CpuError> {
+    let CpuInputList {
+        inputs,
+        re_rand_params,
+    } = inputs;
     let (meta, mut pending_ops) = ReadyQueueMeta::from_graph(graph);
     let ir = graph.ir();
 
     let graph_inputs = graph.inputs();
     let output_count = graph.outputs().len();
 
-    if inputs.inputs.len() != graph_inputs.len() {
+    if inputs.len() != graph_inputs.len() {
         return Err(CpuError::InputCountMismatch {
             expected: graph.n_inputs(),
-            got: inputs.inputs.len() as u32,
+            got: inputs.len() as u32,
         });
     }
+    graph
+        .check_re_rand_params(re_rand_params.as_ref())
+        .map_err(CpuError::ReRandParams)?;
+    let re_rand_params = re_rand_params.as_ref();
 
     let mut program_outputs: Vec<Option<Arc<RuntimeValue>>> = vec![None; output_count];
     let mut outputs_needed = graph.n_outputs();
@@ -284,7 +295,7 @@ pub(crate) fn execute_graph(
             ready_sender: &work_ready_sender,
         };
 
-        for (i, (val_id, input_value)) in graph_inputs.iter().zip(inputs.inputs).enumerate() {
+        for (i, (val_id, input_value)) in graph_inputs.iter().zip(inputs).enumerate() {
             let i = i as u32;
             let expected_kind = graph.input_kind(i);
             input_value.check_input(i, &expected_kind, sks.pbs_key())?;
@@ -312,7 +323,7 @@ pub(crate) fn execute_graph(
             let graph_ref = graph;
             let rx = work_ready_receiver.clone();
             let tx = work_done_sender.clone();
-            s.spawn(move || worker(sks, &rx, graph_ref, &tx));
+            s.spawn(move || worker(sks, re_rand_params, &rx, graph_ref, &tx));
         }
         // Dropping it now means `work_done_receiver.recv()` returns Err exactly
         // when all workers have exited.

@@ -9,7 +9,7 @@ pub use value::{
     CpuInputList, CpuOutputError, CpuOutputList, RuntimeValue, RuntimeValueConversionError,
 };
 
-use crate::graph::dialects::hlapi::{FheIntKind, KvKeyKind, ValueKind};
+use crate::graph::dialects::hlapi::{FheIntKind, KvKeyKind, ReRandParamsError, ValueKind};
 use crate::graph::ExecutionGraph;
 use std::num::NonZeroUsize;
 
@@ -160,6 +160,9 @@ pub enum CpuError {
         op: &'static str,
         message: String,
     },
+    /// The re-randomization params given with the inputs do not match the
+    /// graph's re-randomizations.
+    ReRandParams(ReRandParamsError),
 }
 
 impl std::fmt::Display for CpuError {
@@ -209,6 +212,7 @@ impl std::fmt::Display for CpuError {
                 op,
                 message,
             } => write!(f, "node {node_index} ({op}) failed: {message}"),
+            Self::ReRandParams(error) => write!(f, "invalid re-randomization params: {error}"),
         }
     }
 }

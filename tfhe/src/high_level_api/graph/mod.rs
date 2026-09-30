@@ -4,7 +4,8 @@ pub mod dialects;
 pub use dialects::hlapi::{
     BuilderError, BuilderErrorKind, ClearKind, ExecutionGraph, ExecutionGraphBuilder, FheIntKind,
     FheKind, HlApiDialect, HlInstructionSet, KindConvertError, KvKey, KvKeyKind, NonNanF64,
-    NotANumberError, Operand, OprfMode, ScalarValue, ValueId, ValueKind,
+    NotANumberError, Operand, OprfMode, ReRandParamsError, ReRandSlot, ReRandomizationConfig,
+    ReRandomizationFnDescription, ReRandomizationParams, ScalarValue, ValueId, ValueKind,
 };
 
 pub use backends::cpu::{CpuBackend, CpuError, CpuInputList, CpuOutputError, CpuOutputList};
