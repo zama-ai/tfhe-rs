@@ -23,14 +23,14 @@
 /tfhe-zk-pok/                           @nsarlin-zama @tmontaigu
 /tfhe-zk-pok/src/gpu                    @zama-ai/gpu
 
-/tfhe-benchmark/                        @soonum @SouchonTheo
+/tfhe-benchmark/                        @tmontaigu @SouchonTheo
 
 /utils/                                 @nsarlin-zama @SouchonTheo
 
-/Makefile                               @IceTDrinker @soonum
+/Makefile                               @IceTDrinker @nsarlin-zama
 
-/.github/                               @soonum @SouchonTheo
-/ci/                                    @soonum @SouchonTheo
-/scripts/                               @soonum @SouchonTheo
+/.github/                               @tmontaigu @SouchonTheo
+/ci/                                    @nsarlin-zama @SouchonTheo
+/scripts/                               @nsarlin-zama @SouchonTheo
 
 /CODEOWNERS                             @IceTDrinker @nsarlin-zama
