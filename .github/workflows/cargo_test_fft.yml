@@ -10,8 +10,10 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
@@ -27,7 +29,7 @@ jobs:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Needed to check for file change
+      pull-requests: read # Needed to check for file change
     outputs:
       fft_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.fft_any_changed }}
     steps:
@@ -35,7 +37,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Check for file changes
@@ -49,19 +51,48 @@ jobs:
               - tfhe-fft/**
               - '.github/workflows/cargo_test_fft.yml'
 
-  cargo-tests-fft:
-    name: cargo_test_fft/cargo-tests-fft
+  setup-instance:
+    name: cargo_test_fft/setup-instance
     needs: should-run
     if: needs.should-run.outputs.fft_test == 'true'
-    runs-on: ${{ matrix.runner_type }}
+    runs-on: ubuntu-latest
+    outputs:
+      matrix_os: ${{ steps.set-os-matrix.outputs.matrix_os }}
+      runner-name: ${{ steps.start-remote-instance.outputs.label }}
+    steps:
+      - name: Start remote instance
+        id: start-remote-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
+        with:
+          mode: start
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          backend: aws
+          profile: cpu-small
+
+      - name: Set os matrix
+        id: set-os-matrix
+        env:
+          SLAB_INSTANCE: ${{ steps.start-remote-instance.outputs.label }}
+        run: |
+          INSTANCE_TO_USE="${SLAB_INSTANCE:-ubuntu-latest}"
+          echo "matrix_os=[\"${INSTANCE_TO_USE}\", \"macos-latest\", \"windows-latest\"]" >> "$GITHUB_OUTPUT"
+
+  cargo-tests-fft:
+    name: cargo_test_fft/cargo-tests-fft
+    needs: [should-run, setup-instance]
+    if: needs.should-run.outputs.fft_test == 'true'
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        runner_type: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: ${{fromJson(needs.setup-instance.outputs.matrix_os)}}
       fail-fast: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install Rust
@@ -69,22 +100,24 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Test avx2
+      - name: Test
         run: |
           make test_fft
 
       - name: Test serialization
         run: make test_fft_serde
 
-      - name: Test no-std avx2
+      - name: Test no-std
         run: |
           make test_fft_no_std
 
       - name: Test avx512
+        if: ${{ matrix.os != 'macos-latest' && matrix.os != 'windows-latest' }}
         run: |
           make test_fft_avx512
 
       - name: Test no-std avx512
+        if: ${{ matrix.os != 'macos-latest' && matrix.os != 'windows-latest' }}
         run: |
           make test_fft_no_std_avx512
 
@@ -96,7 +129,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Test node js
@@ -106,7 +139,7 @@ jobs:
 
   cargo-tests-fft-successful:
     name: cargo_test_fft/cargo-tests-fft-successful (bpr)
-    needs: [ should-run, cargo-tests-fft, cargo-tests-fft-node-js ]
+    needs: [should-run, cargo-tests-fft, cargo-tests-fft-node-js]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -129,3 +162,28 @@ jobs:
         run: |
           echo "Some tfhe-fft tests failed"
           exit 1
+
+  teardown-instance:
+    name: cargo_test_fft/teardown-instance
+    if: ${{ always() && needs.setup-instance.result == 'success' }}
+    needs: [setup-instance, cargo-tests-fft-successful]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop remote instance
+        id: stop-instance
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
+        with:
+          mode: stop
+          github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
+          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          job-secret: ${{ secrets.JOB_SECRET }}
+          label: ${{ needs.setup-instance.outputs.runner-name }}
+
+      - name: Slack Notification
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "Instance teardown (cargo-tests-fft) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
