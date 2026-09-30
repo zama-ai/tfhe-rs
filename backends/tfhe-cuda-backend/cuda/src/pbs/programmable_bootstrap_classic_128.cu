@@ -24,16 +24,16 @@ bool has_support_to_cuda_programmable_bootstrap_128_tbc(
 }
 
 uint64_t scratch_cuda_programmable_bootstrap_128_vector_64(
-    void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   return scratch_cuda_programmable_bootstrap_128_vector<uint64_t>(
       stream, gpu_index,
-      (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> **)pbs_buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+      (pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **)buffer, lwe_dimension,
+      glwe_dimension, polynomial_size, level_count, input_lwe_ciphertext_count,
+      allocate_gpu_memory, noise_reduction_type);
 }
 
 uint64_t scratch_cuda_programmable_bootstrap_128_async(
@@ -53,7 +53,7 @@ void executor_cuda_programmable_bootstrap_128(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
@@ -71,7 +71,7 @@ void executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
@@ -91,7 +91,7 @@ void executor_cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_128(
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
@@ -115,7 +115,7 @@ void executor_cuda_programmable_bootstrap_host_driven_tbc_lwe_ciphertext_vector_
     void *stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
 
@@ -138,7 +138,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     __uint128_t const *lut_vector, void const *lwe_array_in,
     void const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
   if (base_log > 64)
@@ -242,7 +242,7 @@ void cuda_programmable_bootstrap_128_async(
     void const *bootstrapping_key, int8_t *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples) {
-  auto *pbs_buf = (pbs_buffer_128<uint64_t, PBS_TYPE::CLASSICAL> *)buffer;
+  auto *pbs_buf = (pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *)buffer;
 
   host_programmable_bootstrap_lwe_ciphertext_vector_128<uint64_t>(
       stream, gpu_index, lwe_array_out,
@@ -257,7 +257,7 @@ void cuda_programmable_bootstrap_128_async(
  */
 void cleanup_cuda_programmable_bootstrap_128(void *stream, uint32_t gpu_index,
                                              int8_t **buffer) {
-  auto *pbs_buf = (pbs_buffer_128<__uint128_t, PBS_TYPE::CLASSICAL> *)(*buffer);
+  auto *pbs_buf = (pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *)(*buffer);
   pbs_buf->release(static_cast<cudaStream_t>(stream), gpu_index);
   delete pbs_buf;
   *buffer = nullptr;
