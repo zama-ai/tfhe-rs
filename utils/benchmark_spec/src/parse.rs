@@ -124,7 +124,12 @@ mod tests {
             // Multi-segment type names: everything between the param and the
             // trailing `_elements` marker belongs to the type name.
             "tfhe::hlapi::kv_store::get::PARAM_MESSAGE_2_CARRY_2::key_FheUint32::value_FheUint64",
-            "tfhe::core_crypto::keyswitch::cuda::PARAM_MESSAGE_2_CARRY_2::64b::gemm::trivial_indices",
+            "tfhe::core_crypto::keyswitch::gemm::trivial_indices::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits",
+            "tfhe::core_crypto::keyswitch::PARAM_MESSAGE_2_CARRY_2::64_bits",
+            // Variants in the path: the longest-prefix split must stop right
+            // before the backend, not swallow it.
+            "tfhe::integer::zk::verify::v2::compute_load_proof::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits_packed::2048_bits_crs",
+            "tfhe::integer::zk::crs::v1::key_size::PARAM_MESSAGE_2_CARRY_2::2048_bits_crs",
             "tfhe::shortint::oprf::PARAM_MESSAGE_2_CARRY_2_KS_PBS",
             // Two stream ciphers sharing one flavour enum: the longest-prefix
             // split must not read `fast_kreyvium` as `kreyvium`.

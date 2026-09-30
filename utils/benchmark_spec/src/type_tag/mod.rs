@@ -5,7 +5,6 @@
 //!
 //! One module per shape, and this file for the enum that closes over them.
 
-mod cuda_keyswitch;
 mod fhe_type;
 mod precision;
 mod shuffle;
@@ -16,11 +15,10 @@ use std::str::FromStr;
 
 use crate::error::SpecParseError;
 
-pub use cuda_keyswitch::CudaKeyswitchConfig;
 pub use fhe_type::FheType;
 pub use precision::PrecisionTag;
 pub use shuffle::ShuffleConfig;
-pub use zk_pke::{ComputeLoad, ZkPkeConfig, ZkScheme};
+pub use zk_pke::ZkPkeConfig;
 
 /// Everything the type slot of a bench id can hold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -32,13 +30,11 @@ pub enum TypeTag {
         key: FheType,
         value: FheType,
     },
-    CudaKeyswitch(CudaKeyswitchConfig),
     /// `{v}_bits::key_{k}_bits`, for the shuffle benches.
     Shuffle(ShuffleConfig),
     /// `bound_{n}`, the excluded upper bound of an OPRF range.
     Bound(u64),
-    /// `{n}_bits_packed::{n}_bits_crs::compute_load_{load}::zk_{version}`, for
-    /// the proven compact list benches.
+    /// `{n}_bits_packed::{n}_bits_crs`, for the proven compact list benches.
     ZkPke(ZkPkeConfig),
 }
 
@@ -48,7 +44,6 @@ impl fmt::Display for TypeTag {
             Self::Precision(tag) => tag.fmt(f),
             Self::Type(ty) => ty.fmt(f),
             Self::KeyValue { key, value } => write!(f, "key_{key}::value_{value}"),
-            Self::CudaKeyswitch(config) => config.fmt(f),
             Self::Shuffle(config) => config.fmt(f),
             Self::Bound(n) => write!(f, "bound_{n}"),
             Self::ZkPke(config) => config.fmt(f),
@@ -59,7 +54,7 @@ impl fmt::Display for TypeTag {
 impl FromStr for TypeTag {
     type Err = SpecParseError;
 
-    /// The keyswitch config comes last: it is the fallback, so anything reaching
+    /// The FHE type comes last: it is the fallback, so anything reaching
     /// it and failing is an error rather than another shape.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(n) = s.strip_prefix("bound_") {
@@ -87,10 +82,7 @@ impl FromStr for TypeTag {
         if let Ok(tag) = s.parse::<PrecisionTag>() {
             return Ok(Self::Precision(tag));
         }
-        if let Ok(ty) = s.parse::<FheType>() {
-            return Ok(Self::Type(ty));
-        }
-        Ok(Self::CudaKeyswitch(s.parse()?))
+        Ok(Self::Type(s.parse()?))
     }
 }
 
@@ -103,12 +95,6 @@ impl From<PrecisionTag> for TypeTag {
 impl From<FheType> for TypeTag {
     fn from(ty: FheType) -> Self {
         Self::Type(ty)
-    }
-}
-
-impl From<CudaKeyswitchConfig> for TypeTag {
-    fn from(config: CudaKeyswitchConfig) -> Self {
-        Self::CudaKeyswitch(config)
     }
 }
 
@@ -145,9 +131,6 @@ mod tests {
                 key: FheType::Uint(32),
                 value: FheType::Uint(64),
             },
-            TypeTag::CudaKeyswitch(CudaKeyswitchConfig::new(32, None, None)),
-            TypeTag::CudaKeyswitch(CudaKeyswitchConfig::new(64, Some(true), Some(false))),
-            TypeTag::CudaKeyswitch(CudaKeyswitchConfig::new(64, Some(false), Some(true))),
             TypeTag::Shuffle(ShuffleConfig {
                 value_bits: 64,
                 key_bits: 16,
@@ -156,15 +139,10 @@ mod tests {
             TypeTag::ZkPke(ZkPkeConfig {
                 bits_packed: Some(2048),
                 crs_bits: 4096,
-                compute_load: Some(ComputeLoad::Verify),
-                scheme: ZkScheme::V2,
             }),
-            // The CRS carries neither the packed width nor the load.
             TypeTag::ZkPke(ZkPkeConfig {
                 bits_packed: None,
                 crs_bits: 64,
-                compute_load: None,
-                scheme: ZkScheme::V1,
             }),
         ];
 
