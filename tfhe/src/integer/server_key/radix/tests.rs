@@ -1,17 +1,12 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_add::smart_add_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_comparison::test_unchecked_minmax;
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_neg::smart_neg_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_slice::{
     default_scalar_bitslice_assign_test, default_scalar_bitslice_test,
-    scalar_blockslice_assign_test, scalar_blockslice_test, smart_scalar_bitslice_assign_test,
-    smart_scalar_bitslice_test, unchecked_scalar_bitslice_assign_test,
+    scalar_blockslice_assign_test, scalar_blockslice_test, unchecked_scalar_bitslice_assign_test,
     unchecked_scalar_bitslice_test,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::{
-    default_overflowing_sub_test, smart_sub_test,
-};
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::default_overflowing_sub_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::{
     create_parameterized_test, create_parameterized_test_classical_params,
@@ -26,17 +21,11 @@ use rand::Rng;
 /// Number of loop iteration within randomized tests
 #[cfg(not(tarpaulin))]
 pub(crate) const NB_TESTS: usize = 30;
-/// Smaller number of loop iteration within randomized test,
-/// meant for test where the function tested is more expensive
-#[cfg(not(tarpaulin))]
-const NB_TESTS_SMALLER: usize = 10;
 
 // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
 // instrumentation
 #[cfg(tarpaulin)]
 pub(crate) const NB_TESTS: usize = 1;
-#[cfg(tarpaulin)]
-const NB_TESTS_SMALLER: usize = 1;
 
 #[cfg(not(tarpaulin))]
 const NB_CTXT: usize = 4;
@@ -50,48 +39,21 @@ create_parameterized_test_classical_params!(integer_encrypt_decrypt_256_bits_spe
 create_parameterized_test_classical_params!(integer_encrypt_decrypt_256_bits);
 create_parameterized_test_classical_params!(integer_encrypt_auto_cast);
 create_parameterized_test_classical_params!(integer_unchecked_add);
-create_parameterized_test_classical_params!(integer_smart_add);
-create_parameterized_test!(
-    integer_smart_add_128_bits {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
-        },
-        no_coverage => {
-            // Skip the 1_1 params for the smart add 128 bits which proved to be the slowest test in our test
-            // suite
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-        }
-    }
-);
 create_parameterized_test_classical_params!(integer_unchecked_bitand);
 create_parameterized_test_classical_params!(integer_unchecked_bitor);
 create_parameterized_test_classical_params!(integer_unchecked_bitxor);
-create_parameterized_test_classical_params!(integer_smart_bitand);
-create_parameterized_test_classical_params!(integer_smart_bitor);
-create_parameterized_test_classical_params!(integer_smart_bitxor);
 create_parameterized_test_classical_params!(integer_unchecked_small_scalar_mul);
-create_parameterized_test_classical_params!(integer_smart_small_scalar_mul);
 create_parameterized_test_classical_params!(integer_blockshift);
 create_parameterized_test_classical_params!(integer_blockshift_right);
-create_parameterized_test_classical_params!(integer_smart_scalar_mul);
 create_parameterized_test_classical_params!(integer_unchecked_scalar_left_shift);
 create_parameterized_test_classical_params!(integer_unchecked_scalar_right_shift);
 create_parameterized_test_classical_params!(integer_unchecked_neg);
-create_parameterized_test_classical_params!(integer_smart_neg);
 create_parameterized_test_classical_params!(integer_unchecked_sub);
-create_parameterized_test_classical_params!(integer_smart_sub);
 #[cfg(not(tarpaulin))]
 create_parameterized_test_classical_params!(integer_default_overflowing_sub);
 create_parameterized_test_classical_params!(integer_unchecked_block_mul);
-create_parameterized_test_classical_params!(integer_smart_block_mul);
-create_parameterized_test_classical_params!(integer_smart_mul);
 create_parameterized_test_classical_params!(integer_unchecked_mul);
 
-create_parameterized_test_classical_params!(integer_smart_scalar_sub);
-create_parameterized_test_classical_params!(integer_smart_scalar_add);
 create_parameterized_test_classical_params!(integer_unchecked_scalar_sub);
 create_parameterized_test_classical_params!(integer_unchecked_scalar_add);
 
@@ -122,8 +84,6 @@ create_parameterized_test_classical_params!(integer_unchecked_scalar_slice);
 create_parameterized_test_classical_params!(integer_unchecked_scalar_slice_assign);
 create_parameterized_test_classical_params!(integer_default_scalar_slice);
 create_parameterized_test_classical_params!(integer_default_scalar_slice_assign);
-create_parameterized_test_classical_params!(integer_smart_scalar_slice);
-create_parameterized_test_classical_params!(integer_smart_scalar_slice_assign);
 create_parameterized_test!(integer_unchecked_min {
     coverage => {
         COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
@@ -311,49 +271,9 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
     assert_eq!(value as u16, d);
 }
 
-fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-    let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
-
-    for _ in 0..100 {
-        let clear_0 = rng.gen::<u128>();
-
-        let clear_1 = rng.gen::<u128>();
-
-        println!("{clear_0} {clear_1}");
-
-        let mut ctxt_0 = cks.encrypt_radix(clear_0, num_block);
-
-        let mut ctxt_1 = cks.encrypt_radix(clear_1, num_block);
-
-        // add the two ciphertexts
-        let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
-
-        let mut clear_result = clear_0.wrapping_add(clear_1);
-
-        // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
-        //add multiple times to raise the degree
-        for _ in 0..2 {
-            ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
-            clear_result = clear_result.wrapping_add(clear_0);
-
-            let dec_res: u128 = cks.decrypt_radix(&ct_res);
-            // println!("clear = {}, dec_res = {}", clear, dec_res);
-            assert_eq!(clear_result, dec_res);
-        }
-    }
-}
-
 fn integer_unchecked_add(param: ClassicPBSParameters) {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_add);
     unchecked_add_test(param, executor);
-}
-
-fn integer_smart_add(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_add);
-    smart_add_test(param, executor);
 }
 
 fn integer_unchecked_bitand<P>(param: P)
@@ -380,30 +300,6 @@ where
     unchecked_bitxor_test(param, executor);
 }
 
-fn integer_smart_bitand<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitand);
-    smart_bitand_test(param, executor);
-}
-
-fn integer_smart_bitor<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitor);
-    smart_bitor_test(param, executor);
-}
-
-fn integer_smart_bitxor<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitxor);
-    smart_bitxor_test(param, executor);
-}
-
 fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -427,39 +323,6 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
         let dec_res: u64 = cks.decrypt_radix(&ct_res);
 
         assert_eq!((clear * scalar) % modulus, dec_res);
-    }
-}
-
-fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
-
-    let scalar_modulus = param.message_modulus.0;
-
-    let mut clear_res;
-    for _ in 0..NB_TESTS_SMALLER {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let scalar = rng.gen::<u64>() % scalar_modulus;
-
-        let mut ct = cks.encrypt_radix(clear, NB_CTXT);
-
-        let mut ct_res = sks.smart_small_scalar_mul(&mut ct, scalar);
-
-        clear_res = clear * scalar;
-        for _ in 0..NB_TESTS_SMALLER {
-            // scalar multiplication
-            ct_res = sks.smart_small_scalar_mul(&mut ct_res, scalar);
-            clear_res *= scalar;
-        }
-
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        assert_eq!(clear_res % modulus, dec_res);
     }
 }
 
@@ -517,30 +380,6 @@ fn integer_blockshift_right(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
-
-    for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let scalar = rng.gen::<u64>() % modulus;
-
-        let mut ct = cks.encrypt_radix(clear, NB_CTXT);
-
-        // scalar mul
-        let ct_res = sks.smart_scalar_mul(&mut ct, scalar);
-
-        let dec_res: u64 = cks.decrypt_radix(&ct_res);
-
-        assert_eq!((clear * scalar) % modulus, dec_res);
-    }
-}
-
 fn integer_unchecked_scalar_left_shift<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -565,22 +404,12 @@ where
     unchecked_neg_test(param, executor);
 }
 
-fn integer_smart_neg(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_neg);
-    smart_neg_test(param, executor);
-}
-
 fn integer_unchecked_sub<P>(param: P)
 where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_sub);
     unchecked_sub_test(param, executor);
-}
-
-fn integer_smart_sub(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_sub);
-    smart_sub_test(param, executor);
 }
 
 fn integer_unchecked_block_mul<P>(param: P)
@@ -591,56 +420,12 @@ where
     unchecked_block_mul_test(param, executor);
 }
 
-fn integer_smart_block_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
-
-    let block_modulus = param.message_modulus.0;
-
-    for _ in 0..5 {
-        // Define the cleartexts
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % block_modulus;
-
-        // Encrypt the integers
-        let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
-        let mut ctxt_2 = cks.encrypt_one_block(clear2);
-
-        let mut res = ctxt_1.clone();
-        let mut clear = clear1;
-
-        res = sks.smart_block_mul(&mut res, &mut ctxt_2, 0);
-        for _ in 0..5 {
-            res = sks.smart_block_mul(&mut res, &mut ctxt_2, 0);
-            clear = (clear * clear2) % modulus;
-        }
-        let dec: u64 = cks.decrypt_radix(&res);
-
-        clear = (clear * clear2) % modulus;
-
-        // Check the correctness
-        assert_eq!(clear, dec);
-    }
-}
-
 fn integer_unchecked_mul<P>(param: P)
 where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul);
     unchecked_mul_test(param, executor);
-}
-
-fn integer_smart_mul<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_mul);
-    smart_mul_test(param, executor);
 }
 
 fn integer_unchecked_scalar_add<P>(param: P)
@@ -651,28 +436,12 @@ where
     unchecked_scalar_add_test(param, executor);
 }
 
-fn integer_smart_scalar_add<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_add);
-    smart_scalar_add_test(param, executor);
-}
-
 fn integer_unchecked_scalar_sub<P>(param: P)
 where
     P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_sub);
     unchecked_scalar_sub_test(param, executor);
-}
-
-fn integer_smart_scalar_sub<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_sub);
-    smart_scalar_sub_test(param, executor);
 }
 
 fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) {
@@ -708,32 +477,6 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     let dec_res = cks.decrypt_radix(&ct_res);
 
     assert_eq!(clear_0.wrapping_sub(scalar as u128), dec_res);
-}
-
-#[test]
-#[cfg(not(tarpaulin))]
-fn integer_smart_scalar_mul_decomposition_overflow() {
-    // This is a regression test. The purpose here is to check if the number of decomposition
-    // blocks doesn't exceed 64 bits. This is why we test only 128 bits size.
-    // Since smart_scalar_mul is a slow operation, we test against only one parameters set.
-    // If overflow occurs the test case will panic.
-
-    let mut rng = rand::thread_rng();
-
-    let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-
-    let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
-
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-    let scalar = rng.gen::<u64>();
-    let clear_0 = rng.gen::<u128>();
-    let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
-
-    let ct_res = sks.smart_scalar_mul(&mut ct_0, scalar);
-    let dec_res = cks.decrypt_radix(&ct_res);
-
-    assert_eq!(clear_0.wrapping_mul(scalar as u128), dec_res);
 }
 
 fn integer_default_overflowing_sub<P>(param: P)
@@ -856,16 +599,6 @@ fn integer_default_scalar_slice(param: ClassicPBSParameters) {
 fn integer_default_scalar_slice_assign(param: ClassicPBSParameters) {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice_assign);
     default_scalar_bitslice_assign_test(param, executor);
-}
-
-fn integer_smart_scalar_slice(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice);
-    smart_scalar_bitslice_test(param, executor);
-}
-
-fn integer_smart_scalar_slice_assign(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_assign);
-    smart_scalar_bitslice_assign_test(param, executor);
 }
 
 fn integer_unchecked_min(param: ClassicPBSParameters) {

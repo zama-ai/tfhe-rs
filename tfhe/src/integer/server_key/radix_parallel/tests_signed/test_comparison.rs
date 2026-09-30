@@ -94,96 +94,6 @@ pub(crate) fn test_signed_unchecked_function<P, T, ClearF, Scalar>(
     }
 }
 
-/// Function to test a "smart" server_key function for signed inputs
-///
-/// This calls the `smart_server_key_method` with non-fresh ciphertexts,
-/// that is ciphertexts that have non-zero carries, and compares that the result is
-/// the same as the one of`clear_fn`.
-pub(crate) fn test_signed_smart_function<P, T, ClearF, Scalar>(
-    param: P,
-    num_test: usize,
-    mut executor: T,
-    clear_fn: ClearF,
-) where
-    P: Into<TestParameters>,
-    Scalar: SignedNumeric
-        + RecomposableSignedInteger
-        + DecomposableInto<u64>
-        + WrappingAdd
-        + From<bool>,
-    T: for<'a> FunctionExecutor<
-        (&'a mut SignedRadixCiphertext, &'a mut SignedRadixCiphertext),
-        BooleanBlock,
-    >,
-    ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
-    assert_eq!(
-        Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
-        0,
-        "bit width must be a multiple of number of bit in a block"
-    );
-    let cks = RadixClientKey::from((cks, num_block));
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks.clone());
-
-    for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
-        let mut ct_0 = cks.encrypt_signed(clear_0);
-        let mut ct_1 = cks.encrypt_signed(clear_1);
-
-        // Raise the degree, so as to ensure worst case path in operations
-        while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
-            let ct_2 = cks.encrypt_signed(clear_2);
-            sks.unchecked_add_assign(&mut ct_0, &ct_2);
-            clear_0 = clear_0.wrapping_add(&clear_2);
-        }
-
-        while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
-            let ct_2 = cks.encrypt_signed(clear_2);
-            sks.unchecked_add_assign(&mut ct_1, &ct_2);
-            clear_1 = clear_1.wrapping_add(&clear_2);
-        }
-
-        // Sanity decryption checks
-        {
-            let a: Scalar = cks.decrypt_signed(&ct_0);
-            assert_eq!(a, clear_0);
-
-            let b: Scalar = cks.decrypt_signed(&ct_1);
-            assert_eq!(b, clear_1);
-        }
-
-        assert!(!ct_0.block_carries_are_empty());
-        assert!(!ct_1.block_carries_are_empty());
-        let encrypted_result = executor.execute((&mut ct_0, &mut ct_1));
-        assert!(ct_0.block_carries_are_empty());
-        assert!(ct_1.block_carries_are_empty());
-
-        // Sanity decryption checks
-        {
-            let a: Scalar = cks.decrypt_signed(&ct_0);
-            assert_eq!(a, clear_0);
-
-            let b: Scalar = cks.decrypt_signed(&ct_1);
-            assert_eq!(b, clear_1);
-        }
-
-        let decrypted_result: Scalar = cks.decrypt_bool(&encrypted_result).into();
-
-        let expected_result = clear_fn(clear_0, clear_1);
-        assert_eq!(decrypted_result, expected_result);
-    }
-}
-
 /// Function to test a "default" server_key function for signed inputs.
 ///
 /// This calls the `server_key_method` with non-fresh ciphertexts,
@@ -274,15 +184,13 @@ pub(crate) fn test_signed_default_function<P, T, ClearF, Scalar>(
 
 /// This macro generates the tests for a given comparison fn
 ///
-/// All our comparison function have 5 variants:
+/// All our comparison function have 3 variants:
 /// - unchecked_$comparison_name
 /// - unchecked_$comparison_name_parallelized
-/// - smart_$comparison_name
-/// - smart_$comparison_name_parallelized
 /// - $comparison_name_parallelized
 ///
 /// So, for example, for the `gt` comparison fn, this macro will generate the tests for
-/// the 5 variants described above
+/// the 3 variants described above
 macro_rules! define_signed_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
@@ -303,28 +211,6 @@ macro_rules! define_signed_comparison_test_functions {
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<unchecked_ $comparison_name _parallelized>]);
                 test_signed_unchecked_function(
-                    param,
-                    num_tests,
-                    executor,
-                    |lhs, rhs| $clear_type::from(<$clear_type>::$comparison_name(&lhs, &rhs) as $clear_type),
-                )
-            }
-
-            fn [<integer_signed_smart_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<TestParameters> {
-                let num_tests = 1;
-                let executor = CpuFunctionExecutor::new(&ServerKey::[<smart_ $comparison_name>]);
-                test_signed_smart_function(
-                    param,
-                    num_tests,
-                    executor,
-                    |lhs, rhs| $clear_type::from(<$clear_type>::$comparison_name(&lhs, &rhs) as $clear_type),
-                )
-            }
-
-            fn [<integer_signed_smart_ $comparison_name _parallelized_ $clear_type>]<P>(param: P) where P: Into<TestParameters> {
-                let num_tests = 1;
-                let executor = CpuFunctionExecutor::new(&ServerKey::[<smart_ $comparison_name _parallelized>]);
-                test_signed_smart_function(
                     param,
                     num_tests,
                     executor,
@@ -367,38 +253,6 @@ macro_rules! define_signed_comparison_test_functions {
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 
                 TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-
-                // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-                TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-                #[cfg(tarpaulin)]
-                COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
-            });
-
-            create_parameterized_test!([<integer_signed_smart_ $comparison_name _ $clear_type>]
-            {
-                // Non parallelized does not support PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                // as smart test might overflow values
-                // and when using 3_3 to represent 256 we actually have more than 256 bits
-                // of message so the overflow behaviour is not the same, leading to false negatives
-
-                // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-                TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-                #[cfg(tarpaulin)]
-                COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
-            });
-
-            create_parameterized_test!([<integer_signed_smart_ $comparison_name _parallelized_ $clear_type>]
-            {
-                TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                // as smart test might overflow values
-                // and when using 3_3 to represent 256 we actually have more than 256 bits
-                // of message so the overflow behaviour is not the same, leading to false negatives
 
                 // 2M128 is too slow for 4_4, it is estimated to be 2x slower
                 TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
@@ -500,96 +354,6 @@ pub(crate) fn test_signed_unchecked_minmax<P, T, ClearF, Scalar>(
             let expected_result = clear_fn(clear_a, clear_a);
             assert_eq!(decrypted, expected_result);
         }
-    }
-}
-
-/// Function to test a "smart" server_key function for signed inputs
-///
-/// This calls the `smart_server_key_method` with non-fresh ciphertexts,
-/// that is ciphertexts that have non-zero carries, and compares that the result is
-/// the same as the one of`clear_fn`.
-pub(crate) fn test_signed_smart_minmax<P, T, ClearF, Scalar>(
-    param: P,
-    num_test: usize,
-    mut executor: T,
-    clear_fn: ClearF,
-) where
-    P: Into<TestParameters>,
-    Scalar: SignedNumeric
-        + RecomposableSignedInteger
-        + DecomposableInto<u64>
-        + WrappingAdd
-        + From<bool>,
-    T: for<'a> FunctionExecutor<
-        (&'a mut SignedRadixCiphertext, &'a mut SignedRadixCiphertext),
-        SignedRadixCiphertext,
-    >,
-    ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
-{
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
-    assert_eq!(
-        Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
-        0,
-        "bit width must be a multiple of number of bit in a block"
-    );
-    let cks = RadixClientKey::from((cks, num_block));
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks.clone());
-
-    for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
-        let mut ct_0 = cks.encrypt_signed(clear_0);
-        let mut ct_1 = cks.encrypt_signed(clear_1);
-
-        // Raise the degree, so as to ensure worst case path in operations
-        while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
-            let ct_2 = cks.encrypt_signed(clear_2);
-            sks.unchecked_add_assign(&mut ct_0, &ct_2);
-            clear_0 = clear_0.wrapping_add(&clear_2);
-        }
-
-        while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
-            let ct_2 = cks.encrypt_signed(clear_2);
-            sks.unchecked_add_assign(&mut ct_1, &ct_2);
-            clear_1 = clear_1.wrapping_add(&clear_2);
-        }
-
-        // Sanity decryption checks
-        {
-            let a: Scalar = cks.decrypt_signed(&ct_0);
-            assert_eq!(a, clear_0);
-
-            let b: Scalar = cks.decrypt_signed(&ct_1);
-            assert_eq!(b, clear_1);
-        }
-
-        assert!(!ct_0.block_carries_are_empty());
-        assert!(!ct_1.block_carries_are_empty());
-        let encrypted_result = executor.execute((&mut ct_0, &mut ct_1));
-        assert!(ct_0.block_carries_are_empty());
-        assert!(ct_1.block_carries_are_empty());
-
-        // Sanity decryption checks
-        {
-            let a: Scalar = cks.decrypt_signed(&ct_0);
-            assert_eq!(a, clear_0);
-
-            let b: Scalar = cks.decrypt_signed(&ct_1);
-            assert_eq!(b, clear_1);
-        }
-
-        let decrypted_result: Scalar = cks.decrypt_signed(&encrypted_result);
-
-        let expected_result = clear_fn(clear_0, clear_1);
-        assert_eq!(decrypted_result, expected_result);
     }
 }
 
@@ -696,16 +460,6 @@ mod no_coverage {
         test_signed_unchecked_minmax(params, 2, executor, std::cmp::max::<i128>)
     }
 
-    fn integer_signed_smart_min_parallelized_128_bits(params: impl Into<TestParameters>) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::smart_min_parallelized);
-        test_signed_smart_minmax(params, 2, executor, std::cmp::min::<i128>);
-    }
-
-    fn integer_signed_smart_max_parallelized_128_bits(params: impl Into<TestParameters>) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::smart_max_parallelized);
-        test_signed_smart_minmax(params, 2, executor, std::cmp::max::<i128>);
-    }
-
     fn integer_signed_min_parallelized_128_bits(params: impl Into<TestParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
         test_signed_default_minmax(params, 2, executor, std::cmp::min::<i128>);
@@ -718,26 +472,6 @@ mod no_coverage {
 
     create_parameterized_test!(integer_signed_unchecked_max_parallelized_128_bits);
     create_parameterized_test!(integer_signed_unchecked_min_parallelized_128_bits);
-    create_parameterized_test!(integer_signed_smart_max_parallelized_128_bits {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        // as default test might overflow values
-        // and when using 3_3 to represent 256 we actually have more than 256 bits
-        // of message so the overflow behaviour is not the same, leading to false negatives
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-    create_parameterized_test!(integer_signed_smart_min_parallelized_128_bits {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        // as default test might overflow values
-        // and when using 3_3 to represent 256 we actually have more than 256 bits
-        // of message so the overflow behaviour is not the same, leading to false negatives
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
     create_parameterized_test!(integer_signed_max_parallelized_128_bits {
         TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -787,16 +521,6 @@ mod coverage {
         test_signed_unchecked_minmax(params, 1, executor, std::cmp::max::<i8>)
     }
 
-    fn integer_signed_smart_min_parallelized_8_bits(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::smart_min_parallelized);
-        test_signed_smart_minmax(params, 1, executor, std::cmp::min::<i8>)
-    }
-
-    fn integer_signed_smart_max_parallelized_8_bits(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::smart_max_parallelized);
-        test_signed_smart_minmax(params, 1, executor, std::cmp::max::<i8>)
-    }
-
     fn integer_signed_min_parallelized_8_bits(params: crate::shortint::ClassicPBSParameters) {
         let executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
         test_signed_default_minmax(params, 1, executor, std::cmp::min::<i8>)
@@ -809,8 +533,6 @@ mod coverage {
 
     create_parameterized_test_classical_params!(integer_signed_unchecked_max_parallelized_8_bits);
     create_parameterized_test_classical_params!(integer_signed_unchecked_min_parallelized_8_bits);
-    create_parameterized_test_classical_params!(integer_signed_smart_max_parallelized_8_bits);
-    create_parameterized_test_classical_params!(integer_signed_smart_min_parallelized_8_bits);
     create_parameterized_test_classical_params!(integer_signed_max_parallelized_8_bits);
     create_parameterized_test_classical_params!(integer_signed_min_parallelized_8_bits);
 

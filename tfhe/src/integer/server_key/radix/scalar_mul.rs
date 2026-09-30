@@ -1,9 +1,7 @@
 use crate::core_crypto::prelude::{Numeric, SignedInteger};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
-use std::collections::BTreeMap;
 
 pub trait ScalarMultiplier: Numeric {
     fn is_power_of_two(self) -> bool;
@@ -154,89 +152,6 @@ impl ServerKey {
         Ok(())
     }
 
-    /// Computes homomorphically a multiplication between a scalar and a ciphertext.
-    ///
-    /// `small` means the scalar value shall fit in a __shortint block__.
-    /// For example, if the parameters are PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    /// the scalar should fit in 2 bits.
-    ///
-    /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let modulus = 1 << 8;
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg = 13;
-    /// let scalar = 2;
-    ///
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.smart_small_scalar_mul(&mut ct, scalar);
-    ///
-    /// // Decrypt:
-    /// let clear: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg * scalar % modulus, clear);
-    /// ```
-    pub fn smart_small_scalar_mul(
-        &self,
-        ctxt: &mut RadixCiphertext,
-        scalar: u64,
-    ) -> RadixCiphertext {
-        if self.is_small_scalar_mul_possible(ctxt, scalar).is_err() {
-            self.full_propagate(ctxt);
-        }
-        self.is_small_scalar_mul_possible(ctxt, scalar).unwrap();
-        self.unchecked_small_scalar_mul(ctxt, scalar)
-    }
-
-    /// Computes homomorphically a multiplication between a scalar and a ciphertext.
-    ///
-    /// `small` means the scalar shall value fit in a __shortint block__.
-    /// For example, if the parameters are PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    /// the scalar should fit in 2 bits.
-    ///
-    /// The result is assigned to the input ciphertext
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let modulus = 1 << 8;
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg = 9;
-    /// let scalar = 3;
-    ///
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// sks.smart_small_scalar_mul_assign(&mut ct, scalar);
-    ///
-    /// // Decrypt:
-    /// let clear: u64 = cks.decrypt(&ct);
-    /// assert_eq!(msg * scalar % modulus, clear);
-    /// ```
-    pub fn smart_small_scalar_mul_assign(&self, ctxt: &mut RadixCiphertext, scalar: u64) {
-        if self.is_small_scalar_mul_possible(ctxt, scalar).is_err() {
-            self.full_propagate(ctxt);
-        }
-        self.is_small_scalar_mul_possible(ctxt, scalar).unwrap();
-
-        self.unchecked_small_scalar_mul_assign(ctxt, scalar);
-    }
-
     /// # Example
     ///
     /// ```rust
@@ -269,89 +184,5 @@ impl ServerKey {
             self.key.create_trivial_assign(block, 0);
         }
         result
-    }
-
-    /// Computes homomorphically a multiplication between a scalar and a ciphertext.
-    ///
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let modulus = 1 << 8;
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg = 230;
-    /// let scalar = 376;
-    ///
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.smart_scalar_mul(&mut ct, scalar);
-    ///
-    /// // Decrypt:
-    /// let clear: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg * scalar % modulus, clear);
-    /// ```
-    pub fn smart_scalar_mul<T>(&self, ctxt: &mut RadixCiphertext, scalar: T) -> RadixCiphertext
-    where
-        T: ScalarMultiplier + DecomposableInto<u8>,
-    {
-        if scalar == T::ZERO {
-            return self.create_trivial_zero_radix(ctxt.blocks.len());
-        }
-
-        if scalar == T::ONE {
-            return ctxt.clone();
-        }
-
-        //Propagate the carries before doing the multiplications
-        self.full_propagate(ctxt);
-
-        //Store the computations
-        let mut map: BTreeMap<u64, RadixCiphertext> = BTreeMap::new();
-
-        let mut result = self.create_trivial_zero_radix(ctxt.blocks.len());
-
-        let mut tmp;
-
-        let decomposer =
-            BlockDecomposer::with_early_stop_at_zero(scalar, self.key.message_modulus.0.ilog2())
-                .iter_as::<u8>()
-                .take(ctxt.blocks.len());
-        for (i, scalar_block) in decomposer.enumerate() {
-            if scalar_block == 0 {
-                continue;
-            }
-
-            if scalar_block == 1 {
-                // tmp = ctxt * 1 * b^i
-                tmp = self.blockshift(ctxt, i);
-            } else {
-                tmp = map
-                    .entry(scalar_block as u64)
-                    .or_insert_with(|| self.smart_small_scalar_mul(ctxt, scalar_block as u64))
-                    .clone();
-
-                //tmp = ctxt* u_i * b^i
-                tmp = self.blockshift(&tmp, i);
-            }
-
-            //update the result
-            self.smart_add_assign(&mut result, &mut tmp);
-        }
-
-        result
-    }
-
-    pub fn smart_scalar_mul_assign<T>(&self, ctxt: &mut RadixCiphertext, scalar: T)
-    where
-        T: ScalarMultiplier + DecomposableInto<u8>,
-    {
-        *ctxt = self.smart_scalar_mul(ctxt, scalar);
     }
 }

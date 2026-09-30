@@ -846,25 +846,6 @@ impl ServerKey {
         self.unchecked_div_rem_parallelized(numerator, divisor)
     }
 
-    pub fn smart_div_rem_parallelized<T>(&self, numerator: &mut T, divisor: &mut T) -> (T, T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !numerator.block_carries_are_empty() {
-                    self.full_propagate_parallelized(numerator);
-                }
-            },
-            || {
-                if !divisor.block_carries_are_empty() {
-                    self.full_propagate_parallelized(divisor);
-                }
-            },
-        );
-        self.unchecked_div_rem_parallelized(numerator, divisor)
-    }
-
     //======================================================================
     //                Div
     //======================================================================
@@ -882,22 +863,6 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let (q, _r) = self.unchecked_div_rem_parallelized(numerator, divisor);
-        q
-    }
-
-    pub fn smart_div_assign_parallelized<T>(&self, numerator: &mut T, divisor: &mut T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let (q, _r) = self.smart_div_rem_parallelized(numerator, divisor);
-        *numerator = q;
-    }
-
-    pub fn smart_div_parallelized<T>(&self, numerator: &mut T, divisor: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let (q, _r) = self.smart_div_rem_parallelized(numerator, divisor);
         q
     }
 
@@ -989,22 +954,6 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let (_q, r) = self.unchecked_div_rem_parallelized(numerator, divisor);
-        r
-    }
-
-    pub fn smart_rem_assign_parallelized<T>(&self, numerator: &mut T, divisor: &mut T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let (_q, r) = self.smart_div_rem_parallelized(numerator, divisor);
-        *numerator = r;
-    }
-
-    pub fn smart_rem_parallelized<T>(&self, numerator: &mut T, divisor: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let (_q, r) = self.smart_div_rem_parallelized(numerator, divisor);
         r
     }
 

@@ -42,7 +42,6 @@ create_parameterized_test!(
         }
     }
 );
-create_parameterized_test!(integer_signed_smart_add);
 create_parameterized_test!(integer_signed_default_add);
 create_parameterized_test!(integer_extensive_trivial_signed_default_add);
 create_parameterized_test!(integer_signed_default_overflowing_add);
@@ -170,14 +169,6 @@ fn integer_extensive_trivial_signed_overflowing_advanced_add_assign_with_carry_a
     };
     let executor = CpuFunctionExecutor::new(&func);
     extensive_trivial_signed_default_overflowing_add_test(param, executor);
-}
-
-fn integer_signed_smart_add<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_add_parallelized);
-    signed_smart_add_test(param, executor);
 }
 
 pub(crate) fn signed_unchecked_overflowing_add_test<P, T>(param: P, mut executor: T)
@@ -639,53 +630,6 @@ where
                 "Invalid result for {clear_0} + {clear_1}, expected: {expected_clear}, got: {dec_res}\n\
                     num_blocks={num_blocks}, modulus={modulus}"
             );
-        }
-    }
-}
-
-pub(crate) fn signed_smart_add_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a mut SignedRadixCiphertext, &'a mut SignedRadixCiphertext),
-        SignedRadixCiphertext,
-    >,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    executor.setup(&cks, sks);
-
-    let mut clear;
-
-    for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen_range(-modulus..modulus);
-        let clear_1 = rng.gen_range(-modulus..modulus);
-
-        let mut ctxt_0 = cks.encrypt_signed(clear_0);
-        let mut ctxt_1 = cks.encrypt_signed(clear_1);
-
-        let mut ct_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
-        clear = signed_add_under_modulus(clear_0, clear_1, modulus);
-        let dec_res: i64 = cks.decrypt_signed(&ct_res);
-        assert_eq!(clear, dec_res);
-
-        // add multiple times to raise the degree
-        for _ in 0..nb_tests_smaller {
-            ct_res = executor.execute((&mut ct_res, &mut ctxt_0));
-            clear = signed_add_under_modulus(clear, clear_0, modulus);
-
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-
-            // println!("clear = {}, dec_res = {}", clear, dec_res);
-            assert_eq!(clear, dec_res);
         }
     }
 }

@@ -23,8 +23,6 @@ create_parameterized_test!(integer_unchecked_scalar_slice);
 create_parameterized_test!(integer_unchecked_scalar_slice_assign);
 create_parameterized_test!(integer_default_scalar_slice);
 create_parameterized_test!(integer_default_scalar_slice_assign);
-create_parameterized_test!(integer_smart_scalar_slice);
-create_parameterized_test!(integer_smart_scalar_slice_assign);
 
 // Reference implementation of the slice
 fn slice_reference_impl<B, R>(value: u64, range: R, modulus: u64) -> u64
@@ -323,106 +321,6 @@ where
     }
 }
 
-pub(crate) fn smart_scalar_bitslice_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a mut RadixCiphertext, Range<u32>),
-        Result<RadixCiphertext, InvalidRangeError>,
-    >,
-{
-    let param = param.into();
-    let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
-
-    executor.setup(&cks, sks.clone());
-
-    for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let range_a = rng.gen::<u32>() % modulus.ilog2();
-        let range_b = rng.gen::<u32>() % modulus.ilog2();
-
-        let (range_start, range_end) = if range_a < range_b {
-            (range_a, range_b)
-        } else {
-            (range_b, range_a)
-        };
-
-        let mut ct = cks.encrypt(clear);
-
-        let offset = random_non_zero_value(&mut rng, modulus);
-
-        sks.unchecked_scalar_add_assign(&mut ct, offset);
-
-        let (clear, _) = overflowing_add_under_modulus(clear, offset, modulus);
-
-        let ct_res = executor.execute((&mut ct, range_start..range_end)).unwrap();
-        let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(
-            slice_reference_impl(clear, range_start..range_end, modulus),
-            dec_res,
-        );
-    }
-}
-
-pub(crate) fn smart_scalar_bitslice_assign_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a mut RadixCiphertext, Range<u32>),
-        Result<(), InvalidRangeError>,
-    >,
-{
-    let param = param.into();
-    let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
-
-    executor.setup(&cks, sks.clone());
-
-    for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
-
-        let range_a = rng.gen::<u32>() % modulus.ilog2();
-        let range_b = rng.gen::<u32>() % modulus.ilog2();
-
-        let (range_start, range_end) = if range_a < range_b {
-            (range_a, range_b)
-        } else {
-            (range_b, range_a)
-        };
-
-        let mut ct = cks.encrypt(clear);
-
-        let offset = random_non_zero_value(&mut rng, modulus);
-
-        sks.unchecked_scalar_add_assign(&mut ct, offset);
-
-        let (clear, _) = overflowing_add_under_modulus(clear, offset, modulus);
-
-        executor.execute((&mut ct, range_start..range_end)).unwrap();
-        let dec_res: u64 = cks.decrypt(&ct);
-        assert_eq!(
-            slice_reference_impl(clear, range_start..range_end, modulus),
-            dec_res,
-        );
-    }
-}
-
 fn integer_unchecked_scalar_slice<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -454,20 +352,4 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice_assign_parallelized);
     default_scalar_bitslice_assign_test(param, executor);
-}
-
-fn integer_smart_scalar_slice<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_parallelized);
-    smart_scalar_bitslice_test(param, executor);
-}
-
-fn integer_smart_scalar_slice_assign<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_assign_parallelized);
-    smart_scalar_bitslice_assign_test(param, executor);
 }

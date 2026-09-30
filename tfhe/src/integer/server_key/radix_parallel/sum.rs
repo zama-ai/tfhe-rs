@@ -199,25 +199,6 @@ impl ServerKey {
         self.unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
     }
 
-    /// Computes the sum of the ciphertexts in parallel.
-    ///
-    /// - Returns None if ciphertexts is empty
-    ///
-    /// See [Self::unchecked_sum_ciphertexts_parallelized] for constraints
-    pub fn smart_sum_ciphertexts_parallelized<T, C>(&self, mut ciphertexts: C) -> Option<T>
-    where
-        C: AsMut<[T]> + AsRef<[T]>,
-        T: IntegerRadixCiphertext,
-    {
-        ciphertexts.as_mut().par_iter_mut().for_each(|ct| {
-            if !ct.block_carries_are_empty() {
-                self.full_propagate_parallelized(ct);
-            }
-        });
-
-        self.unchecked_sum_ciphertexts_parallelized(ciphertexts.as_ref())
-    }
-
     /// - Expects all ciphertexts to have empty carries
     /// - Expects all ciphertexts to have the same size
     pub fn unchecked_unsigned_overflowing_sum_ciphertexts_vec_parallelized(
@@ -339,28 +320,5 @@ impl ServerKey {
             });
 
         self.unchecked_unsigned_overflowing_sum_ciphertexts_vec_parallelized(ciphertexts)
-    }
-
-    /// Computes the sum of the unsigned ciphertexts in parallel.
-    /// Returns a boolean indicating if the sum overflowed, that is,
-    /// the result did not fit in a ciphertext.
-    ///
-    /// - Returns None if ciphertexts is empty
-    ///
-    /// See [Self::unchecked_sum_ciphertexts_parallelized] for constraints
-    pub fn smart_unsigned_overflowing_sum_ciphertexts_parallelized<C>(
-        &self,
-        mut ciphertexts: C,
-    ) -> Option<(RadixCiphertext, BooleanBlock)>
-    where
-        C: AsMut<[RadixCiphertext]> + AsRef<[RadixCiphertext]>,
-    {
-        ciphertexts.as_mut().par_iter_mut().for_each(|ct| {
-            if !ct.block_carries_are_empty() {
-                self.full_propagate_parallelized(ct);
-            }
-        });
-
-        self.unchecked_unsigned_overflowing_sum_ciphertexts_parallelized(ciphertexts.as_ref())
     }
 }

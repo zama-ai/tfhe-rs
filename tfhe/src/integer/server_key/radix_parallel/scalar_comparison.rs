@@ -615,17 +615,6 @@ impl ServerKey {
         BooleanBlock::new_unchecked(is_equal_result)
     }
 
-    pub fn smart_scalar_eq_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-        self.unchecked_scalar_eq_parallelized(lhs, rhs)
-    }
-
     pub fn scalar_eq_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
@@ -640,17 +629,6 @@ impl ServerKey {
             &tmp_lhs
         };
         self.unchecked_scalar_eq_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_scalar_ne_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-        self.unchecked_scalar_ne_parallelized(lhs, rhs)
     }
 
     pub fn scalar_ne_parallelized<T, Scalar>(&self, lhs: &T, rhs: Scalar) -> BooleanBlock
@@ -1158,82 +1136,6 @@ impl ServerKey {
             .collect::<Vec<_>>();
 
         T::from(new_blocks)
-    }
-
-    //===========================================================
-    // Smart <, >, <=, >=, min, max
-    //===========================================================
-
-    pub fn smart_scalar_gt_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        self.unchecked_scalar_gt_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_scalar_ge_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        self.unchecked_scalar_ge_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_scalar_lt_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        self.unchecked_scalar_lt_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_scalar_le_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        self.unchecked_scalar_le_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_scalar_max_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        self.unchecked_scalar_max_parallelized(lhs, rhs)
-    }
-
-    pub fn smart_scalar_min_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u64>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        self.unchecked_scalar_min_parallelized(lhs, rhs)
     }
 
     //===========================================================

@@ -1,6 +1,6 @@
 use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto, PaddingBitValue};
-use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
 
@@ -158,57 +158,5 @@ impl ServerKey {
                 self.key
                     .is_scalar_add_possible(ciphertext_block.noise_degree(), scalar_block)
             })
-    }
-
-    /// Computes homomorphically a subtraction of a ciphertext by a scalar.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
-    ///
-    /// let msg = 165;
-    /// let scalar = 112;
-    ///
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let ct_res = sks.smart_scalar_sub(&mut ct, scalar);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg - scalar, dec);
-    /// ```
-    pub fn smart_scalar_sub<T, Scalar>(&self, ct: &mut T, scalar: Scalar) -> T
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
-    {
-        if self.is_scalar_sub_possible(ct, scalar).is_err() {
-            self.full_propagate(ct);
-        }
-
-        self.is_scalar_sub_possible(ct, scalar).unwrap();
-
-        self.unchecked_scalar_sub(ct, scalar)
-    }
-
-    pub fn smart_scalar_sub_assign<T, Scalar>(&self, ct: &mut RadixCiphertext, scalar: Scalar)
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
-    {
-        if self.is_scalar_sub_possible(ct, scalar).is_err() {
-            self.full_propagate(ct);
-        }
-
-        self.is_scalar_sub_possible(ct, scalar).unwrap();
-
-        self.unchecked_scalar_sub_assign(ct, scalar);
     }
 }

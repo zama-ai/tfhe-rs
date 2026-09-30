@@ -45,44 +45,6 @@ impl ServerKey {
         self.unchecked_shift_rotate_bits_assign(ct, shift, BarrelShifterOperation::RightShift);
     }
 
-    pub fn smart_right_shift_assign_parallelized<T>(&self, ct: &mut T, shift: &mut RadixCiphertext)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(ct);
-                }
-            },
-            || {
-                if !shift.block_carries_are_empty() {
-                    self.full_propagate_parallelized(shift);
-                }
-            },
-        );
-        self.unchecked_right_shift_assign_parallelized(ct, shift);
-    }
-
-    pub fn smart_right_shift_parallelized<T>(&self, ct: &mut T, shift: &mut RadixCiphertext) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(ct);
-                }
-            },
-            || {
-                if !shift.block_carries_are_empty() {
-                    self.full_propagate_parallelized(shift);
-                }
-            },
-        );
-        self.unchecked_right_shift_parallelized(ct, shift)
-    }
-
     /// Computes homomorphically a right shift by an encrypted amount, in place.
     ///
     /// # Overshift
@@ -204,44 +166,6 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         self.unchecked_shift_rotate_bits_assign(ct, shift, BarrelShifterOperation::LeftShift);
-    }
-
-    pub fn smart_left_shift_assign_parallelized<T>(&self, ct: &mut T, shift: &mut RadixCiphertext)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(ct);
-                }
-            },
-            || {
-                if !shift.block_carries_are_empty() {
-                    self.full_propagate_parallelized(shift);
-                }
-            },
-        );
-        self.unchecked_left_shift_assign_parallelized(ct, shift);
-    }
-
-    pub fn smart_left_shift_parallelized<T>(&self, ct: &mut T, shift: &mut RadixCiphertext) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        rayon::join(
-            || {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(ct);
-                }
-            },
-            || {
-                if !shift.block_carries_are_empty() {
-                    self.full_propagate_parallelized(shift);
-                }
-            },
-        );
-        self.unchecked_left_shift_parallelized(ct, shift)
     }
 
     /// Computes homomorphically a left shift by an encrypted amount, in place.

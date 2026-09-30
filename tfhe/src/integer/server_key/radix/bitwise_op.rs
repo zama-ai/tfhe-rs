@@ -136,22 +136,6 @@ impl ServerKey {
         self.unchecked_bitand(ct_left, ct_right)
     }
 
-    pub fn smart_bitand_assign<T>(&self, ct_left: &mut T, ct_right: &mut T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.full_propagate(ct_left);
-            self.full_propagate(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_bitand_assign(ct_left, ct_right);
-    }
-
     /// Computes homomorphically bitor between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
@@ -246,23 +230,6 @@ impl ServerKey {
         self.unchecked_bitor(ct_left, ct_right)
     }
 
-    pub fn smart_bitor_assign<T>(&self, ct_left: &mut T, ct_right: &mut T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.full_propagate(ct_left);
-            self.full_propagate(ct_right);
-        }
-
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_bitor_assign(ct_left, ct_right);
-    }
-
     /// Computes homomorphically bitxor between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
@@ -354,22 +321,6 @@ impl ServerKey {
         self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
             .unwrap();
         self.unchecked_bitxor(ct_left, ct_right)
-    }
-
-    pub fn smart_bitxor_assign<T>(&self, ct_left: &mut T, ct_right: &mut T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.full_propagate(ct_left);
-            self.full_propagate(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_bitxor_assign(ct_left, ct_right);
     }
 
     /// Computes homomorphically a bitand between two boolean ciphertexts

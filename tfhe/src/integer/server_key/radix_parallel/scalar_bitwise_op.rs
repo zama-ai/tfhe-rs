@@ -1,5 +1,5 @@
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
-use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
+use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 use rayon::prelude::*;
 
@@ -42,30 +42,6 @@ impl ServerKey {
                 self.key.create_trivial_assign(block, 0);
             }
         }
-    }
-
-    pub fn smart_scalar_bitand_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
-        }
-        let mut result = lhs.clone();
-        self.unchecked_scalar_bitand_assign_parallelized(&mut result, rhs);
-        result
-    }
-
-    pub fn smart_scalar_bitand_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
-        }
-        self.unchecked_scalar_bitand_assign_parallelized(lhs, rhs);
     }
 
     /// Computes homomorphically a bitand between a ciphertexts and a clear value
@@ -169,30 +145,6 @@ impl ServerKey {
         // with '0', which means they keep their value
     }
 
-    pub fn smart_scalar_bitor_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
-        }
-        let mut result = lhs.clone();
-        self.unchecked_scalar_bitor_assign_parallelized(&mut result, rhs);
-        result
-    }
-
-    pub fn smart_scalar_bitor_assign_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar)
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
-        }
-        self.unchecked_scalar_bitor_assign_parallelized(lhs, rhs);
-    }
-
     /// Computes homomorphically a bitor between a ciphertexts and a clear value
     ///
     /// # Example
@@ -292,33 +244,6 @@ impl ServerKey {
 
         // Blocks beyond clear_blocks.len() should be 'xored'
         // with '0', which means they keep their value
-    }
-
-    pub fn smart_scalar_bitxor_parallelized<T, Scalar>(&self, lhs: &mut T, rhs: Scalar) -> T
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
-        }
-        let mut result = lhs.clone();
-        self.unchecked_scalar_bitxor_assign_parallelized(&mut result, rhs);
-        result
-    }
-
-    pub fn smart_scalar_bitxor_assign_parallelized<T, Scalar>(
-        &self,
-        lhs: &mut RadixCiphertext,
-        rhs: Scalar,
-    ) where
-        T: IntegerRadixCiphertext,
-        Scalar: DecomposableInto<u8>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
-        }
-        self.unchecked_scalar_bitxor_assign_parallelized(lhs, rhs);
     }
 
     /// Computes homomorphically a bitxor between a ciphertexts and a clear value

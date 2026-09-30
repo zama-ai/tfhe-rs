@@ -53,23 +53,6 @@ impl ServerKey {
     /// - If slices do not have the same length, false is returned
     /// - If at least one  pair (`lhs[i]`, `rhs[i]`) do not have the same number of blocks, false is
     ///   returned
-    pub fn smart_all_eq_slices_parallelized<T>(&self, lhs: &mut [T], rhs: &mut [T]) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        lhs.par_iter_mut()
-            .chain(rhs.par_iter_mut())
-            .filter(|ct| !ct.block_carries_are_empty())
-            .for_each(|ct| self.full_propagate_parallelized(ct));
-        self.unchecked_all_eq_slices_parallelized(lhs, rhs)
-    }
-
-    /// Compares two slices containing ciphertexts and returns an encryption of `true` if all
-    /// pairs are equal, otherwise, returns an encryption of `false`.
-    ///
-    /// - If slices do not have the same length, false is returned
-    /// - If at least one  pair (`lhs[i]`, `rhs[i]`) do not have the same number of blocks, false is
-    ///   returned
     pub fn all_eq_slices_parallelized<T>(&self, lhs: &[T], rhs: &[T]) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
@@ -124,25 +107,6 @@ impl ServerKey {
             .collect::<Vec<_>>();
 
         BooleanBlock::new_unchecked(self.is_at_least_one_comparisons_block_true(windows_results))
-    }
-
-    /// Returns a boolean ciphertext encrypting `true` if `lhs` contains `rhs`, `false` otherwise
-    pub fn smart_contains_sub_slice_parallelized<T>(
-        &self,
-        lhs: &mut [T],
-        rhs: &mut [T],
-    ) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        lhs.par_iter_mut()
-            .chain(rhs.par_iter_mut())
-            .filter(|radix| !radix.block_carries_are_empty())
-            .for_each(|radix| {
-                self.full_propagate_parallelized(radix);
-            });
-
-        self.unchecked_contains_sub_slice_parallelized(lhs, rhs)
     }
 
     /// Returns a boolean ciphertext encrypting `true` if `lhs` contains `rhs`, `false` otherwise

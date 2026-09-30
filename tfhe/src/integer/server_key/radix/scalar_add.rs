@@ -129,48 +129,6 @@ impl ServerKey {
 
     /// Computes homomorphically the addition of ciphertext with a scalar.
     ///
-    /// The result is returned in a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg = 4;
-    /// let scalar = 40;
-    ///
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let ct_res = sks.smart_scalar_add(&mut ct, scalar);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg + scalar, dec);
-    /// ```
-    pub fn smart_scalar_add<T, C>(&self, ct: &mut C, scalar: T) -> C
-    where
-        T: DecomposableInto<u8>,
-        C: IntegerRadixCiphertext,
-    {
-        if self.is_scalar_add_possible(ct, scalar).is_err() {
-            self.full_propagate(ct);
-        }
-
-        self.is_scalar_add_possible(ct, scalar).unwrap();
-
-        let mut ct = ct.clone();
-        self.unchecked_scalar_add_assign(&mut ct, scalar);
-        ct
-    }
-
-    /// Computes homomorphically the addition of ciphertext with a scalar.
-    ///
     /// The result is assigned to the `ct_left` ciphertext.
     ///
     /// # Example

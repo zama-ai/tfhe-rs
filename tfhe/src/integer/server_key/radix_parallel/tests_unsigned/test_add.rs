@@ -1,5 +1,5 @@
 use super::{
-    nb_tests_for_params, nb_tests_smaller_for_params, overflowing_add_under_modulus,
+    nb_tests_for_params, overflowing_add_under_modulus,
     panic_if_any_block_info_exceeds_max_degree_or_noise,
     panic_if_any_block_values_exceeds_its_degree, unsigned_modulus, unsigned_modulus_u128,
     CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, NB_CTXT,
@@ -22,7 +22,6 @@ use std::sync::Arc;
 
 create_parameterized_test!(integer_unchecked_add);
 create_parameterized_test!(integer_unchecked_add_assign);
-create_parameterized_test!(integer_smart_add);
 create_parameterized_test!(integer_default_add);
 create_parameterized_test!(integer_extensive_trivial_default_add);
 create_parameterized_test!(integer_default_overflowing_add);
@@ -78,14 +77,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_add_assign_parallelized);
     unchecked_add_assign_test(param, executor);
-}
-
-fn integer_smart_add<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_add_parallelized);
-    smart_add_test(param, executor);
 }
 
 fn integer_default_add<P>(param: P)
@@ -349,66 +340,6 @@ where
             "Invalid add result, expected {clear_0} + {clear_1} \
             to be {expected_result}, but got {decrypted_result}."
         );
-    }
-}
-
-//=============================================================================
-// Smart Tests
-//=============================================================================
-
-pub(crate) fn smart_add_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
-        RadixCiphertext,
-    >,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
-
-    let max_noise_level = sks.key.max_noise_level;
-    let max_degree = sks.key.max_degree;
-
-    executor.setup(&cks, sks);
-
-    let mut clear;
-
-    for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt(clear_0);
-        let mut ctxt_1 = cks.encrypt(clear_1);
-
-        let mut ct_res = executor.execute((&mut ctxt_0, &mut ctxt_1));
-
-        clear = clear_0.wrapping_add(clear_1) % modulus;
-        let dec_res: u64 = cks.decrypt(&ct_res);
-        assert_eq!(clear, dec_res);
-
-        // Add multiple times to raise the degree
-        for _ in 0..nb_tests_smaller {
-            ct_res = executor.execute((&mut ct_res, &mut ctxt_0));
-
-            panic_if_any_block_info_exceeds_max_degree_or_noise(
-                &ct_res,
-                max_degree,
-                max_noise_level,
-            );
-            panic_if_any_block_values_exceeds_its_degree(&ct_res, &cks);
-
-            clear = clear.wrapping_add(clear_0) % modulus;
-            let dec_res: u64 = cks.decrypt(&ct_res);
-            assert_eq!(clear, dec_res);
-        }
     }
 }
 

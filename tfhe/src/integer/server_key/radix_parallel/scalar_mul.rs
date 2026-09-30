@@ -86,56 +86,6 @@ impl ServerKey {
 
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let modulus = 1 << 8;
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg = 230;
-    /// let scalar = 376;
-    ///
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.smart_scalar_mul_parallelized(&mut ct, scalar);
-    ///
-    /// // Decrypt:
-    /// let clear: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg * scalar % modulus, clear);
-    /// ```
-    pub fn smart_scalar_mul_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar) -> T
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: ScalarMultiplier + DecomposableInto<u8>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        self.unchecked_scalar_mul_parallelized(lhs, scalar)
-    }
-
-    pub fn smart_scalar_mul_assign_parallelized<T, Scalar>(&self, lhs: &mut T, scalar: Scalar)
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: ScalarMultiplier + DecomposableInto<u8>,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
-
-        self.unchecked_scalar_mul_assign_parallelized(lhs, scalar);
-    }
-
-    /// Computes homomorphically a multiplication between a scalar and a ciphertext.
-    ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
     /// check that the input ciphertexts block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always

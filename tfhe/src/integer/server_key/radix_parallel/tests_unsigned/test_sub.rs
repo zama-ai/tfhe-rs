@@ -19,7 +19,6 @@ use std::sync::Arc;
 use super::MAX_NB_CTXT;
 
 create_parameterized_test!(integer_unchecked_sub);
-create_parameterized_test!(integer_smart_sub);
 create_parameterized_test!(integer_default_sub);
 create_parameterized_test!(integer_extensive_trivial_default_sub);
 create_parameterized_test!(integer_default_overflowing_sub);
@@ -48,14 +47,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_sub);
     unchecked_sub_test(param, executor);
-}
-
-fn integer_smart_sub<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::smart_sub_parallelized);
-    smart_sub_test(param, executor);
 }
 
 fn integer_default_sub<P>(param: P)
@@ -241,56 +232,6 @@ where
             "Invalid sub result, expected {clear_0} - {clear_1} \
             to be {expected_result}, but got {decrypted_result}."
         );
-    }
-}
-
-//=============================================================================
-// Smart Tests
-//=============================================================================
-
-pub(crate) fn smart_sub_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
-        RadixCiphertext,
-    >,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
-
-    let max_noise_level = sks.key.max_noise_level;
-    let max_degree = sks.key.max_degree;
-
-    executor.setup(&cks, sks);
-
-    for _ in 0..nb_tests_smaller {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
-
-        let ctxt_1 = cks.encrypt(clear1);
-        let mut ctxt_2 = cks.encrypt(clear2);
-
-        let mut res = ctxt_1.clone();
-        let mut clear = clear1;
-
-        // Subtract multiple times to raise the degree
-        for _ in 0..nb_tests_smaller {
-            res = executor.execute((&mut res, &mut ctxt_2));
-            panic_if_any_block_info_exceeds_max_degree_or_noise(&res, max_degree, max_noise_level);
-            panic_if_any_block_values_exceeds_its_degree(&res, &cks);
-
-            clear = clear.wrapping_sub(clear2) % modulus;
-            let dec_res: u64 = cks.decrypt(&res);
-            assert_eq!(clear, dec_res);
-        }
     }
 }
 

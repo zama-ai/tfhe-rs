@@ -15,7 +15,6 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-create_parameterized_test!(integer_smart_sum_ciphertexts_slice);
 create_parameterized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
 create_parameterized_test!(integer_default_sum_ciphertexts_vec);
 
@@ -211,42 +210,6 @@ where
 
             let ct_res_2 = executor.execute(&ctxts).unwrap();
             assert_eq!(ct_res, ct_res_2, "Failed determinism check");
-        }
-    }
-}
-
-fn integer_smart_sum_ciphertexts_slice<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
-
-    for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..nb_tests_smaller {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            // encryption of integers
-            let mut ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            let ct_res = sks.smart_sum_ciphertexts_parallelized(&mut ctxts).unwrap();
-            let ct_res: u64 = cks.decrypt(&ct_res);
-            let clear = clears.iter().sum::<u64>() % modulus;
-
-            assert_eq!(ct_res, clear);
         }
     }
 }
