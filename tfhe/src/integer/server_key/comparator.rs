@@ -367,25 +367,6 @@ impl<'a> Comparator<'a> {
         self.reduce_signs(comparisons, sign_result_handler_fn)
     }
 
-    fn smart_compare<T, F>(
-        &self,
-        lhs: &mut T,
-        rhs: &mut T,
-        sign_result_handler_fn: F,
-    ) -> crate::shortint::Ciphertext
-    where
-        T: IntegerRadixCiphertext,
-        F: Fn(u64) -> u64,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.server_key.full_propagate(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.server_key.full_propagate(rhs);
-        }
-        self.unchecked_compare(lhs, rhs, sign_result_handler_fn)
-    }
-
     /// Expects the carry buffers to be empty
     fn unchecked_min_or_max<T>(&self, lhs: &T, rhs: &T, selector: MinMaxSelector) -> T
     where
@@ -416,19 +397,6 @@ impl<'a> Comparator<'a> {
         }
 
         T::from_blocks(result)
-    }
-
-    fn smart_min_or_max<T>(&self, lhs: &mut T, rhs: &mut T, selector: MinMaxSelector) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if !lhs.block_carries_are_empty() {
-            self.server_key.full_propagate_parallelized(lhs);
-        }
-        if !rhs.block_carries_are_empty() {
-            self.server_key.full_propagate_parallelized(rhs);
-        }
-        self.unchecked_min_or_max(lhs, rhs, selector)
     }
 
     //======================================
@@ -483,34 +451,5 @@ impl<'a> Comparator<'a> {
         T: IntegerRadixCiphertext,
     {
         self.unchecked_min_or_max(lhs, rhs, MinMaxSelector::Min)
-    }
-
-    //======================================
-    // Smart Single-Threaded operations
-    //======================================
-
-    pub fn smart_gt<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_SUPERIOR);
-        let comparison = self.smart_compare(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
-    }
-
-    pub fn smart_le<T>(&self, lhs: &mut T, rhs: &mut T) -> BooleanBlock
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let sign_result_handler_fn = |x| u64::from(x == Self::IS_EQUAL || x == Self::IS_INFERIOR);
-        let comparison = self.smart_compare(lhs, rhs, sign_result_handler_fn);
-        BooleanBlock::new_unchecked(comparison)
-    }
-
-    pub fn smart_min<T>(&self, lhs: &mut T, rhs: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        self.smart_min_or_max(lhs, rhs, MinMaxSelector::Min)
     }
 }

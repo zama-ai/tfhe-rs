@@ -70,12 +70,10 @@ impl Execution {
             Rc::new(move |exec: &mut Execution| {
                 exec.ct_ops += 1;
 
-                let mut ct_a = a.0.clone();
-                let mut ct_b = b.0.clone();
                 (
                     exec.sk
-                        .smart_eq(&mut ct_a, &mut ct_b)
-                        .into_radix(ct_a.blocks().len(), &exec.sk),
+                        .eq_parallelized(&a.0, &b.0)
+                        .into_radix(a.0.blocks().len(), &exec.sk),
                     ctx.clone(),
                 )
             }),
@@ -92,12 +90,10 @@ impl Execution {
             Rc::new(move |exec| {
                 exec.ct_ops += 1;
 
-                let mut ct_a = a.0.clone();
-                let mut ct_b = b.0.clone();
                 (
                     exec.sk
-                        .smart_gt(&mut ct_a, &mut ct_b)
-                        .into_radix(ct_a.blocks().len(), &exec.sk),
+                        .gt_parallelized(&a.0, &b.0)
+                        .into_radix(a.0.blocks().len(), &exec.sk),
                     ctx.clone(),
                 )
             }),
@@ -114,12 +110,10 @@ impl Execution {
             Rc::new(move |exec| {
                 exec.ct_ops += 1;
 
-                let mut ct_a = a.0.clone();
-                let mut ct_b = b.0.clone();
                 (
                     exec.sk
-                        .smart_le(&mut ct_a, &mut ct_b)
-                        .into_radix(ct_a.blocks().len(), &exec.sk),
+                        .le_parallelized(&a.0, &b.0)
+                        .into_radix(a.0.blocks().len(), &exec.sk),
                     ctx.clone(),
                 )
             }),
@@ -152,9 +146,7 @@ impl Execution {
             Rc::new(move |exec| {
                 exec.ct_ops += 1;
 
-                let mut ct_a = a.0.clone();
-                let mut ct_b = b.0.clone();
-                (exec.sk.smart_bitand(&mut ct_a, &mut ct_b), ctx.clone())
+                (exec.sk.bitand_parallelized(&a.0, &b.0), ctx.clone())
             }),
         )
     }
@@ -182,9 +174,7 @@ impl Execution {
             Rc::new(move |exec| {
                 exec.ct_ops += 1;
 
-                let mut ct_a = a.0.clone();
-                let mut ct_b = b.0.clone();
-                (exec.sk.smart_bitor(&mut ct_a, &mut ct_b), ctx.clone())
+                (exec.sk.bitor_parallelized(&a.0, &b.0), ctx.clone())
             }),
         )
     }
@@ -198,9 +188,8 @@ impl Execution {
             Rc::new(move |exec| {
                 exec.ct_ops += 1;
 
-                let mut ct_a = a.0.clone();
-                let mut ct_b = exec.ct_constant(1).0;
-                (exec.sk.smart_bitxor(&mut ct_a, &mut ct_b), ctx.clone())
+                let ct_b = exec.ct_constant(1).0;
+                (exec.sk.bitxor_parallelized(&a.0, &ct_b), ctx.clone())
             }),
         )
     }

@@ -95,47 +95,6 @@ impl ServerKey {
         Ok(())
     }
 
-    /// Computes homomorphically a bitand between two ciphertexts encrypting integer values.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let size = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg1 = 14;
-    /// let msg2 = 97;
-    ///
-    /// let mut ct1 = cks.encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// let ct_res = sks.smart_bitand(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg1 & msg2);
-    /// ```
-    pub fn smart_bitand<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.full_propagate(ct_left);
-            self.full_propagate(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_bitand(ct_left, ct_right)
-    }
-
     /// Computes homomorphically bitor between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
@@ -188,48 +147,6 @@ impl ServerKey {
         }
     }
 
-    /// Computes homomorphically a bitor between two ciphertexts encrypting integer values.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let size = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg1 = 14;
-    /// let msg2 = 97;
-    ///
-    /// let mut ct1 = cks.encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// let ct_res = sks.smart_bitor(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg1 | msg2);
-    /// ```
-    pub fn smart_bitor<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.full_propagate(ct_left);
-            self.full_propagate(ct_right);
-        }
-
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_bitor(ct_left, ct_right)
-    }
-
     /// Computes homomorphically bitxor between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
@@ -280,47 +197,6 @@ impl ServerKey {
         {
             self.key.unchecked_bitxor_assign(ct_left_i, ct_right_i);
         }
-    }
-
-    /// Computes homomorphically a bitxor between two ciphertexts encrypting integer values.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let size = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg1 = 14;
-    /// let msg2 = 97;
-    ///
-    /// let mut ct1 = cks.encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// let ct_res = sks.smart_bitxor(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg1 ^ msg2);
-    /// ```
-    pub fn smart_bitxor<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if self
-            .is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .is_err()
-        {
-            self.full_propagate(ct_left);
-            self.full_propagate(ct_right);
-        }
-        self.is_functional_bivariate_pbs_possible(ct_left, ct_right)
-            .unwrap();
-        self.unchecked_bitxor(ct_left, ct_right)
     }
 
     /// Computes homomorphically a bitand between two boolean ciphertexts

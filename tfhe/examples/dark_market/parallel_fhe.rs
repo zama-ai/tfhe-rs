@@ -1,17 +1,13 @@
 use crate::NUMBER_OF_BLOCKS;
-use rayon::prelude::*;
 use std::time::Instant;
 use tfhe::integer::ciphertext::RadixCiphertext;
 use tfhe::integer::ServerKey;
 
 // Calculate the element sum of the given vector in parallel
 fn vector_sum(server_key: &ServerKey, orders: Vec<RadixCiphertext>) -> RadixCiphertext {
-    orders.into_par_iter().reduce(
-        || server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS),
-        |mut acc: RadixCiphertext, mut ele: RadixCiphertext| {
-            server_key.smart_add_parallelized(&mut acc, &mut ele)
-        },
-    )
+    server_key
+        .sum_ciphertexts_parallelized(&orders)
+        .unwrap_or_else(|| server_key.create_trivial_zero_radix(NUMBER_OF_BLOCKS))
 }
 
 fn fill_orders(
@@ -21,9 +17,8 @@ fn fill_orders(
 ) {
     let mut volume_left_to_transact = total_volume;
     for order in orders {
-        let mut filled_amount =
-            server_key.smart_min_parallelized(&mut volume_left_to_transact, order);
-        server_key.smart_sub_assign_parallelized(&mut volume_left_to_transact, &mut filled_amount);
+        let filled_amount = server_key.min_parallelized(&volume_left_to_transact, order);
+        server_key.sub_assign_parallelized(&mut volume_left_to_transact, &filled_amount);
         *order = filled_amount;
     }
 }
@@ -44,7 +39,7 @@ pub fn volume_match(
     let time = Instant::now();
     // Total sell and buy volumes can be calculated in parallel because they have no dependency on
     // each other.
-    let (mut total_sell_volume, mut total_buy_volume) = rayon::join(
+    let (total_sell_volume, total_buy_volume) = rayon::join(
         || vector_sum(server_key, sell_orders.to_owned()),
         || vector_sum(server_key, buy_orders.to_owned()),
     );
@@ -55,8 +50,7 @@ pub fn volume_match(
 
     println!("Calculating total volume to be matched...");
     let time = Instant::now();
-    let total_volume =
-        server_key.smart_min_parallelized(&mut total_sell_volume, &mut total_buy_volume);
+    let total_volume = server_key.min_parallelized(&total_sell_volume, &total_buy_volume);
     println!(
         "Calculated total volume to be matched in {:?}",
         time.elapsed()
