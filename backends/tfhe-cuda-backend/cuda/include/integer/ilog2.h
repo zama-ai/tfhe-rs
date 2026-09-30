@@ -21,7 +21,7 @@ template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
     this->direction = direction;
     this->bit_value = bit_value;
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     this->univ_lut_mem =
         new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                  allocate_gpu_memory, size_tracker);
@@ -235,7 +235,7 @@ template <typename Torus> struct int_ilog2_buffer {
     };
 
     auto active_streams =
-        streams.active_gpu_subset(counter_num_blocks, params.pbs_type);
+        streams.active_gpu_subset(counter_num_blocks, params.pbs_type());
     lut_message_not->generate_and_broadcast_lut(
         active_streams, {0}, {lut_message_lambda}, LUT_0_FOR_ALL_BLOCKS);
 

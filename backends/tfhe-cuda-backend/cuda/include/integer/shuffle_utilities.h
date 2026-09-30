@@ -125,13 +125,13 @@ template <typename Torus> struct int_batched_compare_buffer {
 
     identity_lut = new int_radix_lut<Torus>(streams, params, 1, 2 * K * M,
                                             allocate_gpu_memory, size_tracker);
-    auto active_id = streams.active_gpu_subset(2 * K * M, params.pbs_type);
+    auto active_id = streams.active_gpu_subset(2 * K * M, params.pbs_type());
     identity_lut->generate_and_broadcast_lut(active_id, {0}, {identity_f},
                                              LUT_0_FOR_ALL_BLOCKS);
 
     is_non_zero_lut = new int_radix_lut<Torus>(
         streams, params, 1, K * M, allocate_gpu_memory, size_tracker);
-    auto active_nz = streams.active_gpu_subset(K * M, params.pbs_type);
+    auto active_nz = streams.active_gpu_subset(K * M, params.pbs_type());
     is_non_zero_lut->generate_and_broadcast_lut(active_nz, {0}, {is_non_zero_f},
                                                 LUT_0_FOR_ALL_BLOCKS);
 
@@ -140,13 +140,13 @@ template <typename Torus> struct int_batched_compare_buffer {
         new int_radix_lut<Torus>(streams, params, 1, tree_inner_blocks,
                                  allocate_gpu_memory, size_tracker);
     auto active_inner =
-        streams.active_gpu_subset(tree_inner_blocks, params.pbs_type);
+        streams.active_gpu_subset(tree_inner_blocks, params.pbs_type());
     is_any_not_equal_lut->generate_and_broadcast_bivariate_lut(
         active_inner, {0}, {block_selector_f}, LUT_0_FOR_ALL_BLOCKS);
 
     is_any_not_equal_packed_lut = new int_radix_lut<Torus>(
         streams, params, 1, K, allocate_gpu_memory, size_tracker);
-    auto active_last = streams.active_gpu_subset(K, params.pbs_type);
+    auto active_last = streams.active_gpu_subset(K, params.pbs_type());
     is_any_not_equal_packed_lut->generate_and_broadcast_lut(
         active_last, {0}, {last_leaf_f}, LUT_0_FOR_ALL_BLOCKS);
   }
@@ -253,7 +253,7 @@ template <typename Torus> struct int_fused_cmux_buffer {
         streams, params, 2, total_bivariate, allocate_gpu_memory, size_tracker);
     auto pred_f = [](Torus x) -> Torus { return x == IS_SUPERIOR; };
     auto active_pred =
-        streams.active_gpu_subset(total_bivariate, params.pbs_type);
+        streams.active_gpu_subset(total_bivariate, params.pbs_type());
     predicate_lut->generate_and_broadcast_bivariate_lut(
         active_pred, {0, 1},
         {[pred_f](Torus b, Torus c) -> Torus { return pred_f(c) ? b : 0; },
@@ -267,7 +267,7 @@ template <typename Torus> struct int_fused_cmux_buffer {
         new int_radix_lut<Torus>(streams, params, 1, per_branch_blocks,
                                  allocate_gpu_memory, size_tracker);
     auto active_msg =
-        streams.active_gpu_subset(per_branch_blocks, params.pbs_type);
+        streams.active_gpu_subset(per_branch_blocks, params.pbs_type());
     extract_lut->generate_and_broadcast_lut(
         active_msg, {0},
         {[params](Torus x) -> Torus { return x % params.message_modulus; }},

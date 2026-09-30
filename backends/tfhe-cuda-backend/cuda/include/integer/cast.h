@@ -29,7 +29,7 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
       uint32_t msg_modulus = params.message_modulus;
 
       auto active_streams =
-          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
 
       lut->generate_and_broadcast_lut(
           active_streams, {0}, {[msg_modulus, bits_per_block](Torus x) {

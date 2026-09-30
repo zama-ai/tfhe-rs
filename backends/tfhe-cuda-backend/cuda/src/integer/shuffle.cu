@@ -5,12 +5,12 @@ uint64_t scratch_cuda_integer_bitonic_shuffle_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t key_num_radix_blocks,
     uint32_t data_num_radix_blocks, uint32_t num_values,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch bitonic shuffle")
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   uint64_t ret = scratch_cuda_integer_bitonic_shuffle_async<uint64_t>(
       CudaStreams(streams), (int_bitonic_shuffle_buffer<uint64_t> **)mem_ptr,
@@ -65,18 +65,18 @@ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t key_num_radix_blocks,
     uint32_t data_num_radix_blocks, uint32_t num_values,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, bool apply_rerand,
-    CudaLweKeyswitchKeyParamsFFI rerand_ksk_params, RERAND_MODE rerand_mode) {
+    bool apply_rerand, CudaLweKeyswitchKeyParamsFFI rerand_ksk_params,
+    RERAND_MODE rerand_mode) {
 
   PUSH_RANGE("scratch oprf bitonic shuffle")
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   int_radix_params rerand_params(
-      PBS_TYPE::CLASSICAL, 0, 0, rerand_ksk_params.input_lwe_dimension,
+      classical_pbs_params{PBS_MS_REDUCTION_T::NO_REDUCTION}, 0, 0,
+      rerand_ksk_params.input_lwe_dimension,
       rerand_ksk_params.output_lwe_dimension, rerand_ksk_params.level_count,
-      rerand_ksk_params.base_log, 0, 0, 0, message_modulus, carry_modulus,
-      PBS_MS_REDUCTION_T::NO_REDUCTION);
+      rerand_ksk_params.base_log, 0, 0, message_modulus, carry_modulus);
 
   uint64_t ret = scratch_cuda_integer_oprf_bitonic_shuffle_async<uint64_t>(
       CudaStreams(streams),

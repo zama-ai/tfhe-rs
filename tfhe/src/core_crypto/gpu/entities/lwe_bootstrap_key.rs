@@ -1,13 +1,21 @@
-use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{convert_lwe_programmable_bootstrap_key_async, CudaStreams};
+use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+use crate::core_crypto::gpu::{
+    convert_lwe_programmable_bootstrap_key_async, CudaStreams, PBSMSNoiseReductionType,
+};
 use crate::core_crypto::prelude::{
     lwe_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
     GlweDimension, LweBootstrapKey, LweDimension, PolynomialSize, UnsignedInteger,
 };
 use crate::shortint::server_key::ModulusSwitchConfiguration;
-use tfhe_cuda_backend::bindings::{CudaLweBootstrapKeyParamsFFI, PBS_TYPE_CLASSICAL};
+use std::ffi::c_void;
+use tfhe_cuda_backend::bindings::{
+    CudaClassicalPbsParamsFFI, CudaLweBootstrapKeyParamsFFI, CudaPbsTypeParamsFFI,
+    PBS_TYPE_CLASSICAL,
+};
 
-pub(crate) trait CudaBskParams {
+pub(crate) trait CudaBootstrapKey {
+    fn ptrs(&self) -> &[*mut c_void];
+    fn gpu_index(&self, index: u32) -> GpuIndex;
     fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI;
 }
 
@@ -31,6 +39,18 @@ impl CudaModulusSwitchNoiseReductionConfiguration {
             ModulusSwitchConfiguration::CenteredMeanNoiseReduction => Ok(Some(Self::Centered)),
         }
     }
+}
+
+pub(crate) fn ms_noise_reduction_type(
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) -> PBSMSNoiseReductionType {
+    ms_noise_reduction_configuration.map_or(PBSMSNoiseReductionType::NoReduction, |config| {
+        match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                PBSMSNoiseReductionType::Centered
+            }
+        }
+    })
 }
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
@@ -135,7 +155,15 @@ impl CudaLweBootstrapKey {
     }
 }
 
-impl CudaBskParams for CudaLweBootstrapKey {
+impl CudaBootstrapKey for CudaLweBootstrapKey {
+    fn ptrs(&self) -> &[*mut c_void] {
+        &self.d_vec.ptr
+    }
+
+    fn gpu_index(&self, index: u32) -> GpuIndex {
+        self.d_vec.gpu_index(index)
+    }
+
     fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
         CudaLweBootstrapKeyParamsFFI {
             input_lwe_dimension: u32::try_from(self.input_lwe_dimension.0).unwrap(),
@@ -150,7 +178,13 @@ impl CudaBskParams for CudaLweBootstrapKey {
             )
             .unwrap(),
             pbs_type: PBS_TYPE_CLASSICAL,
-            grouping_factor: 0,
+            pbs_params: CudaPbsTypeParamsFFI {
+                classical: CudaClassicalPbsParamsFFI {
+                    noise_reduction_type: ms_noise_reduction_type(
+                        self.ms_noise_reduction_configuration.as_ref(),
+                    ) as u32,
+                },
+            },
         }
     }
 }

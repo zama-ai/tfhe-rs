@@ -6,9 +6,7 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::server_key::{
-    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
-};
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu,
     cuda_backend_get_propagate_single_carry_assign_size_on_gpu,
@@ -189,57 +187,25 @@ impl CudaServerKey {
         let full_prop_mem = if ct.block_carries_are_empty() {
             0
         } else {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_get_full_propagate_assign_size_on_gpu(
-                        streams,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    )
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_get_full_propagate_assign_size_on_gpu(
-                        streams,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        self.message_modulus,
-                        self.carry_modulus,
-                        None,
-                    )
-                }
-            }
+            cuda_backend_get_full_propagate_assign_size_on_gpu(
+                streams,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                self.message_modulus,
+                self.carry_modulus,
+            )
         };
 
         let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-        let single_carry_mem = match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
-                    streams,
-                    d_bsk,
-                    computing_ks_key.params_ffi(),
-                    num_blocks,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    OutputFlag::None,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                )
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
-                    streams,
-                    d_multibit_bsk,
-                    computing_ks_key.params_ffi(),
-                    num_blocks,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    OutputFlag::None,
-                    None,
-                )
-            }
-        };
+        let single_carry_mem = cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
+            streams,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+            num_blocks,
+            self.message_modulus,
+            self.carry_modulus,
+            OutputFlag::None,
+        );
         full_prop_mem.max(single_carry_mem)
     }
 
