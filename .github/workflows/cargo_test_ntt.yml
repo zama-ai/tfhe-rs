@@ -29,7 +29,7 @@ jobs:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Needed to check for file change
+      pull-requests: read # Needed to check for file change
     outputs:
       ntt_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.ntt_any_changed }}
     steps:
@@ -100,16 +100,18 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Test avx2
+      - name: Test
         run: make test_ntt
 
-      - name: Test no-std avx2
+      - name: Test no-std
         run: make test_ntt_no_std
 
       - name: Test avx512
+        if: ${{ matrix.os != 'macos-latest' && matrix.os != 'windows-latest' }}
         run: make test_ntt_avx512
 
       - name: Test no-std avx512
+        if: ${{ matrix.os != 'macos-latest' && matrix.os != 'windows-latest' }}
         run: make test_ntt_no_std_avx512
 
   cargo-tests-ntt-successful:
