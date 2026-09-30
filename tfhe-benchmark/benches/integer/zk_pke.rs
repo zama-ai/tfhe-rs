@@ -2,7 +2,7 @@ use benchmark::params_aliases::*;
 use benchmark::utilities::{throughput_num_threads, write_to_json, OperatorType};
 use benchmark_spec::{
     get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, ComputeLoad, CsvResultWriter,
-    IntegerBench, ZkPkeBench, ZkPkeConfig, ZkScheme,
+    IntegerBench, ZkPkeBench, ZkPkeConfig, ZkProofVariant, ZkScheme,
 };
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
@@ -72,32 +72,27 @@ fn zk_scheme(param_pke: CompactPublicKeyEncryptionParameters) -> ZkScheme {
     }
 }
 
-/// The tag of anything measured on a proven list: all four axes are relevant.
-fn proven_list_tag(
-    bits: usize,
-    crs_size: usize,
-    compute_load: ZkComputeLoad,
-    scheme: ZkScheme,
-) -> ZkPkeConfig {
+fn proof_variant(compute_load: ZkComputeLoad, scheme: ZkScheme) -> ZkProofVariant {
+    ZkProofVariant::new(
+        scheme,
+        match compute_load {
+            ZkComputeLoad::Proof => ComputeLoad::Proof,
+            ZkComputeLoad::Verify => ComputeLoad::Verify,
+        },
+    )
+}
+
+fn proven_list_tag(bits: usize, crs_size: usize) -> ZkPkeConfig {
     ZkPkeConfig {
         bits_packed: Some(bits as u32),
         crs_bits: crs_size as u32,
-        compute_load: Some(match compute_load {
-            ZkComputeLoad::Proof => ComputeLoad::Proof,
-            ZkComputeLoad::Verify => ComputeLoad::Verify,
-        }),
-        scheme,
     }
 }
 
-/// A CRS is built before anything is packed into a proof or a load is picked,
-/// and its size depends on neither.
-fn crs_tag(crs_size: usize, scheme: ZkScheme) -> ZkPkeConfig {
+fn crs_tag(crs_size: usize) -> ZkPkeConfig {
     ZkPkeConfig {
         bits_packed: None,
         crs_bits: crs_size as u32,
-        compute_load: None,
-        scheme,
     }
 }
 
@@ -185,9 +180,9 @@ fn cpu_pke_zk_proof(c: &mut Criterion) {
 
                 for compute_load in compute_load_config() {
                     let spec = zk_spec(
-                        ZkPkeBench::Proof,
+                        ZkPkeBench::Proof(proof_variant(compute_load, scheme)),
                         param_name,
-                        proven_list_tag(*bits, crs_size, compute_load, scheme),
+                        proven_list_tag(*bits, crs_size),
                         get_bench_type(),
                     );
                     let bench_id = spec.to_string();
@@ -298,9 +293,9 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             println!("CRS size: {}", crs_data.len());
 
             let crs_spec = zk_spec(
-                ZkPkeBench::Crs,
+                ZkPkeBench::Crs(scheme),
                 param_name,
-                crs_tag(crs_size, scheme),
+                crs_tag(crs_size),
                 BenchmarkMetric::KeySize,
             );
 
@@ -318,11 +313,16 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 let shortint_params: PBSParameters = param_fhe.into();
 
                 for compute_load in compute_load_config() {
-                    let config = proven_list_tag(*bits, crs_size, compute_load, scheme);
-                    let spec_verify =
-                        zk_spec(ZkPkeBench::Verify, param_name, config, get_bench_type());
+                    let variant = proof_variant(compute_load, scheme);
+                    let config = proven_list_tag(*bits, crs_size);
+                    let spec_verify = zk_spec(
+                        ZkPkeBench::Verify(variant),
+                        param_name,
+                        config,
+                        get_bench_type(),
+                    );
                     let spec_verify_and_expand = zk_spec(
-                        ZkPkeBench::VerifyAndExpand,
+                        ZkPkeBench::VerifyAndExpand(variant),
                         param_name,
                         config,
                         get_bench_type(),
@@ -350,7 +350,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             );
 
                             let proven_list_spec = zk_spec(
-                                ZkPkeBench::ProvenList,
+                                ZkPkeBench::ProvenList(variant),
                                 param_name,
                                 config,
                                 BenchmarkMetric::KeySize,
@@ -373,7 +373,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             println!("proof size: {}", ct1.proof_size());
 
                             let proof_spec = zk_spec(
-                                ZkPkeBench::Proof,
+                                ZkPkeBench::Proof(variant),
                                 param_name,
                                 config,
                                 BenchmarkMetric::KeySize,
@@ -602,9 +602,9 @@ mod cuda {
             println!("CRS size: {}", crs_data.len());
 
             let crs_spec = zk_spec(
-                ZkPkeBench::Crs,
+                ZkPkeBench::Crs(scheme),
                 param_name,
-                crs_tag(crs_size, scheme),
+                crs_tag(crs_size),
                 BenchmarkMetric::KeySize,
             );
 
@@ -619,17 +619,26 @@ mod cuda {
                 let fhe_uint_count = bits / 64;
 
                 for compute_load in compute_load_config() {
-                    let config = proven_list_tag(*bits, crs_size, compute_load, scheme);
-                    let spec_verify =
-                        zk_spec(ZkPkeBench::Verify, param_name, config, get_bench_type());
-                    let spec_verify_and_expand = zk_spec(
-                        ZkPkeBench::VerifyAndExpand,
+                    let variant = proof_variant(compute_load, scheme);
+                    let config = proven_list_tag(*bits, crs_size);
+                    let spec_verify = zk_spec(
+                        ZkPkeBench::Verify(variant),
                         param_name,
                         config,
                         get_bench_type(),
                     );
-                    let spec_expand_without_verify =
-                        zk_spec(ZkPkeBench::OnlyExpand, param_name, config, get_bench_type());
+                    let spec_verify_and_expand = zk_spec(
+                        ZkPkeBench::VerifyAndExpand(variant),
+                        param_name,
+                        config,
+                        get_bench_type(),
+                    );
+                    let spec_expand_without_verify = zk_spec(
+                        ZkPkeBench::OnlyExpand(variant),
+                        param_name,
+                        config,
+                        get_bench_type(),
+                    );
                     let bench_id_verify = spec_verify.to_string();
                     let bench_id_verify_and_expand = spec_verify_and_expand.to_string();
                     let bench_id_expand_without_verify = spec_expand_without_verify.to_string();
@@ -670,7 +679,7 @@ mod cuda {
                             );
 
                             let proven_list_spec = zk_spec(
-                                ZkPkeBench::ProvenList,
+                                ZkPkeBench::ProvenList(variant),
                                 param_name,
                                 config,
                                 BenchmarkMetric::KeySize,
@@ -692,7 +701,7 @@ mod cuda {
                             println!("proof size: {}", ct1.proof_size());
 
                             let proof_spec = zk_spec(
-                                ZkPkeBench::Proof,
+                                ZkPkeBench::Proof(variant),
                                 param_name,
                                 config,
                                 BenchmarkMetric::KeySize,
@@ -918,9 +927,9 @@ mod cuda {
 
                 for compute_load in compute_load_config() {
                     let spec = zk_spec(
-                        ZkPkeBench::Proof,
+                        ZkPkeBench::Proof(proof_variant(compute_load, scheme)),
                         param_name,
-                        proven_list_tag(*bits, crs_size, compute_load, scheme),
+                        proven_list_tag(*bits, crs_size),
                         get_bench_type(),
                     );
                     let bench_id = spec.to_string();
