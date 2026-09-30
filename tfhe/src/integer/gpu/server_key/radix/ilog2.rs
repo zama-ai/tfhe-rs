@@ -3,9 +3,7 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::server_key::{
-    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
-};
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 use crate::integer::gpu::{cuda_backend_count_of_consecutive_bits, cuda_backend_ilog2};
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
 
@@ -40,40 +38,18 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_count_of_consecutive_bits(
-                        streams,
-                        result.as_mut(),
-                        ct.as_ref(),
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        self.message_modulus,
-                        self.carry_modulus,
-                        direction as u32,
-                        bit_value as u32,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_count_of_consecutive_bits(
-                        streams,
-                        result.as_mut(),
-                        ct.as_ref(),
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        self.message_modulus,
-                        self.carry_modulus,
-                        direction as u32,
-                        bit_value as u32,
-                        None,
-                    );
-                }
-            }
+            cuda_backend_count_of_consecutive_bits(
+                streams,
+                result.as_mut(),
+                ct.as_ref(),
+                &computing_ks_key.d_vec,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                self.message_modulus,
+                self.carry_modulus,
+                direction as u32,
+                bit_value as u32,
+            );
         }
 
         result
@@ -186,48 +162,22 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_ilog2(
-                        streams,
-                        result.as_mut(),
-                        ct.as_ref(),
-                        trivial_ct_neg_n.as_ref(),
-                        trivial_ct_2.as_ref(),
-                        trivial_ct_m_minus_1_block.as_ref(),
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        self.message_modulus,
-                        self.carry_modulus,
-                        input_num_blocks as u32,
-                        counter_num_blocks as u32,
-                        num_bits_in_ciphertext,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_ilog2(
-                        streams,
-                        result.as_mut(),
-                        ct.as_ref(),
-                        trivial_ct_neg_n.as_ref(),
-                        trivial_ct_2.as_ref(),
-                        trivial_ct_m_minus_1_block.as_ref(),
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        self.message_modulus,
-                        self.carry_modulus,
-                        input_num_blocks as u32,
-                        counter_num_blocks as u32,
-                        num_bits_in_ciphertext,
-                        None,
-                    );
-                }
-            }
+            cuda_backend_ilog2(
+                streams,
+                result.as_mut(),
+                ct.as_ref(),
+                trivial_ct_neg_n.as_ref(),
+                trivial_ct_2.as_ref(),
+                trivial_ct_m_minus_1_block.as_ref(),
+                &computing_ks_key.d_vec,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                self.message_modulus,
+                self.carry_modulus,
+                input_num_blocks as u32,
+                counter_num_blocks as u32,
+                num_bits_in_ciphertext,
+            );
         }
         result
     }

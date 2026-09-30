@@ -1,5 +1,5 @@
-use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaBskParams;
-use crate::core_crypto::gpu::vec::CudaVec;
+use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaBootstrapKey;
+use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{
     convert_lwe_multi_bit_programmable_bootstrap_key_async, CudaStreams,
 };
@@ -8,7 +8,11 @@ use crate::core_crypto::prelude::{
     GlweDimension, LweBskGroupingFactor, LweDimension, LweMultiBitBootstrapKey, PolynomialSize,
     UnsignedInteger,
 };
-use tfhe_cuda_backend::bindings::{CudaLweBootstrapKeyParamsFFI, PBS_TYPE_MULTI_BIT};
+use std::ffi::c_void;
+use tfhe_cuda_backend::bindings::{
+    CudaLweBootstrapKeyParamsFFI, CudaMultiBitPbsParamsFFI, CudaPbsTypeParamsFFI,
+    PBS_TYPE_MULTI_BIT,
+};
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
@@ -107,7 +111,15 @@ impl<Scalar: UnsignedInteger> CudaLweMultiBitBootstrapKey<Scalar> {
     }
 }
 
-impl<Scalar: UnsignedInteger> CudaBskParams for CudaLweMultiBitBootstrapKey<Scalar> {
+impl<Scalar: UnsignedInteger> CudaBootstrapKey for CudaLweMultiBitBootstrapKey<Scalar> {
+    fn ptrs(&self) -> &[*mut c_void] {
+        &self.d_vec.ptr
+    }
+
+    fn gpu_index(&self, index: u32) -> GpuIndex {
+        self.d_vec.gpu_index(index)
+    }
+
     fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
         CudaLweBootstrapKeyParamsFFI {
             input_lwe_dimension: u32::try_from(self.input_lwe_dimension.0).unwrap(),
@@ -122,7 +134,11 @@ impl<Scalar: UnsignedInteger> CudaBskParams for CudaLweMultiBitBootstrapKey<Scal
             )
             .unwrap(),
             pbs_type: PBS_TYPE_MULTI_BIT,
-            grouping_factor: u32::try_from(self.grouping_factor.0).unwrap(),
+            pbs_params: CudaPbsTypeParamsFFI {
+                multi_bit: CudaMultiBitPbsParamsFFI {
+                    grouping_factor: u32::try_from(self.grouping_factor.0).unwrap(),
+                },
+            },
         }
     }
 }

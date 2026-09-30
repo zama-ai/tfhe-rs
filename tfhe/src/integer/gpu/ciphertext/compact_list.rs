@@ -9,13 +9,11 @@ use crate::integer::ciphertext::{CompactCiphertextListExpander, DataKind};
 use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaVec, KsType, LweDimension};
+use crate::integer::gpu::cuda_backend_expand;
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
-use crate::integer::gpu::{cuda_backend_expand, PBSType};
+use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::shortint::ciphertext::CompactCiphertextList;
-use crate::shortint::parameters::{
-    CompactCiphertextListExpansionKind, Degree, LweBskGroupingFactor, NoiseLevel,
-};
+use crate::shortint::parameters::{CompactCiphertextListExpansionKind, Degree, NoiseLevel};
 use crate::shortint::{AtomicPatternKind, CarryModulus, Ciphertext, MessageModulus};
 use crate::GpuIndex;
 use itertools::Itertools;
@@ -533,70 +531,28 @@ impl CudaFlattenedVecCompactCiphertextList {
             let computing_ksk_params = computing_ks_key.params_ffi();
             let casting_ksk_params = casting_key.lwe_keyswitch_key.params_ffi();
 
-            match &sks.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    assert_eq!(
-                        d_bsk.input_lwe_dimension().0 as u32,
-                        computing_ksk_params.output_lwe_dimension,
-                        "BSK input LWE dimension must equal computing KSK output LWE dimension",
-                    );
-                    cuda_backend_expand(
-                        streams,
-                        &mut d_output,
-                        d_input,
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        &casting_key.lwe_keyswitch_key.d_vec,
-                        sks.message_modulus,
-                        sks.carry_modulus,
-                        d_bsk.glwe_dimension(),
-                        d_bsk.polynomial_size(),
-                        computing_ksk_params,
-                        casting_ksk_params,
-                        d_bsk.decomp_level_count,
-                        d_bsk.decomp_base_log,
-                        PBSType::Classical,
-                        casting_key_type,
-                        LweBskGroupingFactor(0),
-                        self.num_lwe_per_compact_list.as_slice(),
-                        self.is_boolean.as_slice(),
-                        self.is_boolean.len() as u32,
-                        zk_type,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    assert_eq!(
-                        d_multibit_bsk.input_lwe_dimension().0 as u32,
-                        computing_ksk_params.output_lwe_dimension,
-                        "MultiBit BSK input LWE dimension must equal computing KSK output LWE dimension",
-                    );
-                    cuda_backend_expand(
-                        streams,
-                        &mut d_output,
-                        d_input,
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        &casting_key.lwe_keyswitch_key.d_vec,
-                        sks.message_modulus,
-                        sks.carry_modulus,
-                        d_multibit_bsk.glwe_dimension(),
-                        d_multibit_bsk.polynomial_size(),
-                        computing_ksk_params,
-                        casting_ksk_params,
-                        d_multibit_bsk.decomp_level_count,
-                        d_multibit_bsk.decomp_base_log,
-                        PBSType::MultiBit,
-                        casting_key_type,
-                        d_multibit_bsk.grouping_factor,
-                        self.num_lwe_per_compact_list.as_slice(),
-                        self.is_boolean.as_slice(),
-                        self.is_boolean.len() as u32,
-                        zk_type,
-                        None,
-                    );
-                }
-            }
+            assert_eq!(
+                sks.bootstrapping_key.input_lwe_dimension().0 as u32,
+                computing_ksk_params.output_lwe_dimension,
+                "BSK input LWE dimension must equal computing KSK output LWE dimension",
+            );
+            cuda_backend_expand(
+                streams,
+                &mut d_output,
+                d_input,
+                &computing_ks_key.d_vec,
+                &casting_key.lwe_keyswitch_key.d_vec,
+                &sks.bootstrapping_key,
+                sks.message_modulus,
+                sks.carry_modulus,
+                computing_ksk_params,
+                casting_ksk_params,
+                casting_key_type,
+                self.num_lwe_per_compact_list.as_slice(),
+                self.is_boolean.as_slice(),
+                self.is_boolean.len() as u32,
+                zk_type,
+            );
             d_output
         };
 

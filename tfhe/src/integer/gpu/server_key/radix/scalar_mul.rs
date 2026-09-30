@@ -1,9 +1,7 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
-use crate::integer::gpu::server_key::{
-    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
-};
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_scalar_mul_size_on_gpu,
     cuda_backend_unchecked_scalar_mul,
@@ -120,50 +118,23 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    assert_eq!(
-                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
-                        d_bsk.input_lwe_dimension,
-                        "KS key output LWE dimension mismatch with BSK input LWE dimension"
-                    );
-                    cuda_backend_unchecked_scalar_mul(
-                        streams,
-                        ct.as_mut(),
-                        decomposed_scalar.as_slice(),
-                        has_at_least_one_set.as_slice(),
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        decomposed_scalar.len() as u32,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    assert_eq!(
-                        computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
-                        d_multibit_bsk.input_lwe_dimension,
-                        "KS key output LWE dimension mismatch with BSK input LWE dimension"
-                    );
-                    cuda_backend_unchecked_scalar_mul(
-                        streams,
-                        ct.as_mut(),
-                        decomposed_scalar.as_slice(),
-                        has_at_least_one_set.as_slice(),
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        decomposed_scalar.len() as u32,
-                        None,
-                    );
-                }
-            }
+            assert_eq!(
+                computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+                self.bootstrapping_key.input_lwe_dimension(),
+                "KS key output LWE dimension mismatch with BSK input LWE dimension"
+            );
+            cuda_backend_unchecked_scalar_mul(
+                streams,
+                ct.as_mut(),
+                decomposed_scalar.as_slice(),
+                has_at_least_one_set.as_slice(),
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                decomposed_scalar.len() as u32,
+            );
         }
     }
 
@@ -256,28 +227,13 @@ impl CudaServerKey {
         let full_prop_mem = if ct.block_carries_are_empty() {
             0
         } else {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_get_full_propagate_assign_size_on_gpu(
-                        streams,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    )
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_get_full_propagate_assign_size_on_gpu(
-                        streams,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        self.message_modulus,
-                        self.carry_modulus,
-                        None,
-                    )
-                }
-            }
+            cuda_backend_get_full_propagate_assign_size_on_gpu(
+                streams,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                self.message_modulus,
+                self.carry_modulus,
+            )
         };
 
         let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(scalar, 1)
@@ -286,42 +242,20 @@ impl CudaServerKey {
         if decomposed_scalar.is_empty() {
             return 0;
         }
-        let scalar_mul_mem = match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                assert_eq!(
-                    computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
-                    d_bsk.input_lwe_dimension,
-                    "KS key output LWE dimension mismatch with BSK input LWE dimension"
-                );
-                cuda_backend_get_scalar_mul_size_on_gpu(
-                    streams,
-                    decomposed_scalar.as_slice(),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk,
-                    computing_ks_key.params_ffi(),
-                    lwe_ciphertext_count.0 as u32,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
-                )
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                assert_eq!(
-                    computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
-                    d_multibit_bsk.input_lwe_dimension,
-                    "KS key output LWE dimension mismatch with BSK input LWE dimension"
-                );
-                cuda_backend_get_scalar_mul_size_on_gpu(
-                    streams,
-                    decomposed_scalar.as_slice(),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk,
-                    computing_ks_key.params_ffi(),
-                    lwe_ciphertext_count.0 as u32,
-                    None,
-                )
-            }
-        };
+        assert_eq!(
+            computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+            self.bootstrapping_key.input_lwe_dimension(),
+            "KS key output LWE dimension mismatch with BSK input LWE dimension"
+        );
+        let scalar_mul_mem = cuda_backend_get_scalar_mul_size_on_gpu(
+            streams,
+            decomposed_scalar.as_slice(),
+            self.message_modulus,
+            self.carry_modulus,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+            lwe_ciphertext_count.0 as u32,
+        );
         full_prop_mem.max(scalar_mul_mem)
     }
 }

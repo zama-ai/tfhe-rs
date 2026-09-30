@@ -1,8 +1,9 @@
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
-    CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+    CudaBootstrapKey, CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
 };
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
+use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
@@ -31,6 +32,8 @@ pub use radix::{
     AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey,
     CudaOprfServerKeyView, GenericCudaOprfServerKey,
 };
+use std::ffi::c_void;
+use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
 
 #[cfg(test)]
 pub(crate) use radix::tests_unsigned;
@@ -109,6 +112,29 @@ where
         match self {
             Self::Classic(bsk) => bsk.glwe_dimension().to_glwe_size(),
             Self::MultiBit(mb_bsk) => mb_bsk.glwe_dimension().to_glwe_size(),
+        }
+    }
+}
+
+impl<Scalar: UnsignedInteger> CudaBootstrapKey for CudaBootstrappingKey<Scalar> {
+    fn ptrs(&self) -> &[*mut c_void] {
+        match self {
+            Self::Classic(bsk) => bsk.ptrs(),
+            Self::MultiBit(bsk) => bsk.ptrs(),
+        }
+    }
+
+    fn gpu_index(&self, index: u32) -> GpuIndex {
+        match self {
+            Self::Classic(bsk) => bsk.gpu_index(index),
+            Self::MultiBit(bsk) => bsk.gpu_index(index),
+        }
+    }
+
+    fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
+        match self {
+            Self::Classic(bsk) => bsk.params_ffi(),
+            Self::MultiBit(bsk) => bsk.params_ffi(),
         }
     }
 }

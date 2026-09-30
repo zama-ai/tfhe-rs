@@ -15,7 +15,7 @@ template <typename Torus> struct int_zero_out_if_buffer {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
 
     tmp = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -129,7 +129,7 @@ template <typename Torus> struct int_cmux_buffer {
                                  allocate_gpu_memory, size_tracker);
 
     auto active_streams_pred =
-        streams.active_gpu_subset(2 * num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(2 * num_radix_blocks, params.pbs_type());
     auto lut_index_generator = [num_radix_blocks](Torus *h_lut_indexes,
                                                   uint32_t num_indexes) {
       for (int index = 0; index < 2 * num_radix_blocks; index++) {
@@ -146,7 +146,7 @@ template <typename Torus> struct int_cmux_buffer {
         lut_index_generator);
 
     auto active_streams_msg =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
 
     message_extract_lut->generate_and_broadcast_lut(
         active_streams_msg, {0}, {message_extract_lut_f}, LUT_0_FOR_ALL_BLOCKS);
@@ -243,7 +243,7 @@ template <typename Torus> struct int_cmux_batch_buffer {
                                  allocate_gpu_memory, size_tracker);
 
     auto active_streams_pred =
-        streams.active_gpu_subset(2 * total_num_blocks, params.pbs_type);
+        streams.active_gpu_subset(2 * total_num_blocks, params.pbs_type());
     auto lut_index_generator = [total_num_blocks](Torus *h_lut_indexes,
                                                   uint32_t num_indexes) {
       for (uint32_t index = 0; index < 2 * total_num_blocks; index++) {
@@ -256,7 +256,7 @@ template <typename Torus> struct int_cmux_batch_buffer {
         lut_index_generator);
 
     auto active_streams_msg =
-        streams.active_gpu_subset(total_num_blocks, params.pbs_type);
+        streams.active_gpu_subset(total_num_blocks, params.pbs_type());
 
     message_extract_lut->generate_and_broadcast_lut(
         active_streams_msg, {0}, {message_extract_lut_f}, LUT_0_FOR_ALL_BLOCKS);

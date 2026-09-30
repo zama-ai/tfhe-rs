@@ -604,70 +604,37 @@ impl CudaDecompressionKey {
         let carry_modulus = self.carry_modulus;
         let ciphertext_modulus = self.ciphertext_modulus;
 
-        let output_lwe = match &self.blind_rotate_key {
-            CudaBootstrappingKey::Classic(bsk) => {
-                assert!(
-                    bsk.ms_noise_reduction_configuration.is_none(),
-                    "Decompression key should not do modulus switch noise reduction"
-                );
-                let lwe_dimension = bsk.output_lwe_dimension();
+        if let CudaBootstrappingKey::Classic(bsk) = &self.blind_rotate_key {
+            assert!(
+                bsk.ms_noise_reduction_configuration.is_none(),
+                "Decompression key should not do modulus switch noise reduction"
+            );
+        }
+        let lwe_dimension = self.blind_rotate_key.output_lwe_dimension();
 
-                let mut output_lwe = CudaLweCiphertextList::new(
-                    lwe_dimension,
-                    indexes_array_len,
-                    ciphertext_modulus,
-                    streams,
-                );
+        let mut output_lwe = CudaLweCiphertextList::new(
+            lwe_dimension,
+            indexes_array_len,
+            ciphertext_modulus,
+            streams,
+        );
 
-                unsafe {
-                    cuda_backend_decompress(
-                        streams,
-                        &mut output_lwe,
-                        packed_list,
-                        &bsk.d_vec,
-                        message_modulus,
-                        carry_modulus,
-                        encryption_glwe_dimension,
-                        encryption_polynomial_size,
-                        compression_glwe_dimension,
-                        compression_polynomial_size,
-                        bsk,
-                        indexes_array.as_slice(),
-                        indexes_array_len.0 as u32,
-                    );
-                }
-                output_lwe
-            }
-            CudaBootstrappingKey::MultiBit(bsk) => {
-                let lwe_dimension = bsk.output_lwe_dimension();
-
-                let mut output_lwe = CudaLweCiphertextList::new(
-                    lwe_dimension,
-                    indexes_array_len,
-                    ciphertext_modulus,
-                    streams,
-                );
-
-                unsafe {
-                    cuda_backend_decompress(
-                        streams,
-                        &mut output_lwe,
-                        packed_list,
-                        &bsk.d_vec,
-                        message_modulus,
-                        carry_modulus,
-                        encryption_glwe_dimension,
-                        encryption_polynomial_size,
-                        compression_glwe_dimension,
-                        compression_polynomial_size,
-                        bsk,
-                        indexes_array.as_slice(),
-                        indexes_array_len.0 as u32,
-                    );
-                }
-                output_lwe
-            }
-        };
+        unsafe {
+            cuda_backend_decompress(
+                streams,
+                &mut output_lwe,
+                packed_list,
+                message_modulus,
+                carry_modulus,
+                encryption_glwe_dimension,
+                encryption_polynomial_size,
+                compression_glwe_dimension,
+                compression_polynomial_size,
+                &self.blind_rotate_key,
+                indexes_array.as_slice(),
+                indexes_array_len.0 as u32,
+            );
+        }
 
         let degree = match kind {
             DataKind::Unsigned(_) | DataKind::Signed(_) | DataKind::String { .. } => {
@@ -720,36 +687,23 @@ impl CudaDecompressionKey {
         let message_modulus = self.message_modulus;
         let carry_modulus = self.carry_modulus;
 
-        match &self.blind_rotate_key {
-            CudaBootstrappingKey::Classic(bsk) => {
-                assert!(
-                    bsk.ms_noise_reduction_configuration.is_none(),
-                    "Decompression key should not do modulus switch noise reduction"
-                );
-                cuda_backend_get_decompression_size_on_gpu(
-                    streams,
-                    message_modulus,
-                    carry_modulus,
-                    encryption_glwe_dimension,
-                    encryption_polynomial_size,
-                    compression_glwe_dimension,
-                    compression_polynomial_size,
-                    bsk,
-                    indexes_array_len.0 as u32,
-                )
-            }
-            CudaBootstrappingKey::MultiBit(bsk) => cuda_backend_get_decompression_size_on_gpu(
-                streams,
-                message_modulus,
-                carry_modulus,
-                encryption_glwe_dimension,
-                encryption_polynomial_size,
-                compression_glwe_dimension,
-                compression_polynomial_size,
-                bsk,
-                indexes_array_len.0 as u32,
-            ),
+        if let CudaBootstrappingKey::Classic(bsk) = &self.blind_rotate_key {
+            assert!(
+                bsk.ms_noise_reduction_configuration.is_none(),
+                "Decompression key should not do modulus switch noise reduction"
+            );
         }
+        cuda_backend_get_decompression_size_on_gpu(
+            streams,
+            message_modulus,
+            carry_modulus,
+            encryption_glwe_dimension,
+            encryption_polynomial_size,
+            compression_glwe_dimension,
+            compression_polynomial_size,
+            &self.blind_rotate_key,
+            indexes_array_len.0 as u32,
+        )
     }
     pub fn get_cpu_list_unpack_size_on_gpu(
         &self,
@@ -779,36 +733,23 @@ impl CudaDecompressionKey {
         let message_modulus = self.message_modulus;
         let carry_modulus = self.carry_modulus;
 
-        match &self.blind_rotate_key {
-            CudaBootstrappingKey::Classic(bsk) => {
-                assert!(
-                    bsk.ms_noise_reduction_configuration.is_none(),
-                    "Decompression key should not do modulus switch noise reduction"
-                );
-                cuda_backend_get_decompression_size_on_gpu(
-                    streams,
-                    message_modulus,
-                    carry_modulus,
-                    encryption_glwe_dimension,
-                    encryption_polynomial_size,
-                    compression_glwe_dimension,
-                    compression_polynomial_size,
-                    bsk,
-                    indexes_array_len.0 as u32,
-                )
-            }
-            CudaBootstrappingKey::MultiBit(bsk) => cuda_backend_get_decompression_size_on_gpu(
-                streams,
-                message_modulus,
-                carry_modulus,
-                encryption_glwe_dimension,
-                encryption_polynomial_size,
-                compression_glwe_dimension,
-                compression_polynomial_size,
-                bsk,
-                indexes_array_len.0 as u32,
-            ),
+        if let CudaBootstrappingKey::Classic(bsk) = &self.blind_rotate_key {
+            assert!(
+                bsk.ms_noise_reduction_configuration.is_none(),
+                "Decompression key should not do modulus switch noise reduction"
+            );
         }
+        cuda_backend_get_decompression_size_on_gpu(
+            streams,
+            message_modulus,
+            carry_modulus,
+            encryption_glwe_dimension,
+            encryption_polynomial_size,
+            compression_glwe_dimension,
+            compression_polynomial_size,
+            &self.blind_rotate_key,
+            indexes_array_len.0 as u32,
+        )
     }
 }
 

@@ -336,7 +336,7 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     luts[1] = message_extract_lut_2;
 
     auto active_streams =
-        streams.active_gpu_subset(num_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_blocks, params.pbs_type());
 
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(
@@ -1009,12 +1009,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
       masking_luts_2[i] = new int_radix_lut<Torus>(
           streams, params, 1, num_blocks, allocate_gpu_memory, size_tracker);
 
-      auto active_streams_1 = streams.active_gpu_subset(1, params.pbs_type);
+      auto active_streams_1 = streams.active_gpu_subset(1, params.pbs_type());
       masking_luts_1[i]->generate_and_broadcast_lut(
           active_streams_1, {0}, {lut_f_masking}, LUT_0_FOR_ALL_BLOCKS);
 
       auto active_streams_2 =
-          streams.active_gpu_subset(num_blocks, params.pbs_type);
+          streams.active_gpu_subset(num_blocks, params.pbs_type());
       masking_luts_2[i]->generate_and_broadcast_lut(
           active_streams_2, {0}, {lut_f_masking}, LUT_0_FOR_ALL_BLOCKS);
     }
@@ -1036,7 +1036,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
                                      message_extract_lut_2};
 
     auto active_streams =
-        streams.active_gpu_subset(num_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_blocks, params.pbs_type());
     for (int j = 0; j < 2; j++) {
       luts[j]->generate_and_broadcast_lut(
           active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
@@ -1099,7 +1099,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     // merge_overflow_flags_luts
     merge_overflow_flags_luts = new int_radix_lut<Torus> *[num_bits_in_message];
     auto active_gpu_count_for_bits =
-        streams.active_gpu_subset(1, params.pbs_type);
+        streams.active_gpu_subset(1, params.pbs_type());
     for (int i = 0; i < num_bits_in_message; i++) {
       auto lut_f_bit = [i](Torus x, Torus y) -> Torus {
         return (x == 0 && y == 0) << i;
@@ -1118,7 +1118,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
                               uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     auto active_streams =
-        streams.active_gpu_subset(2 * num_blocks, params.pbs_type);
+        streams.active_gpu_subset(2 * num_blocks, params.pbs_type());
     this->params = params;
 
     if (params.message_modulus == 4 && params.carry_modulus == 4 &&
@@ -1455,7 +1455,7 @@ template <typename Torus> struct int_div_rem_memory {
 
     gpu_memory_allocated = allocate_gpu_memory;
     this->active_streams =
-        streams.active_gpu_subset(num_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_blocks, params.pbs_type());
     this->params = params;
     this->is_signed = is_signed;
 
@@ -1533,8 +1533,8 @@ template <typename Torus> struct int_div_rem_memory {
       compare_signed_bits_lut = new int_radix_lut<Torus>(
           streams, params, 1, 1, allocate_gpu_memory, size_tracker);
 
-      auto active_gpu_count_cmp =
-          streams.active_gpu_subset(1, params.pbs_type); // only 1 block needed
+      auto active_gpu_count_cmp = streams.active_gpu_subset(
+          1, params.pbs_type()); // only 1 block needed
 
       compare_signed_bits_lut->generate_and_broadcast_bivariate_lut(
           active_gpu_count_cmp, {0}, {f_compare_extracted_signed_bits},

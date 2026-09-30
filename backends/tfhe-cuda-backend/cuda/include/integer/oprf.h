@@ -123,7 +123,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     // Copy the prepared LUT indexes to the GPU 0, before broadcast to all other
     // GPUs.
     auto active_streams =
-        streams.active_gpu_subset(num_blocks_to_process, params.pbs_type);
+        streams.active_gpu_subset(num_blocks_to_process, params.pbs_type());
     // No encoding for these LUTS. Generate LUT also sets LUT degrees to default
     // values
     auto luts_index_generator = [total_random_bits, message_bits_per_block](
