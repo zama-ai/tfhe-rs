@@ -411,9 +411,13 @@ impl CudaFlattenedVecCompactCiphertextList {
         &self,
         streams: &CudaStreams,
     ) -> crate::Result<crate::integer::ciphertext::CompactCiphertextList> {
-        let shortint_compact_list = self.to_vec_shortint_compact_ciphertext_list(streams)?;
+        let ct_list = self
+            .to_vec_shortint_compact_ciphertext_list(streams)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| crate::error!("CudaFlattenedVecCompactCiphertextList holds no list"))?;
         Ok(crate::integer::ciphertext::CompactCiphertextList {
-            ct_list: shortint_compact_list.first().unwrap().clone(),
+            ct_list,
             info: self.data_info.clone(),
         })
     }
