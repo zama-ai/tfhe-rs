@@ -2462,14 +2462,16 @@ bench_hlapi_erc7984_hpu: install_rs_check_toolchain
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
 bench_tfhe_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench -p tfhe-zk-pok --
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench zk-pke-v1 --bench zk-pke-v2 \
+	--features=zk-pok -p tfhe-benchmark --
 
 .PHONY: bench_tfhe_zk_pok_gpu # Run benchmarks for the tfhe_zk_pok crate using GPU acceleration
 bench_tfhe_zk_pok_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--package tfhe-zk-pok \
-	--features=gpu --profile release
+	--bench zk-pke-v1 --bench zk-pke-v2 \
+	--features=gpu-zk -p tfhe-benchmark --profile release
 
 .PHONY: bench_hlapi_noise_squash # Run benchmarks for noise squash operation
 bench_hlapi_noise_squash: install_rs_check_toolchain

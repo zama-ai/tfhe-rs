@@ -253,6 +253,18 @@ path = "benches/zk/msm.rs"
 harness = false
 required-features = ["zk-pok"]
 
+[[bench]]
+name = "zk-pke-v1"
+path = "benches/zk/pke_v1.rs"
+harness = false
+required-features = ["zk-pok"]
+
+[[bench]]
+name = "zk-pke-v2"
+path = "benches/zk/pke_v2.rs"
+harness = false
+required-features = ["zk-pok"]
+
 [[bin]]
 name = "boolean_key_sizes"
 path = "src/bin/boolean_key_sizes.rs"
