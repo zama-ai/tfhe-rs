@@ -1073,6 +1073,7 @@ macro_rules! define_scalar_rotate_shifts {
             rust_trait: Shl(shl),
             implem: {
                 |lhs: &FheUint<_>, rhs| {
+                    let rhs = crate::high_level_api::integers::saturated_scalar_shift_amount(lhs, rhs);
                     global_state::with_internal_keys(|key| match key {
                         InternalServerKey::Cpu(cpu_key) => {
                             let inner_result = cpu_key
@@ -1085,7 +1086,7 @@ macro_rules! define_scalar_rotate_shifts {
                             let inner_result = {
                                 let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_left_shift(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
@@ -1131,6 +1132,7 @@ macro_rules! define_scalar_rotate_shifts {
             rust_trait: Shr(shr),
             implem: {
                 |lhs: &FheUint<_>, rhs| {
+                    let rhs = crate::high_level_api::integers::saturated_scalar_shift_amount(lhs, rhs);
                     global_state::with_internal_keys(|key| match key {
                         InternalServerKey::Cpu(cpu_key) => {
                             let inner_result = cpu_key
@@ -1143,7 +1145,7 @@ macro_rules! define_scalar_rotate_shifts {
                             let inner_result = {
                                 let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_right_shift(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
@@ -1188,6 +1190,7 @@ macro_rules! define_scalar_rotate_shifts {
             rust_trait: RotateLeft(rotate_left),
             implem: {
                 |lhs: &FheUint<_>, rhs| {
+                    let rhs = crate::high_level_api::integers::reduced_scalar_rotate_amount(lhs, rhs);
                     global_state::with_internal_keys(|key| match key {
                         InternalServerKey::Cpu(cpu_key) => {
                             let inner_result = cpu_key
@@ -1200,7 +1203,7 @@ macro_rules! define_scalar_rotate_shifts {
                             let inner_result = {
                                 let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_rotate_left(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
@@ -1245,6 +1248,7 @@ macro_rules! define_scalar_rotate_shifts {
             rust_trait: RotateRight(rotate_right),
             implem: {
                 |lhs: &FheUint<_>, rhs| {
+                    let rhs = crate::high_level_api::integers::reduced_scalar_rotate_amount(lhs, rhs);
                     global_state::with_internal_keys(|key| match key {
                         InternalServerKey::Cpu(cpu_key) => {
                             let inner_result = cpu_key
@@ -1257,7 +1261,7 @@ macro_rules! define_scalar_rotate_shifts {
                             let inner_result = {
                                 let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_rotate_right(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
@@ -1303,6 +1307,7 @@ macro_rules! define_scalar_rotate_shifts {
             rust_trait: ShlAssign(shl_assign),
             implem: {
                 |lhs: &mut FheUint<_>, rhs| {
+                    let rhs = crate::high_level_api::integers::saturated_scalar_shift_amount(lhs, rhs);
                     global_state::with_internal_keys(|key| match key {
                         InternalServerKey::Cpu(cpu_key) => {
                             cpu_key
@@ -1335,6 +1340,7 @@ macro_rules! define_scalar_rotate_shifts {
             rust_trait: ShrAssign(shr_assign),
             implem: {
                 |lhs: &mut FheUint<_>, rhs| {
+                    let rhs = crate::high_level_api::integers::saturated_scalar_shift_amount(lhs, rhs);
                     global_state::with_internal_keys(|key| match key {
                         InternalServerKey::Cpu(cpu_key) => {
                             cpu_key
@@ -1366,6 +1372,7 @@ macro_rules! define_scalar_rotate_shifts {
             rust_trait: RotateLeftAssign(rotate_left_assign),
             implem: {
                 |lhs: &mut FheUint<_>, rhs| {
+                    let rhs = crate::high_level_api::integers::reduced_scalar_rotate_amount(lhs, rhs);
                     global_state::with_internal_keys(|key| match key {
                         InternalServerKey::Cpu(cpu_key) => {
                             cpu_key
@@ -1395,6 +1402,7 @@ macro_rules! define_scalar_rotate_shifts {
             rust_trait: RotateRightAssign(rotate_right_assign),
             implem: {
                 |lhs: &mut FheUint<_>, rhs| {
+                    let rhs = crate::high_level_api::integers::reduced_scalar_rotate_amount(lhs, rhs);
                     global_state::with_internal_keys(|key| match key {
                         InternalServerKey::Cpu(cpu_key) => {
                             cpu_key

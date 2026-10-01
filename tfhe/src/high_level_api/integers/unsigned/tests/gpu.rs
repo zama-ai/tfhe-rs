@@ -1017,6 +1017,22 @@ fn test_uint16_fused_mul_div_gpu() {
 }
 
 #[test]
+fn test_scalar_shift_rotate_large_amount_gpu() {
+    for setup_fn in GPU_SETUP_FN {
+        let client_key = setup_fn();
+        super::test_case_scalar_shift_rotate_large_amount(&client_key);
+    }
+}
+
+#[test]
+fn test_scalar_shift_rotate_narrow_amount_type_gpu() {
+    for setup_fn in GPU_SETUP_FN {
+        let client_key = setup_fn();
+        super::test_case_scalar_shift_rotate_narrow_amount_type(&client_key);
+    }
+}
+
+#[test]
 fn test_gpu_get_rerand_size_on_gpu() {
     use crate::high_level_api::re_randomization::ReRandomizationMode;
     for setup_fn in GPU_SETUP_FN {
