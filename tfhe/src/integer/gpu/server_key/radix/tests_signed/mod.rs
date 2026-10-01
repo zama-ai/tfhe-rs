@@ -1,3 +1,4 @@
+mod legacy_default_tests;
 pub(crate) mod test_abs;
 pub(crate) mod test_add;
 pub(crate) mod test_bitonic_shuffle;
@@ -246,6 +247,36 @@ where
         (self.func)(&context.sks, &mut d_ctxt_1, &d_ctxt_2, &context.streams);
 
         *input.0 = d_ctxt_1.to_signed_radix_ciphertext(&context.streams);
+    }
+}
+
+/// For unchecked/default binary functions with one unsigned scalar input (shifts and rotations)
+impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, u64), SignedRadixCiphertext>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaSignedRadixCiphertext,
+        u64,
+        &CudaStreams,
+    ) -> CudaSignedRadixCiphertext,
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a SignedRadixCiphertext, u64)) -> SignedRadixCiphertext {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1 =
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
+
+        let gpu_result = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
+
+        gpu_result.to_signed_radix_ciphertext(&context.streams)
     }
 }
 
