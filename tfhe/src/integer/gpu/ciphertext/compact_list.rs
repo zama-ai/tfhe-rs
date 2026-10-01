@@ -368,7 +368,7 @@ impl CudaFlattenedVecCompactCiphertextList {
 
         // Now we'll split it into individual lists
         let mut result = Vec::new();
-        let mut offset = 0;
+        let mut offset = 0usize;
 
         streams.synchronize();
         // For each size in num_lwe_per_compact_list, compute the length of that slice
@@ -379,7 +379,16 @@ impl CudaFlattenedVecCompactCiphertextList {
                 lwe_compact_ciphertext_list_size(self.lwe_dimension, LweCiphertextCount(num_lwe));
 
             // Extract the slice from h_vec starting at current_offset with computed length
-            let slice = &h_vec[offset..offset + length];
+            let slice = offset
+                .checked_add(length)
+                .and_then(|end| h_vec.get(offset..end))
+                .ok_or_else(|| {
+                    crate::error!(
+                        "Invalid CudaFlattenedVecCompactCiphertextList: its metadata describes \
+                        more than the {} elements it holds",
+                        h_vec.len()
+                    )
+                })?;
 
             // Create a new Vec from this slice
             let list = slice.to_vec();
@@ -411,9 +420,13 @@ impl CudaFlattenedVecCompactCiphertextList {
         &self,
         streams: &CudaStreams,
     ) -> crate::Result<crate::integer::ciphertext::CompactCiphertextList> {
-        let shortint_compact_list = self.to_vec_shortint_compact_ciphertext_list(streams)?;
+        let ct_list = self
+            .to_vec_shortint_compact_ciphertext_list(streams)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| crate::error!("CudaFlattenedVecCompactCiphertextList holds no list"))?;
         Ok(crate::integer::ciphertext::CompactCiphertextList {
-            ct_list: shortint_compact_list.first().unwrap().clone(),
+            ct_list,
             info: self.data_info.clone(),
         })
     }
