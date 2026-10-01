@@ -2,7 +2,7 @@ use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::LweCiphertextCount;
+use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount};
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -236,20 +236,26 @@ impl CudaCompressedCiphertextList {
     ///     .push(d_ct3, &streams)
     ///     .build(&cuda_compression_key, &streams);
     ///
-    /// let converted_compressed = cuda_compressed.to_compressed_ciphertext_list(&streams);
+    /// let converted_compressed = cuda_compressed
+    ///     .to_compressed_ciphertext_list(&streams)
+    ///     .unwrap();
     /// ```
-    pub fn to_compressed_ciphertext_list(&self, streams: &CudaStreams) -> CompressedCiphertextList {
+    pub fn to_compressed_ciphertext_list(
+        &self,
+        streams: &CudaStreams,
+    ) -> crate::Result<CompressedCiphertextList> {
         let Some(gpu_meta) = self.packed_list.meta.as_ref() else {
-            // If there is no metadata, the list is empty
+            // If there is no metadata, the list stores no ciphertext
             let packed_list = ShortintCompressedCiphertextList {
                 modulus_switched_glwe_ciphertext_list: Vec::new(),
                 meta: None,
             };
 
-            return CompressedCiphertextList {
+            return Ok(CompressedCiphertextList {
                 packed_list,
-                info: Vec::new(),
-            };
+                // Propagate the info vec as it is, so conformance can properly check it
+                info: self.info.clone(),
+            });
         };
 
         let ciphertext_modulus = gpu_meta.ciphertext_modulus;
@@ -259,8 +265,28 @@ impl CudaCompressedCiphertextList {
         let storage_log_modulus = gpu_meta.storage_log_modulus;
         let glwe_dimension = gpu_meta.glwe_dimension;
         let polynomial_size = gpu_meta.polynomial_size;
-        let mut modulus_switched_glwe_ciphertext_list =
-            Vec::with_capacity(self.packed_list.glwe_ciphertext_count().0);
+
+        if lwe_per_glwe.0 == 0 {
+            return Err(crate::error!(
+                "Invalid CudaCompressedCiphertextList metadata: lwe_per_glwe is 0"
+            ));
+        }
+        if storage_log_modulus.0 == 0
+            || storage_log_modulus.0 > CiphertextModulusLog::from(ciphertext_modulus).0
+        {
+            return Err(crate::error!(
+                "Invalid CudaCompressedCiphertextList metadata: storage log modulus {} is not in \
+                ]0, log2({ciphertext_modulus})]",
+                storage_log_modulus.0
+            ));
+        }
+
+        let size_overflow =
+            || crate::error!("Invalid CudaCompressedCiphertextList metadata: size overflows");
+        let glwe_mask_size = glwe_dimension
+            .0
+            .checked_mul(polynomial_size.0)
+            .ok_or_else(size_overflow)?;
 
         let flat_cpu_data = unsafe {
             let mut v = vec![0u64; self.packed_list.data.len()];
@@ -269,18 +295,32 @@ impl CudaCompressedCiphertextList {
             v
         };
 
+        let mut modulus_switched_glwe_ciphertext_list = Vec::new();
         let mut num_bodies_left = gpu_meta.total_lwe_bodies_count;
-        let mut chunk_start = 0;
+        let mut chunk_start = 0usize;
         while num_bodies_left != 0 {
             let bodies_count = LweCiphertextCount(num_bodies_left.min(lwe_per_glwe.0));
-            let initial_len = (glwe_dimension.0 * polynomial_size.0) + bodies_count.0;
-            let number_bits_to_pack = initial_len * storage_log_modulus.0;
-            let len = number_bits_to_pack.div_ceil(u64::BITS as usize);
-            let chunk_end = chunk_start + len;
+            let initial_len = glwe_mask_size
+                .checked_add(bodies_count.0)
+                .ok_or_else(size_overflow)?;
+            let len = initial_len
+                .checked_mul(storage_log_modulus.0)
+                .ok_or_else(size_overflow)?
+                .div_ceil(u64::BITS as usize);
+            let chunk = chunk_start
+                .checked_add(len)
+                .and_then(|chunk_end| flat_cpu_data.get(chunk_start..chunk_end))
+                .ok_or_else(|| {
+                    crate::error!(
+                        "Invalid CudaCompressedCiphertextList: its metadata describes more data \
+                        than the {} elements it holds",
+                        flat_cpu_data.len()
+                    )
+                })?;
             modulus_switched_glwe_ciphertext_list.push(
                 CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
                     PackedIntegers::from_raw_parts(
-                        flat_cpu_data[chunk_start..chunk_end].to_vec(),
+                        chunk.to_vec(),
                         storage_log_modulus,
                         initial_len,
                     ),
@@ -290,8 +330,16 @@ impl CudaCompressedCiphertextList {
                     ciphertext_modulus,
                 ),
             );
-            num_bodies_left = num_bodies_left.saturating_sub(lwe_per_glwe.0);
-            chunk_start = chunk_end;
+            num_bodies_left -= bodies_count.0;
+            chunk_start += len;
+        }
+
+        if chunk_start != flat_cpu_data.len() {
+            return Err(crate::error!(
+                "Invalid CudaCompressedCiphertextList: its metadata describes {chunk_start} \
+                elements but it holds {}",
+                flat_cpu_data.len()
+            ));
         }
 
         let atomic_pattern = AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap);
@@ -307,10 +355,10 @@ impl CudaCompressedCiphertextList {
             meta,
         };
 
-        CompressedCiphertextList {
+        Ok(CompressedCiphertextList {
             packed_list,
             info: self.info.clone(),
-        }
+        })
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
@@ -369,7 +417,9 @@ impl CompressedCiphertextList {
     ///     .build(&compression_key);
     ///
     /// let cuda_compressed = compressed.to_cuda_compressed_ciphertext_list(&streams);
-    /// let recovered_cuda_compressed = cuda_compressed.to_compressed_ciphertext_list(&streams);
+    /// let recovered_cuda_compressed = cuda_compressed
+    ///     .to_compressed_ciphertext_list(&streams)
+    ///     .unwrap();
     ///
     /// assert_eq!(recovered_cuda_compressed, compressed);
     ///
@@ -563,7 +613,9 @@ impl serde::Serialize for CudaCompressedCiphertextList {
         S: Serializer,
     {
         let streams = CudaStreams::new_multi_gpu();
-        let cpu_res = self.to_compressed_ciphertext_list(&streams);
+        let cpu_res = self
+            .to_compressed_ciphertext_list(&streams)
+            .map_err(serde::ser::Error::custom)?;
         cpu_res.serialize(serializer)
     }
 }
@@ -662,6 +714,7 @@ mod tests {
             // Roundtrip Gpu->Cpu->Gpu
             let cuda_compressed_list = cuda_compressed_list
                 .to_compressed_ciphertext_list(&streams)
+                .unwrap()
                 .to_cuda_compressed_ciphertext_list(&streams);
 
             let cuda_compressed_list_2 =
@@ -699,15 +752,17 @@ mod tests {
             // Roundtrip Cpu->Gpu->Cpu
             let cpu_compressed_list = cpu_compressed_list
                 .to_cuda_compressed_ciphertext_list(&streams)
-                .to_compressed_ciphertext_list(&streams);
+                .to_compressed_ciphertext_list(&streams)
+                .unwrap();
             assert_eq!(
                 cpu_compressed_list.packed_list.flat_len(),
                 expected_flat_len,
                 "Invalid flat len after Cpu->Gpu->Cpu"
             );
 
-            let cpu_compressed_list_2 =
-                cuda_compressed_list.to_compressed_ciphertext_list(&streams);
+            let cpu_compressed_list_2 = cuda_compressed_list
+                .to_compressed_ciphertext_list(&streams)
+                .unwrap();
             assert_eq!(
                 cpu_compressed_list_2.packed_list.flat_len(),
                 expected_flat_len,
