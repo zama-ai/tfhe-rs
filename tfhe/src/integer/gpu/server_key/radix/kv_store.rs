@@ -254,7 +254,9 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
             }
         }
         let cuda_compressed = builder.build(compression_key, streams);
-        let compressed_list = cuda_compressed.to_compressed_ciphertext_list(streams);
+        let compressed_list = cuda_compressed
+            .to_compressed_ciphertext_list(streams)
+            .expect("A list compressed on the GPU should convert back to the CPU");
         CompressedKVStore::new(keys, compressed_list)
     }
 
