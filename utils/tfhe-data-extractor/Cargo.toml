@@ -16,6 +16,6 @@ sqlx = { version = "0.8.6", default-features = false, features = [
 ] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 serde = { workspace = true, features = ["derive"] }
-toml = "0.8"
+toml = "1.1"
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
