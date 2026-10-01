@@ -281,10 +281,11 @@ where
     FheType: FheHpu,
 {
     use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
+    // The IOp declares its operands per transfer, i.e. as (from, to, amount) triplets, and not
+    // grouped by role (c.f. `erc7984_simd` in zhc_builder)
     let src = HpuHandle {
-        native: vec![from_amount, to_amount, amount]
-            .into_iter()
-            .flatten()
+        native: std::iter::zip(from_amount, std::iter::zip(to_amount, amount))
+            .flat_map(|(from, (to, amount))| [from, to, amount])
             .collect(),
         boolean: vec![],
         imm: vec![],
@@ -294,7 +295,7 @@ where
         hpu_asm::IOpcode::from(hpu_asm::StaticIOp::Erc7984Simd),
         src,
     );
-    // Iop erc_7984 return new_from, new_to
+    // Iop erc_7984_simd return a (new_from, new_to) pair for each transfer
     let res = res_handle.native;
     res
 }
@@ -636,38 +637,49 @@ fn hpu_bench_transfer_throughput<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    // Size of the inputs set
+    // There is no memory release throughout the test. This enable to play with
+    // number of operation while prevent memory alloaction issue
+    // Number of times the operand set is reissued before the pipeline is drained
+    let input_set = 64;
+
     let mut group = group.benchmark_group(tag.to_string());
-    for num_elems in [10, 100] {
-        group.throughput(Throughput::Elements(num_elems));
+    for rounds in [10, 50, 100] {
+        let real_num_elems = rounds * input_set;
+        group.throughput(Throughput::Elements(real_num_elems));
         let bench_spec = BenchmarkSpec::new_hlapi(
             HlapiBench::Erc7984(erc7984_bench_spec),
             &params_name,
             OperandType::CipherText,
             Some(tag),
             BenchmarkMetric::Throughput,
-            Some(num_elems.try_into().unwrap()),
+            Some(real_num_elems.try_into().unwrap()),
         );
-        group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
-            let from_amounts = (0..num_elems)
+        group.bench_with_input(bench_spec.to_string(), &input_set, |b, &input_set| {
+            let from_amounts = (0..input_set)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
-            let to_amounts = (0..num_elems)
+            let to_amounts = (0..input_set)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
-            let amounts = (0..num_elems)
+            let amounts = (0..input_set)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
 
             b.iter(|| {
-                let (last_new_from, last_new_to) = std::iter::zip(
-                    from_amounts.iter(),
-                    std::iter::zip(to_amounts.iter(), amounts.iter()),
-                )
-                .map(|(from_amount, (to_amount, amount))| {
-                    transfer_func(from_amount, to_amount, amount)
-                })
-                .last()
-                .unwrap();
+                // Issue every round back to back
+                let (last_new_from, last_new_to) = (0..rounds)
+                    .flat_map(|_| {
+                        std::iter::zip(
+                            from_amounts.iter(),
+                            std::iter::zip(to_amounts.iter(), amounts.iter()),
+                        )
+                    })
+                    .map(|(from_amount, (to_amount, amount))| {
+                        transfer_func(from_amount, to_amount, amount)
+                    })
+                    .last()
+                    .unwrap();
 
                 // Wait on last result to enforce all computation is over
                 last_new_from.wait();
@@ -707,9 +719,15 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     let params = client_key.computation_parameters();
     let params_name = params.name();
 
+    // Size of the inputs set
+    // There is no memory release throughout the test. This enable to play with
+    // number of operation while prevent memory alloaction issue
+    // Number of times the operand set is reissued before the pipeline is drained
+    let input_set = 24;
+
     let mut group = group.benchmark_group(tag.to_string());
-    for num_elems in [2, 8] {
-        let real_num_elems = num_elems * (hpu_simd_n as u64);
+    for rounds in [10, 50, 100] {
+        let real_num_elems = rounds * input_set * (hpu_simd_n as u64);
         group.throughput(Throughput::Elements(real_num_elems));
         let bench_spec = BenchmarkSpec::new_hlapi(
             HlapiBench::Erc7984(erc7984_bench_spec),
@@ -719,22 +737,22 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
             BenchmarkMetric::Throughput,
             Some(real_num_elems.try_into().unwrap()),
         );
-        group.bench_with_input(bench_spec.to_string(), &num_elems, |b, &num_elems| {
-            let from_amounts = (0..num_elems)
+        group.bench_with_input(bench_spec.to_string(), &input_set, |b, &input_set| {
+            let from_amounts = (0..input_set)
                 .map(|_| {
                     (0..hpu_simd_n)
                         .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                         .collect()
                 })
                 .collect::<Vec<_>>();
-            let to_amounts = (0..num_elems)
+            let to_amounts = (0..input_set)
                 .map(|_| {
                     (0..hpu_simd_n)
                         .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                         .collect()
                 })
                 .collect::<Vec<_>>();
-            let amounts = (0..num_elems)
+            let amounts = (0..input_set)
                 .map(|_| {
                     (0..hpu_simd_n)
                         .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -743,15 +761,19 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
                 .collect::<Vec<_>>();
 
             b.iter(|| {
-                let last_res_vec = std::iter::zip(
-                    from_amounts.iter(),
-                    std::iter::zip(to_amounts.iter(), amounts.iter()),
-                )
-                .map(|(from_amount, (to_amount, amount))| {
-                    transfer_func(from_amount, to_amount, amount)
-                })
-                .last()
-                .unwrap();
+                // Issue every round back to back
+                let last_res_vec = (0..rounds)
+                    .flat_map(|_| {
+                        std::iter::zip(
+                            from_amounts.iter(),
+                            std::iter::zip(to_amounts.iter(), amounts.iter()),
+                        )
+                    })
+                    .map(|(from_amount, (to_amount, amount))| {
+                        transfer_func(from_amount, to_amount, amount)
+                    })
+                    .last()
+                    .unwrap();
 
                 // Wait on last result to enforce all computation is over
                 for ct in last_res_vec {
