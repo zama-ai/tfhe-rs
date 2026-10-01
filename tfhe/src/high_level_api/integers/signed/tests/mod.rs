@@ -1,8 +1,8 @@
 use crate::core_crypto::prelude::SignedInteger;
 use crate::prelude::*;
 use crate::{
-    ClientKey, FheBool, FheInt10, FheInt16, FheInt32, FheInt4, FheInt6, FheInt64, FheInt8,
-    FheIntegerType, FheUint64, FheUint8, IntegerId,
+    ClientKey, FheBool, FheInt10, FheInt16, FheInt256, FheInt32, FheInt4, FheInt6, FheInt64,
+    FheInt8, FheIntegerType, FheUint64, FheUint8, IntegerId,
 };
 use rand::prelude::*;
 use std::ops::{Div, Mul};
@@ -682,4 +682,79 @@ fn check_fused_mul_div<FheType, Clear, WideClear>(
         let decrypted: Clear = result.decrypt(cks);
         assert_eq!(decrypted, expected);
     }
+}
+
+/// Non regression test of shift/rotate by some clear amount >= u64::MAX
+fn test_case_scalar_shift_rotate_large_amount(cks: &ClientKey) {
+    // Anything past u64::MAX would trigger the bug
+    let amount: u128 = thread_rng().gen_range((u64::MAX as u128 + 1)..=u128::MAX);
+
+    let clear = -2i8;
+    let a = FheInt8::encrypt(clear, cks);
+
+    let shifted_left: i8 = (&a << amount).decrypt(cks);
+    assert_eq!(
+        shifted_left, 0,
+        "left shift by {amount} should clear the value"
+    );
+
+    let shifted_right: i8 = (&a >> amount).decrypt(cks);
+    assert_eq!(
+        shifted_right, -1,
+        "arithmetic right shift by {amount} should saturate to the sign bit"
+    );
+
+    // Rotations are cyclic: only the amount modulo the bit width matters.
+    let reduced = u32::try_from(amount % u128::from(i8::BITS)).unwrap();
+
+    let rotated_left: i8 = (&a).rotate_left(amount).decrypt(cks);
+    assert_eq!(
+        rotated_left,
+        clear.rotate_left(reduced),
+        "rotate left by {amount} should reduce modulo {}",
+        i8::BITS
+    );
+
+    let rotated_right: i8 = (&a).rotate_right(amount).decrypt(cks);
+    assert_eq!(
+        rotated_right,
+        clear.rotate_right(reduced),
+        "rotate right by {amount} should reduce modulo {}",
+        i8::BITS
+    );
+}
+
+/// The clear amount's type can be much smaller than the ciphertext:
+/// The casting used internally must not assume the bit width is representable in the amount's type
+///
+/// e.g `FheInt256` accepts a `u8` amount, but 256 does not fit in u8
+fn test_case_scalar_shift_rotate_narrow_amount_type(cks: &ClientKey) {
+    let clear = 5i16;
+    let a = FheInt256::encrypt(clear, cks);
+
+    // 3 is a perfectly ordinary shift amount for a 256 bit ciphertext.
+    let shifted_left: i16 = (&a << 3u8).decrypt(cks);
+    assert_eq!(
+        shifted_left,
+        clear << 3,
+        "small u8 amount must not be read as an overshift"
+    );
+
+    let shifted_right: i16 = (&a >> 1u8).decrypt(cks);
+    assert_eq!(
+        shifted_right,
+        clear >> 1,
+        "small u8 amount must not be read as an overshift"
+    );
+
+    // Would panic with a divide by zero if the width were reduced inside the u8.
+    let rotated_left: i16 = (&a).rotate_left(3u8).decrypt(cks);
+    assert_eq!(
+        rotated_left,
+        clear << 3,
+        "rotating a 256 bit value left by 3 keeps the low bits"
+    );
+
+    let rotated_right: i16 = (&a).rotate_right(0u8).decrypt(cks);
+    assert_eq!(rotated_right, clear, "rotating by 0 is the identity");
 }

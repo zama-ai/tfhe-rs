@@ -81,6 +81,54 @@ mod private {
     impl<Id> Sealed for crate::high_level_api::FheInt<Id> where Id: super::FheIntId {}
 }
 
+/// Narrows a clear shift amount to a `u64`, saturating at the ciphertext's bit width.
+pub(crate) fn saturated_scalar_shift_amount<FheType, Scalar>(_lhs: &FheType, rhs: Scalar) -> u64
+where
+    FheType: FheIntegerType,
+    Scalar: crate::core_crypto::prelude::CastFrom<u64> + PartialEq + Copy,
+    u64: crate::core_crypto::prelude::CastFrom<Scalar>,
+{
+    use crate::core_crypto::prelude::CastFrom;
+    let num_bits = <FheType::Id as IntegerId>::num_bits() as u64;
+
+    let narrowed = u64::cast_from(rhs);
+    if Scalar::cast_from(narrowed) == rhs {
+        // The amount fits in a u64, compare it with the width there.
+        narrowed.min(num_bits)
+    } else {
+        // The amount does not fit in a u64
+        // None of our ciphertext have this (>= u64::MAX) amount of bits
+        num_bits
+    }
+}
+
+/// Narrows a clear rotation amount to a `u64`, reduced modulo the ciphertext's bit width.
+///
+/// Rotations are cyclic, so no amount is ever "too large".
+pub(crate) fn reduced_scalar_rotate_amount<FheType, Scalar>(_lhs: &FheType, rhs: Scalar) -> u64
+where
+    FheType: FheIntegerType,
+    Scalar: crate::core_crypto::prelude::CastFrom<u64>
+        + PartialEq
+        + Copy
+        + std::ops::Rem<Scalar, Output = Scalar>,
+    u64: crate::core_crypto::prelude::CastFrom<Scalar>,
+{
+    use crate::core_crypto::prelude::CastFrom;
+    let num_bits = <FheType::Id as IntegerId>::num_bits() as u64;
+
+    let narrowed = u64::cast_from(rhs);
+    if Scalar::cast_from(narrowed) == rhs {
+        // The amount fits in a u64, reduce it there.
+        narrowed % num_bits
+    } else {
+        // The amount needs more than 64 bits, so `Scalar` is wider than `u64`
+        // And as we don't have such large ciphertext (and likely never will)
+        // the Scalar::cast_from is safe from truncations
+        u64::cast_from(rhs % Scalar::cast_from(num_bits))
+    }
+}
+
 pub trait FheIntegerType: Tagged + private::Sealed {
     type Id: IntegerId;
 
