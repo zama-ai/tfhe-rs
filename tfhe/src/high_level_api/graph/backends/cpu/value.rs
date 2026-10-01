@@ -2,12 +2,16 @@
 //! conversion impls, plus the input/output list wrappers used by callers.
 
 use crate::graph::dialects::hlapi::ReRandomizationParams;
-use crate::graph::{FheIntKind, KvKeyKind, ScalarValue, ValueKind};
+use crate::graph::{FheIntKind, FheKind, KvKeyKind, ScalarValue, ValueKind};
 use crate::high_level_api::kv_store::KVStore as HlKVStore;
+use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::prelude::*;
 use crate::integer::server_key::KVStore;
 use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
-use crate::{FheBool, FheInt, FheIntId, FheUint, FheUintId, ReRandomizationMetadata, Tag};
+use crate::{
+    CompressedCiphertextList as HlCompressedCiphertextList, FheBool, FheInt, FheIntId, FheUint,
+    FheUintId, ReRandomizationMetadata, Tag,
+};
 
 /// Possible runtime values to execute an HLAPI dialect program
 #[derive(Clone, strum::IntoStaticStr)]
@@ -26,6 +30,7 @@ pub enum RuntimeValue {
     FheIntKVStore(KVStore<u128, SignedRadixCiphertext>),
     /// Clear OPRF seed bytes
     Seed(Vec<u8>),
+    CompressedList(CompressedCiphertextList),
 }
 
 impl RuntimeValue {
@@ -90,6 +95,22 @@ impl RuntimeValue {
                     check_blocks_params(v.blocks())?;
                 }
             }
+            Self::CompressedList(list) => {
+                // An empty list has no meta, and so no parameters
+                if let Some(meta) = list.packed_list.meta.as_ref() {
+                    if meta.message_modulus != message_modulus
+                        || meta.carry_modulus != carry_modulus
+                    {
+                        return Err(super::CpuError::InputParamsMismatch {
+                            input_index,
+                            expected_message_modulus: message_modulus,
+                            expected_carry_modulus: carry_modulus,
+                            got_message_modulus: meta.message_modulus,
+                            got_carry_modulus: meta.carry_modulus,
+                        });
+                    }
+                }
+            }
             // Clear values and seeds carry no parameters.
             Self::ClearBool(_) | Self::ClearUint(_) | Self::ClearInt(_) | Self::Seed(_) => {}
         }
@@ -120,6 +141,9 @@ impl RuntimeValue {
             }
             Self::FheInt(radix) => ValueKind::FheInt(radix.blocks().len() as u32 * bits_per_block),
             Self::Seed(_) => ValueKind::Seed,
+            // The kinds of the items are checked against the `Decompress`
+            // ops using the list, see `check_decompress_picks`
+            Self::CompressedList(_) => ValueKind::CompressedList,
             // A store's key kind is not observable from its runtime keys
             // (they are stored widened to u128) and an empty store has no
             // observable value width (0 stands for "empty" below). KVStore
@@ -206,6 +230,19 @@ impl RuntimeValue {
     }
 }
 
+/// Whether an item of a compressed list, of kind `data_kind`, holds a value
+/// of kind `kind` under keys with `bits_per_block` message bits.
+pub(super) fn data_kind_matches(data_kind: DataKind, kind: FheKind, bits_per_block: u32) -> bool {
+    match (data_kind, kind) {
+        (DataKind::Boolean, FheKind::Bool) => true,
+        (DataKind::Unsigned(blocks), FheKind::Uint(bits))
+        | (DataKind::Signed(blocks), FheKind::Int(bits)) => {
+            blocks.get() as u64 * u64::from(bits_per_block) == u64::from(bits)
+        }
+        _ => false,
+    }
+}
+
 impl std::fmt::Debug for RuntimeValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -231,6 +268,9 @@ impl std::fmt::Debug for RuntimeValue {
                 write!(f, "RuntimeValue::FheIntKVStore(<{} entries>)", kv.len())
             }
             Self::Seed(bytes) => write!(f, "RuntimeValue::Seed(<{}B>)", bytes.len()),
+            Self::CompressedList(list) => {
+                write!(f, "RuntimeValue::CompressedList(<{} items>)", list.len())
+            }
         }
     }
 }
@@ -670,6 +710,34 @@ where
             }
             other => Err(RuntimeValueConversionError::WrongVariant {
                 expected_variant: "FheIntKVStore",
+                got_variant: other.variant_name(),
+            }),
+        }
+    }
+}
+
+/// The list's re-randomization metadata is dropped, like for the other
+/// ciphertext inputs.
+impl From<HlCompressedCiphertextList> for RuntimeValue {
+    fn from(list: HlCompressedCiphertextList) -> Self {
+        Self::CompressedList(list.into_raw_parts().0)
+    }
+}
+
+/// Retrieval counterpart of the `From<CompressedCiphertextList>` input
+/// conversion, used via [`CpuOutputList::try_get`] (which stamps the
+/// executing key's tag on it).
+impl TryFrom<RuntimeValue> for HlCompressedCiphertextList {
+    type Error = RuntimeValueConversionError;
+
+    fn try_from(value: RuntimeValue) -> Result<Self, Self::Error> {
+        match value {
+            RuntimeValue::CompressedList(list) => {
+                let metadata = vec![ReRandomizationMetadata::default(); list.len()];
+                Ok(Self::from_raw_parts(list, Tag::default(), metadata))
+            }
+            other => Err(RuntimeValueConversionError::WrongVariant {
+                expected_variant: "CompressedList",
                 got_variant: other.variant_name(),
             }),
         }

@@ -2406,3 +2406,107 @@ pub(crate) fn rerand_two_slots_case<B: ExecutionBackend>(ck: &ClientKey, backend
         );
     }
 }
+
+// ============================================================
+// Compression
+// ============================================================
+//
+// These cases require `backend` to hold a server key with compression
+// enabled, and that same key to be set as the thread's server key (used to
+// build and read lists with the HLAPI).
+
+const UINT32: FheKind = FheKind::Uint(32);
+const INT32: FheKind = FheKind::Int(32);
+
+/// Compresses an `FheBool`, an `FheUint32` and an `FheInt32` in the graph,
+/// then decompresses some of them out of order, and all of them in order.
+pub(crate) fn compress_decompress_roundtrip_case<B: ExecutionBackend>(
+    ck: &ClientKey,
+    backend: &mut B,
+) {
+    let mut rng = thread_rng();
+    let clear_bool: bool = rng.gen();
+    let clear_uint = rand_u32(&mut rng);
+    let clear_int = rand_i32(&mut rng);
+
+    let mut b = ExecutionGraphBuilder::new();
+    let in_bool = b.input(ValueKind::FheBool).unwrap();
+    let in_uint = b.input(ValueKind::FheUint(32)).unwrap();
+    let in_int = b.input(ValueKind::FheInt(32)).unwrap();
+    let list = b.compress(&[in_bool, in_uint, in_int]).unwrap();
+
+    // Partial and out of order: the FheUint32 is not decompressed
+    let picked = b
+        .decompress(list, &[(2, INT32), (0, FheKind::Bool)])
+        .unwrap();
+    let in_order = b
+        .decompress_in_order(list, &[FheKind::Bool, UINT32, INT32])
+        .unwrap();
+    for v in picked.iter().chain(in_order.iter()) {
+        b.output(*v).unwrap();
+    }
+    let graph = b.build().unwrap();
+
+    let mut inputs = CpuInputList::new();
+    inputs.push(FheBool::encrypt(clear_bool, ck));
+    inputs.push(FheUint32::encrypt(clear_uint, ck));
+    inputs.push(FheInt32::encrypt(clear_int, ck));
+    let outputs = backend.execute(&graph, inputs).unwrap();
+
+    let picked_int: i32 = outputs.get::<FheInt32>(0).decrypt(ck);
+    let picked_bool: bool = outputs.get::<FheBool>(1).decrypt(ck);
+    assert_eq!(picked_int, clear_int);
+    assert_eq!(picked_bool, clear_bool);
+
+    let bool_out: bool = outputs.get::<FheBool>(2).decrypt(ck);
+    let uint_out: u32 = outputs.get::<FheUint32>(3).decrypt(ck);
+    let int_out: i32 = outputs.get::<FheInt32>(4).decrypt(ck);
+    assert_eq!(bool_out, clear_bool);
+    assert_eq!(uint_out, clear_uint);
+    assert_eq!(int_out, clear_int);
+}
+
+/// Takes a list compressed with the HLAPI as graph input, decompresses some
+/// of its items, computes with them, and outputs the results compressed in a
+/// new list that is read back with the HLAPI.
+pub(crate) fn decompress_input_list_case<B: ExecutionBackend>(ck: &ClientKey, backend: &mut B) {
+    use crate::{CompressedCiphertextList, CompressedCiphertextListBuilder};
+
+    let mut rng = thread_rng();
+    let clear_a = rand_u32(&mut rng);
+    let clear_flag: bool = rng.gen();
+    let clear_b = rand_u32(&mut rng);
+
+    let input_list = CompressedCiphertextListBuilder::new()
+        .push(FheUint32::encrypt(clear_a, ck))
+        .push(FheBool::encrypt(clear_flag, ck))
+        .push(FheUint32::encrypt(clear_b, ck))
+        .build()
+        .unwrap();
+
+    let mut b = ExecutionGraphBuilder::new();
+    let list = b.input(ValueKind::CompressedList).unwrap();
+    let [a, flag, other] = b
+        .decompress(list, &[(0, UINT32), (1, FheKind::Bool), (2, UINT32)])
+        .unwrap()[..]
+    else {
+        unreachable!()
+    };
+    let sum = b.fhe_add(a, other).unwrap();
+    let not_flag = b.fhe_not(flag).unwrap();
+    let out_list = b.compress(&[sum, not_flag]).unwrap();
+    b.output(out_list).unwrap();
+    let graph = b.build().unwrap();
+
+    let mut inputs = CpuInputList::new();
+    inputs.push(input_list);
+    let outputs = backend.execute(&graph, inputs).unwrap();
+
+    let out_list = outputs.get::<CompressedCiphertextList>(0);
+    let sum: FheUint32 = out_list.get(0).unwrap().unwrap();
+    let not_flag: FheBool = out_list.get(1).unwrap().unwrap();
+    let sum: u32 = sum.decrypt(ck);
+    let not_flag: bool = not_flag.decrypt(ck);
+    assert_eq!(sum, clear_a.wrapping_add(clear_b));
+    assert_eq!(not_flag, !clear_flag);
+}

@@ -1,17 +1,21 @@
 //! Per-op compute for the CPU backend.
 use std::sync::Arc;
 
-use super::value::RuntimeValue;
+use super::value::{data_kind_matches, RuntimeValue};
 use crate::graph::dialects::hlapi::{
     ClearKind, FheIntKind, FheKind, HlInstructionSet, NonNanF64, OprfMode, ReRandomizationConfig,
     ReRandomizationFnDescription, ReRandomizationParams, ScalarValue, ValueKind,
 };
 use crate::high_level_api::integers::oprf::num_input_random_bits_for_max_distance;
-use crate::integer::ciphertext::{ReRandomizationContext, ReRandomizationSeedHasher};
+use crate::integer::ciphertext::{
+    CompressedCiphertextList, CompressedCiphertextListBuilder, ReRandomizationContext,
+    ReRandomizationSeedHasher,
+};
 use crate::integer::server_key::radix_parallel::cmux::ServerKeyDefaultCMux;
 use crate::integer::server_key::KVStore;
 use crate::integer::{BooleanBlock, RadixCiphertext, SignedRadixCiphertext};
 use crate::ReRandomizationMode;
+use rayon::prelude::*;
 
 /// Number of radix blocks needed to hold `bits` bits under `sks`'s message
 /// modulus. Integer-layer APIs take block counts as `usize`.
@@ -439,6 +443,10 @@ fn exec_re_rand(
                 // The dialect and builder rejects this currently
                 return Err(crate::error!("Cannot re-rand KVStore"));
             }
+            RuntimeValue::CompressedList(_) => {
+                // The dialect and builder rejects this currently
+                return Err(crate::error!("Cannot re-rand CompressedList"));
+            }
         }
     }
 
@@ -469,11 +477,81 @@ fn exec_re_rand(
                     radix.re_randomize(re_rand_key, seeds.next_seed()?)?;
                     radix.into()
                 }
-                RuntimeValue::FheUintKVStore(_) | RuntimeValue::FheIntKVStore(_) => {
-                    unreachable!("KVStore inputs are rejected when building the context")
+                RuntimeValue::FheUintKVStore(_)
+                | RuntimeValue::FheIntKVStore(_)
+                | RuntimeValue::CompressedList(_) => {
+                    unreachable!(
+                        "KVStore and CompressedList inputs are rejected when building the context"
+                    )
                 }
             };
             Ok(output)
+        })
+        .collect()
+}
+
+/// Compresses the FHE `inputs`, in order, into a single list.
+fn exec_compress(inputs: &[&RuntimeValue], sks: &crate::ServerKey) -> crate::Result<RuntimeValue> {
+    let compression_key = sks
+        .key
+        .compression_key
+        .as_ref()
+        .ok_or_else(|| crate::error!("the server key has no compression key"))?;
+    let mut builder = CompressedCiphertextListBuilder::new();
+    for input in inputs {
+        match input {
+            RuntimeValue::FheBool(block) => builder.push(block.clone()),
+            RuntimeValue::FheUint(radix) => builder.push(radix.clone()),
+            RuntimeValue::FheInt(radix) => builder.push(radix.clone()),
+            other => {
+                return Err(crate::error!(
+                    "cannot compress a {} value",
+                    other.variant_name()
+                ))
+            }
+        };
+    }
+    Ok(RuntimeValue::CompressedList(builder.build(compression_key)))
+}
+
+/// Decompresses the `picks` of `list`, returns one value per pick in the
+/// order of `picks`.
+fn exec_decompress(
+    list: &CompressedCiphertextList,
+    picks: &[(u32, FheKind)],
+    sks: &crate::ServerKey,
+) -> crate::Result<Vec<RuntimeValue>> {
+    let decompression_key = sks
+        .key
+        .decompression_key
+        .as_ref()
+        .ok_or_else(|| crate::error!("the server key has no decompression key"))?;
+    let bits_per_block = sks.message_modulus().0.ilog2();
+
+    picks
+        .par_iter()
+        .map(|&(index, kind)| {
+            // Lists given as graph inputs are checked before execution, but
+            // not the ones compressed during it
+            let got = list.get_kind_of(index as usize);
+            if !got.is_some_and(|got| data_kind_matches(got, kind, bits_per_block)) {
+                return Err(crate::error!(
+                    "item {index} of the list is {got:?}, it cannot be decompressed as {kind:?}"
+                ));
+            }
+            let index = index as usize;
+            let value = match kind {
+                FheKind::Bool => list
+                    .get::<BooleanBlock>(index, decompression_key)?
+                    .map(RuntimeValue::FheBool),
+                FheKind::Uint(_) => list
+                    .get::<RadixCiphertext>(index, decompression_key)?
+                    .map(RuntimeValue::FheUint),
+                FheKind::Int(_) => list
+                    .get::<SignedRadixCiphertext>(index, decompression_key)?
+                    .map(RuntimeValue::FheInt),
+            };
+            value.ok_or_else(|| crate::error!("the list has no item {index}"))
         })
         .collect()
 }
@@ -1598,6 +1676,15 @@ pub(super) fn exec_dialect_op(
                 )
                 .unwrap(),
             );
+        }
+        HlInstructionSet::Compress { input_kinds: _ } => {
+            outputs.push(exec_compress(inputs, sks).unwrap());
+        }
+        HlInstructionSet::Decompress { picks } => {
+            let RuntimeValue::CompressedList(list) = inputs[0] else {
+                panic!("Decompress: expected a CompressedList input")
+            };
+            outputs.extend(exec_decompress(list, picks, sks).unwrap());
         }
     }
 }

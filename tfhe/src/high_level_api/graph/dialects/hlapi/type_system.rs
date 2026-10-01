@@ -28,6 +28,8 @@ pub enum ValueKind {
     KVStore { key: KvKeyKind, value: FheIntKind },
     /// A clear, variable-length byte string used to seed OPRF ops.
     Seed,
+    /// A compressed list of FHE values.
+    CompressedList,
 }
 
 /// Concrete clear Rust integer types currently accepted as KVStore keys.

@@ -2331,3 +2331,212 @@ fn rerand_params_are_checked_before_execution() {
         Err(CpuError::ReRandParams(ReRandParamsError::MissingParams))
     ));
 }
+
+// ============================================================
+// Compression
+// ============================================================
+
+/// Backend whose key supports compression, also set as the thread's server
+/// key (the cases build and read lists with the HLAPI).
+fn cpu_compression_backend() -> (ClientKey, CpuBackend) {
+    use crate::shortint::parameters::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    let config = ConfigBuilder::default()
+        .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+        .build();
+    let (ck, sk) = generate_keys(config);
+    crate::set_server_key(sk.clone());
+    (ck, CpuBackend::new(sk))
+}
+
+#[test]
+fn compress_decompress_roundtrip() {
+    let (ck, mut be) = cpu_compression_backend();
+    compress_decompress_roundtrip_case(&ck, &mut be);
+}
+
+#[test]
+fn decompress_input_list() {
+    let (ck, mut be) = cpu_compression_backend();
+    decompress_input_list_case(&ck, &mut be);
+}
+
+#[test]
+fn decompress_input_list_picks_are_checked_before_execution() {
+    use crate::integer::ciphertext::DataKind;
+    use crate::CompressedCiphertextListBuilder;
+
+    let (ck, mut be) = cpu_compression_backend();
+    let list = CompressedCiphertextListBuilder::new()
+        .push(FheUint32::encrypt(1u32, &ck))
+        .build()
+        .unwrap();
+
+    let graph_picking = |pick: (u32, FheKind)| {
+        let mut b = ExecutionGraphBuilder::new();
+        let input = b.input(ValueKind::CompressedList).unwrap();
+        let values = b.decompress(input, &[pick]).unwrap();
+        b.output(values[0]).unwrap();
+        b.build().unwrap()
+    };
+    let run = |be: &mut CpuBackend, graph: &ExecutionGraph| {
+        let mut inputs = CpuInputList::new();
+        inputs.push(list.clone());
+        be.execute(graph, inputs)
+    };
+
+    // Wrong signedness, then wrong width
+    for expected in [FheKind::Int(32), FheKind::Uint(64)] {
+        let result = run(&mut be, &graph_picking((0, expected)));
+        assert!(
+            matches!(
+                result,
+                Err(CpuError::DecompressPickMismatch {
+                    input_index: 0,
+                    item_index: 0,
+                    expected: e,
+                    got: Some(DataKind::Unsigned(_)),
+                }) if e == expected
+            ),
+            "{expected:?}: {:?}",
+            result.err()
+        );
+    }
+
+    // Out of range
+    let result = run(&mut be, &graph_picking((1, FheKind::Bool)));
+    assert!(matches!(
+        result,
+        Err(CpuError::DecompressPickMismatch {
+            input_index: 0,
+            item_index: 1,
+            expected: FheKind::Bool,
+            got: None,
+        })
+    ));
+}
+
+#[test]
+fn compression_requires_the_keys() {
+    // The default key has no compression keys: this only works because the
+    // graph is rejected before any op runs
+    let (_, mut be) = cpu_backend();
+
+    let mut b = ExecutionGraphBuilder::new();
+    let input = b.input(ValueKind::FheUint(32)).unwrap();
+    let list = b.compress(&[input]).unwrap();
+    b.output(list).unwrap();
+    let graph = b.build().unwrap();
+    assert!(matches!(
+        be.execute(&graph, CpuInputList::new()),
+        Err(CpuError::MissingCompressionKey)
+    ));
+
+    let mut b = ExecutionGraphBuilder::new();
+    let list = b.input(ValueKind::CompressedList).unwrap();
+    let values = b.decompress_in_order(list, &[FheKind::Uint(32)]).unwrap();
+    b.output(values[0]).unwrap();
+    let graph = b.build().unwrap();
+    assert!(matches!(
+        be.execute(&graph, CpuInputList::new()),
+        Err(CpuError::MissingDecompressionKey)
+    ));
+}
+
+#[test]
+fn compress_builder_errors() {
+    let mut b = new_bld();
+    assert!(matches!(
+        b.compress(&[]),
+        Err(BuilderError {
+            kind: BuilderErrorKind::EmptyInput,
+            op: "compress",
+        })
+    ));
+
+    let clear = b.input(ValueKind::Uint(32)).unwrap();
+    assert!(matches!(
+        b.compress(&[clear]),
+        Err(BuilderError {
+            kind: BuilderErrorKind::IncompatibleKind { .. },
+            op: "compress",
+        })
+    ));
+
+    // No nested compression
+    let list = b.input(ValueKind::CompressedList).unwrap();
+    assert!(matches!(
+        b.compress(&[list]),
+        Err(BuilderError {
+            kind: BuilderErrorKind::IncompatibleKind { .. },
+            op: "compress",
+        })
+    ));
+}
+
+#[test]
+fn decompress_builder_errors() {
+    let mut b = new_bld();
+    let x = b.input(ValueKind::FheUint(32)).unwrap();
+    let flag = b.input(ValueKind::FheBool).unwrap();
+    let list = b.compress(&[x, flag]).unwrap();
+
+    let check = |result: Result<Vec<_>, BuilderError>, expected: BuilderErrorKind| {
+        assert_eq!(
+            result.unwrap_err(),
+            BuilderError {
+                kind: expected,
+                op: "decompress",
+            }
+        );
+    };
+
+    check(
+        b.decompress(x, &[(0, FheKind::Uint(32))]),
+        BuilderErrorKind::IncompatibleKind {
+            value: x,
+            kind: ValueKind::FheUint(32),
+        },
+    );
+    check(b.decompress(list, &[]), BuilderErrorKind::EmptyInput);
+    check(
+        b.decompress(list, &[(1, FheKind::Bool), (1, FheKind::Bool)]),
+        BuilderErrorKind::DuplicateDecompressPick { index: 1 },
+    );
+    check(
+        b.decompress(list, &[(2, FheKind::Bool)]),
+        BuilderErrorKind::DecompressIndexOutOfRange { index: 2, len: 2 },
+    );
+    check(
+        b.decompress(list, &[(0, FheKind::Int(32))]),
+        BuilderErrorKind::DecompressKindMismatch {
+            index: 0,
+            compressed: FheKind::Uint(32),
+            requested: FheKind::Int(32),
+        },
+    );
+    check(
+        b.decompress(list, &[(0, FheKind::Uint(0))]),
+        BuilderErrorKind::InvalidBitWidth { bits: 0 },
+    );
+
+    // Valid picks, in any order, and a subset
+    let values = b
+        .decompress(list, &[(1, FheKind::Bool), (0, FheKind::Uint(32))])
+        .unwrap();
+    assert_eq!(b.kind_of(values[0]), ValueKind::FheBool);
+    assert_eq!(b.kind_of(values[1]), ValueKind::FheUint(32));
+    assert_eq!(b.decompress(list, &[(1, FheKind::Bool)]).unwrap().len(), 1);
+}
+
+#[test]
+fn decompress_graph_input_is_not_checked_at_build_time() {
+    // The content of an input list is only known at execution
+    let mut b = new_bld();
+    let list = b.input(ValueKind::CompressedList).unwrap();
+    let values = b
+        .decompress(list, &[(41, FheKind::Int(8)), (7, FheKind::Bool)])
+        .unwrap();
+    assert_eq!(b.kind_of(values[0]), ValueKind::FheInt(8));
+    assert_eq!(b.kind_of(values[1]), ValueKind::FheBool);
+}

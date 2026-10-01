@@ -10,11 +10,12 @@ use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
 
 use super::ops::exec_dialect_op;
-use super::value::{CpuInputList, CpuOutputList, RuntimeValue};
+use super::value::{data_kind_matches, CpuInputList, CpuOutputList, RuntimeValue};
 use super::CpuError;
 use crate::graph::dialects::hlapi::{
     ExecutionGraph, HlApiDialect, HlInstructionSet, ReRandomizationParams,
 };
+use crate::integer::ciphertext::CompressedCiphertextList;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use zhc_ir::{AsValId, OpId, OpMap, IR};
 use zhc_utils::small::SmallVec;
@@ -248,6 +249,35 @@ fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send + 'static>) -> 
     }
 }
 
+/// Checks the picks of every `Decompress` op using `list`, the
+/// `input_index`-th graph input, against the kinds of the list's items.
+fn check_decompress_picks(
+    ir: &IR<HlApiDialect>,
+    list_id: impl AsValId,
+    input_index: u32,
+    list: &CompressedCiphertextList,
+    sks: &crate::ServerKey,
+) -> Result<(), CpuError> {
+    let bits_per_block = sks.message_modulus().0.ilog2();
+    for val_use in ir.get_val(list_id).get_uses_iter() {
+        let HlInstructionSet::Decompress { picks } = val_use.opref.get_instruction() else {
+            continue;
+        };
+        for &(item_index, expected) in picks.iter() {
+            let got = list.get_kind_of(item_index as usize);
+            if !got.is_some_and(|got| data_kind_matches(got, expected, bits_per_block)) {
+                return Err(CpuError::DecompressPickMismatch {
+                    input_index,
+                    item_index,
+                    expected,
+                    got,
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Crate-internal executor entry point.
 pub(crate) fn execute_graph(
     sks: &crate::ServerKey,
@@ -299,6 +329,9 @@ pub(crate) fn execute_graph(
             let i = i as u32;
             let expected_kind = graph.input_kind(i);
             input_value.check_input(i, &expected_kind, sks.pbs_key())?;
+            if let RuntimeValue::CompressedList(list) = &input_value {
+                check_decompress_picks(ir, val_id, i, list, sks)?;
+            }
             dispatch_value(val_id, Arc::new(input_value), &mut ctx);
         }
 

@@ -332,6 +332,18 @@ pub enum BuilderErrorKind {
     /// The Cast is invalid
     /// An example is trying to cast an encrypted integer to FheBool
     InvalidCast { from: FheKind, to: FheKind },
+    /// A `decompress` pick refers to an index past the end of a list
+    /// compressed in the same graph (holding `len` items).
+    DecompressIndexOutOfRange { index: u32, len: u32 },
+    /// A `decompress` pick requests a kind different from the one the item
+    /// was compressed with, in the same graph.
+    DecompressKindMismatch {
+        index: u32,
+        compressed: FheKind,
+        requested: FheKind,
+    },
+    /// The same index is picked more than once in a single `decompress`.
+    DuplicateDecompressPick { index: u32 },
     /// `build()` found one of the builder's internal invariants broken (e.g.
     /// a KVStore version still used after a mutating op consumed it).
     /// The per-op checks are meant to make this unreachable through the
@@ -452,6 +464,21 @@ impl std::fmt::Display for BuilderError {
                 f,
                 "{op}: cannot cast {from:?} to {to:?}; compare with `fhe_ne(value, 0)` instead"
             ),
+            BuilderErrorKind::DecompressIndexOutOfRange { index, len } => write!(
+                f,
+                "{op}: index {index} is out of range for a list of {len} items"
+            ),
+            BuilderErrorKind::DecompressKindMismatch {
+                index,
+                compressed,
+                requested,
+            } => write!(
+                f,
+                "{op}: item {index} was compressed as {compressed:?}, not {requested:?}"
+            ),
+            BuilderErrorKind::DuplicateDecompressPick { index } => {
+                write!(f, "{op}: index {index} is picked more than once")
+            }
             BuilderErrorKind::InternalInvariantViolated { message } => {
                 write!(f, "{op}: internal invariant violated: {message}")
             }
@@ -2416,6 +2443,104 @@ impl ExecutionGraphBuilder {
         // Only consume the slot once the op is in the graph
         self.n_rerand_slots += 1;
         Ok((outputs.into_iter().collect(), slot))
+    }
+
+    /// Compresses `values`, in order, into a single `CompressedList` value.
+    ///
+    /// Each value's kind must be `FheUint`/`FheInt`/`FheBool`.
+    pub fn compress(&mut self, values: &[ValueId]) -> Result<ValueId, BuilderError> {
+        const OP: &str = "compress";
+        if values.is_empty() {
+            return Err(BuilderErrorKind::EmptyInput.at(OP));
+        }
+        let input_kinds = values
+            .iter()
+            .map(|v| self.narrow_to_fhe_kind(*v, OP))
+            .collect::<Result<_, _>>()?;
+        self.add_unary(
+            OP,
+            HlInstructionSet::Compress { input_kinds },
+            values.iter().map(|v| v.raw).collect(),
+        )
+    }
+
+    /// Decompresses specific items of the `CompressedList` `list`.
+    ///
+    /// Each pick is `(index_in_list, kind)`, the returned values are in the
+    /// order of `picks`. Items that are not picked are not decompressed.
+    ///
+    /// `kind` must be the kind the item was compressed with.
+    /// If `list` was compressed in this graph, this is checked here.
+    /// If it is a graph input, it is checked before execution.
+    pub fn decompress(
+        &mut self,
+        list: ValueId,
+        picks: &[(u32, FheKind)],
+    ) -> Result<Vec<ValueId>, BuilderError> {
+        const OP: &str = "decompress";
+        let kind = self.kind_of(list);
+        if kind != ValueKind::CompressedList {
+            return Err(BuilderErrorKind::IncompatibleKind { value: list, kind }.at(OP));
+        }
+        if picks.is_empty() {
+            return Err(BuilderErrorKind::EmptyInput.at(OP));
+        }
+        for (i, &(index, kind)) in picks.iter().enumerate() {
+            Self::check_fhe_kind_bits(kind, OP)?;
+            if picks[..i].iter().any(|&(other, _)| other == index) {
+                return Err(BuilderErrorKind::DuplicateDecompressPick { index }.at(OP));
+            }
+        }
+
+        // A list compressed in this graph can be checked now
+        let producer = self.ir.get_val(list.raw).get_origin().opref;
+        if let HlInstructionSet::Compress { input_kinds } =
+            self.ir.get_op(producer.get_id()).get_instruction()
+        {
+            for &(index, requested) in picks {
+                let Some(&compressed) = input_kinds.get(index as usize) else {
+                    return Err(BuilderErrorKind::DecompressIndexOutOfRange {
+                        index,
+                        len: input_kinds.len() as u32,
+                    }
+                    .at(OP));
+                };
+                if compressed != requested {
+                    return Err(BuilderErrorKind::DecompressKindMismatch {
+                        index,
+                        compressed,
+                        requested,
+                    }
+                    .at(OP));
+                }
+            }
+        }
+
+        let outputs = self.try_add_op(
+            OP,
+            HlInstructionSet::Decompress {
+                picks: picks.iter().copied().collect(),
+            },
+            svec![list.raw],
+        )?;
+        debug_assert_eq!(outputs.len(), picks.len());
+        Ok(outputs.into_iter().collect())
+    }
+
+    /// Decompresses the first `kinds.len()` items of `list`, in order.
+    ///
+    /// Equivalent to `decompress(list, &[(0, kinds[0]), (1, kinds[1]), ...])`.
+    pub fn decompress_in_order(
+        &mut self,
+        list: ValueId,
+        kinds: &[FheKind],
+    ) -> Result<Vec<ValueId>, BuilderError> {
+        let picks: Vec<(u32, FheKind)> = kinds
+            .iter()
+            .enumerate()
+            .map(|(index, &kind)| (index as u32, kind))
+            .collect();
+        self.decompress(list, &picks)
     }
 
     fn check_oprf_kind(

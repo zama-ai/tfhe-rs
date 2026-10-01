@@ -520,6 +520,19 @@ pub enum HlInstructionSet {
         slot: ReRandSlot,
         input_kinds: SmallVec<FheKind>,
     },
+
+    /// Compresses its inputs, in order, into a single `CompressedList`.
+    Compress {
+        input_kinds: SmallVec<FheKind>,
+    },
+
+    /// Decompresses specific items of a `CompressedList`.
+    ///
+    /// Each pick is `(index_in_list, kind)`, outputs are produced in the
+    /// order of `picks`. Items that are not picked are not decompressed.
+    Decompress {
+        picks: SmallVec<(u32, FheKind)>,
+    },
 }
 
 impl HlInstructionSet {
@@ -889,6 +902,18 @@ impl DialectInstructionSet for HlInstructionSet {
                 let rets = args.clone();
                 Signature(args, rets)
             }
+
+            Compress { input_kinds } => {
+                let args = input_kinds.iter().copied().map(ValueKind::from).collect();
+                Signature(args, svec![ValueKind::CompressedList])
+            }
+            Decompress { picks } => {
+                let rets = picks
+                    .iter()
+                    .map(|&(_, kind)| ValueKind::from(kind))
+                    .collect();
+                Signature(svec![ValueKind::CompressedList], rets)
+            }
         }
     }
 }
@@ -904,6 +929,7 @@ impl Format for ValueKind {
             Self::Int(bits) => write!(f, "Int<{bits}>"),
             Self::KVStore { key, value } => write!(f, "KVStore<{key:?}, {value:?}>"),
             Self::Seed => write!(f, "Seed"),
+            Self::CompressedList => write!(f, "CompressedList"),
         }
     }
 }
@@ -1190,11 +1216,22 @@ impl Format for HlInstructionSet {
                 )?;
                 write!(f, ">")
             }
-            ReRand { input_kinds, .. } => {
+            ReRand { input_kinds, .. } | Compress { input_kinds } => {
                 write!(f, "{name}<")?;
                 for (i, kind) in input_kinds.iter().enumerate() {
                     Format::fmt(kind, f, ctx)?;
                     if i != input_kinds.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ">")
+            }
+            Decompress { picks } => {
+                write!(f, "{name}<")?;
+                for (i, (index, kind)) in picks.iter().enumerate() {
+                    write!(f, "{index}: ")?;
+                    Format::fmt(kind, f, ctx)?;
+                    if i != picks.len() - 1 {
                         write!(f, ", ")?;
                     }
                 }

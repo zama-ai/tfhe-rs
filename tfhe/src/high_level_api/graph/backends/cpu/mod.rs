@@ -9,8 +9,11 @@ pub use value::{
     CpuInputList, CpuOutputError, CpuOutputList, RuntimeValue, RuntimeValueConversionError,
 };
 
-use crate::graph::dialects::hlapi::{FheIntKind, KvKeyKind, ReRandParamsError, ValueKind};
+use crate::graph::dialects::hlapi::{
+    FheIntKind, FheKind, HlInstructionSet, KvKeyKind, ReRandParamsError, ValueKind,
+};
 use crate::graph::ExecutionGraph;
+use crate::integer::ciphertext::DataKind;
 use std::num::NonZeroUsize;
 
 /// ExecutionGraph executor that executes a graph on the CPU
@@ -73,7 +76,8 @@ impl CpuBackend {
 
     /// Check that every integer value width in `graph` is representable
     /// with this backend's radix encoding, i.e. a non-zero multiple of the
-    /// server key's message bits per block.
+    /// server key's message bits per block, and that the server key has the
+    /// compression keys the graph needs.
     pub fn check_graph_compatibility(&self, graph: &ExecutionGraph) -> Result<(), CpuError> {
         let message_bits = u64::from(self.sk.message_modulus().0.ilog2());
         let check = |bits: u64| {
@@ -91,6 +95,18 @@ impl CpuBackend {
                         FheIntKind::Uint(n) | FheIntKind::Int(n) => n,
                     };
                     check(bits.into())?;
+                }
+                _ => {}
+            }
+        }
+
+        for op in graph.ir().walk_ops_linear() {
+            match op.get_instruction() {
+                HlInstructionSet::Compress { .. } if self.sk.key.compression_key.is_none() => {
+                    return Err(CpuError::MissingCompressionKey)
+                }
+                HlInstructionSet::Decompress { .. } if self.sk.key.decompression_key.is_none() => {
+                    return Err(CpuError::MissingDecompressionKey)
                 }
                 _ => {}
             }
@@ -163,6 +179,19 @@ pub enum CpuError {
     /// The re-randomization params given with the inputs do not match the
     /// graph's re-randomizations.
     ReRandParams(ReRandParamsError),
+    /// A `Decompress` op picks an item of the compressed list given as the
+    /// `input_index`-th input that does not have the requested kind.
+    DecompressPickMismatch {
+        input_index: u32,
+        item_index: u32,
+        expected: FheKind,
+        /// `None` if the list has no item at `item_index`
+        got: Option<DataKind>,
+    },
+    /// The graph compresses values but the server key has no compression key.
+    MissingCompressionKey,
+    /// The graph decompresses values but the server key has no decompression key.
+    MissingDecompressionKey,
 }
 
 impl std::fmt::Display for CpuError {
@@ -213,6 +242,31 @@ impl std::fmt::Display for CpuError {
                 message,
             } => write!(f, "node {node_index} ({op}) failed: {message}"),
             Self::ReRandParams(error) => write!(f, "invalid re-randomization params: {error}"),
+            Self::DecompressPickMismatch {
+                input_index,
+                item_index,
+                expected,
+                got,
+            } => match got {
+                Some(got) => write!(
+                    f,
+                    "item {item_index} of the compressed list input {input_index} is a {got:?}, \
+                     it cannot be decompressed as {expected:?}"
+                ),
+                None => write!(
+                    f,
+                    "compressed list input {input_index} has no item {item_index} \
+                     to decompress as {expected:?}"
+                ),
+            },
+            Self::MissingCompressionKey => write!(
+                f,
+                "the graph compresses values but the server key has no compression key"
+            ),
+            Self::MissingDecompressionKey => write!(
+                f,
+                "the graph decompresses values but the server key has no decompression key"
+            ),
         }
     }
 }
