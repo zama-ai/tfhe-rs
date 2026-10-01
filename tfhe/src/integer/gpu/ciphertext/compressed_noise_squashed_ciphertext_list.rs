@@ -39,14 +39,25 @@ impl CudaCompressedSquashedNoiseCiphertextList {
     pub(crate) fn to_compressed_squashed_noise_ciphertext_list(
         &self,
         streams: &CudaStreams,
-    ) -> IntegerCompressedSquashedNoiseCiphertextList {
+    ) -> crate::Result<IntegerCompressedSquashedNoiseCiphertextList> {
+        let info = self.info.clone();
+
+        let Some(gpu_meta) = self.packed_list.meta else {
+            // If there is no metadata, the list stores no ciphertext
+            let list = ShortintCompressedSquashedNoiseCiphertextList {
+                glwe_ciphertext_list: Vec::new(),
+                meta: None,
+            };
+            return Ok(IntegerCompressedSquashedNoiseCiphertextList { list, info });
+        };
+
         // Extract the packed list
-        let vec_packed_integers = self.packed_list.to_vec_packed_integers(streams);
-        let lwe_per_glwe = self.packed_list.meta.unwrap().lwe_per_glwe;
-        let total_num_lwes = self.packed_list.bodies_count();
+        let vec_packed_integers = self.packed_list.to_vec_packed_integers(streams)?;
+        let lwe_per_glwe = gpu_meta.lwe_per_glwe;
+        let total_num_lwes = gpu_meta.total_lwe_bodies_count;
 
         let glwe_ciphertext_list = vec_packed_integers
-            .iter()
+            .into_iter()
             .enumerate()
             .map(|(pack_index, packed_integers)| {
                 // Calculate number of LWEs for this GLWE
@@ -56,20 +67,20 @@ impl CudaCompressedSquashedNoiseCiphertextList {
                 );
 
                 CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
-                    packed_integers.clone(),
-                    self.packed_list.meta.unwrap().glwe_dimension,
-                    self.packed_list.meta.unwrap().polynomial_size,
+                    packed_integers,
+                    gpu_meta.glwe_dimension,
+                    gpu_meta.polynomial_size,
                     LweCiphertextCount(num_lwes),
-                    self.packed_list.meta.unwrap().ciphertext_modulus,
+                    gpu_meta.ciphertext_modulus,
                 )
             })
             .collect_vec();
 
         // Extract the metadata
         let meta = Some(CompressedSquashedNoiseCiphertextListMeta {
-            message_modulus: self.packed_list.meta.unwrap().message_modulus,
-            carry_modulus: self.packed_list.meta.unwrap().carry_modulus,
-            lwe_per_glwe: self.packed_list.meta.unwrap().lwe_per_glwe,
+            message_modulus: gpu_meta.message_modulus,
+            carry_modulus: gpu_meta.carry_modulus,
+            lwe_per_glwe,
         });
 
         let list = ShortintCompressedSquashedNoiseCiphertextList {
@@ -77,19 +88,19 @@ impl CudaCompressedSquashedNoiseCiphertextList {
             meta,
         };
 
-        let info = self.info.clone();
-
-        IntegerCompressedSquashedNoiseCiphertextList { list, info }
+        Ok(IntegerCompressedSquashedNoiseCiphertextList { list, info })
     }
 
     pub(crate) fn from_compressed_squashed_noise_ciphertext_list(
         ct: &CompressedSquashedNoiseCiphertextList,
         streams: &CudaStreams,
-    ) -> Self {
-        Self {
-            packed_list: CudaPackedGlweCiphertextList::from_glwe_ciphertext_list(&ct.list, streams),
+    ) -> crate::Result<Self> {
+        Ok(Self {
+            packed_list: CudaPackedGlweCiphertextList::from_glwe_ciphertext_list(
+                &ct.list, streams,
+            )?,
             info: ct.info.clone(),
-        }
+        })
     }
 
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
