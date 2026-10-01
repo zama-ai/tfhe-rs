@@ -372,7 +372,8 @@ impl<'de> serde::Deserialize<'de> for InnerCompressedCiphertextList {
         };
 
         if let Some(device) = device_of_internal_keys() {
-            new.move_to_device(device);
+            new.move_to_device(device)
+                .map_err(serde::de::Error::custom)?;
         }
 
         Ok(new)
@@ -388,8 +389,12 @@ impl InnerCompressedCiphertextList {
         }
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    fn move_to_device(&mut self, target_device: Device) {
+    #[allow(
+        clippy::needless_pass_by_ref_mut,
+        clippy::unnecessary_wraps,
+        reason = "It depends on activated features"
+    )]
+    fn move_to_device(&mut self, target_device: Device) -> crate::Result<()> {
         let current_device = self.current_device();
 
         if current_device == target_device {
@@ -403,14 +408,14 @@ impl InnerCompressedCiphertextList {
                     }
                 })
             }
-            return;
+            return Ok(());
         }
 
         // The logic is that the common device is the CPU, all other devices
         // know how to transfer from and to CPU.
 
         // So we first transfer to CPU
-        let cpu_ct = self.on_cpu();
+        let cpu_ct = self.on_cpu()?;
 
         // Then we can transfer the desired device
         match target_device {
@@ -430,18 +435,22 @@ impl InnerCompressedCiphertextList {
                 panic!("HPU does not support compression");
             }
         }
+
+        Ok(())
     }
 
-    fn on_cpu(&self) -> MaybeCloned<'_, crate::integer::ciphertext::CompressedCiphertextList> {
+    #[allow(clippy::unnecessary_wraps, reason = "It depends on activated features")]
+    fn on_cpu(
+        &self,
+    ) -> crate::Result<MaybeCloned<'_, crate::integer::ciphertext::CompressedCiphertextList>> {
         match self {
-            Self::Cpu(cpu_ct) => MaybeCloned::Borrowed(cpu_ct),
+            Self::Cpu(cpu_ct) => Ok(MaybeCloned::Borrowed(cpu_ct)),
             #[cfg(feature = "gpu")]
             Self::Cuda(cuda_ct) => {
-                let cpu_ct = with_thread_local_cuda_streams_for_gpu_indexes(
-                    cuda_ct.gpu_indexes(),
-                    |streams| cuda_ct.to_compressed_ciphertext_list(streams),
-                );
-                MaybeCloned::Cloned(cpu_ct)
+                with_thread_local_cuda_streams_for_gpu_indexes(cuda_ct.gpu_indexes(), |streams| {
+                    cuda_ct.to_compressed_ciphertext_list(streams)
+                })
+                .map(MaybeCloned::Cloned)
             }
         }
     }
@@ -487,10 +496,11 @@ impl Versionize for InnerCompressedCiphertextList {
             Self::Cpu(inner) => inner.clone().versionize_owned(),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                let cpu_data = with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    inner.to_compressed_ciphertext_list(streams)
-                });
+                let cpu_data = with_thread_local_cuda_streams_for_gpu_indexes(
+                    inner.gpu_indexes(),
+                    |streams| inner.to_compressed_ciphertext_list(streams),
+                )
+                .expect("Failed to copy the compressed list to the CPU");
                 cpu_data.versionize_owned()
             }
         }
@@ -506,10 +516,11 @@ impl VersionizeOwned for InnerCompressedCiphertextList {
             Self::Cpu(inner) => inner.versionize_owned(),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                let cpu_data = with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    inner.to_compressed_ciphertext_list(streams)
-                });
+                let cpu_data = with_thread_local_cuda_streams_for_gpu_indexes(
+                    inner.gpu_indexes(),
+                    |streams| inner.to_compressed_ciphertext_list(streams),
+                )
+                .expect("Failed to copy the compressed list to the CPU");
                 cpu_data.versionize_owned()
             }
         }
@@ -605,7 +616,9 @@ impl ParameterSetConformant for CompressedCiphertextList {
         } = self;
 
         re_randomization_metadata.len() == inner.info().len()
-            && inner.on_cpu().is_conformant(&parameter_set.params)
+            && inner
+                .on_cpu()
+                .is_ok_and(|list| list.is_conformant(&parameter_set.params))
     }
 }
 
@@ -725,6 +738,9 @@ impl CiphertextList for CompressedCiphertextList {
 }
 
 impl CompressedCiphertextList {
+    /// # Panics
+    ///
+    /// Panics if the list is on a GPU and its metadata are incorrect
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -741,10 +757,10 @@ impl CompressedCiphertextList {
             InnerCompressedCiphertextList::Cpu(inner) => (inner, tag, re_randomization_metadata),
             #[cfg(feature = "gpu")]
             InnerCompressedCiphertextList::Cuda(inner) => (
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
                     inner.to_compressed_ciphertext_list(streams)
-                }),
+                })
+                .expect("Failed to copy the compressed list to the CPU"),
                 tag,
                 re_randomization_metadata,
             ),
@@ -767,10 +783,11 @@ impl CompressedCiphertextList {
         self.inner.current_device()
     }
 
-    pub fn move_to_current_device(&mut self) {
+    pub fn move_to_current_device(&mut self) -> crate::Result<()> {
         if let Some(device) = device_of_internal_keys() {
-            self.inner.move_to_device(device);
+            self.inner.move_to_device(device)?;
         }
+        Ok(())
     }
 
     fn get_re_randomization_metadata(
@@ -795,7 +812,7 @@ impl CompressedCiphertextList {
     where
         T: HlExpandable + Tagged,
     {
-        let mut ct = self.inner.on_cpu().get::<T>(index, decompression_key);
+        let mut ct = self.inner.on_cpu()?.get::<T>(index, decompression_key);
         if let Ok(Some(ct_ref)) = &mut ct {
             ct_ref.tag_mut().set_data(tag.data());
 
@@ -1412,7 +1429,7 @@ mod tests {
                 .unwrap()
                 .unwrap();
             check_valid_cuda_malloc_assert_oom(decompress_ct2_size_on_gpu, GpuIndex::new(0));
-            compressed_list.move_to_current_device();
+            compressed_list.move_to_current_device().unwrap();
             let decompress_ct1_size_on_gpu_1 = compressed_list
                 .get_decompression_size_on_gpu(0)
                 .unwrap()
