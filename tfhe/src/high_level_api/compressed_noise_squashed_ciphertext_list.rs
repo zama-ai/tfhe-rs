@@ -52,7 +52,10 @@ impl Versionize for InnerCompressedSquashedNoiseCiphertextList {
         <IntegerCompressedSquashedNoiseCiphertextList as VersionizeOwned>::VersionedOwned;
 
     fn versionize(&self) -> Self::Versioned<'_> {
-        self.on_cpu().into_owned().versionize_owned()
+        self.on_cpu()
+            .expect("Failed to copy the compressed list to the CPU")
+            .into_owned()
+            .versionize_owned()
     }
 }
 
@@ -61,7 +64,9 @@ impl VersionizeOwned for InnerCompressedSquashedNoiseCiphertextList {
         <IntegerCompressedSquashedNoiseCiphertextList as VersionizeOwned>::VersionedOwned;
 
     fn versionize_owned(self) -> Self::VersionedOwned {
-        self.into_cpu().versionize_owned()
+        self.into_cpu()
+            .expect("Failed to copy the compressed list to the CPU")
+            .versionize_owned()
     }
 }
 
@@ -76,7 +81,9 @@ impl Serialize for InnerCompressedSquashedNoiseCiphertextList {
     where
         S: serde::Serializer,
     {
-        self.on_cpu().serialize(serializer)
+        self.on_cpu()
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
     }
 }
 
@@ -100,30 +107,31 @@ impl<'de> Deserialize<'de> for InnerCompressedSquashedNoiseCiphertextList {
 impl InnerCompressedSquashedNoiseCiphertextList {
     /// Returns the inner cpu compressed ciphertext list if self is on the CPU, otherwise, returns a
     /// copy that is on the CPU
-    fn on_cpu(&self) -> MaybeCloned<'_, IntegerCompressedSquashedNoiseCiphertextList> {
+    #[allow(clippy::unnecessary_wraps, reason = "It depends on activated features")]
+    fn on_cpu(
+        &self,
+    ) -> crate::Result<MaybeCloned<'_, IntegerCompressedSquashedNoiseCiphertextList>> {
         match self {
-            Self::Cpu(cpu_ct) => MaybeCloned::Borrowed(cpu_ct),
+            Self::Cpu(cpu_ct) => Ok(MaybeCloned::Borrowed(cpu_ct)),
             #[cfg(feature = "gpu")]
             Self::Cuda(cuda_ct) => {
-                let cpu_ct = with_thread_local_cuda_streams_for_gpu_indexes(
-                    cuda_ct.gpu_indexes(),
-                    |streams| cuda_ct.to_compressed_squashed_noise_ciphertext_list(streams),
-                );
-                MaybeCloned::Cloned(cpu_ct)
+                with_thread_local_cuda_streams_for_gpu_indexes(cuda_ct.gpu_indexes(), |streams| {
+                    cuda_ct.to_compressed_squashed_noise_ciphertext_list(streams)
+                })
+                .map(MaybeCloned::Cloned)
             }
         }
     }
 
-    fn into_cpu(self) -> IntegerCompressedSquashedNoiseCiphertextList {
+    #[allow(clippy::unnecessary_wraps, reason = "It depends on activated features")]
+    fn into_cpu(self) -> crate::Result<IntegerCompressedSquashedNoiseCiphertextList> {
         match self {
-            Self::Cpu(cpu_ct) => cpu_ct,
+            Self::Cpu(cpu_ct) => Ok(cpu_ct),
             #[cfg(feature = "gpu")]
             Self::Cuda(cuda_ct) => {
-                let cpu_ct = with_thread_local_cuda_streams_for_gpu_indexes(
-                    cuda_ct.gpu_indexes(),
-                    |streams| cuda_ct.to_compressed_squashed_noise_ciphertext_list(streams),
-                );
-                cpu_ct
+                with_thread_local_cuda_streams_for_gpu_indexes(cuda_ct.gpu_indexes(), |streams| {
+                    cuda_ct.to_compressed_squashed_noise_ciphertext_list(streams)
+                })
             }
         }
     }
@@ -159,7 +167,7 @@ impl InnerCompressedSquashedNoiseCiphertextList {
         // know how to transfer from and to CPU.
 
         // So we first transfer to CPU
-        let cpu_ct = self.on_cpu();
+        let cpu_ct = self.on_cpu()?;
 
         // Then we can transfer the desired device
         match target_device {
@@ -171,7 +179,7 @@ impl InnerCompressedSquashedNoiseCiphertextList {
                 let new_inner = with_cuda_internal_keys(|keys| {
                     let streams = &keys.streams;
                     CudaCompressedSquashedNoiseCiphertextList::from_compressed_squashed_noise_ciphertext_list(&cpu_ct, streams)
-                });
+                })?;
                 *self = Self::Cuda(new_inner);
             }
             #[cfg(feature = "hpu")]
@@ -279,7 +287,9 @@ impl ParameterSetConformant for CompressedSquashedNoiseCiphertextList {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { inner, tag: _ } = self;
 
-        inner.on_cpu().is_conformant(&parameter_set.params)
+        inner
+            .on_cpu()
+            .is_ok_and(|list| list.is_conformant(&parameter_set.params))
     }
 }
 

@@ -18,7 +18,9 @@ use tfhe_versionable::Versionize;
 pub use zk::ProvenCompactCiphertextList;
 
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_cuda_internal_keys;
+use crate::high_level_api::global_state::{
+    with_cuda_internal_keys, with_thread_local_cuda_streams_for_gpu_indexes,
+};
 
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
@@ -164,7 +166,10 @@ impl Clone for InnerCompactCiphertextList {
 
 impl PartialEq for InnerCompactCiphertextList {
     fn eq(&self, other: &Self) -> bool {
-        self.on_cpu() == other.on_cpu()
+        match (self.on_cpu(), other.on_cpu()) {
+            (Ok(lhs), Ok(rhs)) => lhs == rhs,
+            _ => false,
+        }
     }
 }
 
@@ -173,19 +178,25 @@ impl serde::Serialize for InnerCompactCiphertextList {
     where
         S: Serializer,
     {
-        self.on_cpu().serialize(serializer)
+        self.on_cpu()
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
     }
 }
 
 impl InnerCompactCiphertextList {
-    pub(crate) fn on_cpu(&self) -> crate::integer::ciphertext::CompactCiphertextList {
+    #[allow(clippy::unnecessary_wraps, reason = "It depends on activated features")]
+    pub(crate) fn on_cpu(
+        &self,
+    ) -> crate::Result<crate::integer::ciphertext::CompactCiphertextList> {
         match self {
-            Self::Cpu(inner) => inner.clone(),
+            Self::Cpu(inner) => Ok(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => with_cuda_internal_keys(|keys| {
-                let streams = &keys.streams;
-                inner.to_integer_compact_ciphertext_list(streams).unwrap()
-            }),
+            Self::Cuda(inner) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
+                    inner.to_integer_compact_ciphertext_list(streams)
+                })
+            }
         }
     }
     #[allow(clippy::unnecessary_wraps)] // Method can return an error if hpu is enabled
@@ -203,10 +214,10 @@ impl InnerCompactCiphertextList {
             }),
             #[cfg(feature = "gpu")]
             (Self::Cuda(cuda_ct), crate::Device::Cpu) => {
-                let cpu_ct = with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_ct.to_integer_compact_ciphertext_list(streams)
-                })?;
+                let cpu_ct = with_thread_local_cuda_streams_for_gpu_indexes(
+                    cuda_ct.gpu_indexes(),
+                    |streams| cuda_ct.to_integer_compact_ciphertext_list(streams),
+                )?;
                 Some(Self::Cpu(cpu_ct))
             }
             #[cfg(feature = "gpu")]
@@ -257,14 +268,18 @@ impl Versionize for InnerCompactCiphertextList {
     type Versioned<'vers> =
         <crate::integer::ciphertext::CompactCiphertextList as VersionizeOwned>::VersionedOwned;
     fn versionize(&self) -> Self::Versioned<'_> {
-        self.on_cpu().versionize_owned()
+        self.on_cpu()
+            .expect("Failed to copy the compact list to the CPU")
+            .versionize_owned()
     }
 }
 impl VersionizeOwned for InnerCompactCiphertextList {
     type VersionedOwned =
         <crate::integer::ciphertext::CompactCiphertextList as VersionizeOwned>::VersionedOwned;
     fn versionize_owned(self) -> Self::VersionedOwned {
-        self.on_cpu().versionize_owned()
+        self.on_cpu()
+            .expect("Failed to copy the compact list to the CPU")
+            .versionize_owned()
     }
 }
 
@@ -364,10 +379,10 @@ impl CompactCiphertextList {
             (InnerCompactCiphertextList::Cuda(gpu_inner), InternalServerKeyRef::Cpu(cpu_key)) => {
                 // CUDA data, CPU key case
                 // We copy data to CPU and then expand it
-                let cpu_inner = with_cuda_internal_keys(|cuda_key| {
-                    let streams = &cuda_key.streams;
-                    gpu_inner.to_integer_compact_ciphertext_list(streams)
-                })?;
+                let cpu_inner = with_thread_local_cuda_streams_for_gpu_indexes(
+                    gpu_inner.gpu_indexes(),
+                    |streams| gpu_inner.to_integer_compact_ciphertext_list(streams),
+                )?;
 
                 cpu_inner
                     .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
@@ -460,7 +475,9 @@ impl ParameterSetConformant for CompactCiphertextList {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { inner, tag: _ } = self;
-        inner.on_cpu().is_conformant(parameter_set)
+        inner
+            .on_cpu()
+            .is_ok_and(|list| list.is_conformant(parameter_set))
     }
 }
 
