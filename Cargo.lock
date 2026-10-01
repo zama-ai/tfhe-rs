@@ -339,7 +339,7 @@ version = "0.1.0"
 dependencies = [
  "enum-iterator",
  "serde",
- "strum 0.28.0",
+ "strum",
  "thiserror 2.0.21",
 ]
 
@@ -3376,24 +3376,6 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
-version = "0.26.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
-dependencies = [
- "strum_macros 0.26.4",
-]
-
-[[package]]
-name = "strum"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
-dependencies = [
- "strum_macros 0.27.2",
-]
-
-[[package]]
-name = "strum"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9628de9b8791db39ceda2b119bbe13134770b56c138ec1d3af810d045c04f9bd"
@@ -3411,18 +3393,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
- "syn 2.0.118",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.27.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
  "syn 2.0.118",
 ]
 
@@ -3621,7 +3591,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "statrs",
- "strum 0.27.2",
+ "strum",
  "test-case",
  "tfhe-csprng",
  "tfhe-cuda-backend",
@@ -3659,7 +3629,7 @@ dependencies = [
  "ron",
  "semver",
  "serde",
- "strum 0.26.3",
+ "strum",
 ]
 
 [[package]]
@@ -3801,7 +3771,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "strum 0.26.3",
+ "strum",
  "strum_macros 0.26.4",
  "thiserror 2.0.21",
  "toml 0.8.23",
