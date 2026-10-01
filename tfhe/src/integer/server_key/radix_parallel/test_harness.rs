@@ -1042,6 +1042,49 @@ pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(
     .collect()
 }
 
+/// Fixed cases for a shift or a rotation of a radix of `radix_bits` bits by a `u128` amount:
+/// the radix edges (see [`ClearInteger`]) against the amount edge values (see
+/// [`shift_amount_edge_values`]).
+pub(crate) fn shift_amount_fixed_cases<C: ClearInteger>(
+    radix_bits: u32,
+) -> Vec<(C, TestScalar<u128>)> {
+    iproduct!(
+        C::radix_edges(radix_bits),
+        shift_amount_edge_values(radix_bits)
+    )
+    .collect()
+}
+
+/// Shift and rotation amounts worth testing against a radix of `radix_bits` bits.
+///
+/// Tests amounts too wide for u32/u64 as we had a bug due to casting being used
+/// truncating the values incorrectly
+fn shift_amount_edge_values(radix_bits: u32) -> Vec<TestScalar<u128>> {
+    let bits = u128::from(radix_bits);
+    let mut values = vec![
+        0,
+        1,
+        2,
+        3,
+        bits / 2,
+        bits - 1,
+        bits,
+        bits + 1,
+        2 * bits - 1,
+        u128::MAX,
+    ];
+    for low_bits in [u32::BITS, u64::BITS] {
+        let wide = 1u128 << low_bits;
+        values.extend([wide - 1, wide, wide + 1, wide + bits - 1]);
+    }
+    values.sort_unstable();
+    values.dedup();
+    values
+        .into_iter()
+        .map(|value| TestScalar::new(Uint::new(value, u128::BITS)))
+        .collect()
+}
+
 impl<T: ScalarType> TestClearInput for TestScalar<T> {
     type Input = T;
 

@@ -1,9 +1,11 @@
+use super::legacy_default_tests::{
+    legacy_default_scalar_rotate_left_test, legacy_default_scalar_rotate_right_test,
+};
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_scalar_rotate::{
-    default_scalar_rotate_left_test, default_scalar_rotate_right_test,
     unchecked_scalar_rotate_left_test, unchecked_scalar_rotate_right_test,
 };
 use crate::shortint::parameters::test_params::*;
@@ -27,7 +29,7 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_rotate_right);
-    default_scalar_rotate_right_test(param, executor);
+    legacy_default_scalar_rotate_right_test(param, executor);
 }
 
 fn integer_unchecked_scalar_rotate_left<P>(param: P)
@@ -43,5 +45,5 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_rotate_left);
-    default_scalar_rotate_left_test(param, executor);
+    legacy_default_scalar_rotate_left_test(param, executor);
 }

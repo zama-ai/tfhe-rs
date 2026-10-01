@@ -1085,7 +1085,7 @@ macro_rules! define_scalar_rotate_shifts {
                             let inner_result = {
                                 let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_left_shift(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
@@ -1143,7 +1143,7 @@ macro_rules! define_scalar_rotate_shifts {
                             let inner_result = {
                                 let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_right_shift(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
@@ -1200,7 +1200,7 @@ macro_rules! define_scalar_rotate_shifts {
                             let inner_result = {
                                 let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_rotate_left(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)
@@ -1257,7 +1257,7 @@ macro_rules! define_scalar_rotate_shifts {
                             let inner_result = {
                                 let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_rotate_right(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             RadixCiphertext::Cuda(inner_result)

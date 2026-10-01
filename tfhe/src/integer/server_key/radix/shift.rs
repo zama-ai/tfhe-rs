@@ -1,8 +1,8 @@
 use crate::core_crypto::commons::utils::izip_eq;
-use crate::core_crypto::prelude::CastFrom;
+use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
 use crate::integer::ciphertext::RadixCiphertext;
+use crate::integer::server_key::radix_parallel::scalar_shift::clamp_scalar_shift_amount;
 use crate::integer::ServerKey;
-use std::ops::Rem;
 
 impl ServerKey {
     /// Shifts the blocks to the right.
@@ -67,7 +67,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg = 128u64;
-    /// let shift = 2;
+    /// let shift = 2u32;
     ///
     /// let ct = cks.encrypt(msg);
     ///
@@ -80,7 +80,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_right_shift<T>(&self, ct: &RadixCiphertext, shift: T) -> RadixCiphertext
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
+        T: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<T>,
     {
         let mut result = ct.clone();
@@ -103,7 +103,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg = 18u64;
-    /// let shift = 4;
+    /// let shift = 4u32;
     ///
     /// let mut ct = cks.encrypt(msg);
     ///
@@ -116,7 +116,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_right_shift_assign<T>(&self, ct: &mut RadixCiphertext, shift: T)
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
+        T: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<T>,
     {
         // see parallel implementation for a bit more details
@@ -127,7 +127,7 @@ impl ServerKey {
         let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
         let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
 
-        let shift = u64::cast_from(shift);
+        let shift = clamp_scalar_shift_amount(shift, total_num_bits);
         if shift == 0 {
             return;
         }
@@ -212,7 +212,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg = 21u64;
-    /// let shift = 2;
+    /// let shift = 2u32;
     ///
     /// let ct1 = cks.encrypt(msg);
     ///
@@ -229,7 +229,7 @@ impl ServerKey {
         shift: T,
     ) -> RadixCiphertext
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
+        T: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<T>,
     {
         let mut result = ct_left.clone();
@@ -261,7 +261,7 @@ impl ServerKey {
     /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
     ///
     /// let msg = 13u64;
-    /// let shift = 2;
+    /// let shift = 2u32;
     ///
     /// let mut ct = cks.encrypt(msg);
     ///
@@ -274,7 +274,7 @@ impl ServerKey {
     /// ```
     pub fn unchecked_scalar_left_shift_assign<T>(&self, ct: &mut RadixCiphertext, shift: T)
     where
-        T: Rem<T, Output = T> + CastFrom<u64>,
+        T: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<T>,
     {
         // see parallel implementation for a bit more details
@@ -282,13 +282,14 @@ impl ServerKey {
         debug_assert!(ct.block_carries_are_empty());
         debug_assert!(self.key.carry_modulus.0 >= self.key.message_modulus.0 / 2);
 
-        let shift = u64::cast_from(shift);
+        let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
+        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
+
+        let shift = clamp_scalar_shift_amount(shift, total_num_bits);
         if shift == 0 {
             return;
         }
 
-        let num_bits_in_block = self.key.message_modulus.0.ilog2() as u64;
-        let total_num_bits = num_bits_in_block * ct.blocks.len() as u64;
         if shift >= total_num_bits {
             // Overshift on a left shift pushes every bit out: the result is 0.
             self.create_trivial_zero_assign_radix(ct);

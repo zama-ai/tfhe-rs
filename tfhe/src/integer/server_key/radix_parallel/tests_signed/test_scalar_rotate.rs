@@ -1,13 +1,16 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::test_harness::{
+    shift_amount_fixed_cases, ExecuteOn, TestBuilder, TestContext, TestScalar,
+};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
-    random_non_zero_value, rotate_left_helper, rotate_right_helper, signed_add_under_modulus,
-    NB_CTXT,
+    rotate_left_helper, rotate_right_helper, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
+use crate::integer::tests::int::Int;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -33,8 +36,22 @@ fn integer_signed_default_scalar_rotate_left<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_rotate_left_parallelized);
-    signed_default_scalar_rotate_left_test(param, executor);
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::scalar_rotate_left_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    signed_default_scalar_rotate_left_test(&ctx, executor);
+}
+
+pub(crate) fn signed_default_scalar_rotate_left_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<(SignedRadixCiphertext, u128), SignedRadixCiphertext>,
+{
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(shift_amount_fixed_cases::<Int>)
+        .execute(executor, |(lhs, amount): (Int, TestScalar<u128>)| {
+            lhs.rotate_left(amount.clear().value())
+        });
 }
 
 fn integer_signed_unchecked_scalar_rotate_right<P>(param: P)
@@ -49,14 +66,28 @@ fn integer_signed_default_scalar_rotate_right<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_rotate_right_parallelized);
-    signed_default_scalar_rotate_right_test(param, executor);
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::scalar_rotate_right_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    signed_default_scalar_rotate_right_test(&ctx, executor);
+}
+
+pub(crate) fn signed_default_scalar_rotate_right_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<(SignedRadixCiphertext, u128), SignedRadixCiphertext>,
+{
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(shift_amount_fixed_cases::<Int>)
+        .execute(executor, |(lhs, amount): (Int, TestScalar<u128>)| {
+            lhs.rotate_right(amount.clear().value())
+        });
 }
 
 pub(crate) fn signed_unchecked_scalar_rotate_left_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
+    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, u64), SignedRadixCiphertext>,
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
@@ -82,7 +113,7 @@ where
         // case when 0 <= rotate < nb_bits
         {
             let clear_shift = clear_shift % nb_bits;
-            let ct_res = executor.execute((&ct, clear_shift as i64));
+            let ct_res = executor.execute((&ct, u64::from(clear_shift)));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let expected = rotate_left_helper(clear, clear_shift, nb_bits);
             assert_eq!(expected, dec_res);
@@ -91,7 +122,7 @@ where
         // case when rotate >= nb_bits
         {
             let clear_shift = clear_shift.saturating_add(nb_bits);
-            let ct_res = executor.execute((&ct, clear_shift as i64));
+            let ct_res = executor.execute((&ct, u64::from(clear_shift)));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let expected = rotate_left_helper(clear, clear_shift, nb_bits);
             assert_eq!(expected, dec_res);
@@ -102,7 +133,7 @@ where
 pub(crate) fn signed_unchecked_scalar_rotate_right_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
+    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, u64), SignedRadixCiphertext>,
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
@@ -128,7 +159,7 @@ where
         // case when 0 <= shift < nb_bits
         {
             let clear_shift = clear_shift % nb_bits;
-            let ct_res = executor.execute((&ct, clear_shift as i64));
+            let ct_res = executor.execute((&ct, u64::from(clear_shift)));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let expected = rotate_right_helper(clear, clear_shift, nb_bits);
             assert_eq!(expected, dec_res);
@@ -137,144 +168,10 @@ where
         // case when shift >= nb_bits
         {
             let clear_shift = clear_shift.saturating_add(nb_bits);
-            let ct_res = executor.execute((&ct, clear_shift as i64));
+            let ct_res = executor.execute((&ct, u64::from(clear_shift)));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let expected = rotate_right_helper(clear, clear_shift, nb_bits);
             assert_eq!(expected, dec_res);
-        }
-    }
-}
-
-pub(crate) fn signed_default_scalar_rotate_left_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks.clone());
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    assert!(modulus > 0);
-    assert!((modulus as u64).is_power_of_two());
-    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
-
-    for _ in 0..nb_tests_smaller {
-        let mut clear = rng.gen::<i64>() % modulus;
-
-        let offset = random_non_zero_value(&mut rng, modulus);
-
-        let mut ct = cks.encrypt_signed(clear);
-        sks.unchecked_scalar_add_assign(&mut ct, offset);
-        clear = signed_add_under_modulus(clear, offset, modulus);
-
-        // case when 0 <= shift < nb_bits
-        {
-            let clear_shift = rng.gen::<u32>() % nb_bits;
-            let ct_res = executor.execute((&ct, clear_shift as i64));
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            let clear_res = rotate_left_helper(clear, clear_shift, nb_bits);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid left shift result, for '{clear} << {clear_shift}', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = executor.execute((&ct, clear_shift as i64));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
-        }
-
-        // case when shift >= nb_bits
-        {
-            let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
-            let ct_res = executor.execute((&ct, clear_shift as i64));
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // We mimic wrapping_shl manually as we use a bigger type
-            // than the nb_bits we actually simulate in this test
-            let clear_res = rotate_left_helper(clear, clear_shift, nb_bits);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid left shift result, for '{clear} << {clear_shift}', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = executor.execute((&ct, clear_shift as i64));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
-        }
-    }
-}
-
-pub(crate) fn signed_default_scalar_rotate_right_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks.clone());
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    assert!(modulus > 0);
-    assert!((modulus as u64).is_power_of_two());
-    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
-
-    for _ in 0..nb_tests_smaller {
-        let mut clear = rng.gen::<i64>() % modulus;
-
-        let offset = random_non_zero_value(&mut rng, modulus);
-
-        let mut ct = cks.encrypt_signed(clear);
-        sks.unchecked_scalar_add_assign(&mut ct, offset);
-        clear = signed_add_under_modulus(clear, offset, modulus);
-
-        // case when 0 <= shift < nb_bits
-        {
-            let clear_shift = rng.gen::<u32>() % nb_bits;
-            let ct_res = executor.execute((&ct, clear_shift as i64));
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            let clear_res = rotate_right_helper(clear, clear_shift, nb_bits);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid right shift result, for '{clear} >> {clear_shift}', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = executor.execute((&ct, clear_shift as i64));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
-        }
-
-        // case when shift >= nb_bits
-        {
-            let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
-            let ct_res = executor.execute((&ct, clear_shift as i64));
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // We mimic wrapping_shl manually as we use a bigger type
-            // than the nb_bits we actually simulate in this test
-            let clear_res = rotate_right_helper(clear, clear_shift, nb_bits);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid right shift result, for '{clear} >> {clear_shift}', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = executor.execute((&ct, clear_shift as i64));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, \n\n\nct: {ct:?}, \n\n\nclear: {clear_shift:?}\n\n\n");
         }
     }
 }

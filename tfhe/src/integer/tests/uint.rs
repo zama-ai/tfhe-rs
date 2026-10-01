@@ -103,6 +103,41 @@ impl Uint {
     pub(crate) fn cast(self, bits: u32) -> Self {
         Self::new(self.value, bits)
     }
+    /// Left shift, an amount of at least the width shifts every bit out.
+    ///
+    /// Unlike Rust's `wrapping_shl`, the amount is not reduced modulo the width.
+    pub(crate) fn shl(self, amount: u128) -> Self {
+        if amount >= u128::from(self.bits) {
+            return Self::zero(self.bits);
+        }
+        Self::new(self.value << amount, self.bits)
+    }
+    /// Logical right shift, an amount of at least the width shifts every bit out.
+    ///
+    /// Unlike Rust's `wrapping_shr`, the amount is not reduced modulo the width.
+    pub(crate) fn shr(self, amount: u128) -> Self {
+        if amount >= u128::from(self.bits) {
+            return Self::zero(self.bits);
+        }
+        Self::new(self.value >> amount, self.bits)
+    }
+    /// Rotation within the width, the amount is reduced modulo the width.
+    pub(crate) fn rotate_left(self, amount: u128) -> Self {
+        let amount = (amount % u128::from(self.bits)) as u32;
+        if amount == 0 {
+            return self;
+        }
+        Self::new(
+            (self.value << amount) | (self.value >> (self.bits - amount)),
+            self.bits,
+        )
+    }
+    /// Rotation within the width, the amount is reduced modulo the width.
+    pub(crate) fn rotate_right(self, amount: u128) -> Self {
+        let amount = (amount % u128::from(self.bits)) as u32;
+        // Rotating right by n is rotating left by bits - n
+        self.rotate_left(u128::from((self.bits - amount) % self.bits))
+    }
 }
 
 /// The value alone, for reports.
@@ -222,6 +257,50 @@ mod tests {
         assert_eq!(x.cast(4), Uint::new(11, 4));
         assert_eq!(x.cast(16), Uint::new(171, 16));
         assert_eq!(x.cast(8), x);
+    }
+
+    /// At 8 bits the model must agree with `u8`, for amounts past the width too.
+    #[test]
+    fn shifts_and_rotations_match_u8_at_8_bits() {
+        for a in u8::MIN..=u8::MAX {
+            let ua = Uint::new(a.into(), 8);
+            for amount in 0..20u32 {
+                let wide_amount = u128::from(amount);
+                let expected_shl = a.checked_shl(amount).unwrap_or(0);
+                let expected_shr = a.checked_shr(amount).unwrap_or(0);
+                assert_eq!(ua.shl(wide_amount).value(), u128::from(expected_shl));
+                assert_eq!(ua.shr(wide_amount).value(), u128::from(expected_shr));
+                assert_eq!(
+                    ua.rotate_left(wide_amount).value(),
+                    u128::from(a.rotate_left(amount))
+                );
+                assert_eq!(
+                    ua.rotate_right(wide_amount).value(),
+                    u128::from(a.rotate_right(amount))
+                );
+            }
+        }
+    }
+
+    /// Widths without a Rust primitive, and amounts that do not fit in a u64.
+    #[test]
+    fn shifts_and_rotations_at_odd_widths_and_wide_amounts() {
+        // 2⁶⁴ ≡ 6 (mod 10)
+        let x = Uint::new(0b00_0000_0011, 10);
+        assert_eq!(x.rotate_left(1 << 64), Uint::new(0b00_1100_0000, 10));
+        assert_eq!(x.rotate_right(1 << 64), Uint::new(0b00_0011_0000, 10));
+        // Overshifts, whatever the low 64 bits are
+        assert_eq!(Uint::max(10).shl((1 << 64) + 1), Uint::zero(10));
+        assert_eq!(Uint::max(10).shr((1 << 64) + 1), Uint::zero(10));
+        // 128 bits, the widest model
+        assert_eq!(Uint::max(128).shl(127), Uint::new(1 << 127, 128));
+        assert_eq!(Uint::max(128).shr(127), Uint::one(128));
+        assert_eq!(Uint::max(128).shl(128), Uint::zero(128));
+        assert_eq!(Uint::one(128).rotate_right(1), Uint::new(1 << 127, 128));
+        assert_eq!(
+            Uint::one(128).rotate_left(u128::MAX),
+            Uint::new(1 << 127, 128)
+        );
     }
 
     #[test]

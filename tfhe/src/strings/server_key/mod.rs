@@ -329,7 +329,7 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
         let sk = self.inner();
 
         let uint = str.to_uint();
-        let mut shift_bits = sk.scalar_left_shift_parallelized(shift, 3);
+        let mut shift_bits = sk.scalar_left_shift_parallelized(shift, 3u32);
 
         // `shift_bits` needs to have the same block len as `uint` for the tfhe-rs shift to work
         self.pad_or_trim_ciphertext(&mut shift_bits, uint.blocks().len());
@@ -360,7 +360,7 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
         let sk = self.inner();
 
         let uint = str.to_uint();
-        let mut shift_bits = sk.scalar_left_shift_parallelized(shift, 3);
+        let mut shift_bits = sk.scalar_left_shift_parallelized(shift, 3u32);
 
         // `shift_bits` needs to have the same block len as `uint` for the tfhe-rs shift to work
         self.pad_or_trim_ciphertext(&mut shift_bits, uint.blocks().len());
