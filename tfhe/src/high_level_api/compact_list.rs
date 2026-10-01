@@ -164,7 +164,10 @@ impl Clone for InnerCompactCiphertextList {
 
 impl PartialEq for InnerCompactCiphertextList {
     fn eq(&self, other: &Self) -> bool {
-        self.on_cpu() == other.on_cpu()
+        match (self.on_cpu(), other.on_cpu()) {
+            (Ok(lhs), Ok(rhs)) => lhs == rhs,
+            _ => false,
+        }
     }
 }
 
@@ -173,18 +176,23 @@ impl serde::Serialize for InnerCompactCiphertextList {
     where
         S: Serializer,
     {
-        self.on_cpu().serialize(serializer)
+        self.on_cpu()
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
     }
 }
 
 impl InnerCompactCiphertextList {
-    pub(crate) fn on_cpu(&self) -> crate::integer::ciphertext::CompactCiphertextList {
+    #[allow(clippy::unnecessary_wraps, reason = "It depends on activated features")]
+    pub(crate) fn on_cpu(
+        &self,
+    ) -> crate::Result<crate::integer::ciphertext::CompactCiphertextList> {
         match self {
-            Self::Cpu(inner) => inner.clone(),
+            Self::Cpu(inner) => Ok(inner.clone()),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => with_cuda_internal_keys(|keys| {
                 let streams = &keys.streams;
-                inner.to_integer_compact_ciphertext_list(streams).unwrap()
+                inner.to_integer_compact_ciphertext_list(streams)
             }),
         }
     }
@@ -257,14 +265,18 @@ impl Versionize for InnerCompactCiphertextList {
     type Versioned<'vers> =
         <crate::integer::ciphertext::CompactCiphertextList as VersionizeOwned>::VersionedOwned;
     fn versionize(&self) -> Self::Versioned<'_> {
-        self.on_cpu().versionize_owned()
+        self.on_cpu()
+            .expect("Failed to copy the compact list to the CPU")
+            .versionize_owned()
     }
 }
 impl VersionizeOwned for InnerCompactCiphertextList {
     type VersionedOwned =
         <crate::integer::ciphertext::CompactCiphertextList as VersionizeOwned>::VersionedOwned;
     fn versionize_owned(self) -> Self::VersionedOwned {
-        self.on_cpu().versionize_owned()
+        self.on_cpu()
+            .expect("Failed to copy the compact list to the CPU")
+            .versionize_owned()
     }
 }
 
@@ -460,7 +472,9 @@ impl ParameterSetConformant for CompactCiphertextList {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { inner, tag: _ } = self;
-        inner.on_cpu().is_conformant(parameter_set)
+        inner
+            .on_cpu()
+            .is_ok_and(|list| list.is_conformant(parameter_set))
     }
 }
 
