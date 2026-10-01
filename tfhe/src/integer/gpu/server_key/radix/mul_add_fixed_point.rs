@@ -259,6 +259,46 @@ mod tests {
         added.unwrap_or(0) + ((lhs * rhs) >> shift_bits)
     }
 
+    /// The random op sequence compares this operation against an exact clear
+    /// model and feeds every result back into its operand pool, so a result
+    /// that is one ulp low would compound instead of being caught. It gets
+    /// exactness by asking for `precision = 0`: one output ulp is then worth
+    /// 2^0, no column's discarded weight can stay below that, and so no column
+    /// is skipped and nothing is dropped beyond the `>> s` truncation itself.
+    ///
+    /// This pins that reasoning down at the shape the long run test uses.
+    #[test]
+    fn test_mul_add_fixed_point_is_exact_with_zero_precision() {
+        let streams = CudaStreams::new_multi_gpu();
+        let mut rng = rand::thread_rng();
+
+        let (lhs_blocks, rhs_blocks, rescaling, precision) = (32usize, 4usize, 0u32, 0u32);
+        let (cpu_cks, _cks, sks) = keys(lhs_blocks, &streams);
+        let shift_blocks = rhs_blocks as u32 + rescaling;
+
+        for _ in 0..5 {
+            let clear_lhs: u128 = rng.gen_range(0..(1u128 << (lhs_blocks as u32 * BITS_PER_BLOCK)));
+            let clear_rhs: u128 = rng.gen_range(0..(1u128 << (rhs_blocks as u32 * BITS_PER_BLOCK)));
+
+            let ct_lhs = cpu_cks.encrypt_radix(clear_lhs, lhs_blocks);
+            let ct_rhs = cpu_cks.encrypt_radix(clear_rhs, rhs_blocks);
+            let d_lhs = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_lhs, &streams);
+            let d_rhs = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_rhs, &streams);
+
+            let d_res = sks.mul_add_fixed_point_with_rescaling(
+                &d_lhs, &d_rhs, None, rescaling, precision, &streams,
+            );
+            let res: u128 = cpu_cks.decrypt_radix(&d_res.to_radix_ciphertext(&streams));
+
+            let expected = reference(clear_lhs, clear_rhs, None, shift_blocks);
+            assert_eq!(
+                res, expected,
+                "precision=0 must skip no column and so be exact: \
+                 {clear_lhs} * {clear_rhs} >> {shift_blocks} blocks"
+            );
+        }
+    }
+
     #[test]
     fn test_mul_add_fixed_point_with_rescaling_goldschmidt_shapes() {
         let streams = CudaStreams::new_multi_gpu();

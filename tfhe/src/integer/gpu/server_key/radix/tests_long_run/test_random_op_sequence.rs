@@ -210,8 +210,7 @@ mod clear_functions {
     pub(crate) const clear_mul: fn(u64, u64) -> u64 = |x, y| x.wrapping_mul(y);
     // `mul_low_partial_sum` with no extra terms is the low half of the product,
     // which for a 64-bit radix is exactly a wrapping multiply.
-    pub(crate) const clear_mul_low_partial_sum: fn(u64, u64) -> u64 =
-        |x, y| x.wrapping_mul(y);
+    pub(crate) const clear_mul_low_partial_sum: fn(u64, u64) -> u64 = |x, y| x.wrapping_mul(y);
     // The fused multiply-add takes a right operand narrower than the left one,
     // so the executor keeps only its low MUL_ADD_RHS_BLOCKS blocks and this
     // masks the clear value the same way. `s = R + rescaling` low blocks are
@@ -280,9 +279,7 @@ where
         |sks: &CudaServerKey,
          lhs: &CudaUnsignedRadixCiphertext,
          rhs: &CudaUnsignedRadixCiphertext,
-         streams: &CudaStreams| {
-            sks.mul_low_partial_sum(lhs, rhs, &[], true, streams)
-        },
+         streams: &CudaStreams| { sks.mul_low_partial_sum(lhs, rhs, &[], true, streams) },
     );
     let mul_add_fixed_point_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
         |sks: &CudaServerKey,
@@ -485,9 +482,7 @@ where
         |sks: &CudaServerKey,
          lhs: &CudaUnsignedRadixCiphertext,
          rhs: &CudaUnsignedRadixCiphertext,
-         streams: &CudaStreams| {
-            sks.mul_low_partial_sum(lhs, rhs, &[], true, streams)
-        },
+         streams: &CudaStreams| { sks.mul_low_partial_sum(lhs, rhs, &[], true, streams) },
     );
     let mul_add_fixed_point_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(
         |sks: &CudaServerKey,
