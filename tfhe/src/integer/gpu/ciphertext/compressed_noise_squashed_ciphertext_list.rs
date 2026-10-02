@@ -50,8 +50,10 @@ impl CudaCompressedSquashedNoiseCiphertextList {
             .enumerate()
             .map(|(pack_index, packed_integers)| {
                 // Calculate number of LWEs for this GLWE
-                let num_lwes =
-                    std::cmp::min(lwe_per_glwe.0, total_num_lwes - pack_index * lwe_per_glwe.0);
+                let num_lwes = std::cmp::min(
+                    lwe_per_glwe.get(),
+                    total_num_lwes - pack_index * lwe_per_glwe.get(),
+                );
 
                 CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
                     packed_integers.clone(),
