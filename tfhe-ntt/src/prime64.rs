@@ -21,7 +21,7 @@ mod less_than_62bit;
 mod less_than_63bit;
 
 use self::generic_solinas::PrimeModulus;
-use crate::roots::find_root_solinas_64;
+use crate::{prime::BarrettInit, roots::find_root_solinas_64};
 pub use generic_solinas::Solinas;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -240,6 +240,23 @@ fn init_negacyclic_twiddles_shoup(
     }
 }
 
+#[derive(Clone, Copy)]
+struct Barrett64 {
+    p_barrett: u64,
+    big_q: u64,
+}
+
+impl TryFrom<BarrettInit> for Barrett64 {
+    type Error = core::num::TryFromIntError;
+
+    fn try_from(value: BarrettInit) -> Result<Self, Self::Error> {
+        Ok(Self {
+            p_barrett: value.p_barrett.try_into()?,
+            big_q: value.big_q.into(),
+        })
+    }
+}
+
 /// Negacyclic NTT plan for 64bit primes.
 #[derive(Clone)]
 pub struct Plan {
@@ -250,11 +267,9 @@ pub struct Plan {
     p: u64,
     p_div: Div64,
     use_ifma: bool,
-    can_use_fast_reduction_code: bool,
 
     // used for elementwise product
-    p_barrett: u64,
-    big_q: u64,
+    barrett_enabled: Option<Barrett64>,
 
     n_inv_mod_p: u64,
     n_inv_mod_p_shoup: u64,
@@ -725,35 +740,14 @@ fn normalize_scalar(values: &mut [u64], p: u64, n_inv_mod_p: u64, n_inv_mod_p_sh
 
 struct BarrettInit64 {
     bits: u32,
-    big_q: u64,
-    p_barrett: u64,
-    requires_single_reduction_step: bool,
+    barrett_init: Option<BarrettInit>,
 }
 
 impl BarrettInit64 {
     pub fn new(modulus: u64, bits: u32) -> Self {
-        let big_q = modulus.ilog2() + 1;
-        let big_l = big_q + bits - 1;
-        let m_as_u128: u128 = modulus.into();
-        let two_to_the_l = 1u128 << big_l; // Equivalent to 2^{2k} from the zk security blog
-        let (p_barrett, beta) = (
-            (two_to_the_l / m_as_u128) as u64,
-            (two_to_the_l % m_as_u128),
-        );
-
-        // Check that the chosen prime will only trigger a single barrett reduction step with
-        // our implementation. If two reductions are needed there can be cases where it is not
-        // possible to decide whether a reduction is required yielding wrong results.
-        // Formula derived with https://blog.zksecurity.xyz/posts/barrett-tighter-bound/
-        let single_reduction_threshold = m_as_u128 - (1 << (big_q - 1));
-
-        let requires_single_reduction_step = beta <= single_reduction_threshold;
-
         Self {
             bits,
-            big_q: big_q.into(),
-            p_barrett,
-            requires_single_reduction_step,
+            barrett_init: BarrettInit::try_new(modulus, bits),
         }
     }
 }
@@ -786,35 +780,34 @@ impl Plan {
                 has_ifma
             };
 
-            // See prime32 for the logic behind the checks performed here
-            // They avoid overflows and allow the use of fast code paths.
-            let init_ifma = if ifma_instructions_available && modulus < (1u64 << 52) {
-                let init_less_than_52_bits = BarrettInit64::new(modulus, 52);
-                if (modulus < 1501199875790166)
-                    || (init_less_than_52_bits.requires_single_reduction_step
-                        && modulus < (1 << 51))
-                {
-                    // If we comply with the 52 bits code requirements return the init params
-                    Some(init_less_than_52_bits)
-                } else {
-                    // Otherwise we will need a 64 bits fallback
-                    None
-                }
+            let init_ifma = if ifma_instructions_available && modulus < (1u64 << 51) {
+                Some(BarrettInit64::new(modulus, 52))
             } else {
                 None
             };
 
-            let BarrettInit64 {
-                bits,
-                big_q,
-                p_barrett,
-                requires_single_reduction_step,
-            } = init_ifma.unwrap_or_else(|| BarrettInit64::new(modulus, 64));
+            let BarrettInit64 { bits, barrett_init } =
+                init_ifma.unwrap_or_else(|| BarrettInit64::new(modulus, 64));
 
-            let use_ifma = bits == 52;
-            let can_use_fast_reduction_code = use_ifma
-                || ((modulus < 6148914691236517206)
-                    || (requires_single_reduction_step && (modulus < (1 << 63))));
+            // See prime32 for the logic behind the checks performed here.
+            // They avoid overflows and allow the use of fast Barrett reduction code in methods
+            // using it.
+            let (barrett_enabled, use_ifma) =
+                if barrett_init.is_some() && (modulus < (1 << (bits - 1))) {
+                    // barrett_init is Some, so we can do the efficient 1 step barrett reduction
+                    // which means the ifma instructions are useful if the registers we use are
+                    // 52 bits or less
+                    let use_ifma = bits == 52;
+                    (
+                        barrett_init.map(|x| {
+                            x.try_into()
+                                .expect("Conversion to Barrett64 should not fail")
+                        }),
+                        use_ifma,
+                    )
+                } else {
+                    (None, false)
+                };
 
             let mut twid = avec![0u64; polynomial_size].into_boxed_slice();
             let mut inv_twid = avec![0u64; polynomial_size].into_boxed_slice();
@@ -852,9 +845,7 @@ impl Plan {
                 p: modulus,
                 p_div,
                 use_ifma,
-                can_use_fast_reduction_code,
-                p_barrett,
-                big_q,
+                barrett_enabled,
                 n_inv_mod_p,
                 n_inv_mod_p_shoup,
             })
@@ -883,10 +874,21 @@ impl Plan {
         self.use_ifma
     }
 
-    /// Returns whether the negacyclic NTT plan can use fast reduction code.
+    /// See [`Self::can_use_fast_barrett_reduction_code`].
     #[inline]
+    #[deprecated(since = "0.7.2", note = "use can_use_fast_barrett_reduction_code")]
     pub fn can_use_fast_reduction_code(&self) -> bool {
-        self.can_use_fast_reduction_code
+        self.can_use_fast_barrett_reduction_code()
+    }
+
+    /// Returns whether the negacyclic NTT plan can use fast Barrett reduction code.
+    ///
+    /// To avoid correctness issues linked to overflows the code has to make performance sacrifices
+    /// for certain primes and will not yield the best performance possible for them for some
+    /// methods relying on the Barrett reduction algorithm.
+    #[inline]
+    pub fn can_use_fast_barrett_reduction_code(&self) -> bool {
+        self.barrett_enabled.is_some()
     }
 
     /// Applies a forward negacyclic NTT transform in place to the given buffer.
@@ -1049,9 +1051,8 @@ impl Plan {
     /// polynomial modulo the NTT modulus, and stores the result in `lhs`.
     pub fn mul_assign_normalize(&self, lhs: &mut [u64], rhs: &[u64]) {
         let p = self.p;
-        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
 
-        if can_use_fast_reduction_code {
+        if let Some(Barrett64 { p_barrett, big_q }) = self.barrett_enabled {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if self.use_ifma {
@@ -1062,8 +1063,8 @@ impl Plan {
                     lhs,
                     rhs,
                     p,
-                    self.p_barrett,
-                    self.big_q,
+                    p_barrett,
+                    big_q,
                     self.n_inv_mod_p,
                     self.n_inv_mod_p_shoup,
                 );
@@ -1078,8 +1079,8 @@ impl Plan {
                     lhs,
                     rhs,
                     p,
-                    self.p_barrett,
-                    self.big_q,
+                    p_barrett,
+                    big_q,
                     self.n_inv_mod_p,
                     self.n_inv_mod_p_shoup,
                 );
@@ -1093,8 +1094,8 @@ impl Plan {
                     lhs,
                     rhs,
                     p,
-                    self.p_barrett,
-                    self.big_q,
+                    p_barrett,
+                    big_q,
                     self.n_inv_mod_p,
                     self.n_inv_mod_p_shoup,
                 );
@@ -1105,8 +1106,8 @@ impl Plan {
                 lhs,
                 rhs,
                 p,
-                self.p_barrett,
-                self.big_q,
+                p_barrett,
+                big_q,
                 self.n_inv_mod_p,
                 self.n_inv_mod_p_shoup,
             );
@@ -1136,9 +1137,8 @@ impl Plan {
     /// the result in `values`.
     pub fn normalize(&self, values: &mut [u64]) {
         let p = self.p;
-        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
 
-        if can_use_fast_reduction_code {
+        if p < (1 << 63) {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if self.use_ifma {
@@ -1181,32 +1181,31 @@ impl Plan {
     /// Computes the elementwise product of `lhs` and `rhs` and accumulates the result to `acc`.
     pub fn mul_accumulate(&self, acc: &mut [u64], lhs: &[u64], rhs: &[u64]) {
         let p = self.p;
-        let can_use_fast_reduction_code = self.can_use_fast_reduction_code;
 
-        if can_use_fast_reduction_code {
+        if let Some(Barrett64 { p_barrett, big_q }) = self.barrett_enabled {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if self.use_ifma {
                 // p < 2^51
                 let simd = crate::V4IFma::try_new().unwrap();
-                mul_accumulate_ifma(simd, acc, lhs, rhs, p, self.p_barrett, self.big_q);
+                mul_accumulate_ifma(simd, acc, lhs, rhs, p, p_barrett, big_q);
                 return;
             }
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             #[cfg(feature = "avx512")]
             if let Some(simd) = crate::V4::try_new() {
-                mul_accumulate_avx512(simd, acc, lhs, rhs, p, self.p_barrett, self.big_q);
+                mul_accumulate_avx512(simd, acc, lhs, rhs, p, p_barrett, big_q);
                 return;
             }
 
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             if let Some(simd) = crate::V3::try_new() {
-                mul_accumulate_avx2(simd, acc, lhs, rhs, p, self.p_barrett, self.big_q);
+                mul_accumulate_avx2(simd, acc, lhs, rhs, p, p_barrett, big_q);
                 return;
             }
 
-            mul_accumulate_scalar(acc, lhs, rhs, p, self.p_barrett, self.big_q);
+            mul_accumulate_scalar(acc, lhs, rhs, p, p_barrett, big_q);
         } else if p == Solinas::P {
             for (acc, lhs, rhs) in crate::izip!(acc, lhs, rhs) {
                 let prod = <Solinas as PrimeModulus>::mul((), *lhs, *rhs);
@@ -1555,17 +1554,85 @@ pub mod tests {
     }
 
     #[test]
-    fn test_plan_can_use_fast_reduction_code() {
+    fn test_plan_can_use_fast_barrett_reduction_code() {
         use crate::primes52::{P0, P1, P2, P3, P4, P5};
         const POLYNOMIAL_SIZE: usize = 32;
 
-        // First two primes are smaller than 6148914691236517206
-        // The other ones can be used for performant code, we want those to be fast
-        for p in [1062862849, 1431669377, P0, P1, P2, P3, P4, P5] {
+        // The internal primes are used by the native plans, they must all use the fast code,
+        // with or without IFMA instructions.
+        for p in [P0, P1, P2, P3, P4, P5] {
             let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
-
-            assert!(plan.can_use_fast_reduction_code);
+            assert!(plan.can_use_fast_barrett_reduction_code(), "{p}");
         }
+
+        // Prime needing two Barrett reduction steps (see the non regression test below) or
+        // primes too large for 2p to fit in 64 bits.
+        for p in [
+            4611686018429485057,
+            Solinas::P,
+            largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 63, u64::MAX).unwrap(),
+        ] {
+            let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+            assert!(!plan.can_use_fast_barrett_reduction_code(), "{p}");
+        }
+    }
+
+    #[test]
+    fn test_mul_accumulate_adversarial_products_internal_primes() {
+        use crate::primes52::{P0, P1, P2, P3, P4, P5};
+        const POLYNOMIAL_SIZE: usize = 32;
+
+        use rand::prelude::*;
+
+        let mut rng = rand::thread_rng();
+
+        // Products built to maximize the error of the Barrett quotient estimate, accumulated on a
+        // full accumulator: the worst case for the fast mul_accumulate code. This exercises the
+        // code path selected at runtime on the machine running the test.
+        for p in [P0, P1, P2, P3, P4, P5] {
+            let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+            assert!(plan.can_use_fast_barrett_reduction_code(), "{p}");
+
+            for _ in 0..100_000 {
+                let lhs: Vec<u64> = (0..POLYNOMIAL_SIZE).map(|_| rng.gen_range(0..p)).collect();
+                let rhs: Vec<u64> = (0..POLYNOMIAL_SIZE).map(|_| rng.gen_range(0..p)).collect();
+
+                let mut acc = vec![p - 1; lhs.len()];
+
+                plan.mul_accumulate(&mut acc, &lhs, &rhs);
+
+                for (acc, lhs, rhs) in crate::izip!(&acc, &lhs, &rhs) {
+                    let expected = ((u128::from(p) - 1 + u128::from(*lhs) * u128::from(*rhs))
+                        % u128::from(p)) as u64;
+                    assert_eq!(*acc, expected, "p={p} lhs={lhs} rhs={rhs}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_barret_invalid_reduction_non_regression_requires_two_reductions() {
+        const POLYNOMIAL_SIZE: usize = 32;
+
+        let p: u64 = 4611686018429485057;
+        let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+
+        let acc_val = p - 1;
+        let mut acc = [acc_val; POLYNOMIAL_SIZE];
+        let lhs_value = 4611686018426735880;
+        // Essentially = [value, 0, 0, ...]
+        let lhs_input: [u64; POLYNOMIAL_SIZE] =
+            core::array::from_fn(|i| if i == 0 { lhs_value } else { 0 });
+
+        let rhs_value = 4611686018428520962;
+        let rhs_input: [u64; POLYNOMIAL_SIZE] =
+            core::array::from_fn(|i| if i == 0 { rhs_value } else { 0 });
+
+        plan.mul_accumulate(&mut acc, &lhs_input, &rhs_input);
+
+        let expected = ((u128::from(acc_val) + u128::from(lhs_value) * u128::from(rhs_value))
+            % u128::from(p)) as u64;
+        assert_eq!(acc[0], expected);
     }
 }
 
