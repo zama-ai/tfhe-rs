@@ -205,12 +205,12 @@ pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
         let mut ct1 = cks.encrypt_radix(clear1, nb_block);
         let scalar = rng.gen::<u64>() % msg_space;
-        sks.smart_scalar_add_assign(&mut ct1, scalar);
+        sks.unchecked_scalar_add_assign(&mut ct1, scalar);
         let dec1: u64 = cks.decrypt_radix(&ct1);
 
         let mut ct2 = cks.encrypt_radix(clear2, nb_block);
         let scalar = rng.gen::<u64>() % msg_space;
-        sks.smart_scalar_add_assign(&mut ct2, scalar);
+        sks.unchecked_scalar_add_assign(&mut ct2, scalar);
         let dec2: u64 = cks.decrypt_radix(&ct2);
 
         let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);

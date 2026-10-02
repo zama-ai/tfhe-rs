@@ -23,8 +23,8 @@ fn compute_prefix_sum(server_key: &ServerKey, arr: &[RadixCiphertext]) -> Vec<Ra
             .par_chunks_exact_mut(2_usize.pow(d + 1))
             .for_each(move |chunk| {
                 let length = chunk.len();
-                let mut left = chunk.get((length - 1) / 2).unwrap().clone();
-                server_key.smart_add_assign_parallelized(chunk.last_mut().unwrap(), &mut left)
+                let left = chunk.get((length - 1) / 2).unwrap().clone();
+                server_key.add_assign_parallelized(chunk.last_mut().unwrap(), &left)
             });
     }
     let last = prefix_sum.last().unwrap().clone();
@@ -35,8 +35,8 @@ fn compute_prefix_sum(server_key: &ServerKey, arr: &[RadixCiphertext]) -> Vec<Ra
             .for_each(move |chunk| {
                 let length = chunk.len();
                 let temp = chunk.last().unwrap().clone();
-                let mut mid = chunk.get((length - 1) / 2).unwrap().clone();
-                server_key.smart_add_assign_parallelized(chunk.last_mut().unwrap(), &mut mid);
+                let mid = chunk.get((length - 1) / 2).unwrap().clone();
+                server_key.add_assign_parallelized(chunk.last_mut().unwrap(), &mid);
                 chunk[(length - 1) / 2] = temp;
             });
     }
@@ -55,32 +55,26 @@ fn fill_orders(
         .enumerate()
         .for_each(move |(i, order)| {
             // (total_orders - previous_prefix_sum).max(0)
-            let mut diff = if i == 0 {
+            let diff = if i == 0 {
                 total_orders.clone()
             } else {
                 let previous_prefix_sum = &prefix_sum_arr[i - 1];
 
                 // total_orders - previous_prefix_sum
-                let mut diff = server_key.smart_sub_parallelized(
-                    &mut total_orders.clone(),
-                    &mut previous_prefix_sum.clone(),
-                );
+                let diff = server_key.sub_parallelized(total_orders, previous_prefix_sum);
 
                 // total_orders > prefix_sum
-                let mut cond = server_key
-                    .smart_gt_parallelized(
-                        &mut total_orders.clone(),
-                        &mut previous_prefix_sum.clone(),
-                    )
+                let cond = server_key
+                    .gt_parallelized(total_orders, previous_prefix_sum)
                     .into_radix(diff.blocks().len(), server_key);
 
                 // (total_orders - previous_prefix_sum) * (total_orders > previous_prefix_sum)
                 // = (total_orders - previous_prefix_sum).max(0)
-                server_key.smart_mul_parallelized(&mut cond, &mut diff)
+                server_key.mul_parallelized(&cond, &diff)
             };
 
             // (total_orders - previous_prefix_sum).max(0).min(*order);
-            *order = server_key.smart_min_parallelized(&mut diff, order);
+            *order = server_key.min_parallelized(&diff, order);
         });
 }
 

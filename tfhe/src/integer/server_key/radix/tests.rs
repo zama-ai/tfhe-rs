@@ -155,9 +155,9 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters)
         let clear_0 = ((u64::MAX as u128) << 64) + 1;
         let clear_1 = 1u128 << 64;
 
-        let mut ct = cks.encrypt_radix(clear_0, num_block);
-        let mut ct2 = cks.encrypt_radix(clear_1, num_block);
-        let ct = sks.smart_add(&mut ct, &mut ct2);
+        let ct = cks.encrypt_radix(clear_0, num_block);
+        let ct2 = cks.encrypt_radix(clear_1, num_block);
+        let ct = sks.unchecked_add(&ct, &ct2);
 
         let dec: u128 = cks.decrypt_radix(&ct);
 
@@ -168,9 +168,9 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters)
         let clear_0 = 330885270518284254268036566988540330316u128;
         let clear_1 = 296783836660960220449461214688067032122u128;
 
-        let mut ct = cks.encrypt_radix(clear_0, num_block);
-        let mut ct2 = cks.encrypt_radix(clear_1, num_block);
-        let ct = sks.smart_add(&mut ct, &mut ct2);
+        let ct = cks.encrypt_radix(clear_0, num_block);
+        let ct2 = cks.encrypt_radix(clear_1, num_block);
+        let ct = sks.unchecked_add(&ct, &ct2);
 
         let dec: u128 = cks.decrypt_radix(&ct);
 

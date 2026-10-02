@@ -123,65 +123,6 @@ impl ServerKey {
 
     /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
     ///
-    /// # Warning
-    ///
-    /// - Multithreaded
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // Generate the client key and the server key:
-    /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
-    ///
-    /// let msg1 = 14;
-    /// let msg2 = 97;
-    ///
-    /// let mut ct1 = cks.encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let ct_res = sks.smart_add_parallelized(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg1 + msg2);
-    /// ```
-    pub fn smart_add_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T) -> T
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if self.is_add_possible(ct_left, ct_right).is_err() {
-            rayon::join(
-                || self.full_propagate_parallelized(ct_left),
-                || self.full_propagate_parallelized(ct_right),
-            );
-        }
-
-        self.is_add_possible(ct_left, ct_right).unwrap();
-        self.unchecked_add(ct_left, ct_right)
-    }
-
-    pub fn smart_add_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &mut T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        if self.is_add_possible(ct_left, ct_right).is_err() {
-            rayon::join(
-                || self.full_propagate_parallelized(ct_left),
-                || self.full_propagate_parallelized(ct_right),
-            );
-        }
-
-        self.is_add_possible(ct_left, ct_right).unwrap();
-        self.unchecked_add_assign(ct_left, ct_right);
-    }
-
-    /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
-    ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
     /// check that the input ciphertexts block carries are empty and clears them if it's not the
     /// case and the operation requires it. It outputs a ciphertext whose block carries are always

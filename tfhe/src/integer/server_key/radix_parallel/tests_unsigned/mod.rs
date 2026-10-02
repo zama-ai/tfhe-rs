@@ -876,8 +876,8 @@ fn test_non_regression_clone_from() {
     let enc_c = client_key.encrypt_radix(c, num_block);
     let enc_d = client_key.encrypt_radix(d, num_block);
 
-    let (mut q1, mut r1) = server_key.div_rem_parallelized(&enc_b, &enc_a);
-    let (mut q2, mut r2) = server_key.div_rem_parallelized(&enc_d, &enc_c);
+    let (q1, r1) = server_key.div_rem_parallelized(&enc_b, &enc_a);
+    let (q2, r2) = server_key.div_rem_parallelized(&enc_d, &enc_c);
 
     assert_eq!(client_key.decrypt_radix::<u8>(&r1), 1);
     assert_eq!(client_key.decrypt_radix::<u8>(&r2), 1);
@@ -885,9 +885,9 @@ fn test_non_regression_clone_from() {
     assert_eq!(client_key.decrypt_radix::<u8>(&q2), 1);
 
     // The consequence of the bug was that r1r2 would be 0 instead of one
-    let r1r2 = server_key.smart_mul_parallelized(&mut r1, &mut r2);
+    let r1r2 = server_key.mul_parallelized(&r1, &r2);
     assert_eq!(client_key.decrypt_radix::<u8>(&r1r2), 1);
-    let q1q2 = server_key.smart_mul_parallelized(&mut q1, &mut q2);
+    let q1q2 = server_key.mul_parallelized(&q1, &q2);
     assert_eq!(client_key.decrypt_radix::<u8>(&q1q2), 1);
 }
 
