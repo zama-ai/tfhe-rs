@@ -7,7 +7,7 @@ use crate::nist_submission::parameters::{
 use crate::nist_submission::{
     preproc_eval, set_server_key, ClientKey, CompactCiphertextListBuilder, CompactPkeCrs,
     CompactPublicKey, CompressedXofKeySet, Config, FheUint32, NormalizedHammingWeightBound,
-    ProvenCompactCiphertextList, SquashedNoiseFheUint, Tag, ZkComputeLoad,
+    ProvenCompactCiphertextList, SquashedNoiseFheUint, Tag, XofDerivationMode, ZkComputeLoad,
 };
 
 use crate::nist_submission::prelude::*;
@@ -98,6 +98,7 @@ fn complete_test_zk() {
     let (ck, compressed_key_set) = CompressedXofKeySet::generate(
         config,
         vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        XofDerivationMode::Aes256,
         128,
         NormalizedHammingWeightBound::new(0.75).unwrap(),
         Tag::from("nist_submission"),
