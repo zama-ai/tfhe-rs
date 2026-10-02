@@ -21,7 +21,10 @@ use crate::shortint::list_compression::{
     NoiseSquashingCompressionKeyConformanceParams,
     NoiseSquashingCompressionPrivateKey as ShortintNoiseSquashingCompressionPrivateKey,
 };
-use crate::shortint::parameters::NoiseSquashingCompressionParameters;
+use crate::shortint::parameters::{
+    CompressedSquashedNoiseCiphertextListConformanceParams, NoiseSquashingCompressionParameters,
+};
+use crate::shortint::MessageModulus;
 use crate::Versionize;
 use serde::{Deserialize, Serialize};
 use std::num::NonZero;
@@ -183,9 +186,14 @@ impl CompressedSquashedNoiseCiphertextList {
         self.info.len()
     }
 
-    // Returns whether the list is empty
+    /// Returns whether the list is empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
+    pub fn message_modulus(&self) -> Option<MessageModulus> {
+        self.list.message_modulus()
     }
 
     /// Kind and range of the ciphertexts of the item at `index`, or None if `index` is out of
@@ -239,6 +247,25 @@ impl CompressedSquashedNoiseCiphertextList {
         self.blocks_of(index)?
             .map(|(ns_blocks, data_kind)| T::from_expanded_blocks(ns_blocks, data_kind))
             .transpose()
+    }
+}
+
+impl ParameterSetConformant for CompressedSquashedNoiseCiphertextList {
+    type ParameterSet = CompressedSquashedNoiseCiphertextListConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { list, info } = self;
+
+        let Some(message_modulus) = list.message_modulus() else {
+            // A list without metadata stores no ciphertext, so it cannot hold any item
+            return info.is_empty() && list.is_empty();
+        };
+
+        let Ok(expected_len) = DataKind::total_squashed_block_count(info, message_modulus) else {
+            return false;
+        };
+
+        list.is_conformant(parameter_set) && expected_len == list.len()
     }
 }
 
@@ -425,6 +452,7 @@ impl CompressedSquashedNoiseCiphertextListBuilder {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::core_crypto::prelude::NonZeroLweCiphertextCount;
     use crate::integer::noise_squashing::NoiseSquashingKey;
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -512,5 +540,96 @@ mod test {
         assert_eq!(clear_c, d_clear_c);
         assert_eq!(clear_d, d_clear_d);
         assert_eq!(clear_e, d_clear_e);
+    }
+
+    /// Check the behavior of the list when the info vec is modified
+    #[test]
+    fn test_attack_list_info() {
+        let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_parameters =
+            TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let compression_parameters =
+            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let (cks, sks) = crate::integer::keycache::KEY_CACHE
+            .get_from_params(param, crate::integer::IntegerKeyKind::Radix);
+        let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
+        let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
+        let noise_squashing_compression_private_key =
+            NoiseSquashingCompressionPrivateKey::new(compression_parameters);
+        let compression_key = noise_squashing_private_key
+            .new_noise_squashing_compression_key(&noise_squashing_compression_private_key);
+
+        let conformance_params =
+            CompressedSquashedNoiseCiphertextListConformanceParams::from_params(
+                noise_squashing_parameters,
+                compression_parameters,
+            );
+
+        let ns_ct_a = noise_squashing_key
+            .squash_radix_ciphertext_noise(&sks, &cks.encrypt_radix(1u8, 4))
+            .unwrap();
+        let ns_ct_b = noise_squashing_key
+            .squash_signed_radix_ciphertext_noise(&sks, &cks.encrypt_signed_radix(-1i8, 4))
+            .unwrap();
+
+        let mut list = CompressedSquashedNoiseCiphertextList::builder()
+            .push(ns_ct_a)
+            .push(ns_ct_b)
+            .build(&compression_key);
+        assert!(list.is_conformant(&conformance_params));
+
+        // Remove the info vec, conformance should no longer work
+        let saved_info = std::mem::take(&mut list.info);
+        assert!(!list.is_conformant(&conformance_params));
+
+        // The info vec is not coherent (block number wise) so conformance fails
+        list.info = vec![DataKind::Signed(4.try_into().unwrap())];
+        assert!(!list.is_conformant(&conformance_params));
+
+        // The info vec is coherent (block number wise) so conformance passes. However, the info
+        // metadata is different from what it was originally
+        list.info.push(DataKind::Unsigned(4.try_into().unwrap()));
+        assert_ne!(list.info, saved_info);
+        assert!(list.is_conformant(&conformance_params));
+
+        // The info vec now describes more blocks than the list holds, so conformance fails and
+        // getting the extra item is an error
+        list.info.push(DataKind::Boolean);
+        assert!(!list.is_conformant(&conformance_params));
+        assert!(list.get::<SquashedNoiseBooleanBlock>(2).is_err());
+        list.info.pop();
+        assert!(list.is_conformant(&conformance_params));
+
+        // Add a second GLWE after the partial one, with an info vec describing all the stored
+        // blocks: conformance fails because only the last GLWE can be partial
+        let mut two_glwes_list = list.clone();
+        let glwe = two_glwes_list.list.glwe_ciphertext_list[0].clone();
+        two_glwes_list.list.glwe_ciphertext_list.push(glwe);
+        two_glwes_list
+            .info
+            .push(DataKind::Unsigned(8.try_into().unwrap()));
+        assert!(!two_glwes_list.is_conformant(&conformance_params));
+
+        // Change the number of LWEs per GLWE, conformance fails and getting an item is an error
+        list.list.meta.as_mut().unwrap().lwe_per_glwe = NonZeroLweCiphertextCount::new(1).unwrap();
+        assert!(!list.is_conformant(&conformance_params));
+        assert!(list.get::<SquashedNoiseRadixCiphertext>(1).is_err());
+    }
+
+    /// Check that a list without ciphertexts, whose info vec claims to hold an item, returns an
+    /// error instead of panicking
+    #[test]
+    fn test_attack_list_without_ciphertexts() {
+        let list = CompressedSquashedNoiseCiphertextList {
+            list: ShortintCompressedSquashedNoiseCiphertextList {
+                glwe_ciphertext_list: vec![],
+                meta: None,
+            },
+            info: vec![DataKind::Unsigned(NonZero::<usize>::MIN)],
+        };
+
+        assert_eq!(list.len(), 1);
+        assert!(list.get::<SquashedNoiseRadixCiphertext>(0).is_err());
     }
 }
