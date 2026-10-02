@@ -23,6 +23,11 @@ pub enum LweCiphertextCountVersions {
 }
 
 #[derive(VersionsDispatch)]
+pub enum NonZeroLweCiphertextCountVersions {
+    V0(NonZeroLweCiphertextCount),
+}
+
+#[derive(VersionsDispatch)]
 #[cfg(feature = "gpu")]
 pub enum LweCiphertextIndexVersions {
     V0(LweCiphertextIndex),

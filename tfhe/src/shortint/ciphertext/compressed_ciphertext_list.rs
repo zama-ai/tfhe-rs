@@ -24,7 +24,7 @@ pub(crate) struct CompressedCiphertextListMeta {
     pub(crate) message_modulus: MessageModulus,
     pub(crate) carry_modulus: CarryModulus,
     pub(crate) atomic_pattern: AtomicPatternKind,
-    pub(crate) lwe_per_glwe: LweCiphertextCount,
+    pub(crate) lwe_per_glwe: NonZeroLweCiphertextCount,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
@@ -115,8 +115,8 @@ impl ParameterSetConformant for CompressedCiphertextList {
             && modulus_switched_glwe_ciphertext_list
                 .iter()
                 .all(|glwe| glwe.is_conformant(&params.ct_params))
-            && lwe_per_glwe.0 <= params.ct_params.polynomial_size.0
-            && *lwe_per_glwe == params.lwe_per_glwe
+            && lwe_per_glwe.get() <= params.ct_params.polynomial_size.0
+            && LweCiphertextCount::from(*lwe_per_glwe) == params.lwe_per_glwe
             && *ciphertext_modulus == params.ct_params.ct_modulus
             && *message_modulus == params.message_modulus
             && *carry_modulus == params.carry_modulus
@@ -129,7 +129,7 @@ impl ParameterSetConformant for CompressedCiphertextList {
 pub(crate) struct CompressedSquashedNoiseCiphertextListMeta {
     pub(crate) message_modulus: MessageModulus,
     pub(crate) carry_modulus: CarryModulus,
-    pub(crate) lwe_per_glwe: LweCiphertextCount,
+    pub(crate) lwe_per_glwe: NonZeroLweCiphertextCount,
 }
 
 /// A compressed list of [`SquashedNoiseCiphertext`].
@@ -183,8 +183,8 @@ impl ParameterSetConformant for CompressedSquashedNoiseCiphertextList {
             && glwe_ciphertext_list
                 .iter()
                 .all(|glwe| glwe.is_conformant(&params.ct_params))
-            && meta.lwe_per_glwe.0 <= params.ct_params.polynomial_size.0
-            && meta.lwe_per_glwe == params.lwe_per_glwe
+            && meta.lwe_per_glwe.get() <= params.ct_params.polynomial_size.0
+            && LweCiphertextCount::from(meta.lwe_per_glwe) == params.lwe_per_glwe
             && meta.message_modulus == params.message_modulus
             && meta.carry_modulus == params.carry_modulus
     }
@@ -226,10 +226,20 @@ impl CompressedSquashedNoiseCiphertextList {
             error!("Missing ciphertext metadata in CompressedSquashedNoiseCiphertextList")
         })?;
 
-        let lwe_per_glwe = meta.lwe_per_glwe.0;
+        let lwe_per_glwe = meta.lwe_per_glwe.get();
         let glwe_idx = index / lwe_per_glwe;
 
-        let glwe = self.glwe_ciphertext_list[glwe_idx].extract();
+        let glwe = self
+            .glwe_ciphertext_list
+            .get(glwe_idx)
+            .ok_or_else(|| {
+                error!(
+                    "Invalid CompressedSquashedNoiseCiphertextList: index {index} is in GLWE \
+                    {glwe_idx}, but the list only has {} GLWEs",
+                    self.glwe_ciphertext_list.len()
+                )
+            })?
+            .extract();
 
         let glwe_dimension = glwe.glwe_size().to_glwe_dimension();
         let polynomial_size = glwe.polynomial_size();

@@ -261,18 +261,19 @@ pub struct CompressedCiphertextListV1 {
 }
 
 impl Upgrade<CompressedCiphertextList> for CompressedCiphertextListV1 {
-    type Error = Infallible;
+    type Error = crate::Error;
 
     fn upgrade(self) -> Result<CompressedCiphertextList, Self::Error> {
         let meta = if self.modulus_switched_glwe_ciphertext_list.is_empty() {
             None
         } else {
+            let lwe_per_glwe = self.lwe_per_glwe.try_into()?;
             Some(CompressedCiphertextListMeta {
                 ciphertext_modulus: self.ciphertext_modulus,
                 message_modulus: self.message_modulus,
                 carry_modulus: self.carry_modulus,
                 atomic_pattern: self.atomic_pattern,
-                lwe_per_glwe: self.lwe_per_glwe,
+                lwe_per_glwe,
             })
         };
 
@@ -290,10 +291,42 @@ pub enum CompressedCiphertextListVersions {
     V2(CompressedCiphertextList),
 }
 
+#[derive(Version)]
+pub(crate) struct CompressedCiphertextListMetaV0 {
+    ciphertext_modulus: CiphertextModulus<u64>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    atomic_pattern: AtomicPatternKind,
+    lwe_per_glwe: LweCiphertextCount,
+}
+
+impl Upgrade<CompressedCiphertextListMeta> for CompressedCiphertextListMetaV0 {
+    type Error = crate::Error;
+
+    fn upgrade(self) -> Result<CompressedCiphertextListMeta, Self::Error> {
+        let Self {
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            lwe_per_glwe,
+        } = self;
+
+        Ok(CompressedCiphertextListMeta {
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            lwe_per_glwe: lwe_per_glwe.try_into()?,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 #[allow(dead_code)]
 pub(crate) enum CompressedCiphertextListMetaVersions {
-    V0(CompressedCiphertextListMeta),
+    V0(CompressedCiphertextListMetaV0),
+    V1(CompressedCiphertextListMeta),
 }
 
 #[derive(VersionsDispatch)]
@@ -306,8 +339,36 @@ pub enum CompressedSquashedNoiseCiphertextListVersions {
     V0(CompressedSquashedNoiseCiphertextList),
 }
 
+#[derive(Version)]
+pub(crate) struct CompressedSquashedNoiseCiphertextListMetaV0 {
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    lwe_per_glwe: LweCiphertextCount,
+}
+
+impl Upgrade<CompressedSquashedNoiseCiphertextListMeta>
+    for CompressedSquashedNoiseCiphertextListMetaV0
+{
+    type Error = crate::Error;
+
+    fn upgrade(self) -> Result<CompressedSquashedNoiseCiphertextListMeta, Self::Error> {
+        let Self {
+            message_modulus,
+            carry_modulus,
+            lwe_per_glwe,
+        } = self;
+
+        Ok(CompressedSquashedNoiseCiphertextListMeta {
+            message_modulus,
+            carry_modulus,
+            lwe_per_glwe: lwe_per_glwe.try_into()?,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 #[allow(dead_code)]
 pub(crate) enum CompressedSquashedNoiseCiphertextListMetaVersions {
-    V0(CompressedSquashedNoiseCiphertextListMeta),
+    V0(CompressedSquashedNoiseCiphertextListMetaV0),
+    V1(CompressedSquashedNoiseCiphertextListMeta),
 }

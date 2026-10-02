@@ -6,7 +6,7 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::packed_integers::PackedIntegers;
 use crate::core_crypto::prelude::{
     glwe_mask_size, CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount,
-    LweCiphertextCount, PolynomialSize, UnsignedInteger,
+    LweCiphertextCount, NonZeroLweCiphertextCount, PolynomialSize, UnsignedInteger,
 };
 use crate::error;
 use crate::high_level_api::keys::expanded::ExpandedDecompressionKey;
@@ -62,7 +62,7 @@ pub struct CudaPackedGlweCiphertextListMeta<T: UnsignedInteger> {
     pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CiphertextModulus<T>,
     pub storage_log_modulus: CiphertextModulusLog,
-    pub lwe_per_glwe: LweCiphertextCount,
+    pub lwe_per_glwe: NonZeroLweCiphertextCount,
     // Number of lwe bodies that are compressed in this list
     pub total_lwe_bodies_count: usize,
     // Number of elements (u64) the uncompressed GLWE list had
@@ -110,7 +110,7 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
         // GPU expects uniform stride per GLWE. The last GLWE on the CPU side
         // may have fewer packed elements (fewer bodies), so we pad each GLWE's
         // packed coefficients to the uniform stride.
-        let lwe_per_glwe = input_meta.lwe_per_glwe.0;
+        let lwe_per_glwe = input_meta.lwe_per_glwe.get();
         let per_glwe_uncompressed = mask_size + lwe_per_glwe;
         let per_glwe_packed = (per_glwe_uncompressed * log_modulus.0).div_ceil(T::BITS);
 
@@ -168,7 +168,7 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
 
         let meta = self.meta.unwrap();
         let glwe_mask_size = glwe_mask_size(meta.glwe_dimension, meta.polynomial_size);
-        let lwe_per_glwe = meta.lwe_per_glwe.0;
+        let lwe_per_glwe = meta.lwe_per_glwe.get();
         let log_modulus = meta.storage_log_modulus;
         let total_bodies = meta.total_lwe_bodies_count;
         let num_glwes = total_bodies.div_ceil(lwe_per_glwe);
@@ -218,7 +218,10 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
             return GlweCiphertextCount(0);
         };
 
-        GlweCiphertextCount(meta.total_lwe_bodies_count.div_ceil(meta.lwe_per_glwe.0))
+        GlweCiphertextCount(
+            meta.total_lwe_bodies_count
+                .div_ceil(meta.lwe_per_glwe.get()),
+        )
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
@@ -375,7 +378,8 @@ impl CudaCompressionKey {
                 carry_modulus,
                 ciphertext_modulus,
                 storage_log_modulus: self.storage_log_modulus,
-                lwe_per_glwe: self.lwe_per_glwe,
+                lwe_per_glwe: NonZeroLweCiphertextCount::try_from(self.lwe_per_glwe)
+                    .expect("Cannot pack ciphertexts with a key storing 0 LWE per GLWE"),
                 total_lwe_bodies_count: num_lwes,
                 initial_len: uncompressed_len,
             }),
@@ -828,7 +832,8 @@ impl CudaNoiseSquashingCompressionKey {
                 carry_modulus,
                 ciphertext_modulus,
                 storage_log_modulus: ciphertext_modulus_log,
-                lwe_per_glwe: self.lwe_per_glwe,
+                lwe_per_glwe: NonZeroLweCiphertextCount::try_from(self.lwe_per_glwe)
+                    .expect("Cannot pack ciphertexts with a key storing 0 LWE per GLWE"),
                 total_lwe_bodies_count: num_lwes,
                 initial_len: uncompressed_len,
             }),
