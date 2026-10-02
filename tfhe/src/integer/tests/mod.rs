@@ -1,3 +1,4 @@
+pub(crate) mod int;
 pub(crate) mod uint;
 
 macro_rules! create_parameterized_test {

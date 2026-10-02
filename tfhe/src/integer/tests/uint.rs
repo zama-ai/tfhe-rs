@@ -81,8 +81,34 @@ impl Uint {
             .is_none_or(|sum| sum > Self::max(self.bits).value);
         (self.wrapping_add(other), overflowed)
     }
+    /// `self + scalar` where `scalar` may have any width: the result is on `self`'s width,
+    /// the overflow is that of the exact sum, like the FHE `overflowing_scalar_add`.
+    pub(crate) fn overflowing_scalar_add(self, scalar: Self) -> (Self, bool) {
+        let result = self.wrapping_add(scalar.cast(self.bits));
+        // A u128 overflow means the exact sum fits no width the model supports
+        let overflowed = self
+            .value
+            .checked_add(scalar.value)
+            .is_none_or(|exact| exact > Self::max(self.bits).value);
+        (result, overflowed)
+    }
+
+    /// `self - scalar` where `scalar` may have any width: the result is on `self`'s width,
+    /// the overflow is that of the exact difference, like the FHE `overflowing_scalar_sub`.
+    pub(crate) fn overflowing_scalar_sub(self, scalar: Self) -> (Self, bool) {
+        let result = self.wrapping_sub(scalar.cast(self.bits));
+        (result, self.value < scalar.value)
+    }
+
     pub(crate) fn cast(self, bits: u32) -> Self {
         Self::new(self.value, bits)
+    }
+}
+
+/// The value alone, for reports.
+impl std::fmt::Display for Uint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 
@@ -161,6 +187,25 @@ mod tests {
         assert_eq!(
             Uint::max(128).overflowing_add(Uint::one(128)),
             (Uint::zero(128), true)
+        );
+    }
+
+    #[test]
+    fn scalar_ops_accept_any_scalar_width() {
+        // 250 + 10 = 260 does not fit 8 bits, the result is 260 - 256
+        assert_eq!(
+            Uint::new(250, 8).overflowing_scalar_add(Uint::new(10, 4)),
+            (Uint::new(4, 8), true)
+        );
+        // 5 - 300: 300 reduced to 8 bits is 44, and the exact difference is negative
+        assert_eq!(
+            Uint::new(5, 8).overflowing_scalar_sub(Uint::new(300, 16)),
+            (Uint::new(217, 8), true)
+        );
+        // 5 - 256: the scalar reduces to 0, the exact difference is still negative
+        assert_eq!(
+            Uint::new(5, 8).overflowing_scalar_sub(Uint::new(256, 16)),
+            (Uint::new(5, 8), true)
         );
     }
 
