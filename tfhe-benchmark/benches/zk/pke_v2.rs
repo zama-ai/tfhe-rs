@@ -1,8 +1,13 @@
+use benchmark_spec::zk::pke::{PkeBench, PkeProof, PkeVerify};
+use benchmark_spec::Backend;
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
 use tfhe_zk_pok::proofs::pke_v2::{prove, verify, Bound, VerificationPairingMode};
 use tfhe_zk_pok::proofs::ComputeLoad;
-use utils::{init_params_v2, write_to_json, PKEV1_TEST_PARAMS, PKEV2_TEST_PARAMS};
+use utils::{
+    init_params_v2, pke_spec, spec_bound, spec_pairing_mode, write_pke_record, PKEV1_TEST_PARAMS,
+    PKEV2_TEST_PARAMS,
+};
 
 #[path = "./utils.rs"]
 mod utils;
@@ -26,10 +31,14 @@ fn bench_pke_v2_prove(c: &mut Criterion) {
         [Bound::CS, Bound::GHL]
     ) {
         let (public_param, public_commit, private_commit, metadata) = init_params_v2(params, bound);
-        let effective_t = params.t >> 1;
-        let bits = (params.k as u32) * effective_t.ilog2();
 
-        let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}");
+        let spec = pke_spec(
+            PkeBench::Proof(PkeProof::V2(spec_bound(bound, load))),
+            Backend::Cpu,
+            params,
+            param_name,
+        );
+        let bench_id = spec.to_string();
         println!("{bench_id}");
 
         let seed: u128 = rng.gen();
@@ -46,7 +55,7 @@ fn bench_pke_v2_prove(c: &mut Criterion) {
             })
         });
 
-        write_to_json(&bench_id, params, param_name, bench_shortname);
+        write_pke_record(&spec, params, bench_shortname);
     }
 }
 
@@ -73,12 +82,17 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
         ]
     ) {
         let (public_param, public_commit, private_commit, metadata) = init_params_v2(params, bound);
-        let effective_t = params.t >> 1;
-        let bits = (params.k as u32) * effective_t.ilog2();
 
-        let bench_id = format!(
-            "{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}_{pairing_mode:?}"
+        let spec = pke_spec(
+            PkeBench::Verify(PkeVerify::V2(spec_pairing_mode(
+                pairing_mode,
+                spec_bound(bound, load),
+            ))),
+            Backend::Cpu,
+            params,
+            param_name,
         );
+        let bench_id = spec.to_string();
         println!("{bench_id}");
 
         let seed: u128 = rng.gen();
@@ -103,11 +117,11 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
             })
         });
 
-        write_to_json(&bench_id, params, param_name, bench_shortname);
+        write_pke_record(&spec, params, bench_shortname);
     }
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "gpu-zk")]
 mod gpu {
     use super::*;
     use tfhe_zk_pok::gpu::pke_v2 as gpu_pke_v2;
@@ -132,11 +146,14 @@ mod gpu {
         ) {
             let (public_param, public_commit, private_commit, metadata) =
                 init_params_v2(params, bound);
-            let effective_t = params.t >> 1;
-            let bits = (params.k as u32) * effective_t.ilog2();
 
-            let bench_id =
-                format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}");
+            let spec = pke_spec(
+                PkeBench::Proof(PkeProof::V2(spec_bound(bound, load))),
+                Backend::Cuda,
+                params,
+                param_name,
+            );
+            let bench_id = spec.to_string();
             println!("{bench_id}");
 
             let seed: u128 = rng.gen();
@@ -153,7 +170,7 @@ mod gpu {
                 })
             });
 
-            write_to_json(&bench_id, params, param_name, bench_shortname);
+            write_pke_record(&spec, params, bench_shortname);
         }
     }
 
@@ -181,12 +198,17 @@ mod gpu {
         ) {
             let (public_param, public_commit, private_commit, metadata) =
                 init_params_v2(params, bound);
-            let effective_t = params.t >> 1;
-            let bits = (params.k as u32) * effective_t.ilog2();
 
-            let bench_id = format!(
-                "{bench_name}::{param_name}_{bits}_bits_packed_{load}_{bound:?}_{pairing_mode:?}"
+            let spec = pke_spec(
+                PkeBench::Verify(PkeVerify::V2(spec_pairing_mode(
+                    pairing_mode,
+                    spec_bound(bound, load),
+                ))),
+                Backend::Cuda,
+                params,
+                param_name,
             );
+            let bench_id = spec.to_string();
             println!("{bench_id}");
 
             let seed: u128 = rng.gen();
@@ -212,25 +234,25 @@ mod gpu {
                 })
             });
 
-            write_to_json(&bench_id, params, param_name, bench_shortname);
+            write_pke_record(&spec, params, bench_shortname);
         }
     }
 }
 
 criterion_group!(benches_pke_v2, bench_pke_v2_verify, bench_pke_v2_prove);
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "gpu-zk")]
 use gpu::{bench_pke_v2_prove_gpu, bench_pke_v2_verify_gpu};
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "gpu-zk")]
 criterion_group!(
     benches_pke_v2_gpu,
     bench_pke_v2_verify_gpu,
     bench_pke_v2_prove_gpu
 );
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "gpu-zk")]
 criterion_main!(benches_pke_v2, benches_pke_v2_gpu);
 
-#[cfg(not(feature = "gpu"))]
+#[cfg(not(feature = "gpu-zk"))]
 criterion_main!(benches_pke_v2);
