@@ -3745,7 +3745,7 @@ dependencies = [
  "serde",
  "sqlx",
  "tokio",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
 ]
 
 [[package]]
@@ -3804,7 +3804,7 @@ dependencies = [
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "thiserror 2.0.21",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "zhc",
@@ -3856,7 +3856,7 @@ dependencies = [
  "serde_yaml",
  "static_assertions",
  "tfhe-versionable-derive",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
  "trybuild",
 ]
 
