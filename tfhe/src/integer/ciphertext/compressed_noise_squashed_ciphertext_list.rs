@@ -513,4 +513,20 @@ mod test {
         assert_eq!(clear_d, d_clear_d);
         assert_eq!(clear_e, d_clear_e);
     }
+
+    /// Check that a list without ciphertexts, whose info vec claims to hold an item, returns an
+    /// error instead of panicking
+    #[test]
+    fn test_attack_list_without_ciphertexts() {
+        let list = CompressedSquashedNoiseCiphertextList {
+            list: ShortintCompressedSquashedNoiseCiphertextList {
+                glwe_ciphertext_list: vec![],
+                meta: None,
+            },
+            info: vec![DataKind::Unsigned(NonZero::<usize>::MIN)],
+        };
+
+        assert_eq!(list.len(), 1);
+        assert!(list.get::<SquashedNoiseRadixCiphertext>(0).is_err());
+    }
 }
