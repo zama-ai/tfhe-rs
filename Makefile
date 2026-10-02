@@ -758,6 +758,22 @@ fuzz_postcampaign: install_cargo_afl
 fuzz_clean:
 	rm -rf utils/fuzz/sync_dir utils/fuzz/stored_corpus utils/fuzz/stored_crashes utils/fuzz/summary.md
 
+.PHONY: fuzz_gpu_postcampaign # Postprocess a finished GPU campaign: save crashes, minimize corpus, write summary.md
+fuzz_gpu_postcampaign: install_cargo_afl
+	cd utils/fuzz && ./postcampaign.sh --gpu
+
+.PHONY: fuzz_gpu_precampaign # Build GPU AFL harness and seed GPU corpus (corpus gen runs on CPU)
+fuzz_gpu_precampaign: install_cargo_afl
+	cd utils/fuzz && ./build.sh --gpu --corpusgen
+
+.PHONY: fuzz_gpu_build # Build GPU AFL harness but do NOT seed corpus
+fuzz_gpu_build: install_cargo_afl
+	cd utils/fuzz && ./build.sh --gpu
+
+.PHONY: fuzz_gpu_run # Run the GPU AFL harness as a single master instance
+fuzz_gpu_run: check_fuzz_system_config
+	cd utils/fuzz && ./run.sh --gpu $(if $(FUZZ_DURATION_SECONDS),--duration-seconds $(FUZZ_DURATION_SECONDS))
+
 .PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
 clippy_wasm_par_mq: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets --all-features \

@@ -3,6 +3,9 @@ use std::fs::File;
 use std::ops::{Add, Mul, Sub};
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "gpu")]
+use tfhe::CudaServerKey;
+
 use tfhe::core_crypto::commons::parameters::*;
 use tfhe::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
 use tfhe::prelude::{CiphertextList, Tagged};
@@ -12,9 +15,9 @@ use tfhe::shortint::parameters::*;
 use tfhe::shortint::{CarryModulus, MessageModulus};
 use tfhe::zk::CompactPkeCrs;
 use tfhe::{
-    CompactCiphertextListExpander, CompactPublicKey, CompressedCiphertextListBuilder, FheInt8,
-    FheInt16, FheInt32, FheInt64, FheTypes, FheUint8, FheUint16, FheUint32, FheUint64,
-    HlCompressible, HlExpandable, ServerKey, set_server_key,
+    ClientKey, CompactCiphertextListExpander, CompactPublicKey, CompressedCiphertextListBuilder,
+    CompressedServerKey, FheInt8, FheInt16, FheInt32, FheInt64, FheTypes, FheUint8, FheUint16,
+    FheUint32, FheUint64, HlCompressible, HlExpandable, ServerKey, set_server_key,
 };
 
 #[cfg(fuzzing)]
@@ -32,6 +35,25 @@ pub const AUX_MAX_SIZE: u64 = 64 * MEGA;
 
 /// Metadata bound into the ZK proof. Must match between corpus generation and verification.
 pub const FUZZ_DOMAIN_SEPARATOR: &[u8] = b"fuzz";
+
+pub const INSECURE_FUZZ_GPU_PARAMS: ClassicPBSParameters = ClassicPBSParameters {
+    lwe_dimension: LweDimension(64),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(256),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(0),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(0),
+    pbs_base_log: DecompositionBaseLog(24),
+    pbs_level: DecompositionLevelCount(1),
+    ks_base_log: DecompositionBaseLog(32),
+    ks_level: DecompositionLevelCount(1),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    max_noise_level: MaxNoiseLevel::new(5),
+    log2_p_fail: f64::NEG_INFINITY,
+    ciphertext_modulus: tfhe::shortint::CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
+    modulus_switch_noise_reduction_params: ModulusSwitchType::CenteredMeanNoiseReduction,
+};
 
 pub const INSECURE_FUZZ_PARAMS: ClassicPBSParameters = ClassicPBSParameters {
     lwe_dimension: LweDimension(10),
@@ -78,7 +100,36 @@ pub const INSECURE_FUZZ_PKE_PARAMS: CompactPublicKeyEncryptionParameters =
     }
     .validate();
 
+// GPU compact PKE must encrypt under the big LWE key (polynomial_size × glwe_dimension = 256)
+// so that the ZK expand output dimension matches the compute key's big LWE dimension. The CPU
+// harness reuses INSECURE_FUZZ_PKE_PARAMS (encryption_lwe_dimension=32) because the CPU path
+// is not constrained by DISPATCH_POLY_SIZE, but the GPU ZK expansion kernel in zk.cuh uses
+// casting_params.big_lwe_dimension = max(PKE_dim, KSK_output_dim) as both the parsing
+// dimension for compact input and the output dimension of expanded ciphertexts — so PKE_dim
+// must equal big_compute_dim for the expanded ciphertexts to land in the right LWE space.
+pub const INSECURE_FUZZ_GPU_PKE_PARAMS: CompactPublicKeyEncryptionParameters =
+    CompactPublicKeyEncryptionParameters {
+        encryption_lwe_dimension: LweDimension(256), // = polynomial_size × glwe_dimension
+        encryption_noise_distribution: DynamicDistribution::new_t_uniform(0),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        ciphertext_modulus: tfhe::shortint::CiphertextModulus::new_native(),
+        expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
+        zk_scheme: SupportedCompactPkeZkScheme::V2,
+    }
+    .validate();
+
 pub const INSECURE_FUZZ_KS_PARAMS: ShortintKeySwitchingParameters =
+    ShortintKeySwitchingParameters {
+        ks_level: DecompositionLevelCount(4),
+        ks_base_log: DecompositionBaseLog(4),
+        destination_key: EncryptionKeyChoice::Small,
+    };
+
+// destination_key: Small mirrors production GPU params (PARAM_KEYSWITCH_TO_SMALL).
+// The casting KSK goes from PKE (256) → compute small (64); DISPATCH_POLY_SIZE in the CUDA
+// ZK expansion kernel dispatches on casting_big_dim = max(256, 64) = 256 ≥ 256 ✓.
+pub const INSECURE_FUZZ_GPU_KS_PARAMS: ShortintKeySwitchingParameters =
     ShortintKeySwitchingParameters {
         ks_level: DecompositionLevelCount(4),
         ks_base_log: DecompositionBaseLog(4),
@@ -104,6 +155,18 @@ impl AuxDataDir {
     pub fn public_key_path(&self) -> PathBuf {
         self.0.join("public_key.bin")
     }
+
+    pub fn gpu_client_key_path(&self) -> PathBuf {
+        self.0.join("gpu_client_key.bin")
+    }
+
+    pub fn gpu_crs_path(&self) -> PathBuf {
+        self.0.join("gpu_crs.bin")
+    }
+
+    pub fn gpu_public_key_path(&self) -> PathBuf {
+        self.0.join("gpu_public_key.bin")
+    }
 }
 
 impl Default for AuxDataDir {
@@ -128,6 +191,10 @@ impl CorpusDir {
 
     pub fn input_path(&self) -> PathBuf {
         self.0.join("input.bin")
+    }
+
+    pub fn gpu_input_path(&self) -> PathBuf {
+        self.0.join("gpu_input.bin")
     }
 }
 
@@ -292,6 +359,77 @@ impl FuzzContext {
 
     pub fn set_server_key(&self) {
         set_server_key(self.server_key.clone());
+    }
+}
+
+#[cfg(feature = "gpu")]
+pub struct GpuFuzzContext {
+    pub cuda_server_key: CudaServerKey,
+    pub conformance_params: IntegerProvenCompactCiphertextListConformanceParams,
+}
+
+#[cfg(feature = "gpu")]
+impl GpuFuzzContext {
+    pub fn load() -> Self {
+        let aux = AuxDataDir::new();
+
+        let f = File::open(aux.gpu_client_key_path()).unwrap();
+        let client_key: ClientKey = safe_deserialize(f, AUX_MAX_SIZE).unwrap();
+        let cuda_server_key = CompressedServerKey::new(&client_key).decompress_to_gpu();
+
+        let f = File::open(aux.gpu_crs_path()).unwrap();
+        let crs: CompactPkeCrs = safe_deserialize(f, AUX_MAX_SIZE).unwrap();
+        let conformance_params =
+            IntegerProvenCompactCiphertextListConformanceParams::from_public_key_encryption_parameters_and_crs_parameters(
+                INSECURE_FUZZ_GPU_PKE_PARAMS,
+                &crs,
+            )
+            .allow_unpacked();
+
+        Self {
+            cuda_server_key,
+            conformance_params,
+        }
+    }
+}
+
+#[cfg(feature = "gpu")]
+pub fn harness_cuda_main(
+    handle_input: impl Fn(&[u8], &GpuFuzzContext) -> ExecEndCause + std::panic::RefUnwindSafe,
+) {
+    #[cfg(fuzzing)]
+    if let Some(path) = std::env::args_os().nth(1) {
+        std::panic::set_hook(Box::new(|_| std::process::abort()));
+        unsafe { __afl_manual_init() };
+        let ctx = GpuFuzzContext::load();
+        set_server_key(ctx.cuda_server_key.clone());
+        let input = std::fs::read(path).unwrap_or_default();
+        handle_input(&input, &ctx);
+    } else {
+        // CUDA contexts are not fork-safe: any context created before AFL's forkserver
+        // fork is invalid in the child. Call __afl_manual_init() explicitly so the fork
+        // happens here, then initialize CUDA in the child. This init runs before the
+        // first __afl_persistent_loop() call inside fuzz!, so it is not counted against
+        // AFL's per-test-case timeout. The second __afl_manual_init() call inside fuzz!
+        // is a no-op because the C-level init_done flag is already set.
+        unsafe { __afl_manual_init() };
+        let ctx = GpuFuzzContext::load();
+        set_server_key(ctx.cuda_server_key.clone());
+        let ctx = std::panic::AssertUnwindSafe(ctx);
+        fuzz!(|input: &[u8]| {
+            handle_input(input, &*ctx);
+        });
+    }
+
+    #[cfg(not(fuzzing))]
+    {
+        use std::io::Read;
+        let ctx = GpuFuzzContext::load();
+        set_server_key(ctx.cuda_server_key.clone());
+        let mut input = Vec::new();
+        std::io::stdin().read_to_end(&mut input).unwrap();
+        let res = handle_input(&input, &ctx);
+        println!("{res}");
     }
 }
 

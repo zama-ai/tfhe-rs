@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+[[bin]]
+name = "corpusgen"
+path = "src/main.rs"
+
+[[bin]]
+name = "gpu-corpusgen"
+path = "src/gpu_main.rs"
+
 [dependencies]
 tfhe = { path = "../../../tfhe", features = ["zk-pok", "integer"] }
 fuzz-utils = { path = "../fuzz-utils" }
