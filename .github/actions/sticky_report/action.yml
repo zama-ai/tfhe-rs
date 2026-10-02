@@ -32,7 +32,7 @@ runs:
 
     - name: Post/refresh report
       if: steps.report.outputs.has_report == 'true'
-      uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
+      uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88
       with:
         header: ${{ inputs.header }}
         hide_and_recreate: true
