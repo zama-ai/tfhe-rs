@@ -2,30 +2,20 @@ mod cli;
 mod dump;
 mod parse;
 
-use benchmark_spec::BenchmarkMetric;
 use clap::Parser;
 use cli::Cli;
 use dump::{append_points, write_series};
-use parse::{ParseOutcome, parse_key_gen_time, parse_object_sizes, recursive_parse};
+use parse::{ParseOutcome, parse_csv_results, recursive_parse};
 use std::process::ExitCode;
 use tfhe_benchmark_parser::model::{Point, Series};
 
 fn run_parse(args: &Cli) -> anyhow::Result<ParseOutcome> {
-    if args.object_sizes {
-        println!("Parsing key sizes results... ");
-        return parse_object_sizes(&args.input_results_file, &args.params_dirs, args.backend);
-    }
-
-    if args.key_gen {
-        println!("Parsing key generation time results... ");
-        return parse_key_gen_time(&args.input_results_file, &args.params_dirs, args.backend);
+    if args.csv {
+        println!("Parsing CSV results... ");
+        return parse_csv_results(&args.input_results_file, &args.params_dirs, args.backend);
     }
 
     println!("Parsing benchmark results... ");
-    if args.bench_type == BenchmarkMetric::Throughput {
-        println!("Throughput computation enabled");
-    }
-
     recursive_parse(
         &args.input_results_file,
         args.bench_type,
