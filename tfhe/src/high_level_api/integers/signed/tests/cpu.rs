@@ -261,3 +261,15 @@ fn test_int16_fused_mul_div() {
     let client_key = setup_default_cpu();
     super::test_case_fused_mul_div(&client_key);
 }
+
+#[test]
+fn test_scalar_shift_rotate_large_amount() {
+    let client_key = setup_default_cpu();
+    super::test_case_scalar_shift_rotate_large_amount(&client_key);
+}
+
+#[test]
+fn test_scalar_shift_rotate_narrow_amount_type() {
+    let client_key = setup_default_cpu();
+    super::test_case_scalar_shift_rotate_narrow_amount_type(&client_key);
+}
