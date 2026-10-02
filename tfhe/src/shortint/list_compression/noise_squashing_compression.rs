@@ -4,7 +4,7 @@ use rayon::slice::ParallelSlice;
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
     par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, GlweCiphertext,
-    LweCiphertextList,
+    LweCiphertextList, NonZeroLweCiphertextCount,
 };
 use crate::shortint::ciphertext::{
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListMeta,
@@ -25,7 +25,6 @@ impl NoiseSquashingCompressionKey {
         ciphertexts: &[SquashedNoiseCiphertext],
     ) -> CompressedSquashedNoiseCiphertextList {
         let lwe_pksk = &self.packing_key_switching_key;
-        let lwe_per_glwe = self.lwe_per_glwe;
         let polynomial_size = lwe_pksk.output_polynomial_size();
         let glwe_size = lwe_pksk.output_glwe_size();
 
@@ -40,11 +39,13 @@ impl NoiseSquashingCompressionKey {
 
         let lwe_size = lwe_pksk.input_key_lwe_dimension().to_lwe_size();
 
+        let lwe_per_glwe = NonZeroLweCiphertextCount::try_from(self.lwe_per_glwe)
+            .expect("Cannot pack ciphertexts with a key storing 0 LWE per GLWE");
         assert!(
-            lwe_per_glwe.0 <= polynomial_size.0,
+            lwe_per_glwe.get() <= polynomial_size.0,
             "Cannot pack more than polynomial_size(={}) elements per glwe, {} requested",
             polynomial_size.0,
-            lwe_per_glwe.0,
+            lwe_per_glwe.get(),
         );
 
         let first_ct = &ciphertexts[0];
@@ -62,7 +63,7 @@ impl NoiseSquashingCompressionKey {
         let ciphertext_modulus_log = ciphertext_modulus.into_modulus_log();
 
         let glwe_ciphertext_list: Vec<_> = ciphertexts
-            .par_chunks(lwe_per_glwe.0)
+            .par_chunks(lwe_per_glwe.get())
             .map(|ct_list| {
                 let mut list: Vec<_> = vec![];
 

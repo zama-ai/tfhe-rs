@@ -3,6 +3,7 @@
 //!
 //! These types have 0 overhead compared to the type being wrapped.
 
+use std::num::NonZeroUsize;
 use std::ops::RangeInclusive;
 
 use serde::{Deserialize, Serialize};
@@ -34,6 +35,39 @@ pub struct CiphertextCount(pub usize);
 )]
 #[versionize(LweCiphertextCountVersions)]
 pub struct LweCiphertextCount(pub usize);
+
+/// The number of ciphertexts in an lwe ciphertext list, guaranteed to be non-zero.
+#[derive(
+    Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize, Versionize,
+)]
+#[versionize(NonZeroLweCiphertextCountVersions)]
+pub struct NonZeroLweCiphertextCount(NonZeroUsize);
+
+impl NonZeroLweCiphertextCount {
+    /// Returns `None` if `count` is 0
+    pub fn new(count: usize) -> Option<Self> {
+        NonZeroUsize::new(count).map(Self)
+    }
+
+    pub const fn get(self) -> usize {
+        self.0.get()
+    }
+}
+
+impl From<NonZeroLweCiphertextCount> for LweCiphertextCount {
+    fn from(count: NonZeroLweCiphertextCount) -> Self {
+        Self(count.get())
+    }
+}
+
+impl TryFrom<LweCiphertextCount> for NonZeroLweCiphertextCount {
+    type Error = crate::Error;
+
+    fn try_from(count: LweCiphertextCount) -> Result<Self, Self::Error> {
+        Self::new(count.0)
+            .ok_or_else(|| crate::Error::new("LweCiphertextCount should not be 0".to_owned()))
+    }
+}
 
 /// The index of a ciphertext in an lwe ciphertext list.
 #[cfg(feature = "gpu")]
