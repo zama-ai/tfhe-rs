@@ -1158,6 +1158,53 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_mul_add_fixed_point_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        mode: u32,
+        lhs_blocks: u32,
+        rhs_blocks: u32,
+        rescaling: u32,
+        precision: u32,
+        max_extra_terms: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_mul_add_fixed_point_with_rescaling_64_async(
+        streams: CudaStreamsFFI,
+        result: *mut CudaRadixCiphertextFFI,
+        lhs: *const CudaRadixCiphertextFFI,
+        rhs: *const CudaRadixCiphertextFFI,
+        added: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_mul_low_partial_sum_64_async(
+        streams: CudaStreamsFFI,
+        result: *mut CudaRadixCiphertextFFI,
+        lhs: *const CudaRadixCiphertextFFI,
+        rhs: *const CudaRadixCiphertextFFI,
+        extra_terms: *const CudaRadixCiphertextFFI,
+        num_extra_terms: u32,
+        propagate_carries: bool,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_mul_add_fixed_point_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
     pub fn scratch_cuda_integer_scalar_mul_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,

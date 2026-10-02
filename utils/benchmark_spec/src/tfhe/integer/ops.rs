@@ -69,6 +69,8 @@ pub enum IntegerOp {
     MinParallelized,
     Mod,
     Mul,
+    MulAddFixedPoint,
+    MulLowPartialSum,
     MulParallelized,
     Ne,
     NeParallelized,

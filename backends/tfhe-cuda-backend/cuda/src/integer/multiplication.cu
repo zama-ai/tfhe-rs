@@ -94,3 +94,81 @@ void cleanup_cuda_partial_sum_ciphertexts_vec_64(CudaStreamsFFI streams,
   delete mem_ptr;
   *mem_ptr_void = nullptr;
 }
+
+uint64_t scratch_cuda_mul_add_fixed_point_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t mode,
+    uint32_t lhs_blocks, uint32_t rhs_blocks, uint32_t rescaling,
+    uint32_t precision, uint32_t max_extra_terms, uint32_t message_modulus,
+    uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
+  int_radix_params params(bsk_params, ksk_params, message_modulus,
+                          carry_modulus, noise_reduction_type);
+  return scratch_cuda_mul_add_fixed_point<uint64_t>(
+      CudaStreams(streams),
+      (int_mul_add_fixed_point_memory<uint64_t> **)mem_ptr, mode, lhs_blocks,
+      rhs_blocks, rescaling, precision, max_extra_terms, params,
+      allocate_gpu_memory);
+}
+
+/// @brief FFI entry point for the fixed-point fused multiply-add:
+/// result[L] = trunc_beta^(R+|rescaling|)( lhs[L] * rhs[R] ) + added[L].
+/// @param result Output, L blocks; must not alias lhs or added.
+/// @param lhs Left operand, at least L blocks.
+/// @param rhs Right operand, at least R blocks.
+/// @param added Accumulator addend of L blocks, or null.
+/// @param mem_ptr Scratch buffer from
+/// scratch_cuda_mul_add_fixed_point_64_async, scratched for the fixed-point
+/// shape.
+void cuda_mul_add_fixed_point_with_rescaling_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *added, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks) {
+  PANIC_IF_FALSE(result != lhs && result != added,
+                 "Output and input pointers must be different for "
+                 "out-of-place operations");
+  host_mul_add_fixed_point_with_rescaling<uint64_t>(
+      CudaStreams(streams), result, lhs, rhs, added,
+      (int_mul_add_fixed_point_memory<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)(ksks));
+}
+
+/// @brief FFI entry point for the low half of lhs[n] * rhs[n], plus the
+/// caller-supplied addends. Leaves the carries alone unless asked to
+/// propagate them.
+/// @param result Output, n blocks; must not alias lhs or rhs.
+/// @param lhs Left operand, n blocks.
+/// @param rhs Right operand, n blocks.
+/// @param extra_terms Radix list of num_extra_terms * n blocks, or null.
+/// @param num_extra_terms Number of addends in extra_terms.
+/// @param propagate_carries Returns clean carries when set, the raw column sum
+/// otherwise.
+/// @param mem_ptr Scratch buffer from
+/// scratch_cuda_mul_add_fixed_point_64_async, scratched for the mul-low shape.
+void cuda_mul_low_partial_sum_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
+    CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
+    CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
+    bool propagate_carries, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks) {
+  PANIC_IF_FALSE(result != lhs && result != rhs,
+                 "Output and input pointers must be different for "
+                 "out-of-place operations");
+  host_mul_low_partial_sum<uint64_t>(
+      CudaStreams(streams), result, lhs, rhs, extra_terms, num_extra_terms,
+      propagate_carries, (int_mul_add_fixed_point_memory<uint64_t> *)mem_ptr,
+      bsks, (uint64_t **)(ksks));
+}
+
+void cleanup_cuda_mul_add_fixed_point_64(CudaStreamsFFI streams,
+                                         int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup mul_add_fixed_point")
+  int_mul_add_fixed_point_memory<uint64_t> *mem_ptr =
+      (int_mul_add_fixed_point_memory<uint64_t> *)(*mem_ptr_void);
+
+  mem_ptr->release(CudaStreams(streams));
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
+  POP_RANGE()
+}
