@@ -20,6 +20,7 @@ pub mod lwe_ciphertext;
 pub mod lwe_ciphertext_list;
 pub mod lwe_compact_ciphertext_list;
 pub mod lwe_compact_public_key;
+pub mod lwe_half_rotate_bootstrap_key;
 pub mod lwe_keyswitch_key;
 pub mod lwe_keyswitch_key_chunk;
 pub mod lwe_multi_bit_bootstrap_key;
@@ -55,6 +56,9 @@ pub mod seeded_lwe_public_key;
 pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::{
     Fourier128LweBootstrapKey, Fourier128LweBootstrapKeyOwned,
 };
+pub use crate::core_crypto::fft_impl::fft128::crypto::bootstrap_half_rotate::{
+    Fourier128HalfRotateLweBootstrapKey, Fourier128HalfRotateLweBootstrapKeyOwned,
+};
 pub use crate::core_crypto::fft_impl::fft128::crypto::ggsw::{
     Fourier128GgswCiphertext, Fourier128GgswLevelMatrix, Fourier128GgswLevelRow,
 };
@@ -83,6 +87,7 @@ pub use lwe_ciphertext::*;
 pub use lwe_ciphertext_list::*;
 pub use lwe_compact_ciphertext_list::*;
 pub use lwe_compact_public_key::*;
+pub use lwe_half_rotate_bootstrap_key::*;
 pub use lwe_keyswitch_key::*;
 pub use lwe_keyswitch_key_chunk::*;
 pub use lwe_multi_bit_bootstrap_key::*;
