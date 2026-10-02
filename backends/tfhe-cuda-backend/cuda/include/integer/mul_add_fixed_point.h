@@ -174,6 +174,8 @@ inline uint32_t mul_add_find_max_columns(uint32_t block_size,
 /// can switch LUTs between them. Both halves skip the same low columns, since
 /// the skip threshold is about the column a pair *starts* at.
 ///
+/// @param lhs_blocks Block count of the left operand.
+/// @param rhs_blocks Block count of the right operand.
 /// @param skip Columns below this weigh less than one output ulp and are never
 /// bootstrapped.
 /// @param accumulator Columns at or above this fall off the top of the output.
@@ -181,6 +183,11 @@ inline uint32_t mul_add_find_max_columns(uint32_t block_size,
 /// @param column_offset 0 for the lsb half, 1 for the msb half.
 /// @param term_row_base 0 for the lsb half, rhs_blocks for the msb half.
 /// @param degree Degree every block of this half leaves its bootstrap with.
+/// @param h_pair_lhs_idx Left operand block index of each pair, appended to.
+/// @param h_pair_rhs_idx Right operand block index of each pair, appended to.
+/// @param h_pair_dst_idx Term matrix slot of each pair, appended to.
+/// @param h_product_degrees Term matrix degrees, set to `degree` at every slot
+/// a pair lands in.
 /// @param idx In/out cursor into the index maps, advanced past the pairs added.
 inline void
 mul_add_enumerate_pairs(uint32_t lhs_blocks, uint32_t rhs_blocks, uint32_t skip,

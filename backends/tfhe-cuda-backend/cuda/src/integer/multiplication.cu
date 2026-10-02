@@ -113,6 +113,13 @@ uint64_t scratch_cuda_mul_add_fixed_point_64_async(
 
 /// @brief FFI entry point for the fixed-point fused multiply-add:
 /// result[L] = trunc_beta^(R+|rescaling|)( lhs[L] * rhs[R] ) + added[L].
+/// @param result Output, L blocks; must not alias lhs or added.
+/// @param lhs Left operand, at least L blocks.
+/// @param rhs Right operand, at least R blocks.
+/// @param added Accumulator addend of L blocks, or null.
+/// @param mem_ptr Scratch buffer from
+/// scratch_cuda_mul_add_fixed_point_64_async, scratched for the fixed-point
+/// shape.
 void cuda_mul_add_fixed_point_with_rescaling_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
@@ -130,6 +137,15 @@ void cuda_mul_add_fixed_point_with_rescaling_64_async(
 /// @brief FFI entry point for the low half of lhs[n] * rhs[n], plus the
 /// caller-supplied addends. Leaves the carries alone unless asked to
 /// propagate them.
+/// @param result Output, n blocks; must not alias lhs or rhs.
+/// @param lhs Left operand, n blocks.
+/// @param rhs Right operand, n blocks.
+/// @param extra_terms Radix list of num_extra_terms * n blocks, or null.
+/// @param num_extra_terms Number of addends in extra_terms.
+/// @param propagate_carries Returns clean carries when set, the raw column sum
+/// otherwise.
+/// @param mem_ptr Scratch buffer from
+/// scratch_cuda_mul_add_fixed_point_64_async, scratched for the mul-low shape.
 void cuda_mul_low_partial_sum_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,

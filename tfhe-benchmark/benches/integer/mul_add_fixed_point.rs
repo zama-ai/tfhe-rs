@@ -12,7 +12,10 @@ pub mod cuda {
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
-    use benchmark::utilities::{write_to_json_unchecked, OperatorType};
+    use benchmark::utilities::{write_to_json, OperatorType};
+    use benchmark_spec::{
+        get_bench_type, BenchmarkSpec, IntegerOp, IntegerOpBySign, MulAddShapeConfig, PrecisionTag,
+    };
     use criterion::Criterion;
     use std::hint::black_box;
     use tfhe::core_crypto::gpu::CudaStreams;
@@ -40,14 +43,16 @@ pub mod cuda {
         ]
     }
 
-    /// (label, lhs blocks, rhs blocks, rescaling, precision bits) - the four
-    /// multiply-adds of a 64-bit Goldschmidt division.
-    fn fixed_point_shapes() -> Vec<(&'static str, usize, usize, u32, u32)> {
+    /// (lhs blocks, rhs blocks, rescaling, precision bits) - the four
+    /// multiply-adds of a 64-bit Goldschmidt division: the seed step, then
+    /// rounds 0 to 2. The seed and round 0 share their operand widths, and only
+    /// the rescaling tells their bench ids apart.
+    fn fixed_point_shapes() -> Vec<(usize, usize, u32, u32)> {
         vec![
-            ("seed", 34, 5, 0, 10),
-            ("iter0", 34, 5, 4, 18),
-            ("iter1", 34, 9, 8, 34),
-            ("iter2", 34, 16, 16, 64),
+            (34, 5, 0, 10),
+            (34, 5, 4, 18),
+            (34, 9, 8, 34),
+            (34, 16, 16, 64),
         ]
     }
 
@@ -62,9 +67,20 @@ pub mod cuda {
             let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
             let sks = CudaServerKey::new(&cpu_cks, &streams);
 
-            for (label, lhs_blocks, rhs_blocks, rescaling, precision) in fixed_point_shapes() {
-                let bench_id =
-                    format!("{bench_name}::{param_name}::{label}_{lhs_blocks}x{rhs_blocks}blocks");
+            for (lhs_blocks, rhs_blocks, rescaling, precision) in fixed_point_shapes() {
+                let shape = MulAddShapeConfig {
+                    lhs_bits: lhs_blocks as u32 * BITS_PER_BLOCK,
+                    rhs_bits: rhs_blocks as u32 * BITS_PER_BLOCK,
+                    rescaling_bits: rescaling * BITS_PER_BLOCK,
+                };
+                let spec = BenchmarkSpec::new_integer_ops(
+                    IntegerOpBySign::Unsigned(IntegerOp::MulAddFixedPoint),
+                    &param_name,
+                    Some(shape.into()),
+                    get_bench_type(),
+                    None,
+                );
+                let bench_id = spec.to_string();
 
                 // A left operand just under beta^L / 2 and a full-width right one:
                 // the worst case for the number of surviving block products, and the
@@ -93,12 +109,11 @@ pub mod cuda {
                     })
                 });
 
-                write_to_json_unchecked(
-                    &bench_id,
-                    param_name.clone(),
+                write_to_json(
+                    &spec,
                     "mul_add_fixed_point",
                     &OperatorType::Atomic,
-                    lhs_blocks as u32 * BITS_PER_BLOCK,
+                    u64::from(shape.lhs_bits),
                     vec![atomic_param.message_modulus().0.ilog2(); lhs_blocks],
                 );
             }
@@ -120,7 +135,15 @@ pub mod cuda {
             // 32 x 32 blocks with the two addends the Goldschmidt remainder needs
             // (bitnot of the numerator, and a trivial one).
             let num_blocks = 32usize;
-            let bench_id = format!("{bench_name}::{param_name}::{num_blocks}blocks_2extra");
+            let bits = num_blocks as u32 * BITS_PER_BLOCK;
+            let spec = BenchmarkSpec::new_integer_ops(
+                IntegerOpBySign::Unsigned(IntegerOp::MulLowPartialSum),
+                &param_name,
+                Some(PrecisionTag::Bits(bits).into()),
+                get_bench_type(),
+                None,
+            );
+            let bench_id = spec.to_string();
 
             let ct_lhs = cpu_cks.encrypt_radix(u64::MAX, num_blocks);
             let ct_rhs = cpu_cks.encrypt_radix(u64::MAX, num_blocks);
@@ -139,12 +162,11 @@ pub mod cuda {
                 })
             });
 
-            write_to_json_unchecked(
-                &bench_id,
-                param_name.clone(),
+            write_to_json(
+                &spec,
                 "mul_low_partial_sum",
                 &OperatorType::Atomic,
-                num_blocks as u32 * BITS_PER_BLOCK,
+                u64::from(bits),
                 vec![atomic_param.message_modulus().0.ilog2(); num_blocks],
             );
         }
