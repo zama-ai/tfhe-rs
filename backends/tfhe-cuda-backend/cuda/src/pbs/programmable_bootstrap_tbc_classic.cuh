@@ -64,7 +64,7 @@ __global__ void device_programmable_bootstrap_tbc(
     uint64_t device_memory_size_per_block, bool support_dsm,
     uint32_t num_many_lut, uint32_t lut_stride,
     PBS_MS_REDUCTION_T noise_reduction_type) {
-
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
   cluster_group cluster = this_cluster();
 
   // We use shared memory for the polynomials that are used often during the
@@ -219,6 +219,7 @@ __global__ void device_programmable_bootstrap_tbc(
   // Before exiting the kernel we need to sync the cluster to ensure that
   // other blocks can still access the dsm in the mul ggsw glwe
   cluster.sync();
+#endif
 }
 
 template <typename Torus, class params, uint32_t base_log>
@@ -232,7 +233,7 @@ device_programmable_bootstrap_tbc_2_2_params(
     const double2 *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
     uint32_t num_many_lut, uint32_t lut_stride,
     PBS_MS_REDUCTION_T noise_reduction_type) {
-
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
   constexpr uint32_t level_count = 1;
   constexpr uint32_t polynomial_size = 2048;
   constexpr uint32_t glwe_dimension = 1;
@@ -403,6 +404,7 @@ device_programmable_bootstrap_tbc_2_2_params(
   // other blocks can still access the dsm in the mul ggsw glwe or the
   // ping pong buffers
   cluster.sync();
+#endif
 }
 
 template <typename Torus, typename params>

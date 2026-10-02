@@ -572,24 +572,25 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   int divisor = 1;
   int ith_divisor = 0;
 
-#if CUDA_ARCH < 900
-  // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
-  // multiplication can run
-  int log2_max_num_pbs = log2_int(max_num_pbs);
-  if (log2_max_num_pbs > 13)
-    ith_divisor = log2_max_num_pbs - 11;
-#else
-  // When having few samples we are interested in using a larger chunksize so
-  // the keybundle can saturate the GPU. To obtain homogeneous waves we use half
-  // of the sms as the chunksize, by doing so we always get a multiple of the
-  // number of sms, removing the tailing effect. We don't divide by 4 because
-  // some flavors of H100 might not have a number of sms divisible by 4. This is
-  // applied only to few number of samples(8) because it can have a negative
-  // effect of over saturation.
-  if (max_num_pbs <= 8) {
-    return (max_num_chunks > num_sms / 2) ? num_sms / 2 : max_num_chunks;
+  int major = cuda_get_compute_capability_major(gpu_index);
+  if (major < 9) {
+    // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
+    // multiplication can run
+    int log2_max_num_pbs = log2_int(max_num_pbs);
+    if (log2_max_num_pbs > 13)
+      ith_divisor = log2_max_num_pbs - 11;
+  } else {
+    // When having few samples we are interested in using a larger chunksize so
+    // the keybundle can saturate the GPU. To obtain homogeneous waves we use
+    // half of the sms as the chunksize, by doing so we always get a multiple of
+    // the number of sms, removing the tailing effect. We don't divide by 4
+    // because some flavors of H100 might not have a number of sms divisible by
+    // 4. This is applied only to few number of samples(8) because it can have a
+    // negative effect of over saturation.
+    if (max_num_pbs <= 8) {
+      return (max_num_chunks > num_sms / 2) ? num_sms / 2 : max_num_chunks;
+    }
   }
-#endif
 
   for (int i = sqrt(x); i >= 1; i--) {
     if (x % i == 0) {

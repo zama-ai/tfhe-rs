@@ -28,7 +28,7 @@ get_join_buffer_element_128(int level_id, int glwe_id, grid_group & /*group*/,
       (glwe_id + level_id * (glwe_dimension + 1)) * polynomial_size / 2 * 4;
   return buffer_slice;
 }
-#if CUDA_ARCH >= 900
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
 template <>
 __device__ int get_this_block_rank(cluster_group &cluster, bool support_dsm) {
   if (support_dsm)

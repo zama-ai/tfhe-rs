@@ -49,7 +49,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
         uint32_t lwe_chunk_size, uint64_t keybundle_size_per_input,
         int8_t *device_mem, uint64_t device_memory_size_per_block,
         bool support_dsm, uint32_t num_many_lut, uint32_t lut_stride) {
-
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
   cluster_group cluster = this_cluster();
 
   // We use shared memory for the polynomials that are used often during the
@@ -200,6 +200,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // Before exiting the kernel we need to sync the cluster to ensure that
   // other blocks can still access the dsm in the mul ggsw glwe
   cluster.sync();
+#endif
 }
 
 // Specialized version for the multi-bit bootstrap using 2_2 params:
@@ -230,7 +231,7 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     uint32_t lwe_dimension, uint32_t lwe_offset, uint32_t lwe_chunk_size,
     uint64_t keybundle_size_per_input, uint32_t num_many_lut,
     uint32_t lut_stride) {
-
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
   constexpr uint32_t level_count = 1;
   constexpr uint32_t grouping_factor = 4;
   constexpr uint32_t polynomial_size = 2048;
@@ -404,6 +405,7 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
   // Before exiting the kernel we need to sync the cluster to ensure that
   // other blocks can still access the dsm in the ping pong buffer
   cluster.sync();
+#endif
 }
 
 template <typename Torus>

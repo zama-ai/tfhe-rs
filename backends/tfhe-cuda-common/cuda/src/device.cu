@@ -1,5 +1,7 @@
 #include "device.h"
+#include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <cuda_runtime.h>
 #include <mutex>
 #ifdef USE_NVTOOLS
@@ -247,6 +249,51 @@ uint64_t cuda_device_total_memory(uint32_t gpu_index) {
 /// Returns
 ///  false if Cooperative Groups is not supported.
 ///  true otherwise
+static constexpr int MAX_GPU_COUNT = 8;
+static std::once_flag compute_capability_once[MAX_GPU_COUNT];
+static int compute_capability_major_cache[MAX_GPU_COUNT];
+
+static constexpr int SUPPORTED_COMPUTE_CAPABILITIES[] = {70, 75, 80, 86, 89,
+                                                         90, 100};
+
+int cuda_get_compute_capability_major(uint32_t gpu_index) {
+  const char *forced = std::getenv("TFHE_RS_GPU_FORCE_COMPUTE_CAPABILITY");
+  if (forced != nullptr) {
+    char *endptr = nullptr;
+    errno = 0;
+    long cap_long = std::strtol(forced, &endptr, 10);
+    if (errno != 0 || endptr == forced || *endptr != '\0' || cap_long < 0 ||
+        cap_long > 1000)
+      PANIC("TFHE_RS_GPU_FORCE_COMPUTE_CAPABILITY=\"%s\" is not a valid "
+            "compute capability integer.",
+            forced);
+    int cap = static_cast<int>(cap_long);
+    bool valid = false;
+    for (int cc : SUPPORTED_COMPUTE_CAPABILITIES)
+      if (cc == cap) {
+        valid = true;
+        break;
+      }
+    if (!valid)
+      PANIC("TFHE_RS_GPU_FORCE_COMPUTE_CAPABILITY=%d is not a supported "
+            "compute capability. Valid values: 70, 75, 80, 86, 89, 90, 100.",
+            cap);
+    return cap / 10;
+  }
+
+  if (gpu_index >= MAX_GPU_COUNT)
+    PANIC("gpu_index %u exceeds the maximum supported GPU count (%d).",
+          gpu_index, MAX_GPU_COUNT);
+
+  std::call_once(compute_capability_once[gpu_index], [gpu_index]() {
+    check_cuda_error(cudaDeviceGetAttribute(
+        &compute_capability_major_cache[gpu_index],
+        cudaDevAttrComputeCapabilityMajor, static_cast<int>(gpu_index)));
+  });
+
+  return compute_capability_major_cache[gpu_index];
+}
+
 bool cuda_check_support_cooperative_groups() {
   int cooperative_groups_supported = 0;
   check_cuda_error(cudaDeviceGetAttribute(&cooperative_groups_supported,
