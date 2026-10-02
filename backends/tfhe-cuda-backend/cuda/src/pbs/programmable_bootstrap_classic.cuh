@@ -1154,8 +1154,9 @@ __host__ uint64_t scratch_programmable_bootstrap(
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, noise_reduction_type, size_tracker);
+      level_count, input_lwe_ciphertext_count,
+      pbs_variant_tag<PBS_VARIANT::DEFAULT>{}, allocate_gpu_memory,
+      noise_reduction_type, size_tracker);
   return size_tracker;
 }
 

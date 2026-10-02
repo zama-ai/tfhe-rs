@@ -12,13 +12,6 @@
 #include "programmable_bootstrap_multibit.cuh"
 #include "utils/helper.cuh"
 
-template <typename Torus>
-uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle(
-    uint32_t polynomial_size) {
-  return safe_mul_sizeof<__uint128_t>((size_t)polynomial_size,
-                                      (size_t)2); // accumulator
-}
-
 template <typename InputTorus, class params, sharedMemDegree SMD,
           bool runs_noise_test = false>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle_128(
@@ -570,7 +563,7 @@ template <typename InputTorus, class params>
 __host__ void execute_compute_keybundle_128(
     cudaStream_t stream, uint32_t gpu_index, InputTorus const *lwe_array_in,
     InputTorus const *lwe_input_indexes, __uint128_t const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
   cuda_set_device(gpu_index);
@@ -584,7 +577,7 @@ __host__ void execute_compute_keybundle_128(
       (glwe_dimension + 1) * (polynomial_size / 2) * 4;
 
   uint64_t full_sm_keybundle =
-      get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle<
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
           __uint128_t>(polynomial_size);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
@@ -621,7 +614,7 @@ template <typename InputTorus, class params>
 __host__ void execute_compute_keybundle_noise_tests_128(
     cudaStream_t stream, uint32_t gpu_index, InputTorus const *lwe_array_in,
     InputTorus const *lwe_input_indexes, __uint128_t const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
   cuda_set_device(gpu_index);
@@ -635,7 +628,7 @@ __host__ void execute_compute_keybundle_noise_tests_128(
       (glwe_dimension + 1) * (polynomial_size / 2) * 4;
 
   uint64_t full_sm_keybundle =
-      get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle<
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
           __uint128_t>(polynomial_size);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
@@ -686,7 +679,7 @@ template <typename InputTorus, class params, bool is_first_iter>
 __host__ void execute_step_one_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count) {
   cuda_set_device(gpu_index);
@@ -738,7 +731,7 @@ template <typename InputTorus, class params, bool is_last_iter>
 __host__ void execute_step_two_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t j, uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
@@ -785,7 +778,7 @@ __host__ void host_multi_bit_programmable_bootstrap_128(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
@@ -840,7 +833,7 @@ __host__ void execute_cg_external_product_loop_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t *lwe_array_out, InputTorus const *lwe_output_indexes,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
     uint32_t lwe_offset, uint32_t num_many_lut, uint32_t lut_stride) {
@@ -924,7 +917,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap_128(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
@@ -952,14 +945,14 @@ __host__ void host_cg_multi_bit_programmable_bootstrap_128(
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_multi_bit_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, MULTI_BIT> **buffer, uint32_t glwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   cuda_set_device(gpu_index);
 
   uint64_t full_sm_keybundle =
-      get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle<
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
           __uint128_t>(polynomial_size);
   uint64_t full_sm_accumulate_step_one =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<
@@ -1096,24 +1089,25 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap_128(
       gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
       level_count, full_sm_keybundle);
   uint64_t size_tracker = 0;
-  *buffer = new pbs_buffer_128<InputTorus, MULTI_BIT>(
+  *buffer = new pbs_buffer<__uint128_t, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, size_tracker);
+      input_lwe_ciphertext_count, lwe_chunk_size,
+      pbs_variant_tag<PBS_VARIANT::DEFAULT>{}, allocate_gpu_memory,
+      size_tracker);
   return size_tracker;
 }
 
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, MULTI_BIT> **buffer, uint32_t glwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   cuda_set_device(gpu_index);
 
   uint64_t full_sm_keybundle =
-      get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle<
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
           __uint128_t>(polynomial_size);
   uint64_t full_sm_cg_accumulate =
       get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<__uint128_t>(
@@ -1181,10 +1175,10 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
       gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
       level_count, full_sm_keybundle);
   uint64_t size_tracker = 0;
-  *buffer = new pbs_buffer_128<InputTorus, MULTI_BIT>(
+  *buffer = new pbs_buffer<__uint128_t, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::CG,
-      allocate_gpu_memory, size_tracker);
+      input_lwe_ciphertext_count, lwe_chunk_size,
+      pbs_variant_tag<PBS_VARIANT::CG>{}, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
@@ -1281,7 +1275,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests_128(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
@@ -1312,7 +1306,7 @@ __host__ void host_multi_bit_programmable_bootstrap_noise_tests_128(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {

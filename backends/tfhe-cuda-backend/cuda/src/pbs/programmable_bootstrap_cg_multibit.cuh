@@ -294,8 +294,8 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap(
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::CG,
-      allocate_gpu_memory, size_tracker);
+      input_lwe_ciphertext_count, lwe_chunk_size,
+      pbs_variant_tag<PBS_VARIANT::CG>{}, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
