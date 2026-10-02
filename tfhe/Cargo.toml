@@ -35,7 +35,7 @@ clap = { version = "=4.6.7", features = ["derive"] }
 fs2 = { version = "0.4.3" }
 # Needed for keycache now which is active for test and doctest
 sha3 = { version = "0.10" }
-statrs = "0.18"
+statrs = "0.19"
 # Begin regex-engine deps
 test-case = "3.1.0"
 combine = "4.6.6"
