@@ -118,16 +118,18 @@ impl AttackerAdvantage {
     }
 
     fn num_bits_of_keys(self, num_elements: usize) -> u32 {
-        let n_squared = (num_elements * num_elements) as f64;
+        let n = num_elements as f64;
 
-        // Below 2^k >= 128 * n^2 the bounds used here are no longer valid
-        // (notably for advantages close to or above 1.0), so this is the
+        // The finer bound below requires 2^k >= 128 * n^2, this is the
         // minimum key size we ever return
-        let min_n_bits = (128.0 * n_squared).log2().ceil();
+        let min_n_bits = (128.0 * n * n).log2().ceil();
 
-        // In the worst case, the advantage is bounded by n^2 / 2^k, so
-        // requesting 2^k >= n^2 / advantage caps it at the requested value
-        let worst_case_n_bits = (n_squared / self.advantage).log2().ceil();
+        // In the worst case, the advantage is bounded by
+        // exp(n(n-1) / (2^k - n + 1)) - 1, which is at most the requested
+        // advantage iff 2^k >= n(n-1) / ln(1 + advantage) + n - 1
+        let worst_case_n_bits = (n * (n - 1.0) / self.advantage.ln_1p() + n - 1.0)
+            .log2()
+            .ceil();
 
         // The finer estimation has some preconditions
         let n_bits = self
@@ -135,8 +137,7 @@ impl AttackerAdvantage {
             .filter(|&t| t.get() <= (num_elements / 4) as u32 && num_elements >= 8)
             .map_or(worst_case_n_bits, |num_revealed| {
                 // The advantage is bounded by 7.3 * t * n / 2^k
-                let finer_n_bits = ((7.3 * num_revealed.get() as f64 * num_elements as f64)
-                    / self.advantage)
+                let finer_n_bits = ((7.3 * num_revealed.get() as f64 * n) / self.advantage)
                     .log2()
                     .ceil();
 
@@ -508,7 +509,7 @@ mod tests {
 
         let advantage = 2f64.powi(-40);
 
-        // Worst case: k = ceil(log2(n^2 / advantage))
+        // Worst case: k = ceil(log2(n(n-1) / ln(1 + advantage) + n - 1))
         let worst_case = AttackerAdvantage::new(advantage, None);
         assert_eq!(worst_case.num_bits_of_keys(NUM_ELEMENTS), 60);
 
