@@ -2554,6 +2554,7 @@ unsafe extern "C" {
     pub fn cleanup_cuda_rerand_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
+    #[doc = " @brief Allocates the scratch of cuda_integer_aes_ctr_encrypt_64_async and\n returns its GPU size, so the caller can lower sbox_parallelism until it\n fits.\n\n @param mem_ptr Receives the scratch\n @param bsk_params Bootstrapping key parameters\n @param ksk_params Keyswitching key parameters\n @param noise_reduction_type Modulus switch noise reduction\n @param num_aes_inputs Blocks every later call encrypts\n @param sbox_parallelism State bytes per S-box pass, divides 16. PBS width\n and memory both scale with it"]
     pub fn scratch_cuda_integer_aes_ctr_encrypt_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2568,6 +2569,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Allocates the scratch of cuda_integer_aes_ctr_256_encrypt_64_async\n and returns its GPU size. Same buffer as AES-128, only the round count\n differs.\n\n @param mem_ptr Receives the scratch\n @param bsk_params Bootstrapping key parameters\n @param ksk_params Keyswitching key parameters\n @param noise_reduction_type Modulus switch noise reduction\n @param num_aes_inputs Blocks every later call encrypts\n @param sbox_parallelism State bytes per S-box pass, divides 16. PBS width\n and memory both scale with it"]
     pub fn scratch_cuda_integer_aes_ctr_256_encrypt_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2582,6 +2584,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief AES-128 CTR under an encrypted key, adds each input's counter to\n the IV and runs the 10 rounds on it, giving the keystream. Asynchronous.\n\n @param output num_aes_inputs blocks of 128 bits, one bit per radix block,\n MSB of state byte 0 first, one input after the other\n @param iv 128 one bit blocks, same order, shared by every input before its\n counter is added\n @param round_keys 11 round keys of 128 one bit blocks, as\n cuda_integer_key_expansion_64_async writes them\n @param counter_bits_le_all_blocks Plaintext on the host, the counter of\n each input as 128 bits, LSB first, one input after the other\n @param num_aes_inputs Batch size, same as at scratch time\n @param mem_ptr From scratch_cuda_integer_aes_ctr_encrypt_64_async, same\n batch size"]
     pub fn cuda_integer_aes_ctr_encrypt_64_async(
         streams: CudaStreamsFFI,
         output: *mut CudaRadixCiphertextFFI,
@@ -2595,18 +2598,21 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Releases the scratch of cuda_integer_aes_ctr_encrypt_64_async.\n\n @param mem_ptr_void Scratch to release, nullptr afterwards"]
     pub fn cleanup_cuda_integer_aes_ctr_encrypt_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Releases the scratch of cuda_integer_aes_ctr_256_encrypt_64_async.\n\n @param mem_ptr_void Scratch to release, nullptr afterwards"]
     pub fn cleanup_cuda_integer_aes_ctr_256_encrypt_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Allocates the scratch of cuda_integer_key_expansion_64_async and\n returns its GPU size.\n\n @param mem_ptr Receives the scratch\n @param bsk_params Bootstrapping key parameters\n @param ksk_params Keyswitching key parameters\n @param noise_reduction_type Modulus switch noise reduction"]
     pub fn scratch_cuda_integer_key_expansion_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2619,6 +2625,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Expands an encrypted 128-bit key into the 11 round keys of\n AES-128. Asynchronous.\n\n @param expanded_keys Output, 44 words as 1408 one bit blocks MSB first,\n round key r at blocks [128 r, 128 (r + 1))\n @param key 128 one bit blocks, MSB first\n @param mem_ptr From scratch_cuda_integer_key_expansion_64_async"]
     pub fn cuda_integer_key_expansion_64_async(
         streams: CudaStreamsFFI,
         expanded_keys: *mut CudaRadixCiphertextFFI,
@@ -2629,12 +2636,14 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Releases the scratch of cuda_integer_key_expansion_64_async.\n\n @param mem_ptr_void Scratch to release, nullptr afterwards"]
     pub fn cleanup_cuda_integer_key_expansion_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief AES-256 CTR under an encrypted key, the AES-128 pipeline with 14\n rounds. Asynchronous.\n\n @param output num_aes_inputs blocks of 128 bits, one bit per radix block,\n MSB of state byte 0 first, one input after the other\n @param iv 128 one bit blocks, same order, shared by every input before its\n counter is added\n @param round_keys 15 round keys of 128 one bit blocks, as\n cuda_integer_key_expansion_256_64_async writes them\n @param counter_bits_le_all_blocks Plaintext on the host, the counter of\n each input as 128 bits, LSB first, one input after the other\n @param num_aes_inputs Batch size, same as at scratch time\n @param mem_ptr From scratch_cuda_integer_aes_ctr_256_encrypt_64_async,\n same batch size"]
     pub fn cuda_integer_aes_ctr_256_encrypt_64_async(
         streams: CudaStreamsFFI,
         output: *mut CudaRadixCiphertextFFI,
@@ -2648,6 +2657,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Allocates the scratch of cuda_integer_key_expansion_256_64_async\n and returns its GPU size.\n\n @param mem_ptr Receives the scratch\n @param bsk_params Bootstrapping key parameters\n @param ksk_params Keyswitching key parameters\n @param noise_reduction_type Modulus switch noise reduction"]
     pub fn scratch_cuda_integer_key_expansion_256_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2660,6 +2670,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Expands an encrypted 256-bit key into the 15 round keys of\n AES-256. Asynchronous.\n\n @param expanded_keys Output, 60 words as 1920 one bit blocks MSB first,\n round key r at blocks [128 r, 128 (r + 1))\n @param key 256 one bit blocks, MSB first\n @param mem_ptr From scratch_cuda_integer_key_expansion_256_64_async"]
     pub fn cuda_integer_key_expansion_256_64_async(
         streams: CudaStreamsFFI,
         expanded_keys: *mut CudaRadixCiphertextFFI,
@@ -2670,6 +2681,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    #[doc = " @brief Releases the scratch of cuda_integer_key_expansion_256_64_async.\n\n @param mem_ptr_void Scratch to release, nullptr afterwards"]
     pub fn cleanup_cuda_integer_key_expansion_256_64(
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
@@ -2688,6 +2700,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Turns a PRINCEv2 key pair into the material the circuit reads, once\n per pair and direction. Any number of cuda_integer_prince_64_async calls\n can then reuse it.\n\n Done once so the rounds can just add the key inside their parity PBS.\n Outputs have no batch dimension, the circuit tiles them. Asynchronous.\n\n @param key_bits_first Output, the 64 bits of k_first\n @param key_bits_second Output, the 64 bits of k_second\n @param kap_bw_first Output, M'(SR^-1(k_first)) as 64 bits, the key as the\n backward rounds see it\n @param kap_bw_second Output, same for k_second\n @param k_first k0 to encrypt, k1 to decrypt. 32 fresh blocks of 2 bits,\n MSB first\n @param k_second k1 to encrypt, k0 to decrypt, same layout\n @param mem_ptr From scratch_cuda_integer_prince_key_prep_64_async"]
     pub fn cuda_integer_prince_key_prep_64_async(
         streams: CudaStreamsFFI,
         key_bits_first: *mut CudaRadixCiphertextFFI,
@@ -2722,6 +2735,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
+    #[doc = " @brief Runs PRINCEv2 [BEK+20] on a batch of 64-bit blocks under an\n encrypted key, 26 PBS layers whatever the batch size. The direction comes\n from the scratch and the key order used at key prep. Asynchronous.\n\n Inputs must be fresh, the first key xor packs 4 * m + k in one block and\n eats the whole 2_2 noise budget.\n\n @param output num_prince_inputs blocks of 64 bits, each as 32 blocks of 2\n bits MSB first, one input after the other\n @param input Same layout, fresh\n @param k_first Same key half as given to key prep, 32 blocks\n @param k_second Same, 32 blocks\n @param key_bits_first From cuda_integer_prince_key_prep_64_async\n @param key_bits_second From cuda_integer_prince_key_prep_64_async\n @param kap_bw_first From cuda_integer_prince_key_prep_64_async\n @param kap_bw_second From cuda_integer_prince_key_prep_64_async\n @param mem_ptr From scratch_cuda_integer_prince_64_async, same batch size\n and direction"]
     pub fn cuda_integer_prince_64_async(
         streams: CudaStreamsFFI,
         output: *mut CudaRadixCiphertextFFI,
