@@ -51,6 +51,14 @@ impl DataKind {
         Ok(self.num_blocks(message_modulus)?.div_ceil(2))
     }
 
+    /// Number of noise squashed ciphertexts used by a list: each item is packed on its own
+    pub(crate) fn total_squashed_block_count(
+        info: &[Self],
+        message_modulus: MessageModulus,
+    ) -> crate::Result<usize> {
+        Self::total_count(info, message_modulus, Self::num_squashed_blocks)
+    }
+
     /// Kind and range of the blocks used by the item at `index` in a list described by `info`
     ///
     /// Returns None if `index` is out of bounds, and an error if `message_modulus` is missing or if

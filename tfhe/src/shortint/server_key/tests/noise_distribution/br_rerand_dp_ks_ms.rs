@@ -1016,7 +1016,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters, file
                 message_modulus: compute_params.message_modulus(),
                 carry_modulus: compute_params.carry_modulus(),
                 atomic_pattern: sks.atomic_pattern.kind(),
-                lwe_per_glwe: compression_params.lwe_per_glwe(),
+                lwe_per_glwe: compression_params.lwe_per_glwe().try_into().unwrap(),
             }),
         };
 
