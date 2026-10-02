@@ -83,21 +83,6 @@ __host__ void host_subtraction_with_correcting_term(
 }
 
 template <typename Torus>
-__host__ uint64_t scratch_cuda_integer_overflowing_sub(
-    CudaStreams streams, int_overflowing_sub_memory<Torus> **mem_ptr,
-    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  PUSH_RANGE("scratch overflowing sub")
-  uint64_t size_tracker = 0;
-  *mem_ptr = new int_overflowing_sub_memory<Torus>(
-      streams, params, num_blocks, allocate_gpu_memory, noise_reduction_type,
-      size_tracker);
-  POP_RANGE()
-  return size_tracker;
-}
-
-template <typename Torus>
 __host__ void host_integer_overflowing_sub(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *input_left,

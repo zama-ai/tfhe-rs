@@ -41,8 +41,7 @@ void host_integer_grouped_oprf(CudaStreams streams,
         lut->buffer, mem_ptr->params.glwe_dimension,
         mem_ptr->params.small_lwe_dimension, mem_ptr->params.polynomial_size,
         mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
-        mem_ptr->params.grouping_factor, num_blocks_to_process,
-        mem_ptr->params.pbs_type, 1, 0);
+        num_blocks_to_process, mem_ptr->params.pbs_params(), 1, 0);
   } else {
     std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
     std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
@@ -65,8 +64,8 @@ void host_integer_grouped_oprf(CudaStreams streams,
         lwe_trivial_indexes_vec, bsks, lut->buffer,
         mem_ptr->params.glwe_dimension, mem_ptr->params.small_lwe_dimension,
         mem_ptr->params.polynomial_size, mem_ptr->params.pbs_base_log,
-        mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
-        num_blocks_to_process, mem_ptr->params.pbs_type, 1, 0);
+        mem_ptr->params.pbs_level, num_blocks_to_process,
+        mem_ptr->params.pbs_params(), 1, 0);
 
     PUSH_RANGE("gather")
     multi_gpu_gather_lwe_async<Torus>(

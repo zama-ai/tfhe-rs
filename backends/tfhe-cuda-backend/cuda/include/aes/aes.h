@@ -7,16 +7,14 @@ uint64_t scratch_cuda_integer_aes_ctr_encrypt_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_aes_inputs,
+    uint32_t carry_modulus, bool allocate_gpu_memory, uint32_t num_aes_inputs,
     uint32_t sbox_parallelism);
 
 uint64_t scratch_cuda_integer_aes_ctr_256_encrypt_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_aes_inputs,
+    uint32_t carry_modulus, bool allocate_gpu_memory, uint32_t num_aes_inputs,
     uint32_t sbox_parallelism);
 
 void cuda_integer_aes_ctr_encrypt_64_async(
@@ -35,8 +33,7 @@ uint64_t scratch_cuda_integer_key_expansion_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    uint32_t carry_modulus, bool allocate_gpu_memory);
 
 void cuda_integer_key_expansion_64_async(CudaStreamsFFI streams,
                                          CudaRadixCiphertextFFI *expanded_keys,
@@ -57,8 +54,7 @@ uint64_t scratch_cuda_integer_key_expansion_256_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    uint32_t carry_modulus, bool allocate_gpu_memory);
 
 void cuda_integer_key_expansion_256_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *expanded_keys,

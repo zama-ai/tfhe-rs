@@ -222,12 +222,13 @@ mod tests {
     use crate::core_crypto::prelude::LweCiphertextCount;
     use crate::integer::ciphertext::{CompactCiphertextList, DataKind};
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+    use crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCiphertextList;
     use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use crate::integer::gpu::key_switching_key::{
         CudaKeySwitchingKey, CudaKeySwitchingKeyMaterial,
     };
     use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
-    use crate::integer::gpu::CudaServerKey;
+    use crate::integer::gpu::{CudaServerKey, ZKType};
     use crate::integer::key_switching_key::KeySwitchingKey;
     use crate::integer::{
         ClientKey, CompactPrivateKey, CompactPublicKey, CompressedServerKey,
@@ -688,5 +689,70 @@ mod tests {
         assert_eq!(decrypted_m4, m4);
         let decrypted_m5: u64 = u64_val.decrypt(&client_key);
         assert_eq!(decrypted_m5, m5);
+    }
+
+    #[test]
+    fn test_expand_rejects_server_key_with_mismatched_bsk_and_ksk() {
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let classical_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let multi_bit_params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        // The server key below takes its computing KSK from the classical set and its BSK from the
+        // multi-bit set, so the test only exercises the BSK input / KSK output dimension mismatch.
+        assert_ne!(
+            classical_params.lwe_dimension, multi_bit_params.lwe_dimension,
+            "the two parameter sets must have different LWE dimensions for this test to be valid"
+        );
+        let streams = CudaStreams::new_multi_gpu();
+
+        let cks_classical = ClientKey::new(classical_params);
+        let compressed_sk_classical =
+            CompressedServerKey::new_radix_compressed_server_key(&cks_classical);
+        let sk_classical = compressed_sk_classical.decompress();
+        let gpu_sk_classical =
+            CudaServerKey::decompress_from_cpu(&compressed_sk_classical, &streams);
+        let cks_multi_bit = ClientKey::new(multi_bit_params);
+        let compressed_sk_multi_bit =
+            CompressedServerKey::new_radix_compressed_server_key(&cks_multi_bit);
+        let gpu_sk_multi_bit =
+            CudaServerKey::decompress_from_cpu(&compressed_sk_multi_bit, &streams);
+
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new(
+            (&compact_private_key, None),
+            (&cks_classical, &sk_classical),
+            PARAM_KEYSWITCH_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        );
+        let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+
+        let mixed_sk = CudaServerKey {
+            key_switching_key: gpu_sk_classical.key_switching_key,
+            bootstrapping_key: gpu_sk_multi_bit.bootstrapping_key,
+            message_modulus: gpu_sk_classical.message_modulus,
+            carry_modulus: gpu_sk_classical.carry_modulus,
+            max_degree: gpu_sk_classical.max_degree,
+            max_noise_level: gpu_sk_classical.max_noise_level,
+            ciphertext_modulus: gpu_sk_classical.ciphertext_modulus,
+            pbs_order: gpu_sk_classical.pbs_order,
+        };
+        let d_ksk =
+            CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &mixed_sk);
+
+        let pk = CompactPublicKey::new(&compact_private_key);
+        let list = CompactCiphertextList::builder(&pk)
+            .extend_with_num_blocks([1u64, 2].into_iter(), 4)
+            .build_packed()
+            .unwrap();
+        let d_list = CudaFlattenedVecCompactCiphertextList::from_integer_compact_ciphertext_list(
+            &list, &streams,
+        )
+        .unwrap();
+
+        let Err(err) = d_list.expand(&d_ksk, ZKType::Casting, &streams) else {
+            panic!("expand must reject a server key whose BSK and KSK LWE dimensions differ")
+        };
+        assert!(
+            err.to_string().contains("inconsistent server key"),
+            "unexpected error: {err}"
+        );
     }
 }
