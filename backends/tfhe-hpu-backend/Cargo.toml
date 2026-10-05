@@ -41,7 +41,9 @@ lru = "0.18.2"
 bitfield-struct = "0.13.0"
 crossbeam = { version = "0.8.4", features = ["crossbeam-queue"] }
 rayon = { workspace = true }
-zhc = "0.10.1"
+# zhc = "0.10.1"
+zhc = {git = "https://github.com/zama-ai/zhc.git", branch = "fix/sim_seq", package = "zhc"} 
+
 
 # Dependencies used for Sim feature
 ra2m_ffi = "1.0"
