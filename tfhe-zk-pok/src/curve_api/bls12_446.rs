@@ -1106,9 +1106,9 @@ mod zp {
         }
 
         pub fn hash(values: &mut [Zp], data: &[&[u8]]) {
-            use sha3::digest::{ExtendableOutput, Update, XofReader};
+            use shake::{ExtendableOutput, Update, XofReader};
 
-            let mut hasher = sha3::Shake256::default();
+            let mut hasher = shake::Shake256::default();
             for data in data {
                 hasher.update(data);
             }
@@ -1123,9 +1123,9 @@ mod zp {
         }
 
         pub fn hash_128bit(values: &mut [Zp], data: &[&[u8]]) {
-            use sha3::digest::{ExtendableOutput, Update, XofReader};
+            use shake::{ExtendableOutput, Update, XofReader};
 
-            let mut hasher = sha3::Shake256::default();
+            let mut hasher = shake::Shake256::default();
             for data in data {
                 hasher.update(data);
             }

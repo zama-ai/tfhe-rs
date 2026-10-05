@@ -107,7 +107,7 @@ pub mod utils {
         let mut hasher = Sha3_256::new();
         hasher.update(&params_as_bytes);
         let hash = hasher.finalize();
-        format!("{hash:x}")
+        hash.iter().map(|byte| format!("{byte:02x}")).collect()
     }
 
     impl<P, K> PersistentStorage<P, K> for FileStorage
