@@ -502,6 +502,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 mod cuda {
     use super::*;
     use benchmark::utilities::{cuda_local_streams, get_param_type, ParamType};
+    use benchmark_spec::ZkAcceleration;
     use criterion::BatchSize;
     use itertools::Itertools;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
@@ -510,6 +511,17 @@ mod cuda {
     use tfhe::integer::gpu::CudaServerKey;
     use tfhe::integer::CompressedServerKey;
     use tfhe::GpuIndex;
+
+    /// What `tfhe` proves and verifies with: `gpu-zk` swaps in
+    /// `tfhe_zk_pok::gpu` behind the same API. Only for the benches that run a
+    /// proof or a verification, expansion and object sizes do not depend on it.
+    fn prover_variant(variant: ZkProofVariant) -> ZkProofVariant {
+        if cfg!(feature = "gpu-zk") {
+            variant.with_acceleration(ZkAcceleration::GpuZk)
+        } else {
+            variant
+        }
+    }
 
     /// Per-GPU element count for verify+expand throughput benchmarks.
     /// Empirically measured with ZkComputeLoad::Verify on 8xH100-NVLink (80GB) GPUs.
@@ -622,13 +634,13 @@ mod cuda {
                     let variant = proof_variant(compute_load, scheme);
                     let config = proven_list_tag(*bits, crs_size);
                     let spec_verify = zk_spec(
-                        ZkPkeBench::Verify(variant),
+                        ZkPkeBench::Verify(prover_variant(variant)),
                         param_name,
                         config,
                         get_bench_type(),
                     );
                     let spec_verify_and_expand = zk_spec(
-                        ZkPkeBench::VerifyAndExpand(variant),
+                        ZkPkeBench::VerifyAndExpand(prover_variant(variant)),
                         param_name,
                         config,
                         get_bench_type(),
@@ -927,7 +939,7 @@ mod cuda {
 
                 for compute_load in compute_load_config() {
                     let spec = zk_spec(
-                        ZkPkeBench::Proof(proof_variant(compute_load, scheme)),
+                        ZkPkeBench::Proof(prover_variant(proof_variant(compute_load, scheme))),
                         param_name,
                         proven_list_tag(*bits, crs_size),
                         get_bench_type(),

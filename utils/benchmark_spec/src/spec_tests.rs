@@ -376,7 +376,7 @@ fn hlapi_bitonic_shuffle() {
 fn integer_zk_pke_verify() {
     let spec = BenchmarkSpec::new(
         BenchPath::Tfhe(TfheLayer::Integer(IntegerBench::Zk(
-            ZkPkeBench::VerifyAndExpand(ZkProofVariant::V2(ComputeLoad::Verify)),
+            ZkPkeBench::VerifyAndExpand(ZkProofVariant::new(ZkScheme::V2, ComputeLoad::Verify)),
         ))),
         Backend::Cuda,
         "PARAM_MESSAGE_2_CARRY_2",
@@ -396,6 +396,41 @@ fn integer_zk_pke_verify() {
         "tfhe::integer::zk::verify_and_expand::v2::compute_load_verify::cuda\
          ::PARAM_MESSAGE_2_CARRY_2::256_bits_packed::2048_bits_crs"
     );
+}
+
+/// A `gpu-zk` build marks the proof right before the backend, the rest of the
+/// id is the one the default implementation writes.
+#[test]
+fn integer_zk_pke_verify_gpu_zk() {
+    let spec = BenchmarkSpec::new(
+        BenchPath::Tfhe(TfheLayer::Integer(IntegerBench::Zk(ZkPkeBench::Verify(
+            ZkProofVariant::new(ZkScheme::V2, ComputeLoad::Verify)
+                .with_acceleration(ZkAcceleration::GpuZk),
+        )))),
+        Backend::Cuda,
+        "PARAM_MESSAGE_2_CARRY_2",
+        OperandType::CipherText,
+        Some(
+            ZkPkeConfig {
+                bits_packed: Some(256),
+                crs_bits: 2048,
+            }
+            .into(),
+        ),
+        BenchmarkMetric::Latency,
+        None,
+    );
+    assert_eq!(
+        spec.to_string(),
+        "tfhe::integer::zk::verify::v2::compute_load_verify::gpu_zk::cuda\
+         ::PARAM_MESSAGE_2_CARRY_2::256_bits_packed::2048_bits_crs"
+    );
+}
+
+#[test]
+fn zk_v1_ignores_gpu_zk() {
+    let variant = ZkProofVariant::new(ZkScheme::V1, ComputeLoad::Proof);
+    assert_eq!(variant.with_acceleration(ZkAcceleration::GpuZk), variant);
 }
 
 #[test]

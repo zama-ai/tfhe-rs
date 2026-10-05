@@ -130,6 +130,7 @@ mod tests {
             // Variants in the path: the longest-prefix split must stop right
             // before the backend, not swallow it.
             "tfhe::integer::zk::verify::v2::compute_load_proof::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits_packed::2048_bits_crs",
+            "tfhe::integer::zk::verify::v2::compute_load_proof::gpu_zk::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits_packed::2048_bits_crs",
             "tfhe::integer::zk::crs::v1::key_size::PARAM_MESSAGE_2_CARRY_2::2048_bits_crs",
             "zk::pke::proof::v1::compute_load_proof::PKEV1_TEST_PARAMS::4096_bits_packed::4096_bits_crs",
             "zk::pke::verify::v2::two_steps::ghl::compute_load_verify::cuda::PKEV2_TEST_PARAMS::4096_bits_packed::4096_bits_crs",
@@ -232,6 +233,23 @@ mod tests {
                 metric: BenchmarkMetric::KeySize,
                 param_name: "PARAM_MESSAGE_2_CARRY_2_KS_PBS",
                 type_tag: None,
+                num_elements: None,
+            },
+            // The optional `gpu_zk` closes the path: the backend after it must
+            // still be read as the backend.
+            Case {
+                id: "tfhe::integer::zk::proof::v2::compute_load_proof::gpu_zk::cuda::throughput::PARAM_MESSAGE_2_CARRY_2::64_bits_packed::2048_bits_crs",
+                backend: Backend::Cuda,
+                operand_type: OperandType::CipherText,
+                metric: BenchmarkMetric::Throughput,
+                param_name: "PARAM_MESSAGE_2_CARRY_2",
+                type_tag: Some(
+                    crate::ZkPkeConfig {
+                        bits_packed: Some(64),
+                        crs_bits: 2048,
+                    }
+                    .into(),
+                ),
                 num_elements: None,
             },
         ];

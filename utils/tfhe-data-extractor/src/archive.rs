@@ -14,7 +14,7 @@ use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 use benchmark_spec::tfhe::hlapi::noise_squash::NoiseSquashingKind;
 use benchmark_spec::{
     BenchPath, BenchmarkMetric, ComputeLoad, HlapiBench, IntegerBench, IntegerOp, IntegerOpBySign,
-    IntegerPackingOp, TfheLayer, ZkPkeBench, ZkProofVariant,
+    IntegerPackingOp, TfheLayer, ZkPkeBench, ZkProofVariant, ZkScheme,
 };
 
 use crate::db::like_escape;
@@ -123,16 +123,20 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
     ArchiveOp {
         label: "zkpok_server",
         paths: &[
-            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V1(
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::new(
+                ZkScheme::V1,
                 ComputeLoad::Proof,
             )))),
-            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V1(
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::new(
+                ZkScheme::V1,
                 ComputeLoad::Verify,
             )))),
-            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V2(
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::new(
+                ZkScheme::V2,
                 ComputeLoad::Proof,
             )))),
-            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V2(
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::new(
+                ZkScheme::V2,
                 ComputeLoad::Verify,
             )))),
         ],
@@ -144,16 +148,20 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
     ArchiveOp {
         label: "zkpok_verify",
         paths: &[
-            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::V1(
+            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::new(
+                ZkScheme::V1,
                 ComputeLoad::Proof,
             )))),
-            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::V1(
+            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::new(
+                ZkScheme::V1,
                 ComputeLoad::Verify,
             )))),
-            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::V2(
+            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::new(
+                ZkScheme::V2,
                 ComputeLoad::Proof,
             )))),
-            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::V2(
+            integer(IntegerBench::Zk(ZkPkeBench::Verify(ZkProofVariant::new(
+                ZkScheme::V2,
                 ComputeLoad::Verify,
             )))),
         ],
