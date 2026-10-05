@@ -17,7 +17,7 @@ use crate::shortint::oprf::{OprfSeed, RandomBitsRleLeBytes};
 use crate::shortint::{Ciphertext, CompactPublicKey, PBSOrder};
 
 use rayon::prelude::*;
-use sha3::digest::{ExtendableOutput, Update};
+use shake::{ExtendableOutput, Update, XofReader};
 use std::io::Read;
 
 use super::CompactCiphertextList;
@@ -40,7 +40,7 @@ pub enum ReRandomizationHashAlgo {
 // blake3 is the larger variant but we expect it to be used more in performance sensitive contexts
 #[allow(clippy::large_enum_variant)]
 pub enum ReRandomizationSeedHasher {
-    Shake256(sha3::Shake256),
+    Shake256(shake::Shake256),
     Blake3(blake3::Hasher),
 }
 
@@ -51,7 +51,7 @@ impl ReRandomizationSeedHasher {
         rerand_root_seed_domain_separator: [u8; XofSeed::DOMAIN_SEP_LEN],
     ) -> Self {
         let mut hasher = match algo {
-            ReRandomizationHashAlgo::Shake256 => Self::Shake256(sha3::Shake256::default()),
+            ReRandomizationHashAlgo::Shake256 => Self::Shake256(shake::Shake256::default()),
             ReRandomizationHashAlgo::Blake3 => Self::Blake3(blake3::Hasher::default()),
         };
 
@@ -75,9 +75,7 @@ impl ReRandomizationSeedHasher {
         match self {
             Self::Shake256(hasher) => {
                 let mut reader = hasher.finalize_xof();
-                reader
-                    .read_exact(&mut res)
-                    .expect("XoF reader should not EoF");
+                reader.read(&mut res);
             }
             Self::Blake3(hasher) => {
                 let mut reader = hasher.finalize_xof();
@@ -90,8 +88,8 @@ impl ReRandomizationSeedHasher {
     }
 }
 
-impl From<sha3::Shake256> for ReRandomizationSeedHasher {
-    fn from(value: sha3::Shake256) -> Self {
+impl From<shake::Shake256> for ReRandomizationSeedHasher {
+    fn from(value: shake::Shake256) -> Self {
         Self::Shake256(value)
     }
 }

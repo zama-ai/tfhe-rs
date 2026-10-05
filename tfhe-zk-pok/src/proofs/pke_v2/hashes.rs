@@ -437,9 +437,9 @@ impl<'a> RHash<'a> {
         let sid_bytes = Box::from(sid.to_le_bytes().as_slice());
 
         // make R_bar a random number generator from the given bytes
-        use sha3::digest::{ExtendableOutput, Update, XofReader};
+        use shake::{ExtendableOutput, Update, XofReader};
 
-        let mut hasher = sha3::Shake256::default();
+        let mut hasher = shake::Shake256::default();
         for &data in &[
             ds.hash_R(),
             &sid_bytes,

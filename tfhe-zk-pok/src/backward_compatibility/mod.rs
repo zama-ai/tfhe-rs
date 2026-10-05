@@ -8,7 +8,7 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Display;
 
-use sha3::digest::{ExtendableOutput, Update};
+use shake::{ExtendableOutput, Update};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::curve_api::Curve;
@@ -154,7 +154,7 @@ impl Upgrade<SerializablePKEv2DomainSeparators> for SerializablePKEv2DomainSepar
     fn upgrade(self) -> Result<SerializablePKEv2DomainSeparators, Self::Error> {
         // V0 used an unspecified random for gamma anyways, so we can simply use a random DS.
         // We use Shake256 XoF to get a reproducible value for a given CRS.
-        let mut hasher = sha3::Shake256::default();
+        let mut hasher = shake::Shake256::default();
         for data in &[
             &self.hash,
             &self.hash_t,
@@ -264,7 +264,7 @@ impl Upgrade<SerializablePKEv1DomainSeparators> for SerializablePKEv1DomainSepar
     fn upgrade(self) -> Result<SerializablePKEv1DomainSeparators, Self::Error> {
         // V0 used an unspecified random for gamma anyways, so we can simply use a random DS.
         // We use Shake256 XoF to get a reproducible value for a given CRS.
-        let mut hasher = sha3::Shake256::default();
+        let mut hasher = shake::Shake256::default();
         for data in &[
             &self.hash,
             &self.hash_t,
