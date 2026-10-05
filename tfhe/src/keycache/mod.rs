@@ -7,6 +7,7 @@ pub mod utils {
     use fs2::FileExt;
     use serde::de::DeserializeOwned;
     use serde::Serialize;
+    use std::fmt::Write;
     use std::fs::{File, OpenOptions};
     use std::io::{BufReader, BufWriter};
     use std::ops::Deref;
@@ -107,7 +108,10 @@ pub mod utils {
         let mut hasher = Sha3_256::new();
         hasher.update(&params_as_bytes);
         let hash = hasher.finalize();
-        format!("{hash:x}")
+        hash.iter().fold(String::new(), |mut output, b| {
+            let _ = write!(output, "{b:x}");
+            output
+        })
     }
 
     impl<P, K> PersistentStorage<P, K> for FileStorage
