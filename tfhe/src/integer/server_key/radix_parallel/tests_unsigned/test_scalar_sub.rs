@@ -69,11 +69,7 @@ where
         .n_random(4)
         .fixed_cases(default_scalar_fixed_cases::<u64>)
         .execute(executor, |(lhs, rhs): (Uint, TestScalar<u64>)| {
-            // The result is computed modulo the radix width, the overflow is that of the
-            // full precision subtraction: a scalar exceeding the radix range always overflows
-            let result = lhs.wrapping_sub(rhs.cast(lhs.bits()));
-            let overflowed = lhs.value() < rhs.uint().value();
-            (result, overflowed)
+            lhs.overflowing_scalar_sub(rhs.clear())
         });
 }
 
