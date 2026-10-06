@@ -136,7 +136,15 @@ jobs:
 
   cargo-builds:
     name: cargo_build/cargo-builds (bpr)
-    needs: [ parallel-pcc-cpu, pcc-hpu, build-tfhe-full, build, build-layers, build-c-api ]
+    needs:
+      [
+        parallel-pcc-cpu,
+        pcc-hpu,
+        build-tfhe-full,
+        build,
+        build-layers,
+        build-c-api,
+      ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

@@ -75,11 +75,11 @@ jobs:
           REMOTE_RUNNER: "runs-on=${{ github.run_id }}/runner=cpu-small"
         run: |
           import os
-          
+
           inputs_extra_runners = os.environ["INPUTS_EXTRA_RUNNERS_TO_USE"]
           remote_runner_label = os.environ["REMOTE_RUNNER"]
           env_file = os.environ["GITHUB_ENV"]
-          
+
           runners = [remote_runner_label, ]
           if inputs_extra_runners:
             split_runners = inputs_extra_runners.replace(" ", "").split(",")
@@ -105,7 +105,7 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       # GitHub has been causing issues with unauthenticated HTTPS traffic breaking several software

@@ -14,7 +14,6 @@ env:
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
-
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
@@ -46,7 +45,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install latest stable
@@ -78,7 +77,7 @@ jobs:
   teardown-instance:
     name: aws_tfhe_noise_checks/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, noise-checks ]
+    needs: [setup-instance, noise-checks]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

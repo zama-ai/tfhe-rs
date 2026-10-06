@@ -6,7 +6,6 @@ on:
   pull_request_review:
     types: [submitted]
 
-
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] this workflow needs to react to any event in a pull-request
@@ -33,7 +32,7 @@ jobs:
       # Add label only if the review is approved and if the label doesn't already exist
       - name: Add approved label
         uses: actions-ecosystem/action-add-labels@18f1af5e3544586314bbe15c0273249c770b2daf
-        if: ${{ github.event_name == 'pull_request_review' 
+        if: ${{ github.event_name == 'pull_request_review'
           && github.event.review.state == 'approved'
           && !contains(fromJSON(env.LABELS), 'approved') }}
         with:

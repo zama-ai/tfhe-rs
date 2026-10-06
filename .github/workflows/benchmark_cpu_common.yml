@@ -141,9 +141,9 @@ jobs:
 
   integer-benchmarks:
     name: benchmark_cpu_common/integer-benchmarks
-    needs: [ prepare-matrix, setup-instance ]
+    needs: [prepare-matrix, setup-instance]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    timeout-minutes: 1440  # 24 hours
+    timeout-minutes: 1440 # 24 hours
     strategy:
       max-parallel: 1
       matrix:
@@ -156,7 +156,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -267,7 +267,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
@@ -290,7 +290,7 @@ jobs:
   teardown-instance:
     name: benchmark_cpu_common/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, integer-benchmarks ]
+    needs: [setup-instance, integer-benchmarks]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

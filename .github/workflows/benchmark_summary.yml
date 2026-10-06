@@ -46,7 +46,6 @@ on:
         type: boolean
         default: true
 
-
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
@@ -65,7 +64,7 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Parse profile and hardware name
@@ -141,13 +140,18 @@ jobs:
   summary-csv-gpu:
     name: benchmark_summary/summary-csv-gpu
     if: inputs.run-gpu-benchmarks
-    needs: [ parse-gpu-inputs, run-benchmarks-gpu, run-benchmarks-gpu-erc7984-multi-group ]
+    needs:
+      [
+        parse-gpu-inputs,
+        run-benchmarks-gpu,
+        run-benchmarks-gpu-erc7984-multi-group,
+      ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Download parsed benchmark results
@@ -182,7 +186,6 @@ jobs:
         with:
           name: ${{ github.sha }}_summary_benchmarks_gpu_csv
           path: summary_benchmarks_gpu.csv
-
 # TODO add make recipe for HPU benchmarks
 #  run-benchmarks-hpu:
 #    name: benchmark_documentation/run-benchmarks-hpu

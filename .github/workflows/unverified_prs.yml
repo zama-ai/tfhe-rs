@@ -2,12 +2,11 @@
 name: unverified_prs
 on:
   schedule:
-    - cron: '30 1 * * *'
+    - cron: "30 1 * * *"
 
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only GitHub can trigger this workflow
-
 
 jobs:
   stale:
@@ -20,7 +19,7 @@ jobs:
     steps:
       - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
         with:
-          stale-pr-message: 'This PR is unverified and has been open for 7 days, it will now be closed. If you want to contribute please sign the CLA as indicated by the bot.'
+          stale-pr-message: "This PR is unverified and has been open for 7 days, it will now be closed. If you want to contribute please sign the CLA as indicated by the bot."
           days-before-stale: 7
           days-before-close: 0
           # We are not interested in suppressing issues so have a currently non existent label

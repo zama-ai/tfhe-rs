@@ -3,7 +3,7 @@ name: m1_tests
 on:
   workflow_dispatch:
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
   # Have a nightly build for M1 tests
   schedule:
     # * is a special character in YAML so you have to quote this string
@@ -33,7 +33,8 @@ permissions:
 jobs:
   cargo-builds-m1:
     name: m1_tests/cargo-builds-m1
-    if: ${{ (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs') ||
+    if:
+      ${{ (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.label.name, 'm1_test') }}
     runs-on: ["self-hosted", "m1mac"]

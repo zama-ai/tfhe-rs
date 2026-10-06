@@ -8,7 +8,7 @@ on:
         type: boolean
         default: true
 
-permissions: { }
+permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
 

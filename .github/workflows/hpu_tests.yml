@@ -14,7 +14,6 @@ env:
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
   cancel-in-progress: true
@@ -28,7 +27,7 @@ jobs:
       (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Needed to check for file change
+      pull-requests: read # Needed to check for file change
     outputs:
       hpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.hpu_any_changed }}
     steps:
@@ -36,7 +35,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Check for file changes
@@ -52,14 +51,13 @@ jobs:
   cargo-tests-hpu:
     name: hpu_tests/cargo-tests-hpu (bpr)
     needs: should-run
-    if:
-      needs.should-run.outputs.hpu_test == 'true' &&
+    if: needs.should-run.outputs.hpu_test == 'true' &&
       ((github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||github.event_name == 'pull_request')
     runs-on: "runs-on=${{ github.run_id }}/runner=cpu-big"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install Rust

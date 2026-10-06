@@ -15,7 +15,6 @@ env:
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
-
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
@@ -32,7 +31,8 @@ permissions:
 jobs:
   data-tests:
     name: aws_data_tests/data-tests (bpr)
-    if: (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
+    if:
+      (github.event_name == 'push' && github.repository == 'zama-ai/tfhe-rs') ||
       github.event_name != 'push'
     runs-on: "runs-on=${{ github.run_id }}/runner=cpu-small"
     concurrency:
@@ -42,7 +42,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'true' # Needed to pull lfs data
+          persist-credentials: "true" # Needed to pull lfs data
           token: ${{ env.CHECKOUT_TOKEN }}
 
       # Cache key is an aggregated hash of lfs files hashes
@@ -70,7 +70,8 @@ jobs:
 
       # Pull token was stored by action/checkout to be used by lfs, we don't need it anymore
       - name: Remove git credentials
-        run: | # Starting version 6.0, action/checkout uses a dedicated file for git credentials
+        run:
+          | # Starting version 6.0, action/checkout uses a dedicated file for git credentials
           git config --local --unset-all http.https://github.com/.extraheader || rm "${RUNNER_TEMP}"/git-credentials-*.config
 
       - name: Install latest stable

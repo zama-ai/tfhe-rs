@@ -21,7 +21,6 @@ on:
     - cron: "0 1 * * MON-FRI"
   pull_request:
 
-
 permissions:
   contents: read
 
@@ -32,7 +31,7 @@ jobs:
     name: gpu_h100_long_run_tests/should-run
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Needed to check for file change
+      pull-requests: read # Needed to check for file change
     outputs:
       is_needed_in_gpu_ci: ${{ env.IS_PR == 'false' || steps.changed-files.outputs.gpu_any_changed }}
     steps:
@@ -40,7 +39,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Check for file changes
@@ -76,7 +75,7 @@ jobs:
 
   cuda-tests:
     name: gpu_h100_long_run_tests/cuda-tests
-    needs: [ setup-instance ]
+    needs: [setup-instance]
     concurrency:
       group: ${{ github.workflow_ref }}_${{github.event_name}}
       cancel-in-progress: true
@@ -94,7 +93,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Setup cloud GPU machine dependencies
@@ -123,7 +122,7 @@ jobs:
 
   slack-notify:
     name: gpu_h100_long_run_tests/slack-notify
-    needs: [ setup-instance, cuda-tests ]
+    needs: [setup-instance, cuda-tests]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests.result != 'skipped' && failure() }}
     continue-on-error: true
@@ -137,7 +136,7 @@ jobs:
   teardown-instance:
     name: gpu_h100_long_run_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, cuda-tests ]
+    needs: [setup-instance, cuda-tests]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

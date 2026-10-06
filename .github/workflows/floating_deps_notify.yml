@@ -10,7 +10,7 @@ name: floating_deps_notify
 # trigger is required to notify from a trusted context after the untrusted build runs.
 # It only reads github-controlled metadata. No output produced by the untrusted workflow
 # is ever interpreted.
-on:  # zizmor: ignore[dangerous-triggers] only reads github metadata
+on: # zizmor: ignore[dangerous-triggers] only reads github metadata
   workflow_run:
     workflows: ["floating_deps"]
     types:
@@ -41,5 +41,6 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: failure
-          SLACK_MESSAGE: "floating-deps finished with status: ${{ github.event.workflow_run.conclusion }}.
+          SLACK_MESSAGE:
+            "floating-deps finished with status: ${{ github.event.workflow_run.conclusion }}.
             ([action run](${{ env.ACTION_RUN_URL }}))"

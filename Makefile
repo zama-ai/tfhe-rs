@@ -43,6 +43,9 @@ WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 TAPLO_VERSION=0.10.0
 TYPOS_VERSION=1.48.0
 ZIZMOR_VERSION=1.22.0
+# Same formatter as the JS projects and the YAML language server
+PRETTIER_VERSION=3.3.3
+WORKFLOW_YAML_FILES='.github/**/*.{yml,yaml}'
 CARGO_SEMVER_CHECKS_VERSION=0.47.0
 CARGO_AFL_VERSION=0.18.2
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
@@ -460,6 +463,15 @@ check_newline_ci: check_linelint_installed_ci
 .PHONY: lint_workflow # Run static linter on GitHub workflows
 lint_workflow: check_actionlint_installed
 	actionlint
+
+.PHONY: fmt_workflow # Format GitHub workflows and actions YAML files
+fmt_workflow:
+	npx --yes prettier@$(PRETTIER_VERSION) --write $(WORKFLOW_YAML_FILES)
+
+.PHONY: check_fmt_workflow # Check GitHub workflows and actions YAML files format
+check_fmt_workflow:
+	@npx --yes prettier@$(PRETTIER_VERSION) --check $(WORKFLOW_YAML_FILES) || \
+	{ echo "Workflow files format check failed. Please run 'make fmt_workflow'"; exit 1; }
 
 .PHONY: check_workflow_security # Run zizmor security checker on GitHub workflows
 check_workflow_security: install_zizmor

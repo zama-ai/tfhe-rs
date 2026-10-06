@@ -111,7 +111,7 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    timeout-minutes: 1440  # 24 hours
+    timeout-minutes: 1440 # 24 hours
     strategy:
       max-parallel: 1
       matrix:
@@ -129,7 +129,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           lfs: true
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
@@ -198,7 +198,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab

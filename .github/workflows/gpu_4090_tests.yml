@@ -17,10 +17,10 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
   schedule:
-   # Every other day at 1AM
-   - cron: "0 1 */2 * *"
+    # Every other day at 1AM
+    - cron: "0 1 */2 * *"
 
 permissions:
   contents: read
@@ -43,7 +43,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install latest stable
