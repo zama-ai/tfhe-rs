@@ -280,6 +280,21 @@ pub(crate) fn xof_init_128(seed: XofSeed) -> (Aes128Key, AesIndex) {
     (key, init)
 }
 
+/// Exclusive end of the stream of a generator initialized by [`xof_init_256`].
+///
+/// XOF.Next of the Threshold FHE specification aborts once IV_XOF reaches 2⁶⁴, so at most 2⁶⁴
+/// AES blocks are produced.
+///
+/// As [`xof_init_256`] starts the counter at 0,
+/// this is the table index of the first byte of the AES block 2⁶⁴.
+pub(crate) const XOF_AES256_END: TableIndex = TableIndex {
+    aes_index: AesIndex(1 << 64),
+    byte_index: ByteIndex(0),
+};
+
+/// Implements the AES branch of XOF.Init from the Threshold FHE specification.
+///
+/// Returns the derived key k_XOF and the starting value of the counter IV_XOF.
 pub(crate) fn xof_init_256(seed: XofSeed) -> (Aes256Key, AesIndex) {
     use crate::generators::default::DefaultAes256BlockCipher;
 
@@ -307,6 +322,7 @@ pub(crate) fn xof_init_256(seed: XofSeed) -> (Aes256Key, AesIndex) {
     key_bytes[0..16].copy_from_slice(&c.to_ne_bytes());
     key_bytes[16..32].copy_from_slice(&cprime.to_ne_bytes());
 
+    // Unlike the Aes-128 derivation, the spec sets IV_XOF to 0
     (Aes256Key(key_bytes), AesIndex(0))
 }
 
@@ -323,9 +339,9 @@ mod test {
         XofSeed::new(seed, *b"abcdefgh")
     }
 
-    /// Test to check deriviation for xof 256
+    /// Test to check derivation for xof 128
     ///
-    /// Used to make sure we don't brake in the future, and test endianness
+    /// Used to make sure we don't break in the future, and test endianness
     #[test]
     fn test_xof_init_128_derivation() {
         const EXPECTED_KEY_128: [u8; 16] = [
@@ -339,9 +355,9 @@ mod test {
         assert_eq!(index, EXPECTED_INDEX_128);
     }
 
-    /// Test to check deriviation for xof 256
+    /// Test to check derivation for xof 256
     ///
-    /// Used to make sure we don't brake in the future, and test endianness
+    /// Used to make sure we don't break in the future, and test endianness
     #[test]
     fn test_xof_init_256_derivation() {
         const EXPECTED_KEY_256: [u8; 32] = [
@@ -356,5 +372,28 @@ mod test {
         // The two halves come from differently keyed and differently seeded chains, so they must
         // not coincide. Guards against both chains accidentally sharing a cipher or an init value.
         assert_ne!(key.0[..16], key.0[16..]);
+    }
+
+    /// The spec's XOF.Next aborts once IV_XOF reaches 2⁶⁴, the Aes-256 xof generator must stop
+    #[test]
+    fn test_xof_aes256_generator_is_bounded() {
+        use crate::generators::{DefaultRandomGenerator, RandomGenerator};
+
+        let seed = SeedKind::xof_aes256(test_seed());
+
+        let rng = DefaultRandomGenerator::new(seed.clone());
+        assert_eq!(
+            rng.remaining_bytes().0,
+            (1u128 << 64) * BYTES_PER_AES_CALL as u128
+        );
+
+        // Start on the last byte of the last allowed block: one byte, then nothing.
+        let mut rng = DefaultRandomGenerator::new(AesCtrParams {
+            seed,
+            first_index: XOF_AES256_END.decremented(),
+        });
+        assert_eq!(rng.remaining_bytes().0, 1);
+        assert!(rng.next().is_some());
+        assert!(rng.next().is_none());
     }
 }

@@ -88,7 +88,7 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
     {
         use crate::seeders::{AesVariant, SeedKind};
         let params = params.into();
-        let (key, offset) = match &params.seed {
+        let (key, offset, end) = match &params.seed {
             // Aes128Key has an unspoken requirement to have bytes in an order independent of
             // platform endianness, problem is the Seed(u128) has an endianness, meaning
             // 1u128 == [1, 0, ..., 0] for little endian
@@ -97,23 +97,28 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
             SeedKind::Ctr(s) => (
                 AnyAesKey::Aes128(Aes128Key(u128::from_le(s.0))),
                 AesIndex(0),
+                Bound::Unbounded,
             ),
             SeedKind::Xof {
                 seed,
                 aes: AesVariant::Aes128,
             } => {
                 let (key, index) = super::xof_init_128(seed.clone());
-                (AnyAesKey::Aes128(key), index)
+                (AnyAesKey::Aes128(key), index, Bound::Unbounded)
             }
             SeedKind::Xof {
                 seed,
                 aes: AesVariant::Aes256,
             } => {
                 let (key, index) = super::xof_init_256(seed.clone());
-                (AnyAesKey::Aes256(key), index)
+                (
+                    AnyAesKey::Aes256(key),
+                    index,
+                    Bound::Excluded(super::XOF_AES256_END),
+                )
             }
         };
-        Self::new(key, params.first_index, Bound::Unbounded, offset)
+        Self::new(key, params.first_index, end, offset)
     }
 
     /// Returns the table index of the next byte to be generated, or `None` if exhausted.
