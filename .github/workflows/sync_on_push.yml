@@ -1,13 +1,6 @@
 # Sync repos
 name: sync_on_push
 
-env:
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  SLACKIFY_MARKDOWN: true
-
 on:
   push:
     branches:
@@ -25,6 +18,8 @@ jobs:
     name: sync_on_push/sync-repo
     if: ${{ github.repository == 'zama-ai/tfhe-rs' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # Needed to checkout the notification action
     steps:
       - name: git-sync
         env:
@@ -56,9 +51,19 @@ jobs:
 
           shred --remove .git/config
 
+      - name: Checkout notification action
+        if: ${{ always() && !success() }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          sparse-checkout: .github/actions/slack_notify
+
       - name: Slack Notification
         if: ${{ always() && !success() }}
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "sync_on_push finished with status: ${{ job.status }}. ([action run](${{ env.ACTION_RUN_URL }}))"
+        uses: ./.github/actions/slack_notify
+        with:
+          status: ${{ job.status }}
+          message: "sync_on_push finished with status: ${{ job.status }}."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}
