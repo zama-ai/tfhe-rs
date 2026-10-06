@@ -2003,6 +2003,18 @@ mod cuda {
         display_name: ilog2
     );
 
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: unchecked_count_ones,
+        method_name_cpu: unchecked_count_ones_parallelized,
+        display_name: count_ones
+    );
+
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: unchecked_count_zeros,
+        method_name_cpu: unchecked_count_zeros_parallelized,
+        display_name: count_zeros
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: unchecked_scalar_bitand,
         method_name_cpu: unchecked_scalar_bitand_parallelized,
@@ -2341,6 +2353,18 @@ mod cuda {
         display_name: ilog2
     );
 
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: count_ones,
+        method_name_cpu: count_ones_parallelized,
+        display_name: count_ones
+    );
+
+    define_cuda_server_key_bench_clean_input_unary_fn!(
+        method_name: count_zeros,
+        method_name_cpu: count_zeros_parallelized,
+        display_name: count_zeros
+    );
+
     define_cuda_server_key_bench_clean_input_scalar_fn!(
         method_name: scalar_sub,
         method_name_cpu: scalar_sub_parallelized,
@@ -2517,6 +2541,8 @@ mod cuda {
         cuda_unchecked_rotate_left,
         cuda_unchecked_rotate_right,
         cuda_unchecked_ilog2,
+        cuda_unchecked_count_ones,
+        cuda_unchecked_count_zeros,
     );
 
     criterion_group!(
@@ -2578,6 +2604,8 @@ mod cuda {
         cuda_trailing_zeros,
         cuda_trailing_ones,
         cuda_ilog2,
+        cuda_count_ones,
+        cuda_count_zeros,
         oprf::cuda::cuda_unsigned_oprf,
         vector_find::cuda::cuda_match_value,
         mul_add_fixed_point::cuda::cuda_mul_add_fixed_point,

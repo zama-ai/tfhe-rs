@@ -33,6 +33,8 @@ The GPU backend includes the following operations for both signed and unsigned e
 | [Integer logarithm](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.ilog2)                                             | `ilog2`         | :heavy\_check\_mark: | N/A                        |
 | [Count trailing/leading ones](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.leading_ones)                            | `leading_zeros` | :heavy\_check\_mark: | N/A                        |
 | [Count trailing/leading zeros](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.leading_zeros)                          | `leading_ones`  | :heavy\_check\_mark: | N/A                        |
+| [Count ones](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.count_ones)                                               | `count_ones`    | :heavy\_check\_mark: | N/A                        |
+| [Count zeros](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.count_zeros)                                             | `count_zeros`   | :heavy\_check\_mark: | N/A                        |
 | [Oblivious Pseudo Random Generation](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.generate_oblivious_pseudo_random) | `oprf`          | :heavy\_check\_mark: | N/A                        |
 
 {% hint style="info" %}

@@ -206,6 +206,12 @@ fn test_leading_trailing_zeros_ones() {
 }
 
 #[test]
+fn test_count_zeros_ones() {
+    let client_key = setup_default_cpu();
+    super::test_case_count_zeros_ones(&client_key);
+}
+
+#[test]
 fn test_safe_deserialize_conformant_fhe_int32() {
     let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     let (client_key, server_key) =

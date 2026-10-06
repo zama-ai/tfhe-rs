@@ -915,8 +915,22 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support count_ones yet");
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
+                let result = cuda_key
+                    .key
+                    .key
+                    .count_ones(&*self.ciphertext.on_gpu(streams), streams);
+                let result = cuda_key.key.key.cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
+                    streams,
+                );
+                super::FheUint32::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
@@ -976,8 +990,22 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support count_zeros yet");
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
+                let result = cuda_key
+                    .key
+                    .key
+                    .count_zeros(&*self.ciphertext.on_gpu(streams), streams);
+                let result = cuda_key.key.key.cast_to_unsigned(
+                    result,
+                    super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
+                    streams,
+                );
+                super::FheUint32::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
