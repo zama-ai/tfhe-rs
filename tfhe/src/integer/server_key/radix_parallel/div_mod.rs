@@ -111,7 +111,7 @@ impl ServerKey {
         let (d2, d3) = rayon::join(
             || {
                 let mut d2 = self.extend_radix_with_trivial_zero_blocks_msb(divisor, 1);
-                self.scalar_left_shift_assign_parallelized(&mut d2, 1);
+                self.scalar_left_shift_assign_parallelized(&mut d2, 1u32);
                 d2
             },
             || {
@@ -490,7 +490,7 @@ impl ServerKey {
                 interesting_remainder1.blocks.insert(0, numerator_block);
                 self.unchecked_scalar_left_shift_assign_parallelized(
                     &mut interesting_remainder1,
-                    1,
+                    1u32,
                 );
 
                 // Extract the block we prepended, and see if it should be dropped
@@ -508,7 +508,7 @@ impl ServerKey {
             let mut left_shift_interesting_remainder2 = || {
                 self.unchecked_scalar_left_shift_assign_parallelized(
                     &mut interesting_remainder2,
-                    1,
+                    1u32,
                 );
             };
 

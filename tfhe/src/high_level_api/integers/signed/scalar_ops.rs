@@ -1,5 +1,3 @@
-#[cfg(feature = "gpu")]
-use crate::core_crypto::commons::numeric::CastFrom;
 use crate::high_level_api::errors::UnwrapResultExt;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::signed::inner::SignedRadixCiphertext;
@@ -695,7 +693,7 @@ macro_rules! define_scalar_rotate_shifts {
                         InternalServerKey::Cuda(cuda_key) => {
                             let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_left_shift(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             SignedRadixCiphertext::Cuda(inner_result)
@@ -752,7 +750,7 @@ macro_rules! define_scalar_rotate_shifts {
                         InternalServerKey::Cuda(cuda_key) => {
                             let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_right_shift(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             SignedRadixCiphertext::Cuda(inner_result)
@@ -808,7 +806,7 @@ macro_rules! define_scalar_rotate_shifts {
                         InternalServerKey::Cuda(cuda_key) => {
                             let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_rotate_left(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             SignedRadixCiphertext::Cuda(inner_result)
@@ -864,7 +862,7 @@ macro_rules! define_scalar_rotate_shifts {
                         InternalServerKey::Cuda(cuda_key) => {
                             let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_rotate_right(
-                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
                             };
                             SignedRadixCiphertext::Cuda(inner_result)
