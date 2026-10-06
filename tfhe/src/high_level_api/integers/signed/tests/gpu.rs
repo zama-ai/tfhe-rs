@@ -1,5 +1,5 @@
 use crate::high_level_api::integers::signed::tests::{
-    test_case_ilog2, test_case_leading_trailing_zeros_ones,
+    test_case_count_zeros_ones, test_case_ilog2, test_case_leading_trailing_zeros_ones,
 };
 use crate::prelude::{
     check_valid_cuda_malloc_assert_oom, AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu,
@@ -116,6 +116,14 @@ fn test_leading_trailing_zeros_ones_gpu() {
     for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
         let client_key = setup_fn();
         test_case_leading_trailing_zeros_ones(&client_key);
+    }
+}
+
+#[test]
+fn test_count_zeros_ones_gpu() {
+    for setup_fn in crate::high_level_api::integers::unsigned::tests::gpu::GPU_SETUP_FN {
+        let client_key = setup_fn();
+        test_case_count_zeros_ones(&client_key);
     }
 }
 
