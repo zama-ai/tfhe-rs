@@ -1,5 +1,9 @@
+use crate::integer::{I256, U256};
 use crate::prelude::*;
-use crate::{ClientKey, FheBool, FheInt16, FheInt32, FheInt64, FheInt8, FheUint64, FheUint8};
+use crate::{
+    ClientKey, FheBool, FheInt10, FheInt16, FheInt160, FheInt32, FheInt64, FheInt8, FheUint64,
+    FheUint8,
+};
 use rand::prelude::*;
 
 mod cpu;
@@ -586,4 +590,111 @@ fn test_case_int16_fused_mul_div(cks: &ClientKey) {
             assert_eq!(decrypted, expected);
         }
     }
+}
+
+/// Non regression test of shift/rotate by a clear amount too wide for a u64 (or for the u32 the
+/// GPU backend takes), which used to be truncated to its low bits.
+///
+/// The integer tests cover these amounts, this checks every operator passes them through.
+fn test_case_scalar_shift_rotate_large_amount(cks: &ClientKey) {
+    // 0b10_0110_1011
+    let clear = -405i16;
+    let a = FheInt10::encrypt(clear, cks);
+
+    // Overshifts, while its low 64 bits read as a shift by 3
+    let amount = (1u128 << 64) + 3;
+
+    let shifted_left: i16 = (&a << amount).decrypt(cks);
+    assert_eq!(shifted_left, 0);
+    let mut b = a.clone();
+    b <<= amount;
+    let shifted_left: i16 = b.decrypt(cks);
+    assert_eq!(shifted_left, 0);
+
+    // An arithmetic overshift saturates to the sign, a shift by 3 gives -51
+    let shifted_right: i16 = (&a >> amount).decrypt(cks);
+    assert_eq!(shifted_right, -1);
+    let mut b = a.clone();
+    b >>= amount;
+    let shifted_right: i16 = b.decrypt(cks);
+    assert_eq!(shifted_right, -1);
+
+    // 2⁶⁴ ≡ 6 (mod 10), while its low 64 bits give a rotation by 0
+    let amount = 1u128 << 64;
+    // 0b10_1110_0110 and 0b10_1011_1001
+    let expected_left = -282i16;
+    let expected_right = -327i16;
+
+    let rotated_left: i16 = (&a).rotate_left(amount).decrypt(cks);
+    assert_eq!(rotated_left, expected_left);
+    let mut b = a.clone();
+    b.rotate_left_assign(amount);
+    let rotated_left: i16 = b.decrypt(cks);
+    assert_eq!(rotated_left, expected_left);
+
+    let rotated_right: i16 = (&a).rotate_right(amount).decrypt(cks);
+    assert_eq!(rotated_right, expected_right);
+    let mut b = a.clone();
+    b.rotate_right_assign(amount);
+    let rotated_right: i16 = b.decrypt(cks);
+    assert_eq!(rotated_right, expected_right);
+
+    // 2³² ≡ 6 (mod 10) too, while its low 32 bits give a rotation by 0
+    let amount = 1u64 << 32;
+
+    let rotated_left: i16 = (&a).rotate_left(amount).decrypt(cks);
+    assert_eq!(rotated_left, expected_left);
+    let rotated_right: i16 = (&a).rotate_right(amount).decrypt(cks);
+    assert_eq!(rotated_right, expected_right);
+}
+
+/// The clear amount's type can be a big int, wider than any primitive integer:
+/// The reduction of a rotation amount must be done in that type
+///
+/// e.g `FheInt160` accepts a `U256` amount, and as 160 is not a power of two,
+/// reducing only the low 64 bits gives a different rotation
+fn test_case_scalar_shift_rotate_big_int_amount_type(cks: &ClientKey) {
+    let num_bits = FheInt160::num_bits() as u32;
+    let clear = I256::from(5i64);
+    let a = FheInt160::encrypt(clear, cks);
+
+    // Uses the top limb, while the low limb alone reads as a shift by 3
+    let amount = (U256::ONE << 255u32) + U256::from(3u64);
+
+    let shifted_left: I256 = (&a << amount).decrypt(cks);
+    assert_eq!(
+        shifted_left,
+        I256::ZERO,
+        "left shift by 2²⁵⁵ + 3 should clear the value"
+    );
+
+    let shifted_right: I256 = (&a >> amount).decrypt(cks);
+    assert_eq!(
+        shifted_right,
+        I256::ZERO,
+        "right shift by 2²⁵⁵ + 3 of a positive value should clear it"
+    );
+
+    // (2²⁵⁵ + 3) mod 160 = 131, the low limb alone gives 3
+    let reduced = 131u32;
+    assert_eq!(
+        amount % U256::from(u64::from(num_bits)),
+        U256::from(u64::from(reduced))
+    );
+
+    // 5 only has bits 0 and 2 set, so rotating it left by 131 does not reach the sign bit
+    let rotated_left: I256 = (&a).rotate_left(amount).decrypt(cks);
+    assert_eq!(
+        rotated_left,
+        clear << reduced,
+        "rotate left by 2²⁵⁵ + 3 should rotate by {reduced}"
+    );
+
+    // Rotating right by 131 is rotating left by 160 - 131 = 29
+    let rotated_right: I256 = (&a).rotate_right(amount).decrypt(cks);
+    assert_eq!(
+        rotated_right,
+        clear << (num_bits - reduced),
+        "rotate right by 2²⁵⁵ + 3 should rotate by {reduced}"
+    );
 }
