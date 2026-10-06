@@ -34,7 +34,7 @@ clap = { version = "=4.6.7", features = ["derive"] }
 # Used in user documentation
 fs2 = { version = "0.4.3" }
 # Needed for keycache now which is active for test and doctest
-sha3 = { version = "0.10" }
+sha3 = { version = "0.12" }
 statrs = "0.19"
 # Begin regex-engine deps
 test-case = "3.1.0"
@@ -74,7 +74,7 @@ dyn-stack = { workspace = true, features = ["default"] }
 paste = { workspace = true }
 fs2 = { version = "0.4.3", optional = true }
 # Used for OPRF in shortint and rerand
-sha3 = { version = "0.10", optional = true }
+sha3 = { version = "0.12", optional = true }
 blake3 = { version = "1.8", optional = true }
 
 itertools = { workspace = true }
