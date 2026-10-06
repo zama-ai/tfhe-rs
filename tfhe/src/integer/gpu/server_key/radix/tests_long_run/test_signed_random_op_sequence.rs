@@ -608,27 +608,27 @@ where
 
     // Log2/Hamming weight ops
     let ilog2_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ilog2);
-    //let count_zeros_executor =
-    // OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_zeros);
-    // let count_ones_executor =
-    // OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_ones);
+    let count_zeros_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_zeros);
+    let count_ones_executor =
+        OpSequenceGpuMultiDeviceFunctionExecutor::new(&CudaServerKey::count_ones);
     let clear_ilog2 = |x: i64| x.ilog2() as u64;
-    //let clear_count_zeros = |x: i64| x.count_zeros() as i64;
-    //let clear_count_ones = |x: i64| x.count_ones() as i64;
+    let clear_count_zeros = |x: i64| x.count_zeros() as u64;
+    let clear_count_ones = |x: i64| x.count_ones() as u64;
 
     #[allow(clippy::type_complexity)]
     let mut log2_ops: Vec<(SignedLog2OpExecutor, &dyn Fn(i64) -> u64, String)> = vec![
         (Box::new(ilog2_executor), &clear_ilog2, "ilog2".to_string()),
-        //(
-        //    Box::new(count_zeros_executor),
-        //    &clear_count_zeros,
-        //    "count zeros".to_string(),
-        //),
-        //(
-        //    Box::new(count_ones_executor),
-        //    &clear_count_ones,
-        //    "count ones".to_string(),
-        //),
+        (
+            Box::new(count_zeros_executor),
+            &clear_count_zeros,
+            "count zeros".to_string(),
+        ),
+        (
+            Box::new(count_ones_executor),
+            &clear_count_ones,
+            "count ones".to_string(),
+        ),
     ];
 
     let signed_oprf_executor = OpSequenceGpuMultiDeviceFunctionExecutor::new(

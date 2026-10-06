@@ -7,6 +7,7 @@
 #include "integer/integer.h"
 #include "integer/radix_ciphertext.h"
 #include "utils/helper.cuh"
+#include "utils/helper_multi_gpu.cuh"
 
 inline CudaLweCiphertextListFFI
 to_lwe_ciphertext_list(CudaRadixCiphertextFFI *radix) {
@@ -151,6 +152,84 @@ void copy_radix_ciphertext_async(cudaStream_t const stream,
   copy_radix_ciphertext_slice_async<Torus>(
       stream, gpu_index, output_radix, 0, output_radix->num_radix_blocks,
       input_radix, 0, input_radix->num_radix_blocks);
+}
+
+/**
+ * @brief Block i of output_radix gets block indexes[i] of input_radix, for i
+ * below num_blocks, in one kernel instead of one copy per block.
+ *
+ * @param output_radix Its num_blocks first blocks receive the copied blocks
+ * @param input_radix  Blocks to copy, an index can repeat
+ * @param d_indexes    Input block of each output block, on the GPU of stream
+ * @param h_indexes    Host copy of d_indexes, the degrees and noise levels move
+ * on the host
+ * @param num_blocks   Blocks copied, nothing is launched for 0
+ */
+template <typename Torus>
+void copy_radix_ciphertext_blocks_from_indexes_async(
+    cudaStream_t const stream, uint32_t const gpu_index,
+    CudaRadixCiphertextFFI *output_radix,
+    const CudaRadixCiphertextFFI *input_radix, Torus const *d_indexes,
+    Torus const *h_indexes, uint32_t num_blocks) {
+  if (num_blocks == 0) {
+    return;
+  }
+  GPU_ASSERT(output_radix->lwe_dimension == input_radix->lwe_dimension,
+             "Cuda error: input and output lwe dimension must be equal");
+  GPU_ASSERT(num_blocks <= output_radix->num_radix_blocks,
+             "Cuda error: the output does not have enough blocks");
+  for (uint32_t i = 0; i < num_blocks; ++i) {
+    GPU_ASSERT(h_indexes[i] < input_radix->num_radix_blocks,
+               "Cuda error: input index exceeds input num radix blocks");
+    output_radix->degrees[i] = input_radix->degrees[h_indexes[i]];
+    output_radix->noise_levels[i] = input_radix->noise_levels[h_indexes[i]];
+  }
+
+  cuda_set_device(gpu_index);
+  align_with_indexes<Torus><<<num_blocks, 256, 0, stream>>>(
+      (Torus *)output_radix->ptr, (Torus const *)input_radix->ptr, d_indexes,
+      output_radix->lwe_dimension + 1);
+  check_cuda_error(cudaGetLastError());
+}
+
+/**
+ * @brief Block i of input_radix goes to block indexes[i] of output_radix, for
+ * i below num_blocks, in one kernel instead of one copy per block.
+ *
+ * @param output_radix Receives each input block at its index, the others are
+ * left untouched
+ * @param input_radix  Its num_blocks first blocks are copied
+ * @param d_indexes    Output block of each input block, all distinct, on the
+ * GPU of stream
+ * @param h_indexes    Host copy of d_indexes, the degrees and noise levels move
+ * on the host
+ * @param num_blocks   Blocks copied, nothing is launched for 0
+ */
+template <typename Torus>
+void copy_radix_ciphertext_blocks_to_indexes_async(
+    cudaStream_t const stream, uint32_t const gpu_index,
+    CudaRadixCiphertextFFI *output_radix,
+    const CudaRadixCiphertextFFI *input_radix, Torus const *d_indexes,
+    Torus const *h_indexes, uint32_t num_blocks) {
+  if (num_blocks == 0) {
+    return;
+  }
+  GPU_ASSERT(output_radix->lwe_dimension == input_radix->lwe_dimension,
+             "Cuda error: input and output lwe dimension must be equal");
+  GPU_ASSERT(num_blocks <= input_radix->num_radix_blocks,
+             "Cuda error: the input does not have enough blocks");
+  for (uint32_t i = 0; i < num_blocks; ++i) {
+    GPU_ASSERT(h_indexes[i] < output_radix->num_radix_blocks,
+               "Cuda error: output index exceeds output num radix blocks");
+    output_radix->degrees[h_indexes[i]] = input_radix->degrees[i];
+    output_radix->noise_levels[h_indexes[i]] = input_radix->noise_levels[i];
+  }
+
+  cuda_set_device(gpu_index);
+  realign_with_indexes<Torus><<<num_blocks, 256, 0, stream>>>(
+      (Torus *)output_radix->ptr, (Torus const *)input_radix->ptr, d_indexes,
+      output_radix->lwe_dimension + 1);
+  check_cuda_error(cudaGetLastError());
 }
 
 // end_lwe_index is exclusive

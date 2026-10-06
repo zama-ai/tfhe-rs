@@ -701,6 +701,23 @@ void cuda_integer_count_of_consecutive_bits_64_async(
 void cleanup_cuda_integer_count_of_consecutive_bits_64(CudaStreamsFFI streams,
                                                        int8_t **mem_ptr_void);
 
+uint64_t scratch_cuda_integer_count_bits_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t counter_num_blocks, uint32_t message_modulus,
+    uint32_t carry_modulus, BitValue bit_value, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
+
+void cuda_integer_count_bits_64_async(CudaStreamsFFI streams,
+                                      CudaRadixCiphertextFFI *output_ct,
+                                      CudaRadixCiphertextFFI const *input_ct,
+                                      int8_t *mem_ptr, void *const *bsks,
+                                      void *const *ksks);
+
+void cleanup_cuda_integer_count_bits_64(CudaStreamsFFI streams,
+                                        int8_t **mem_ptr_void);
+
 uint64_t scratch_cuda_integer_grouped_oprf_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,

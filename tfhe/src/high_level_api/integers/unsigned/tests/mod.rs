@@ -659,6 +659,20 @@ fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
     }
 }
 
+fn test_case_count_zeros_ones(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let random_values: Vec<u32> = (0..5).map(|_| rng.gen()).collect();
+    for clear_a in [0, u32::MAX].into_iter().chain(random_values) {
+        let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+
+        let count_ones: u32 = a.count_ones().decrypt(cks);
+        assert_eq!(count_ones, clear_a.count_ones());
+
+        let count_zeros: u32 = a.count_zeros().decrypt(cks);
+        assert_eq!(count_zeros, clear_a.count_zeros());
+    }
+}
+
 fn test_case_ilog2(cks: &ClientKey) {
     let mut rng = rand::thread_rng();
     for _ in 0..5 {

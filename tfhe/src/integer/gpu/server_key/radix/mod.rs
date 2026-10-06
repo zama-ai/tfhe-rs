@@ -37,6 +37,7 @@ mod add;
 mod bitwise_op;
 mod cmux;
 mod comparison;
+mod count_zeros_ones;
 mod div_mod;
 mod even_odd;
 mod ilog2;
