@@ -13,10 +13,6 @@ env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 permissions: {}
 
@@ -360,11 +356,21 @@ jobs:
     if: ${{ failure() }}
     continue-on-error: true
     steps:
+      - name: Checkout notification action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          sparse-checkout: .github/actions/slack_notify
+
       - name: Send message
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: failure
-          SLACK_MESSAGE: "Performance regression benchmarks failed. (${{ env.ACTION_RUN_URL }})"
+        uses: ./.github/actions/slack_notify
+        with:
+          status: failure
+          message: "Performance regression benchmarks failed."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}
 
   teardown-instance:
     name: benchmark_perf_regression/teardown-instance

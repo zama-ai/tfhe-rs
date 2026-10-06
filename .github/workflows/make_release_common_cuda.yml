@@ -32,13 +32,6 @@ on:
       READ_ORG_TOKEN:
         required: true
 
-env:
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
@@ -220,18 +213,24 @@ jobs:
       - name: Slack notification (hashes comparison)
         if: ${{ needs.package.outputs.hash != steps.published_hash.outputs.pub_hash }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
-        env:
-          SLACK_COLOR: failure
-          SLACK_MESSAGE: "SLSA ${{ inputs.package-name }} crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
+        uses: ./.github/actions/slack_notify
+        with:
+          status: failure
+          message: "SLSA ${{ inputs.package-name }} crate - hash comparison failure."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}
 
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "${{ inputs.package-name }} release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+        uses: ./.github/actions/slack_notify
+        with:
+          status: ${{ job.status }}
+          message: "${{ inputs.package-name }} release finished with status: ${{ job.status }}."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}
 
   teardown-instance:
     name: make_release_common_cuda/teardown-instance
