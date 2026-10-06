@@ -117,6 +117,9 @@ pub enum SeedKind {
     /// An Aes-Key and starting counter will be derived from the XofSeed, to
     /// then initialize the Aes-Ctr random generator. `aes` selects which derivation is used.
     /// The same [`XofSeed`] yields a different stream under each `aes`.
+    ///
+    ///
+    /// Note that with AES 256, the generator will be limited to 2^64 * 128 bits of random
     Xof { seed: XofSeed, aes: AesVariant },
 }
 
