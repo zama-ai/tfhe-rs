@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::CastFrom;
+use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
 use crate::integer::gpu::{
@@ -11,6 +11,7 @@ use crate::integer::gpu::{
     cuda_backend_unchecked_scalar_left_shift_assign,
     cuda_backend_unchecked_scalar_logical_right_shift_assign, CudaServerKey,
 };
+use crate::integer::server_key::radix_parallel::scalar_shift::clamp_scalar_shift_amount;
 
 impl CudaServerKey {
     /// Computes homomorphically a left shift by a scalar.
@@ -34,7 +35,7 @@ impl CudaServerKey {
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
     ///
     /// let msg = 21u64;
-    /// let shift = 2;
+    /// let shift = 2u32;
     ///
     /// let ct1 = cks.encrypt(msg);
     /// // Copy to GPU
@@ -56,6 +57,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
+        Scalar: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -70,6 +72,7 @@ impl CudaServerKey {
         shift: Scalar,
         streams: &CudaStreams,
     ) where
+        Scalar: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -77,7 +80,7 @@ impl CudaServerKey {
         // Clamp to the bit count so a large amount overshifts instead of wrapping after the u32
         // cast (matches the CPU backend).
         let total_num_bits = lwe_ciphertext_count.0 as u64 * self.message_modulus.0.ilog2() as u64;
-        let shift = u64::cast_from(shift).min(total_num_bits) as u32;
+        let shift = clamp_scalar_shift_amount(shift, total_num_bits) as u32;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -163,7 +166,7 @@ impl CudaServerKey {
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
     ///
     /// let msg = 21u64;
-    /// let shift = 2;
+    /// let shift = 2u32;
     ///
     /// let ct1 = cks.encrypt(msg);
     /// // Copy to GPU
@@ -185,6 +188,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T
     where
+        Scalar: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -199,6 +203,7 @@ impl CudaServerKey {
         shift: Scalar,
         streams: &CudaStreams,
     ) where
+        Scalar: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -206,7 +211,7 @@ impl CudaServerKey {
         // Clamp to the bit count so a large amount overshifts instead of wrapping after the u32
         // cast (matches the CPU backend).
         let total_num_bits = lwe_ciphertext_count.0 as u64 * self.message_modulus.0.ilog2() as u64;
-        let shift = u64::cast_from(shift).min(total_num_bits) as u32;
+        let shift = clamp_scalar_shift_amount(shift, total_num_bits) as u32;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -334,6 +339,7 @@ impl CudaServerKey {
         shift: Scalar,
         streams: &CudaStreams,
     ) where
+        Scalar: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -365,7 +371,7 @@ impl CudaServerKey {
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
     ///
     /// let msg = 21u64;
-    /// let shift = 2;
+    /// let shift = 2u32;
     ///
     /// let ct1 = cks.encrypt(msg);
     /// // Copy to GPU
@@ -382,6 +388,7 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_right_shift<Scalar, T>(&self, ct: &T, shift: Scalar, streams: &CudaStreams) -> T
     where
+        Scalar: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -411,7 +418,7 @@ impl CudaServerKey {
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
     ///
     /// let msg = 21u64;
-    /// let shift = 2;
+    /// let shift = 2u32;
     ///
     /// let ct1 = cks.encrypt(msg);
     /// // Copy to GPU
@@ -428,6 +435,7 @@ impl CudaServerKey {
     /// ```
     pub fn scalar_left_shift<Scalar, T>(&self, ct: &T, shift: Scalar, streams: &CudaStreams) -> T
     where
+        Scalar: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
@@ -442,6 +450,7 @@ impl CudaServerKey {
         shift: Scalar,
         streams: &CudaStreams,
     ) where
+        Scalar: UnsignedNumeric + CastFrom<u64>,
         u64: CastFrom<Scalar>,
         T: CudaIntegerRadixCiphertext,
     {
