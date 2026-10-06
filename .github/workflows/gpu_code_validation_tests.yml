@@ -47,7 +47,7 @@ jobs:
 
   cuda-tests-linux:
     name: gpu_code_validation_tests/cuda-tests-linux
-    needs: [ setup-instance ]
+    needs: [setup-instance]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     concurrency:
@@ -62,12 +62,12 @@ jobs:
         include:
           - os: ubuntu-22.04
             cuda: "12.8 12.2"
-            gcc: 12 
+            gcc: 12
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Setup cloud GPU machine dependencies
@@ -101,7 +101,7 @@ jobs:
 
   slack-notify:
     name: gpu_code_validation_tests/slack-notify
-    needs: [ setup-instance, cuda-tests-linux ]
+    needs: [setup-instance, cuda-tests-linux]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
     continue-on-error: true
@@ -124,7 +124,7 @@ jobs:
   teardown-instance:
     name: gpu_code_validation_tests/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, cuda-tests-linux ]
+    needs: [setup-instance, cuda-tests-linux]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

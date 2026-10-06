@@ -7,15 +7,15 @@ on:
     # Group 1
     # -------
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
-    - cron: '0 1 * * 6'
+    - cron: "0 1 * * 6"
     # Group 2
     # -------
     # Weekly benchmarks will be triggered each Sunday at 3a.m.
-    - cron: '0 3 * * 0'
+    - cron: "0 3 * * 0"
 
     # Quarterly benchmarks will be triggered right before the end of the quarter, the 25th of the current month at 4a.m.
     # These benchmarks are far longer to execute, hence the reason to run them only four times a year.
-    - cron: '0 4 25 MAR,JUN,SEP,DEC *'
+    - cron: "0 4 25 MAR,JUN,SEP,DEC *"
 
 permissions: {}
 
@@ -49,7 +49,8 @@ jobs:
           echo "is_quarterly_bench=${{ github.event.schedule == '0 4 25 MAR,JUN,SEP,DEC *' }}" >> "${GITHUB_OUTPUT}"
 
       - name: Weekly benchmarks
-        if: steps.check_bench_group_1.outputs.is_weekly_bench_group_1 == 'true' ||
+        if:
+          steps.check_bench_group_1.outputs.is_weekly_bench_group_1 == 'true' ||
           steps.check_bench_group_2.outputs.is_weekly_bench_group_2 == 'true'
         run: |
           echo "OP_FLAVOR=default" >> "${GITHUB_ENV}"

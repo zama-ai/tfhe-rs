@@ -17,7 +17,7 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
   schedule:
     # Weekly benchmarks will be triggered each Friday at 9p.m.
     - cron: "0 21 * * 5"
@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -67,7 +67,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Run integer benchmarks
@@ -126,7 +126,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -150,7 +150,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Run core crypto benchmarks

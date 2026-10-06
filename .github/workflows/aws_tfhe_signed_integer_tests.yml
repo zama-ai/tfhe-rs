@@ -18,12 +18,11 @@ env:
   NO_BIG_PARAMS: FALSE
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
-
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
   push:
     branches:
       - main
@@ -43,7 +42,7 @@ jobs:
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read  # Needed to check for file change
+      pull-requests: read # Needed to check for file change
     outputs:
       integer_test: ${{ github.event_name == 'workflow_dispatch' ||
         steps.changed-files.outputs.integer_any_changed }}
@@ -52,7 +51,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Check for file changes

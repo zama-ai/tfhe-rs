@@ -36,7 +36,6 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
@@ -82,7 +81,7 @@ jobs:
 
   wasm-client-benchmarks:
     name: benchmark_wasm_client_common/wasm-client-benchmarks
-    needs: [ prepare-matrix, setup-instance ]
+    needs: [prepare-matrix, setup-instance]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       max-parallel: 1
@@ -93,7 +92,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -186,7 +185,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
@@ -209,7 +208,7 @@ jobs:
   teardown-instance:
     name: benchmark_wasm_client_common/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, wasm-client-benchmarks ]
+    needs: [setup-instance, wasm-client-benchmarks]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

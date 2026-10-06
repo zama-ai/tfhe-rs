@@ -57,7 +57,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
+      contents: "read"
     outputs:
       backend: ${{ steps.parse_profile.outputs.backend }}
       profile: ${{ steps.parse_profile.outputs.profile }}
@@ -67,7 +67,7 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Parse profile and hardware name
@@ -94,13 +94,13 @@ jobs:
 
   benchmark-gpu:
     name: benchmark_gpu_coprocessor/benchmark-gpu (bpr)
-    needs: [ parse-inputs, setup-instance ]
+    needs: [parse-inputs, setup-instance]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     continue-on-error: true
-    timeout-minutes: 720  # 12 hours
+    timeout-minutes: 720 # 12 hours
     permissions:
-      contents: 'read' # Needed to read repositories contents
-      packages: 'read' # Needed to get fhevm packages
+      contents: "read" # Needed to read repositories contents
+      packages: "read" # Needed to get fhevm packages
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
@@ -132,7 +132,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: zama-ai/fhevm
-          persist-credentials: 'false'
+          persist-credentials: "false"
           fetch-depth: 0
           lfs: true
           ref: antoniu/use-tfhe-main-benches
@@ -311,7 +311,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
@@ -325,7 +325,7 @@ jobs:
   teardown-instance:
     name: benchmark_gpu_coprocessor/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, benchmark-gpu ]
+    needs: [setup-instance, benchmark-gpu]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

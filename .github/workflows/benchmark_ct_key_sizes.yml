@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   schedule:
     # Monthly benchmarks will be triggered each 24th of the month at 1a.m.
-    - cron: '0 1 24 * 6'
+    - cron: "0 1 24 * 6"
 
 env:
   CARGO_TERM_COLOR: always
@@ -46,7 +46,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -105,7 +105,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
@@ -128,7 +128,7 @@ jobs:
   teardown-instance:
     name: Teardown instance (sizes-benchmarks)
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, sizes-benchmarks ]
+    needs: [setup-instance, sizes-benchmarks]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

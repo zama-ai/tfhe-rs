@@ -142,14 +142,14 @@ jobs:
 
   install-dependencies:
     name: benchmark_gpu_common/install-dependencies
-    needs: [ setup-instance ]
+    needs: [setup-instance]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup cloud GPU machine dependencies
@@ -161,7 +161,7 @@ jobs:
 
   cuda-benchmarks:
     name: benchmark_gpu_common/cuda-benchmarks
-    needs: [ prepare-matrix, setup-instance, install-dependencies ]
+    needs: [prepare-matrix, setup-instance, install-dependencies]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
     strategy:
@@ -177,7 +177,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -332,7 +332,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Send data to Slab
@@ -346,7 +346,7 @@ jobs:
 
   slack-notify:
     name: benchmark_gpu_common/slack-notify
-    needs: [ setup-instance, cuda-benchmarks ]
+    needs: [setup-instance, cuda-benchmarks]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.cuda-benchmarks.result != 'skipped' && failure() }}
     continue-on-error: true
@@ -360,7 +360,7 @@ jobs:
   teardown-instance:
     name: benchmark_gpu_common/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, cuda-benchmarks, slack-notify ]
+    needs: [setup-instance, cuda-benchmarks, slack-notify]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

@@ -11,11 +11,11 @@ env:
 on:
   pull_request:
     paths:
-      - '.github/workflows/parameters_check.yml'
-      - 'ci/lattice_estimator.sage'
-      - 'tfhe/examples/utilities/params_to_file.rs'
-      - 'tfhe/src/shortint/parameters/*'
-      - 'tfhe/src/high_level_api/nist_submission/parameters.rs'
+      - ".github/workflows/parameters_check.yml"
+      - "ci/lattice_estimator.sage"
+      - "tfhe/examples/utilities/params_to_file.rs"
+      - "tfhe/src/shortint/parameters/*"
+      - "tfhe/src/high_level_api/nist_submission/parameters.rs"
   push:
     branches:
       - "main"
@@ -36,7 +36,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Install latest stable
@@ -49,8 +49,8 @@ jobs:
         with:
           repository: malb/lattice-estimator
           path: lattice-estimator
-          ref: '352ddaf4a288a0543f5d9eb588d2f89c7acec463'
-          persist-credentials: 'false'
+          ref: "352ddaf4a288a0543f5d9eb588d2f89c7acec463"
+          persist-credentials: "false"
 
       - name: Restore Sagemath image from cache
         id: docker-cache
@@ -106,13 +106,13 @@ jobs:
           import datetime
           import math
           import os
-          
+
           env_file = os.environ["GITHUB_ENV"]
-          
+
           start_date = datetime.datetime.fromtimestamp(int(os.environ["START_DATE"]))
           end_date = datetime.datetime.now()
           total_minutes = math.floor((end_date - start_date).total_seconds() / 60)
-          
+
           with open(env_file, "a") as f:
             f.write(f"TIME_ELAPSED={total_minutes}\n")
 

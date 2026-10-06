@@ -92,7 +92,7 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Parse profile and hardware name

@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
       - name: Prepare package
         env:
@@ -71,7 +71,6 @@ jobs:
         id: hash
         run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
-
   provenance:
     name: make_release_common/provenance
     if: ${{ !inputs.dry-run  }}
@@ -86,7 +85,6 @@ jobs:
       # SHA-256 hashes of the Crate package.
       base64-subjects: ${{ needs.package.outputs.hash }}
 
-
   publish_release:
     name: make_release_common/publish-release
     needs: package
@@ -98,7 +96,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Download artifact

@@ -8,7 +8,7 @@ on:
       - main
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
-    - cron: '0 1 * * 6'
+    - cron: "0 1 * * 6"
 
 env:
   CARGO_TERM_COLOR: always
@@ -21,7 +21,6 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members and GitHub can trigger this workflow
@@ -33,7 +32,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name != 'workflow_dispatch' && github.repository == 'zama-ai/tfhe-rs')
     permissions:
-      pull-requests: read  # Needed to check for file change
+      pull-requests: read # Needed to check for file change
     outputs:
       wasm_bench: ${{ steps.changed-files.outputs.wasm_bench_any_changed }}
     steps:
@@ -41,7 +40,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Check for file changes

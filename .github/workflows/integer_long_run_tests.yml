@@ -18,7 +18,6 @@ on:
     # Weekly tests will be triggered each Friday at 9p.m.
     - cron: "0 21 * * 5"
 
-
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] concurrency is managed after instance setup to ensure safe provisioning
@@ -37,7 +36,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Install latest stable

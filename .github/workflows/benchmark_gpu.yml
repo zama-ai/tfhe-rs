@@ -86,7 +86,6 @@ on:
           - multi_bit_documentation
           - classical_documentation + multi_bit_documentation
 
-
 permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
@@ -105,7 +104,7 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Parse profile and hardware name

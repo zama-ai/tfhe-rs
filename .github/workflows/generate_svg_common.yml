@@ -51,7 +51,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
 
       - name: Produce table from database
         if: inputs.backend_comparison == false

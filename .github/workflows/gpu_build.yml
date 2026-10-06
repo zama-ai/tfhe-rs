@@ -46,7 +46,7 @@ jobs:
 
   gpu-builds:
     name: gpu_build/gpu-builds (bpr)
-    needs: [ cuda-pcc, cuda-compile-checks ]
+    needs: [cuda-pcc, cuda-compile-checks]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

@@ -3,9 +3,9 @@ name: benchmark_perf_regression
 
 on:
   issue_comment:
-    types: [ created ]
+    types: [created]
   pull_request:
-    types: [ labeled ]
+    types: [labeled]
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,7 +18,7 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-permissions: { }
+permissions: {}
 
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
 
@@ -52,7 +52,7 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Acknowledge issue comment
@@ -60,7 +60,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
         with:
           comment-id: ${{ github.event.comment.id }}
-          reactions: '+1'
+          reactions: "+1"
 
       - name: Display workflow run URL
         if: github.event_name == 'issue_comment'
@@ -119,7 +119,8 @@ jobs:
 
       - name: Get hardware name
         id: get_hardware_name
-        run: | # zizmor: ignore[template-injection] these interpolations are safe
+        run:
+          | # zizmor: ignore[template-injection] these interpolations are safe
           HARDWARE_NAME=$(python3 ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
           echo "name=${HARDWARE_NAME}" >> "${GITHUB_OUTPUT}"
 
@@ -148,7 +149,7 @@ jobs:
 
   install-cuda-dependencies-if-required:
     name: benchmark_perf_regression/install-cuda-dependencies-if-required
-    needs: [ prepare-benchmarks, setup-instance ]
+    needs: [prepare-benchmarks, setup-instance]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       matrix:
@@ -160,7 +161,7 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup cloud GPU machine dependencies
@@ -172,12 +173,17 @@ jobs:
 
   regression-benchmarks:
     name: benchmark_perf_regression/regression-benchmarks
-    needs: [ prepare-benchmarks, setup-instance, install-cuda-dependencies-if-required ]
+    needs:
+      [
+        prepare-benchmarks,
+        setup-instance,
+        install-cuda-dependencies-if-required,
+      ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
       group: ${{ github.workflow_ref }}_${{ needs.prepare-benchmarks.outputs.slab-backend }}_${{ needs.prepare-benchmarks.outputs.slab-profile }}
       cancel-in-progress: true
-    timeout-minutes: 720  # 12 hours
+    timeout-minutes: 720 # 12 hours
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -187,8 +193,8 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          fetch-depth: 0  # Needed to get commit hash
-          persist-credentials: 'false'
+          fetch-depth: 0 # Needed to get commit hash
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -218,7 +224,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Run regression benchmarks
@@ -240,7 +246,7 @@ jobs:
           --walk-subdirs \
           --name-suffix regression \
           --bench-type "${BENCH_TYPE}"
-  
+
           echo "RESULTS_FILE_SHA=$(sha256sum "${RESULTS_FILENAME}" | cut -d " " -f1)" >> "${GITHUB_ENV}"
         env:
           HARDWARE_NAME: ${{ needs.prepare-benchmarks.outputs.hardware-name }}
@@ -265,7 +271,7 @@ jobs:
 
   check-regressions:
     name: benchmark_perf_regression/check-regressions
-    needs: [ prepare-benchmarks, regression-benchmarks ]
+    needs: [prepare-benchmarks, regression-benchmarks]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write # Needed to write a comment in a pull-request
@@ -276,13 +282,13 @@ jobs:
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Install recent Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install requirements
         run: |
@@ -321,7 +327,13 @@ jobs:
 
   comment-on-failure:
     name: benchmark_perf_regression/comment-on-failure
-    needs: [ prepare-benchmarks, setup-instance, regression-benchmarks, check-regressions ]
+    needs:
+      [
+        prepare-benchmarks,
+        setup-instance,
+        regression-benchmarks,
+        check-regressions,
+      ]
     runs-on: ubuntu-latest
     if: ${{ failure() && github.event_name == 'issue_comment' }}
     continue-on-error: true
@@ -337,7 +349,13 @@ jobs:
 
   slack-notify:
     name: benchmark_perf_regression/slack-notify
-    needs: [ prepare-benchmarks, setup-instance, regression-benchmarks, check-regressions ]
+    needs:
+      [
+        prepare-benchmarks,
+        setup-instance,
+        regression-benchmarks,
+        check-regressions,
+      ]
     runs-on: ubuntu-latest
     if: ${{ failure() }}
     continue-on-error: true
@@ -351,7 +369,7 @@ jobs:
   teardown-instance:
     name: benchmark_perf_regression/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
-    needs: [ setup-instance, regression-benchmarks ]
+    needs: [setup-instance, regression-benchmarks]
     uses: ./.github/workflows/slab_teardown.yml
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}

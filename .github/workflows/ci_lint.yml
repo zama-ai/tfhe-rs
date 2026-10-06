@@ -22,7 +22,7 @@ jobs:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Get actionlint
@@ -37,6 +37,10 @@ jobs:
         run: |
           make lint_workflow
 
+      - name: Check workflows format
+        run: |
+          make check_fmt_workflow
+
       - name: Get Zimzor version to use
         id: get_zizmor
         run: |
@@ -45,7 +49,7 @@ jobs:
       - name: Check workflows security
         uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
         with:
-          advanced-security: 'false' # Print results directly in logs
+          advanced-security: "false" # Print results directly in logs
           persona: pedantic
           version: ${{ steps.get_zizmor.outputs.version }}
 

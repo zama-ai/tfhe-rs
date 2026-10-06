@@ -6,7 +6,7 @@ run-name: GPU weekly benchmarks
 on:
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 1a.m.
-    - cron: '0 1 * * 6'
+    - cron: "0 1 * * 6"
 
 permissions: {}
 
