@@ -226,6 +226,9 @@ where
     /// Moves (in-place) the ciphertext to the current device.
     ///
     /// Does nothing if the ciphertext is already in the current device
+    ///
+    /// Deserialized ciphertexts are always on the CPU: call this on the ones used in several
+    /// operations, to avoid a copy at each use.
     pub fn move_to_current_device(&mut self) {
         self.ciphertext.move_to_device_of_server_key_if_set()
     }

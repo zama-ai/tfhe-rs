@@ -380,8 +380,9 @@ fn test_tag_propagation(
             assert_eq!(compressed_list.tag(), cks.tag());
 
             let serialized = bincode::serialize(&compressed_list).unwrap();
-            let compressed_list: CompressedCiphertextList =
+            let mut compressed_list: CompressedCiphertextList =
                 bincode::deserialize(&serialized).unwrap();
+            compressed_list.move_to_current_device().unwrap();
             assert_eq!(compressed_list.tag(), cks.tag());
 
             let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();

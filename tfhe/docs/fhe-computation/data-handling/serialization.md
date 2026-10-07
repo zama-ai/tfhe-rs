@@ -121,6 +121,10 @@ fn main() {
 
 The safe serialization and deserialization use `bincode` internally.
 
+{% hint style="info" %}
+Deserialized data is always stored on the CPU, even when a GPU server key is set. See the [GPU programming model](../../configuration/gpu-acceleration/run-on-gpu.md#gpu-programming-model) to move it to the GPU.
+{% endhint %}
+
 To selectively disable some of the features of the safe serialization, you can use `SerializationConfig`/`DeserializationConfig` builders. For example, it is possible to disable the data versioning:
 
 ```rust

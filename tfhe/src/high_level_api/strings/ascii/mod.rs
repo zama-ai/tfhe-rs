@@ -7,6 +7,7 @@ mod strip;
 mod trim;
 
 pub use crate::high_level_api::backward_compatibility::strings::FheAsciiStringVersions;
+use crate::high_level_api::backward_compatibility::strings::SerializableAsciiDeviceVersions;
 use crate::high_level_api::compressed_ciphertext_list::ToBeCompressed;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedServerKey;
@@ -20,8 +21,8 @@ use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::strings::ciphertext::FheString;
 use crate::{ClientKey, HlExpandable, Tag};
 pub use no_pattern::{FheStringIsEmpty, FheStringLen};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 pub enum EncryptableString<'a> {
     NoPadding(&'a str),
@@ -37,6 +38,9 @@ impl EncryptableString<'_> {
     }
 }
 
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(from = "SerializableAsciiDevice", into = "SerializableAsciiDevice")]
+#[versionize(convert = "SerializableAsciiDevice")]
 pub(crate) enum AsciiDevice {
     Cpu(FheString),
 }
@@ -47,10 +51,33 @@ impl From<FheString> for AsciiDevice {
     }
 }
 
+/// Serialized form of [`AsciiDevice`], with the data always moved to the CPU
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableAsciiDeviceVersions)]
+pub(crate) struct SerializableAsciiDevice(FheString);
+
+impl From<SerializableAsciiDevice> for AsciiDevice {
+    fn from(value: SerializableAsciiDevice) -> Self {
+        Self::Cpu(value.0)
+    }
+}
+
+impl From<AsciiDevice> for SerializableAsciiDevice {
+    fn from(value: AsciiDevice) -> Self {
+        Self(value.into_cpu())
+    }
+}
+
 impl AsciiDevice {
     pub fn on_cpu(&self) -> MaybeCloned<'_, FheString> {
         match self {
             Self::Cpu(cpu_string) => MaybeCloned::Borrowed(cpu_string),
+        }
+    }
+
+    fn into_cpu(self) -> FheString {
+        match self {
+            Self::Cpu(cpu_string) => cpu_string,
         }
     }
 }
@@ -59,68 +86,6 @@ impl Clone for AsciiDevice {
     fn clone(&self) -> Self {
         match self {
             Self::Cpu(s) => Self::Cpu(s.clone()),
-        }
-    }
-}
-
-impl serde::Serialize for AsciiDevice {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.on_cpu().serialize(serializer)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for AsciiDevice {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let deserialized = Self::Cpu(FheString::deserialize(deserializer)?);
-        Ok(deserialized)
-    }
-}
-
-// Only CPU data are serialized so we only versionize the CPU type.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
-pub(crate) struct AsciiDeviceVersionOwned(<FheString as VersionizeOwned>::VersionedOwned);
-
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
-pub(crate) enum AsciiDeviceVersionedOwned {
-    V0(AsciiDeviceVersionOwned),
-}
-
-impl Versionize for AsciiDevice {
-    type Versioned<'vers> = AsciiDeviceVersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        let data = self.on_cpu();
-        let versioned = data.into_owned().versionize_owned();
-        AsciiDeviceVersionedOwned::V0(AsciiDeviceVersionOwned(versioned))
-    }
-}
-
-impl VersionizeOwned for AsciiDevice {
-    type VersionedOwned = AsciiDeviceVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        let cpu_data = self.on_cpu();
-        AsciiDeviceVersionedOwned::V0(AsciiDeviceVersionOwned(
-            cpu_data.into_owned().versionize_owned(),
-        ))
-    }
-}
-
-impl Unversionize for AsciiDevice {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        match versioned {
-            AsciiDeviceVersionedOwned::V0(v0) => {
-                let unversioned = Self::Cpu(FheString::unversionize(v0.0)?);
-                Ok(unversioned)
-            }
         }
     }
 }
