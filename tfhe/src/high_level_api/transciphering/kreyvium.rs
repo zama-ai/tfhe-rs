@@ -1,11 +1,13 @@
 use super::TranscipherSession;
-use crate::high_level_api::backward_compatibility::transciphering::KreyviumFheKeyVersionedOwned;
+use crate::high_level_api::backward_compatibility::transciphering::KreyviumFheKeyVersions;
 use crate::high_level_api::errors::UninitializedServerKey;
 use crate::high_level_api::global_state::try_with_internal_keys;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 #[cfg(feature = "gpu")]
 use crate::integer::RadixCiphertext;
 use crate::named::Named;
@@ -15,40 +17,60 @@ use crate::transciphering::{
     KreyviumFheKey as ShortintKreyviumFheKey, KreyviumFheState, KreyviumIV, KreyviumPlainKey,
 };
 use crate::{ClientKey, Tag};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Device-polymorphic FHE-encrypted Kreyvium master key.
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(KreyviumFheKeyVersions)]
 pub struct KreyviumFheKey {
     inner: InnerKreyviumFheKey,
     tag: Tag,
 }
 
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(from = "ShortintKreyviumFheKey", into = "ShortintKreyviumFheKey")]
+#[versionize(convert = "ShortintKreyviumFheKey")]
 enum InnerKreyviumFheKey {
     Cpu(ShortintKreyviumFheKey),
     #[cfg(feature = "gpu")]
-    #[expect(
-        dead_code,
-        reason = "GPU transciphering is still stubbed, so the key is built but never consumed"
-    )]
     Cuda(CudaUnsignedRadixCiphertext),
 }
 
-impl KreyviumFheKey {
-    /// The CPU (shortint) key, which is the only form that is serialized.
-    ///
-    /// GPU-resident keys are not yet serializable (the whole GPU transcipher
-    /// path is still stubbed).
-    fn to_cpu_key(&self) -> ShortintKreyviumFheKey {
-        match &self.inner {
-            InnerKreyviumFheKey::Cpu(k) => k.clone(),
+impl Clone for InnerKreyviumFheKey {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Cpu(k) => Self::Cpu(k.clone()),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(k) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(k.gpu_indexes(), |streams| {
+                    Self::Cuda(k.duplicate(streams))
+                })
+            }
+        }
+    }
+}
+
+#[allow(clippy::fallible_impl_from)]
+impl From<InnerKreyviumFheKey> for ShortintKreyviumFheKey {
+    fn from(value: InnerKreyviumFheKey) -> Self {
+        match value {
+            InnerKreyviumFheKey::Cpu(k) => k,
             #[cfg(feature = "gpu")]
             InnerKreyviumFheKey::Cuda(_) => {
                 panic!("serialization of a GPU-resident Kreyvium key is not supported yet")
             }
         }
     }
+}
 
+impl From<ShortintKreyviumFheKey> for InnerKreyviumFheKey {
+    fn from(value: ShortintKreyviumFheKey) -> Self {
+        Self::Cpu(value)
+    }
+}
+
+impl KreyviumFheKey {
     fn new_cpu(key: ShortintKreyviumFheKey, tag: Tag) -> Self {
         Self {
             inner: InnerKreyviumFheKey::Cpu(key),
@@ -61,7 +83,7 @@ impl KreyviumFheKey {
     }
 
     pub fn into_raw_parts(self) -> (ShortintKreyviumFheKey, Tag) {
-        (self.to_cpu_key(), self.tag)
+        (self.inner.into(), self.tag)
     }
 }
 
@@ -72,60 +94,6 @@ impl Tagged for KreyviumFheKey {
 
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
-    }
-}
-
-impl Serialize for KreyviumFheKey {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        (self.to_cpu_key(), &self.tag).serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for KreyviumFheKey {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let (key, tag) = <(ShortintKreyviumFheKey, Tag)>::deserialize(deserializer)?;
-        Ok(Self::new_cpu(key, tag))
-    }
-}
-
-// Only CPU data are serialized so we only versionize the CPU type.
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
-pub struct KreyviumFheKeyVersionOwned {
-    key: <ShortintKreyviumFheKey as VersionizeOwned>::VersionedOwned,
-    tag: <Tag as VersionizeOwned>::VersionedOwned,
-}
-
-impl Versionize for KreyviumFheKey {
-    type Versioned<'vers> = KreyviumFheKeyVersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        KreyviumFheKeyVersionedOwned::V0(KreyviumFheKeyVersionOwned {
-            key: self.to_cpu_key().versionize_owned(),
-            tag: self.tag.clone().versionize_owned(),
-        })
-    }
-}
-
-impl VersionizeOwned for KreyviumFheKey {
-    type VersionedOwned = KreyviumFheKeyVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        KreyviumFheKeyVersionedOwned::V0(KreyviumFheKeyVersionOwned {
-            key: self.to_cpu_key().versionize_owned(),
-            tag: self.tag.versionize_owned(),
-        })
-    }
-}
-
-impl Unversionize for KreyviumFheKey {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        match versioned {
-            KreyviumFheKeyVersionedOwned::V0(v0) => Ok(Self::new_cpu(
-                ShortintKreyviumFheKey::unversionize(v0.key)?,
-                Tag::unversionize(v0.tag)?,
-            )),
-        }
     }
 }
 

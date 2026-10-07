@@ -1,8 +1,7 @@
 use super::base::{FheUint, FheUintId};
-use crate::backward_compatibility::integers::{
-    InnerSquashedNoiseRadixCiphertextVersionedOwned, SquashedNoiseFheUintVersions,
-};
+use crate::backward_compatibility::integers::SquashedNoiseFheUintVersions;
 use crate::core_crypto::commons::numeric::UnsignedNumeric;
+use crate::high_level_api::backward_compatibility::integers::SerializableInnerSquashedNoiseRadixCiphertextVersions;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedNoiseSquashing;
 use crate::high_level_api::global_state::{self, with_internal_keys};
@@ -18,14 +17,47 @@ use crate::integer::block_decomposition::RecomposableFrom;
 use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
 use crate::named::Named;
 use crate::{ClientKey, Device, Tag};
-use serde::{Deserializer, Serializer};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Enum that manages the current inner representation of a squashed noise FheUint .
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(
+    from = "SerializableInnerSquashedNoiseRadixCiphertext",
+    into = "SerializableInnerSquashedNoiseRadixCiphertext"
+)]
+#[versionize(convert = "SerializableInnerSquashedNoiseRadixCiphertext")]
 pub(in crate::high_level_api) enum InnerSquashedNoiseRadixCiphertext {
     Cpu(crate::integer::ciphertext::SquashedNoiseRadixCiphertext),
     #[cfg(feature = "gpu")]
     Cuda(CudaSquashedNoiseRadixCiphertext),
+}
+
+impl From<crate::integer::ciphertext::SquashedNoiseRadixCiphertext>
+    for InnerSquashedNoiseRadixCiphertext
+{
+    fn from(value: crate::integer::ciphertext::SquashedNoiseRadixCiphertext) -> Self {
+        Self::Cpu(value)
+    }
+}
+
+/// Serialized form of [`InnerSquashedNoiseRadixCiphertext`], with the data always moved to the CPU
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableInnerSquashedNoiseRadixCiphertextVersions)]
+pub(crate) struct SerializableInnerSquashedNoiseRadixCiphertext(
+    crate::integer::ciphertext::SquashedNoiseRadixCiphertext,
+);
+
+impl From<SerializableInnerSquashedNoiseRadixCiphertext> for InnerSquashedNoiseRadixCiphertext {
+    fn from(value: SerializableInnerSquashedNoiseRadixCiphertext) -> Self {
+        Self::Cpu(value.0)
+    }
+}
+
+impl From<InnerSquashedNoiseRadixCiphertext> for SerializableInnerSquashedNoiseRadixCiphertext {
+    fn from(value: InnerSquashedNoiseRadixCiphertext) -> Self {
+        Self(value.into_cpu())
+    }
 }
 
 impl Clone for InnerSquashedNoiseRadixCiphertext {
@@ -37,70 +69,6 @@ impl Clone for InnerSquashedNoiseRadixCiphertext {
                 with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
                     Self::Cuda(inner.duplicate(streams))
                 })
-            }
-        }
-    }
-}
-impl serde::Serialize for InnerSquashedNoiseRadixCiphertext {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.on_cpu().serialize(serializer)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for InnerSquashedNoiseRadixCiphertext {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let mut deserialized = Self::Cpu(
-            crate::integer::ciphertext::SquashedNoiseRadixCiphertext::deserialize(deserializer)?,
-        );
-        deserialized.move_to_device_of_server_key_if_set();
-        Ok(deserialized)
-    }
-}
-
-// Only CPU data are serialized so we only versionize the CPU type.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
-pub(crate) struct InnerSquashedNoiseRadixCiphertextVersionOwned(
-    <crate::integer::ciphertext::SquashedNoiseRadixCiphertext as VersionizeOwned>::VersionedOwned,
-);
-
-impl Versionize for InnerSquashedNoiseRadixCiphertext {
-    type Versioned<'vers> = InnerSquashedNoiseRadixCiphertextVersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        let data = self.on_cpu();
-        let versioned = data.into_owned().versionize_owned();
-        InnerSquashedNoiseRadixCiphertextVersionedOwned::V0(
-            InnerSquashedNoiseRadixCiphertextVersionOwned(versioned),
-        )
-    }
-}
-impl VersionizeOwned for InnerSquashedNoiseRadixCiphertext {
-    type VersionedOwned = InnerSquashedNoiseRadixCiphertextVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        let cpu_data = self.on_cpu();
-        InnerSquashedNoiseRadixCiphertextVersionedOwned::V0(
-            InnerSquashedNoiseRadixCiphertextVersionOwned(cpu_data.into_owned().versionize_owned()),
-        )
-    }
-}
-
-impl Unversionize for InnerSquashedNoiseRadixCiphertext {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        match versioned {
-            InnerSquashedNoiseRadixCiphertextVersionedOwned::V0(v0) => {
-                let mut unversioned = Self::Cpu(
-                    crate::integer::ciphertext::SquashedNoiseRadixCiphertext::unversionize(v0.0)?,
-                );
-                unversioned.move_to_device_of_server_key_if_set();
-                Ok(unversioned)
             }
         }
     }
@@ -118,6 +86,18 @@ impl InnerSquashedNoiseRadixCiphertext {
             Self::Cuda(ct) => {
                 with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
                     MaybeCloned::Cloned(ct.to_squashed_noise_radix_ciphertext(streams))
+                })
+            }
+        }
+    }
+
+    fn into_cpu(self) -> crate::integer::ciphertext::SquashedNoiseRadixCiphertext {
+        match self {
+            Self::Cpu(ct) => ct,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(ct) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
+                    ct.to_squashed_noise_radix_ciphertext(streams)
                 })
             }
         }
@@ -198,6 +178,27 @@ impl Named for SquashedNoiseFheUint {
 }
 
 impl SquashedNoiseFheUint {
+    /// Returns the device where the ciphertext is currently on
+    pub fn current_device(&self) -> Device {
+        self.inner.current_device()
+    }
+
+    /// Moves (in-place) the ciphertext to the desired device.
+    ///
+    /// Does nothing if the ciphertext is already in the desired device
+    pub fn move_to_device(&mut self, device: Device) {
+        self.inner.move_to_device(device)
+    }
+
+    /// Moves (in-place) the ciphertext to the device of the current
+    /// thread-local server key
+    ///
+    /// Does nothing if the ciphertext is already in the desired device
+    /// or if no server key is set
+    pub fn move_to_current_device(&mut self) {
+        self.inner.move_to_device_of_server_key_if_set();
+    }
+
     pub(in crate::high_level_api) fn new(
         inner: InnerSquashedNoiseRadixCiphertext,
         state: SquashedNoiseCiphertextState,

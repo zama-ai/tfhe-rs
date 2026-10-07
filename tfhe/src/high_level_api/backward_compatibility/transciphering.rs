@@ -1,30 +1,77 @@
-use serde::{Deserialize, Serialize};
-use tfhe_versionable::VersionsDispatch;
+use std::convert::Infallible;
+
+use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::high_level_api::transciphering::{
-    AesFheKeyVersionOwned, KreyviumFheKeyVersionOwned, OneTimePadFheSecretMaskVersionOwned,
-    StreamCiphertext,
+    AesFheKey, KreyviumFheKey, OneTimePadFheSecretMask, StreamCiphertext,
 };
+use crate::transciphering::{
+    AesFheKey as ShortintAesFheKey, KreyviumFheKey as ShortintKreyviumFheKey,
+    OneTimePadFheSecretMask as ShortintOneTimePadFheSecretMask,
+};
+use crate::Tag;
 
 #[derive(VersionsDispatch)]
 pub enum StreamCiphertextVersions {
     V0(StreamCiphertext),
 }
 
-// Manual impl, the device-polymorphic HL keys only serialize their CPU form so
-// the version payloads live next to each key type.
-
-#[derive(Serialize, Deserialize)]
-pub enum KreyviumFheKeyVersionedOwned {
-    V0(KreyviumFheKeyVersionOwned),
+#[derive(Version)]
+pub struct KreyviumFheKeyV0 {
+    key: ShortintKreyviumFheKey,
+    tag: Tag,
 }
 
-#[derive(Serialize, Deserialize)]
-pub enum AesFheKeyVersionedOwned {
-    V0(AesFheKeyVersionOwned),
+impl Upgrade<KreyviumFheKey> for KreyviumFheKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<KreyviumFheKey, Self::Error> {
+        Ok(KreyviumFheKey::from_raw_parts(self.key, self.tag))
+    }
 }
 
-#[derive(Serialize, Deserialize)]
-pub enum OneTimePadFheSecretMaskVersionedOwned {
-    V0(OneTimePadFheSecretMaskVersionOwned),
+#[derive(VersionsDispatch)]
+pub enum KreyviumFheKeyVersions {
+    V0(KreyviumFheKeyV0),
+    V1(KreyviumFheKey),
+}
+
+#[derive(Version)]
+pub struct AesFheKeyV0 {
+    key: ShortintAesFheKey,
+    tag: Tag,
+}
+
+impl Upgrade<AesFheKey> for AesFheKeyV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<AesFheKey, Self::Error> {
+        Ok(AesFheKey::from_raw_parts(self.key, self.tag))
+    }
+}
+
+#[derive(VersionsDispatch)]
+pub enum AesFheKeyVersions {
+    V0(AesFheKeyV0),
+    V1(AesFheKey),
+}
+
+#[derive(Version)]
+pub struct OneTimePadFheSecretMaskV0 {
+    key: ShortintOneTimePadFheSecretMask,
+    tag: Tag,
+}
+
+impl Upgrade<OneTimePadFheSecretMask> for OneTimePadFheSecretMaskV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<OneTimePadFheSecretMask, Self::Error> {
+        Ok(OneTimePadFheSecretMask::from_raw_parts(self.key, self.tag))
+    }
+}
+
+#[derive(VersionsDispatch)]
+pub enum OneTimePadFheSecretMaskVersions {
+    V0(OneTimePadFheSecretMaskV0),
+    V1(OneTimePadFheSecretMask),
 }

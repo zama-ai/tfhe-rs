@@ -1,7 +1,6 @@
 use super::base::FheBool;
-use crate::backward_compatibility::booleans::{
-    InnerSquashedNoiseBooleanVersionedOwned, SquashedNoiseFheBoolVersions,
-};
+use crate::backward_compatibility::booleans::SquashedNoiseFheBoolVersions;
+use crate::high_level_api::backward_compatibility::booleans::SerializableInnerSquashedNoiseBooleanVersions;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedNoiseSquashing;
 use crate::high_level_api::global_state::{self, with_internal_keys};
@@ -21,14 +20,43 @@ use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseBooleanBlo
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::named::Named;
 use crate::{ClientKey, Device, Tag};
-use serde::{Deserializer, Serializer};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Enum that manages the current inner representation of a boolean.
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(
+    from = "SerializableInnerSquashedNoiseBoolean",
+    into = "SerializableInnerSquashedNoiseBoolean"
+)]
+#[versionize(convert = "SerializableInnerSquashedNoiseBoolean")]
 pub(in crate::high_level_api) enum InnerSquashedNoiseBoolean {
     Cpu(SquashedNoiseBooleanBlock),
     #[cfg(feature = "gpu")]
     Cuda(CudaSquashedNoiseBooleanBlock),
+}
+
+impl From<SquashedNoiseBooleanBlock> for InnerSquashedNoiseBoolean {
+    fn from(value: SquashedNoiseBooleanBlock) -> Self {
+        Self::Cpu(value)
+    }
+}
+
+/// Serialized form of [`InnerSquashedNoiseBoolean`], with the data always moved to the CPU
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableInnerSquashedNoiseBooleanVersions)]
+pub(crate) struct SerializableInnerSquashedNoiseBoolean(SquashedNoiseBooleanBlock);
+
+impl From<SerializableInnerSquashedNoiseBoolean> for InnerSquashedNoiseBoolean {
+    fn from(value: SerializableInnerSquashedNoiseBoolean) -> Self {
+        Self::Cpu(value.0)
+    }
+}
+
+impl From<InnerSquashedNoiseBoolean> for SerializableInnerSquashedNoiseBoolean {
+    fn from(value: InnerSquashedNoiseBoolean) -> Self {
+        Self(value.into_cpu())
+    }
 }
 
 impl Clone for InnerSquashedNoiseBoolean {
@@ -44,70 +72,6 @@ impl Clone for InnerSquashedNoiseBoolean {
         }
     }
 }
-impl serde::Serialize for InnerSquashedNoiseBoolean {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.on_cpu().serialize(serializer)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for InnerSquashedNoiseBoolean {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let mut deserialized = Self::Cpu(
-            crate::integer::ciphertext::SquashedNoiseBooleanBlock::deserialize(deserializer)?,
-        );
-        deserialized.move_to_device_of_server_key_if_set();
-        Ok(deserialized)
-    }
-}
-
-// Only CPU data are serialized so we only versionize the CPU type.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
-pub(crate) struct InnerSquashedNoiseBooleanVersionOwned(
-    <crate::integer::ciphertext::SquashedNoiseBooleanBlock as VersionizeOwned>::VersionedOwned,
-);
-
-impl Versionize for InnerSquashedNoiseBoolean {
-    type Versioned<'vers> = InnerSquashedNoiseBooleanVersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        let data = self.on_cpu();
-        let versioned = data.into_owned().versionize_owned();
-        InnerSquashedNoiseBooleanVersionedOwned::V0(InnerSquashedNoiseBooleanVersionOwned(
-            versioned,
-        ))
-    }
-}
-impl VersionizeOwned for InnerSquashedNoiseBoolean {
-    type VersionedOwned = InnerSquashedNoiseBooleanVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        let cpu_data = self.on_cpu();
-        InnerSquashedNoiseBooleanVersionedOwned::V0(InnerSquashedNoiseBooleanVersionOwned(
-            cpu_data.into_owned().versionize_owned(),
-        ))
-    }
-}
-
-impl Unversionize for InnerSquashedNoiseBoolean {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        match versioned {
-            InnerSquashedNoiseBooleanVersionedOwned::V0(v0) => {
-                let mut unversioned = Self::Cpu(
-                    crate::integer::ciphertext::SquashedNoiseBooleanBlock::unversionize(v0.0)?,
-                );
-                unversioned.move_to_device_of_server_key_if_set();
-                Ok(unversioned)
-            }
-        }
-    }
-}
 
 impl InnerSquashedNoiseBoolean {
     /// Returns the inner cpu ciphertext if self is on the CPU, otherwise, returns a copy
@@ -119,6 +83,18 @@ impl InnerSquashedNoiseBoolean {
             Self::Cuda(ct) => {
                 with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
                     MaybeCloned::Cloned(ct.to_squashed_noise_boolean_block(streams))
+                })
+            }
+        }
+    }
+
+    fn into_cpu(self) -> SquashedNoiseBooleanBlock {
+        match self {
+            Self::Cpu(ct) => ct,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(ct) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
+                    ct.to_squashed_noise_boolean_block(streams)
                 })
             }
         }
@@ -195,6 +171,27 @@ pub struct SquashedNoiseFheBool {
 }
 
 impl SquashedNoiseFheBool {
+    /// Returns the device where the ciphertext is currently on
+    pub fn current_device(&self) -> Device {
+        self.inner.current_device()
+    }
+
+    /// Moves (in-place) the ciphertext to the desired device.
+    ///
+    /// Does nothing if the ciphertext is already in the desired device
+    pub fn move_to_device(&mut self, device: Device) {
+        self.inner.move_to_device(device)
+    }
+
+    /// Moves (in-place) the ciphertext to the device of the current
+    /// thread-local server key
+    ///
+    /// Does nothing if the ciphertext is already in the desired device
+    /// or if no server key is set
+    pub fn move_to_current_device(&mut self) {
+        self.inner.move_to_device_of_server_key_if_set();
+    }
+
     pub(in crate::high_level_api) fn new(
         inner: InnerSquashedNoiseBoolean,
         state: SquashedNoiseCiphertextState,

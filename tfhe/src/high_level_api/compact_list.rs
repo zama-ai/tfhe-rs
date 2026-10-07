@@ -29,11 +29,8 @@ use crate::{CompactPublicKey, Tag};
 #[cfg(feature = "strings")]
 use super::ClearString;
 
-use crate::high_level_api::global_state::device_of_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCiphertextList;
-use serde::Serializer;
-use tfhe_versionable::{Unversionize, UnversionizeError, VersionizeOwned};
 
 impl crate::FheTypes {
     pub(crate) fn from_data_kind(
@@ -143,12 +140,32 @@ impl crate::FheTypes {
     }
 }
 
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(
+    from = "crate::integer::ciphertext::CompactCiphertextList",
+    into = "crate::integer::ciphertext::CompactCiphertextList"
+)]
+#[versionize(convert = "crate::integer::ciphertext::CompactCiphertextList")]
 pub enum InnerCompactCiphertextList {
     Cpu(crate::integer::ciphertext::CompactCiphertextList),
     #[cfg(feature = "gpu")]
     // A InnerCompactCiphertextList is a CudaFlattenedVecCompactCiphertextList initialized as a
     // vector of a single compact list
     Cuda(crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCiphertextList),
+}
+
+impl From<InnerCompactCiphertextList> for crate::integer::ciphertext::CompactCiphertextList {
+    fn from(value: InnerCompactCiphertextList) -> Self {
+        value
+            .into_cpu()
+            .expect("Failed to move the compact list to CPU")
+    }
+}
+
+impl From<crate::integer::ciphertext::CompactCiphertextList> for InnerCompactCiphertextList {
+    fn from(value: crate::integer::ciphertext::CompactCiphertextList) -> Self {
+        Self::Cpu(value)
+    }
 }
 
 impl Clone for InnerCompactCiphertextList {
@@ -174,18 +191,15 @@ impl PartialEq for InnerCompactCiphertextList {
     }
 }
 
-impl serde::Serialize for InnerCompactCiphertextList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.on_cpu()
-            .map_err(serde::ser::Error::custom)?
-            .serialize(serializer)
-    }
-}
-
 impl InnerCompactCiphertextList {
+    fn current_device(&self) -> crate::Device {
+        match self {
+            Self::Cpu(_) => crate::Device::Cpu,
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => crate::Device::CudaGpu,
+        }
+    }
+
     #[allow(clippy::unnecessary_wraps, reason = "It depends on activated features")]
     pub(crate) fn on_cpu(
         &self,
@@ -200,6 +214,20 @@ impl InnerCompactCiphertextList {
             }
         }
     }
+
+    #[allow(clippy::unnecessary_wraps, reason = "It depends on activated features")]
+    fn into_cpu(self) -> crate::Result<crate::integer::ciphertext::CompactCiphertextList> {
+        match self {
+            Self::Cpu(inner) => Ok(inner),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
+                    inner.to_integer_compact_ciphertext_list(streams)
+                })
+            }
+        }
+    }
+
     #[allow(clippy::unnecessary_wraps)] // Method can return an error if hpu is enabled
     fn move_to_device(&mut self, device: crate::Device) -> Result<(), crate::Error> {
         let new_value = match (&self, device) {
@@ -248,50 +276,6 @@ impl InnerCompactCiphertextList {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for InnerCompactCiphertextList {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let mut new = crate::integer::ciphertext::CompactCiphertextList::deserialize(deserializer)
-            .map(Self::Cpu)?;
-
-        if let Some(device) = device_of_internal_keys() {
-            new.move_to_device(device)
-                .map_err(serde::de::Error::custom)?;
-        }
-
-        Ok(new)
-    }
-}
-
-impl Versionize for InnerCompactCiphertextList {
-    type Versioned<'vers> =
-        <crate::integer::ciphertext::CompactCiphertextList as VersionizeOwned>::VersionedOwned;
-    fn versionize(&self) -> Self::Versioned<'_> {
-        self.on_cpu()
-            .expect("Failed to copy the compact list to the CPU")
-            .versionize_owned()
-    }
-}
-impl VersionizeOwned for InnerCompactCiphertextList {
-    type VersionedOwned =
-        <crate::integer::ciphertext::CompactCiphertextList as VersionizeOwned>::VersionedOwned;
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        self.on_cpu()
-            .expect("Failed to copy the compact list to the CPU")
-            .versionize_owned()
-    }
-}
-
-impl Unversionize for InnerCompactCiphertextList {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        Ok(Self::Cpu(
-            crate::integer::ciphertext::CompactCiphertextList::unversionize(versioned)?,
-        ))
-    }
-}
-
 #[derive(Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList {
@@ -304,6 +288,17 @@ impl Named for CompactCiphertextList {
 }
 
 impl CompactCiphertextList {
+    pub fn current_device(&self) -> crate::Device {
+        self.inner.current_device()
+    }
+
+    pub fn move_to_current_device(&mut self) -> crate::Result<()> {
+        if let Some(device) = crate::high_level_api::global_state::device_of_internal_keys() {
+            self.inner.move_to_device(device)?;
+        }
+        Ok(())
+    }
+
     pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
         CompactCiphertextListBuilder::new(pk)
     }
@@ -487,7 +482,6 @@ pub(crate) mod zk {
     use super::*;
     use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
     use crate::conformance::ParameterSetConformant;
-    use crate::high_level_api::global_state::device_of_internal_keys;
     use crate::high_level_api::keys::InternalServerKey;
     use crate::high_level_api::re_randomization::ReRandContextAdd;
     use crate::integer::ciphertext::{
@@ -495,8 +489,13 @@ pub(crate) mod zk {
     };
     #[cfg(feature = "gpu")]
     use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
-    use serde::Serializer;
 
+    #[derive(Serialize, Deserialize, Versionize)]
+    #[serde(
+        from = "crate::integer::ciphertext::ProvenCompactCiphertextList",
+        into = "crate::integer::ciphertext::ProvenCompactCiphertextList"
+    )]
+    #[versionize(convert = "crate::integer::ciphertext::ProvenCompactCiphertextList")]
     pub enum InnerProvenCompactCiphertextList {
         Cpu(crate::integer::ciphertext::ProvenCompactCiphertextList),
         #[cfg(feature = "gpu")]
@@ -537,6 +536,14 @@ pub(crate) mod zk {
     }
 
     impl InnerProvenCompactCiphertextList {
+        fn current_device(&self) -> crate::Device {
+            match self {
+                Self::Cpu(_) => crate::Device::Cpu,
+                #[cfg(feature = "gpu")]
+                Self::Cuda(_) => crate::Device::CudaGpu,
+            }
+        }
+
         pub(crate) fn on_cpu(&self) -> &crate::integer::ciphertext::ProvenCompactCiphertextList {
             match self {
                 Self::Cpu(inner) => inner,
@@ -588,53 +595,23 @@ pub(crate) mod zk {
         }
     }
 
-    impl serde::Serialize for InnerProvenCompactCiphertextList {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            self.on_cpu().serialize(serializer)
-        }
-    }
-
-    impl<'de> serde::Deserialize<'de> for InnerProvenCompactCiphertextList {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            let mut new =
-                crate::integer::ciphertext::ProvenCompactCiphertextList::deserialize(deserializer)
-                    .map(Self::Cpu)?;
-
-            if let Some(device) = device_of_internal_keys() {
-                new.move_to_device(device)
-                    .map_err(serde::de::Error::custom)?;
+    impl From<InnerProvenCompactCiphertextList>
+        for crate::integer::ciphertext::ProvenCompactCiphertextList
+    {
+        fn from(value: InnerProvenCompactCiphertextList) -> Self {
+            match value {
+                InnerProvenCompactCiphertextList::Cpu(inner) => inner,
+                #[cfg(feature = "gpu")]
+                InnerProvenCompactCiphertextList::Cuda(inner) => inner.h_proved_lists,
             }
-
-            Ok(new)
-        }
-    }
-    use tfhe_versionable::{Unversionize, UnversionizeError, VersionizeOwned};
-    impl Versionize for InnerProvenCompactCiphertextList {
-        type Versioned<'vers> =
-        <crate::integer::ciphertext::ProvenCompactCiphertextList as VersionizeOwned>::VersionedOwned;
-        fn versionize(&self) -> Self::Versioned<'_> {
-            self.on_cpu().clone().versionize_owned()
-        }
-    }
-    impl VersionizeOwned for InnerProvenCompactCiphertextList {
-        type VersionedOwned =
-        <crate::integer::ciphertext::ProvenCompactCiphertextList as VersionizeOwned>::VersionedOwned;
-        fn versionize_owned(self) -> Self::VersionedOwned {
-            self.on_cpu().clone().versionize_owned()
         }
     }
 
-    impl Unversionize for InnerProvenCompactCiphertextList {
-        fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-            Ok(Self::Cpu(
-                crate::integer::ciphertext::ProvenCompactCiphertextList::unversionize(versioned)?,
-            ))
+    impl From<crate::integer::ciphertext::ProvenCompactCiphertextList>
+        for InnerProvenCompactCiphertextList
+    {
+        fn from(value: crate::integer::ciphertext::ProvenCompactCiphertextList) -> Self {
+            Self::Cpu(value)
         }
     }
 
@@ -659,6 +636,17 @@ pub(crate) mod zk {
     }
 
     impl ProvenCompactCiphertextList {
+        pub fn current_device(&self) -> crate::Device {
+            self.inner.current_device()
+        }
+
+        pub fn move_to_current_device(&mut self) -> crate::Result<()> {
+            if let Some(device) = crate::high_level_api::global_state::device_of_internal_keys() {
+                self.inner.move_to_device(device)?;
+            }
+            Ok(())
+        }
+
         pub fn builder(pk: &CompactPublicKey) -> CompactCiphertextListBuilder {
             CompactCiphertextListBuilder::new(pk)
         }

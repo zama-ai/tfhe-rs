@@ -16,11 +16,11 @@ pub use base::{FheInt, FheIntId};
 pub use compressed::CompressedFheInt;
 pub(in crate::high_level_api) use compressed::CompressedSignedRadixCiphertext;
 pub(in crate::high_level_api) use inner::{
-    SignedRadixCiphertext, SignedRadixCiphertextVersionOwned,
+    SerializableSignedRadixCiphertext, SignedRadixCiphertext,
 };
 pub use squashed_noise::SquashedNoiseFheInt;
 pub(in crate::high_level_api) use squashed_noise::{
-    InnerSquashedNoiseSignedRadixCiphertext, InnerSquashedNoiseSignedRadixCiphertextVersionOwned,
+    InnerSquashedNoiseSignedRadixCiphertext, SerializableInnerSquashedNoiseSignedRadixCiphertext,
 };
 
 expand_pub_use_fhe_type!(

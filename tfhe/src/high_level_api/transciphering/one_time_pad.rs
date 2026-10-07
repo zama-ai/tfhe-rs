@@ -1,11 +1,13 @@
 use super::TranscipherSession;
-use crate::high_level_api::backward_compatibility::transciphering::OneTimePadFheSecretMaskVersionedOwned;
+use crate::high_level_api::backward_compatibility::transciphering::OneTimePadFheSecretMaskVersions;
 use crate::high_level_api::errors::UninitializedServerKey;
 use crate::high_level_api::global_state::try_with_internal_keys;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 #[cfg(feature = "gpu")]
 use crate::integer::RadixCiphertext;
 use crate::named::Named;
@@ -16,40 +18,63 @@ use crate::transciphering::{
     OneTimePadPlainSecretMask,
 };
 use crate::{ClientKey, Tag};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 /// Device-polymorphic FHE-encrypted Pad
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(OneTimePadFheSecretMaskVersions)]
 pub struct OneTimePadFheSecretMask {
     inner: InnerOneTimePadFheSecretMask,
     tag: Tag,
 }
 
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(
+    from = "ShortintOneTimePadFheSecretMask",
+    into = "ShortintOneTimePadFheSecretMask"
+)]
+#[versionize(convert = "ShortintOneTimePadFheSecretMask")]
 enum InnerOneTimePadFheSecretMask {
     Cpu(ShortintOneTimePadFheSecretMask),
     #[cfg(feature = "gpu")]
-    #[expect(
-        dead_code,
-        reason = "GPU transciphering is still stubbed, so the pad is built but never consumed"
-    )]
     Cuda(CudaUnsignedRadixCiphertext),
 }
 
-impl OneTimePadFheSecretMask {
-    /// The CPU (shortint) pad, which is the only form that is serialized.
-    ///
-    /// GPU-resident keys are not yet serializable (the whole GPU transcipher
-    /// path is still stubbed).
-    fn to_cpu_key(&self) -> ShortintOneTimePadFheSecretMask {
-        match &self.inner {
-            InnerOneTimePadFheSecretMask::Cpu(k) => k.clone(),
+impl Clone for InnerOneTimePadFheSecretMask {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Cpu(k) => Self::Cpu(k.clone()),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(k) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(k.gpu_indexes(), |streams| {
+                    Self::Cuda(k.duplicate(streams))
+                })
+            }
+        }
+    }
+}
+
+#[allow(clippy::fallible_impl_from)]
+impl From<InnerOneTimePadFheSecretMask> for ShortintOneTimePadFheSecretMask {
+    fn from(value: InnerOneTimePadFheSecretMask) -> Self {
+        match value {
+            InnerOneTimePadFheSecretMask::Cpu(k) => k,
             #[cfg(feature = "gpu")]
             InnerOneTimePadFheSecretMask::Cuda(_) => {
                 panic!("serialization of a GPU-resident OTP mask is not supported yet")
             }
         }
     }
+}
 
+impl From<ShortintOneTimePadFheSecretMask> for InnerOneTimePadFheSecretMask {
+    fn from(value: ShortintOneTimePadFheSecretMask) -> Self {
+        Self::Cpu(value)
+    }
+}
+
+impl OneTimePadFheSecretMask {
     fn new_cpu(mask: ShortintOneTimePadFheSecretMask, tag: Tag) -> Self {
         Self {
             inner: InnerOneTimePadFheSecretMask::Cpu(mask),
@@ -62,7 +87,7 @@ impl OneTimePadFheSecretMask {
     }
 
     pub fn into_raw_parts(self) -> (ShortintOneTimePadFheSecretMask, Tag) {
-        (self.to_cpu_key(), self.tag)
+        (self.inner.into(), self.tag)
     }
 
     /// Generate a fresh FHE-encrypted pad of `n_bits` bits server-side using
@@ -102,60 +127,6 @@ impl Tagged for OneTimePadFheSecretMask {
 
     fn tag_mut(&mut self) -> &mut Tag {
         &mut self.tag
-    }
-}
-
-impl Serialize for OneTimePadFheSecretMask {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        (self.to_cpu_key(), &self.tag).serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for OneTimePadFheSecretMask {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let (mask, tag) = <(ShortintOneTimePadFheSecretMask, Tag)>::deserialize(deserializer)?;
-        Ok(Self::new_cpu(mask, tag))
-    }
-}
-
-// Only CPU data are serialized so we only versionize the CPU type.
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
-pub struct OneTimePadFheSecretMaskVersionOwned {
-    key: <ShortintOneTimePadFheSecretMask as VersionizeOwned>::VersionedOwned,
-    tag: <Tag as VersionizeOwned>::VersionedOwned,
-}
-
-impl Versionize for OneTimePadFheSecretMask {
-    type Versioned<'vers> = OneTimePadFheSecretMaskVersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        OneTimePadFheSecretMaskVersionedOwned::V0(OneTimePadFheSecretMaskVersionOwned {
-            key: self.to_cpu_key().versionize_owned(),
-            tag: self.tag.clone().versionize_owned(),
-        })
-    }
-}
-
-impl VersionizeOwned for OneTimePadFheSecretMask {
-    type VersionedOwned = OneTimePadFheSecretMaskVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        OneTimePadFheSecretMaskVersionedOwned::V0(OneTimePadFheSecretMaskVersionOwned {
-            key: self.to_cpu_key().versionize_owned(),
-            tag: self.tag.versionize_owned(),
-        })
-    }
-}
-
-impl Unversionize for OneTimePadFheSecretMask {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        match versioned {
-            OneTimePadFheSecretMaskVersionedOwned::V0(v0) => Ok(Self::new_cpu(
-                ShortintOneTimePadFheSecretMask::unversionize(v0.key)?,
-                Tag::unversionize(v0.tag)?,
-            )),
-        }
     }
 }
 
