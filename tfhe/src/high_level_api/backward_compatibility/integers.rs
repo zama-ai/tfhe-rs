@@ -6,8 +6,14 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 use self::signed::SignedRadixCiphertext;
 use self::unsigned::RadixCiphertext as UnsignedRadixCiphertext;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
-use crate::high_level_api::integers::signed::InnerSquashedNoiseSignedRadixCiphertext;
-use crate::high_level_api::integers::unsigned::InnerSquashedNoiseRadixCiphertext;
+use crate::high_level_api::integers::signed::{
+    InnerSquashedNoiseSignedRadixCiphertext, SerializableInnerSquashedNoiseSignedRadixCiphertext,
+    SerializableSignedRadixCiphertext,
+};
+use crate::high_level_api::integers::unsigned::{
+    InnerSquashedNoiseRadixCiphertext, SerializableInnerSquashedNoiseRadixCiphertext,
+    SerializableRadixCiphertext,
+};
 use crate::high_level_api::integers::*;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::SquashedNoiseCiphertextState;
@@ -23,17 +29,17 @@ use crate::integer::ciphertext::{
 use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 use crate::shortint::{Ciphertext, ServerKey};
 use crate::Tag;
-use serde::{Deserialize, Serialize};
 
-// Manual impl
-#[derive(Serialize, Deserialize)]
-pub(crate) enum SignedRadixCiphertextVersionedOwned {
-    V0(SignedRadixCiphertextVersionOwned),
+#[derive(VersionsDispatch)]
+#[allow(unused)]
+pub(crate) enum SerializableSignedRadixCiphertextVersions {
+    V0(SerializableSignedRadixCiphertext),
 }
 
-#[derive(Serialize, Deserialize)]
-pub(crate) enum UnsignedRadixCiphertextVersionedOwned {
-    V0(UnsignedRadixCiphertextVersionOwned),
+#[derive(VersionsDispatch)]
+#[allow(unused)]
+pub(crate) enum SerializableRadixCiphertextVersions {
+    V0(SerializableRadixCiphertext),
 }
 
 // This method was used to decompress a ciphertext in tfhe-rs < 0.7
@@ -278,11 +284,10 @@ pub enum CompressedFheUintVersions<Id: FheUintId> {
     V1(CompressedFheUint<Id>),
 }
 
-// Squashed Noise
-// Manual impl
-#[derive(Serialize, Deserialize)]
-pub(crate) enum InnerSquashedNoiseRadixCiphertextVersionedOwned {
-    V0(InnerSquashedNoiseRadixCiphertextVersionOwned),
+#[derive(VersionsDispatch)]
+#[allow(unused)]
+pub(crate) enum SerializableInnerSquashedNoiseRadixCiphertextVersions {
+    V0(SerializableInnerSquashedNoiseRadixCiphertext),
 }
 
 #[derive(Version)]
@@ -309,10 +314,10 @@ pub enum SquashedNoiseFheUintVersions {
     V1(SquashedNoiseFheUint),
 }
 
-// Manual impl
-#[derive(Serialize, Deserialize)]
-pub(crate) enum InnerSquashedNoiseSignedRadixCiphertextVersionedOwned {
-    V0(InnerSquashedNoiseSignedRadixCiphertextVersionOwned),
+#[derive(VersionsDispatch)]
+#[allow(unused)]
+pub(crate) enum SerializableInnerSquashedNoiseSignedRadixCiphertextVersions {
+    V0(SerializableInnerSquashedNoiseSignedRadixCiphertext),
 }
 
 #[derive(Version)]
