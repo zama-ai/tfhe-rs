@@ -21,6 +21,13 @@
 #include <cstdlib>
 #include <string>
 
+static_assert(sizeof(f128x2) ==
+                  PBS128_DOUBLES_PER_FOURIER_COEFFICIENT * sizeof(double),
+              "pbs_buffer<__uint128_t, ...> sizes its Fourier buffers "
+              "assuming f128x2 is four doubles with no padding");
+static_assert(pbs_fft_traits<__uint128_t>::coefficient_bytes == sizeof(f128x2),
+              "pbs_fft_traits<__uint128_t> must describe f128x2");
+
 // Launch bounds for the register-based step one specialized on the 2_2 noise
 // squashing parameters (512 threads = degree/opt for N=2048, min 2 blocks per
 // SM). Guarded because debug builds use more registers and would otherwise
@@ -669,7 +676,7 @@ __global__ void device_programmable_bootstrap_tbc_128(
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_cg_128(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
@@ -701,17 +708,18 @@ __host__ uint64_t scratch_programmable_bootstrap_cg_128(
   }
 
   uint64_t size_tracker = 0;
-  *buffer = new pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>(
+  *buffer = new pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count, PBS_VARIANT::CG,
-      allocate_gpu_memory, noise_reduction_type, size_tracker);
+      level_count, input_lwe_ciphertext_count,
+      pbs_variant_tag<PBS_VARIANT::CG>{}, allocate_gpu_memory,
+      noise_reduction_type, size_tracker);
   return size_tracker;
 }
 
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
@@ -856,10 +864,11 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
   }
 
   uint64_t size_tracker = 0;
-  *buffer = new pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>(
+  *buffer = new pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, noise_reduction_type, size_tracker);
+      level_count, input_lwe_ciphertext_count,
+      pbs_variant_tag<PBS_VARIANT::DEFAULT>{}, allocate_gpu_memory,
+      noise_reduction_type, size_tracker);
   return size_tracker;
 }
 
@@ -867,7 +876,7 @@ template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap_128(
     uint32_t polynomial_size, uint32_t max_shared_memory) {
   uint64_t minimum_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_128_tbc<Torus>(
+      get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
           polynomial_size);
 
   if (max_shared_memory < minimum_sm) {
@@ -897,7 +906,7 @@ supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
   return false;
 #else
   uint64_t full_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
+      get_buffer_size_full_sm_programmable_bootstrap_tbc<__uint128_t>(
           polynomial_size);
 
   int cluster_size;
@@ -1167,7 +1176,7 @@ __host__ void execute_host_driven_tbc_128(
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_host_driven_tbc_128(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
@@ -1178,10 +1187,11 @@ __host__ uint64_t scratch_programmable_bootstrap_host_driven_tbc_128(
                                 PBS128_SNS_GLWE_DIMENSION>();
 
   uint64_t size_tracker = 0;
-  *buffer = new pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>(
+  *buffer = new pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count, PBS_VARIANT::TBC_HOST_DRIVEN,
-      allocate_gpu_memory, noise_reduction_type, size_tracker);
+      level_count, input_lwe_ciphertext_count,
+      pbs_variant_tag<PBS_VARIANT::TBC_HOST_DRIVEN>{}, allocate_gpu_memory,
+      noise_reduction_type, size_tracker);
   return size_tracker;
 }
 
@@ -1190,7 +1200,7 @@ __host__ void host_programmable_bootstrap_host_driven_tbc_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t base_log_rt, uint32_t level_count_rt,
     uint32_t input_lwe_ciphertext_count) {
@@ -1255,7 +1265,7 @@ __host__ void host_programmable_bootstrap_host_driven_tbc_128(
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
@@ -1268,7 +1278,7 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
           __uint128_t>(polynomial_size, max_shared_memory);
 
   uint64_t full_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
+      get_buffer_size_full_sm_programmable_bootstrap_tbc<__uint128_t>(
           polynomial_size);
 #if CUDA_ARCH >= 900
   check_cuda_error(cudaFuncSetAttribute(
@@ -1282,13 +1292,16 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
       device_programmable_bootstrap_tbc_128<InputTorus, params, FULLSM>,
       cudaFuncAttributeNonPortableClusterSizeAllowed, true));
   check_cuda_error(cudaGetLastError());
-#endif
   uint64_t size_tracker = 0;
-  *buffer = new pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>(
+  *buffer = new pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count, PBS_VARIANT::TBC,
-      allocate_gpu_memory, noise_reduction_type, size_tracker);
+      level_count, input_lwe_ciphertext_count,
+      pbs_variant_tag<PBS_VARIANT::TBC>{}, allocate_gpu_memory,
+      noise_reduction_type, size_tracker);
   return size_tracker;
+#else
+  PANIC("Cuda error (PBS): unsupported implementation variant.")
+#endif
 }
 
 /*
@@ -1344,13 +1357,12 @@ inline bool is_relaxed_pbs128_requested() {
 template <typename InputTorus>
 uint64_t scratch_cuda_programmable_bootstrap_128_vector(
     void *stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **pbs_buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  auto buffer = (pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> **)pbs_buffer;
 
   // The host-driven TBC flavor uses relaxed arithmetic and is
   // experimental, so it is never selected on its own: it has to be asked for
@@ -1568,7 +1580,7 @@ __host__ void host_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *pbs_buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *pbs_buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
@@ -1664,7 +1676,7 @@ __host__ void host_programmable_bootstrap_cg_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
@@ -1735,7 +1747,7 @@ __host__ void host_programmable_bootstrap_tbc_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> *buffer,
+    pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count) {
@@ -1761,7 +1773,7 @@ __host__ void host_programmable_bootstrap_tbc_128(
           __uint128_t>(polynomial_size, max_shared_memory);
 
   uint64_t full_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
+      get_buffer_size_full_sm_programmable_bootstrap_tbc<__uint128_t>(
           polynomial_size);
 
   auto noise_reduction_type = buffer->noise_reduction_type;
