@@ -1,7 +1,6 @@
 use crate::core_crypto::prelude::Numeric;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto, PaddingBitValue};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
 
 pub trait TwosComplementNegation {
@@ -114,49 +113,5 @@ impl ServerKey {
             self.key
                 .unchecked_scalar_add_assign(ciphertext_block, scalar_block);
         }
-    }
-
-    /// Verifies if the subtraction of a ciphertext by scalar can be computed.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
-    ///
-    /// let msg = 40u64;
-    /// let scalar = 2u64;
-    ///
-    /// let ct1 = cks.encrypt(msg);
-    ///
-    /// // Check if we can perform an addition
-    /// sks.is_scalar_sub_possible(&ct1, scalar).unwrap();
-    /// ```
-    pub fn is_scalar_sub_possible<T, Scalar>(
-        &self,
-        ct: &T,
-        scalar: Scalar,
-    ) -> Result<(), CheckError>
-    where
-        T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
-    {
-        let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
-            // subtraction by zero
-            return Ok(());
-        };
-        ct.blocks()
-            .iter()
-            .zip(decomposer)
-            .try_for_each(|(ciphertext_block, scalar_block)| {
-                // The decomposer gives the block of the negated
-                // scalar (-scalar) that we will be adding
-                self.key
-                    .is_scalar_add_possible(ciphertext_block.noise_degree(), scalar_block)
-            })
     }
 }
