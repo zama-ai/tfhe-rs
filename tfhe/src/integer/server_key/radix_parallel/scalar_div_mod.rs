@@ -422,7 +422,7 @@ impl ServerKey {
 
             quotient
         } else {
-            let shifted_n = self.unchecked_scalar_right_shift(numerator, shift_pre);
+            let shifted_n = self.unchecked_scalar_right_shift_parallelized(numerator, shift_pre);
             let mut quotient = self.scalar_mul_high(&shifted_n, chosen_multiplier.multiplier);
             self.unchecked_scalar_right_shift_assign_parallelized(
                 &mut quotient,

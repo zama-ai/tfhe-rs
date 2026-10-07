@@ -106,7 +106,7 @@ impl ServerKey {
         Scalar: DecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
+            self.full_propagate_parallelized(lhs);
         }
         self.unchecked_scalar_bitand_assign_parallelized(lhs, rhs);
     }
@@ -207,7 +207,7 @@ impl ServerKey {
         Scalar: DecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
+            self.full_propagate_parallelized(lhs);
         }
         self.unchecked_scalar_bitor_assign_parallelized(lhs, rhs);
     }
@@ -308,7 +308,7 @@ impl ServerKey {
         Scalar: DecomposableInto<u8>,
     {
         if !lhs.block_carries_are_empty() {
-            self.full_propagate(lhs);
+            self.full_propagate_parallelized(lhs);
         }
         self.unchecked_scalar_bitxor_assign_parallelized(lhs, rhs);
     }
