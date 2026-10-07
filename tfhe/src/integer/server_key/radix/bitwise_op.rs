@@ -1,47 +1,6 @@
-use crate::integer::{BooleanBlock, IntegerCiphertext, ServerKey};
-use crate::shortint::CheckError;
+use crate::integer::{BooleanBlock, ServerKey};
 
 impl ServerKey {
-    /// Verifies if a bivariate functional pbs can be applied on ct_left and ct_right.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let size = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg1 = 46u64;
-    /// let msg2 = 87u64;
-    ///
-    /// let ct1 = cks.encrypt(msg1);
-    /// let ct2 = cks.encrypt(msg2);
-    ///
-    /// sks.is_functional_bivariate_pbs_possible(&ct1, &ct2)
-    ///     .unwrap();
-    /// ```
-    pub fn is_functional_bivariate_pbs_possible<T>(
-        &self,
-        ct_left: &T,
-        ct_right: &T,
-    ) -> Result<(), CheckError>
-    where
-        T: IntegerCiphertext,
-    {
-        for (ct_left_i, ct_right_i) in ct_left.blocks().iter().zip(ct_right.blocks().iter()) {
-            self.key.is_functional_bivariate_pbs_possible(
-                ct_left_i.noise_degree(),
-                ct_right_i.noise_degree(),
-                None,
-            )?;
-        }
-        Ok(())
-    }
-
     /// Computes homomorphically a bitand between two boolean ciphertexts
     ///
     /// # Example

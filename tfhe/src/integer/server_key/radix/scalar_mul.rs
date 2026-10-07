@@ -1,6 +1,5 @@
 use crate::core_crypto::prelude::{Numeric, SignedInteger};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
-use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
 
 pub trait ScalarMultiplier: Numeric {
@@ -113,43 +112,6 @@ impl ServerKey {
         for ct_i in ctxt.blocks.iter_mut() {
             self.key.unchecked_scalar_mul_assign(ct_i, scalar as u8);
         }
-    }
-
-    ///Verifies if ct1 can be multiplied by scalar.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
-    ///
-    /// let msg = 25u64;
-    /// let scalar1 = 3;
-    ///
-    /// let ct = cks.encrypt(msg);
-    ///
-    /// // Verification if the scalar multiplication can be computed:
-    /// sks.is_small_scalar_mul_possible(&ct, scalar1).unwrap();
-    ///
-    /// let scalar2 = 7;
-    /// // Verification if the scalar multiplication can be computed:
-    /// let res = sks.is_small_scalar_mul_possible(&ct, scalar2);
-    /// assert!(res.is_err());
-    /// ```
-    pub fn is_small_scalar_mul_possible(
-        &self,
-        ctxt: &RadixCiphertext,
-        scalar: u64,
-    ) -> Result<(), CheckError> {
-        for ct_i in ctxt.blocks.iter() {
-            self.key
-                .is_scalar_mul_possible(ct_i.noise_degree(), scalar as u8)?;
-        }
-        Ok(())
     }
 
     /// # Example

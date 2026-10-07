@@ -1,5 +1,4 @@
 use crate::integer::{CrtCiphertext, ServerKey};
-use crate::shortint::CheckError;
 
 impl ServerKey {
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
@@ -77,17 +76,5 @@ impl ServerKey {
     ) {
         let neg = self.unchecked_crt_neg(ctxt_right);
         self.unchecked_crt_add_assign(ctxt_left, &neg);
-    }
-
-    pub fn is_crt_sub_possible(
-        &self,
-        ctxt_left: &CrtCiphertext,
-        ctxt_right: &CrtCiphertext,
-    ) -> Result<(), CheckError> {
-        for (ct_left_i, ct_right_i) in ctxt_left.blocks.iter().zip(ctxt_right.blocks.iter()) {
-            self.key
-                .is_sub_possible(ct_left_i.noise_degree(), ct_right_i.noise_degree())?;
-        }
-        Ok(())
     }
 }
