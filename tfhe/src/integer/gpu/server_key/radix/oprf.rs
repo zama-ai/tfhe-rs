@@ -667,7 +667,6 @@ where
                         target_sks.message_modulus,
                         target_sks.carry_modulus,
                         total_random_bits as u32,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_bsk) => {
@@ -682,7 +681,6 @@ where
                         target_sks.message_modulus,
                         target_sks.carry_modulus,
                         total_random_bits as u32,
-                        None,
                     );
                 }
             }
@@ -1020,7 +1018,6 @@ where
                     computing_ks_key.params_ffi(),
                     target_sks.message_modulus,
                     target_sks.carry_modulus,
-                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                     apply_rerand,
                     zero_lwes,
                     rerand_keyswitch_key,
@@ -1045,7 +1042,6 @@ where
                     computing_ks_key.params_ffi(),
                     target_sks.message_modulus,
                     target_sks.carry_modulus,
-                    None,
                     apply_rerand,
                     zero_lwes,
                     rerand_keyswitch_key,
@@ -1078,7 +1074,6 @@ where
                 target_sks.message_modulus,
                 target_sks.carry_modulus,
                 message_bits,
-                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
                 streams,
@@ -1088,7 +1083,6 @@ where
                 target_sks.message_modulus,
                 target_sks.carry_modulus,
                 message_bits,
-                None,
             ),
         }
     }

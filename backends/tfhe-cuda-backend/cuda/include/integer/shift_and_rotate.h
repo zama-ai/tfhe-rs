@@ -106,7 +106,7 @@ template <typename Torus> struct int_shift_and_rotate_by_bits_buffer {
         return current_bit;
     };
     auto active_gpu_count_mux = streams.active_gpu_subset(
-        bits_per_block * num_radix_blocks, params.pbs_type);
+        bits_per_block * num_radix_blocks, params.pbs_type());
 
     mux_lut->generate_and_broadcast_lut(active_gpu_count_mux, {0}, {mux_lut_f},
                                         LUT_0_FOR_ALL_BLOCKS);
@@ -337,7 +337,7 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
         h_lut_indexes[i] = (i == num_radix_blocks - 1) ? 1 : 0;
     };
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
 
     // Two LUTs (normal + sign-extended) only when the sign-extended variant
     // is actually needed; a logical shift or a rotation uses one for all
@@ -396,7 +396,7 @@ template <typename Torus> struct int_shift_and_rotate_by_block_buffer {
       alloc(&saved_top_block, 1);
 
       auto active_streams_single =
-          streams.active_gpu_subset(1, params.pbs_type);
+          streams.active_gpu_subset(1, params.pbs_type());
       // Extracts the input's sign bit (the MSB of its top block). The
       // overshift fixup needs it to decide between -1 and 0 when the shift
       // amount is >= the bit width.
@@ -578,7 +578,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
       return x % params.message_modulus;
     };
     auto active_gpu_count_cleaning =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     cleaning_lut->generate_and_broadcast_lut(
         active_gpu_count_cleaning, {0}, {cleaning_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
@@ -682,7 +682,8 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
       auto pack_f = [message_modulus](Torus x) -> Torus {
         return (x % message_modulus) * message_modulus;
       };
-      auto active_streams_pack = streams.active_gpu_subset(1, params.pbs_type);
+      auto active_streams_pack =
+          streams.active_gpu_subset(1, params.pbs_type());
       overshift_pack_lut->generate_and_broadcast_lut(
           active_streams_pack, {0}, {pack_f}, LUT_0_FOR_ALL_BLOCKS);
 
@@ -712,7 +713,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         };
       }
       auto active_streams_cleanup =
-          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
       overshift_cleanup_lut->generate_and_broadcast_lut(
           active_streams_cleanup, {0}, {cleanup_f}, LUT_0_FOR_ALL_BLOCKS);
     }

@@ -96,7 +96,7 @@ template <typename Torus> struct int_fast_kreyvium_lut_buffers {
     };
 
     auto active_streams =
-        streams.active_gpu_subset(bitext_ops, params.pbs_type);
+        streams.active_gpu_subset(bitext_ops, params.pbs_type());
     this->bitext_lut->generate_and_broadcast_lut(
         active_streams, {0}, {bitext_lambda}, LUT_0_FOR_ALL_BLOCKS,
         /*use_encoding=*/false);

@@ -39,7 +39,7 @@ template <typename Torus> struct int_mul_memory {
                                    allocate_gpu_memory, size_tracker);
 
       auto active_streams =
-          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
       zero_out_predicate_lut->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {zero_out_predicate_lut_f},
           LUT_0_FOR_ALL_BLOCKS);
@@ -101,7 +101,7 @@ template <typename Torus> struct int_mul_memory {
     // last msb_vector_block_count values should reference to msb_acc
     // for message and carry default lut_indexes_vec is fine
     auto active_streams =
-        streams.active_gpu_subset(total_block_count, params.pbs_type);
+        streams.active_gpu_subset(total_block_count, params.pbs_type());
     auto lut_index_generator = [lsb_vector_block_count](Torus *h_lut_indexes,
                                                         uint32_t num_indexes) {
       for (uint32_t i = 0; i < num_indexes; i++) {

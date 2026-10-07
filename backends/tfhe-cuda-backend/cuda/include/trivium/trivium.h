@@ -8,8 +8,7 @@ uint64_t scratch_cuda_trivium_init_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_inputs);
+    uint32_t carry_modulus, bool allocate_gpu_memory, uint32_t num_inputs);
 
 void cuda_trivium_init_async(CudaStreamsFFI streams,
                              CudaRadixCiphertextFFI *a_reg,
@@ -25,8 +24,7 @@ uint64_t scratch_cuda_trivium_step_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_inputs);
+    uint32_t carry_modulus, bool allocate_gpu_memory, uint32_t num_inputs);
 
 void cuda_trivium_step_async(CudaStreamsFFI streams,
                              CudaRadixCiphertextFFI *keystream_output,

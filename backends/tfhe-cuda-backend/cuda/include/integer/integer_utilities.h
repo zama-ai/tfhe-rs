@@ -364,8 +364,24 @@ inline void calculate_final_degrees(uint64_t *const out_degrees,
   }
 }
 
+/// @brief Builds the PBS type parameters matching the bootstrap key type.
+/// @param bsk_params Bootstrap key parameters; its pbs_type selects the
+/// active member of its pbs_params union.
+inline pbs_type_params
+pbs_type_params_from_ffi(const CudaLweBootstrapKeyParamsFFI &bsk_params) {
+  switch (bsk_params.pbs_type) {
+  case PBS_TYPE::CLASSICAL:
+    return classical_pbs_params{static_cast<PBS_MS_REDUCTION_T>(
+        bsk_params.pbs_params.classical.noise_reduction_type)};
+  case PBS_TYPE::MULTI_BIT:
+    return multi_bit_pbs_params{
+        bsk_params.pbs_params.multi_bit.grouping_factor};
+  default:
+    PANIC("Error: unsupported cuda PBS type %u.", bsk_params.pbs_type)
+  }
+}
+
 struct int_radix_params {
-  PBS_TYPE pbs_type;
   uint32_t glwe_dimension;
   uint32_t polynomial_size;
   uint32_t big_lwe_dimension;
@@ -374,41 +390,32 @@ struct int_radix_params {
   uint32_t ks_base_log;
   uint32_t pbs_level;
   uint32_t pbs_base_log;
-  uint32_t grouping_factor;
   uint32_t message_modulus;
   uint32_t carry_modulus;
-  PBS_MS_REDUCTION_T noise_reduction_type;
 
-  int_radix_params(PBS_TYPE pbs_type, uint32_t glwe_dimension,
+  int_radix_params(pbs_type_params pbs, uint32_t glwe_dimension,
                    uint32_t polynomial_size, uint32_t big_lwe_dimension,
                    uint32_t small_lwe_dimension, uint32_t ks_level,
                    uint32_t ks_base_log, uint32_t pbs_level,
-                   uint32_t pbs_base_log, uint32_t grouping_factor,
-                   uint32_t message_modulus, uint32_t carry_modulus,
-                   PBS_MS_REDUCTION_T noise_reduction_type)
+                   uint32_t pbs_base_log, uint32_t message_modulus,
+                   uint32_t carry_modulus)
 
-      : pbs_type(pbs_type), glwe_dimension(glwe_dimension),
-        polynomial_size(polynomial_size), big_lwe_dimension(big_lwe_dimension),
+      : glwe_dimension(glwe_dimension), polynomial_size(polynomial_size),
+        big_lwe_dimension(big_lwe_dimension),
         small_lwe_dimension(small_lwe_dimension), ks_level(ks_level),
         ks_base_log(ks_base_log), pbs_level(pbs_level),
-        pbs_base_log(pbs_base_log), grouping_factor(grouping_factor),
-        message_modulus(message_modulus), carry_modulus(carry_modulus),
-        noise_reduction_type(noise_reduction_type){};
+        pbs_base_log(pbs_base_log), message_modulus(message_modulus),
+        carry_modulus(carry_modulus), pbs_type_and_params(pbs){};
 
   int_radix_params(CudaLweBootstrapKeyParamsFFI bsk_params,
                    CudaLweKeyswitchKeyParamsFFI ksk_params,
-                   uint32_t message_modulus, uint32_t carry_modulus,
-                   PBS_MS_REDUCTION_T noise_reduction_type)
-      : pbs_type((PBS_TYPE)bsk_params.pbs_type),
-        glwe_dimension(bsk_params.glwe_dimension),
-        polynomial_size(bsk_params.polynomial_size),
-        big_lwe_dimension(bsk_params.big_lwe_dimension),
-        small_lwe_dimension(bsk_params.input_lwe_dimension),
-        ks_level(ksk_params.level_count), ks_base_log(ksk_params.base_log),
-        pbs_level(bsk_params.level_count), pbs_base_log(bsk_params.base_log),
-        grouping_factor(bsk_params.grouping_factor),
-        message_modulus(message_modulus), carry_modulus(carry_modulus),
-        noise_reduction_type(noise_reduction_type){};
+                   uint32_t message_modulus, uint32_t carry_modulus)
+      : int_radix_params(pbs_type_params_from_ffi(bsk_params),
+                         bsk_params.glwe_dimension, bsk_params.polynomial_size,
+                         bsk_params.big_lwe_dimension,
+                         bsk_params.input_lwe_dimension, ksk_params.level_count,
+                         ksk_params.base_log, bsk_params.level_count,
+                         bsk_params.base_log, message_modulus, carry_modulus){};
 
   int_radix_params() = default;
 
@@ -417,17 +424,42 @@ struct int_radix_params {
     return (message_modulus * carry_modulus - 1) / (message_modulus - 1);
   }
 
+  /// @brief PBS type tag together with its type specific parameters.
+  pbs_type_params pbs_params() const { return pbs_type_and_params; }
+
+  /// @brief PBS type tag, derived from the active alternative so it can never
+  /// disagree with pbs_params().
+  PBS_TYPE pbs_type() const {
+    return std::visit(
+        pbs_type_visitor{
+            [](const classical_pbs_params &) { return PBS_TYPE::CLASSICAL; },
+            [](const multi_bit_pbs_params &) { return PBS_TYPE::MULTI_BIT; }},
+        pbs_type_and_params);
+  }
+
   void print() {
     printf("pbs_type: %u, glwe_dimension: %u, "
            "polynomial_size: %u, "
            "big_lwe_dimension: %u, "
            "small_lwe_dimension: %u, ks_level: %u, ks_base_log: %u, pbs_level: "
            "%u, pbs_base_log: "
-           "%u, grouping_factor: %u, message_modulus: %u, carry_modulus: %u\n",
-           pbs_type, glwe_dimension, polynomial_size, big_lwe_dimension,
+           "%u, message_modulus: %u, carry_modulus: %u\n",
+           pbs_type(), glwe_dimension, polynomial_size, big_lwe_dimension,
            small_lwe_dimension, ks_level, ks_base_log, pbs_level, pbs_base_log,
-           grouping_factor, message_modulus, carry_modulus);
+           message_modulus, carry_modulus);
+    std::visit(pbs_type_visitor{[](classical_pbs_params classical) {
+                                  printf("noise_reduction_type: %u\n",
+                                         classical.noise_reduction_type);
+                                },
+                                [](multi_bit_pbs_params multi_bit) {
+                                  printf("grouping_factor: %u\n",
+                                         multi_bit.grouping_factor);
+                                }},
+               pbs_type_and_params);
   };
+
+private:
+  pbs_type_params pbs_type_and_params;
 };
 
 // Store things needed to apply LUTs
@@ -528,10 +560,10 @@ struct int_radix_lut_custom_input_output {
 
     if (sizeof(OutputTorus) == 16) {
       this->active_streams =
-          streams.active_gpu_subset_u128(num_radix_blocks, params.pbs_type);
+          streams.active_gpu_subset_u128(num_radix_blocks, params.pbs_type());
     } else {
       this->active_streams =
-          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     }
   }
 
@@ -548,7 +580,7 @@ struct int_radix_lut_custom_input_output {
         sizeof(OutputTorus) == 16
             ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
             : get_threshold_multi_gpu_classical();
-    int threshold = (params.pbs_type == PBS_TYPE::MULTI_BIT)
+    int threshold = (params.pbs_type() == PBS_TYPE::MULTI_BIT)
                         ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
                         : classical_threshold;
 
@@ -565,8 +597,7 @@ struct int_radix_lut_custom_input_output {
           active_streams.stream(i), active_streams.gpu_index(i),
           &gpu_pbs_buffer_raw, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
-          params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory, params.noise_reduction_type, size);
+          num_blocks_on_gpu, params.pbs_params(), allocate_gpu_memory, size);
       if (i == 0) {
         size_tracker += size;
       }
@@ -593,21 +624,21 @@ struct int_radix_lut_custom_input_output {
     /// back to the original indexing
     multi_gpu_alloc_lwe_async(active_streams, lwe_array_in_vec,
                               num_radix_blocks, params.big_lwe_dimension + 1,
-                              size_tracker, params.pbs_type,
+                              size_tracker, params.pbs_type(),
                               allocate_gpu_memory);
     multi_gpu_alloc_lwe_async(active_streams, lwe_after_ks_vec,
                               num_radix_blocks, params.small_lwe_dimension + 1,
-                              size_tracker, params.pbs_type,
+                              size_tracker, params.pbs_type(),
                               allocate_gpu_memory);
     if (num_many_lut > 1) {
       multi_gpu_alloc_lwe_many_lut_output_async(
           active_streams, lwe_after_pbs_vec, num_radix_blocks, num_many_lut,
-          params.big_lwe_dimension + 1, size_tracker, params.pbs_type,
+          params.big_lwe_dimension + 1, size_tracker, params.pbs_type(),
           allocate_gpu_memory);
     } else {
       multi_gpu_alloc_lwe_async(active_streams, lwe_after_pbs_vec,
                                 num_radix_blocks, params.big_lwe_dimension + 1,
-                                size_tracker, params.pbs_type,
+                                size_tracker, params.pbs_type(),
                                 allocate_gpu_memory);
     }
     multi_gpu_alloc_array_async(active_streams, lwe_trivial_indexes_vec,
@@ -995,7 +1026,7 @@ public:
         sizeof(OutputTorus) == 16
             ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
             : get_threshold_multi_gpu_classical();
-    int threshold = (params.pbs_type == PBS_TYPE::MULTI_BIT)
+    int threshold = (params.pbs_type() == PBS_TYPE::MULTI_BIT)
                         ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
                         : classical_threshold;
 
@@ -1330,7 +1361,7 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
      */
     auto total_blocks = bits_per_block * num_radix_blocks;
     auto active_streams =
-        streams.active_gpu_subset(total_blocks, params.pbs_type);
+        streams.active_gpu_subset(total_blocks, params.pbs_type());
 
     auto lut_index_generator =
         [num_radix_blocks, bits_per_block](Torus *h_lut_indexes, uint32_t) {
@@ -1578,7 +1609,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       };
 
       auto active_gpu_count_mc =
-          streams.active_gpu_subset(pbs_count, params.pbs_type);
+          streams.active_gpu_subset(pbs_count, params.pbs_type());
       luts_message_carry->generate_and_broadcast_lut(
           active_gpu_count_mc, {0, 1}, {lut_f_message, lut_f_carry},
           LUT_0_FOR_ALL_BLOCKS);
@@ -1738,7 +1769,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
       lut_indices.push_back(index);
     }
     auto active_streams =
-        streams.active_gpu_subset(num_seq_luts, params.pbs_type);
+        streams.active_gpu_subset(num_seq_luts, params.pbs_type());
     auto lut_index_generator = [](Torus *h_lut_indexes, uint32_t num_indexes) {
       for (uint32_t i = 0; i < num_indexes; i++)
         h_lut_indexes[i] = i;
@@ -1792,7 +1823,7 @@ template <typename Torus> struct int_hs_group_prop_memory {
         streams, params, 1, num_groups, allocate_gpu_memory, size_tracker);
 
     auto active_streams =
-        streams.active_gpu_subset(num_groups, params.pbs_type);
+        streams.active_gpu_subset(num_groups, params.pbs_type());
     lut_hillis_steele->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {f_lut_hillis_steele}, LUT_0_FOR_ALL_BLOCKS);
   }
@@ -1922,7 +1953,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
 
     // Generate the indexes to switch between luts within the pbs
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     auto lut_index_generator = [num_radix_blocks,
                                 grouping_size](Torus *h_lut_indexes, uint32_t) {
       for (int index = 0; index < num_radix_blocks; index++) {
@@ -2090,7 +2121,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     auto use_sequential_algorithm =
         use_sequential_algorithm_to_resolve_group_carries;
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     auto second_step_lut_index_generator =
         [num_radix_blocks, grouping_size,
          use_sequential_algorithm](Torus *h_buffer, uint32_t) {
@@ -2223,7 +2254,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
                "h_scalar_array_cum_sum/scalar_array_cum_sum allocation=%u",
                new_num_blocks, propagation_cum_sums->num_radix_blocks);
     auto new_active_streams = streams.active_gpu_subset(
-        new_num_blocks, luts_array_second_step->params.pbs_type);
+        new_num_blocks, luts_array_second_step->params.pbs_type());
     luts_array_second_step->set_lut_indexes_and_broadcast_from_gpu(
         new_active_streams, new_lut_indexes, new_num_blocks);
 
@@ -2364,7 +2395,7 @@ template <typename Torus> struct int_sc_prop_memory {
         return output1 << 3 | output2 << 2;
       };
 
-      auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+      auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
       lut_overflow_flag_prep->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {f_overflow_fp}, LUT_0_FOR_ALL_BLOCKS);
     }
@@ -2382,7 +2413,7 @@ template <typename Torus> struct int_sc_prop_memory {
     };
 
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks + 1, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks + 1, params.pbs_type());
 
     // For the final cleanup in case of overflow or carry (it seems that I can)
     // It seems that this lut could be apply together with the other one but for
@@ -2594,7 +2625,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
 
     // Generate the indexes to switch between luts within the pbs
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     auto lut_index_generator = [num_radix_blocks,
                                 grouping_size](Torus *h_lut_indexes, uint32_t) {
       for (int index = 0; index < num_radix_blocks; index++) {
@@ -2624,7 +2655,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
   void update_lut_indexes(CudaStreams streams, Torus *new_lut_indexes,
                           uint32_t new_num_blocks) {
     auto new_active_streams = streams.active_gpu_subset(
-        new_num_blocks, luts_array_first_step->params.pbs_type);
+        new_num_blocks, luts_array_first_step->params.pbs_type());
     luts_array_first_step->set_lut_indexes_and_broadcast_from_gpu(
         new_active_streams, new_lut_indexes, new_num_blocks);
   }
@@ -2713,7 +2744,7 @@ template <typename Torus> struct int_borrow_prop_memory {
     };
 
     active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
 
     lut_message_extract->generate_and_broadcast_lut(
         active_streams, {0}, {f_message_extract}, LUT_0_FOR_ALL_BLOCKS);
@@ -2732,7 +2763,7 @@ template <typename Torus> struct int_borrow_prop_memory {
     }
 
     active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     internal_streams.create_internal_cuda_streams_on_same_gpus(active_streams,
                                                                2);
   };

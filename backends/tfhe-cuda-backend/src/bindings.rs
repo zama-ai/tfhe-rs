@@ -503,6 +503,49 @@ const _: () = {
 };
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct CudaClassicalPbsParamsFFI {
+    pub noise_reduction_type: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaClassicalPbsParamsFFI"]
+        [::std::mem::size_of::<CudaClassicalPbsParamsFFI>() - 4usize];
+    ["Alignment of CudaClassicalPbsParamsFFI"]
+        [::std::mem::align_of::<CudaClassicalPbsParamsFFI>() - 4usize];
+    ["Offset of field: CudaClassicalPbsParamsFFI::noise_reduction_type"]
+        [::std::mem::offset_of!(CudaClassicalPbsParamsFFI, noise_reduction_type) - 0usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaMultiBitPbsParamsFFI {
+    pub grouping_factor: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaMultiBitPbsParamsFFI"]
+        [::std::mem::size_of::<CudaMultiBitPbsParamsFFI>() - 4usize];
+    ["Alignment of CudaMultiBitPbsParamsFFI"]
+        [::std::mem::align_of::<CudaMultiBitPbsParamsFFI>() - 4usize];
+    ["Offset of field: CudaMultiBitPbsParamsFFI::grouping_factor"]
+        [::std::mem::offset_of!(CudaMultiBitPbsParamsFFI, grouping_factor) - 0usize];
+};
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union CudaPbsTypeParamsFFI {
+    pub classical: CudaClassicalPbsParamsFFI,
+    pub multi_bit: CudaMultiBitPbsParamsFFI,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaPbsTypeParamsFFI"][::std::mem::size_of::<CudaPbsTypeParamsFFI>() - 4usize];
+    ["Alignment of CudaPbsTypeParamsFFI"][::std::mem::align_of::<CudaPbsTypeParamsFFI>() - 4usize];
+    ["Offset of field: CudaPbsTypeParamsFFI::classical"]
+        [::std::mem::offset_of!(CudaPbsTypeParamsFFI, classical) - 0usize];
+    ["Offset of field: CudaPbsTypeParamsFFI::multi_bit"]
+        [::std::mem::offset_of!(CudaPbsTypeParamsFFI, multi_bit) - 0usize];
+};
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct CudaLweBootstrapKeyParamsFFI {
     pub input_lwe_dimension: u32,
     pub glwe_dimension: u32,
@@ -511,7 +554,7 @@ pub struct CudaLweBootstrapKeyParamsFFI {
     pub level_count: u32,
     pub big_lwe_dimension: u32,
     pub pbs_type: u32,
-    pub grouping_factor: u32,
+    pub pbs_params: CudaPbsTypeParamsFFI,
 }
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
@@ -533,8 +576,8 @@ const _: () = {
         [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, big_lwe_dimension) - 20usize];
     ["Offset of field: CudaLweBootstrapKeyParamsFFI::pbs_type"]
         [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, pbs_type) - 24usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::grouping_factor"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, grouping_factor) - 28usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::pbs_params"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, pbs_params) - 28usize];
 };
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_64_async(
@@ -548,7 +591,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         lut_degree: u64,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -564,7 +606,6 @@ unsafe extern "C" {
         num_many_lut: u32,
         lut_degree: u64,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -610,7 +651,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -655,7 +695,6 @@ unsafe extern "C" {
         ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -696,7 +735,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -720,7 +758,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -757,7 +794,6 @@ unsafe extern "C" {
         shift_type: SHIFT_OR_ROTATE_TYPE,
         is_signed: bool,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -788,7 +824,6 @@ unsafe extern "C" {
         op_type: COMPARISON_TYPE,
         is_signed: bool,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -803,7 +838,6 @@ unsafe extern "C" {
         op_type: COMPARISON_TYPE,
         is_signed: bool,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -861,7 +895,6 @@ unsafe extern "C" {
         op_type: BITOP_TYPE,
         is_unchecked: bool,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -881,7 +914,6 @@ unsafe extern "C" {
         lwe_ciphertext_count: u32,
         is_unchecked: bool,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -916,7 +948,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         op_type: BITOP_TYPE,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -930,7 +961,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         op_type: BITOP_TYPE,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -977,7 +1007,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1006,7 +1035,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1036,7 +1064,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         requested_flag: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1050,7 +1077,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         requested_flag: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1103,7 +1129,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         compute_overflow: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1138,7 +1163,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         reduce_degrees_for_single_carry_propagation: bool,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1168,7 +1192,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         num_scalar_bits: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1198,7 +1221,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1234,7 +1256,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1260,7 +1281,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1290,7 +1310,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1344,7 +1363,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1371,7 +1389,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         requested_flag: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1405,7 +1422,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1435,7 +1451,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1467,7 +1482,6 @@ unsafe extern "C" {
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         active_bits_divisor: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1505,7 +1519,6 @@ unsafe extern "C" {
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         active_bits_divisor: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1542,7 +1555,6 @@ unsafe extern "C" {
         direction: Direction,
         bit_value: BitValue,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1572,7 +1584,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         allocate_gpu_memory: bool,
         total_random_bits: u32,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1603,7 +1614,6 @@ unsafe extern "C" {
         allocate_gpu_memory: bool,
         num_input_random_bits: u32,
         num_scalar_bits: u32,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         apply_rerand: bool,
         rerand_ksk_params: CudaLweKeyswitchKeyParamsFFI,
         rerand_mode: RERAND_MODE,
@@ -1645,7 +1655,6 @@ unsafe extern "C" {
         counter_num_blocks: u32,
         num_bits_in_ciphertext: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1677,7 +1686,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1712,7 +1720,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1744,7 +1751,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1777,7 +1783,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1807,7 +1812,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1840,7 +1844,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1874,7 +1877,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1910,7 +1912,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1956,7 +1957,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1992,7 +1992,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2028,7 +2027,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2061,7 +2059,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2097,7 +2094,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2131,7 +2127,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2165,7 +2160,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         input_is_signed: bool,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2194,7 +2188,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2226,7 +2219,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         apply_rerand: bool,
         rerand_ksk_params: CudaLweKeyswitchKeyParamsFFI,
         rerand_mode: RERAND_MODE,
@@ -2264,7 +2256,6 @@ unsafe extern "C" {
         num_radix_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
-        pbs_type: PBS_TYPE,
         num_lwes_stored_per_glwe: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
@@ -2282,7 +2273,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2328,7 +2318,6 @@ unsafe extern "C" {
         num_radix_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
-        pbs_type: PBS_TYPE,
         num_lwes_stored_per_glwe: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
@@ -2393,7 +2382,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    #[doc = " @brief Allocates the scratch buffer for kv_store get.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_key_blocks     Number of radix blocks per key\n @param num_value_blocks   Number of radix blocks per value\n @param noise_reduction_type  Noise reduction strategy for PBS"]
+    #[doc = " @brief Allocates the scratch buffer for kv_store get.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_key_blocks     Number of radix blocks per key\n @param num_value_blocks   Number of radix blocks per value"]
     pub fn scratch_cuda_kv_store_get_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2405,7 +2394,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2428,7 +2416,7 @@ unsafe extern "C" {
     pub fn cleanup_cuda_kv_store_get_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
-    #[doc = " @brief Allocates the scratch buffer for kv_store update.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_key_blocks     Number of radix blocks per key\n @param num_value_blocks   Number of radix blocks per value\n @param noise_reduction_type  Noise reduction strategy for PBS"]
+    #[doc = " @brief Allocates the scratch buffer for kv_store update.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_key_blocks     Number of radix blocks per key\n @param num_value_blocks   Number of radix blocks per value"]
     pub fn scratch_cuda_kv_store_update_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2440,7 +2428,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2463,7 +2450,7 @@ unsafe extern "C" {
     pub fn cleanup_cuda_kv_store_update_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
-    #[doc = " @brief Allocates the scratch buffer for kv_store map.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_value_blocks   Number of radix blocks per value\n @param noise_reduction_type  Noise reduction strategy for PBS"]
+    #[doc = " @brief Allocates the scratch buffer for kv_store map.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored key-value pairs\n @param num_value_blocks   Number of radix blocks per value"]
     pub fn scratch_cuda_kv_store_map_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2474,7 +2461,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2496,7 +2482,7 @@ unsafe extern "C" {
     pub fn cleanup_cuda_kv_store_map_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
-    #[doc = " @brief Allocates the scratch buffer for kv_store contains_key.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored keys\n @param num_key_blocks     Number of radix blocks per key\n @param noise_reduction_type  Noise reduction strategy for PBS"]
+    #[doc = " @brief Allocates the scratch buffer for kv_store contains_key.\n\n @param mem_ptr            Output pointer receiving the allocated scratch\n buffer\n @param bsk_params         Bootstrap key parameters (PBS type, dimensions,\n decomposition)\n @param ksk_params         Keyswitch key parameters (dimensions,\n decomposition)\n @param num_entries        Number of stored keys\n @param num_key_blocks     Number of radix blocks per key"]
     pub fn scratch_cuda_kv_store_contains_key_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -2507,7 +2493,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2562,7 +2547,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_aes_inputs: u32,
         sbox_parallelism: u32,
     ) -> u64;
@@ -2576,7 +2560,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_aes_inputs: u32,
         sbox_parallelism: u32,
     ) -> u64;
@@ -2615,7 +2598,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2656,7 +2638,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2684,7 +2665,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_inputs: u32,
     ) -> u64;
 }
@@ -2713,7 +2693,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_inputs: u32,
     ) -> u64;
 }
@@ -2742,7 +2721,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_inputs: u32,
     ) -> u64;
 }
@@ -2758,7 +2736,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_inputs: u32,
     ) -> u64;
 }
@@ -2809,7 +2786,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_inputs: u32,
     ) -> u64;
 }
@@ -2825,7 +2801,6 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
         num_inputs: u32,
     ) -> u64;
 }
@@ -2875,24 +2850,18 @@ unsafe extern "C" {
     pub fn scratch_cuda_expand_without_verification_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         computing_ksk_params: CudaLweKeyswitchKeyParamsFFI,
         casting_ksk_params: CudaLweKeyswitchKeyParamsFFI,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
         num_lwes_per_compact_list: *const u32,
         is_boolean_array: *const bool,
         is_boolean_array_len: u32,
         num_compact_lists: u32,
         message_modulus: u32,
         carry_modulus: u32,
-        pbs_type: PBS_TYPE,
         casting_key_type: KS_TYPE,
         allocate_gpu_memory: bool,
         expand_kind: EXPAND_KIND,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {

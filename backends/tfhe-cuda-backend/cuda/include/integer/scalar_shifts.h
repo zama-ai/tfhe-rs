@@ -87,7 +87,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
       // right shift
 
       auto active_streams =
-          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
       cur_lut_bivariate->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {shift_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
@@ -169,7 +169,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
 
       // right shift
       auto active_streams =
-          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
       cur_lut_bivariate->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {shift_lut_f}, LUT_0_FOR_ALL_BLOCKS);
       lut_buffers_bivariate.push_back(cur_lut_bivariate);
@@ -212,7 +212,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
                                      uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
 
-    auto active_streams = streams.active_gpu_subset(1, params.pbs_type);
+    auto active_streams = streams.active_gpu_subset(1, params.pbs_type());
     // In the arithmetic shift, a PBS has to be applied to the last rotated
     // block twice: once to shift it, once to compute the padding block to be
     // copied onto all blocks to the left of the last rotated block
@@ -262,7 +262,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       };
 
       auto active_streams_shift_last =
-          streams.active_gpu_subset(1, params.pbs_type);
+          streams.active_gpu_subset(1, params.pbs_type());
       shift_last_block_lut_univariate->generate_and_broadcast_lut(
           active_streams_shift_last, {0}, {last_block_lut_f},
           LUT_0_FOR_ALL_BLOCKS);
@@ -318,7 +318,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       };
 
       auto active_streams_shift_blocks =
-          streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+          streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
       shift_blocks_lut_bivariate->generate_and_broadcast_bivariate_lut(
           active_streams_shift_blocks, {0}, {blocks_lut_f},
           LUT_0_FOR_ALL_BLOCKS);

@@ -8,7 +8,10 @@ use crate::core_crypto::prelude::{
     GlweDimension, LweBskGroupingFactor, LweDimension, LweMultiBitBootstrapKey, PolynomialSize,
     UnsignedInteger,
 };
-use tfhe_cuda_backend::bindings::{CudaLweBootstrapKeyParamsFFI, PBS_TYPE_MULTI_BIT};
+use tfhe_cuda_backend::bindings::{
+    CudaLweBootstrapKeyParamsFFI, CudaMultiBitPbsParamsFFI, CudaPbsTypeParamsFFI,
+    PBS_TYPE_MULTI_BIT,
+};
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
@@ -122,7 +125,11 @@ impl<Scalar: UnsignedInteger> CudaBskParams for CudaLweMultiBitBootstrapKey<Scal
             )
             .unwrap(),
             pbs_type: PBS_TYPE_MULTI_BIT,
-            grouping_factor: u32::try_from(self.grouping_factor.0).unwrap(),
+            pbs_params: CudaPbsTypeParamsFFI {
+                multi_bit: CudaMultiBitPbsParamsFFI {
+                    grouping_factor: u32::try_from(self.grouping_factor.0).unwrap(),
+                },
+            },
         }
     }
 }

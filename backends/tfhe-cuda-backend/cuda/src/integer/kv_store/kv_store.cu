@@ -5,13 +5,13 @@ uint64_t scratch_cuda_kv_store_get_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t num_value_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch kv_store_get")
 
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   auto size = scratch_cuda_kv_store_get<uint64_t>(
       CudaStreams(streams), (int_kv_store_get_buffer<uint64_t> **)mem_ptr,
@@ -72,13 +72,13 @@ uint64_t scratch_cuda_kv_store_update_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t num_value_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch kv_store_update")
 
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   auto size = scratch_cuda_kv_store_update<uint64_t>(
       CudaStreams(streams), (int_kv_store_update_buffer<uint64_t> **)mem_ptr,
@@ -136,12 +136,12 @@ uint64_t scratch_cuda_kv_store_map_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_value_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch kv_store_map")
 
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   auto size = scratch_cuda_kv_store_map<uint64_t>(
       CudaStreams(streams), (int_kv_store_map_buffer<uint64_t> **)mem_ptr,
@@ -202,12 +202,12 @@ uint64_t scratch_cuda_kv_store_contains_key_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch kv_store_contains_key")
 
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   auto size = scratch_cuda_kv_store_contains_key<uint64_t>(
       CudaStreams(streams),

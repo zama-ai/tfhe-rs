@@ -32,7 +32,7 @@ template <typename Torus> struct int_aes_lut_buffers {
 
     auto active_streams_and_lut = streams.active_gpu_subset(
         SBOX_MAX_AND_GATES * num_aes_inputs * sbox_parallelism,
-        params.pbs_type);
+        params.pbs_type());
     this->and_lut->generate_and_broadcast_bivariate_lut(
         active_streams_and_lut, {0}, {and_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
@@ -44,7 +44,7 @@ template <typename Torus> struct int_aes_lut_buffers {
     };
 
     auto active_streams_flush_lut = streams.active_gpu_subset(
-        AES_STATE_BITS * num_aes_inputs, params.pbs_type);
+        AES_STATE_BITS * num_aes_inputs, params.pbs_type());
     this->flush_lut->generate_and_broadcast_lut(
         active_streams_flush_lut, {0}, {flush_lambda}, LUT_0_FOR_ALL_BLOCKS);
 
@@ -55,7 +55,7 @@ template <typename Torus> struct int_aes_lut_buffers {
     };
 
     auto active_streams_carry_lut =
-        streams.active_gpu_subset(num_aes_inputs, params.pbs_type);
+        streams.active_gpu_subset(num_aes_inputs, params.pbs_type());
     this->carry_lut->generate_and_broadcast_lut(
         active_streams_carry_lut, {0}, {carry_lambda}, LUT_0_FOR_ALL_BLOCKS);
   }
