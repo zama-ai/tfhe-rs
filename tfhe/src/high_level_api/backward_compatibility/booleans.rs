@@ -1,19 +1,18 @@
-use serde::{Deserialize, Serialize};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::high_level_api::booleans::{
-    InnerBoolean, InnerBooleanVersionOwned, InnerCompressedFheBool, InnerSquashedNoiseBoolean,
-    InnerSquashedNoiseBooleanVersionOwned, SquashedNoiseFheBool,
+    InnerBoolean, InnerCompressedFheBool, InnerSquashedNoiseBoolean, SerializableInnerBoolean,
+    SerializableInnerSquashedNoiseBoolean, SquashedNoiseFheBool,
 };
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::{CompressedFheBool, FheBool, Tag};
 use std::convert::Infallible;
 
-// Manual impl
-#[derive(Serialize, Deserialize)]
-pub(crate) enum InnerBooleanVersionedOwned {
-    V0(InnerBooleanVersionOwned),
+#[derive(VersionsDispatch)]
+#[allow(unused)]
+pub(crate) enum SerializableInnerBooleanVersions {
+    V0(SerializableInnerBoolean),
 }
 
 #[derive(Version)]
@@ -89,10 +88,10 @@ pub enum CompressedFheBoolVersions {
 }
 
 // Squashed Noise
-// Manual impl
-#[derive(Serialize, Deserialize)]
-pub(crate) enum InnerSquashedNoiseBooleanVersionedOwned {
-    V0(InnerSquashedNoiseBooleanVersionOwned),
+#[derive(VersionsDispatch)]
+#[allow(unused)]
+pub(crate) enum SerializableInnerSquashedNoiseBooleanVersions {
+    V0(SerializableInnerSquashedNoiseBoolean),
 }
 
 #[derive(Version)]

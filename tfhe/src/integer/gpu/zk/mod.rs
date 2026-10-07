@@ -194,19 +194,6 @@ impl CudaProvenCompactCiphertextList {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for CudaProvenCompactCiphertextList {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let cpu_ct = ProvenCompactCiphertextList::deserialize(deserializer)?;
-        let streams = CudaStreams::new_multi_gpu();
-
-        Self::from_proven_compact_ciphertext_list(&cpu_ct, &streams)
-            .map_err(<D::Error as serde::de::Error>::custom)
-    }
-}
-
 #[cfg(feature = "zk-pok")]
 #[cfg(test)]
 mod tests {
