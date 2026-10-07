@@ -1,7 +1,6 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::server_key::CheckError;
-use crate::integer::{BooleanBlock, ServerKey, SignedRadixCiphertext};
+use crate::integer::ServerKey;
 use crate::shortint::ciphertext::{Degree, MaxDegree, NoiseLevel};
 
 impl ServerKey {
@@ -132,23 +131,5 @@ impl ServerKey {
             extracted_carry_noise_level = NoiseLevel::NOMINAL;
         }
         Ok(())
-    }
-
-    pub fn unchecked_signed_overflowing_add(
-        &self,
-        lhs: &SignedRadixCiphertext,
-        rhs: &SignedRadixCiphertext,
-    ) -> (SignedRadixCiphertext, BooleanBlock) {
-        let mut result = lhs.clone();
-        let overflowed = self
-            .advanced_add_assign_with_carry_sequential_parallelized(
-                &mut result.blocks,
-                &rhs.blocks,
-                None,
-                OutputFlag::from_signedness(true),
-            )
-            .expect("overflow flag was requested");
-
-        (result, overflowed)
     }
 }

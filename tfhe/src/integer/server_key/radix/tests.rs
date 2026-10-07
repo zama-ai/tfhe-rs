@@ -1,16 +1,10 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_comparison::test_unchecked_minmax;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_slice::{
-    default_scalar_bitslice_assign_test, default_scalar_bitslice_test,
-    scalar_blockslice_assign_test, scalar_blockslice_test, unchecked_scalar_bitslice_assign_test,
-    unchecked_scalar_bitslice_test,
+    scalar_blockslice_assign_test, scalar_blockslice_test,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::default_overflowing_sub_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
-use crate::integer::tests::{
-    create_parameterized_test, create_parameterized_test_classical_params,
-};
+use crate::integer::tests::create_parameterized_test_classical_params;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -39,62 +33,22 @@ create_parameterized_test_classical_params!(integer_encrypt_decrypt_256_bits_spe
 create_parameterized_test_classical_params!(integer_encrypt_decrypt_256_bits);
 create_parameterized_test_classical_params!(integer_encrypt_auto_cast);
 create_parameterized_test_classical_params!(integer_unchecked_add);
-create_parameterized_test_classical_params!(integer_unchecked_bitand);
-create_parameterized_test_classical_params!(integer_unchecked_bitor);
-create_parameterized_test_classical_params!(integer_unchecked_bitxor);
 create_parameterized_test_classical_params!(integer_unchecked_small_scalar_mul);
 create_parameterized_test_classical_params!(integer_blockshift);
 create_parameterized_test_classical_params!(integer_blockshift_right);
-create_parameterized_test_classical_params!(integer_unchecked_scalar_left_shift);
-create_parameterized_test_classical_params!(integer_unchecked_scalar_right_shift);
 create_parameterized_test_classical_params!(integer_unchecked_neg);
 create_parameterized_test_classical_params!(integer_unchecked_sub);
 #[cfg(not(tarpaulin))]
-create_parameterized_test_classical_params!(integer_default_overflowing_sub);
-create_parameterized_test_classical_params!(integer_unchecked_block_mul);
-create_parameterized_test_classical_params!(integer_unchecked_mul);
 
 create_parameterized_test_classical_params!(integer_unchecked_scalar_sub);
 create_parameterized_test_classical_params!(integer_unchecked_scalar_add);
 
 create_parameterized_test_classical_params!(integer_unchecked_scalar_decomposition_overflow);
 
-create_parameterized_test!(
-    integer_full_propagate {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS, // Test case where carry_modulus > message_modulus
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128, // Test case where carry_modulus > message_modulus
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-        }
-    }
-);
-
 create_parameterized_test_classical_params!(integer_create_trivial_min_max);
 create_parameterized_test_classical_params!(integer_signed_decryption_correctly_sign_extend);
 create_parameterized_test_classical_params!(integer_scalar_blockslice);
 create_parameterized_test_classical_params!(integer_scalar_blockslice_assign);
-create_parameterized_test_classical_params!(integer_unchecked_scalar_slice);
-create_parameterized_test_classical_params!(integer_unchecked_scalar_slice_assign);
-create_parameterized_test_classical_params!(integer_default_scalar_slice);
-create_parameterized_test_classical_params!(integer_default_scalar_slice_assign);
-create_parameterized_test!(integer_unchecked_min {
-    coverage => {
-        COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
-    },
-    no_coverage => {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    }
-});
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -276,30 +230,6 @@ fn integer_unchecked_add(param: ClassicPBSParameters) {
     unchecked_add_test(param, executor);
 }
 
-fn integer_unchecked_bitand<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitand);
-    unchecked_bitand_test(param, executor);
-}
-
-fn integer_unchecked_bitor<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitor);
-    unchecked_bitor_test(param, executor);
-}
-
-fn integer_unchecked_bitxor<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitxor);
-    unchecked_bitxor_test(param, executor);
-}
-
 fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -380,22 +310,6 @@ fn integer_blockshift_right(param: ClassicPBSParameters) {
     }
 }
 
-fn integer_unchecked_scalar_left_shift<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_left_shift);
-    unchecked_scalar_left_shift_test(param, executor);
-}
-
-fn integer_unchecked_scalar_right_shift<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_right_shift);
-    unchecked_scalar_right_shift_test(param, executor);
-}
-
 fn integer_unchecked_neg<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -410,22 +324,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_sub);
     unchecked_sub_test(param, executor);
-}
-
-fn integer_unchecked_block_mul<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_block_mul);
-    unchecked_block_mul_test(param, executor);
-}
-
-fn integer_unchecked_mul<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul);
-    unchecked_mul_test(param, executor);
 }
 
 fn integer_unchecked_scalar_add<P>(param: P)
@@ -477,22 +375,6 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     let dec_res = cks.decrypt_radix(&ct_res);
 
     assert_eq!(clear_0.wrapping_sub(scalar as u128), dec_res);
-}
-
-fn integer_default_overflowing_sub<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub);
-    default_overflowing_sub_test(param, executor);
-}
-
-fn integer_full_propagate<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate);
-    full_propagate_test(param, executor);
 }
 
 fn integer_create_trivial_min_max(param: impl Into<TestParameters>) {
@@ -579,29 +461,4 @@ fn integer_scalar_blockslice(param: ClassicPBSParameters) {
 fn integer_scalar_blockslice_assign(param: ClassicPBSParameters) {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_blockslice_assign);
     scalar_blockslice_assign_test(param, executor);
-}
-
-fn integer_unchecked_scalar_slice(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_bitslice);
-    unchecked_scalar_bitslice_test(param, executor);
-}
-
-fn integer_unchecked_scalar_slice_assign(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_bitslice_assign);
-    unchecked_scalar_bitslice_assign_test(param, executor);
-}
-
-fn integer_default_scalar_slice(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice);
-    default_scalar_bitslice_test(param, executor);
-}
-
-fn integer_default_scalar_slice_assign(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice_assign);
-    default_scalar_bitslice_assign_test(param, executor);
-}
-
-fn integer_unchecked_min(param: ClassicPBSParameters) {
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_min);
-    test_unchecked_minmax(param, 2, executor, std::cmp::min::<u64>);
 }

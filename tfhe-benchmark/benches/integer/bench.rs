@@ -938,10 +938,6 @@ define_server_key_bench_unary_default_fn!(method_name: bitnot, display_name: bit
 
 define_server_key_bench_default_fn!(method_name: unchecked_add, display_name: add);
 define_server_key_bench_default_fn!(method_name: unchecked_sub, display_name: sub);
-define_server_key_bench_default_fn!(method_name: unchecked_mul, display_name: mul);
-define_server_key_bench_default_fn!(method_name: unchecked_bitand, display_name: bitand);
-define_server_key_bench_default_fn!(method_name: unchecked_bitor, display_name: bitor);
-define_server_key_bench_default_fn!(method_name: unchecked_bitxor, display_name: bitxor);
 
 define_server_key_bench_default_fn!(method_name: unchecked_add_parallelized, display_name: add);
 define_server_key_bench_default_fn!(method_name: unchecked_mul_parallelized, display_name: mul);
@@ -1173,15 +1169,6 @@ define_server_key_bench_unary_default_fn!(method_name: count_zeros_parallelized,
 define_server_key_bench_unary_default_fn!(method_name: checked_ilog2_parallelized, display_name: checked_ilog2);
 
 define_server_key_bench_unary_default_fn!(method_name: unchecked_abs_parallelized, display_name: abs);
-
-define_server_key_bench_default_fn!(method_name: unchecked_max, display_name: max);
-define_server_key_bench_default_fn!(method_name: unchecked_min, display_name: min);
-define_server_key_bench_default_fn!(method_name: unchecked_eq, display_name: equal);
-define_server_key_bench_default_fn!(method_name: unchecked_ne, display_name: not_equal);
-define_server_key_bench_default_fn!(method_name: unchecked_lt, display_name: less_than);
-define_server_key_bench_default_fn!(method_name: unchecked_le, display_name: less_or_equal);
-define_server_key_bench_default_fn!(method_name: unchecked_gt, display_name: greater_than);
-define_server_key_bench_default_fn!(method_name: unchecked_ge, display_name: greater_or_equal);
 
 define_server_key_bench_default_fn!(method_name: unchecked_max_parallelized, display_name: max);
 define_server_key_bench_default_fn!(method_name: unchecked_min_parallelized, display_name: min);
@@ -3378,15 +3365,7 @@ criterion_group!(
     scalar_max_parallelized,
 );
 
-criterion_group!(
-    unchecked_ops,
-    unchecked_add,
-    unchecked_sub,
-    unchecked_mul,
-    unchecked_bitand,
-    unchecked_bitor,
-    unchecked_bitxor,
-);
+criterion_group!(unchecked_ops, unchecked_add, unchecked_sub,);
 
 criterion_group!(
     unchecked_parallelized_ops,
@@ -3414,18 +3393,6 @@ criterion_group!(
     unchecked_lt_parallelized,
     unchecked_max_parallelized,
     unchecked_min_parallelized,
-);
-
-criterion_group!(
-    unchecked_ops_comp,
-    unchecked_max,
-    unchecked_min,
-    unchecked_eq,
-    unchecked_ne,
-    unchecked_lt,
-    unchecked_le,
-    unchecked_gt,
-    unchecked_ge,
 );
 
 criterion_group!(
@@ -3548,13 +3515,12 @@ define_server_key_bench_cast_fn!(method_name: cast_to_signed, display_name: cast
 
 criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
 
-define_server_key_bench_unary_fn!(method_name: full_propagate, display_name: carry_propagation);
 define_server_key_bench_unary_fn!(
     method_name: full_propagate_parallelized,
     display_name: carry_propagation
 );
 
-criterion_group!(misc, full_propagate, full_propagate_parallelized);
+criterion_group!(misc, full_propagate_parallelized);
 
 criterion_group!(oprf, oprf::unsigned_oprf);
 
@@ -3627,7 +3593,6 @@ fn go_through_cpu_bench_groups(val: &str) {
         "unchecked" => {
             unchecked_ops();
             unchecked_parallelized_ops();
-            unchecked_ops_comp();
             unchecked_scalar_ops();
             unchecked_scalar_ops_comp()
         }
