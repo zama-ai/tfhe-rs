@@ -101,8 +101,7 @@ if [[ "${BIG_TESTS_INSTANCE}" != TRUE ]]; then
         filter_expression_big_params="""\
 (\
    test(/^shortint::.*_param${multi_bit}_message_4_carry_4${multi_bit:+"_group_[0-9]"}(_compact_pk)?_ks_pbs/) \
-) \
-and not test(~smart_add_and_mul)"""
+)"""
 
     # Run tests only no examples or benches with big params and less threads
     cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest run \

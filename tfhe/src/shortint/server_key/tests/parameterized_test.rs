@@ -1,4 +1,4 @@
-use super::{NB_SUB_TEST_SMART, NB_TESTS, NB_TESTS_SMART};
+use super::{NB_SUB_TEST_PK, NB_TESTS, NB_TESTS_PK};
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
@@ -111,37 +111,27 @@ create_parameterized_test!(shortint_carry_extract);
 create_parameterized_test!(shortint_message_extract);
 create_parameterized_test!(shortint_generate_lookup_table);
 create_parameterized_test!(shortint_unchecked_add);
-create_parameterized_test!(shortint_smart_add);
 create_parameterized_test!(shortint_default_add);
-create_parameterized_test!(shortint_smart_mul_lsb);
 create_parameterized_test!(shortint_default_mul_lsb);
 create_parameterized_test!(shortint_unchecked_neg);
-create_parameterized_test!(shortint_smart_neg);
 create_parameterized_test!(shortint_default_neg);
 create_parameterized_test!(shortint_unchecked_scalar_add);
-create_parameterized_test!(shortint_smart_scalar_add);
 create_parameterized_test!(shortint_default_scalar_add);
 create_parameterized_test!(shortint_unchecked_scalar_sub);
-create_parameterized_test!(shortint_smart_scalar_sub);
 create_parameterized_test!(shortint_default_scalar_sub);
 create_parameterized_test!(shortint_unchecked_scalar_mul);
-create_parameterized_test!(shortint_smart_scalar_mul);
 create_parameterized_test!(shortint_default_scalar_mul);
 create_parameterized_test!(shortint_unchecked_right_shift);
 create_parameterized_test!(shortint_default_right_shift);
 create_parameterized_test!(shortint_unchecked_left_shift);
 create_parameterized_test!(shortint_default_left_shift);
 create_parameterized_test!(shortint_unchecked_sub);
-create_parameterized_test!(shortint_smart_sub);
 create_parameterized_test!(shortint_default_sub);
 create_parameterized_test!(shortint_mul_small_carry);
 create_parameterized_test!(shortint_mux);
 create_parameterized_test!(shortint_unchecked_scalar_bitand);
 create_parameterized_test!(shortint_unchecked_scalar_bitor);
 create_parameterized_test!(shortint_unchecked_scalar_bitxor);
-create_parameterized_test!(shortint_smart_scalar_bitand);
-create_parameterized_test!(shortint_smart_scalar_bitor);
-create_parameterized_test!(shortint_smart_scalar_bitxor);
 create_parameterized_test!(shortint_default_scalar_bitand);
 create_parameterized_test!(shortint_default_scalar_bitor);
 create_parameterized_test!(shortint_default_scalar_bitxor);
@@ -159,20 +149,20 @@ create_parameterized_test!(
 // 2_2 uncompressed keys take ~2 GB and 3_3 about ~34 GB, hence why we stop at 2_2.
 #[cfg(not(tarpaulin))]
 #[test]
-fn test_shortint_compressed_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
-    shortint_compressed_public_key_smart_add(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+fn test_shortint_compressed_public_key_add_param_message_1_carry_1_ks_pbs() {
+    shortint_compressed_public_key_add(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
 }
 
 #[cfg(not(tarpaulin))]
 #[test]
-fn test_shortint_public_key_smart_add_param_message_1_carry_1_ks_pbs() {
-    shortint_public_key_smart_add(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+fn test_shortint_public_key_add_param_message_1_carry_1_ks_pbs() {
+    shortint_public_key_add(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
 }
 
 #[cfg(not(tarpaulin))]
 #[test]
-fn test_shortint_public_key_smart_add_param_message_2_carry_2_ks_pbs() {
-    shortint_public_key_smart_add(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+fn test_shortint_public_key_add_param_message_2_carry_2_ks_pbs() {
+    shortint_public_key_add(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
 }
 
 #[test]
@@ -513,41 +503,6 @@ where
     }
 }
 
-fn shortint_smart_add<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-
-    for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt(clear_0);
-
-        let mut ctxt_1 = cks.encrypt(clear_1);
-
-        let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
-        let mut clear = clear_0 + clear_1;
-
-        for _ in 0..NB_SUB_TEST_SMART {
-            println!("SUB TEST");
-            ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
-            clear += clear_0;
-
-            let dec_res = cks.decrypt(&ct_res);
-
-            assert_eq!(clear % modulus, dec_res);
-        }
-    }
-}
-
 fn shortint_default_add<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -577,7 +532,7 @@ where
     }
 }
 
-fn shortint_compressed_public_key_smart_add<P>(param: P)
+fn shortint_compressed_public_key_add<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -589,20 +544,20 @@ where
 
     let modulus = cks.parameters().message_modulus().0;
 
-    for _ in 0..NB_TESTS_SMART {
+    for _ in 0..NB_TESTS_PK {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        let mut ctxt_0 = pk.encrypt(clear_0);
+        let ctxt_0 = pk.encrypt(clear_0);
 
-        let mut ctxt_1 = pk.encrypt(clear_1);
+        let ctxt_1 = pk.encrypt(clear_1);
 
-        let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
+        let mut ct_res = sks.add(&ctxt_0, &ctxt_1);
         let mut clear = clear_0 + clear_1;
 
-        for _ in 0..NB_SUB_TEST_SMART {
-            ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
+        for _ in 0..NB_SUB_TEST_PK {
+            ct_res = sks.add(&ct_res, &ctxt_0);
             clear += clear_0;
 
             let dec_res = cks.decrypt(&ct_res);
@@ -612,7 +567,7 @@ where
     }
 }
 
-fn shortint_public_key_smart_add<P>(param: P)
+fn shortint_public_key_add<P>(param: P)
 where
     P: Into<TestParameters>,
 {
@@ -624,20 +579,20 @@ where
 
     let modulus = cks.parameters().message_modulus().0;
 
-    for _ in 0..NB_TESTS_SMART {
+    for _ in 0..NB_TESTS_PK {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let clear_1 = rng.gen::<u64>() % modulus;
 
-        let mut ctxt_0 = pk.encrypt(clear_0);
+        let ctxt_0 = pk.encrypt(clear_0);
 
-        let mut ctxt_1 = pk.encrypt(clear_1);
+        let ctxt_1 = pk.encrypt(clear_1);
 
-        let mut ct_res = sks.smart_add(&mut ctxt_0, &mut ctxt_1);
+        let mut ct_res = sks.add(&ctxt_0, &ctxt_1);
         let mut clear = clear_0 + clear_1;
 
-        for _ in 0..NB_SUB_TEST_SMART {
-            ct_res = sks.smart_add(&mut ct_res, &mut ctxt_0);
+        for _ in 0..NB_SUB_TEST_PK {
+            ct_res = sks.add(&ct_res, &ctxt_0);
             clear += clear_0;
 
             let dec_res = cks.decrypt(&ct_res);
@@ -732,37 +687,6 @@ where
     }
 }
 
-fn shortint_smart_scalar_bitand<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
-
-    for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
-
-        let mut ctxt_0 = cks.encrypt(clear_0);
-
-        sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
-
-        clear_0 *= scalar as u64;
-
-        let ct_res = sks.smart_scalar_bitand(&mut ctxt_0, clear_1 as u8);
-
-        let dec_res = cks.decrypt(&ct_res);
-
-        assert_eq!(clear_0 & clear_1, dec_res);
-    }
-}
-
 fn shortint_default_scalar_bitand<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -790,37 +714,6 @@ where
         let dec_res = cks.decrypt(&ct_res);
 
         assert_eq!(clear_0 & clear_1, dec_res);
-    }
-}
-
-fn shortint_smart_scalar_bitor<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
-
-    for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
-
-        let mut ctxt_0 = cks.encrypt(clear_0);
-
-        sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
-
-        clear_0 *= scalar as u64;
-
-        let ct_res = sks.smart_scalar_bitor(&mut ctxt_0, clear_1 as u8);
-
-        let dec_res = cks.decrypt(&ct_res);
-
-        assert_eq!((clear_0 | clear_1) % modulus, dec_res);
     }
 }
 
@@ -854,37 +747,6 @@ where
     }
 }
 
-fn shortint_smart_scalar_bitxor<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
-
-    for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
-
-        let mut ctxt_0 = cks.encrypt(clear_0);
-
-        sks.unchecked_scalar_mul_assign(&mut ctxt_0, scalar);
-
-        clear_0 *= scalar as u64;
-
-        let ct_res = sks.smart_scalar_bitxor(&mut ctxt_0, clear_1 as u8);
-
-        let dec_res = cks.decrypt(&ct_res);
-
-        assert_eq!((clear_0 ^ clear_1) % modulus, dec_res);
-    }
-}
-
 fn shortint_default_scalar_bitxor<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -912,45 +774,6 @@ where
         let dec_res = cks.decrypt(&ct_res);
 
         assert_eq!((clear_0 ^ clear_1) % modulus, dec_res);
-    }
-}
-
-fn shortint_smart_mul_lsb<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-
-    for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt(clear_0);
-
-        let mut ctxt_1 = cks.encrypt(clear_1);
-
-        let mut ct_res = sks.smart_mul_lsb(&mut ctxt_0, &mut ctxt_1);
-
-        let mut clear = clear_0 * clear_1;
-
-        let dec_res = cks.decrypt(&ct_res);
-
-        assert_eq!(clear % modulus, dec_res);
-
-        for _ in 0..NB_SUB_TEST_SMART {
-            ct_res = sks.smart_mul_lsb(&mut ct_res, &mut ctxt_0);
-            clear = (clear * clear_0) % modulus;
-
-            let dec_res = cks.decrypt(&ct_res);
-
-            assert_eq!(clear, dec_res);
-        }
     }
 }
 
@@ -1010,38 +833,6 @@ where
     }
 }
 
-fn shortint_smart_neg<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-
-    for _ in 0..NB_TESTS_SMART {
-        let clear1 = rng.gen::<u64>() % modulus;
-
-        let mut ct1 = cks.encrypt(clear1);
-
-        let mut ct_res = sks.smart_neg(&mut ct1);
-
-        let mut clear_result = clear1.wrapping_neg() % modulus;
-
-        for _ in 0..NB_SUB_TEST_SMART {
-            ct_res = sks.smart_neg(&mut ct_res);
-
-            clear_result = clear_result.wrapping_neg() % modulus;
-
-            let dec_res = cks.decrypt(&ct_res);
-
-            assert_eq!(clear_result, dec_res);
-        }
-    }
-}
-
 fn shortint_default_neg<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -1091,39 +882,6 @@ where
         let dec_res = cks.decrypt(&ct_res);
 
         assert_eq!((clear + scalar) % message_modulus, dec_res as u8);
-    }
-}
-
-fn shortint_smart_scalar_add<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0 as u8;
-
-    for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u8>() % modulus;
-
-        let clear_1 = rng.gen::<u8>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt(clear_0 as u64);
-
-        let mut ct_res = sks.smart_scalar_add(&mut ctxt_0, clear_1);
-
-        let mut clear = (clear_0 + clear_1) % modulus;
-
-        for _ in 0..NB_SUB_TEST_SMART {
-            ct_res = sks.smart_scalar_add(&mut ct_res, clear_1);
-            clear = (clear + clear_1) % modulus;
-
-            let dec_res = cks.decrypt(&ct_res);
-
-            assert_eq!(clear, dec_res as u8);
-        }
     }
 }
 
@@ -1181,39 +939,6 @@ where
     }
 }
 
-fn shortint_smart_scalar_sub<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0 as u8;
-
-    for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u8>() % modulus;
-
-        let clear_1 = rng.gen::<u8>() % modulus;
-
-        let mut ctxt_0 = cks.encrypt(clear_0 as u64);
-
-        let mut ct_res = sks.smart_scalar_sub(&mut ctxt_0, clear_1);
-
-        let mut clear = clear_0.wrapping_sub(clear_1) % modulus;
-
-        for _ in 0..NB_SUB_TEST_SMART {
-            ct_res = sks.smart_scalar_sub(&mut ct_res, clear_1);
-            clear = clear.wrapping_sub(clear_1) % modulus;
-
-            let dec_res = cks.decrypt(&ct_res);
-
-            assert_eq!(clear, dec_res as u8);
-        }
-    }
-}
-
 fn shortint_default_scalar_sub<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -1266,40 +991,6 @@ where
         let dec_res = cks.decrypt(&ct_res);
 
         assert_eq!((clear * scalar) % message_modulus, dec_res as u8);
-    }
-}
-
-fn shortint_smart_scalar_mul<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0 as u8;
-
-    let scalar_modulus = cks.parameters().carry_modulus().0 as u8;
-
-    for _ in 0..NB_TESTS_SMART {
-        let clear = rng.gen::<u8>() % modulus;
-
-        let scalar = rng.gen::<u8>() % scalar_modulus;
-
-        let mut ct = cks.encrypt(clear as u64);
-
-        let mut ct_res = sks.smart_scalar_mul(&mut ct, scalar);
-
-        let mut clear_res = clear * scalar;
-        for _ in 0..NB_SUB_TEST_SMART {
-            ct_res = sks.smart_scalar_mul(&mut ct_res, scalar);
-            clear_res = (clear_res * scalar) % modulus;
-        }
-
-        let dec_res = cks.decrypt(&ct_res);
-
-        assert_eq!(clear_res, dec_res as u8);
     }
 }
 
@@ -1459,38 +1150,6 @@ where
     }
 }
 
-fn shortint_smart_sub<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-
-    for _ in 0..NB_TESTS_SMART {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
-
-        let mut ct1 = cks.encrypt(clear1);
-        let mut ct2 = cks.encrypt(clear2);
-
-        let mut ct_res = sks.smart_sub(&mut ct1, &mut ct2);
-
-        let mut clear_res = clear1.wrapping_sub(clear2) % modulus;
-        for _ in 0..NB_SUB_TEST_SMART {
-            ct_res = sks.smart_sub(&mut ct_res, &mut ct2);
-            clear_res = clear_res.wrapping_sub(clear2) % modulus;
-        }
-
-        let dec_res = cks.decrypt(&ct_res);
-
-        assert_eq!(clear_res, dec_res);
-    }
-}
-
 fn shortint_default_sub<P>(param: P)
 where
     P: Into<TestParameters>,
@@ -1642,13 +1301,13 @@ where
     let msg_false = rng.gen::<u64>() % modulus;
     let control_bit = rng.gen::<u64>() % 2;
 
-    let mut ct_true = cks.encrypt(msg_true);
-    let mut ct_false = cks.encrypt(msg_false);
-    let mut ct_control = cks.encrypt(control_bit);
+    let ct_true = cks.encrypt(msg_true);
+    let ct_false = cks.encrypt(msg_false);
+    let ct_control = cks.encrypt(control_bit);
 
-    let mut res = sks.smart_sub(&mut ct_true, &mut ct_false);
-    sks.smart_mul_lsb_assign(&mut res, &mut ct_control);
-    sks.smart_add_assign(&mut res, &mut ct_false);
+    let mut res = sks.sub(&ct_true, &ct_false);
+    sks.mul_lsb_assign(&mut res, &ct_control);
+    sks.add_assign(&mut res, &ct_false);
 
     let dec_res = cks.decrypt(&res);
 

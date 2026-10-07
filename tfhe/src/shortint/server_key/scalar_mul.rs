@@ -9,7 +9,7 @@ use crate::shortint::{Ciphertext, MaxNoiseLevel};
 impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -48,7 +48,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
     /// Compute homomorphically a multiplication of a ciphertext by a scalar.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -219,88 +219,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             .validate(ct.noise_level * u64::from(scalar))?;
 
         Ok(())
-    }
-
-    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
-    ///
-    /// This checks that the multiplication is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1_u64;
-    /// let scalar = 3_u8;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.smart_scalar_mul(&mut ct, scalar);
-    ///
-    /// // The input ciphertext content is not changed
-    /// assert_eq!(cks.decrypt(&ct), msg);
-    ///
-    /// // Our result is what we expect
-    /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(3, clear % modulus);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_mul(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        let mut ct_result = ct.clone();
-        self.smart_scalar_mul_assign(&mut ct_result, scalar);
-
-        ct_result
-    }
-
-    /// Compute homomorphically a multiplication of a ciphertext by a scalar.
-    ///
-    /// This checks that the multiplication is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1_u64;
-    /// let scalar = 3_u8;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// sks.smart_scalar_mul_assign(&mut ct, scalar);
-    ///
-    /// // Our result is what we expect
-    /// let clear = cks.decrypt(&ct);
-    /// assert_eq!(3, clear);
-    /// ```
-    pub fn smart_scalar_mul_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        // Direct scalar computation is possible
-        if self
-            .is_scalar_mul_possible(ct.noise_degree(), scalar)
-            .is_ok()
-        {
-            self.unchecked_scalar_mul_assign(ct, scalar);
-            ct.degree = Degree::new(ct.degree.get() * u64::from(scalar));
-        }
-        // If the ciphertext cannot be multiplied without exceeding the degree max
-        else {
-            self.evaluate_msg_univariate_function_assign(ct, |x| u64::from(scalar) * x);
-            ct.degree = Degree::new(self.message_modulus.0 - 1);
-        }
     }
 }
 

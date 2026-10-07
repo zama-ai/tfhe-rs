@@ -219,19 +219,6 @@ impl Degree {
     pub(crate) fn after_bitand(self, other: Self) -> Self {
         Self(cmp::min(self.0, other.0))
     }
-
-    pub(crate) fn after_left_shift(self, shift: u8, modulus: u64) -> Self {
-        let mut result = 0;
-
-        for i in 0..self.0 + 1 {
-            let tmp = (i << shift) % modulus;
-            if tmp > result {
-                result = tmp;
-            }
-        }
-
-        Self(result)
-    }
 }
 
 impl std::ops::AddAssign for Degree {

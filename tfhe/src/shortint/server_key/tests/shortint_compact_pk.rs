@@ -93,9 +93,9 @@ macro_rules! create_parameterized_test{
     };
 }
 
-create_parameterized_test!(shortint_compact_public_key_base_smart_add);
+create_parameterized_test!(shortint_compact_public_key_base_add);
 
-fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
+fn shortint_compact_public_key_base_add(params: ClassicPBSParameters) {
     let keys = KEY_CACHE.get_from_param(params);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompactPublicKey::new(cks);
@@ -112,7 +112,7 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
         let ctxt_0 = pk.encrypt_slice(&[clear_0]);
         let ctxt_1 = pk.encrypt_slice(&[clear_1]);
 
-        let mut ctxt_0 = ctxt_0
+        let ctxt_0 = ctxt_0
             .expand_without_casting()
             .unwrap()
             .into_iter()
@@ -135,9 +135,9 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
         let d = cks.decrypt(&ct_res);
         assert_eq!(d, clear % modulus);
 
-        //add multiple times to raise the degree and test the smart operation
+        //add multiple times to raise the degree
         for _ in 0..NB_SUB_TEST {
-            sks.smart_add_assign(&mut ct_res, &mut ctxt_0);
+            sks.add_assign(&mut ct_res, &ctxt_0);
             clear += clear_0;
 
             let dec_res = cks.decrypt(&ct_res);
@@ -147,9 +147,9 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
     }
 }
 
-create_parameterized_test!(shortint_compact_public_key_base_list_smart_sub);
+create_parameterized_test!(shortint_compact_public_key_base_list_sub);
 
-fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters) {
+fn shortint_compact_public_key_base_list_sub(params: ClassicPBSParameters) {
     let keys = KEY_CACHE.get_from_param(params);
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompactPublicKey::new(cks);
@@ -179,7 +179,7 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
         let second_compact_list = pk.encrypt_slice(&second_clear_vec);
 
         let mut first_expanded_vec = first_compact_list.expand_without_casting().unwrap();
-        let mut second_expanded_vec = second_compact_list.expand_without_casting().unwrap();
+        let second_expanded_vec = second_compact_list.expand_without_casting().unwrap();
 
         // decryption check
         for i in 0..num_ct_for_this_iter {
@@ -192,7 +192,7 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
 
         for _ in 0..NB_SUB_TEST {
             for i in 0..num_ct_for_this_iter {
-                sks.smart_sub_assign(&mut first_expanded_vec[i], &mut second_expanded_vec[i]);
+                sks.sub_assign(&mut first_expanded_vec[i], &second_expanded_vec[i]);
                 first_clear_vec[i] = first_clear_vec[i].wrapping_sub(second_clear_vec[i]);
 
                 let decrypted_0 = cks.decrypt(&first_expanded_vec[i]);

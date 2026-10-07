@@ -6,7 +6,7 @@ use crate::shortint::Ciphertext;
 impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Alias to [`unchecked_scalar_div`](`Self::unchecked_scalar_div`) provided for convenience
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -24,7 +24,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Alias to [`unchecked_scalar_div_assign`](`Self::unchecked_scalar_div_assign`) provided for
     /// convenience
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -84,7 +84,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
     /// Alias to [`unchecked_scalar_mod`](`Self::unchecked_scalar_mod`) provided for convenience
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -102,7 +102,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Alias to [`unchecked_scalar_mod_assign`](`Self::unchecked_scalar_mod_assign`) provided for
     /// convenience
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///

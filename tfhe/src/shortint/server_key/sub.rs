@@ -1,4 +1,4 @@
-use super::{CiphertextNoiseDegree, SmartCleaningOperation};
+use super::CiphertextNoiseDegree;
 use crate::core_crypto::algorithms::*;
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
@@ -10,7 +10,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// This returns a new ciphertext.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -48,7 +48,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// This stores the result in `ct_left`
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -197,106 +197,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         Ok(())
     }
 
-    /// Compute homomorphically a subtraction between two ciphertexts.
-    ///
-    /// This checks that the subtraction is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_1 = cks.encrypt(3);
-    /// let mut ct_2 = cks.encrypt(1);
-    ///
-    /// // Compute homomorphically a subtraction:
-    /// let ct_res = sks.smart_sub(&mut ct_1, &mut ct_2);
-    ///
-    /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(clear_res % modulus, 2);
-    /// ```
-    pub fn smart_sub(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        let SmartCleaningOperation {
-            bootstrap_left,
-            bootstrap_right,
-        } = self
-            .binary_smart_op_optimal_cleaning_strategy(
-                ct_left,
-                ct_right,
-                |sk, ct_left, ct_right| sk.is_sub_possible(ct_left, ct_right).is_ok(),
-            )
-            .unwrap();
-
-        if bootstrap_left {
-            self.message_extract_assign(ct_left)
-        }
-
-        if bootstrap_right {
-            self.message_extract_assign(ct_right)
-        }
-
-        self.is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
-            .unwrap();
-
-        self.unchecked_sub(ct_left, ct_right)
-    }
-
-    /// Compute homomorphically a subtraction between two ciphertexts.
-    ///
-    /// This checks that the subtraction is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_1 = cks.encrypt(3);
-    /// let mut ct_2 = cks.encrypt(1);
-    ///
-    /// // Compute homomorphically a subtraction:
-    /// sks.smart_sub_assign(&mut ct_1, &mut ct_2);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(cks.decrypt(&ct_1) % modulus, 2);
-    /// ```
-    pub fn smart_sub_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        let SmartCleaningOperation {
-            bootstrap_left,
-            bootstrap_right,
-        } = self
-            .binary_smart_op_optimal_cleaning_strategy(
-                ct_left,
-                ct_right,
-                |sk, ct_left, ct_right| sk.is_sub_possible(ct_left, ct_right).is_ok(),
-            )
-            .unwrap();
-
-        if bootstrap_left {
-            self.message_extract_assign(ct_left)
-        }
-
-        if bootstrap_right {
-            self.message_extract_assign(ct_right)
-        }
-
-        self.is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
-            .unwrap();
-
-        self.unchecked_sub_assign(ct_left, ct_right);
-    }
-
     /// Compute homomorphically a subtraction between two ciphertexts without checks, and returns
     /// a correcting term.
     ///
@@ -339,41 +239,5 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         ct_left.degree = Degree::new(ct_left.degree.get() + z);
 
         z
-    }
-
-    /// Compute homomorphically a subtraction between two ciphertexts without checks, and returns
-    /// a correcting term.
-    ///
-    /// # Warning
-    ///
-    /// This is an advanced functionality, needed for internal requirements.
-    pub fn smart_sub_with_correcting_term(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> (Ciphertext, u64) {
-        let SmartCleaningOperation {
-            bootstrap_left,
-            bootstrap_right,
-        } = self
-            .binary_smart_op_optimal_cleaning_strategy(
-                ct_left,
-                ct_right,
-                |sk, ct_left, ct_right| sk.is_sub_possible(ct_left, ct_right).is_ok(),
-            )
-            .unwrap();
-
-        if bootstrap_left {
-            self.message_extract_assign(ct_left)
-        }
-
-        if bootstrap_right {
-            self.message_extract_assign(ct_right)
-        }
-
-        self.is_sub_possible(ct_left.noise_degree(), ct_right.noise_degree())
-            .unwrap();
-
-        self.unchecked_sub_with_correcting_term(ct_left, ct_right)
     }
 }

@@ -12,7 +12,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// This checks that the negation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -53,7 +53,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// This checks that the negation is possible. In the case where the carry buffers are full,
     /// then it is automatically cleared to allow the operation.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -209,78 +209,5 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         z = z.wrapping_mul(msg_mod);
 
         self.max_degree.validate(Degree::new(z))
-    }
-
-    /// Compute homomorphically a negation of a ciphertext.
-    ///
-    /// This checks that the negation is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 3;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a negation
-    /// let ct_res = sks.smart_neg(&mut ct);
-    ///
-    /// // Decrypt
-    /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(clear_res, modulus - msg);
-    /// ```
-    pub fn smart_neg(&self, ct: &mut Ciphertext) -> Ciphertext {
-        // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if self.is_neg_possible(ct.noise_degree()).is_err() {
-            self.message_extract_assign(ct);
-        }
-
-        self.is_neg_possible(ct.noise_degree()).unwrap();
-
-        self.unchecked_neg(ct)
-    }
-
-    /// Compute homomorphically a negation of a ciphertext.
-    ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 3;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a negation
-    /// sks.smart_neg_assign(&mut ct);
-    ///
-    /// // Decrypt
-    /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(clear_res, modulus - msg);
-    /// ```
-    pub fn smart_neg_assign(&self, ct: &mut Ciphertext) {
-        // If the ciphertext cannot be negated without exceeding the capacity of a ciphertext
-        if self.is_neg_possible(ct.noise_degree()).is_err() {
-            self.message_extract_assign(ct);
-        }
-        self.is_neg_possible(ct.noise_degree()).unwrap();
-        self.unchecked_neg_assign(ct);
     }
 }

@@ -42,7 +42,7 @@ The computations of bi-variate functions is based on a trick: _concatenating_ tw
 
 ### Multiplication.
 
-In the case of multiplication, two algorithms are implemented: the first one relies on the bi-variate function trick, where the other one is based on the [quarter square method](https://en.wikipedia.org/wiki/Multiplication\_algorithm#Quarter\_square\_multiplication). To correctly compute a multiplication, the only requirement is to have at least one bit of carry (i.e., using parameter sets PARAM\_MESSAGE\_X\_CARRY\_Y with Y>=1). This method is slower than using the other one. Using the `smart` version of the multiplication automatically chooses which algorithm is used depending on the chosen parameters.
+In the case of multiplication, two algorithms are implemented: the first one relies on the bi-variate function trick, where the other one is based on the [quarter square method](https://en.wikipedia.org/wiki/Multiplication\_algorithm#Quarter\_square\_multiplication). To correctly compute a multiplication, the only requirement is to have at least one bit of carry (i.e., using parameter sets PARAM\_MESSAGE\_X\_CARRY\_Y with Y>=1). This method is slower than using the other one. The default version of the multiplication automatically chooses which algorithm is used depending on the chosen parameters.
 
 ## User-defined parameter sets
 
