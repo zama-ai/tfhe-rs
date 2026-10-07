@@ -55,17 +55,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         lhs.degree = new_degree;
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_bitand(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        let mut result = lhs.clone();
-        self.smart_scalar_bitand_assign(&mut result, rhs);
-        result
-    }
-
-    pub fn smart_scalar_bitand_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        self.unchecked_scalar_bitand_assign(lhs, rhs);
-    }
-
     /// Compute homomorphically a bitwise XOR between a ciphertext and a clear value
     ///
     ///
@@ -117,16 +106,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         lhs.degree = new_degree;
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_bitxor(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        let mut result = lhs.clone();
-        self.smart_scalar_bitxor_assign(&mut result, rhs);
-        result
-    }
-    pub fn smart_scalar_bitxor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        self.unchecked_scalar_bitxor_assign(lhs, rhs);
-    }
-
     /// Compute homomorphically a bitwise OR between a ciphertext and a clear value
     ///
     ///
@@ -176,16 +155,5 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         let new_degree = lhs.degree.after_bitor(Degree::new(u64::from(rhs)));
         self.evaluate_msg_univariate_function_assign(lhs, |x| x | rhs as u64);
         lhs.degree = new_degree;
-    }
-
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_bitor(&self, lhs: &mut Ciphertext, rhs: u8) -> Ciphertext {
-        let mut result = lhs.clone();
-        self.smart_scalar_bitor_assign(&mut result, rhs);
-        result
-    }
-
-    pub fn smart_scalar_bitor_assign(&self, lhs: &mut Ciphertext, rhs: u8) {
-        self.unchecked_scalar_bitor_assign(lhs, rhs);
     }
 }

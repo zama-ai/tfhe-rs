@@ -329,7 +329,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
     /// message_modulus.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -383,7 +383,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
     /// message_modulus.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -437,7 +437,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is _assigned_ in the first ciphertext
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -498,7 +498,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is _assigned_ in the first ciphertext
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -540,7 +540,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is _assigned_ in the first ciphertext
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -593,7 +593,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
     /// buffer.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -628,197 +628,5 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         let mut ct_res = ct_left.clone();
         self.mul_msb_assign(&mut ct_res, ct_right);
         ct_res
-    }
-
-    /// Multiply two ciphertexts.
-    ///
-    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
-    /// message_modulus.
-    ///
-    /// The result is _assigned_ in the first ciphertext
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg1 = 5;
-    /// let msg2 = 3;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_1 = cks.unchecked_encrypt(msg1);
-    /// let mut ct_2 = cks.unchecked_encrypt(msg2);
-    ///
-    /// // Compute homomorphically a multiplication
-    /// sks.smart_mul_lsb_assign(&mut ct_1, &mut ct_2);
-    ///
-    /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res % modulus, (msg1 * msg2) % modulus);
-    /// ```
-    pub fn smart_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        //Choice of the multiplication algorithm depending on the parameters
-        if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
-            //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
-            // ciphertext
-            if self
-                .is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())
-                .is_err()
-            {
-                self.message_extract_assign(ct_left);
-                self.message_extract_assign(ct_right);
-            }
-            self.is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())
-                .unwrap();
-            self.unchecked_mul_lsb_small_carry_modulus_assign(ct_left, ct_right);
-        } else {
-            let msg_modulus = ct_left.message_modulus.0;
-
-            self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
-                (lhs * rhs) % msg_modulus
-            });
-        }
-    }
-
-    /// Multiply two ciphertexts together
-    ///
-    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
-    /// buffer.
-    ///
-    /// The result is _assigned_ in the first ciphertext
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg1 = 12;
-    /// let msg2 = 12;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_1 = cks.unchecked_encrypt(msg1);
-    /// let mut ct_2 = cks.unchecked_encrypt(msg2);
-    ///
-    /// // Compute homomorphically a multiplication:
-    /// sks.smart_mul_msb_assign(&mut ct_1, &mut ct_2);
-    ///
-    /// let res = cks.decrypt(&ct_1);
-    /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
-    /// ```
-    pub fn smart_mul_msb_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        let msg_modulus = ct_left.message_modulus.0;
-
-        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| {
-            (lhs * rhs) / msg_modulus
-        });
-    }
-
-    /// Multiply two ciphertexts together
-    ///
-    /// Return the "least significant bits" of the multiplication, i.e., the result modulus the
-    /// message_modulus.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg1 = 12;
-    /// let msg2 = 13;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_left = cks.unchecked_encrypt(msg1);
-    /// // |      ct_left    |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  1 1  |   0 0   |
-    /// let mut ct_right = cks.unchecked_encrypt(msg2);
-    /// // |      ct_right   |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  1 1  |   0 1   |
-    ///
-    /// // Compute homomorphically a multiplication:
-    /// let ct_res = sks.smart_mul_lsb(&mut ct_left, &mut ct_right);
-    /// // |      ct_res     |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  0 0  |   0 0   |
-    ///
-    /// let res = cks.decrypt(&ct_res);
-    /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, (msg1 * msg2) % modulus);
-    /// ```
-    pub fn smart_mul_lsb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        if ct_left.message_modulus.0 > ct_left.carry_modulus.0 {
-            //If the ciphertexts cannot be multiplied together without exceeding the capacity of a
-            // ciphertext
-            if self
-                .is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())
-                .is_err()
-            {
-                self.message_extract_assign(ct_left);
-                self.message_extract_assign(ct_right);
-            }
-
-            self.is_mul_small_carry_possible(ct_left.noise_degree(), ct_right.noise_degree())
-                .unwrap();
-
-            self.unchecked_mul_lsb_small_carry_modulus(ct_left, ct_right)
-        } else {
-            let msg_modulus = ct_left.message_modulus.0;
-
-            self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| {
-                (lhs * rhs) % msg_modulus
-            })
-        }
-    }
-
-    /// Multiply two ciphertexts together
-    ///
-    /// Return the "most significant bits" of the multiplication, i.e., the part in the carry
-    /// buffer.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg1 = 12;
-    /// let msg2 = 12;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct_1 = cks.unchecked_encrypt(msg1);
-    /// let mut ct_2 = cks.unchecked_encrypt(msg2);
-    ///
-    /// // Compute homomorphically a multiplication:
-    /// let ct_res = sks.smart_mul_msb(&mut ct_1, &mut ct_2);
-    ///
-    /// let res = cks.decrypt(&ct_res);
-    /// let modulus = sks.message_modulus.0;
-    /// assert_eq!(res, ((msg1 * msg2) / modulus) % modulus);
-    /// ```
-    pub fn smart_mul_msb(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        let msg_modulus = ct_left.message_modulus.0;
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| {
-            (lhs * rhs) / msg_modulus
-        })
     }
 }

@@ -10,7 +10,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// This returns a new ciphertext.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -58,7 +58,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// This stores the result in `ct`.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -177,7 +177,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// This returns a new ciphertext.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -224,7 +224,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// This writes the result in `ct`.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -383,62 +383,5 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             .validate(ct1.noise_level * (1 << shift))?;
 
         Ok(())
-    }
-
-    /// Compute homomorphically a left shift of the bits
-    ///
-    /// This checks that the operation is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 2;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    /// // |       ct        |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  0 0  |   1 0   |
-    ///
-    /// let shift: u8 = 1;
-    /// let ct_res = sks.smart_scalar_left_shift(&mut ct, shift);
-    /// // |      ct_res     |
-    /// // | carry | message |
-    /// // |-------|---------|
-    /// // |  0 1  |   0 0   |
-    ///
-    /// // Decrypt:
-    /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
-    /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters().message_modulus().0;
-    ///
-    /// assert_eq!(msg << shift, msg_and_carry);
-    /// assert_eq!((msg << shift) % modulus, msg_only);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_left_shift(&self, ct: &mut Ciphertext, shift: u8) -> Ciphertext {
-        let mut result = ct.clone();
-        self.smart_scalar_left_shift_assign(&mut result, shift);
-        result
-    }
-
-    pub fn smart_scalar_left_shift_assign(&self, ct: &mut Ciphertext, shift: u8) {
-        if self
-            .is_scalar_left_shift_possible(ct.noise_degree(), shift)
-            .is_ok()
-        {
-            self.unchecked_scalar_left_shift_assign(ct, shift);
-        } else {
-            let modulus = self.message_modulus.0;
-            let acc = self.generate_msg_lookup_table(|x| x << shift, self.message_modulus);
-            self.apply_lookup_table_assign(ct, &acc);
-            ct.degree = ct.degree.after_left_shift(shift, modulus);
-        }
     }
 }

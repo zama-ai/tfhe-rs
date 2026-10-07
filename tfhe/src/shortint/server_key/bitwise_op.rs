@@ -7,7 +7,7 @@ use crate::shortint::Ciphertext;
 impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -47,7 +47,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is stored in the `ct_left` cipher text.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -156,76 +156,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         ct_left.degree = new_degree;
     }
 
-    /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an AND:
-    /// let ct_res = sks.smart_bitand(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg, res);
-    /// ```
-    pub fn smart_bitand(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs & rhs)
-    }
-
-    /// Compute homomorphically an AND between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    ///
-    /// The result is stored in the `ct_left` cipher text.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let modulus = 4;
-    ///
-    /// let msg1 = 15;
-    /// let msg2 = 3;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.unchecked_encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// // Compute homomorphically an AND:
-    /// sks.smart_bitand_assign(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct1);
-    ///
-    /// assert_eq!((msg2 & msg1) % modulus, res);
-    /// ```
-    pub fn smart_bitand_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs & rhs);
-    }
-
     /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -265,7 +198,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is stored in the `ct_left` cipher text.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -376,76 +309,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         ct_left.degree = new_degree;
     }
 
-    /// Compute homomorphically an XOR between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a XOR:
-    /// let ct_res = sks.smart_bitxor(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(0, res);
-    /// ```
-    pub fn smart_bitxor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs ^ rhs)
-    }
-
-    /// Compute homomorphically a XOR between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    ///
-    /// The result is stored in the `ct_left` cipher text.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let modulus = 4;
-    ///
-    /// let msg1 = 15;
-    /// let msg2 = 3;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.unchecked_encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// // Compute homomorphically a XOR:
-    /// sks.smart_bitxor_assign(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct1);
-    ///
-    /// assert_eq!((msg2 ^ msg1) % modulus, res);
-    /// ```
-    pub fn smart_bitxor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs ^ rhs);
-    }
-
     /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -485,7 +351,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is stored in the `ct_left` cipher text.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -596,73 +462,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         let resulting_degree = ct_left.degree.after_bitor(ct_right.degree);
         self.unchecked_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs | rhs);
         ct_left.degree = resulting_degree;
-    }
-
-    /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an OR:
-    /// let ct_res = sks.smart_bitor(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(msg, res);
-    /// ```
-    pub fn smart_bitor(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| lhs | rhs)
-    }
-
-    /// Compute homomorphically an OR between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    ///
-    /// The result is stored in the `ct_left` cipher text.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let modulus = 4;
-    ///
-    /// let msg1 = 15;
-    /// let msg2 = 3;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.unchecked_encrypt(msg1);
-    /// let mut ct2 = cks.encrypt(msg2);
-    ///
-    /// // Compute homomorphically an OR:
-    /// sks.smart_bitor_assign(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct1);
-    ///
-    /// assert_eq!((msg2 | msg1) % modulus, res);
-    /// ```
-    pub fn smart_bitor_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        self.smart_evaluate_bivariate_function_assign(ct_left, ct_right, |lhs, rhs| lhs | rhs);
     }
 
     pub fn bitnot_assign(&self, ct: &mut Ciphertext) {
