@@ -19,7 +19,6 @@ use crate::shortint::ciphertext::{
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::PBSOrder;
 use itertools::Itertools;
-use serde::{Deserializer, Serializer};
 use std::num::NonZeroUsize;
 use std::ops::Range;
 
@@ -606,31 +605,6 @@ impl Clone for CudaCompressedCiphertextList {
             packed_list: self.packed_list.clone(),
             info: self.info.clone(),
         }
-    }
-}
-
-impl serde::Serialize for CudaCompressedCiphertextList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let streams = CudaStreams::new_multi_gpu();
-        let cpu_res = self
-            .to_compressed_ciphertext_list(&streams)
-            .map_err(serde::ser::Error::custom)?;
-        cpu_res.serialize(serializer)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for CudaCompressedCiphertextList {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let cpu_compressed = CompressedCiphertextList::deserialize(deserializer)?;
-        let streams = CudaStreams::new_multi_gpu();
-
-        Ok(cpu_compressed.to_cuda_compressed_ciphertext_list(&streams))
     }
 }
 

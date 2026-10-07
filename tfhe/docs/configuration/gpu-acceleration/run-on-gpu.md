@@ -50,6 +50,7 @@ The GPU TFHE-rs integer API is mostly identical to the CPU API: both integer dat
 * When configured to compile for the GPU, TFHE-rs uses GPU specific cryptographic parameters that give high performance on the GPU. Ciphertexts and server-keys that are generated with CPU parameters can be processed with GPU-enabled TFHE-rs but performance is considerably degraded.
 * Each server key instance is assigned to a set of GPUs, which are automatically used in parallel. To set the active GPUs for a CPU thread, activate the server key assigned to the GPUs you want to use.
 * GPU integer operations are synchronous to the calling thread. To execute in parallel on several GPUs, use Rust parallel constructs such as `par_iter`.
+* Deserialized data is always stored on the CPU. To avoid a copy each time it is used, call `move_to_current_device` on data used in several operations, after checking its [conformance](../../fhe-computation/data-handling/serialization.md#safe-serialization-deserialization).
 
 The key differences between the CPU API and the GPU API are:
 * The GPU backend only supports compressed server keys that must be decompressed on a GPU selected by the user.

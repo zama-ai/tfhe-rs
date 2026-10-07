@@ -67,7 +67,9 @@ fn main() {
 
     println!("Serialized size: {} bytes", serialized.len());
 
-    let compressed_list: CompressedCiphertextList = bincode::deserialize(&serialized).unwrap();
+    let mut compressed_list: CompressedCiphertextList = bincode::deserialize(&serialized).unwrap();
+    // Deserialized data is stored on the CPU, move it once instead of at each `get`
+    compressed_list.move_to_current_device().unwrap();
 
     let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
     let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();

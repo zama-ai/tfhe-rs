@@ -353,6 +353,9 @@ where
     ///
     /// Does nothing if the ciphertext is already in the desired device
     /// or if no server key is set
+    ///
+    /// Deserialized ciphertexts are always on the CPU: call this on the ones used in several
+    /// operations, to avoid a copy at each use.
     pub fn move_to_current_device(&mut self) {
         self.ciphertext.move_to_device_of_server_key_if_set();
     }

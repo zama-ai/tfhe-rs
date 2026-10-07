@@ -1,6 +1,6 @@
-use crate::backward_compatibility::booleans::InnerBooleanVersionedOwned;
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
+use crate::high_level_api::backward_compatibility::booleans::SerializableInnerBooleanVersions;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
@@ -9,8 +9,8 @@ use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 use crate::integer::BooleanBlock;
 use crate::Device;
-use serde::{Deserializer, Serializer};
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
 
 #[cfg(feature = "hpu")]
 use crate::high_level_api::keys::HpuTaggedDevice;
@@ -22,6 +22,9 @@ use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 
 /// Enum that manages the current inner representation of a boolean.
+#[derive(Serialize, Deserialize, Versionize)]
+#[serde(from = "SerializableInnerBoolean", into = "SerializableInnerBoolean")]
+#[versionize(convert = "SerializableInnerBoolean")]
 pub(in crate::high_level_api) enum InnerBoolean {
     Cpu(BooleanBlock),
     #[cfg(feature = "gpu")]
@@ -45,66 +48,20 @@ impl Clone for InnerBoolean {
         }
     }
 }
-impl serde::Serialize for InnerBoolean {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Self::Cpu(cpu_ct) => cpu_ct.serialize(serializer),
-            #[cfg(feature = "gpu")]
-            Self::Cuda(_) => self.on_cpu().serialize(serializer),
-            #[cfg(feature = "hpu")]
-            Self::Hpu(_) => self.on_cpu().serialize(serializer),
-        }
+/// Serialized form of [`InnerBoolean`], with the data always moved to the CPU
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(SerializableInnerBooleanVersions)]
+pub(crate) struct SerializableInnerBoolean(BooleanBlock);
+
+impl From<SerializableInnerBoolean> for InnerBoolean {
+    fn from(value: SerializableInnerBoolean) -> Self {
+        Self::Cpu(value.0)
     }
 }
 
-impl<'de> serde::Deserialize<'de> for InnerBoolean {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let mut deserialized = Self::Cpu(crate::integer::BooleanBlock::deserialize(deserializer)?);
-        deserialized.move_to_device_of_server_key_if_set();
-        Ok(deserialized)
-    }
-}
-
-// Only CPU data are serialized so we only versionize the CPU type.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[cfg_attr(dylint_lib = "tfhe_lints", allow(serialize_without_versionize))]
-pub(crate) struct InnerBooleanVersionOwned(<BooleanBlock as VersionizeOwned>::VersionedOwned);
-
-impl Versionize for InnerBoolean {
-    type Versioned<'vers> = InnerBooleanVersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        let data = self.on_cpu();
-        let versioned = data.into_owned().versionize_owned();
-        InnerBooleanVersionedOwned::V0(InnerBooleanVersionOwned(versioned))
-    }
-}
-impl VersionizeOwned for InnerBoolean {
-    type VersionedOwned = InnerBooleanVersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        let cpu_data = self.on_cpu();
-        InnerBooleanVersionedOwned::V0(InnerBooleanVersionOwned(
-            cpu_data.into_owned().versionize_owned(),
-        ))
-    }
-}
-
-impl Unversionize for InnerBoolean {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        match versioned {
-            InnerBooleanVersionedOwned::V0(v0) => {
-                let mut unversioned = Self::Cpu(BooleanBlock::unversionize(v0.0)?);
-                unversioned.move_to_device_of_server_key_if_set();
-                Ok(unversioned)
-            }
-        }
+impl From<InnerBoolean> for SerializableInnerBoolean {
+    fn from(value: InnerBoolean) -> Self {
+        Self(value.into_cpu())
     }
 }
 
@@ -230,7 +187,6 @@ impl InnerBoolean {
         &mut cuda_ct.0
     }
 
-    #[cfg(feature = "gpu")]
     pub(crate) fn into_cpu(self) -> BooleanBlock {
         match self {
             Self::Cpu(cpu_ct) => cpu_ct,

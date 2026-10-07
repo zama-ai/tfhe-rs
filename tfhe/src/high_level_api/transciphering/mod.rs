@@ -27,10 +27,6 @@ pub use kreyvium::KreyviumFheKey;
 pub use one_time_pad::OneTimePadFheSecretMask;
 pub use stream_ciphertext::StreamCiphertext;
 
-pub(in crate::high_level_api) use aes::AesFheKeyVersionOwned;
-pub(in crate::high_level_api) use kreyvium::KreyviumFheKeyVersionOwned;
-pub(in crate::high_level_api) use one_time_pad::OneTimePadFheSecretMaskVersionOwned;
-
 /// Types encryptable by [`HlStreamCipher`].
 pub trait HlStreamEncryptable {
     /// `self` should encrypt itself using the `cipher`

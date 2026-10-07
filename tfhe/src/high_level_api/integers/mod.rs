@@ -32,14 +32,8 @@ expand_pub_use_fhe_type!(
 
 use crate::prelude::Tagged;
 use crate::ReRandomizationMetadata;
-pub(in crate::high_level_api) use signed::{
-    CompressedSignedRadixCiphertext, InnerSquashedNoiseSignedRadixCiphertextVersionOwned,
-    SignedRadixCiphertextVersionOwned,
-};
-pub(in crate::high_level_api) use unsigned::{
-    CompressedRadixCiphertext, InnerSquashedNoiseRadixCiphertextVersionOwned,
-    RadixCiphertextVersionOwned as UnsignedRadixCiphertextVersionOwned,
-};
+pub(in crate::high_level_api) use signed::CompressedSignedRadixCiphertext;
+pub(in crate::high_level_api) use unsigned::CompressedRadixCiphertext;
 // These are pub-exported so that their doc can appear in generated rust docs
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::traits::FheId;

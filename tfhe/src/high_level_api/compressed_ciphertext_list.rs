@@ -1,6 +1,6 @@
 use std::num::NonZero;
 use tfhe_safe_serialize::ParameterSetConformant;
-use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
+use tfhe_versionable::Versionize;
 
 use super::details::MaybeCloned;
 #[cfg(feature = "gpu")]
@@ -347,36 +347,29 @@ impl CompressedCiphertextListBuilder {
     }
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[serde(
+    from = "crate::integer::ciphertext::CompressedCiphertextList",
+    into = "crate::integer::ciphertext::CompressedCiphertextList"
+)]
+#[versionize(convert = "crate::integer::ciphertext::CompressedCiphertextList")]
 pub(crate) enum InnerCompressedCiphertextList {
     Cpu(crate::integer::ciphertext::CompressedCiphertextList),
     #[cfg(feature = "gpu")]
     Cuda(crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList),
 }
 
-impl<'de> serde::Deserialize<'de> for InnerCompressedCiphertextList {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        enum Fake {
-            Cpu(crate::integer::ciphertext::CompressedCiphertextList),
-            #[cfg(feature = "gpu")]
-            Cuda(crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList),
-        }
-        let mut new = match Fake::deserialize(deserializer)? {
-            Fake::Cpu(v) => Self::Cpu(v),
-            #[cfg(feature = "gpu")]
-            Fake::Cuda(v) => Self::Cuda(v),
-        };
+impl From<InnerCompressedCiphertextList> for crate::integer::ciphertext::CompressedCiphertextList {
+    fn from(value: InnerCompressedCiphertextList) -> Self {
+        value
+            .into_cpu()
+            .expect("Failed to copy the compressed list to the CPU")
+    }
+}
 
-        if let Some(device) = device_of_internal_keys() {
-            new.move_to_device(device)
-                .map_err(serde::de::Error::custom)?;
-        }
-
-        Ok(new)
+impl From<crate::integer::ciphertext::CompressedCiphertextList> for InnerCompressedCiphertextList {
+    fn from(value: crate::integer::ciphertext::CompressedCiphertextList) -> Self {
+        Self::Cpu(value)
     }
 }
 
@@ -455,6 +448,19 @@ impl InnerCompressedCiphertextList {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps, reason = "It depends on activated features")]
+    fn into_cpu(self) -> crate::Result<crate::integer::ciphertext::CompressedCiphertextList> {
+        match self {
+            Self::Cpu(cpu_ct) => Ok(cpu_ct),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(cuda_ct) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(cuda_ct.gpu_indexes(), |streams| {
+                    cuda_ct.to_compressed_ciphertext_list(streams)
+                })
+            }
+        }
+    }
+
     #[cfg(feature = "gpu")]
     fn on_gpu(
         &self,
@@ -484,54 +490,6 @@ impl InnerCompressedCiphertextList {
             #[cfg(feature = "gpu")]
             Self::Cuda(compressed_ciphertext_list) => &compressed_ciphertext_list.info,
         }
-    }
-}
-
-impl Versionize for InnerCompressedCiphertextList {
-    type Versioned<'vers> =
-        <crate::integer::ciphertext::CompressedCiphertextList as VersionizeOwned>::VersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        match self {
-            Self::Cpu(inner) => inner.clone().versionize_owned(),
-            #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => {
-                let cpu_data = with_thread_local_cuda_streams_for_gpu_indexes(
-                    inner.gpu_indexes(),
-                    |streams| inner.to_compressed_ciphertext_list(streams),
-                )
-                .expect("Failed to copy the compressed list to the CPU");
-                cpu_data.versionize_owned()
-            }
-        }
-    }
-}
-
-impl VersionizeOwned for InnerCompressedCiphertextList {
-    type VersionedOwned =
-        <crate::integer::ciphertext::CompressedCiphertextList as VersionizeOwned>::VersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        match self {
-            Self::Cpu(inner) => inner.versionize_owned(),
-            #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => {
-                let cpu_data = with_thread_local_cuda_streams_for_gpu_indexes(
-                    inner.gpu_indexes(),
-                    |streams| inner.to_compressed_ciphertext_list(streams),
-                )
-                .expect("Failed to copy the compressed list to the CPU");
-                cpu_data.versionize_owned()
-            }
-        }
-    }
-}
-
-impl Unversionize for InnerCompressedCiphertextList {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        Ok(Self::Cpu(
-            crate::integer::ciphertext::CompressedCiphertextList::unversionize(versioned)?,
-        ))
     }
 }
 
@@ -783,6 +741,10 @@ impl CompressedCiphertextList {
         self.inner.current_device()
     }
 
+    /// Moves (in-place) the list to the device of the current thread-local server key
+    ///
+    /// Does nothing if the list is already in the desired device or if no server key is set.
+    /// Deserialized lists are always on the CPU.
     pub fn move_to_current_device(&mut self) -> crate::Result<()> {
         if let Some(device) = device_of_internal_keys() {
             self.inner.move_to_device(device)?;
@@ -1148,12 +1110,13 @@ mod tests {
                 #[cfg(feature = "gpu")]
                 {
                     set_server_key(sk.decompress_to_gpu());
-                    check_is_correct(&compressed_list, &ck);
+                    let mut gpu_compressed_list = compressed_list.clone();
+                    gpu_compressed_list.move_to_current_device().unwrap();
+                    assert_eq!(gpu_compressed_list.current_device(), crate::Device::CudaGpu);
+                    check_is_correct(&gpu_compressed_list, &ck);
                 }
 
                 // Now redo the tests, but with the server_key not being set when deserializing
-                // meaning, the deserialization process could not use that as a hint on where to put
-                // the data
                 {
                     unset_server_key();
                     let compressed_list: CompressedCiphertextList =
@@ -1200,8 +1163,12 @@ mod tests {
                 // how compressed list are use as its meant for data exchange
                 let mut serialized = vec![];
                 safe_serialize(&compressed_list, &mut serialized, 1024 * 1024 * 16).unwrap();
-                let compressed_list: CompressedCiphertextList =
+                let mut compressed_list: CompressedCiphertextList =
                     safe_deserialize(serialized.as_slice(), 1024 * 1024 * 16).unwrap();
+                // A GPU server key is set, but deserialized data stays on the CPU
+                assert_eq!(compressed_list.current_device(), crate::Device::Cpu);
+                compressed_list.move_to_current_device().unwrap();
+                assert_eq!(compressed_list.current_device(), crate::Device::CudaGpu);
 
                 set_server_key(sk.decompress());
                 check_is_correct(&compressed_list, &ck);
@@ -1210,8 +1177,6 @@ mod tests {
                 check_is_correct(&compressed_list, &ck);
 
                 // Now redo the tests, but with the server_key not being set when deserializing
-                // meaning, the deserialization process could not use that as a hint on where to put
-                // the data
                 {
                     unset_server_key();
                     let compressed_list: CompressedCiphertextList =

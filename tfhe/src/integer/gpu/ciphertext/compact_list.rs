@@ -19,7 +19,6 @@ use crate::shortint::parameters::{
 use crate::shortint::{AtomicPatternKind, CarryModulus, Ciphertext, MessageModulus};
 use crate::GpuIndex;
 use itertools::Itertools;
-use serde::Deserializer;
 use std::ops::Range;
 use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_to_gpu;
 #[derive(Clone)]
@@ -592,20 +591,5 @@ impl CudaFlattenedVecCompactCiphertextList {
 
     pub fn is_packed(&self) -> bool {
         self.degree.get() > self.message_modulus.corresponding_max_degree().get()
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for CudaFlattenedVecCompactCiphertextList {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Deserialize the compact list on CPU as an integer CompactCiphertextList
-        let cpu_list =
-            crate::integer::ciphertext::CompactCiphertextList::deserialize(deserializer)?;
-        let streams = CudaStreams::new_multi_gpu();
-
-        Self::from_integer_compact_ciphertext_list(&cpu_list, &streams)
-            .map_err(<D::Error as serde::de::Error>::custom)
     }
 }
