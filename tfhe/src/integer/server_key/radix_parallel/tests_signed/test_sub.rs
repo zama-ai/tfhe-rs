@@ -21,7 +21,7 @@ use rand::Rng;
 use std::sync::Arc;
 
 create_parameterized_test!(integer_signed_unchecked_sub);
-create_parameterized_test!(integer_signed_unchecked_overflowing_sub);
+create_parameterized_test!(integer_signed_unchecked_overflowing_sub_parallelized);
 create_parameterized_test!(integer_signed_default_sub);
 create_parameterized_test!(integer_extensive_trivial_signed_default_sub);
 create_parameterized_test!(integer_signed_default_overflowing_sub);
@@ -52,11 +52,12 @@ where
     signed_unchecked_sub_test(param, executor);
 }
 
-fn integer_signed_unchecked_overflowing_sub<P>(param: P)
+fn integer_signed_unchecked_overflowing_sub_parallelized<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_signed_overflowing_sub);
+    let executor =
+        CpuFunctionExecutor::new(&ServerKey::unchecked_signed_overflowing_sub_parallelized);
     signed_unchecked_overflowing_sub_test(param, executor);
 }
 

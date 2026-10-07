@@ -1,7 +1,5 @@
 mod add;
 mod bitwise_op;
-mod comparison;
-mod mul;
 pub(crate) mod neg;
 mod scalar_add;
 pub(super) mod scalar_mul;
@@ -671,104 +669,5 @@ impl ServerKey {
             "internal error, wrong number of blocks after casting"
         );
         SignedRadixCiphertext::from_blocks(blocks)
-    }
-
-    /// Propagate the carry of the 'index' block to the next one.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let num_blocks = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
-    ///
-    /// let msg = 7u64;
-    ///
-    /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let mut ct_res = sks.unchecked_add(&ct1, &ct2);
-    /// sks.propagate(&mut ct_res, 0);
-    ///
-    /// // Decrypt one block:
-    /// let res: u64 = cks.decrypt_one_block(&ct_res.blocks()[1]);
-    /// assert_eq!(3, res);
-    /// ```
-    pub fn propagate<T>(&self, ctxt: &mut T, index: usize)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let carry = self.key.carry_extract(&ctxt.blocks()[index]);
-
-        ctxt.blocks_mut()[index] = self.key.message_extract(&ctxt.blocks()[index]);
-
-        //add the carry to the next block
-        if index < ctxt.blocks().len() - 1 {
-            let next_block = &mut ctxt.blocks_mut()[index + 1];
-            if self
-                .key
-                .max_noise_level
-                .validate(next_block.noise_level() + carry.noise_level())
-                .is_err()
-            {
-                let id_lut = self.key.generate_lookup_table(|x| x);
-                self.key.apply_lookup_table_assign(next_block, &id_lut);
-            }
-            self.key
-                .unchecked_add_assign(&mut ctxt.blocks_mut()[index + 1], &carry);
-        }
-    }
-
-    /// Propagate all the carries.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::integer::gen_keys_radix;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let num_blocks = 4;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, num_blocks);
-    ///
-    /// let msg = 10;
-    ///
-    /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let mut ct_res = sks.unchecked_add(&ct1, &ct2);
-    /// sks.full_propagate(&mut ct_res);
-    ///
-    /// // Decrypt:
-    /// let res: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg + msg, res);
-    /// ```
-    pub fn full_propagate<T>(&self, ctxt: &mut T)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        self.partial_propagate(ctxt, 0);
-    }
-
-    /// Propagates carries from
-    /// start_index to then end.
-    ///
-    /// Last carry is not propagated as
-    /// it has nothing to propagate to.
-    fn partial_propagate<T>(&self, ctxt: &mut T, start_index: usize)
-    where
-        T: IntegerRadixCiphertext,
-    {
-        let len = ctxt.blocks().len();
-        for i in start_index..len {
-            self.propagate(ctxt, i);
-        }
     }
 }

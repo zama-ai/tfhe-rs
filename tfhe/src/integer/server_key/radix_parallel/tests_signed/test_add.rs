@@ -21,7 +21,6 @@ use rand::Rng;
 use std::sync::Arc;
 
 create_parameterized_test!(integer_signed_unchecked_add);
-create_parameterized_test!(integer_signed_unchecked_overflowing_add);
 create_parameterized_test!(
     integer_signed_unchecked_overflowing_add_parallelized {
         coverage => {
@@ -76,14 +75,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_add_parallelized);
     signed_unchecked_add_test(param, executor);
-}
-
-fn integer_signed_unchecked_overflowing_add<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_signed_overflowing_add);
-    signed_unchecked_overflowing_add_test(param, executor);
 }
 
 fn integer_signed_unchecked_overflowing_add_parallelized<P>(param: P)

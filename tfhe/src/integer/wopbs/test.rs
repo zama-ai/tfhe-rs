@@ -2,7 +2,6 @@
 
 use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use crate::integer::parameters::*;
-use crate::integer::server_key::crt::make_basis;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
 use crate::integer::{gen_keys, IntegerKeyKind};
 use crate::shortint::ciphertext::Degree;
@@ -19,6 +18,16 @@ const NB_TESTS: usize = 10;
 // instrumentation
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
+
+fn make_basis(message_modulus: u64) -> Vec<u64> {
+    match message_modulus {
+        2 => vec![2],
+        3 => vec![2],
+        n if n < 8 => vec![2, 3],
+        n if n < 16 => vec![2, 5, 7],
+        _ => vec![3, 7, 13],
+    }
+}
 
 macro_rules! create_parameterized_test{    (
         $name:ident {

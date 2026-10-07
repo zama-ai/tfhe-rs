@@ -173,16 +173,6 @@ pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
 macro_rules! define_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            fn [<integer_unchecked_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters>{
-                let num_tests = 1;
-                let executor = CpuFunctionExecutor::new(&ServerKey::[<unchecked_ $comparison_name>]);
-                test_unchecked_function(
-                    param,
-                    num_tests,
-                    executor,
-                    |lhs, rhs| $clear_type::from(<$clear_type>::$comparison_name(&lhs, &rhs)),
-                )
-            }
 
             fn [<integer_unchecked_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 1;
@@ -206,19 +196,6 @@ macro_rules! define_comparison_test_functions {
                 )
             }
 
-            create_parameterized_test!([<integer_unchecked_ $comparison_name _ $clear_type:lower>]
-            {
-                // Non parallelized does not support 1_1
-
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-
-                TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-
-                // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-                TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-                #[cfg(tarpaulin)]
-                COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
-            });
             create_parameterized_test!([<integer_unchecked_ $comparison_name _parallelized_ $clear_type:lower>]
             {
                 TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
