@@ -1903,19 +1903,19 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_bitand,
-        method_name_cpu: unchecked_bitand,
+        method_name_cpu: unchecked_bitand_parallelized,
         display_name: bitand
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_bitor,
-        method_name_cpu: unchecked_bitor,
+        method_name_cpu: unchecked_bitor_parallelized,
         display_name: bitor
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_bitxor,
-        method_name_cpu: unchecked_bitxor,
+        method_name_cpu: unchecked_bitxor_parallelized,
         display_name: bitxor
     );
 
@@ -1963,13 +1963,13 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_eq,
-        method_name_cpu: unchecked_eq,
+        method_name_cpu: unchecked_eq_parallelized,
         display_name: equal
     );
 
     define_cuda_server_key_bench_clean_input_fn!(
         method_name: unchecked_ne,
-        method_name_cpu: unchecked_ne,
+        method_name_cpu: unchecked_ne_parallelized,
         display_name: not_equal
     );
 
