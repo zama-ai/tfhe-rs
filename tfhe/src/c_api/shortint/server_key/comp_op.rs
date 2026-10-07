@@ -3,20 +3,20 @@ use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_greater(
+pub unsafe extern "C" fn shortint_server_key_greater(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
-    ct_right: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
+    ct_right: *const ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
-        let ct_right = get_mut_checked(ct_right).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
 
-        let res = server_key.0.smart_greater(&mut ct_left.0, &mut ct_right.0);
+        let res = server_key.0.greater(&ct_left.0, &ct_right.0);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -47,22 +47,20 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_greater(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_greater_or_equal(
+pub unsafe extern "C" fn shortint_server_key_greater_or_equal(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
-    ct_right: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
+    ct_right: *const ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
-        let ct_right = get_mut_checked(ct_right).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
 
-        let res = server_key
-            .0
-            .smart_greater_or_equal(&mut ct_left.0, &mut ct_right.0);
+        let res = server_key.0.greater_or_equal(&ct_left.0, &ct_right.0);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -95,20 +93,20 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_greater_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_less(
+pub unsafe extern "C" fn shortint_server_key_less(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
-    ct_right: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
+    ct_right: *const ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
-        let ct_right = get_mut_checked(ct_right).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
 
-        let res = server_key.0.smart_less(&mut ct_left.0, &mut ct_right.0);
+        let res = server_key.0.less(&ct_left.0, &ct_right.0);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -139,22 +137,20 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_less(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_less_or_equal(
+pub unsafe extern "C" fn shortint_server_key_less_or_equal(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
-    ct_right: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
+    ct_right: *const ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
-        let ct_right = get_mut_checked(ct_right).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
 
-        let res = server_key
-            .0
-            .smart_less_or_equal(&mut ct_left.0, &mut ct_right.0);
+        let res = server_key.0.less_or_equal(&ct_left.0, &ct_right.0);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -187,20 +183,20 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_less_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_equal(
+pub unsafe extern "C" fn shortint_server_key_equal(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
-    ct_right: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
+    ct_right: *const ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
-        let ct_right = get_mut_checked(ct_right).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
 
-        let res = server_key.0.smart_equal(&mut ct_left.0, &mut ct_right.0);
+        let res = server_key.0.equal(&ct_left.0, &ct_right.0);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -231,22 +227,20 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_not_equal(
+pub unsafe extern "C" fn shortint_server_key_not_equal(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
-    ct_right: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
+    ct_right: *const ShortintCiphertext,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
     catch_panic(|| {
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
-        let ct_right = get_mut_checked(ct_right).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
+        let ct_right = get_ref_checked(ct_right).unwrap();
 
-        let res = server_key
-            .0
-            .smart_not_equal(&mut ct_left.0, &mut ct_right.0);
+        let res = server_key.0.not_equal(&ct_left.0, &ct_right.0);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -277,9 +271,9 @@ pub unsafe extern "C" fn shortint_server_key_unchecked_not_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_scalar_greater(
+pub unsafe extern "C" fn shortint_server_key_scalar_greater(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
     right: u8,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -287,9 +281,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_greater(
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
 
-        let res = server_key.0.smart_scalar_greater(&mut ct_left.0, right);
+        let res = server_key.0.scalar_greater(&ct_left.0, right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -298,9 +292,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_greater(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_scalar_greater_or_equal(
+pub unsafe extern "C" fn shortint_server_key_scalar_greater_or_equal(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
     right: u8,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -308,11 +302,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_greater_or_equal(
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
 
-        let res = server_key
-            .0
-            .smart_scalar_greater_or_equal(&mut ct_left.0, right);
+        let res = server_key.0.scalar_greater_or_equal(&ct_left.0, right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -321,9 +313,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_greater_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_scalar_less(
+pub unsafe extern "C" fn shortint_server_key_scalar_less(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
     right: u8,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -331,9 +323,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_less(
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
 
-        let res = server_key.0.smart_scalar_less(&mut ct_left.0, right);
+        let res = server_key.0.scalar_less(&ct_left.0, right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -342,9 +334,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_less(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_scalar_less_or_equal(
+pub unsafe extern "C" fn shortint_server_key_scalar_less_or_equal(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
     right: u8,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -352,11 +344,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_less_or_equal(
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
 
-        let res = server_key
-            .0
-            .smart_scalar_less_or_equal(&mut ct_left.0, right);
+        let res = server_key.0.scalar_less_or_equal(&ct_left.0, right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -365,9 +355,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_less_or_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_scalar_equal(
+pub unsafe extern "C" fn shortint_server_key_scalar_equal(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
     right: u8,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -375,9 +365,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_equal(
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
 
-        let res = server_key.0.smart_scalar_equal(&mut ct_left.0, right);
+        let res = server_key.0.scalar_equal(&ct_left.0, right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 
@@ -386,9 +376,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_equal(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shortint_server_key_smart_scalar_not_equal(
+pub unsafe extern "C" fn shortint_server_key_scalar_not_equal(
     server_key: *const ShortintServerKey,
-    ct_left: *mut ShortintCiphertext,
+    ct_left: *const ShortintCiphertext,
     right: u8,
     result: *mut *mut ShortintCiphertext,
 ) -> c_int {
@@ -396,9 +386,9 @@ pub unsafe extern "C" fn shortint_server_key_smart_scalar_not_equal(
         check_ptr_is_non_null_and_aligned(result).unwrap();
 
         let server_key = get_ref_checked(server_key).unwrap();
-        let ct_left = get_mut_checked(ct_left).unwrap();
+        let ct_left = get_ref_checked(ct_left).unwrap();
 
-        let res = server_key.0.smart_scalar_not_equal(&mut ct_left.0, right);
+        let res = server_key.0.scalar_not_equal(&ct_left.0, right);
 
         let heap_allocated_ct_result = Box::new(ShortintCiphertext(res));
 

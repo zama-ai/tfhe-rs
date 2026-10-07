@@ -11,7 +11,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is returned in a _new_ ciphertext.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -55,7 +55,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is _stored_ in the `ct` ciphertext.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -182,90 +182,5 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         let final_degree = u64::from(scalar) + ct.degree.get();
 
         self.max_degree.validate(Degree::new(final_degree))
-    }
-
-    /// Compute homomorphically an addition between a ciphertext and a scalar.
-    ///
-    /// The result is returned in a _new_ ciphertext.
-    ///
-    /// This checks that the scalar addition is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1_u64;
-    /// let scalar = 9_u8;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.smart_scalar_add(&mut ct, scalar);
-    ///
-    /// // The input ciphertext content is not changed
-    /// assert_eq!(cks.decrypt(&ct), msg);
-    ///
-    /// // Our result is what we expect
-    /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters().message_modulus().0;
-    /// assert_eq!(2, clear % modulus);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_add(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        let mut ct_result = ct.clone();
-        self.smart_scalar_add_assign(&mut ct_result, scalar);
-
-        ct_result
-    }
-
-    /// Compute homomorphically an addition of a ciphertext by a scalar.
-    ///
-    /// The result is _stored_ in the `ct` ciphertext.
-    ///
-    /// This checks that the scalar addition is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1_u64;
-    /// let scalar = 5_u8;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// sks.smart_scalar_add_assign(&mut ct, scalar);
-    ///
-    /// // Our result is what we expect
-    /// let clear = cks.decrypt_message_and_carry(&ct);
-    /// assert_eq!(6, clear);
-    /// ```
-    pub fn smart_scalar_add_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        // Direct scalar computation is possible
-        if self
-            .is_scalar_add_possible(ct.noise_degree(), scalar)
-            .is_ok()
-        {
-            self.unchecked_scalar_add_assign(ct, scalar);
-        } else {
-            // If the scalar is too large, PBS is used to compute the scalar mul
-            let acc = self.generate_msg_lookup_table(|x| scalar as u64 + x, self.message_modulus);
-            self.apply_lookup_table_assign(ct, &acc);
-            ct.degree = Degree::new(self.message_modulus.0 - 1);
-        }
     }
 }

@@ -11,7 +11,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is returned in a _new_ ciphertext.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -55,7 +55,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// The result is _stored_ in the `ct` ciphertext.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -211,75 +211,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         scalar: u8,
     ) -> Result<(), CheckError> {
         self.is_scalar_add_possible(ct, neg_scalar(scalar, self.message_modulus))
-    }
-
-    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
-    ///
-    /// The result is returned in a _new_ ciphertext.
-    ///
-    /// This checks that the scalar subtraction is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 3;
-    /// let scalar = 3;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// let ct_res = sks.smart_scalar_sub(&mut ct, scalar);
-    ///
-    /// // The input ciphertext content is not changed
-    /// assert_eq!(cks.decrypt(&ct), msg);
-    ///
-    /// // Our result is what we expect
-    /// let clear = cks.decrypt(&ct_res);
-    ///
-    /// assert_eq!(msg - scalar as u64, clear);
-    /// ```
-    pub fn smart_scalar_sub(&self, ct: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.smart_scalar_add(ct, neg_scalar(scalar, ct.message_modulus))
-    }
-
-    /// Compute homomorphically a subtraction of a ciphertext by a scalar.
-    ///
-    /// The result is _stored_ in the `ct` ciphertext.
-    ///
-    /// This checks that the scalar subtraction is possible. In the case where the carry buffers are
-    /// full, then it is automatically cleared to allow the operation.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 5;
-    /// let scalar = 3;
-    ///
-    /// // Encrypt a message
-    /// let mut ct = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// sks.smart_scalar_sub_assign(&mut ct, scalar);
-    ///
-    /// // Our result is what we expect
-    /// let clear = cks.decrypt(&ct);
-    /// assert_eq!(msg - scalar as u64, clear);
-    /// ```
-    pub fn smart_scalar_sub_assign(&self, ct: &mut Ciphertext, scalar: u8) {
-        self.smart_scalar_add_assign(ct, neg_scalar(scalar, ct.message_modulus))
     }
 }
 

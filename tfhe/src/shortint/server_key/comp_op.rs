@@ -11,7 +11,7 @@ use crate::shortint::Ciphertext;
 impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute homomorphically a `>` between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -97,39 +97,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         });
     }
 
-    /// Compute homomorphically a `>` between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the operation is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an OR:
-    /// let ct_res = sks.smart_greater(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(0, res);
-    /// ```
-    pub fn smart_greater(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs > rhs))
-    }
-
     /// Compute homomorphically a `>=` between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -219,42 +189,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         });
     }
 
-    /// Compute homomorphically a `>=` between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the operation is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an OR:
-    /// let ct_res = sks.smart_greater_or_equal(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(1, res);
-    /// ```
-    pub fn smart_greater_or_equal(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs >= rhs))
-    }
     /// Compute homomorphically a `<` between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -341,39 +278,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         });
     }
 
-    /// Compute homomorphically a `<` between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the operation is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an OR:
-    /// let ct_res = sks.smart_less(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(0, res);
-    /// ```
-    pub fn smart_less(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs < rhs))
-    }
-
     /// Compute homomorphically a `<=` between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -463,43 +370,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         });
     }
 
-    /// Compute homomorphically a `<=` between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the operation is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an OR:
-    /// let ct_res = sks.smart_less_or_equal(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(1, res);
-    /// ```
-    pub fn smart_less_or_equal(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs <= rhs))
-    }
-
     /// Compute homomorphically a `==` between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -585,39 +458,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         });
     }
 
-    /// Compute homomorphically a `==` between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the addition is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an OR:
-    /// let ct_res = sks.smart_equal(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(1, res);
-    /// ```
-    pub fn smart_equal(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs == rhs))
-    }
-
     /// Compute homomorphically a `!=` between two ciphertexts encrypting integer values.
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -703,70 +546,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         });
     }
 
-    /// Compute homomorphically a `!=` between two ciphertexts encrypting integer values.
-    ///
-    /// This checks that the operation is possible. In the case where the carry buffers are full,
-    /// then it is automatically cleared to allow the operation.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg = 1;
-    ///
-    /// // Encrypt two messages:
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg);
-    ///
-    /// // Compute homomorphically an OR:
-    /// let ct_res = sks.smart_not_equal(&mut ct1, &mut ct2);
-    ///
-    /// // Decrypt:
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(0, res);
-    /// ```
-    pub fn smart_not_equal(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-    ) -> Ciphertext {
-        self.smart_evaluate_bivariate_function(ct_left, ct_right, |lhs, rhs| u64::from(lhs != rhs))
-    }
-
-    /// Implement the "equal" operator (`==`) between a ciphertext and a scalar without checks.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 2;
-    /// let scalar = 2;
-    ///
-    /// // Encrypt our message
-    /// let mut ct_left = cks.encrypt(msg_1);
-    ///
-    /// let ct_res = sks.smart_scalar_equal(&mut ct_left, scalar);
-    ///
-    /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(res, (msg_1 == scalar as u64) as u64);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs == scalar as u64))
-    }
-
     /// Equality between a ciphertext and a clear
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -779,36 +561,9 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         self.apply_lookup_table(ct_left, &acc)
     }
 
-    /// Implement the "not equal" operator (`!=`) between a ciphertext and a scalar without checks.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 2;
-    /// let scalar = 2;
-    ///
-    /// // Encrypt our message
-    /// let mut ct_left = cks.encrypt(msg_1);
-    ///
-    /// let ct_res = sks.smart_scalar_not_equal(&mut ct_left, scalar);
-    ///
-    /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(res, (msg_1 != scalar as u64) as u64);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_not_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs != scalar as u64))
-    }
-
     /// Difference between a ciphertext and a clear
     ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
@@ -821,171 +576,47 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         self.apply_lookup_table(ct_left, &acc)
     }
 
-    /// Implement the "greater or equal" operator (`>=`) between a ciphertext and a scalar without
-    /// checks.
+    /// This function, like all "default" operations (i.e. not unchecked), will
+    /// check that the input ciphertext carries are empty and clears them if it's not the case and
+    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 2;
-    /// let scalar = 2;
-    ///
-    /// // Encrypt our message
-    /// let mut ct_left = cks.encrypt(msg_1);
-    ///
-    /// let ct_res = sks.smart_scalar_greater_or_equal(&mut ct_left, scalar);
-    ///
-    /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(res, (msg_1 >= scalar as u64) as u64);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_greater_or_equal(
-        &self,
-        ct_left: &mut Ciphertext,
-        scalar: u8,
-    ) -> Ciphertext {
+    /// This means that when using only "default" operations, a given operation (like add for
+    /// example) has always the same performance characteristics from one call to another and
+    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
+    pub fn scalar_greater_or_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
         self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs >= scalar as u64))
     }
 
-    /// Alias of [`smart_scalar_greater_or_equal`](`Self::smart_scalar_greater_or_equal`) provided
-    /// for convenience
-    ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_greater_or_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.smart_scalar_greater_or_equal(ct_left, scalar)
-    }
-
-    /// Implement the "less or equal" operator (`<=`) between a ciphertext and a scalar without
-    /// checks.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 2;
-    /// let scalar = 2;
-    ///
-    /// // Encrypt our message
-    /// let mut ct_left = cks.encrypt(msg_1);
-    ///
-    /// let ct_res = sks.smart_scalar_less_or_equal(&mut ct_left, scalar);
-    ///
-    /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(res, (msg_1 <= scalar as u64) as u64);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_less_or_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_less_or_equal(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
         self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs <= scalar as u64))
     }
 
-    /// Alias of [`smart_scalar_less_or_equal`](`Self::smart_scalar_less_or_equal`) provided for
-    /// convenience
-    ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_less_or_equal(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.smart_scalar_less_or_equal(ct_left, scalar)
-    }
-
-    /// Implement the "greater" operator (`>`) between a ciphertext and a scalar without checks.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 2;
-    /// let scalar = 2;
-    ///
-    /// // Encrypt our message
-    /// let mut ct_left = cks.encrypt(msg_1);
-    ///
-    /// let ct_res = sks.smart_scalar_greater(&mut ct_left, scalar);
-    ///
-    /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(res, (msg_1 > scalar as u64) as u64);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_greater(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_greater(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
         self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs > scalar as u64))
     }
 
-    /// Alias of [`smart_scalar_greater`](`Self::smart_scalar_greater`) provided for convenience
-    ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
+    /// This function, like all "default" operations (i.e. not unchecked), will
     /// check that the input ciphertext carries are empty and clears them if it's not the case and
     /// the operation requires it. It outputs a ciphertext whose carry is always empty.
     ///
     /// This means that when using only "default" operations, a given operation (like add for
     /// example) has always the same performance characteristics from one call to another and
     /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_greater(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.smart_scalar_greater(ct_left, scalar)
-    }
-
-    /// Implement the "less" operator (`<`) between a ciphertext and a scalar without checks.
-    ///
-    /// # Example
-    ///
-    ///```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 2;
-    /// let scalar = 2;
-    ///
-    /// // Encrypt our message
-    /// let mut ct_left = cks.encrypt(msg_1);
-    ///
-    /// let ct_res = sks.smart_scalar_less(&mut ct_left, scalar);
-    ///
-    /// // Decrypt
-    /// let res = cks.decrypt(&ct_res);
-    /// assert_eq!(res, (msg_1 < scalar as u64) as u64);
-    /// ```
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn smart_scalar_less(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
+    pub fn scalar_less(&self, ct_left: &Ciphertext, scalar: u8) -> Ciphertext {
         self.evaluate_msg_univariate_function(ct_left, |lhs| u64::from(lhs < scalar as u64))
-    }
-
-    /// Alias of [`smart_scalar_less`](`Self::smart_scalar_less`) provided for convenience
-    ///
-    /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
-    /// check that the input ciphertext carries are empty and clears them if it's not the case and
-    /// the operation requires it. It outputs a ciphertext whose carry is always empty.
-    ///
-    /// This means that when using only "default" operations, a given operation (like add for
-    /// example) has always the same performance characteristics from one call to another and
-    /// guarantees correctness by pre-emptively clearing carries of output ciphertexts.
-    pub fn scalar_less(&self, ct_left: &mut Ciphertext, scalar: u8) -> Ciphertext {
-        self.smart_scalar_less(ct_left, scalar)
     }
 }

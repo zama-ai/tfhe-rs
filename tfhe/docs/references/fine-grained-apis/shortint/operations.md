@@ -31,10 +31,9 @@ For example, the addition has two variants:
 Each operation may come in different 'flavors':
 
 * `unchecked`: always does the operation, without checking if the result may exceed the capacity of the plaintext space. Using this operation might have an impact on the correctness of the following operations;
-* `smart`: always does the operation. If the operation cannot be computed safely, the smart operation will clear the carry to make the operation possible. Some of those will require a mutable reference as input: this is to allow the modification of the carry, but this will not change the underlying encrypted value;
-* `default`: always does the operation and always clears the carry. Could be **slower** than smart, but it ensures that the timings are consistent from one call to another.
+* `default`: always does the operation and always clears the carry. This ensures that the result is correct and that the timings are consistent from one call to another.
 
-Not all operations have these 3 flavors, as some of them are implemented in a way that the operation is always possible without ever exceeding the plaintext space capacity.
+Not all operations have these 2 flavors, as some of them are implemented in a way that the operation is always possible without ever exceeding the plaintext space capacity.
 
 {% hint style="info" %}
 If you don't know which flavor to use, you should use the `default` one.
@@ -42,7 +41,7 @@ If you don't know which flavor to use, you should use the `default` one.
 
 ## How to use operation types
 
-Let's try to do a circuit evaluation using the different flavors of operations that we have already introduced. For a very small circuit, the `unchecked` flavour may be enough to do the computation correctly. Otherwise, `smart` and `default` are the best options.
+Let's try to do a circuit evaluation using the different flavors of operations that we have already introduced. For a very small circuit, the `unchecked` flavour may be enough to do the computation correctly. Otherwise, the `default` flavor should be used.
 
 Let's do a scalar multiplication, a subtraction, and a multiplication.
 
@@ -75,36 +74,6 @@ fn main() {
 ```
 
 During this computation, the carry buffer has been overflowed and, as all the operations were `unchecked`, the output may be incorrect.
-
-Using the `smart` flavor will output the correct result all the time. However, the computation may be slower as the carry buffer may be cleaned during the computations.
-
-```rust
-use tfhe::shortint::prelude::*;
-
-
-fn main() {
-    // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-
-    let msg1 = 3;
-    let msg2 = 3;
-    let scalar = 4;
-
-    let modulus = client_key.parameters().message_modulus().0;
-
-    // We use the client key to encrypt two messages:
-    let mut ct_1 = client_key.encrypt(msg1);
-    let mut ct_2 = client_key.encrypt(msg2);
-
-    server_key.smart_scalar_mul_assign(&mut ct_1, scalar);
-    server_key.smart_sub_assign(&mut ct_1, &mut ct_2);
-    server_key.smart_mul_lsb_assign(&mut ct_1, &mut ct_2);
-
-    // We use the client key to decrypt the output of the circuit:
-    let output = client_key.decrypt(&ct_1);
-    assert_eq!(output, ((msg1 * scalar as u64 - msg2) * msg2) % modulus);
-}
-```
 
 The main advantage of the default flavor is to ensure predictable timings as long as this is the only kind of operation which is used.
 
