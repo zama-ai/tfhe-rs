@@ -25,12 +25,12 @@ on:
     inputs:
       duration-seconds:
         # Fuzzing time only, not total wall-time.
-        description: 'Campaign duration in seconds'
-        default: '1200' # 20 min
+        description: "Campaign duration in seconds"
+        default: "1200" # 20 min
         required: false
   schedule:
     # Saturday 05:00 UTC (day after the CPU campaign).
-    - cron: '0 5 * * 6'
+    - cron: "0 5 * * 6"
 
 permissions: {}
 
@@ -73,7 +73,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Setup CUDA
