@@ -712,7 +712,10 @@ mod tests {
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
     use crate::shortint::parameters::current_params::*;
-    use crate::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheInt32, FheUint32};
+    use crate::{
+        generate_keys, set_server_key, unset_server_key, ConfigBuilder, FheBool, FheInt32,
+        FheUint32,
+    };
     use rand::Rng;
 
     #[test]
@@ -906,5 +909,112 @@ mod tests {
 
         let decrypted: bool = ns_c.decrypt(&cks);
         assert_eq!(decrypted, clear_c);
+    }
+
+    #[cfg(feature = "gpu")]
+    fn gpu_multibit_squashed_list_setup() -> (
+        crate::ClientKey,
+        CompressedSquashedNoiseCiphertextList,
+        (i32, u32, bool),
+    ) {
+        let params = V1_9_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_params =
+            V1_9_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_compression_params =
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let config = ConfigBuilder::with_custom_parameters(params)
+            .enable_noise_squashing(noise_squashing_params)
+            .enable_noise_squashing_compression(noise_squashing_compression_params)
+            .build();
+
+        let cks = crate::ClientKey::generate(config);
+        let sks = crate::CompressedServerKey::new(&cks);
+        set_server_key(sks.decompress_to_gpu());
+
+        let mut rng = rand::thread_rng();
+        let clears = (rng.gen::<i32>(), rng.gen::<u32>(), rng.gen_bool(0.5));
+
+        let mut a = FheInt32::encrypt(clears.0, &cks);
+        let mut b = FheUint32::encrypt(clears.1, &cks);
+        let mut c = FheBool::encrypt(clears.2, &cks);
+        a.move_to_device(crate::Device::CudaGpu);
+        b.move_to_device(crate::Device::CudaGpu);
+        c.move_to_device(crate::Device::CudaGpu);
+
+        let list = CompressedSquashedNoiseCiphertextList::builder()
+            .push(a.squash_noise().unwrap())
+            .push(b.squash_noise().unwrap())
+            .push(c.squash_noise().unwrap())
+            .build()
+            .unwrap();
+
+        (cks, list, clears)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn check_list(
+        list: &CompressedSquashedNoiseCiphertextList,
+        cks: &crate::ClientKey,
+        (clear_a, clear_b, clear_c): (i32, u32, bool),
+    ) {
+        let ns_a: SquashedNoiseFheInt = list.get(0).unwrap().unwrap();
+        let ns_b: SquashedNoiseFheUint = list.get(1).unwrap().unwrap();
+        let ns_c: SquashedNoiseFheBool = list.get(2).unwrap().unwrap();
+
+        let decrypted: i32 = ns_a.decrypt(cks);
+        assert_eq!(decrypted, clear_a);
+        let decrypted: u32 = ns_b.decrypt(cks);
+        assert_eq!(decrypted, clear_b);
+        let decrypted: bool = ns_c.decrypt(cks);
+        assert_eq!(decrypted, clear_c);
+    }
+
+    /// Hypothesis 1: `CudaVec::clone` (a plain cudaMemcpy device-to-device on the legacy
+    /// stream) can still be in flight when the GPU -> CPU copy of the clone starts on a
+    /// non-blocking stream.
+    ///
+    /// Only the clone is new compared to the existing test: serialization downloads the clone,
+    /// deserialization moves it back to the GPU (a GPU server key is set) and `get` runs on the
+    /// GPU, like in main.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_squashed_list_clone_then_download() {
+        let (cks, list, clears) = gpu_multibit_squashed_list_setup();
+
+        // The race is timing dependent, try several times
+        for _ in 0..20 {
+            // Only the inner enum is Clone, it is what `#[versionize(convert)]` clones
+            let cloned = CompressedSquashedNoiseCiphertextList {
+                inner: list.inner.clone(),
+                tag: list.tag.clone(),
+            };
+            let mut serialized_list = vec![];
+            safe_serialize(&cloned, &mut serialized_list, 1 << 24).unwrap();
+            let roundtripped: CompressedSquashedNoiseCiphertextList =
+                safe_deserialize(serialized_list.as_slice(), 1 << 24).unwrap();
+
+            check_list(&roundtripped, &cks, clears);
+        }
+    }
+
+    /// Hypothesis 2: a list compressed on the GPU and copied to the CPU does not unpack
+    /// correctly on the CPU.
+    ///
+    /// No clone here: the server key is unset before deserialization so the list stays on the
+    /// CPU and `get` uses the CPU unpack.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_squashed_list_download_then_cpu_unpack() {
+        let (cks, list, clears) = gpu_multibit_squashed_list_setup();
+
+        let mut serialized_list = vec![];
+        safe_serialize(&list, &mut serialized_list, 1 << 24).unwrap();
+
+        unset_server_key();
+        let roundtripped: CompressedSquashedNoiseCiphertextList =
+            safe_deserialize(serialized_list.as_slice(), 1 << 24).unwrap();
+
+        check_list(&roundtripped, &cks, clears);
     }
 }
