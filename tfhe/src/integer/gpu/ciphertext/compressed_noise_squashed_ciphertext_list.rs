@@ -212,6 +212,7 @@ impl CudaCompressedSquashedNoiseCiphertextListBuilder {
     }
 }
 
+/// Only the variant of `tried` matters, its block count is ignored
 fn create_error_message(tried: DataKind, actual: DataKind) -> crate::Error {
     fn name(kind: DataKind) -> &'static str {
         match kind {
@@ -250,7 +251,7 @@ impl CudaSquashedNoiseExpandable for CudaSquashedNoiseRadixCiphertext {
             })
         } else {
             Err(create_error_message(
-                DataKind::Unsigned(NonZeroUsize::new(0).unwrap()),
+                DataKind::Unsigned(NonZeroUsize::MIN),
                 kind,
             ))
         }
@@ -273,7 +274,7 @@ impl CudaSquashedNoiseExpandable for CudaSquashedNoiseSignedRadixCiphertext {
             })
         } else {
             Err(create_error_message(
-                DataKind::Signed(NonZeroUsize::new(0).unwrap()),
+                DataKind::Signed(NonZeroUsize::MIN),
                 kind,
             ))
         }
@@ -554,6 +555,14 @@ mod test {
             cuda_list.get(3, &streams).unwrap().unwrap();
         let d_decompressed_ns_ct_e: CudaSquashedNoiseRadixCiphertext =
             cuda_list.get(4, &streams).unwrap().unwrap();
+
+        // Asking for a slot with the wrong type is an error, not a panic
+        assert!(cuda_list
+            .get::<CudaSquashedNoiseRadixCiphertext>(0, &streams)
+            .is_err());
+        assert!(cuda_list
+            .get::<CudaSquashedNoiseSignedRadixCiphertext>(1, &streams)
+            .is_err());
 
         let ns_ct_a = d_decompressed_ns_ct_a.to_squashed_noise_signed_radix_ciphertext(&streams);
         let ns_ct_b = d_decompressed_ns_ct_b.to_squashed_noise_boolean_block(&streams);

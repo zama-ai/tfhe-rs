@@ -209,6 +209,10 @@ impl InnerCompactCiphertextList {
                 })?;
                 Some(Self::Cpu(cpu_ct))
             }
+            // The GPU cannot hold an empty list: it stays on CPU, where expanding it with any key
+            // yields an empty expander
+            #[cfg(feature = "gpu")]
+            (Self::Cpu(cpu_ct), crate::Device::CudaGpu) if cpu_ct.is_empty() => None,
             #[cfg(feature = "gpu")]
             (Self::Cpu(cpu_ct), crate::Device::CudaGpu) => {
                 let cuda_ct = with_cuda_internal_keys(|keys| {
@@ -337,6 +341,11 @@ impl CompactCiphertextList {
             }
             #[cfg(feature = "gpu")]
             (InnerCompactCiphertextList::Cpu(cpu_inner), InternalServerKeyRef::Cuda(cuda_key)) => {
+                // An empty list cannot be moved to the GPU, expand it as the CPU does
+                if cpu_inner.is_empty() {
+                    return Ok(CompactCiphertextListExpander::empty(self.tag.clone()));
+                }
+
                 if !cpu_inner.is_packed() {
                     return Err(crate::error!(
                         "GPU only supports packed lists. (built with build_packed)"
@@ -544,6 +553,10 @@ pub(crate) mod zk {
                     let cpu_ct = cuda_ct.h_proved_lists.clone();
                     Some(Self::Cpu(cpu_ct))
                 }
+                // The GPU cannot hold an empty list: it stays on CPU, where expanding it with any
+                // key yields an empty expander
+                #[cfg(feature = "gpu")]
+                (Self::Cpu(cpu_ct), crate::Device::CudaGpu) if cpu_ct.is_empty() => None,
                 #[cfg(feature = "gpu")]
                 (Self::Cpu(cpu_ct), crate::Device::CudaGpu) => {
                     let cuda_ct = with_cuda_internal_keys(|keys| {
@@ -781,6 +794,21 @@ pub(crate) mod zk {
                 }
                 #[cfg(feature = "gpu")]
                 Some(InternalServerKey::Cuda(gpu_key)) => {
+                    // An empty list cannot be moved to the GPU, handle it as the CPU does: verify
+                    // it if requested, then return an empty expander. Re-randomization would not
+                    // change that result.
+                    let cpu_ct = self.inner.on_cpu();
+                    if cpu_ct.is_empty() {
+                        if let Some((crs, pk, metadata)) = verification_materials {
+                            if cpu_ct.verify(crs, &pk.key.key, metadata)
+                                == crate::zk::ZkVerificationOutcome::Invalid
+                            {
+                                return Err(crate::ErrorKind::InvalidZkProof.into());
+                            }
+                        }
+                        return Ok(CompactCiphertextListExpander::empty(self.tag.clone()));
+                    }
+
                     let streams = &gpu_key.streams;
                     let proven_ct = match &self.inner {
                         InnerProvenCompactCiphertextList::Cpu(inner) => {
@@ -893,6 +921,22 @@ pub enum InnerCompactCiphertextListExpander {
 pub struct CompactCiphertextListExpander {
     pub inner: InnerCompactCiphertextListExpander,
     pub(crate) tag: Tag,
+}
+
+#[cfg(feature = "gpu")]
+impl CompactCiphertextListExpander {
+    /// Expander of an empty list, which always returns `Ok(None)` when asked for an item.
+    ///
+    /// The GPU cannot hold an empty list, so this is a CPU expander whatever the key in use: as it
+    /// holds no blocks, it never hands out anything that lives on the wrong device.
+    fn empty(tag: Tag) -> Self {
+        Self {
+            inner: InnerCompactCiphertextListExpander::Cpu(
+                crate::integer::ciphertext::CompactCiphertextListExpander::new(vec![], vec![]),
+            ),
+            tag,
+        }
+    }
 }
 
 impl CiphertextList for CompactCiphertextListExpander {
@@ -1284,6 +1328,40 @@ mod tests {
         let expander = compact_list.expand().unwrap();
 
         assert!(expander.get::<FheBool>(0).unwrap().is_none());
+    }
+
+    /// Same contract as on CPU, see [`test_empty_list`]. The GPU cannot hold an empty list, so this
+    /// also checks that deserializing one while a GPU key is set (which moves lists to the GPU)
+    /// works.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_empty_list() {
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ))
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let gpu_sk = CompressedServerKey::new(&ck).decompress_to_gpu();
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(gpu_sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk).build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let deserialized: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+
+        for list in [&compact_list, &deserialized] {
+            let expander = list.expand().unwrap();
+
+            assert!(expander.is_empty());
+            assert!(expander.get::<FheBool>(0).unwrap().is_none());
+        }
     }
 
     #[cfg(feature = "gpu")]
@@ -1785,6 +1863,56 @@ mod tests {
         let expander = compact_list.verify_and_expand(&crs, &pk, metadata).unwrap();
 
         assert!(expander.get::<FheBool>(0).unwrap().is_none());
+    }
+
+    /// Same contract as on CPU, see [`test_empty_proven_list`]. The GPU cannot hold an empty list,
+    /// so this also checks that deserializing one while a GPU key is set (which moves lists to the
+    /// GPU) works.
+    #[cfg(all(feature = "zk-pok", feature = "gpu"))]
+    #[test]
+    fn test_gpu_empty_proven_list() {
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ))
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let gpu_sk = CompressedServerKey::new(&ck).decompress_to_gpu();
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(gpu_sk);
+
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
+
+        let metadata = b"hlapi";
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .build_with_proof_packed(&crs, metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let deserialized: crate::ProvenCompactCiphertextList =
+            bincode::deserialize(&serialized).unwrap();
+
+        for list in [&compact_list, &deserialized] {
+            assert_eq!(
+                list.verify(&crs, &pk, metadata),
+                crate::zk::ZkVerificationOutcome::Valid
+            );
+
+            let expanders = [
+                list.verify_and_expand(&crs, &pk, metadata).unwrap(),
+                list.expand_without_verification().unwrap(),
+            ];
+            for expander in expanders {
+                assert!(expander.is_empty());
+                assert!(expander.get::<FheBool>(0).unwrap().is_none());
+            }
+        }
     }
 
     #[cfg(all(feature = "zk-pok", feature = "gpu"))]
