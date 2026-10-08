@@ -144,24 +144,38 @@ impl CudaProvenCompactCiphertextList {
             .proved_lists
             .iter()
             .map(|(list, _)| list.clone())
-            .collect();
+            .collect_vec();
         self.d_flattened_compact_lists =
             CudaFlattenedVecCompactCiphertextList::from_vec_shortint_compact_ciphertext_list(
-                cpu_lists,
+                &cpu_lists,
                 self.h_proved_lists.info.clone(),
                 streams,
             )?;
         Ok(())
     }
 
+    /// Moves a proven compact ciphertext list to the GPU.
+    ///
+    /// The list is user provided data, which may have been crafted to only pass conformance
+    /// checks, so every rejection is an error rather than a panic. In particular an empty list is
+    /// conformant but cannot be represented on the GPU: it is rejected here and handled by the HL
+    /// API, which expands it to an empty expander as the CPU does.
     pub fn from_proven_compact_ciphertext_list(
         h_proved_lists: &ProvenCompactCiphertextList,
         streams: &CudaStreams,
     ) -> crate::Result<Self> {
-        assert!(
-            h_proved_lists.is_packed(),
-            "Only packed lists are supported on GPUs"
-        );
+        // `is_empty` reads the `info` metadata while `is_packed` reads `proved_lists`: a malformed
+        // list can have only one of them empty, so check both
+        if h_proved_lists.is_empty() || h_proved_lists.ct_list.proved_lists.is_empty() {
+            return Err(crate::error!(
+                "Cannot move an empty compact ciphertext list to the GPU"
+            ));
+        }
+        if !h_proved_lists.is_packed() {
+            return Err(crate::error!(
+                "Only packed lists are supported on GPUs (built with build_with_proof_packed)"
+            ));
+        }
         let h_vec_compact_lists = h_proved_lists
             .ct_list
             .proved_lists
@@ -170,7 +184,7 @@ impl CudaProvenCompactCiphertextList {
             .collect_vec();
         let d_compact_lists =
             CudaFlattenedVecCompactCiphertextList::from_vec_shortint_compact_ciphertext_list(
-                h_vec_compact_lists,
+                &h_vec_compact_lists,
                 h_proved_lists.info.clone(),
                 streams,
             )?;
@@ -218,9 +232,12 @@ mod tests {
         }
     }
 
+    use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::gpu::CudaStreams;
     use crate::core_crypto::prelude::LweCiphertextCount;
-    use crate::integer::ciphertext::{CompactCiphertextList, DataKind};
+    use crate::integer::ciphertext::{
+        CompactCiphertextList, DataKind, IntegerProvenCompactCiphertextListConformanceParams,
+    };
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use crate::integer::gpu::key_switching_key::{
@@ -571,6 +588,221 @@ mod tests {
                 // boolean
                 assert!(decrypted < 2);
             }
+        }
+    }
+
+    /// Keys and crs shared by the tests checking that malformed lists are rejected with an error
+    /// instead of a panic
+    struct MalformedListTestContext {
+        streams: CudaStreams,
+        crs: CompactPkeCrs,
+        pk: CompactPublicKey,
+        pke_params: CompactPublicKeyEncryptionParameters,
+        d_ksk_material: CudaKeySwitchingKeyMaterial,
+        gpu_sk: CudaServerKey,
+    }
+
+    impl MalformedListTestContext {
+        const METADATA: &'static [u8] = b"integer";
+
+        fn new() -> Self {
+            let ksk_params = PARAM_KEYSWITCH_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let fhe_params: PBSParameters = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+
+            // Small enough for the lists to be split in several proven lists
+            let crs_blocks_for_64_bits =
+                64 / ((pke_params.message_modulus.0 * pke_params.carry_modulus.0).ilog2() as usize);
+            let crs = CompactPkeCrs::from_shortint_params(
+                pke_params,
+                LweCiphertextCount(crs_blocks_for_64_bits),
+            )
+            .unwrap();
+
+            let cks = ClientKey::new(fhe_params);
+            let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
+            let sk = compressed_server_key.decompress();
+            let streams = CudaStreams::new_multi_gpu();
+            let gpu_sk = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
+
+            let compact_private_key = CompactPrivateKey::new(pke_params);
+            let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+            let d_ksk_material =
+                CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+            let pk = CompactPublicKey::new(&compact_private_key);
+
+            Self {
+                streams,
+                crs,
+                pk,
+                pke_params,
+                d_ksk_material,
+                gpu_sk,
+            }
+        }
+
+        fn cuda_ksk(&self) -> CudaKeySwitchingKey<'_> {
+            CudaKeySwitchingKey::from_cuda_key_switching_key_material(
+                &self.d_ksk_material,
+                &self.gpu_sk,
+            )
+        }
+
+        fn conformance_params(&self) -> IntegerProvenCompactCiphertextListConformanceParams {
+            IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                self.pke_params,
+                &self.crs,
+            )
+        }
+
+        /// A valid packed list of two 64 bits integers
+        fn proven_list(&self) -> ProvenCompactCiphertextList {
+            let num_blocks = 64 / (self.pke_params.message_modulus.0.ilog2() as usize);
+
+            CompactCiphertextList::builder(&self.pk)
+                .extend_with_num_blocks([random::<u64>(), random::<u64>()].into_iter(), num_blocks)
+                .build_with_proof_packed(&self.crs, Self::METADATA, ZkComputeLoad::Proof)
+                .unwrap()
+        }
+
+        fn block_count(&self, list: &ProvenCompactCiphertextList) -> usize {
+            DataKind::total_block_count(&list.info, self.pke_params.message_modulus).unwrap()
+        }
+
+        fn move_to_gpu(
+            &self,
+            list: &ProvenCompactCiphertextList,
+        ) -> crate::Result<CudaProvenCompactCiphertextList> {
+            CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+                list,
+                &self.streams,
+            )
+        }
+    }
+
+    /// Strings are not supported on GPUs, but a list holding one is conformant: moving it to the
+    /// GPU, or expanding it there, must fail with an error and not panic.
+    #[test]
+    fn test_malicious_string_proven_list() {
+        let ctx = MalformedListTestContext::new();
+        let mut proven_ct = ctx.proven_list();
+
+        // Describe the very same blocks as a string, which keeps the list conformant
+        let block_count = ctx.block_count(&proven_ct);
+        let blocks_per_char = ctx
+            .pke_params
+            .message_modulus
+            .num_blocks_per_ascii_char()
+            .unwrap()
+            .get();
+        assert_eq!(block_count % blocks_per_char, 0);
+        let string_kind = DataKind::String {
+            n_chars: (block_count / blocks_per_char).try_into().unwrap(),
+            padded: false,
+        };
+        let valid_infos = std::mem::replace(proven_ct.infos_mut_gpu(), vec![string_kind]);
+        assert!(proven_ct.is_conformant(&ctx.conformance_params()));
+
+        let err = ctx
+            .move_to_gpu(&proven_ct)
+            .err()
+            .expect("a list holding a string must be rejected");
+        assert!(
+            err.to_string().contains("not supported on GPUs"),
+            "unexpected error: {err}"
+        );
+
+        // `data_info` can still change once the list is on the GPU, expand() checks it again
+        *proven_ct.infos_mut_gpu() = valid_infos;
+        let mut gpu_proven_ct = ctx.move_to_gpu(&proven_ct).unwrap();
+        gpu_proven_ct.d_flattened_compact_lists.data_info = vec![string_kind];
+
+        let err = gpu_proven_ct
+            .expand_without_verification(&ctx.cuda_ksk(), &ctx.streams)
+            .err()
+            .expect("a list holding a string must not be expanded");
+        assert!(
+            err.to_string().contains("not supported on GPUs"),
+            "unexpected error: {err}"
+        );
+    }
+
+    /// An empty list is conformant but cannot be represented on the GPU, so it is rejected with an
+    /// error. The HL API handles it on its own, see its GPU empty list tests.
+    #[test]
+    fn test_empty_proven_list_on_gpu() {
+        let ctx = MalformedListTestContext::new();
+
+        let proven_ct = CompactCiphertextList::builder(&ctx.pk)
+            .build_with_proof_packed(
+                &ctx.crs,
+                MalformedListTestContext::METADATA,
+                ZkComputeLoad::Proof,
+            )
+            .unwrap();
+        assert!(proven_ct.is_empty());
+        assert!(proven_ct.is_conformant(&ctx.conformance_params()));
+
+        let err = ctx
+            .move_to_gpu(&proven_ct)
+            .err()
+            .expect("an empty list must be rejected");
+        assert!(
+            err.to_string()
+                .contains("Cannot move an empty compact ciphertext list to the GPU"),
+            "unexpected error: {err}"
+        );
+    }
+
+    /// Lists where only one of the metadata or the ciphertexts is empty are not conformant, and
+    /// must be rejected with an error.
+    #[test]
+    fn test_half_empty_proven_lists_on_gpu() {
+        let ctx = MalformedListTestContext::new();
+
+        let mut without_ciphertexts = ctx.proven_list();
+        without_ciphertexts.ct_list.proved_lists.clear();
+
+        let mut without_metadata = ctx.proven_list();
+        without_metadata.infos_mut_gpu().clear();
+
+        for proven_ct in [without_ciphertexts, without_metadata] {
+            assert!(!proven_ct.is_conformant(&ctx.conformance_params()));
+
+            let err = ctx
+                .move_to_gpu(&proven_ct)
+                .err()
+                .expect("a half empty list must be rejected");
+            assert!(
+                err.to_string()
+                    .contains("Cannot move an empty compact ciphertext list to the GPU"),
+                "unexpected error: {err}"
+            );
+        }
+    }
+
+    /// Metadata describing another number of blocks than the list holds is not conformant, and
+    /// must be rejected with an error: with too few blocks the backend would read its boolean
+    /// flags out of bounds and abort.
+    #[test]
+    fn test_proven_list_with_inconsistent_metadata_on_gpu() {
+        let ctx = MalformedListTestContext::new();
+        let mut proven_ct = ctx.proven_list();
+        let block_count = ctx.block_count(&proven_ct);
+
+        for wrong_block_count in [block_count / 2, block_count + 1, block_count + 2] {
+            *proven_ct.infos_mut_gpu() =
+                vec![DataKind::Unsigned(NonZero::new(wrong_block_count).unwrap())];
+            assert!(!proven_ct.is_conformant(&ctx.conformance_params()));
+
+            let err = ctx
+                .move_to_gpu(&proven_ct)
+                .err()
+                .expect("a list with inconsistent metadata must be rejected");
+            assert!(
+                err.to_string().contains("its metadata describes"),
+                "unexpected error: {err}"
+            );
         }
     }
 
