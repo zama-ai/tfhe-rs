@@ -70,11 +70,11 @@ struct ConcurrentPbsKeys {
         CONCURRENT_PBS_LEVEL, CONCURRENT_MESSAGE_MODULUS,
         CONCURRENT_CARRY_MODULUS, &payload_modulus, &delta, 1, 1, 1);
 
-    // The specialized kernel reads the bsk in its own layout.
+    // The throughput kernel reads the bsk in its own layout.
     cuda_drop_async(d_fourier_bsk_array, stream, gpu_index);
     Seed bsk_seed;
     init_seed(&bsk_seed);
-    generate_lwe_programmable_bootstrap_keys_specialized_2_2(
+    generate_lwe_programmable_bootstrap_keys_specialized_2_2_throughput(
         stream, gpu_index, &d_fourier_bsk_array, lwe_sk_in_array,
         lwe_sk_out_array, lwe_dimension, CONCURRENT_GLWE_DIMENSION,
         CONCURRENT_POLYNOMIAL_SIZE, CONCURRENT_PBS_LEVEL,
@@ -115,7 +115,7 @@ struct ConcurrentPbsWorker {
 
   // Issues one bootstrap and returns, without reading the result back.
   void launch(const ConcurrentPbsKeys &keys) {
-    cuda_programmable_bootstrap_specialized_2_2_64_async(
+    cuda_programmable_bootstrap_specialized_2_2_throughput_64_async(
         stream, gpu_index, (void *)d_lwe_ct_out,
         (void *)keys.d_lwe_output_indexes, (void *)keys.d_lut_pbs_identity,
         (void *)keys.d_lut_pbs_indexes, (void *)keys.d_lwe_ct_in_array,
@@ -154,10 +154,13 @@ struct ConcurrentPbsWorker {
 
 TEST(ConcurrentSpecialized2_2ProgrammableBootstrap, DistinctLweDimensions) {
   uint32_t gpu_index = 0;
-  if (!specialized_2_2_params_checker<uint64_t>(
-          CONCURRENT_POLYNOMIAL_SIZE, CONCURRENT_GLWE_DIMENSION,
-          CONCURRENT_PBS_LEVEL, cuda_get_max_shared_memory(gpu_index))) {
-    GTEST_SKIP() << "Specialized 2_2 classical PBS is not supported here.";
+  for (int n : CONCURRENT_LWE_DIMENSIONS) {
+    if (!specialized_2_2_use_throughput_oriented<uint64_t>(
+            CONCURRENT_POLYNOMIAL_SIZE, CONCURRENT_GLWE_DIMENSION,
+            CONCURRENT_PBS_LEVEL, n, cuda_get_max_shared_memory(gpu_index))) {
+      GTEST_SKIP() << "Throughput oriented specialized 2_2 classical PBS is "
+                      "not supported here (requires H100).";
+    }
   }
 
   std::vector<std::unique_ptr<ConcurrentPbsKeys>> keys;

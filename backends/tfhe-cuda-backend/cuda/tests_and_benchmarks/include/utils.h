@@ -58,6 +58,13 @@ void generate_lwe_programmable_bootstrap_keys_specialized_2_2(
     Seed *seed, DynamicDistribution noise_distribution,
     const unsigned repetitions);
 
+void generate_lwe_programmable_bootstrap_keys_specialized_2_2_throughput(
+    cudaStream_t stream, uint32_t gpu_index, double **d_fourier_bsk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pbs_level, int pbs_base_log,
+    Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions);
+
 void generate_lwe_multi_bit_programmable_bootstrap_keys(
     cudaStream_t stream, uint32_t gpu_index, uint64_t **d_bsk_array,
     uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
@@ -71,5 +78,24 @@ void generate_lwe_keyswitch_keys(
     int input_lwe_dimension, int output_lwe_dimension, int ksk_level,
     int ksk_base_log, Seed *seed, DynamicDistribution noise_distribution,
     const unsigned repetitions);
+
+void generate_lwe_keyswitch_keys_u32(
+    cudaStream_t stream, uint32_t gpu_index, uint32_t **d_ksk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array,
+    int input_lwe_dimension, int output_lwe_dimension, int ksk_level,
+    int ksk_base_log, Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions);
+
+void generate_lwe_packing_keyswitch_keys(
+    cudaStream_t stream, uint32_t gpu_index, uint64_t **d_pksk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *glwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pksk_level, int pksk_base_log,
+    DynamicDistribution noise_distribution);
+
+void generate_lwe_packing_keyswitch_keys_128(
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t **d_pksk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *glwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pksk_level, int pksk_base_log,
+    DynamicDistribution noise_distribution);
 
 #endif

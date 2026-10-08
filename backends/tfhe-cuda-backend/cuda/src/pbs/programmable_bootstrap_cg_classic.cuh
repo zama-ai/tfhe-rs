@@ -398,4 +398,16 @@ __host__ bool supports_cooperative_groups_on_programmable_bootstrap(
           glwe_dimension, level_count, num_samples, max_shared_memory));
 }
 
+// Only checks that the CG kernel can run, without the specialized 2_2
+// preference of the auto dispatch. Used in the tests to force the CG flavor.
+template <typename Torus>
+__host__ bool cg_params_checker(int glwe_dimension, int polynomial_size,
+                                int level_count, int num_samples,
+                                uint32_t max_shared_memory) {
+  DISPATCH_POLY_SIZE(
+      polynomial_size, AmortizedDegreePolicy,
+      return verify_cuda_programmable_bootstrap_cg_grid_size<Torus, Params>(
+          glwe_dimension, level_count, num_samples, max_shared_memory));
+}
+
 #endif // CG_PBS_H
