@@ -2,7 +2,7 @@ use benchmark::params_aliases::*;
 use benchmark::utilities::{throughput_num_threads, write_to_json, OperatorType};
 use benchmark_spec::{
     get_bench_type, BenchmarkMetric, BenchmarkSpec, BenchmarkType, ComputeLoad, CsvResultWriter,
-    IntegerBench, ZkPkeBench, ZkPkeConfig, ZkProofVariant, ZkScheme,
+    IntegerBench, ZkPkeBench, ZkPkeConfig, ZkProofVariant, ZkProofVariantKind,
 };
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
@@ -62,17 +62,17 @@ fn compute_load_config() -> Vec<ZkComputeLoad> {
     conf
 }
 
-fn zk_scheme(param_pke: CompactPublicKeyEncryptionParameters) -> ZkScheme {
+fn zk_scheme(param_pke: CompactPublicKeyEncryptionParameters) -> ZkProofVariantKind {
     match param_pke.zk_scheme {
-        SupportedCompactPkeZkScheme::V1 => ZkScheme::V1,
-        SupportedCompactPkeZkScheme::V2 => ZkScheme::V2,
+        SupportedCompactPkeZkScheme::V1 => ZkProofVariantKind::V1,
+        SupportedCompactPkeZkScheme::V2 => ZkProofVariantKind::V2,
         SupportedCompactPkeZkScheme::ZkNotSupported => {
             panic!("these benches need parameters supporting a zk scheme")
         }
     }
 }
 
-fn proof_variant(compute_load: ZkComputeLoad, scheme: ZkScheme) -> ZkProofVariant {
+fn proof_variant(compute_load: ZkComputeLoad, scheme: ZkProofVariantKind) -> ZkProofVariant {
     ZkProofVariant::new(
         scheme,
         match compute_load {

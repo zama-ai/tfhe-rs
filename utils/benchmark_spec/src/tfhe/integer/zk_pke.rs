@@ -4,7 +4,7 @@ use strum::{Display, EnumDiscriminants, EnumString};
 
 use crate::error::SpecParseError;
 use crate::traits::SpecNode;
-use crate::zk::proof::{ZkProofVariant, ZkScheme};
+use crate::zk::proof::{ZkProofVariant, ZkProofVariantKind};
 
 /// What a proven compact ciphertext list benchmark measures: a step of the
 /// zero-knowledge flow, or one of the objects that flow produces.
@@ -27,7 +27,7 @@ pub enum ZkPkeBench {
     /// The serialized proven list.
     ProvenList(ZkProofVariant),
     /// The common reference string.
-    Crs(ZkScheme),
+    Crs(ZkProofVariantKind),
 }
 
 impl ZkPkeBench {

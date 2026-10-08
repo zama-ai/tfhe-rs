@@ -28,7 +28,7 @@ pub use tfhe::{
     TranscipheringBench, VectorFindOp, ZkPkeBench, ZkPkeBenchKind,
 };
 pub use type_tag::{FheType, MulAddShapeConfig, PrecisionTag, ShuffleConfig, TypeTag, ZkPkeConfig};
-pub use zk::proof::{ComputeLoad, ZkProofVariant, ZkScheme};
+pub use zk::proof::{ComputeLoad, ZkProofVariant, ZkProofVariantKind};
 
 use crate::segment::OptionalSegment;
 use crate::zk::ZkLayer;

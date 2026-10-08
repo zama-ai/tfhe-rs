@@ -401,7 +401,7 @@ fn integer_zk_pke_verify() {
 #[test]
 fn integer_zk_pke_crs_size() {
     let spec = BenchmarkSpec::new_integer(
-        IntegerBench::Zk(ZkPkeBench::Crs(ZkScheme::V2)),
+        IntegerBench::Zk(ZkPkeBench::Crs(ZkProofVariantKind::V2)),
         "PARAM_MESSAGE_2_CARRY_2",
         Some(
             ZkPkeConfig {

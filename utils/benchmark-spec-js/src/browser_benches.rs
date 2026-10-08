@@ -5,7 +5,7 @@ use benchmark_spec::tfhe::Serializable;
 use benchmark_spec::{
     Backend, BenchPath, BenchmarkMetric, BenchmarkSpec, CiphertextKind, ComputeLoad, HlapiBench,
     IntegerBench, KeyKind, OperandType, PrecisionTag, SpecParseError, TfheLayer, TypeTag,
-    ZkPkeBench, ZkPkeConfig, ZkProofVariant, ZkScheme,
+    ZkPkeBench, ZkPkeConfig, ZkProofVariant, ZkProofVariantKind,
 };
 
 fn hlapi(bench: HlapiBench) -> BenchPath {
@@ -98,7 +98,7 @@ fn zk_variant(compute_load: &str, scheme: &str) -> Result<ZkProofVariant, SpecPa
         }
     };
     Ok(ZkProofVariant::new(
-        scheme.parse::<ZkScheme>()?,
+        scheme.parse::<ZkProofVariantKind>()?,
         compute_load,
     ))
 }

@@ -22,7 +22,7 @@ impl SpecLeafNode for ComputeLoad {}
 )]
 #[strum(serialize_all = "snake_case")]
 #[strum_discriminants(
-    name(ZkScheme),
+    name(ZkProofVariantKind),
     derive(EnumString, Display, Hash, enum_iterator::Sequence),
     strum(serialize_all = "snake_case")
 )]
@@ -31,13 +31,13 @@ pub enum ZkProofVariant {
     V2(ComputeLoad),
 }
 
-impl SpecLeafNode for ZkScheme {}
+impl SpecLeafNode for ZkProofVariantKind {}
 
 impl ZkProofVariant {
-    pub const fn new(scheme: ZkScheme, compute_load: ComputeLoad) -> Self {
+    pub const fn new(scheme: ZkProofVariantKind, compute_load: ComputeLoad) -> Self {
         match scheme {
-            ZkScheme::V1 => Self::V1(compute_load),
-            ZkScheme::V2 => Self::V2(compute_load),
+            ZkProofVariantKind::V1 => Self::V1(compute_load),
+            ZkProofVariantKind::V2 => Self::V2(compute_load),
         }
     }
 
@@ -61,11 +61,11 @@ impl FromStr for ZkProofVariant {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (head, rest) = s.split_once("::").unwrap_or((s, ""));
-        match ZkScheme::from_str(head)
+        match ZkProofVariantKind::from_str(head)
             .map_err(|_| SpecParseError::Unknown(format!("unknown zk scheme: {head}")))?
         {
-            ZkScheme::V1 => Ok(Self::V1(rest.parse()?)),
-            ZkScheme::V2 => Ok(Self::V2(rest.parse()?)),
+            ZkProofVariantKind::V1 => Ok(Self::V1(rest.parse()?)),
+            ZkProofVariantKind::V2 => Ok(Self::V2(rest.parse()?)),
         }
     }
 }
