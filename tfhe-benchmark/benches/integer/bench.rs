@@ -3618,6 +3618,7 @@ fn go_through_cpu_bench_groups(val: &str) {
             unchecked_scalar_ops_comp()
         }
         "misc" => misc(),
+        "oprf" => oprf(),
         _ => panic!("unknown benchmark operations flavor"),
     };
 }

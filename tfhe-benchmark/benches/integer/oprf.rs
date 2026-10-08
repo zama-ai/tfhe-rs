@@ -14,6 +14,8 @@ use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
 use tfhe::integer::IntegerKeyKind;
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::parameters::current_params::transciphering::V1_9_TRANSCIPHERING_PARAM_DEDICATED_OPRF;
+use tfhe::shortint::parameters::TranscipheringParameters;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use tfhe::{get_pbs_count, reset_pbs_count};
 use tfhe_csprng::seeders::Seed;
@@ -45,65 +47,56 @@ pub fn unsigned_oprf(c: &mut Criterion) {
             bench_type,
             None,
         );
-        let bench_id_oprf = oprf_spec.to_string();
-        let bench_id_oprf_bounded = oprf_bounded_spec.to_string();
 
-        match bench_type {
-            BenchmarkType::Latency => {
-                bench_group.bench_function(&bench_id_oprf, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let oprf_pk = OprfPrivateKey::new(&cks);
-                    let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
+        let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    b.iter(|| {
-                        _ = black_box(
-                            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
-                                Seed(0),
-                                num_block as u64,
-                                &sks,
-                            ),
-                        );
-                    })
-                });
+        for (variant, transciphering_params) in [
+            ("same_as_compute", TranscipheringParameters::SameAsCompute),
+            ("dedicated", V1_9_TRANSCIPHERING_PARAM_DEDICATED_OPRF),
+        ] {
+            let oprf_params = transciphering_params.oprf_parameters(param);
+            assert!(param.is_compatible_with_oprf_params(oprf_params));
+            println!(
+                "{variant}: oprf lwe_dimension = {}",
+                oprf_params.lwe_dimension.0
+            );
 
-                bench_group.bench_function(&bench_id_oprf_bounded, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let oprf_pk = OprfPrivateKey::new(&cks);
-                    let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
+            let oprf_pk = OprfPrivateKey::new_with_params(&cks, oprf_params);
+            let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
 
-                    b.iter(|| {
-                        _ = black_box(
-                            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-                                Seed(0),
-                                u64::from(bit_size),
-                                num_block as u64,
-                                &sks,
-                            ),
-                        );
-                    })
-                });
-            }
-            BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let oprf_pk = OprfPrivateKey::new(&cks);
-                let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
+            let bench_id_oprf = format!("{oprf_spec}::{variant}");
+            let bench_id_oprf_bounded = format!("{oprf_bounded_spec}::{variant}");
 
-                let elements = {
-                    #[cfg(any(feature = "gpu", feature = "hpu"))]
-                    {
-                        // Execute the operation once to know its cost.
-                        reset_pbs_count();
-                        oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-                            Seed(0),
-                            u64::from(bit_size),
-                            num_block as u64,
-                            &sks,
-                        );
-                        let pbs_count = max(get_pbs_count(), 1);
-                        throughput_num_threads(num_block, pbs_count)
-                    }
-                    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
-                    {
+            match bench_type {
+                BenchmarkType::Latency => {
+                    bench_group.bench_function(&bench_id_oprf, |b| {
+                        b.iter(|| {
+                            _ = black_box(
+                                oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
+                                    Seed(0),
+                                    num_block as u64,
+                                    &sks,
+                                ),
+                            );
+                        })
+                    });
+
+                    bench_group.bench_function(&bench_id_oprf_bounded, |b| {
+                        b.iter(|| {
+                            _ = black_box(
+                                oprf_sk
+                                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                                        Seed(0),
+                                        u64::from(bit_size),
+                                        num_block as u64,
+                                        &sks,
+                                    ),
+                            );
+                        })
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    let elements = {
                         use benchmark::find_optimal_batch::find_optimal_batch;
                         let setup = |_batch_size: usize| ();
                         let run = |_: &mut (), batch_size: usize| {
@@ -118,34 +111,36 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                             });
                         };
                         find_optimal_batch(run, setup) as u64
-                    }
-                };
-                bench_group.throughput(Throughput::Elements(elements));
+                    };
+                    println!("{variant}: throughput batch size = {elements}");
+                    bench_group.throughput(Throughput::Elements(elements));
 
-                bench_group.bench_function(&bench_id_oprf, |b| {
-                    b.iter(|| {
-                        (0..elements).into_par_iter().for_each(|_| {
-                            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
-                                Seed(0),
-                                num_block as u64,
-                                &sks,
-                            );
+                    bench_group.bench_function(&bench_id_oprf, |b| {
+                        b.iter(|| {
+                            (0..elements).into_par_iter().for_each(|_| {
+                                oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
+                                    Seed(0),
+                                    num_block as u64,
+                                    &sks,
+                                );
+                            })
                         })
-                    })
-                });
+                    });
 
-                bench_group.bench_function(&bench_id_oprf_bounded, |b| {
-                    b.iter(|| {
-                        (0..elements).into_par_iter().for_each(|_| {
-                            oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
-                                Seed(0),
-                                u64::from(bit_size),
-                                num_block as u64,
-                                &sks,
-                            );
+                    bench_group.bench_function(&bench_id_oprf_bounded, |b| {
+                        b.iter(|| {
+                            (0..elements).into_par_iter().for_each(|_| {
+                                oprf_sk
+                                    .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                                        Seed(0),
+                                        u64::from(bit_size),
+                                        num_block as u64,
+                                        &sks,
+                                    );
+                            })
                         })
-                    })
-                });
+                    });
+                }
             }
         }
 
