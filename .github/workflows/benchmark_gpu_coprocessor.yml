@@ -22,6 +22,8 @@ on:
           - "scaleway::4-h100-sxm5 (H100-SXM-4-80G)"
           - "scaleway::2-h100-sxm5 (H100-SXM-2-80G)"
           - "scaleway::single-h100 (H100-1-80G)"
+          - "nebius::multi-h100-sxm5 (nebius-H100-SXM-8-80G)"
+          - "nebius::single-h100 (nebius-H100-SXM-1-80G)"
   schedule:
     # Weekly tests @ 1AM
     - cron: "0 1 * * 6"

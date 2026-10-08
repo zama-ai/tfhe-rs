@@ -51,7 +51,11 @@ def load_slab(path: Path) -> dict:
     profiles = {}
     for backend_name, backend_profiles in raw.get("backend", {}).items():
         for profile_name, profile_data in backend_profiles.items():
-            instance_type = profile_data.get("instance_type") or profile_data.get("flavor_name", "?")
+            instance_type = (
+                profile_data.get("hardware_name")
+                or profile_data.get("instance_type")
+                or profile_data.get("flavor_name", "?")
+            )
             raw_fallbacks = profile_data.get("fallbacks", [])
             profiles[profile_name] = {
                 "backend": backend_name,

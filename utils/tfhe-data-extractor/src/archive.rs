@@ -205,6 +205,10 @@ const FLEET: &[Machine] = &[
         published: "8xH100-SXM5",
     },
     Machine {
+        stored: "nebius-H100-SXM-8-80G",
+        published: "8xH100-SXM5",
+    },
+    Machine {
         stored: "hpc8a.96xlarge",
         published: "hpc8a.96xlarge",
     },
@@ -557,8 +561,9 @@ mod tests {
     #[test]
     fn gpu_hardware_is_published_under_its_marketing_name() {
         assert_eq!(published_name("n3-H100-SXM5x8"), "8xH100-SXM5");
-        // Both spellings of the 8-GPU box publish as one machine.
+        // Every spelling of the 8-GPU box publishes as one machine.
         assert_eq!(published_name("H100-SXM-8-80G"), "8xH100-SXM5");
+        assert_eq!(published_name("nebius-H100-SXM-8-80G"), "8xH100-SXM5");
         // No alias needed, and none invented.
         assert_eq!(published_name("hpc7a.96xlarge"), "hpc7a.96xlarge");
     }
