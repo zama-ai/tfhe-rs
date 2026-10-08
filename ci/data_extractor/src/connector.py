@@ -9,6 +9,7 @@ from benchmark_specs import (
     BenchDetails,
     BenchType,
     Layer,
+    OperandSize,
     OperandType,
     PBSKind,
 )
@@ -133,6 +134,7 @@ class PostgreConnector:
         layer: Layer = None,
         branch: str = None,
         name_suffix: str = None,
+        param_name_patterns: list[str] = None,
         last_value_only: bool = True,
     ) -> dict[BenchDetails, list[int]]:
         """
@@ -157,6 +159,8 @@ class PostgreConnector:
         :type branch: str, optional
         :param name_suffix: Suffix to match the test names.
         :type name_suffix: str, optional
+        :param param_name_patterns: Parameters name filter, patterns must be usable by PostgreSQL.
+        :type param_name_patterns: list[str], optional
         :param last_value_only: A flag indicating whether to fetch only the most recent metric value for each benchmark.
         :type last_value_only: bool
 
@@ -214,6 +218,15 @@ class PostgreConnector:
             case PBSKind.Any:
                 # No need to add a filter
                 pass
+
+        if param_name_patterns:
+            formatted_patterns = [
+                f"p.crypto_parameters_alias LIKE '{p}'" for p in param_name_patterns
+            ]
+            filters.append("({})".format(" OR ".join(formatted_patterns)))
+
+        # for filt in filters:  # DEBUG
+        #     print(filt)  # DEBUG
 
         if operand_type:
             filters.append(f"p.operand_type = '{operand_type.value}'")
@@ -294,7 +307,7 @@ class PostgreConnector:
                 raise NoDataFound(msg)
 
             for line in lines:
-                bit_width = line[1]
+                bit_width = OperandSize(line[1])
 
                 bench_details = BenchDetails(layer, line[0], bit_width)
                 value = line[-1] if last_value_only else line[-3]

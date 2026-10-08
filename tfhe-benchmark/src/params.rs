@@ -73,6 +73,43 @@ pub mod shortint_params {
         ),
     ];
 
+    pub const SHORTINT_BENCH_PARAMS_GAUSSIAN_WHITEPAPER: [(ClassicPBSParameters, &str); 8] = [
+        // 2^-64
+        (
+            BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64",
+        ),
+        // 2^-128
+        (
+            BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128",
+        ),
+    ];
+
     pub const SHORTINT_BENCH_PARAMS_TUNIFORM_DOCUMENTATION: [(ClassicPBSParameters, &str); 8] = [
         (
             BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
@@ -248,6 +285,113 @@ pub mod shortint_params {
         }
     };
 
+    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS_WHITEPAPER: [(MultiBitPBSParameters, &str); 24] = [
+        // 2^-64
+        // Grouping factor 2
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64",
+        ),
+        // Grouping factor 3
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64",
+        ),
+        // Grouping factor 4
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64",
+        ),
+        // 2^-128
+        // Grouping factor 2
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128",
+        ),
+        // Grouping factor 3
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128",
+        ),
+        // Grouping factor 4
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128",
+        ),
+        (
+            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+            "BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128",
+        ),
+    ];
+
     use tfhe::shortint::parameters::MetaParameters;
 
     #[cfg(feature = "internal-keycache")]
@@ -265,6 +409,9 @@ pub mod shortint_params {
                                 .iter()
                                 .chain([].iter())
                         }
+                        ParamType::ClassicalWhitepaper => SHORTINT_BENCH_PARAMS_GAUSSIAN_WHITEPAPER
+                            .iter()
+                            .chain([].iter()),
                         _ => SHORTINT_BENCH_PARAMS_TUNIFORM
                             .iter()
                             .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter()),
@@ -308,6 +455,12 @@ pub mod shortint_params {
                             })
                             .collect()
                     }
+                    ParamType::MultiBitWhitepaper => SHORTINT_MULTI_BIT_BENCH_PARAMS_WHITEPAPER
+                        .iter()
+                        .map(|(params, name)| {
+                            (name.to_string(), (*params).into(), params.grouping_factor)
+                        })
+                        .collect(),
                     _ => SHORTINT_MULTI_BIT_BENCH_PARAMS
                         .iter()
                         .map(|(params, name)| {
@@ -583,7 +736,7 @@ pub use shortint_params::*;
 #[cfg(feature = "integer")]
 mod integer_params {
     use crate::params_aliases::*;
-    use crate::utilities::EnvConfig;
+    use crate::utilities::{get_param_type, EnvConfig, ParamType};
     use itertools::iproduct;
     use std::vec::IntoIter;
     use tfhe::shortint::AtomicPatternParameters;
@@ -601,36 +754,82 @@ mod integer_params {
             let env_config = EnvConfig::new();
 
             if env_config.is_multi_bit {
-                #[cfg(feature = "hpu")]
-                panic!("Hpu doesn't implement MultiBit");
+                let params = match get_param_type() {
+                    ParamType::MultiBitWhitepaperSpecialCase => {
+                        vec![
+                            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+                                .into(),
+                            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+                                .into(),
+                            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+                                .into(),
+                            BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
+                                .into(),
+                            BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
+                                .into(),
+                            BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
+                                .into(),
+                        ]
+                    }
+                    _ => {
+                        #[cfg(feature = "hpu")]
+                        panic!("Hpu doesn't implement MultiBit");
 
-                #[cfg(not(feature = "hpu"))]
-                {
-                    #[cfg(feature = "gpu")]
-                    let params = vec![
+                        #[cfg(not(feature = "hpu"))]
+                        {
+                            #[cfg(feature = "gpu")]
+                            let params = vec![
                         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
                             .into(),
                     ];
-                    #[cfg(not(feature = "gpu"))]
-                    let params = vec![
+                            #[cfg(not(feature = "gpu"))]
+                            let params = vec![
                         BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
                             .into(),
                     ];
 
-                    let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
-                    Self {
-                        params_and_bit_sizes,
+                            params
+                        }
                     }
+                };
+
+                let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
+                Self {
+                    params_and_bit_sizes,
                 }
             } else {
-                // FIXME One set of parameter is tested since we want to benchmark only quickest
-                // operations.
-                #[cfg(feature = "hpu")]
-                let params = vec![BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into()];
-                #[cfg(feature = "gpu")]
-                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
-                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
-                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS.into()];
+                let params = match get_param_type() {
+                    ParamType::ClassicalWhitepaper => {
+                        vec![
+                            BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64.into(),
+                            BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128.into(),
+                        ]
+                    }
+                    ParamType::ClassicalWhitepaperSpecialCase => {
+                        vec![
+                            BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64.into(),
+                            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into(),
+                            BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64.into(),
+                            BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128.into(),
+                            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
+                            BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128.into(),
+                            BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128.into(),
+                        ]
+                    }
+                    _ => {
+                        // FIXME One set of parameter is tested since we want to benchmark only
+                        // quickest operations.
+                        #[cfg(feature = "hpu")]
+                        let params =
+                            vec![BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into()];
+                        #[cfg(feature = "gpu")]
+                        let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS.into()];
+                        #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                        let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS.into()];
+
+                        params
+                    }
+                };
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {

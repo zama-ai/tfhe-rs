@@ -35,6 +35,9 @@ on:
       additional_results_type:
         type: string
         default: object-sizes
+      enable_thp: # Set transparent hugepages to "always" on the benchmark instance.
+        type: boolean
+        default: false
     secrets:
       REPO_CHECKOUT_TOKEN:
         required: true
@@ -174,6 +177,11 @@ jobs:
         uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: nightly
+
+      - name: Enable transparent huge pages
+        if: inputs.enable_thp
+        run: |
+          echo always | sudo tee /sys/kernel/mm/transparent_hugepage/enabled
 
       - name: Run benchmarks with AVX512
         run: |

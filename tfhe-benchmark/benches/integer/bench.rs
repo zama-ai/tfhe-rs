@@ -3560,6 +3560,14 @@ criterion_group!(oprf, oprf::unsigned_oprf);
 
 criterion_group!(vector_find, vector_find::match_value);
 
+// Group used to generate benchmarks meant to be published in tfhe-rs white paper.
+criterion_group!(
+    whitepaper_special_case,
+    add_parallelized,
+    mul_parallelized,
+    bitand_parallelized
+);
+
 #[cfg(feature = "gpu")]
 criterion_group!(
     cuda_mul_add_fixed_point_ops,
@@ -3632,6 +3640,7 @@ fn go_through_cpu_bench_groups(val: &str) {
             unchecked_scalar_ops_comp()
         }
         "misc" => misc(),
+        "whitepaper" => whitepaper_special_case(),
         _ => panic!("unknown benchmark operations flavor"),
     };
 }

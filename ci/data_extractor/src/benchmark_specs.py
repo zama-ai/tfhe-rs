@@ -53,6 +53,14 @@ class Layer(enum.StrEnum):
                 raise NotImplementedError(f"layer '{layer_name}' not supported")
 
 
+class OperandSize(int):
+    """
+    Syntactic sugar for operand sizes handled as integer.
+    """
+
+    pass
+
+
 class RustType(enum.Enum):
     """
     Represents different integer Rust types used in tfhe-rs.
@@ -192,6 +200,26 @@ class OperandType(enum.StrEnum):
     PlainText = "PlainText"
 
 
+class AtomicPattern(enum.StrEnum):
+    KSPBS = "KS_PBS"
+    PBSKS = "PBS_KS"
+    KS32PBS = "KS32_PBS"
+
+    @staticmethod
+    def from_str(pattern_name):
+        match pattern_name.lower():
+            case "ks_pbs":
+                return AtomicPattern.KSPBS
+            case "pbs_ks":
+                return AtomicPattern.PBSKS
+            case "ks32_pbs":
+                return AtomicPattern.KS32PBS
+            case _:
+                raise NotImplementedError(
+                    f"atomic pattern '{pattern_name}' not supported"
+                )
+
+
 class PBSKind(enum.StrEnum):
     """
     Represents the kind of parameter set used for Programmable Bootstrapping operation.
@@ -300,6 +328,71 @@ class BenchType(enum.StrEnum):
                 raise ValueError(f"BenchType '{bench_type}' not supported")
 
 
+class GroupingFactor(enum.IntEnum):
+    Two = 2
+    Three = 3
+    Four = 4
+
+    @staticmethod
+    def from_str(gf_value):
+        try:
+            int_value = int(gf_value)
+        except ValueError:
+            raise ValueError(f"grouping factor '{gf_value}' is not an integer")
+
+        match int_value:
+            case 2:
+                return GroupingFactor.Two
+            case 3:
+                return GroupingFactor.Three
+            case 4:
+                return GroupingFactor.Four
+            case _:
+                raise NotImplementedError(f"grouping factor '{gf_value}' not supported")
+
+
+class Precision(enum.Enum):
+    M1C1 = (1, 1)
+    M2C2 = (2, 2)
+    M3C3 = (3, 3)
+    M4C4 = (4, 4)
+
+    @staticmethod
+    def from_param_name(name: str) -> enum.Enum:
+        parts = name.split("_")
+        message = None
+        carry = None
+
+        for i, part in enumerate(parts):
+            if part == "MESSAGE":
+                message = int(parts[i + 1])
+            elif part == "CARRY":
+                carry = int(parts[i + 1])
+
+        if message is None or carry is None:
+            raise ValueError(f"could not extract precision in '{name}'")
+
+        match (message, carry):
+            case (1, 1):
+                return Precision.M1C1
+            case (2, 2):
+                return Precision.M2C2
+            case (3, 3):
+                return Precision.M3C3
+            case (4, 4):
+                return Precision.M4C4
+            case _:
+                raise NotImplementedError(
+                    f"precision message={message} carry={carry} not supported yet"
+                )
+
+    def message(self) -> int:
+        return self.value[0]
+
+    def carry(self) -> int:
+        return self.value[1]
+
+
 class BenchSubset(enum.StrEnum):
     All = "all"
     Erc7984 = "erc7984"
@@ -381,8 +474,7 @@ class ParamsDefinition:
     """
 
     def __init__(self, param_name: str):
-        self.message_size = None
-        self.carry_size = None
+        self.precision = None
         self.pbs_kind = None
         self.grouping_factor = None
         self.noise_distribution = None
@@ -395,8 +487,8 @@ class ParamsDefinition:
 
     def __eq__(self, other):
         return (
-            self.message_size == other.message_size
-            and self.carry_size == other.carry_size
+            self.precision.message() == other.precision.message()
+            and self.precision.carry() == other.precision.carry()
             and self.pbs_kind == other.pbs_kind
             and self.grouping_factor == other.grouping_factor
             and self.noise_distribution == other.noise_distribution
@@ -409,16 +501,16 @@ class ParamsDefinition:
     def __lt__(self, other):
 
         return (
-            self.message_size < other.message_size
-            and self.carry_size < other.carry_size
+            self.precision.message() < other.precision.message()
+            and self.precision.carry() < other.precision.carry()
             and self.p_fail < other.p_fail
         )
 
     def __hash__(self):
         return hash(
             (
-                self.message_size,
-                self.carry_size,
+                self.precision.message,
+                self.precision.carry,
                 self.pbs_kind,
                 self.grouping_factor,
                 self.noise_distribution,
@@ -429,7 +521,47 @@ class ParamsDefinition:
         )
 
     def __repr__(self):
-        return f"ParamsDefinition(message_size={self.message_size}, carry_size={self.carry_size}, pbs_kind={self.pbs_kind}, grouping_factor={self.grouping_factor}, noise_distribution={self.noise_distribution}, atomic_pattern={self.atomic_pattern}, p_fail={self.p_fail}, version={self.version}, details={self.details})"
+        return (
+            f"ParamsDefinition("
+            f"message_size={self.precision.message()}, "
+            f"carry_size={self.precision.carry()}, "
+            f"pbs_kind={self.pbs_kind}, "
+            f"grouping_factor={self.grouping_factor}, "
+            f"noise_distribution={self.noise_distribution}, "
+            f"atomic_pattern={self.atomic_pattern}, "
+            f"p_fail={self.p_fail}, "
+            f"version={self.version}, "
+            f"details={self.details})"
+        )
+
+    def components_match(self, *components):
+        for component in components:
+            match component:
+                case Precision():
+                    if self.precision != component:
+                        return False
+                case PBSKind():
+                    if self.pbs_kind != component:
+                        return False
+                case GroupingFactor():
+                    if self.grouping_factor != component:
+                        return False
+                case NoiseDistribution():
+                    if self.noise_distribution != component:
+                        return False
+                case AtomicPattern():
+                    if self.atomic_pattern != component:
+                        return False
+                case ErrorFailureProbability():
+                    if self.p_fail != component:
+                        return False
+                case _:
+                    raise ValueError(
+                        f"unsupported component type for matching '{type(component)}'"
+                    )
+
+        # Each component matches
+        return True
 
     def _parse_param_name(self, param_name: str) -> None:
         split_params = param_name.split("_")
@@ -447,6 +579,12 @@ class ParamsDefinition:
                 break
 
             params_variation_parts.append(part)
+
+        try:
+            self.precision = Precision.from_param_name(param_name)
+        except ValueError or NotImplementedError:
+            # Might be a Boolean parameters set
+            raise ParametersFormatNotSupported(param_name)
 
         try:
             self.p_fail = ErrorFailureProbability.from_param_name(param_name)
@@ -467,23 +605,17 @@ class ParamsDefinition:
             noise_distribution_index = None
 
         try:
-            self.message_size = int(split_params[split_params.index("MESSAGE") + 1])
             carry_size_index = split_params.index("CARRY") + 1
-            self.carry_size = int(split_params[carry_size_index])
-            self.atomic_pattern = "_".join(
-                split_params[carry_size_index + 1 : noise_distribution_index]
-            )
-        except ValueError:
-            # Might be a Boolean parameters set
-            raise ParametersFormatNotSupported(param_name)
-
-        try:
             if noise_distribution_index:
-                self.atomic_pattern = "_".join(
-                    split_params[carry_size_index + 1 : noise_distribution_index]
+                self.atomic_pattern = AtomicPattern.from_str(
+                    "_".join(
+                        split_params[carry_size_index + 1 : noise_distribution_index]
+                    )
                 )
             else:
-                self.atomic_pattern = "_".join(split_params[carry_size_index + 1 :])
+                self.atomic_pattern = AtomicPattern.from_str(
+                    "_".join(split_params[carry_size_index + 1 :])
+                )
         except ValueError:
             # Might be a Boolean parameters set
             raise ParametersFormatNotSupported(param_name)
@@ -496,7 +628,9 @@ class ParamsDefinition:
 
         try:
             # This is a multi-bit parameters set
-            self.grouping_factor = int(split_params[split_params.index("GROUP") + 1])
+            self.grouping_factor = GroupingFactor.from_str(
+                split_params[split_params.index("GROUP") + 1]
+            )
             self.pbs_kind = PBSKind.MultiBit
         except ValueError:
             # This is a classical parameters set
@@ -520,7 +654,7 @@ class BenchDetails:
     :type bit_size: int
     """
 
-    def __init__(self, layer: Layer, bench_full_name: str, bit_size: int):
+    def __init__(self, layer: Layer, bench_full_name: str, bit_size: OperandSize):
         self.layer = layer
 
         # Kept whole: a tag spanning several `::` segments cannot be recovered
@@ -621,6 +755,7 @@ class BenchDetails:
                     if not self.params:
                         self.params = parts[op_name_index + 1]
                     if "compression" in parts[op_name_index]:
+                        self.operation_name = "_".join([self.operation_name, parts[op_name_index + 2].split("_")[0]])
                         self.rust_type = "_".join(
                             (parts[op_name_index], parts[-1].split("_")[0])
                         )

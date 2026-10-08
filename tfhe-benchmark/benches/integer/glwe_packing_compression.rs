@@ -1,5 +1,7 @@
 use benchmark::params_aliases::*;
-use benchmark::utilities::{write_to_json, BitSizesSet, EnvConfig, OperatorType};
+use benchmark::utilities::{
+    get_param_type, write_to_json, BitSizesSet, EnvConfig, OperatorType, ParamType,
+};
 use benchmark_spec::{
     get_bench_type, BenchmarkSpec, BenchmarkType, FheType, IntegerBench, IntegerPackingOp,
 };
@@ -9,7 +11,7 @@ use std::hint::black_box;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::parameters::LweCiphertextCount;
+use tfhe::shortint::parameters::{ClassicPBSParameters, CompressionParameters, LweCiphertextCount};
 use tfhe::shortint::MessageModulus;
 
 fn default_config(
@@ -21,6 +23,19 @@ fn default_config(
     match env_config.bit_sizes_set {
         BitSizesSet::Fast => {
             vec![64]
+        }
+        BitSizesSet::Whitepaper => {
+            vec![
+                2,
+                4,
+                8,
+                16,
+                32,
+                64,
+                128,
+                256,
+                lwe_per_glwe.0 * message_modulus.0.ilog2() as usize,
+            ]
         }
         _ => {
             vec![
@@ -38,14 +53,42 @@ fn default_config(
 }
 
 fn cpu_glwe_packing(c: &mut Criterion) {
+    // Whitepaper benchmarks use Gaussian noise parameters at both failure
+    // probabilities, the default case keeps the usual TUniform set.
+    let param_pairs = match get_param_type() {
+        ParamType::ClassicalWhitepaper | ParamType::ClassicalWhitepaperSpecialCase => {
+            vec![
+                (
+                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                    BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+                ),
+                (
+                    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+                    BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+                ),
+            ]
+        }
+        _ => vec![(
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )],
+    };
+
+    for (param, comp_param) in param_pairs {
+        cpu_glwe_packing_for_params(c, param, comp_param);
+    }
+}
+
+fn cpu_glwe_packing_for_params(
+    c: &mut Criterion,
+    param: ClassicPBSParameters,
+    comp_param: CompressionParameters,
+) {
     let bench_name = "integer::packing_compression";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(30));
-
-    let param = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let comp_param = BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let cks = ClientKey::new(param);
 

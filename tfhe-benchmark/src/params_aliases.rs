@@ -4,8 +4,8 @@ pub mod shortint_params_aliases {
     use tfhe::shortint::parameters::current_params::meta::gpu::*;
     use tfhe::shortint::parameters::current_params::*;
     use tfhe::shortint::parameters::{
-        v1_6, ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
-        KeySwitch32PBSParameters, MetaParameters, MultiBitPBSParameters,
+        v1_5, v1_6, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
+        CompressionParameters, KeySwitch32PBSParameters, MetaParameters, MultiBitPBSParameters,
         NoiseSquashingCompressionParameters, NoiseSquashingParameters,
         ShortintKeySwitchingParameters,
     };
@@ -76,6 +76,18 @@ pub mod shortint_params_aliases {
         V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS: KeySwitch32PBSParameters =
         V1_9_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+
+    // KS32 PBS Gaussian (whitepaper benchmarks)
+    pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64: KeySwitch32PBSParameters =
+        v1_5::V1_5_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64;
+    pub const BENCH_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128: KeySwitch32PBSParameters =
+        v1_5::V1_5_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M128;
+
+    // Compression Gaussian (whitepaper benchmarks)
+    pub const BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64: CompressionParameters =
+        v1_5::V1_5_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    pub const BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128: CompressionParameters =
+        V1_9_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
     pub const BENCH_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 20] = [
         // Gaussian 2^-64

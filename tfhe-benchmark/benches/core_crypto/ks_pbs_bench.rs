@@ -1198,16 +1198,28 @@ pub fn multi_bit_ks_pbs_group() {
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups() {
     match get_param_type() {
-        ParamType::Classical | ParamType::ClassicalDocumentation => cuda_ks_pbs_group(),
-        ParamType::MultiBit | ParamType::MultiBitDocumentation => cuda_multi_bit_ks_pbs_group(),
+        ParamType::Classical
+        | ParamType::ClassicalDocumentation
+        | ParamType::ClassicalWhitepaper
+        | ParamType::ClassicalWhitepaperSpecialCase => cuda_ks_pbs_group(),
+        ParamType::MultiBit
+        | ParamType::MultiBitDocumentation
+        | ParamType::MultiBitWhitepaper
+        | ParamType::MultiBitWhitepaperSpecialCase => cuda_multi_bit_ks_pbs_group(),
     };
 }
 
 #[cfg(not(feature = "gpu"))]
 fn go_through_cpu_bench_groups() {
     match get_param_type() {
-        ParamType::Classical | ParamType::ClassicalDocumentation => ks_pbs_group(),
-        ParamType::MultiBit | ParamType::MultiBitDocumentation => multi_bit_ks_pbs_group(),
+        ParamType::Classical
+        | ParamType::ClassicalDocumentation
+        | ParamType::ClassicalWhitepaper
+        | ParamType::ClassicalWhitepaperSpecialCase => ks_pbs_group(),
+        ParamType::MultiBit
+        | ParamType::MultiBitDocumentation
+        | ParamType::MultiBitWhitepaper
+        | ParamType::MultiBitWhitepaperSpecialCase => multi_bit_ks_pbs_group(),
     }
 }
 
