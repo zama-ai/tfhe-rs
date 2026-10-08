@@ -8,6 +8,7 @@ BACKEND_MAP = {
     "aws": "aws",
     "hyperstack": "hyperstack",
     "scaleway": "terraform",
+    "nebius": "terraform",
 }
 
 
@@ -60,9 +61,11 @@ def parse_profile(profile_string, output_file, slab_toml):
         sys.exit(1)
 
     entry = available[profile]
-    expected_hardware = entry.get("flavor_name") or entry.get("instance_type")
+    expected_hardware = (
+        entry.get("hardware_name") or entry.get("flavor_name") or entry.get("instance_type")
+    )
     assert expected_hardware is not None, (
-        f"profile '{profile}' in {slab_toml} has neither 'flavor_name' nor 'instance_type'"
+        f"profile '{profile}' in {slab_toml} has none of 'hardware_name', 'flavor_name' or 'instance_type'"
     )
     if hardware_name != expected_hardware:
         print(
