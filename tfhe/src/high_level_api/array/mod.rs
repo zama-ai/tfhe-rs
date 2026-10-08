@@ -16,7 +16,10 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntId, FheIntegerType, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
+use crate::integer::server_key::ScalarMultiplier;
 use crate::{FheBool, FheId, FheInt, FheUint, Tag};
+#[cfg(feature = "gpu")]
+use rayon::prelude::*;
 use std::ops::{AddAssign, Mul, RangeBounds};
 use traits::{ArrayBackend, BackendDataContainer, BackendDataContainerMut};
 pub use traits::{IOwnedArray, Slicing, SlicingMut};
@@ -629,5 +632,91 @@ where
             tag,
             ReRandomizationMetadata::default(),
         )
+    }
+}
+
+impl<Id, Clear> traits::FheSliceDotProduct<FheUint<Id>, Clear> for FheUint<Id>
+where
+    Id: FheUintId,
+    Clear: Copy,
+    for<'a> &'a FheUint<Id>: Mul<Clear, Output = FheUint<Id>>,
+{
+    /// Performs a dot product between a slice of encrypted unsigned integers and a slice of
+    /// clear unsigned integers.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the operands do not have the same length or are empty.
+    fn dot_product(encrypted: &[FheUint<Id>], clears: &[Clear]) -> Self {
+        assert_eq!(
+            encrypted.len(),
+            clears.len(),
+            "both operands must have the same number of elements"
+        );
+        assert!(!encrypted.is_empty(), "operands must not be empty");
+
+        encrypted
+            .iter()
+            .zip(clears.iter().copied())
+            .map(|(ciphertext, clear)| ciphertext * clear)
+            .sum()
+    }
+}
+
+impl<Id, Clear> traits::FheSliceDotProductParallel<FheUint<Id>, Clear> for FheUint<Id>
+where
+    Id: FheUintId + Sync,
+    Clear: Copy + Send + Sync + DecomposableInto<u8> + ScalarMultiplier + CastInto<u64>,
+    for<'a> &'a FheUint<Id>: Mul<Clear, Output = FheUint<Id>>,
+{
+    /// Performs a dot product between a slice of encrypted unsigned integers and a slice of
+    /// clear unsigned integers, parallelizing the scalar multiplications on CUDA.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the operands do not have the same length or are empty.
+    fn dot_product_parallel(encrypted: &[FheUint<Id>], clears: &[Clear]) -> Self {
+        assert_eq!(
+            encrypted.len(),
+            clears.len(),
+            "both operands must have the same number of elements"
+        );
+        assert!(!encrypted.is_empty(), "operands must not be empty");
+
+        #[cfg(feature = "gpu")]
+        if let Some(result) = global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cuda(cuda_key) => {
+                let products = encrypted
+                    .par_iter()
+                    .zip(clears.par_iter().copied())
+                    .map(|(ciphertext, clear)| {
+                        global_state::with_thread_local_cuda_streams_for_gpu_indexes(
+                            cuda_key.gpu_indexes(),
+                            |streams| {
+                                cuda_key.pbs_key().scalar_mul(
+                                    &*ciphertext.on_gpu(streams),
+                                    clear,
+                                    streams,
+                                )
+                            },
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let sum = cuda_key
+                    .pbs_key()
+                    .sum_ciphertexts(products, &cuda_key.streams)
+                    .unwrap();
+                Some(Self::new(
+                    sum,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
+            }
+            _ => None,
+        }) {
+            return result;
+        }
+
+        <Self as traits::FheSliceDotProduct<FheUint<Id>, Clear>>::dot_product(encrypted, clears)
     }
 }
