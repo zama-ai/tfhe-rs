@@ -38,69 +38,34 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::num::NonZero;
 use tfhe_safe_serialize::ParameterSetConformant;
-use tfhe_versionable::{Unversionize, UnversionizeError, VersionizeOwned};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[serde(
+    from = "IntegerCompressedSquashedNoiseCiphertextList",
+    into = "IntegerCompressedSquashedNoiseCiphertextList"
+)]
+#[versionize(convert = "IntegerCompressedSquashedNoiseCiphertextList")]
 pub(in crate::high_level_api) enum InnerCompressedSquashedNoiseCiphertextList {
     Cpu(IntegerCompressedSquashedNoiseCiphertextList),
     #[cfg(feature = "gpu")]
     Cuda(CudaCompressedSquashedNoiseCiphertextList),
 }
 
-impl Versionize for InnerCompressedSquashedNoiseCiphertextList {
-    type Versioned<'vers> =
-        <IntegerCompressedSquashedNoiseCiphertextList as VersionizeOwned>::VersionedOwned;
-
-    fn versionize(&self) -> Self::Versioned<'_> {
-        self.on_cpu()
-            .expect("Failed to copy the compressed list to the CPU")
-            .into_owned()
-            .versionize_owned()
+impl From<InnerCompressedSquashedNoiseCiphertextList>
+    for IntegerCompressedSquashedNoiseCiphertextList
+{
+    fn from(value: InnerCompressedSquashedNoiseCiphertextList) -> Self {
+        value
+            .into_cpu()
+            .expect("Failed to move the compressed list to CPU")
     }
 }
 
-impl VersionizeOwned for InnerCompressedSquashedNoiseCiphertextList {
-    type VersionedOwned =
-        <IntegerCompressedSquashedNoiseCiphertextList as VersionizeOwned>::VersionedOwned;
-
-    fn versionize_owned(self) -> Self::VersionedOwned {
-        self.into_cpu()
-            .expect("Failed to copy the compressed list to the CPU")
-            .versionize_owned()
-    }
-}
-
-impl Unversionize for InnerCompressedSquashedNoiseCiphertextList {
-    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
-        IntegerCompressedSquashedNoiseCiphertextList::unversionize(versioned).map(Self::Cpu)
-    }
-}
-
-impl Serialize for InnerCompressedSquashedNoiseCiphertextList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.on_cpu()
-            .map_err(serde::ser::Error::custom)?
-            .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for InnerCompressedSquashedNoiseCiphertextList {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let mut new = IntegerCompressedSquashedNoiseCiphertextList::deserialize(deserializer)
-            .map(Self::Cpu)?;
-
-        if let Some(device) = crate::high_level_api::global_state::device_of_internal_keys() {
-            new.move_to_device(device)
-                .map_err(serde::de::Error::custom)?;
-        }
-
-        Ok(new)
+impl From<IntegerCompressedSquashedNoiseCiphertextList>
+    for InnerCompressedSquashedNoiseCiphertextList
+{
+    fn from(value: IntegerCompressedSquashedNoiseCiphertextList) -> Self {
+        Self::Cpu(value)
     }
 }
 
@@ -294,6 +259,17 @@ impl ParameterSetConformant for CompressedSquashedNoiseCiphertextList {
 }
 
 impl CompressedSquashedNoiseCiphertextList {
+    pub fn current_device(&self) -> crate::Device {
+        self.inner.current_device()
+    }
+
+    pub fn move_to_current_device(&mut self) -> crate::Result<()> {
+        if let Some(device) = crate::high_level_api::global_state::device_of_internal_keys() {
+            self.inner.move_to_device(device)?;
+        }
+        Ok(())
+    }
+
     pub fn builder() -> CompressedSquashedNoiseCiphertextListBuilder {
         CompressedSquashedNoiseCiphertextListBuilder::new()
     }
