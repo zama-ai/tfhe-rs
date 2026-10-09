@@ -12,6 +12,7 @@
 #include "integer/scalar_addition.cuh"
 #include "linearalgebra/addition.cuh"
 #include "linearalgebra/multiplication.cuh"
+#include <algorithm>
 
 #include "pbs/pbs_128_utilities.h"
 #include "polynomial/functions.cuh"
@@ -1788,6 +1789,261 @@ void host_resolve_group_carries_sequentially(
           group_resolved_carries, 1, blocks_to_solve + 1);
 
       last_resolved_pos += blocks_to_solve;
+    }
+  }
+}
+
+// Sklansky prefix network for n = 8. | is the position a level reads, ^ the
+// positions absorbing it. log2(n) levels of about n / 2 pairs each.
+//
+//   q          0    1    2    3    4    5    6    7
+//   half=1     |    ^    |    ^    |    ^    |    ^    4 pairs
+//              +----+    +----+    +----+    +----+
+//   half=2          |    ^    ^         |    ^    ^    4
+//                   +----+----+         +----+----+
+//   half=4                    |    ^    ^    ^    ^    4
+//                             +----+----+----+----+
+//                                                      == 12 bootstraps
+//
+// Hillis-Steele needs 7 + 6 + 4 = 17 for the same depth. The usual catch of
+// Sklansky, the fan-out, is just a memcpy here.
+
+/** @brief Start of the run pair t belongs to.
+ *
+ * Each run of half positions absorbs the position just below it, here 1
+ * feeds 2 and 3 and 5 feeds 6 and 7 (half = 2, n = 8)
+ *
+ *   q          0    1    2    3    4    5    6    7
+ *                   |    ^    ^         |    ^    ^
+ *                   +----+----+         +----+----+
+ *   t                    0    1              2    3
+ *
+ * This and the two helpers below are the only definition of the network,
+ * read by the kernels and by the host loops tracking degree and noise.
+ *
+ * @param t Pair index inside the level
+ * @param half Level width
+ * @return Start of the run, in q space
+ */
+__host__ __device__ __forceinline__ uint32_t sklansky_run_base(uint32_t t,
+                                                               uint32_t half) {
+  return (2 * (t / half) + 1) * half;
+}
+
+/** @brief Position pair t rewrites.
+ *
+ * @param t Pair index inside the level
+ * @param half Level width
+ * @param num_positions Scanned positions
+ * @param forward True for a forward prefix, false mirrors it to scan from the
+ * other end
+ * @return Position the level rewrites
+ */
+__host__ __device__ __forceinline__ uint32_t sklansky_target(
+    uint32_t t, uint32_t half, uint32_t num_positions, bool forward) {
+  uint32_t q = sklansky_run_base(t, half) + (t % half);
+  return forward ? q : num_positions - 1 - q;
+}
+
+/** @brief Position pair t reads, one below the run and shared by the whole
+ * run.
+ *
+ * @param t Pair index inside the level
+ * @param half Level width
+ * @param num_positions Scanned positions
+ * @param forward See sklansky_target
+ * @return Position the level reads
+ */
+__host__ __device__ __forceinline__ uint32_t sklansky_source(
+    uint32_t t, uint32_t half, uint32_t num_positions, bool forward) {
+  uint32_t q = sklansky_run_base(t, half) - 1;
+  return forward ? q : num_positions - 1 - q;
+}
+
+/** @brief Stages the operand pairs of a level, step 2a of
+ * host_prefix_scan_sklansky_inplace. The source is copied once per target,
+ * that's all the fan-out costs.
+ *
+ * @param targets_out Absorbing positions, one slot per target and lane
+ * @param sources_out Read positions, duplicated per target
+ * @param scan Scanned positions, position major
+ * @param lwe_size lwe_dimension + 1
+ * @param half Level width
+ * @param count Targets in this level, see sklansky_level_count
+ * @param batch_size Interleaved scans per position
+ * @param num_positions Scanned positions
+ * @param forward See sklansky_target
+ */
+template <typename Torus>
+__global__ void
+device_sklansky_gather_level(Torus *targets_out, Torus *sources_out,
+                             Torus const *scan, uint32_t lwe_size,
+                             uint32_t half, uint32_t count, uint32_t batch_size,
+                             uint32_t num_positions, bool forward) {
+  size_t tid = (size_t)threadIdx.x + (size_t)blockIdx.x * blockDim.x;
+  if (tid >= (size_t)count * batch_size * lwe_size)
+    return;
+  size_t slot = tid / lwe_size;
+  uint32_t c = (uint32_t)(tid % lwe_size);
+  uint32_t b = (uint32_t)(slot % batch_size);
+  uint32_t t = (uint32_t)(slot / batch_size);
+
+  uint32_t p_target = sklansky_target(t, half, num_positions, forward);
+  uint32_t p_source = sklansky_source(t, half, num_positions, forward);
+
+  targets_out[slot * lwe_size + c] =
+      scan[((size_t)p_target * batch_size + b) * lwe_size + c];
+  sources_out[slot * lwe_size + c] =
+      scan[((size_t)p_source * batch_size + b) * lwe_size + c];
+}
+
+/** @brief Writes a level back into scan, targets only, step 4a of
+ * host_prefix_scan_sklansky_inplace.
+ *
+ * @param scan Scanned positions, rewritten at the targets
+ * @param src Bootstrapped level, one slot per target and lane
+ * @param lwe_size lwe_dimension + 1
+ * @param half Level width
+ * @param count Targets in this level
+ * @param batch_size Interleaved scans per position
+ * @param num_positions Scanned positions
+ * @param forward See sklansky_target
+ */
+template <typename Torus>
+__global__ void device_sklansky_scatter_level(
+    Torus *scan, Torus const *src, uint32_t lwe_size, uint32_t half,
+    uint32_t count, uint32_t batch_size, uint32_t num_positions, bool forward) {
+  size_t tid = (size_t)threadIdx.x + (size_t)blockIdx.x * blockDim.x;
+  if (tid >= (size_t)count * batch_size * lwe_size)
+    return;
+  size_t slot = tid / lwe_size;
+  uint32_t c = (uint32_t)(tid % lwe_size);
+  uint32_t b = (uint32_t)(slot % batch_size);
+  uint32_t t = (uint32_t)(slot / batch_size);
+
+  uint32_t p_target = sklansky_target(t, half, num_positions, forward);
+
+  scan[((size_t)p_target * batch_size + b) * lwe_size + c] =
+      src[slot * lwe_size + c];
+}
+
+/** @brief Targets in a level, the width of its PBS batch. The last run can
+ * be clipped
+ *
+ *   n = 6, half = 1   |0||1||2||3||4||5|    3 targets: 1, 3, 5
+ *   n = 6, half = 2   |0 1||2 3||4 5|       2 targets: 2, 3
+ *   n = 6, half = 4   |0 1 2 3||4 5|        2 targets: 4, 5
+ *
+ * @param num_positions Scanned positions
+ * @param half Level width
+ * @return Targets of the level
+ */
+__host__ inline uint32_t sklansky_level_count(uint32_t num_positions,
+                                              uint32_t half) {
+  uint32_t count = 0;
+  for (uint32_t s = half; s < num_positions; s += 2 * half)
+    count += std::min(half, num_positions - s);
+  return count;
+}
+
+/** @brief Runs the network above, rewriting scan in place.
+ *
+ * One turn of the loop, n = 8 and half = 2
+ *
+ *   scan       p0   p1   p2   p3   p4   p5   p6   p7     state in
+ *
+ *   1  pick         |    ^    ^         |    ^    ^      sklansky_target
+ *                   +----+----+         +----+----+      count = 4 targets
+ *
+ *   2a gather   slot            0    1    2    3         gather_level
+ *                sk_targets     p2   p3   p6   p7
+ *                sk_sources     p1   p1   p5   p5        source, duplicated
+ *   2b host     degrees and noise_levels follow          host loop
+ *
+ *   3  pbs      sk_targets = f(sk_targets, sk_sources)   num_slots at once
+ *
+ *   4a scatter  scan[target] = sk_targets                scatter_level
+ *   4b host     the same, targets only                   host loop
+ *
+ *   scan       p0   p1   P2   P3   p4   p5   P6   P7     state out
+ *
+ * @param scan Scanned positions, rewritten in place
+ * @param sk_targets Staging for the absorbing positions, at least
+ * ceil(num_positions / 2) * batch_size blocks
+ * @param sk_sources Staging for the read positions, same size
+ * @param luts Bivariate LUT applied at every level
+ * @param num_positions Scanned positions
+ * @param batch_size Interleaved scans per position
+ * @param forward See sklansky_target
+ */
+template <typename Torus, typename KSTorus>
+void host_prefix_scan_sklansky_inplace(
+    CudaStreams streams, CudaRadixCiphertextFFI *scan,
+    CudaRadixCiphertextFFI *sk_targets, CudaRadixCiphertextFFI *sk_sources,
+    int_radix_lut<Torus> *luts, void *const *bsks, KSTorus *const *ksks,
+    uint32_t num_positions, uint32_t batch_size = 1, bool forward = true) {
+
+  if (num_positions < 2)
+    return;
+
+  auto stream = streams.stream(0);
+  auto gpu_index = streams.gpu_index(0);
+  uint32_t lwe_size = scan->lwe_dimension + 1;
+
+  for (uint32_t half = 1; half < num_positions; half <<= 1) {
+    // Step 1 of the diagram above
+    uint32_t count = sklansky_level_count(num_positions, half);
+    if (count == 0)
+      continue;
+    uint32_t num_slots = count * batch_size;
+    if (num_slots > sk_targets->num_radix_blocks ||
+        num_slots > sk_sources->num_radix_blocks)
+      PANIC("Cuda error: Sklansky staging buffers are too small")
+
+    int num_blocks = 0, num_threads = 0;
+    getNumBlocksAndThreads(num_slots * lwe_size, 512, num_blocks, num_threads);
+    cuda_set_device(gpu_index);
+
+    // Step 2a
+    device_sklansky_gather_level<Torus><<<num_blocks, num_threads, 0, stream>>>(
+        (Torus *)sk_targets->ptr, (Torus *)sk_sources->ptr, (Torus *)scan->ptr,
+        lwe_size, half, count, batch_size, num_positions, forward);
+    check_cuda_error(cudaGetLastError());
+
+    // Step 2b
+    for (uint32_t slot = 0; slot < num_slots; slot++) {
+      uint32_t b = slot % batch_size;
+      uint32_t t = slot / batch_size;
+      uint32_t p_target = sklansky_target(t, half, num_positions, forward);
+      uint32_t p_source = sklansky_source(t, half, num_positions, forward);
+      sk_targets->degrees[slot] = scan->degrees[p_target * batch_size + b];
+      sk_targets->noise_levels[slot] =
+          scan->noise_levels[p_target * batch_size + b];
+      sk_sources->degrees[slot] = scan->degrees[p_source * batch_size + b];
+      sk_sources->noise_levels[slot] =
+          scan->noise_levels[p_source * batch_size + b];
+    }
+
+    // Step 3
+    integer_radix_apply_bivariate_lookup_table<Torus>(
+        streams, sk_targets, sk_targets, sk_sources, bsks, ksks, luts,
+        num_slots, luts->params.message_modulus);
+
+    // Step 4a
+    device_sklansky_scatter_level<Torus>
+        <<<num_blocks, num_threads, 0, stream>>>(
+            (Torus *)scan->ptr, (Torus *)sk_targets->ptr, lwe_size, half, count,
+            batch_size, num_positions, forward);
+    check_cuda_error(cudaGetLastError());
+
+    // Step 4b
+    for (uint32_t slot = 0; slot < num_slots; slot++) {
+      uint32_t b = slot % batch_size;
+      uint32_t t = slot / batch_size;
+      uint32_t p_target = sklansky_target(t, half, num_positions, forward);
+      scan->degrees[p_target * batch_size + b] = sk_targets->degrees[slot];
+      scan->noise_levels[p_target * batch_size + b] =
+          sk_targets->noise_levels[slot];
     }
   }
 }
