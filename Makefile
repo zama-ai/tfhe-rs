@@ -661,9 +661,11 @@ clippy_param_dedup: install_rs_check_toolchain
 .PHONY: clippy_fuzz # Run clippy lints on fuzzing crates
 clippy_fuzz: install_rs_check_toolchain
 	@find utils/fuzz -name Cargo.toml -not -path '*/target/*' | while read crate; do \
-		echo "checking $$(dirname $$crate)"; \
-		RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-			--manifest-path $$crate -- --no-deps -D warnings; \
+		for features in "" --all-features; do \
+			echo "checking $$(dirname $$crate) $$features"; \
+			DOCS_RS=1 RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+				$$features --manifest-path $$crate -- --no-deps -D warnings || exit 1; \
+		done; \
 	done
 
 .PHONY: fuzz_system_config # Configure kernel for AFL fuzzing (one-shot per runner boot)
@@ -1513,12 +1515,12 @@ endif
 .PHONY: test_regex_engine # Run tests for regex_engine example
 test_regex_engine:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--example regex_engine --features=integer
+		--example regex_engine -p tfhe --features=integer
 
 .PHONY: test_sha256_bool # Run tests for sha256_bool example
 test_sha256_bool:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--example sha256_bool --features=boolean
+		--example sha256_bool -p tfhe --features=boolean
 
 .PHONY: test_examples # Run tests for examples
 test_examples: test_sha256_bool test_regex_engine
@@ -2536,20 +2538,20 @@ pull_test_vectors:
 .PHONY: regex_engine # Run regex_engine example
 regex_engine:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
-	--example regex_engine --features=integer \
+	--example regex_engine -p tfhe --features=integer \
 	-- $(REGEX_STRING) $(REGEX_PATTERN)
 
 .PHONY: dark_market # Run dark market example
 dark_market:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
-	--example dark_market \
+	--example dark_market -p tfhe \
 	--features=integer,internal-keycache \
 	-- fhe-modified fhe-parallel plain fhe
 
 .PHONY: sha256_bool # Run sha256_bool example
 sha256_bool:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
-	--example sha256_bool --features=boolean
+	--example sha256_bool -p tfhe --features=boolean
 
 .PHONY: pcc # pcc stands for pre commit checks for CPU compilation
 pcc: pcc_batch_1 pcc_batch_2 pcc_batch_3 pcc_batch_4 pcc_batch_5 pcc_batch_6 pcc_batch_7
@@ -2586,6 +2588,7 @@ pcc_batch_2:
 	$(call run_recipe_with_details,clippy_test_vectors)
 	$(call run_recipe_with_details,check_test_vectors)
 	$(call run_recipe_with_details,clippy_wasm_par_mq)
+	$(call run_recipe_with_details,clippy_fuzz)
 	$(call run_recipe_with_details,check_licenses)
 
 .PHONY: pcc_batch_3 # duration: 6'50''

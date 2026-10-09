@@ -4,7 +4,7 @@ use std::ops::{Add, Mul, Sub};
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "gpu")]
-use tfhe::CudaServerKey;
+use tfhe::{ClientKey, CompressedServerKey, CudaServerKey};
 
 use tfhe::core_crypto::commons::parameters::*;
 use tfhe::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
@@ -15,9 +15,9 @@ use tfhe::shortint::parameters::*;
 use tfhe::shortint::{CarryModulus, MessageModulus};
 use tfhe::zk::CompactPkeCrs;
 use tfhe::{
-    ClientKey, CompactCiphertextListExpander, CompactPublicKey, CompressedCiphertextListBuilder,
-    CompressedServerKey, FheInt8, FheInt16, FheInt32, FheInt64, FheTypes, FheUint8, FheUint16,
-    FheUint32, FheUint64, HlCompressible, HlExpandable, ServerKey, set_server_key,
+    CompactCiphertextListExpander, CompactPublicKey, CompressedCiphertextListBuilder, FheInt8,
+    FheInt16, FheInt32, FheInt64, FheTypes, FheUint8, FheUint16, FheUint32, FheUint64,
+    HlCompressible, HlExpandable, ServerKey, set_server_key,
 };
 
 #[cfg(fuzzing)]
