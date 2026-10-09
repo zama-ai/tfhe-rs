@@ -1,5 +1,4 @@
 use super::*;
-use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::test::{FftWopPbsKeys, FftWopPbsTestParams};
 use crate::core_crypto::commons::dispersion::LogStandardDev;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
@@ -86,6 +85,77 @@ pub fn generate_keys<
         big_lwe_sk,
         fbsk: fourier_bsk,
         lwe_pfpksk: vec_pfpksk,
+    }
+}
+
+struct TestCbsKeys {
+    glwe_sk: GlweSecretKeyOwned<u64>,
+    lwe_sk: LweSecretKeyOwned<u64>,
+    fourier_bsk: FourierLweBootstrapKeyOwned,
+    pfpksk_list: LwePrivateFunctionalPackingKeyswitchKeyListOwned<u64>,
+}
+
+fn generate_cbs_keys(
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    base_log_bsk: DecompositionBaseLog,
+    level_bsk: DecompositionLevelCount,
+    base_log_pksk: DecompositionBaseLog,
+    level_pksk: DecompositionLevelCount,
+    noise_distribution: DynamicDistribution<u64>,
+    ciphertext_modulus: CiphertextModulus<u64>,
+    rsc: &mut TestResources,
+) -> TestCbsKeys {
+    let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
+        glwe_dimension,
+        polynomial_size,
+        &mut rsc.secret_random_generator,
+    );
+    let lwe_sk: LweSecretKeyOwned<u64> = allocate_and_generate_new_binary_lwe_secret_key(
+        lwe_dimension,
+        &mut rsc.secret_random_generator,
+    );
+
+    let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
+        &lwe_sk,
+        &glwe_sk,
+        base_log_bsk,
+        level_bsk,
+        noise_distribution,
+        ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    let mut fourier_bsk = FourierLweBootstrapKey::new(
+        lwe_dimension,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        base_log_bsk,
+        level_bsk,
+    );
+
+    let fft = Fft::new(polynomial_size);
+
+    fourier_bsk
+        .as_mut_view()
+        .par_fill_with_forward_fourier(std_bsk.as_view(), fft.as_view());
+
+    let pfpksk_list = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
+        &glwe_sk.clone().into_lwe_secret_key(),
+        &glwe_sk,
+        base_log_pksk,
+        level_pksk,
+        noise_distribution,
+        ciphertext_modulus,
+        &mut rsc.encryption_random_generator,
+    );
+
+    TestCbsKeys {
+        glwe_sk,
+        lwe_sk,
+        fourier_bsk,
+        pfpksk_list,
     }
 }
 
@@ -263,8 +333,8 @@ fn test_circuit_bootstrapping_binary() {
     let level_pksk = DecompositionLevelCount(2);
     let base_log_pksk = DecompositionBaseLog(15);
 
-    let level_count_cbs = DecompositionLevelCount(1);
-    let base_log_cbs = DecompositionBaseLog(10);
+    let level_count_cbs = DecompositionLevelCount(3);
+    let base_log_cbs = DecompositionBaseLog(6);
 
     let std = LogStandardDev::from_log_standard_dev(-60.);
     let noise_distribution = DynamicDistribution::new_gaussian(std);
@@ -273,55 +343,26 @@ fn test_circuit_bootstrapping_binary() {
 
     let mut rsc = TestResources::new();
 
-    // Create GLWE and LWE secret key
-    let glwe_sk: GlweSecretKeyOwned<u64> = allocate_and_generate_new_binary_glwe_secret_key(
+    let TestCbsKeys {
+        glwe_sk,
+        lwe_sk,
+        fourier_bsk,
+        pfpksk_list,
+    } = generate_cbs_keys(
+        small_lwe_dimension,
         glwe_dimension,
         polynomial_size,
-        &mut rsc.secret_random_generator,
-    );
-    let lwe_sk: LweSecretKeyOwned<u64> = allocate_and_generate_new_binary_lwe_secret_key(
-        small_lwe_dimension,
-        &mut rsc.secret_random_generator,
-    );
-
-    // Allocation and generation of the bootstrap key in standard domain:
-    let std_bsk: LweBootstrapKeyOwned<u64> = allocate_and_generate_new_lwe_bootstrap_key(
-        &lwe_sk,
-        &glwe_sk,
         base_log_bsk,
         level_bsk,
-        noise_distribution,
-        ciphertext_modulus,
-        &mut rsc.encryption_random_generator,
-    );
-
-    let mut fourier_bsk = FourierLweBootstrapKey::new(
-        small_lwe_dimension,
-        glwe_dimension.to_glwe_size(),
-        polynomial_size,
-        base_log_bsk,
-        level_bsk,
-    );
-
-    let fft = Fft::new(polynomial_size);
-    let fft = fft.as_view();
-
-    fourier_bsk
-        .as_mut_view()
-        .par_fill_with_forward_fourier(std_bsk.as_view(), fft);
-
-    let lwe_sk_bs_output = glwe_sk.clone().into_lwe_secret_key();
-
-    // Creation of all the pfksk for the circuit bootstrapping
-    let vec_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
-        &lwe_sk_bs_output,
-        &glwe_sk,
         base_log_pksk,
         level_pksk,
         noise_distribution,
         ciphertext_modulus,
-        &mut rsc.encryption_random_generator,
+        &mut rsc,
     );
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
 
     let delta_log = DeltaLog(60);
 
@@ -363,83 +404,335 @@ fn test_circuit_bootstrapping_binary() {
             lwe_in.as_view(),
             cbs_res.as_mut_view(),
             delta_log,
-            vec_pfpksk.as_view(),
+            pfpksk_list.as_view(),
             fft,
             stack,
         );
 
-        let glwe_size = glwe_dimension.to_glwe_size();
+        assert_ggsw_encrypts_value(&glwe_sk, &cbs_res, value);
+    }
+}
 
-        //print the key to check if the RLWE in the GGSW seem to be well created
-        println!("RLWE secret key:\n{glwe_sk:?}");
-        let mut decrypted = PlaintextListOwned::new(
-            0_u64,
-            PlaintextCount(polynomial_size.0 * level_count_cbs.0 * glwe_size.0),
-        );
-        decrypt_glwe_ciphertext_list(&glwe_sk, &cbs_res.as_glwe_list(), &mut decrypted);
+/// Check that `ggsw` is a GGSW encryption of `value` by decrypting every row of every level matrix.
+fn assert_ggsw_encrypts_value(
+    glwe_sk: &GlweSecretKeyOwned<u64>,
+    ggsw: &GgswCiphertextOwned<u64>,
+    value: u64,
+) {
+    let polynomial_size = ggsw.polynomial_size();
+    let glwe_size = ggsw.glwe_size();
+    let glwe_dimension = glwe_size.to_glwe_dimension();
+    let level_count = ggsw.decomposition_level_count();
+    let base_log = ggsw.decomposition_base_log();
 
-        let level_size = polynomial_size.0 * glwe_size.0;
+    let mut decrypted = PlaintextListOwned::new(
+        0u64,
+        PlaintextCount(polynomial_size.0 * level_count.0 * glwe_size.0),
+    );
+    decrypt_glwe_ciphertext_list(glwe_sk, &ggsw.as_glwe_list(), &mut decrypted);
 
-        println!("\nGGSW decryption:");
-        for (level_idx, level_decrypted_glwe) in decrypted.chunks_exact_mut(level_size).enumerate()
+    let level_size = polynomial_size.0 * glwe_size.0;
+
+    for (level_idx, level_decrypted_glwe) in decrypted.as_ref().chunks_exact(level_size).enumerate()
+    {
+        let current_level = level_count.0 - level_idx;
+        // Comparing scaled torus values rather than the decoded integers keeps this exact even when
+        // value * delta wraps around the ciphertext modulus.
+        let delta = 1u64 << (64 - base_log.0 * current_level);
+        let decomposer = SignedDecomposer::new(base_log, DecompositionLevelCount(current_level));
+
+        let rows: Vec<&[u64]> = level_decrypted_glwe
+            .chunks_exact(polynomial_size.0)
+            .collect();
+
+        for (row, sk_polynomial) in rows
+            .iter()
+            .take(glwe_dimension.0)
+            .zip(glwe_sk.as_polynomial_list().iter())
         {
-            for (decrypted_glwe, original_polynomial_from_glwe_sk) in level_decrypted_glwe
-                .chunks_exact(polynomial_size.0)
-                .take(glwe_dimension.0)
-                .zip(glwe_sk.as_polynomial_list().iter())
-            {
-                let current_level = level_idx + 1;
-                let mut expected_decryption = PlaintextListOwned::new(
+            let expected: Vec<u64> = sk_polynomial
+                .as_ref()
+                .iter()
+                .map(|s| value.wrapping_mul(*s).wrapping_mul(delta).wrapping_neg())
+                .collect();
+            let decoded: Vec<u64> = row
+                .iter()
+                .map(|coeff| decomposer.closest_representable(*coeff))
+                .collect();
+
+            assert_eq!(expected, decoded, "level {current_level} mask row mismatch");
+        }
+
+        let mut expected = vec![0u64; polynomial_size.0];
+        expected[0] = value.wrapping_mul(delta);
+        let decoded: Vec<u64> = rows[glwe_dimension.0]
+            .iter()
+            .map(|coeff| decomposer.closest_representable(*coeff))
+            .collect();
+
+        assert_eq!(expected, decoded, "level {current_level} body row mismatch");
+    }
+}
+
+#[test]
+fn test_circuit_bootstrapping_non_binary() {
+    // Circuit bootstrap parameters from the optimizer (2 bits of message + 2 bits of carry)
+    let polynomial_size = PolynomialSize(2048);
+    let glwe_dimension = GlweDimension(1);
+    let small_lwe_dimension = LweDimension(879);
+
+    let level_count_cbs = DecompositionLevelCount(2);
+    let base_log_cbs = DecompositionBaseLog(9);
+
+    let level_bsk = DecompositionLevelCount(3);
+    let base_log_bsk = DecompositionBaseLog(12);
+
+    let level_pksk = DecompositionLevelCount(2);
+    let base_log_pksk = DecompositionBaseLog(16);
+
+    // The optimizer gives a TUniform bound of 14 for a small LWE modulus of 2^32, which is a bound
+    // of 14 + 32 = 46 on the native modulus used here
+    let lwe_noise_distribution = DynamicDistribution::new_t_uniform(46);
+    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(17);
+
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
+    let mut rsc = TestResources::new();
+
+    let TestCbsKeys {
+        glwe_sk,
+        lwe_sk,
+        fourier_bsk,
+        pfpksk_list,
+    } = generate_cbs_keys(
+        small_lwe_dimension,
+        glwe_dimension,
+        polynomial_size,
+        base_log_bsk,
+        level_bsk,
+        base_log_pksk,
+        level_pksk,
+        glwe_noise_distribution,
+        ciphertext_modulus,
+        &mut rsc,
+    );
+
+    let glwe_size = glwe_dimension.to_glwe_size();
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
+
+    for (base_log_cbs, level_count_cbs) in [
+        (base_log_cbs, level_count_cbs),
+        (DecompositionBaseLog(2), level_count_cbs),
+    ] {
+        for message_modulus_log in (1..=4).map(MessageModulusLog) {
+            let delta_log = DeltaLog(64 - 1 - message_modulus_log.0);
+
+            for value in 0..1u64 << message_modulus_log.0 {
+                let mut lwe_in = LweCiphertextOwned::new(
                     0u64,
-                    PlaintextCount(original_polynomial_from_glwe_sk.polynomial_size().0),
+                    small_lwe_dimension.to_lwe_size(),
+                    ciphertext_modulus,
                 );
-                expected_decryption
-                    .as_mut()
-                    .copy_from_slice(original_polynomial_from_glwe_sk.as_ref());
+                encrypt_lwe_ciphertext(
+                    &lwe_sk,
+                    &mut lwe_in,
+                    Plaintext(value << delta_log.0),
+                    lwe_noise_distribution,
+                    &mut rsc.encryption_random_generator,
+                );
 
-                let multiplying_factor = 0u64.wrapping_sub(value);
+                let mut cbs_res = GgswCiphertextOwned::new(
+                    0u64,
+                    glwe_size,
+                    polynomial_size,
+                    base_log_cbs,
+                    level_count_cbs,
+                    ciphertext_modulus,
+                );
 
-                slice_wrapping_scalar_mul_assign(expected_decryption.as_mut(), multiplying_factor);
+                par_circuit_bootstrap_non_binary(
+                    fourier_bsk.as_view(),
+                    lwe_in.as_view(),
+                    cbs_res.as_mut_view(),
+                    message_modulus_log,
+                    pfpksk_list.as_view(),
+                    fft,
+                );
 
-                let decomposer =
-                    SignedDecomposer::new(base_log_cbs, DecompositionLevelCount(current_level));
-
-                expected_decryption
-                    .as_mut()
-                    .iter_mut()
-                    .for_each(|coeff| *coeff >>= 64 - base_log_cbs.0 * current_level);
-
-                let mut decoded_glwe =
-                    PlaintextList::from_container(decrypted_glwe.as_ref().to_vec());
-
-                decoded_glwe.as_mut().iter_mut().for_each(|coeff| {
-                    *coeff = decomposer.closest_representable(*coeff)
-                        >> (64 - base_log_cbs.0 * current_level);
-                });
-
-                assert_eq!(expected_decryption.as_ref(), decoded_glwe.as_ref());
+                assert_ggsw_encrypts_value(&glwe_sk, &cbs_res, value);
             }
-            let last_decrypted_glwe = level_decrypted_glwe
-                .chunks_exact(polynomial_size.0)
-                .next_back()
-                .unwrap();
+        }
+    }
+}
 
-            let mut last_decoded_glwe =
-                PlaintextList::from_container(last_decrypted_glwe.as_ref().to_vec());
+/// A GGSW holding a non binary message is only meaningful for an external product, which is what
+/// this checks: `GGSW(m) ⊡ GLWE(µ) = GLWE(m·µ)`.
+#[test]
+fn test_circuit_bootstrapping_non_binary_external_product() {
+    // Circuit bootstrap parameters from the optimizer (2 bits of message + 2 bits of carry)
+    let polynomial_size = PolynomialSize(2048);
+    let glwe_dimension = GlweDimension(1);
+    let small_lwe_dimension = LweDimension(879);
 
-            let decomposer = SignedDecomposer::new(base_log_cbs, level_count_cbs);
+    let level_count_cbs = DecompositionLevelCount(2);
+    let base_log_cbs = DecompositionBaseLog(9);
 
-            last_decoded_glwe.as_mut().iter_mut().for_each(|coeff| {
-                *coeff = decomposer.closest_representable(*coeff)
-                    >> (64 - base_log_cbs.0 * level_count_cbs.0);
+    let level_bsk = DecompositionLevelCount(3);
+    let base_log_bsk = DecompositionBaseLog(12);
+
+    let level_pksk = DecompositionLevelCount(2);
+    let base_log_pksk = DecompositionBaseLog(16);
+
+    // The optimizer gives a TUniform bound of 14 for a small LWE modulus of 2^32, which is a bound
+    // of 14 + 32 = 46 on the native modulus used here
+    let lwe_noise_distribution = DynamicDistribution::new_t_uniform(46);
+    let glwe_noise_distribution = DynamicDistribution::new_t_uniform(17);
+
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
+    let mut rsc = TestResources::new();
+
+    let TestCbsKeys {
+        glwe_sk,
+        lwe_sk,
+        fourier_bsk,
+        pfpksk_list,
+    } = generate_cbs_keys(
+        small_lwe_dimension,
+        glwe_dimension,
+        polynomial_size,
+        base_log_bsk,
+        level_bsk,
+        base_log_pksk,
+        level_pksk,
+        glwe_noise_distribution,
+        ciphertext_modulus,
+        &mut rsc,
+    );
+
+    let glwe_size = glwe_dimension.to_glwe_size();
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
+
+    // Bits of message carried by the GLWE the GGSW is multiplied with
+    let glwe_message_bits = 4;
+    let glwe_delta = 1u64 << (64 - glwe_message_bits);
+
+    let mut mem = PodBuffer::try_new(StackReq::any_of(&[
+        convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft),
+        add_external_product_assign_mem_optimized_requirement::<u64>(
+            glwe_size,
+            polynomial_size,
+            fft,
+        ),
+    ]))
+    .unwrap();
+    let stack = PodStack::new(&mut mem);
+
+    for message_modulus_log in (1..=4).map(MessageModulusLog) {
+        let delta_log = DeltaLog(64 - 1 - message_modulus_log.0);
+
+        for value in 0..1u64 << message_modulus_log.0 {
+            let mut lwe_in = LweCiphertextOwned::new(
+                0u64,
+                small_lwe_dimension.to_lwe_size(),
+                ciphertext_modulus,
+            );
+            encrypt_lwe_ciphertext(
+                &lwe_sk,
+                &mut lwe_in,
+                Plaintext(value << delta_log.0),
+                lwe_noise_distribution,
+                &mut rsc.encryption_random_generator,
+            );
+
+            let mut cbs_res = GgswCiphertextOwned::new(
+                0u64,
+                glwe_size,
+                polynomial_size,
+                base_log_cbs,
+                level_count_cbs,
+                ciphertext_modulus,
+            );
+
+            par_circuit_bootstrap_non_binary(
+                fourier_bsk.as_view(),
+                lwe_in.as_view(),
+                cbs_res.as_mut_view(),
+                message_modulus_log,
+                pfpksk_list.as_view(),
+                fft,
+            );
+
+            let mut fourier_ggsw = FourierGgswCiphertext::new(
+                glwe_size,
+                polynomial_size,
+                base_log_cbs,
+                level_count_cbs,
+            );
+            convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+                &cbs_res,
+                &mut fourier_ggsw,
+                fft,
+                stack,
+            );
+
+            let mut glwe_plaintext =
+                PlaintextListOwned::new(0u64, PlaintextCount(polynomial_size.0));
+            glwe_plaintext.as_mut().iter_mut().for_each(|coeff| {
+                *coeff = test_tools::random_uint_between(0..1u64 << glwe_message_bits) * glwe_delta;
             });
 
-            let mut expected_decryption =
-                PlaintextListOwned::new(0u64, last_decoded_glwe.plaintext_count());
+            let mut glwe_in =
+                GlweCiphertextOwned::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
+            encrypt_glwe_ciphertext(
+                &glwe_sk,
+                &mut glwe_in,
+                &glwe_plaintext,
+                glwe_noise_distribution,
+                &mut rsc.encryption_random_generator,
+            );
 
-            *expected_decryption.as_mut().first_mut().unwrap() = value;
+            let mut glwe_out =
+                GlweCiphertextOwned::new(0u64, glwe_size, polynomial_size, ciphertext_modulus);
+            add_external_product_assign_mem_optimized(
+                &mut glwe_out,
+                &fourier_ggsw,
+                &glwe_in,
+                fft,
+                stack,
+            );
 
-            assert_eq!(expected_decryption.as_ref(), last_decoded_glwe.as_ref());
+            let mut decrypted = PlaintextListOwned::new(0u64, PlaintextCount(polynomial_size.0));
+            decrypt_glwe_ciphertext(&glwe_sk, &glwe_out, &mut decrypted);
+
+            let decomposer = SignedDecomposer::new(
+                DecompositionBaseLog(glwe_message_bits),
+                DecompositionLevelCount(1),
+            );
+
+            for (decrypted_coeff, input_coeff) in decrypted
+                .as_ref()
+                .iter()
+                .zip(glwe_plaintext.as_ref().iter())
+            {
+                let decoded = decomposer.closest_representable(*decrypted_coeff) / glwe_delta;
+                // The product is only recovered modulo the GLWE message modulus, which is enough to
+                // exhibit the multiplication by the encrypted scalar
+                let expected =
+                    value.wrapping_mul(*input_coeff / glwe_delta) % (1 << glwe_message_bits);
+
+                assert_eq!(
+                    decoded % (1 << glwe_message_bits),
+                    expected,
+                    "external product mismatch for message {value} \
+                    with message_modulus_log {}",
+                    message_modulus_log.0
+                );
+            }
         }
     }
 }
