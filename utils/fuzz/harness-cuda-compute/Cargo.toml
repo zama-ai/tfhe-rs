@@ -4,9 +4,17 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
+[[bin]]
+name = "harness-cuda-compute"
+path = "src/main.rs"
+required-features = ["gpu"]
+
+[features]
+gpu = ["tfhe/gpu", "fuzz-utils/gpu"]
+
 [dependencies]
-tfhe = { path = "../../../tfhe", features = ["gpu", "zk-pok", "integer"] }
-fuzz-utils = { path = "../fuzz-utils", features = ["gpu"] }
+tfhe = { path = "../../../tfhe", features = ["zk-pok", "integer"] }
+fuzz-utils = { path = "../fuzz-utils" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }

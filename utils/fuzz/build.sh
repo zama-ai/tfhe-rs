@@ -57,14 +57,17 @@ fi
 
 # ── Build harnesses with full AFL instrumentation ──────────────────────────
 HARNESSES=(harness-deser harness-verify harness-compute)
-if [[ "$GPU" == "1" ]]; then
-    HARNESSES+=(harness-cuda-compute)
-fi
 
 for harness in "${HARNESSES[@]}"; do
     echo "==> Building $harness"
     cargo afl build --release -p "$harness"
 done
+
+if [[ "$GPU" == "1" ]]; then
+    echo "==> Building harness-cuda-compute"
+    cargo afl build --release -p harness-cuda-compute --features gpu
+    HARNESSES+=(harness-cuda-compute)
+fi
 
 echo "==> All harnesses built successfully"
 for harness in "${HARNESSES[@]}"; do
