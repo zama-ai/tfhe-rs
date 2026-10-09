@@ -7,7 +7,7 @@ pub(crate) mod test_bitwise_op;
 mod test_block_shift;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
-mod test_count_zeros_ones;
+pub(crate) mod test_count_zeros_ones;
 pub(crate) mod test_div_rem;
 mod test_dot_prod;
 pub(crate) mod test_ilog2;

@@ -1627,6 +1627,34 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_integer_count_bits_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        num_blocks: u32,
+        counter_num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        bit_value: BitValue,
+        allocate_gpu_memory: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_count_bits_64_async(
+        streams: CudaStreamsFFI,
+        output_ct: *mut CudaRadixCiphertextFFI,
+        input_ct: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_count_bits_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
     pub fn scratch_cuda_integer_grouped_oprf_64_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,

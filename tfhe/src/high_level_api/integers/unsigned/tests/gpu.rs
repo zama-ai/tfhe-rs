@@ -458,6 +458,18 @@ fn test_leading_trailing_zeros_ones_gpu_multibit() {
 }
 
 #[test]
+fn test_count_zeros_ones_gpu() {
+    let client_key = setup_classical_gpu();
+    super::test_case_count_zeros_ones(&client_key);
+}
+
+#[test]
+fn test_count_zeros_ones_gpu_multibit() {
+    let client_key = setup_multibit_gpu();
+    super::test_case_count_zeros_ones(&client_key);
+}
+
+#[test]
 fn test_ilog2_gpu() {
     let client_key = setup_classical_gpu();
     super::test_case_ilog2(&client_key);
