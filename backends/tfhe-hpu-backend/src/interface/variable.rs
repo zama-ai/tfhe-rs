@@ -15,8 +15,36 @@ use super::*;
 use crate::asm::{IOpId, PhysId, SW_IOP_ID};
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use memory::ciphertext::SlotId;
+use rayon::prelude::*;
 use std::sync::{Arc, Mutex, OnceLock};
 use zhc::builder::{CiphertextSpec, Type};
+
+/// Copy-back buffers, reused so their pages stay resident for the DMA
+static C2H_BUFS: Mutex<Vec<&'static mut [u64]>> = Mutex::new(Vec::new());
+
+/// Map `len` words on 2 MiB huge pages
+fn huge_buf(len: usize) -> &'static mut [u64] {
+    let size_b = (len * std::mem::size_of::<u64>()).div_ceil(1 << 21) << 21;
+    let flags = libc::MAP_PRIVATE
+        | libc::MAP_ANONYMOUS
+        | libc::MAP_HUGETLB
+        | libc::MAP_HUGE_2MB
+        | libc::MAP_POPULATE;
+    let prot = libc::PROT_READ | libc::PROT_WRITE;
+
+    // SAFETY: fresh anonymous mapping, never unmapped: valid until the process exits
+    let p = unsafe { libc::mmap(std::ptr::null_mut(), size_b, prot, flags, -1, 0) };
+    if p == libc::MAP_FAILED {
+        tracing::warn!("No hugetlb page (vm.nr_hugepages?): copy-back on 4 KiB pages");
+        return vec![0u64; len].leak();
+    }
+    unsafe { std::slice::from_raw_parts_mut(p as *mut u64, size_b / std::mem::size_of::<u64>()) }
+}
+
+/// Map the copy-back buffers at device open, out of the copy-back time
+pub(crate) fn init_c2h_bufs(n_pc: usize, len: usize) {
+    C2H_BUFS.lock().unwrap().resize_with(n_pc, || huge_buf(len));
+}
 
 /// Depict the position of the data.
 /// Enable to triggered data transfer only on purpose
@@ -141,14 +169,41 @@ impl HpuVar {
                         .collect::<Vec<_>>();
                 }
 
-                for (host_block, hpu_slot) in std::iter::zip(host_mem.iter_mut(), bundle.iter()) {
+                // One DMA transfer per PC, all slots
+                let n_slots = bundle.iter().len();
+                let first = bundle.iter().next().expect("Empty bundle");
+                let strides = first
+                    .mz
+                    .iter()
+                    .map(|mz| mz.size() / std::mem::size_of::<u64>())
+                    .collect::<Vec<_>>();
+
+                let mut bufs = C2H_BUFS.lock().unwrap();
+                bufs.resize_with(strides.len(), || &mut []);
+                let mut reads = std::iter::zip(first.mz.iter(), bufs.iter_mut())
+                    .zip(&strides)
+                    .map(|((mz, buf), stride)| {
+                        if buf.len() < stride * n_slots {
+                            *buf = huge_buf(stride * n_slots);
+                        }
+                        (mz, &mut buf[..stride * n_slots])
+                    })
+                    .collect::<Vec<_>>();
+
+                crate::ffi::MemZone::read_batch(&mut reads);
+
+                #[allow(unused_variables)]
+                for (s, (host_block, hpu_slot)) in
+                    std::iter::zip(host_mem.iter_mut(), bundle.iter()).enumerate()
+                {
                     let mut host_cut = host_block.as_mut_view().into_container();
 
+                    // Copy from bundle buffers
                     #[allow(unused_variables)]
-                    for (id, (cut, mz)) in
-                        std::iter::zip(host_cut.iter_mut(), hpu_slot.mz.iter()).enumerate()
+                    for (id, (cut, (buf, stride))) in
+                        std::iter::zip(host_cut.iter_mut(), bufs.iter().zip(&strides)).enumerate()
                     {
-                        mz.read(0, cut);
+                        cut.copy_from_slice(&buf[s * stride..][..cut.len()]);
                         #[cfg(feature = "io-dump")]
                         io_dump::dump(
                             cut,
@@ -191,15 +246,9 @@ impl HpuVar {
                 } = self;
                 let (_hid, bundle) = hpu_mem.as_mut().ok_or(HpuInternalError::UnAllocData)?;
 
-                for (hpu_slot, host_block) in std::iter::zip(bundle.iter_mut(), host_mem.iter()) {
-                    let host_cut = host_block.as_view().into_container();
-
-                    #[allow(unused_variables)]
-                    for (id, (mz, cut)) in
-                        std::iter::zip(hpu_slot.mz.iter_mut(), host_cut.iter()).enumerate()
-                    {
-                        mz.write(0, cut);
-                        #[cfg(feature = "io-dump")]
+                #[cfg(feature = "io-dump")]
+                for (hpu_slot, host_block) in std::iter::zip(bundle.iter(), host_mem.iter()) {
+                    for (id, cut) in host_block.as_view().into_container().iter().enumerate() {
                         io_dump::dump(
                             cut,
                             params,
@@ -208,6 +257,21 @@ impl HpuVar {
                         );
                     }
                 }
+
+                // One DMA transfer per PC, all slots
+                let conts = host_mem
+                    .iter()
+                    .map(|ct| ct.as_view().into_container())
+                    .collect::<Vec<_>>();
+                let first = bundle.iter_mut().next().expect("Empty bundle");
+                first.mz.par_iter_mut().enumerate().for_each(|(id, mz)| {
+                    let stride = mz.size() / std::mem::size_of::<u64>();
+                    let mut buf = vec![0u64; stride * conts.len()];
+                    for (slot, cont) in buf.chunks_exact_mut(stride).zip(&conts) {
+                        slot[..cont[id].len()].copy_from_slice(&cont[id]);
+                    }
+                    mz.write(0, &buf);
+                });
                 // An IOp is already targeting this variable, it will overwrite the on-board
                 // value -> host mirror couldn't be considered in sync.
                 *sync_state = if *pending > 0 {
