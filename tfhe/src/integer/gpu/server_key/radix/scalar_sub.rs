@@ -213,6 +213,7 @@ impl CudaServerKey {
                 .iter_as::<u64>()
                 .skip(ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0);
 
+        // FIXME(gpu): use `ScalarOverflowFlagSource`
         let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
             extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 - 1))
         } else {

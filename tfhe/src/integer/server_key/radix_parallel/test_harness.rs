@@ -812,6 +812,13 @@ pub(crate) trait ClearInteger:
     /// Implementations decompose the scalar in blocks, and an excess confined to the block
     /// holding the radix's top bits, combined with a non zero in-range part, is a known blind
     /// spot that `radix_max + 1` alone does not exercise.
+    ///
+    /// Whatever the scalar type, a value that fits the radix blocks but not the radix range,
+    /// with `n` the radix bit width: `[radix_max + 1, 2ⁿ[` and `[-2ⁿ, radix_min[` for a signed
+    /// radix, `[-2ⁿ, 0[` for an unsigned one, is seen by an implementation working on the
+    /// scalar reduced to the radix width as a value on the other side of the range, and the
+    /// overflow flag it computes has to be flipped. The signed values include both ends of
+    /// each band, `2ⁿ - 1` and `-2ⁿ`, which reduce to -1 and 0.
     fn scalar_edges(radix_bits: u32, type_bits: u32) -> Vec<Self>;
 
     /// Random scalar of `type_bits` bits: half of the draws fit in a radix of `radix_bits`
@@ -905,6 +912,7 @@ impl ClearInteger for Int {
                 // Every radix bit set plus a single excess bit: 2^radix_bits - 1 and its
                 // negative counterpart -2^radix_bits - 1, then 2^(radix_bits + 1) - 1
                 Some(Self::max(radix_bits + 1).value()),
+                Some(Self::min(radix_bits + 1).value()),
                 Self::min(radix_bits + 1).value().checked_sub(1),
                 (radix_bits + 2 <= MAX_RADIX_BITS).then(|| Self::max(radix_bits + 2).value()),
             ];

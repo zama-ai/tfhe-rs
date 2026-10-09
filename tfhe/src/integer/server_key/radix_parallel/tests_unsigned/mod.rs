@@ -43,8 +43,10 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::oprf::OprfServerKey;
+use crate::integer::server_key::radix_parallel::test_harness::TestScalar;
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
+use crate::integer::tests::uint::Uint;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
@@ -52,6 +54,7 @@ use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::CompressedServerKey;
+use itertools::iproduct;
 use rand::prelude::ThreadRng;
 use rand::Rng;
 use std::sync::Arc;
@@ -941,4 +944,20 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate_parallelized);
     full_propagate_test(param, executor);
+}
+
+/// Test using smaller scalar type than the radix in order to make sure block decomposition is
+/// correct
+pub(crate) fn narrow_scalar_cases(radix_bits: u32) -> Vec<(Uint, TestScalar<u8>)> {
+    let mut lhs_values = vec![
+        Uint::zero(radix_bits),
+        Uint::one(radix_bits),
+        Uint::max(radix_bits),
+    ];
+    if radix_bits > u8::BITS {
+        lhs_values.push(Uint::new(1 << u8::BITS, radix_bits));
+    }
+    let scalars =
+        [0, 1, u8::MAX].map(|scalar| TestScalar::<u8>::new(Uint::new(scalar.into(), u8::BITS)));
+    iproduct!(lhs_values, scalars).collect()
 }
