@@ -1,6 +1,6 @@
 # Weekly AFL++ GPU fuzzing campaign for harness-cuda-compute.
 # Runs on the internal mirror only, the public repo skips every job.
-name: gpu-fuzzing
+name: gpu_fuzzing
 
 env:
   CARGO_TERM_COLOR: always
@@ -58,7 +58,7 @@ jobs:
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: terraform
-          profile: scaleway-1-l4
+          profile: scaleway-4-l4
 
   fuzz:
     name: gpu-fuzzing/run-campaign
@@ -87,6 +87,9 @@ jobs:
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
+      - name: Install clang-14 and OpenMP for AFL C++ instrumentation
+        run: sudo apt-get install -y clang-14 libomp-14-dev
 
       - name: Install cargo-afl
         run: make install_cargo_afl

@@ -11,8 +11,14 @@
 
 // Standard policy: AmortizedDegree for sizes 256-16384
 // (64-bit PBS CG, integer ops, FFT, keyswitch, sample extract)
+// TFHE_CUDA_FUZZING extends support down to 32 for small synthetic parameters
+// used by the GPU fuzz harness (reduces LWE mask size, no correctness guarantee).
 template <uint32_t N> struct AmortizedDegreePolicy {
+#ifdef TFHE_CUDA_FUZZING
+  static constexpr bool supported = (N >= 32 && N <= 16384);
+#else
   static constexpr bool supported = (N >= 256 && N <= 16384);
+#endif
   using type = AmortizedDegree<N>;
 };
 
@@ -68,6 +74,7 @@ template <uint32_t N> struct Multibit128DegreePolicy {
 #define DISPATCH_POLY_SIZE(poly_size, Policy, ...)                             \
   do {                                                                         \
     switch (poly_size) {                                                       \
+      DISPATCH_POLY_SIZE_CASE(32, Policy, __VA_ARGS__)                         \
       DISPATCH_POLY_SIZE_CASE(64, Policy, __VA_ARGS__)                         \
       DISPATCH_POLY_SIZE_CASE(128, Policy, __VA_ARGS__)                        \
       DISPATCH_POLY_SIZE_CASE(256, Policy, __VA_ARGS__)                        \

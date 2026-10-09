@@ -1429,7 +1429,6 @@ name = "fuzz-utils"
 version = "0.1.0"
 dependencies = [
  "afl",
- "bincode",
  "tfhe",
 ]
 
