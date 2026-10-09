@@ -1,3 +1,4 @@
+use super::scalar_add::ScalarOverflowFlagSource;
 use crate::core_crypto::prelude::{Cleartext, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
@@ -639,18 +640,14 @@ impl ServerKey {
     where
         Scalar: SignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Scalar>,
     {
+        assert!(!lhs.blocks.is_empty(), "input radix must not be empty");
         self.clean_inplace_for_default_op(lhs);
 
-        // The trivial overflow check has to be done on the scalar not its bit flipped version
-        let mut decomposer = BlockDecomposer::new(scalar, self.message_modulus().0.ilog2())
-            .iter_as::<u8>()
-            .skip(lhs.blocks.len());
-
-        let trivially_overflowed = if scalar < Scalar::ZERO {
-            decomposer.any(|v| v != (self.message_modulus().0 - 1) as u8)
-        } else {
-            decomposer.any(|v| v != 0)
-        };
+        let flag_source = ScalarOverflowFlagSource::for_signed_radix(
+            scalar,
+            lhs.blocks.len(),
+            self.message_modulus(),
+        );
 
         const INPUT_CARRY: bool = true;
         let flipped_scalar = !scalar;
@@ -665,14 +662,10 @@ impl ServerKey {
             lhs,
             decomposed_flipped_scalar,
             INPUT_CARRY,
-            !trivially_overflowed,
+            flag_source != ScalarOverflowFlagSource::TriviallyTrue,
         );
 
-        if trivially_overflowed {
-            self.create_trivial_boolean_block(true)
-        } else {
-            maybe_overflow.expect("overflow computation was requested")
-        }
+        flag_source.overflow_flag(self, maybe_overflow)
     }
 
     pub fn signed_overflowing_scalar_sub_parallelized<Scalar>(

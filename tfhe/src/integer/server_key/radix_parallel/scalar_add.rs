@@ -2,9 +2,305 @@ use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::shortint::parameters::MessageModulus;
 use crate::shortint::Ciphertext;
 
 use rayon::prelude::*;
+
+/// How the overflow flag of an overflowing scalar addition or subtraction is obtained.
+///
+/// Decided from the scalar alone, see [`Self::for_signed_radix`] and
+/// [`Self::for_unsigned_radix`].
+///
+/// Only the flag is concerned: the FHE operation works on the scalar truncated to the radix
+/// width, which is congruent to the scalar modulo the radix modulus, so the result it
+/// computes is the exact one reduced to the radix width whatever the scalar, with nothing to
+/// accommodate. With `n` the radix bit width and `s'` the truncated scalar:
+///
+/// `s' ≡ s (mod 2ⁿ)  ⇒  lhs ± s' ≡ lhs ± s (mod 2ⁿ)`
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub(crate) enum ScalarOverflowFlagSource {
+    /// The scalar is beyond what the radix blocks can hold: the operation always overflows
+    TriviallyTrue,
+    /// The scalar fits the radix blocks but not the radix range: the FHE flag is the opposite
+    /// of the exact one
+    InvertedFhe,
+    /// The scalar is in the radix range: the FHE flag is exact
+    Fhe,
+}
+
+impl ScalarOverflowFlagSource {
+    /// Decides how the overflow flag of an overflowing scalar addition or subtraction between
+    /// a signed radix of `num_blocks` blocks of `message_modulus` and `scalar` is obtained.
+    ///
+    /// The FHE operation only sees the scalar truncated to the radix's block count. This
+    /// means the scalar value the FHE operation will see may not be interpreted 'correctly'
+    /// and the flag may need to be inverted; the result is correct either way, see
+    /// [`ScalarOverflowFlagSource`].
+    ///
+    /// This contains the logic to figure out how to handle this situation, as well as the
+    /// explanations to convince it's correct.
+    ///
+    /// The explanations in the code are made for the subtraction, but the same logic
+    /// and principles apply for the addition.
+    pub(crate) fn for_signed_radix<Scalar>(
+        scalar: Scalar,
+        num_blocks: usize,
+        message_modulus: MessageModulus,
+    ) -> Self
+    where
+        Scalar: DecomposableInto<u8>,
+    {
+        assert!(num_blocks > 0, "input radix must not be empty");
+
+        // The check is done on the scalar itself, not on the bit flipped version the
+        // subtraction adds
+        let mut decomposer = BlockDecomposer::new(scalar, message_modulus.0.ilog2())
+            .iter_as::<u8>()
+            .skip(num_blocks - 1);
+
+        if scalar < Scalar::ZERO {
+            let sign_bit_is_not_set = decomposer.next().is_some_and(|v| {
+                let sign_bit = v as u64 / (message_modulus.0 / 2);
+                sign_bit == 0
+            });
+            let top_is_not_all_sign_bit = decomposer.any(|v| v != (message_modulus.0 - 1) as u8);
+
+            if top_is_not_all_sign_bit {
+                Self::TriviallyTrue
+            } else if sign_bit_is_not_set {
+                // (With `n` the radix bit width)
+                //
+                // The clear is negative, bits above the radix width are all sign bits.
+                // However, the bit that is at the position of the radix's sign bit is 0.
+                // This means the clear `s` has a value in the range `[-2ⁿ, -2ⁿ⁻¹[`
+                // or (`[-2ⁿ, -2ⁿ⁻¹ - 1]`)
+                // e.g: signed radix of 8 bits (n=8), clear of 16 bits, under these conditions,
+                // the clear is in `[-256, -128[` (or `[-256, -129]`)
+                //
+                // But since the overflowing_sub done later will only see the truncated version
+                // of the clear, it will see a number `s'` in the range `[0, 2ⁿ⁻¹[`
+                // i.e it will see `s' = s + 2ⁿ`
+                // e.g: taking the example before, the scalar was in `[-256, -128[`, the truncated
+                // version given to the FHE op will be interpreted as `[-256 + 256, -128 + 256[`
+                // `=> [0, 128[`
+                //
+                // We don't know the radix value, so we have to do the FHE overflowing_sub, but
+                // its overflow flag has to be flipped.
+                // The exact result is `lhs - s = lhs - (s' - 2ⁿ) = (lhs - s') + 2ⁿ`,
+                // i.e the FHE result shifted by a full modulus of the radix.
+                //
+                // * lhs is in `[-2ⁿ⁻¹, 2ⁿ⁻¹ - 1]`, s' is in `[0, 2ⁿ⁻¹ - 1]`
+                // => `lhs - s'` is in `[-2ⁿ + 1, 2ⁿ⁻¹ - 1]` (not considering the modulo)
+                // => The subtraction can only "underflow", since only the minimum is below
+                //    the radix's minimum (-2ⁿ⁻¹).
+                // if lhs - s' is in `[-2ⁿ + 1, -2ⁿ⁻¹ - 1]` then overflow occurred
+                // else, lhs - s' is in `[-2ⁿ⁻¹, 2ⁿ⁻¹ - 1]` no overflow occurred
+                //
+                // adding 2ⁿ to these gives:
+                //  `lhs - s' + 2ⁿ` is in
+                //  ```
+                //      [-2ⁿ + 1 + 2ⁿ, -2ⁿ⁻¹ - 1 + 2ⁿ]
+                //  <=> [1, 2ⁿ⁻¹ - 1] This fits the radix range, no overflow
+                //  ```
+                //  else, lhs - s' + 2ⁿ is in
+                //  ```
+                //      [-2ⁿ⁻¹ + 2ⁿ, 2ⁿ⁻¹ - 1 + 2ⁿ]
+                //  <=> [2ⁿ⁻¹, 2ⁿ⁻¹ - 1 + 2ⁿ] This does not fit the radix range -> overflow
+                //  ```
+                //
+                // So the exact subtraction overflows if and only if the FHE one does not.
+                // We have to invert the overflow flag
+                //
+                // Example:
+                //   Radix 2_2, 4 blocks -> signed radix of 8 bits, values in [-128, 127]
+                //   And a scalar value `s`: -255i16
+                //
+                //   s = -255i16 = 0b1111111100000001
+                //                           ^- radix sign bit is 0
+                //   fhe_overflowing_sub sees s' = 0b00000001 = 1 = s + 256
+                //
+                //   1) lhs = -128: the FHE computes -128 - 1 = -129 = 127 mod 256 and signals an
+                //      overflow. The exact result is -128 + 255 = 127, which fits: the inverted
+                //      flag is correct.
+                //
+                //   2) lhs = 127: the FHE computes 127 - 1 = 126 and signals no overflow. The exact
+                //      result is 127 + 255 = 382 = 126 mod 256, which does not fit: the inverted
+                //      flag is correct.
+                //
+                //   In both cases the FHE result is the exact one on 8 bits: only the flag needs
+                //   the inversion.
+                Self::InvertedFhe
+            } else {
+                Self::Fhe
+            }
+        } else {
+            let top_bit_not_zero = decomposer.next().is_some_and(|v| {
+                let sign_bit = v as u64 / (message_modulus.0 / 2);
+                sign_bit != 0
+            });
+            if decomposer.any(|v| v != 0) {
+                Self::TriviallyTrue
+            } else if top_bit_not_zero {
+                // (With `n` the radix bit width)
+                //
+                // Same overall idea as for the negative branch above.
+                //
+                // The clear is positive, bits above the radix width are zeros.
+                // However, the bit that is at the position of the radix's sign bit is `1`.
+                // This means the clear `s` has a value in range `[2ⁿ⁻¹, 2ⁿ[`
+                // or (`[2ⁿ⁻¹, 2ⁿ - 1]`).
+                // e.g: signed radix of 8 bits (n=8), clear of 16 bits, under these conditions
+                // the clear is in `[128, 256[` (or `[128, 255]`)
+                //
+                // But since the overflowing_sub done later will only see the truncated version
+                // of the clear, it will see a number `s'` in the range `[-2ⁿ⁻¹, -1]`,
+                // because the truncated version is seen as a signed clear of n bits, whose
+                // sign bit is set, i.e. a negative value.
+                // i.e it will see `s' = s - 2ⁿ`
+                // e.g taking the example before, the scalar was in `[128, 256[`, the truncated
+                // version of the clear given to the FHE op will be interpreted as
+                // `[128 - 256, 256 - 256[` <=> `[-128, 0[` <=> `[-128, -1]`
+                //
+                // We don't know the radix value, so we have to do the FHE overflowing_sub, but
+                // its overflow flag has to be flipped.
+                // The exact result is `lhs - s = lhs - (s' + 2ⁿ) = (lhs - s') - 2ⁿ`
+                // i.e the FHE result shifted ('down') by a full modulus of the radix
+                //
+                // * lhs is in `[-2ⁿ⁻¹, 2ⁿ⁻¹ - 1]`, s' is in `[-2ⁿ⁻¹, -1]`
+                // => `lhs - s'` is in (not considering modulo)
+                // ```
+                // [-2ⁿ⁻¹ - (-1), 2ⁿ⁻¹ - 1 - (-2ⁿ⁻¹)]
+                // [-2ⁿ⁻¹ + 1, 2ⁿ - 1]
+                // ```
+                //
+                // The subtraction can only 'overflow', since only the maximum is above the
+                // radix's maximum `2ⁿ⁻¹ - 1`
+                //
+                // if `lhs - s'` is in `[-2ⁿ⁻¹ + 1, 2ⁿ⁻¹ - 1]` then no overflow occurred
+                // else, `lhs - s'` is in `[2ⁿ⁻¹, 2ⁿ - 1]` then overflow occurred
+                //
+                // subtracting 2ⁿ from these gives:
+                // `lhs - s' - 2ⁿ` is in
+                //
+                // ```
+                //     [-2ⁿ⁻¹ + 1 - 2ⁿ, 2ⁿ⁻¹ - 1 - 2ⁿ]
+                // <=> [-2ⁿ⁻¹ + 1 - 2ⁿ, -2ⁿ⁻¹ - 1] This does not fit the radix range -> overflow
+                // ```
+                //
+                // else, `lhs - s' - 2ⁿ` is in
+                // ```
+                //     [2ⁿ⁻¹ - 2ⁿ, 2ⁿ - 1 - 2ⁿ]
+                // <=> [-2ⁿ⁻¹, -1] This fits the radix range, no overflow
+                // ```
+                //
+                // So the exact subtraction overflows if and only if the FHE one does not.
+                // We have to invert the overflow flag.
+                //
+                // Example:
+                //   Radix 2_2, 4 blocks -> signed radix of 8 bits, values in [-128, 127]
+                //   And a scalar value `s`: 255i16
+                //
+                //   s = 255i16 = 0b0000000011111111
+                //                          ^- radix sign bit is 1
+                //   fhe_overflowing_sub sees s' = 0b11111111 = -1 = s - 256
+                //
+                //   1) lhs = 127: the FHE computes 127 - (-1) = 128 = -128 mod 256 and signals an
+                //      overflow. The exact result is 127 - 255 = -128, which fits: the inverted
+                //      flag is correct.
+                //
+                //   2) lhs = -128: the FHE computes -128 - (-1) = -127 and signals no overflow. The
+                //      exact result is -128 - 255 = -383 = -127 mod 256, which does not fit: the
+                //      inverted flag is correct.
+                //
+                //   In both cases the FHE result is the exact one on 8 bits: only the flag needs
+                //   the inversion.
+                Self::InvertedFhe
+            } else {
+                Self::Fhe
+            }
+        }
+    }
+
+    /// Decides how the overflow flag of an overflowing scalar addition between an unsigned
+    /// radix of `num_blocks` blocks of `message_modulus` and `scalar` is obtained.
+    pub(crate) fn for_unsigned_radix<Scalar>(
+        scalar: Scalar,
+        num_blocks: usize,
+        message_modulus: MessageModulus,
+    ) -> Self
+    where
+        Scalar: DecomposableInto<u8>,
+    {
+        let mut beyond_radix = BlockDecomposer::new(scalar, message_modulus.0.ilog2())
+            .iter_as::<u8>()
+            .skip(num_blocks);
+
+        if scalar < Scalar::ZERO {
+            // For negative scalar it's slightly more complex:
+            //
+            // A negative scalar `s` is never in the range of an unsigned radix,
+            // but the addition can still produce results valid in the unsigned radix range.
+            //
+            // With `n` the radix bit width, thus in range `[0, 2ⁿ[`,
+            // and `s` the scalar:
+            if beyond_radix.any(|v| v != (message_modulus.0 - 1) as u8) {
+                // Here `s < -2ⁿ`, so `lhs + s < 0` for every `lhs` and the addition trivially
+                // overflows
+                Self::TriviallyTrue
+            } else {
+                // Here `s` is in `[-2ⁿ, 0[` (a scalar narrower than the radix has no block
+                // beyond it and always lands here, it is above -2ⁿ by construction).
+                // The FHE addition will see the truncated version of `s`, called `s'`
+                // that will be interpreted as a positive number in `[0, 2ⁿ[`.
+                // I.e: the FHE addition sees `s' = s + 2ⁿ`.
+                //
+                // The exact result is `lhs + s = (lhs + s') - 2ⁿ`:
+                // `lhs + s'` is in `[0, 2ⁿ - 1 + 2ⁿ - 1]` <=> `[0, 2ⁿ⁺¹ - 1[`,
+                // so `lhs + s' - 2ⁿ` is in `[-2ⁿ, 2ⁿ - 1[`
+                // The addition overflows if `lhs + s` is not in `[0, 2ⁿ[`
+                //
+                // * When `lhs + s'` is in `[2ⁿ, 2ⁿ⁺¹ - 1[`, then `lhs + s = lhs + s' - 2ⁿ` is in
+                //   `[0, 2ⁿ - 1[`
+                // i.e, when `lhs + s'` overflows, `lhs + s` does not,
+                //
+                // * When `lhs + s'` is in `[0, 2ⁿ[`, then `lhs + s = lhs + s' - 2ⁿ` is in `[-2ⁿ,
+                //   0[`
+                // i.e, when `lhs + s'` does not overflow, `lhs + s` does
+                //
+                // So the flag computed by the fhe op has to be inverted. The result it
+                // computes is correct as is: `lhs + s'` and `lhs + s` differ by `2ⁿ`, the
+                // radix modulus, so they are the same value on `n` bits (an example in 2_2
+                // with 4 blocks: `5 + (-1)` is computed as `5 + 255 = 260 = 4 mod 256`).
+                Self::InvertedFhe
+            }
+        } else if beyond_radix.any(|v| v != 0) {
+            // A positive scalar is either in the range or needs more blocks than the radix,
+            // so that case is easily solved
+            // (i.e. if its bits above the radix's last bit are non-zero then it is out of range)
+            Self::TriviallyTrue
+        } else {
+            Self::Fhe
+        }
+    }
+
+    /// Turns the FHE overflow flag, computed when `self` required it, into the final one.
+    pub(crate) fn overflow_flag(
+        self,
+        sks: &ServerKey,
+        fhe_flag: Option<BooleanBlock>,
+    ) -> BooleanBlock {
+        match self {
+            Self::TriviallyTrue => sks.create_trivial_boolean_block(true),
+            Self::InvertedFhe => {
+                let mut flag = fhe_flag.expect("overflow computation was requested");
+                sks.boolean_bitnot_assign(&mut flag);
+                flag
+            }
+            Self::Fhe => fhe_flag.expect("overflow computation was requested"),
+        }
+    }
+}
 
 impl ServerKey {
     pub fn overflowing_scalar_add_assign_parallelized<T, Scalar>(
@@ -18,37 +314,38 @@ impl ServerKey {
     {
         self.clean_inplace_for_default_op(lhs);
 
-        let mut decomposer =
-            BlockDecomposer::new(scalar, self.message_modulus().0.ilog2()).iter_as::<u8>();
+        // Sign extended (or zero extended) to the radix width when the scalar is narrower
+        let scalar_blocks = BlockDecomposer::with_block_count(
+            scalar,
+            self.message_modulus().0.ilog2(),
+            lhs.blocks().len(),
+        )
+        .iter_as::<u8>()
+        .collect::<Vec<_>>();
 
-        let mut scalar_blocks = decomposer
-            .by_ref()
-            .take(lhs.blocks().len())
-            .collect::<Vec<_>>();
-        scalar_blocks.resize(lhs.blocks().len(), 0);
-
-        // Check 'trivial' overflow by checking what scalar blocks beyond lhs num_blocks
-        // look like
-        let trivially_overflowed = if T::IS_SIGNED && scalar < Scalar::ZERO {
-            decomposer.any(|v| v != (self.message_modulus().0 - 1) as u8)
+        let flag_source = if T::IS_SIGNED {
+            ScalarOverflowFlagSource::for_signed_radix(
+                scalar,
+                lhs.blocks().len(),
+                self.message_modulus(),
+            )
         } else {
-            decomposer.any(|v| v != 0)
+            ScalarOverflowFlagSource::for_unsigned_radix(
+                scalar,
+                lhs.blocks().len(),
+                self.message_modulus(),
+            )
         };
 
-        let compute_overflow = !trivially_overflowed;
         const INPUT_CARRY: bool = false;
         let maybe_overflow = self.add_assign_scalar_blocks_parallelized(
             lhs,
             scalar_blocks,
             INPUT_CARRY,
-            compute_overflow,
+            flag_source != ScalarOverflowFlagSource::TriviallyTrue,
         );
 
-        if trivially_overflowed {
-            self.create_trivial_boolean_block(true)
-        } else {
-            maybe_overflow.expect("overflow computation was requested")
-        }
+        flag_source.overflow_flag(self, maybe_overflow)
     }
 
     pub fn overflowing_scalar_add_parallelized<T, Scalar>(
