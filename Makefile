@@ -1513,12 +1513,14 @@ endif
 .PHONY: test_regex_engine # Run tests for regex_engine example
 test_regex_engine:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--example regex_engine --features=integer
+		--example regex_engine --features=integer \
+		-p tfhe
 
 .PHONY: test_sha256_bool # Run tests for sha256_bool example
 test_sha256_bool:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--example sha256_bool --features=boolean
+		--example sha256_bool --features=boolean \
+		-p tfhe
 
 .PHONY: test_examples # Run tests for examples
 test_examples: test_sha256_bool test_regex_engine
@@ -2536,20 +2538,23 @@ pull_test_vectors:
 .PHONY: regex_engine # Run regex_engine example
 regex_engine:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
-	--example regex_engine --features=integer \
-	-- $(REGEX_STRING) $(REGEX_PATTERN)
+		--example regex_engine --features=integer \
+		-p tfhe \
+		-- $(REGEX_STRING) $(REGEX_PATTERN)
 
 .PHONY: dark_market # Run dark market example
 dark_market:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
-	--example dark_market \
-	--features=integer,internal-keycache \
-	-- fhe-modified fhe-parallel plain fhe
+		--example dark_market \
+		--features=integer,internal-keycache \
+		- p tfhe \
+		-- fhe-modified fhe-parallel plain fhe
 
 .PHONY: sha256_bool # Run sha256_bool example
 sha256_bool:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
-	--example sha256_bool --features=boolean
+		--example sha256_bool --features=boolean \
+		-p tfhe
 
 .PHONY: pcc # pcc stands for pre commit checks for CPU compilation
 pcc: pcc_batch_1 pcc_batch_2 pcc_batch_3 pcc_batch_4 pcc_batch_5 pcc_batch_6 pcc_batch_7
