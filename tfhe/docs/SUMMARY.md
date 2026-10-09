@@ -41,6 +41,7 @@
   * [Boolean operations](fhe-computation/operations/boolean-operations.md)
   * [String operations](fhe-computation/operations/string-operations.md)
   * [Dot product](fhe-computation/operations/dot-product.md)
+  * [Shuffle](fhe-computation/operations/shuffle.md)
 * [Core workflow](fhe-computation/compute/README.md)
   * [Configuration and key generation](fhe-computation/compute/configure-and-generate-keys.md)
   * [Server key](fhe-computation/compute/set-the-server-key.md)

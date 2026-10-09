@@ -301,16 +301,16 @@ impl<Id: FheUintId> FheUint<Id> {
 
     /// Generates an encrypted unsigned integer
     /// taken almost uniformly in the given range using the given seed.
-    /// Currently the range can only be in the form `[0, excluded_upper_bound[`
-    /// with any `excluded_upper_bound` in `[1, 2^64[`.
+    /// Currently the range can only be in the form `[0, excluded_upper_bound)`
+    /// with any `excluded_upper_bound` in `[1, 2^64)`.
     ///
     /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
-    /// This function guarantees the the norm-1 distance
-    /// (defined as ∆(P,Q) := 1/2 Sum[ω∈Ω] |P(ω) − Q(ω)|)
+    /// This function guarantees the total variation distance
+    /// (defined as Δ(P,Q) := 1/2 Sum[ω∈Ω] |P(ω) - Q(ω)|)
     /// between the actual distribution and the target uniform distribution
-    /// will be below the `max_distance` argument (which must be in ]0, 1[).
+    /// will be below the `max_distance` argument (which must be in (0, 1)).
     /// The higher the distance, the more dissimilar the actual distribution is
     /// from the target uniform distribution.
     ///
@@ -359,7 +359,7 @@ impl<Id: FheUintId> FheUint<Id> {
 
             assert!(
                 0_f64 < max_distance && max_distance < 1_f64,
-                "max_distance (={max_distance}) should be in ]0, 1["
+                "max_distance (={max_distance}) should be in (0, 1)"
             );
 
             global_state::with_internal_keys(|key| match key {
@@ -481,7 +481,7 @@ impl<Id: FheUintId> FheUint<Id> {
 
             assert!(
                 0_f64 < max_distance && max_distance < 1_f64,
-                "max_distance (={max_distance}) should be in ]0, 1["
+                "max_distance (={max_distance}) should be in (0, 1)"
             );
 
             let re_randomization_mode: ReRandomizationMode = re_randomization_mode.into();
