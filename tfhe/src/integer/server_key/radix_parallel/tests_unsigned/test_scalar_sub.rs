@@ -8,7 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_scalar_sub_test, FunctionExecutor,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, random_non_zero_value, CpuFunctionExecutor,
+    narrow_scalar_cases, nb_tests_for_params, random_non_zero_value, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::uint::Uint;
@@ -25,6 +25,7 @@ create_parameterized_test!(integer_default_scalar_sub);
 create_parameterized_test!(integer_unchecked_left_scalar_sub);
 create_parameterized_test!(integer_default_left_scalar_sub);
 create_parameterized_test!(integer_default_overflowing_scalar_sub);
+create_parameterized_test!(integer_default_overflowing_scalar_sub_u8);
 
 fn integer_default_scalar_sub<P>(param: P)
 where
@@ -61,6 +62,17 @@ where
     default_overflowing_scalar_sub_test(&ctx, executor);
 }
 
+fn integer_default_overflowing_scalar_sub_u8<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let ctx = TestContext::from_env(param);
+    let mut executor =
+        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_sub_parallelized::<u8>);
+    executor.setup_with_server_key(ctx.server_key());
+    narrow_scalar_overflowing_scalar_sub_test(&ctx, executor);
+}
+
 pub(crate) fn default_overflowing_scalar_sub_test<E>(ctx: &TestContext, executor: E)
 where
     E: ExecuteOn<(RadixCiphertext, u64), (RadixCiphertext, BooleanBlock)>,
@@ -69,6 +81,22 @@ where
         .n_random(4)
         .fixed_cases(default_scalar_fixed_cases::<u64>)
         .execute(executor, |(lhs, rhs): (Uint, TestScalar<u64>)| {
+            lhs.overflowing_scalar_sub(rhs.clear())
+        });
+}
+
+/// Test using smaller scalar type than the radix in order to make sure block decomposition is
+/// correct
+pub(crate) fn narrow_scalar_overflowing_scalar_sub_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<(RadixCiphertext, u8), (RadixCiphertext, BooleanBlock)>,
+{
+    let scalar_width = u8::BITS.div_ceil(ctx.bits_per_block());
+    TestBuilder::new(ctx)
+        .block_counts(vec![1, scalar_width, scalar_width + 1, 2 * scalar_width])
+        .n_random(0)
+        .fixed_cases(narrow_scalar_cases)
+        .execute(executor, |(lhs, rhs): (Uint, TestScalar<u8>)| {
             lhs.overflowing_scalar_sub(rhs.clear())
         });
 }

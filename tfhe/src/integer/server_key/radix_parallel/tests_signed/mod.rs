@@ -30,10 +30,12 @@ pub(crate) mod test_vector_comparisons;
 
 use crate::core_crypto::prelude::SignedInteger;
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::test_harness::TestScalar;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, MAX_NB_CTXT, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
+use crate::integer::tests::int::Int;
 use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -630,4 +632,30 @@ pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: i64) -> i64 {
             break value;
         }
     }
+}
+
+/// Cases for the signed overflowing scalar operations with a scalar narrower than the radix:
+/// the radix bounds, zero and minus one against the `i8` bounds, one and minus one.
+///
+/// A negative scalar has to be sign extended to the radix width, a zero extension turns
+/// `-1i8` into `255` on any radix wider than 8 bits. The overflowing scalar tests with an
+/// `i64` scalar never see this, the radix is at most as wide as the scalar there.
+pub(crate) fn narrow_scalar_cases(radix_bits: u32) -> Vec<(Int, TestScalar<i8>)> {
+    let scalars = [i8::MIN, -1, 1, i8::MAX];
+    [
+        Int::min(radix_bits),
+        Int::max(radix_bits),
+        Int::zero(radix_bits),
+        Int::new(-1, radix_bits),
+    ]
+    .into_iter()
+    .flat_map(|lhs| {
+        scalars.iter().map(move |&scalar| {
+            (
+                lhs,
+                TestScalar::<i8>::new(Int::new(i128::from(scalar), i8::BITS)),
+            )
+        })
+    })
+    .collect()
 }
