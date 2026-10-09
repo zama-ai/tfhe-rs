@@ -1425,4 +1425,43 @@ mod tests {
             assert_eq!(decompress_ct2_size_on_gpu, decompress_ct2_size_on_gpu_1);
         }
     }
+
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_compressed_ct_list_gpu_clone_then_download() {
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .enable_compression(
+            COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .build();
+
+        let ck = ClientKey::generate(config);
+        set_server_key(crate::CompressedServerKey::new(&ck).decompress_to_gpu());
+
+        let num_values = 64u64;
+        let clears: Vec<u64> = (0..num_values)
+            .map(|i| 0x0123_4567_89ab_cdef ^ (i * 0x1111))
+            .collect();
+
+        let mut builder = CompressedCiphertextListBuilder::new();
+        for &clear in &clears {
+            builder.push(crate::FheUint64::encrypt(clear, &ck));
+        }
+        let list = builder.build().unwrap();
+
+        for _ in 0..50 {
+            let cloned = list.clone();
+            let mut serialized = vec![];
+            safe_serialize(&cloned, &mut serialized, 1 << 30).unwrap();
+            let roundtripped: CompressedCiphertextList =
+                safe_deserialize(serialized.as_slice(), 1 << 30).unwrap();
+            for (index, &clear) in clears.iter().enumerate() {
+                let value: crate::FheUint64 = roundtripped.get(index).unwrap().unwrap();
+                let decrypted: u64 = value.decrypt(&ck);
+                assert_eq!(decrypted, clear, "wrong value at index {index}");
+            }
+        }
+    }
 }

@@ -907,4 +907,108 @@ mod tests {
         let decrypted: bool = ns_c.decrypt(&cks);
         assert_eq!(decrypted, clear_c);
     }
+
+    #[cfg(feature = "gpu")]
+    fn gpu_multibit_squashed_list_setup() -> (
+        crate::ClientKey,
+        CompressedSquashedNoiseCiphertextList,
+        (i32, u32, bool),
+    ) {
+        use crate::shortint::parameters::current_params::{
+            V1_9_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
+
+        let params = V1_9_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_params =
+            V1_9_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_compression_params =
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let config = ConfigBuilder::with_custom_parameters(params)
+            .enable_noise_squashing(noise_squashing_params)
+            .enable_noise_squashing_compression(noise_squashing_compression_params)
+            .build();
+
+        let cks = crate::ClientKey::generate(config);
+        let sks = crate::CompressedServerKey::new(&cks);
+        set_server_key(sks.decompress_to_gpu());
+
+        let mut rng = rand::thread_rng();
+        let clears = (rng.gen::<i32>(), rng.gen::<u32>(), rng.gen_bool(0.5));
+
+        let mut a = FheInt32::encrypt(clears.0, &cks);
+        let mut b = FheUint32::encrypt(clears.1, &cks);
+        let mut c = FheBool::encrypt(clears.2, &cks);
+        a.move_to_device(crate::Device::CudaGpu);
+        b.move_to_device(crate::Device::CudaGpu);
+        c.move_to_device(crate::Device::CudaGpu);
+
+        let list = CompressedSquashedNoiseCiphertextList::builder()
+            .push(a.squash_noise().unwrap())
+            .push(b.squash_noise().unwrap())
+            .push(c.squash_noise().unwrap())
+            .build()
+            .unwrap();
+
+        (cks, list, clears)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn check_list(
+        list: &CompressedSquashedNoiseCiphertextList,
+        cks: &crate::ClientKey,
+        (clear_a, clear_b, clear_c): (i32, u32, bool),
+    ) {
+        let ns_a: SquashedNoiseFheInt = list.get(0).unwrap().unwrap();
+        let ns_b: SquashedNoiseFheUint = list.get(1).unwrap().unwrap();
+        let ns_c: SquashedNoiseFheBool = list.get(2).unwrap().unwrap();
+
+        let decrypted: i32 = ns_a.decrypt(cks);
+        assert_eq!(decrypted, clear_a);
+        let decrypted: u32 = ns_b.decrypt(cks);
+        assert_eq!(decrypted, clear_b);
+        let decrypted: bool = ns_c.decrypt(cks);
+        assert_eq!(decrypted, clear_c);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_squashed_list_clone_then_download() {
+        use std::sync::Arc;
+
+        let (cks, list, clears) = gpu_multibit_squashed_list_setup();
+        let list = Arc::new(list);
+        let cks = Arc::new(cks);
+
+        let n_threads = 4;
+        let n_iters = 20;
+
+        let handles: Vec<_> = (0..n_threads)
+            .map(|_| {
+                let list = Arc::clone(&list);
+                std::thread::spawn(move || -> Vec<Vec<u8>> {
+                    (0..n_iters)
+                        .map(|_| {
+                            let cloned = CompressedSquashedNoiseCiphertextList {
+                                inner: list.inner.clone(),
+                                tag: list.tag.clone(),
+                            };
+                            let mut buf = vec![];
+                            safe_serialize(&cloned, &mut buf, 1 << 24).unwrap();
+                            buf
+                        })
+                        .collect()
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            for buf in handle.join().unwrap() {
+                let roundtripped: CompressedSquashedNoiseCiphertextList =
+                    safe_deserialize(buf.as_slice(), 1 << 24).unwrap();
+                check_list(&roundtripped, &cks, clears);
+            }
+        }
+    }
 }
