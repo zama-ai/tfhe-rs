@@ -16,7 +16,6 @@ env:
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   FAST_TESTS: "TRUE"
   # We clear the cache to reduce memory pressure because of the numerous processes of cargo
   # nextest
@@ -195,15 +194,20 @@ jobs:
           labels: m1_test
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout notification action
+        if: ${{ needs.cargo-builds-m1.result != 'skipped' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ env.CHECKOUT_TOKEN }}
+          sparse-checkout: .github/actions/slack_notify
+
       - name: Slack Notification
         if: ${{ needs.cargo-builds-m1.result != 'skipped' }}
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: ${{ needs.cargo-builds-m1.result }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-          SLACK_MESSAGE: "M1 tests finished with status: ${{ needs.cargo-builds-m1.result }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          MSG_MINIMAL: event,action url,commit
-          BRANCH: ${{ github.ref }}
+        uses: ./.github/actions/slack_notify
+        with:
+          status: ${{ needs.cargo-builds-m1.result }}
+          message: "M1 tests finished with status: ${{ needs.cargo-builds-m1.result }}."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}

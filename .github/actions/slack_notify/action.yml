@@ -1,0 +1,51 @@
+name: Slack notification
+description: Send a CI status message to Slack, with links to the action run and to the pull request if any.
+
+inputs:
+  status:
+    description: Result displayed as the message color (success, failure, cancelled)
+    required: true
+  message:
+    description: Message text, links are appended to it
+    required: true
+  slack-webhook:
+    description: Notification is skipped when empty (e.g. pull request from a fork)
+    required: true
+  slack-channel:
+    required: true
+  slack-username:
+    required: true
+  pull-request-base-url:
+    description: The pull request number is appended to it, no pull request link is added when empty
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Build links
+      id: links
+      if: inputs.slack-webhook != ''
+      shell: bash
+      env:
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        PR_BASE_URL: ${{ inputs.pull-request-base-url }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        links="[action run](${RUN_URL})"
+        if [[ -n "${PR_BASE_URL}" && -n "${PR_NUMBER}" ]]; then
+          links="[pull-request](${PR_BASE_URL}${PR_NUMBER}), ${links}"
+        fi
+        echo "links=${links}" >> "${GITHUB_OUTPUT}"
+
+    - name: Send message
+      if: inputs.slack-webhook != ''
+      uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
+      env:
+        SLACK_CHANNEL: ${{ inputs.slack-channel }}
+        SLACK_USERNAME: ${{ inputs.slack-username }}
+        SLACK_WEBHOOK: ${{ inputs.slack-webhook }}
+        SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+        SLACKIFY_MARKDOWN: true
+        SLACK_COLOR: ${{ inputs.status }}
+        SLACK_MESSAGE: "${{ inputs.message }} (${{ steps.links.outputs.links }})"

@@ -3,17 +3,10 @@ name: aws_tfhe_fast_tests
 
 env:
   CARGO_TERM_COLOR: always
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  SLACKIFY_MARKDOWN: true
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
-  PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 on:
@@ -275,18 +268,14 @@ jobs:
         run: |
           make test_zk
 
-      - name: Set pull-request URL
-        if: ${{ failure() && github.event_name == 'pull_request' }}
-        run: |
-          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
-        env:
-          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-
       - name: Slack Notification
-        if: ${{ failure() && env.SECRETS_AVAILABLE == 'true' }}
+        if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Fast AWS tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+        uses: ./.github/actions/slack_notify
+        with:
+          status: ${{ job.status }}
+          message: "Fast AWS tests finished with status: ${{ job.status }}."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}
+          pull-request-base-url: ${{ vars.PR_BASE_URL }}
