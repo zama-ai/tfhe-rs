@@ -25,6 +25,7 @@ use crate::integer::server_key::{CompressedKVStore, KVStore};
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
+use crate::GpuIndex;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::ParallelIterator;
 use std::collections::BTreeMap;
@@ -201,6 +202,14 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
 
     pub(crate) fn blocks_per_radix(&self) -> Option<NonZeroUsize> {
         self.block_count
+    }
+
+    /// Returns the GPU indexes of the stored values, or None if the store is empty
+    pub fn gpu_indexes(&self) -> Option<&[GpuIndex]>
+    where
+        Ct: CudaIntegerRadixCiphertext,
+    {
+        self.data.values().next().map(|v| v.gpu_indexes())
     }
 
     #[allow(dead_code)]

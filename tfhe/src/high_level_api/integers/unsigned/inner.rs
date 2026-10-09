@@ -75,10 +75,12 @@ impl Clone for RadixCiphertext {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => with_cuda_internal_keys(|key| {
-                let streams = &key.streams;
-                Self::Cuda(inner.duplicate(streams))
-            }),
+            Self::Cuda(inner) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
+                    let inner = inner.duplicate(streams);
+                    Self::Cuda(inner)
+                })
+            }
             #[cfg(feature = "hpu")]
             Self::Hpu(inner) => {
                 // NB: Hpu backends flavor behavs differently regarding memory.

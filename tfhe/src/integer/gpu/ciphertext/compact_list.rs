@@ -179,6 +179,10 @@ impl CudaCompactCiphertextListExpander {
         self.get_blocks_of_size_on_gpu(index, streams)
     }
 
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        self.expanded_blocks.gpu_indexes()
+    }
+
     pub fn to_compact_ciphertext_list_expander(
         &self,
         streams: &CudaStreams,

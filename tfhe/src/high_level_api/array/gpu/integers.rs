@@ -13,7 +13,9 @@ use crate::array::traits::{
 };
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::global_state;
-use crate::high_level_api::global_state::with_cuda_internal_keys;
+use crate::high_level_api::global_state::{
+    with_cuda_internal_keys, with_thread_local_cuda_streams_for_gpu_indexes,
+};
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::block_decomposition::{
     DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
@@ -53,10 +55,16 @@ where
     T: CudaIntegerRadixCiphertext,
 {
     fn clone(&self) -> Self {
-        with_cuda_internal_keys(|key| {
-            let streams = &key.streams;
-            Self(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
-        })
+        Self(
+            self.0
+                .iter()
+                .map(|elem| {
+                    with_thread_local_cuda_streams_for_gpu_indexes(elem.gpu_indexes(), |streams| {
+                        elem.duplicate(streams)
+                    })
+                })
+                .collect(),
+        )
     }
 }
 
@@ -437,10 +445,16 @@ where
     }
 
     fn into_owned(self) -> <Self::Backend as ArrayBackend>::Owned {
-        with_cuda_internal_keys(|key| {
-            let streams = &key.streams;
-            GpuOwned(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
-        })
+        GpuOwned(
+            self.0
+                .iter()
+                .map(|elem| {
+                    with_thread_local_cuda_streams_for_gpu_indexes(elem.gpu_indexes(), |streams| {
+                        elem.duplicate(streams)
+                    })
+                })
+                .collect(),
+        )
     }
 }
 
@@ -462,10 +476,16 @@ where
     }
 
     fn into_owned(self) -> <Self::Backend as ArrayBackend>::Owned {
-        with_cuda_internal_keys(|key| {
-            let streams = &key.streams;
-            GpuOwned(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
-        })
+        GpuOwned(
+            self.0
+                .iter()
+                .map(|elem| {
+                    with_thread_local_cuda_streams_for_gpu_indexes(elem.gpu_indexes(), |streams| {
+                        elem.duplicate(streams)
+                    })
+                })
+                .collect(),
+        )
     }
 }
 
@@ -572,15 +592,16 @@ where
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
-        with_cuda_internal_keys(|cuda_key| {
-            let streams = &cuda_key.streams;
-            self.as_tensor_slice()
-                .iter()
-                .map(|ct: &CudaUnsignedRadixCiphertext| {
-                    key.key.key.decrypt_radix(&ct.to_radix_ciphertext(streams))
-                })
-                .collect()
-        })
+        self.as_tensor_slice()
+            .iter()
+            .map(|ct: &CudaUnsignedRadixCiphertext| {
+                let cpu_ct =
+                    with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
+                        ct.to_radix_ciphertext(streams)
+                    });
+                key.key.key.decrypt_radix(&cpu_ct)
+            })
+            .collect()
     }
 }
 
@@ -638,17 +659,16 @@ where
     Clear: RecomposableSignedInteger,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
-        with_cuda_internal_keys(|cuda_key| {
-            let streams = &cuda_key.streams;
-            self.elems
-                .0
-                .iter()
-                .map(|ct| {
-                    key.key
-                        .key
-                        .decrypt_signed_radix(&ct.to_signed_radix_ciphertext(streams))
-                })
-                .collect()
-        })
+        self.elems
+            .0
+            .iter()
+            .map(|ct| {
+                let cpu_ct =
+                    with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
+                        ct.to_signed_radix_ciphertext(streams)
+                    });
+                key.key.key.decrypt_signed_radix(&cpu_ct)
+            })
+            .collect()
     }
 }
