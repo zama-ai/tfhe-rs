@@ -1,5 +1,5 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::CastFrom;
+use crate::core_crypto::prelude::{CastFrom, UnsignedNumeric};
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
 use crate::integer::gpu::{
@@ -9,6 +9,8 @@ use crate::integer::gpu::{
     cuda_backend_unchecked_scalar_rotate_right_assign, get_scalar_rotate_right_size_on_gpu,
     CudaServerKey,
 };
+use crate::integer::server_key::radix_parallel::scalar_rotate::reduce_scalar_rotate_amount;
+use std::ops::Rem;
 
 impl CudaServerKey {
     pub fn unchecked_scalar_rotate_left<Scalar, T>(
@@ -19,8 +21,8 @@ impl CudaServerKey {
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        Scalar: UnsignedNumeric + CastFrom<u64> + Rem<Scalar, Output = Scalar>,
+        u64: CastFrom<Scalar>,
     {
         let mut result = ct.duplicate(stream);
         self.unchecked_scalar_rotate_left_assign(&mut result, n, stream);
@@ -34,10 +36,13 @@ impl CudaServerKey {
         stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        Scalar: UnsignedNumeric + CastFrom<u64> + Rem<Scalar, Output = Scalar>,
+        u64: CastFrom<Scalar>,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        let total_num_bits = lwe_ciphertext_count.0 as u64 * self.message_modulus.0.ilog2() as u64;
+        // Reduce before the u32 cast, which would otherwise truncate large amounts
+        let n = reduce_scalar_rotate_amount(n, total_num_bits) as u32;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -60,7 +65,7 @@ impl CudaServerKey {
                     cuda_backend_unchecked_scalar_rotate_left_assign(
                         stream,
                         ct.as_mut(),
-                        u32::cast_from(n),
+                        n,
                         &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         self.message_modulus,
@@ -87,7 +92,7 @@ impl CudaServerKey {
                     cuda_backend_unchecked_scalar_rotate_left_assign(
                         stream,
                         ct.as_mut(),
-                        u32::cast_from(n),
+                        n,
                         &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         self.message_modulus,
@@ -110,8 +115,8 @@ impl CudaServerKey {
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        Scalar: UnsignedNumeric + CastFrom<u64> + Rem<Scalar, Output = Scalar>,
+        u64: CastFrom<Scalar>,
     {
         let mut result = ct.duplicate(stream);
         self.unchecked_scalar_rotate_right_assign(&mut result, n, stream);
@@ -125,10 +130,13 @@ impl CudaServerKey {
         stream: &CudaStreams,
     ) where
         T: CudaIntegerRadixCiphertext,
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        Scalar: UnsignedNumeric + CastFrom<u64> + Rem<Scalar, Output = Scalar>,
+        u64: CastFrom<Scalar>,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        let total_num_bits = lwe_ciphertext_count.0 as u64 * self.message_modulus.0.ilog2() as u64;
+        // Reduce before the u32 cast, which would otherwise truncate large amounts
+        let n = reduce_scalar_rotate_amount(n, total_num_bits) as u32;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -151,7 +159,7 @@ impl CudaServerKey {
                     cuda_backend_unchecked_scalar_rotate_right_assign(
                         stream,
                         ct.as_mut(),
-                        u32::cast_from(n),
+                        n,
                         &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         self.message_modulus,
@@ -178,7 +186,7 @@ impl CudaServerKey {
                     cuda_backend_unchecked_scalar_rotate_right_assign(
                         stream,
                         ct.as_mut(),
-                        u32::cast_from(n),
+                        n,
                         &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         self.message_modulus,
@@ -196,8 +204,8 @@ impl CudaServerKey {
     pub fn scalar_rotate_left_assign<Scalar, T>(&self, ct: &mut T, n: Scalar, stream: &CudaStreams)
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        Scalar: UnsignedNumeric + CastFrom<u64> + Rem<Scalar, Output = Scalar>,
+        u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign(ct, stream);
@@ -209,8 +217,8 @@ impl CudaServerKey {
     pub fn scalar_rotate_right_assign<Scalar, T>(&self, ct: &mut T, n: Scalar, stream: &CudaStreams)
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        Scalar: UnsignedNumeric + CastFrom<u64> + Rem<Scalar, Output = Scalar>,
+        u64: CastFrom<Scalar>,
     {
         if !ct.block_carries_are_empty() {
             self.full_propagate_assign(ct, stream);
@@ -222,8 +230,8 @@ impl CudaServerKey {
     pub fn scalar_rotate_left<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        Scalar: UnsignedNumeric + CastFrom<u64> + Rem<Scalar, Output = Scalar>,
+        u64: CastFrom<Scalar>,
     {
         let mut result = ct.duplicate(stream);
         self.scalar_rotate_left_assign(&mut result, shift, stream);
@@ -233,8 +241,8 @@ impl CudaServerKey {
     pub fn scalar_rotate_right<Scalar, T>(&self, ct: &T, shift: Scalar, stream: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
-        Scalar: CastFrom<u32>,
-        u32: CastFrom<Scalar>,
+        Scalar: UnsignedNumeric + CastFrom<u64> + Rem<Scalar, Output = Scalar>,
+        u64: CastFrom<Scalar>,
     {
         let mut result = ct.duplicate(stream);
         self.scalar_rotate_right_assign(&mut result, shift, stream);
