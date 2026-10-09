@@ -186,6 +186,25 @@ pub(crate) fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u
     (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
 }
 
+/// Shift and rotation amounts that do not fit in a u32 or a u64, but whose low bits alone read as
+/// a regular amount for a radix of `nb_bits` bits.
+///
+/// Implementations that truncated the amount to these low bits shifted instead of overshifting,
+/// and rotated by a wrong amount when `nb_bits` is not a power of two.
+pub(crate) fn large_shift_amounts(rng: &mut impl Rng, nb_bits: u32) -> Vec<u128> {
+    let nb_bits = u128::from(nb_bits);
+    let mut amounts = vec![u128::MAX];
+    for low_bits in [u32::BITS, u64::BITS] {
+        let wide = 1u128 << low_bits;
+        amounts.extend([wide, wide + 1, wide + nb_bits - 1]);
+    }
+    // Above u64::MAX, with low 64 bits below the bit count
+    amounts.extend(
+        (0..4).map(|_| (u128::from(rng.gen_range(1..=u64::MAX)) << 64) | rng.gen_range(0..nb_bits)),
+    );
+    amounts
+}
+
 pub(crate) fn block_rotate_right_helper(
     value: u64,
     n: u32,

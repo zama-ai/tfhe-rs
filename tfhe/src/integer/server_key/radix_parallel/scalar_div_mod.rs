@@ -411,7 +411,7 @@ impl ServerKey {
             assert_eq!(t1.blocks.len(), numerator.blocks.len());
             // Due to the use of a shifts, we can't use unchecked_add/sub
             let mut quotient = self.sub_parallelized(numerator, &t1);
-            self.unchecked_scalar_right_shift_assign_parallelized(&mut quotient, 1);
+            self.unchecked_scalar_right_shift_assign_parallelized(&mut quotient, 1u32);
             self.add_assign_parallelized(&mut quotient, &t1);
             assert!(chosen_multiplier.shift_post > 0);
 
