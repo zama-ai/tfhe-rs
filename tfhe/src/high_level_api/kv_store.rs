@@ -4,7 +4,7 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::kv_store::CompressedKVStoreVersions;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_cuda_internal_keys;
+use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
@@ -39,10 +39,14 @@ where
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => with_cuda_internal_keys(|key| {
-                let streams = &key.streams;
-                Self::Cuda(inner.duplicate(streams))
-            }),
+            Self::Cuda(inner) => inner.gpu_indexes().map_or_else(
+                || Self::Cuda(IntegerGpuKVStore::new()),
+                |gpu_indexes| {
+                    with_thread_local_cuda_streams_for_gpu_indexes(gpu_indexes, |streams| {
+                        Self::Cuda(inner.duplicate(streams))
+                    })
+                },
+            ),
         }
     }
 }
@@ -113,8 +117,7 @@ where
 {
     /// Extract the inner store to CPU.
     ///
-    /// A GPU store is copied back to the CPU using the streams of the currently set
-    /// cuda server key
+    /// A GPU store is copied back to the CPU using streams on the GPUs the store lives on
     pub(in crate::high_level_api) fn into_cpu_inner(
         self,
     ) -> IntegerCpuKVStore<Key, <T::Id as IntegerId>::InnerCpu>
@@ -125,7 +128,13 @@ where
             InnerKVStore::Cpu(inner) => inner,
             #[cfg(feature = "gpu")]
             InnerKVStore::Cuda(inner) => {
-                with_cuda_internal_keys(|key| inner.to_kv_store(&key.streams))
+                inner
+                    .gpu_indexes()
+                    .map_or_else(IntegerCpuKVStore::new, |gpu_indexes| {
+                        with_thread_local_cuda_streams_for_gpu_indexes(gpu_indexes, |streams| {
+                            inner.to_kv_store(streams)
+                        })
+                    })
             }
         }
     }

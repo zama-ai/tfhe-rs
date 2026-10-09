@@ -213,10 +213,10 @@ impl SignedRadixCiphertext {
             }
             #[cfg(feature = "gpu")]
             (Self::Cuda(ct), Device::Cpu) => {
-                let new_inner = with_cuda_internal_keys(|key| {
-                    let streams = &key.streams;
-                    ct.to_signed_radix_ciphertext(streams)
-                });
+                let new_inner =
+                    with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
+                        ct.to_signed_radix_ciphertext(streams)
+                    });
                 *self = Self::Cpu(new_inner);
             }
             #[cfg(feature = "hpu")]

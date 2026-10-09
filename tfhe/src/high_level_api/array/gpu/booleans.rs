@@ -24,17 +24,22 @@ pub type GpuFheBoolSliceMut<'a> =
 pub struct GpuBooleanSlice<'a>(pub(crate) &'a [CudaBooleanBlock]);
 pub struct GpuBooleanSliceMut<'a>(pub(crate) &'a mut [CudaBooleanBlock]);
 pub struct GpuBooleanOwned(pub(crate) Vec<CudaBooleanBlock>);
-use crate::high_level_api::global_state::with_cuda_internal_keys;
+use crate::high_level_api::global_state::{
+    with_cuda_internal_keys, with_thread_local_cuda_streams_for_gpu_indexes,
+};
 
 impl Clone for GpuBooleanOwned {
     fn clone(&self) -> Self {
-        // When cloning, we assume that the intention is to return a ciphertext that lies in the GPU
-        // 0 defined in the set server key. Hence, we use the server key to get the streams instead
-        // of those inside the ciphertext itself
-        with_cuda_internal_keys(|key| {
-            let streams = &key.streams;
-            Self(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
-        })
+        Self(
+            self.0
+                .iter()
+                .map(|elem| {
+                    with_thread_local_cuda_streams_for_gpu_indexes(elem.gpu_indexes(), |streams| {
+                        elem.duplicate(streams)
+                    })
+                })
+                .collect(),
+        )
     }
 }
 
@@ -87,10 +92,16 @@ impl BackendDataContainer for GpuBooleanSlice<'_> {
     }
 
     fn into_owned(self) -> <Self::Backend as ArrayBackend>::Owned {
-        with_cuda_internal_keys(|key| {
-            let streams = &key.streams;
-            GpuBooleanOwned(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
-        })
+        GpuBooleanOwned(
+            self.0
+                .iter()
+                .map(|elem| {
+                    with_thread_local_cuda_streams_for_gpu_indexes(elem.gpu_indexes(), |streams| {
+                        elem.duplicate(streams)
+                    })
+                })
+                .collect(),
+        )
     }
 }
 
@@ -109,10 +120,16 @@ impl BackendDataContainer for GpuBooleanSliceMut<'_> {
     }
 
     fn into_owned(self) -> <Self::Backend as ArrayBackend>::Owned {
-        with_cuda_internal_keys(|key| {
-            let streams = &key.streams;
-            GpuBooleanOwned(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
-        })
+        GpuBooleanOwned(
+            self.0
+                .iter()
+                .map(|elem| {
+                    with_thread_local_cuda_streams_for_gpu_indexes(elem.gpu_indexes(), |streams| {
+                        elem.duplicate(streams)
+                    })
+                })
+                .collect(),
+        )
     }
 }
 
@@ -279,18 +296,17 @@ impl FheTryEncrypt<&[bool], ClientKey> for GpuFheBoolArray {
 
 impl FheDecrypt<Vec<bool>> for GpuFheBoolSlice<'_> {
     fn decrypt(&self, key: &ClientKey) -> Vec<bool> {
-        with_cuda_internal_keys(|cuda_key| {
-            let streams = &cuda_key.streams;
-            self.elems
-                .0
-                .iter()
-                .map(|encrypted_value| {
-                    key.key
-                        .key
-                        .decrypt_bool(&encrypted_value.to_boolean_block(streams))
-                })
-                .collect()
-        })
+        self.elems
+            .0
+            .iter()
+            .map(|encrypted_value| {
+                let block = with_thread_local_cuda_streams_for_gpu_indexes(
+                    encrypted_value.gpu_indexes(),
+                    |streams| encrypted_value.to_boolean_block(streams),
+                );
+                key.key.key.decrypt_bool(&block)
+            })
+            .collect()
     }
 }
 
