@@ -297,8 +297,8 @@ impl StaticIOp {
             Self::LeadingOnes => lead1(spec),
             Self::TrailingZeros => trail0(spec),
             Self::TrailingOnes => trail1(spec),
-            Self::AddSimd => add_simd(spec),
-            Self::Erc7984Simd => erc7984_simd(spec),
+            Self::AddSimd => add_simd(spec,12),
+            Self::Erc7984Simd => erc7984_simd(spec, 12),
             Self::Flip => flip(spec),
             Self::MemCpy => memcpy(spec),
         }

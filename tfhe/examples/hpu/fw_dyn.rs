@@ -13,6 +13,8 @@ use tfhe::*;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 
 use zhc::config::multi_hpu::MultiHpuConfig;
+use zhc::prelude::{Pipeline, PipelineExt};
+
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -70,6 +72,7 @@ pub struct Args {
 #[derive(Debug, Clone, Copy)]
 pub enum ZhcDynOp {
     MhMul(usize),
+    Mul(usize),
     MhDiv(usize),
     ShAdd,
 }
@@ -100,6 +103,11 @@ impl FromStr for ZhcDynOp {
             .or_else(|| s.strip_prefix("MhMulF"))
         {
             Ok(ZhcDynOp::MhMul(parse_usize(n)?))
+        } else if let Some(n) = s
+            .strip_prefix("mul_f")
+            .or_else(|| s.strip_prefix("MulF"))
+        {
+            Ok(ZhcDynOp::Mul(parse_usize(n)?))
         } else if let Some(n) = s
             .strip_prefix("mh_div_f")
             .or_else(|| s.strip_prefix("MhDivF"))
@@ -203,7 +211,30 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                         n_hpus: *mh_factor as u8,
                         hpu_config: zhc_config.clone(),
                     };
-                    zhc::compat::mh_mul(zhc_spec, mh_config)
+                    let builder = zhc::builder::mh_mul(zhc_spec, *mh_factor);
+                    Pipeline::new()
+                    .with_builder(builder)
+                    .with_multi_hpu_config(mh_config)
+                }
+                ZhcDynOp::Mul(mh_factor) => {
+                    let mh_config = MultiHpuConfig {
+                        n_hpus: *mh_factor as u8,
+                        hpu_config: zhc_config.clone(),
+                    };
+                    let builder = zhc::builder::mul(zhc_spec);
+                    Pipeline::new()
+                    .with_builder(builder)
+                    .with_multi_hpu_config(mh_config)
+                }
+                ZhcDynOp::MhDiv(mh_factor) => {
+                    let mh_config = MultiHpuConfig {
+                        n_hpus: *mh_factor as u8,
+                        hpu_config: zhc_config.clone(),
+                    };
+                    let builder = zhc::builder::div(zhc_spec);
+                    Pipeline::new()
+                    .with_builder(builder)
+                    .with_multi_hpu_config(mh_config)
                 }
                 _ => unimplemented!("Current op not defined"),
             };

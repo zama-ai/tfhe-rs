@@ -5230,8 +5230,7 @@ dependencies = [
 [[package]]
 name = "zhc"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82a38609924d98d47c8a568588eb815a465a9493d84074ca2dd7b693d097feeb"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "zhc_builder",
  "zhc_config",
@@ -5246,8 +5245,7 @@ dependencies = [
 [[package]]
 name = "zhc_builder"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "406d49ec6e756b9879a12014949212c07fc6f50f13a08605904dc490db52d7de"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "zhc_crypto",
  "zhc_ir 0.10.1",
@@ -5258,8 +5256,7 @@ dependencies = [
 [[package]]
 name = "zhc_config"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6348849b3b3fa15aa118b9cf467877eb81d3b821b980eaf9f70d1b9a14f46784"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "serde",
  "serde_json",
@@ -5270,8 +5267,7 @@ dependencies = [
 [[package]]
 name = "zhc_crypto"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3c23948a31ed872a7918ad2a6b037a8617e293efdc8ca64399e002ab9e202cf"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "paste",
  "rand 0.10.1",
@@ -5293,8 +5289,7 @@ dependencies = [
 [[package]]
 name = "zhc_ir"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12c4a03c3603a344df90658a20b8a7f9b6dba5f697cd4946ba48b65b89ceca5a"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "serde",
  "zhc_utils 0.10.1",
@@ -5304,8 +5299,7 @@ dependencies = [
 [[package]]
 name = "zhc_langs"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e44e07002c6561caf6fc05d41117c9dc82a9b54b24ee7e204515f2ae15139340"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "serde",
  "zhc_crypto",
@@ -5317,8 +5311,7 @@ dependencies = [
 [[package]]
 name = "zhc_langs_macro"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "357d0e0ef22fe942e97307c5177abe150e37810317bed5e06fbc7023b281cd0b"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5328,8 +5321,7 @@ dependencies = [
 [[package]]
 name = "zhc_pipeline"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56397422f1face648e3da39c0269a0891ff9d4c2df8f159153cc6f1f71d6b519"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "bitfield-struct 0.10.1",
  "rand 0.10.1",
@@ -5346,14 +5338,12 @@ dependencies = [
 [[package]]
 name = "zhc_profiling"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dd737074ec5b28829694f6b8096abae90cae6391dfb14ba0b9378f30866a076"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 
 [[package]]
 name = "zhc_sim"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b0145e63ddefb77a269f71bc9b733dcd456e35b6cce2f0b210ddee27dd47d34"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "serde",
  "serde_json",
@@ -5378,8 +5368,7 @@ dependencies = [
 [[package]]
 name = "zhc_utils"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4473d2d0f56bd97ddcb7ad9fb71c46947aa7a34c6e093bdd91d8b7e4b048f67d"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "libc",
  "paste",
@@ -5404,8 +5393,7 @@ dependencies = [
 [[package]]
 name = "zhc_utils_macro"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f0283d7ed4090ff80fe8b47e4e363cf29c70fc894a047a3882749f6271e467f"
+source = "git+https://github.com/zama-ai/zhc.git?branch=feat%2Ftid_recycling#364212ff8d3011b159ba154a76bec4e6862f1f19"
 dependencies = [
  "proc-macro2",
  "quote",
