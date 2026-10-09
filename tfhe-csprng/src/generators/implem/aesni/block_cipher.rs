@@ -239,6 +239,7 @@ unsafe fn aes_key_fold(mut temp1: __m128i, temp2: __m128i) -> __m128i {
     _mm_xor_si128(temp1, temp2)
 }
 
+#[inline(always)]
 unsafe fn aes_128_assist(temp1: __m128i, temp2: __m128i) -> __m128i {
     let mut temp2 = temp2;
     let mut temp1 = temp1;
@@ -286,10 +287,12 @@ unsafe fn aes_128_key_expansion(key: __m128i, keys: &mut [__m128i; AES_128_NUM_R
     }
 }
 
+#[inline(always)]
 unsafe fn aes_256_assist_1(temp1: __m128i, temp2: __m128i) -> __m128i {
     aes_128_assist(temp1, temp2)
 }
 
+#[inline(always)]
 unsafe fn aes_256_assist_2(temp1: __m128i, temp3: __m128i) -> __m128i {
     let temp4 = _mm_aeskeygenassist_si128(temp1, 0x0);
     let temp2 = _mm_shuffle_epi32(temp4, 0xaa);
