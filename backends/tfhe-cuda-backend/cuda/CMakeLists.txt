@@ -81,6 +81,17 @@ endif()
 
 add_compile_definitions(CUDA_ARCH=${CUDA_ARCH})
 
+set(TFHE_CUDA_KEYBUNDLE_INPUTS_PER_BLOCK
+    "2"
+    CACHE STRING "Inputs per block of the specialized multi-bit keybundle")
+set(TFHE_CUDA_KEYBUNDLE_MIN_BLOCKS_PER_SM
+    "3"
+    CACHE STRING
+          "Launch bound of the multi-input keybundle, 0 for none")
+add_compile_definitions(
+  TFHE_CUDA_KEYBUNDLE_INPUTS_PER_BLOCK=${TFHE_CUDA_KEYBUNDLE_INPUTS_PER_BLOCK}
+  TFHE_CUDA_KEYBUNDLE_MIN_BLOCKS_PER_SM=${TFHE_CUDA_KEYBUNDLE_MIN_BLOCKS_PER_SM})
+
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWERCASE)
 
 # Check if the DEBUG flag is defined

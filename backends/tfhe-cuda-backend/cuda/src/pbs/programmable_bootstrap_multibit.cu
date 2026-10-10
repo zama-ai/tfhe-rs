@@ -580,9 +580,10 @@ h100_specialized_keybundle_chunk_size(uint32_t max_num_pbs) {
  * additional logic.
  *
  * specialized_keybundle must be true exactly when the keybundle launch will
- * pick device_multi_bit_programmable_bootstrap_keybundle_2_2_params (see
+ * pick device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input (see
  * execute_compute_keybundle_with_mode), so the occupancy is queried with that
- * kernel's block size and dynamic shared memory.
+ * kernel's block size and dynamic shared memory. On a 132-SM H100 the chunk
+ * comes from h100_specialized_keybundle_chunk_size before this query.
  *
  * The value 13 was empirically determined based on memory requirements for
  * benchmarking on an RTX 4090 GPU, balancing performance and resource use.
@@ -661,19 +662,22 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   } else if (specialized_keybundle) {
     // The query must see the same function attributes as the launch in
     // execute_compute_keybundle_with_mode, so they are set here the same way.
+    constexpr uint32_t inputs = keybundle_inputs_per_block;
+    const uint64_t multi_input_sm =
+        get_buffer_size_multi_input_keybundle_2_2<Torus>(inputs);
     check_cuda_error(cudaFuncSetAttribute(
-        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-            Torus, Degree<2048>, FULLSM>,
-        cudaFuncAttributeMaxDynamicSharedMemorySize, 3 * full_sm_keybundle));
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
+            Torus, Degree<2048>, inputs>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, multi_input_sm));
     check_cuda_error(cudaFuncSetCacheConfig(
-        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-            Torus, Degree<2048>, FULLSM>,
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
+            Torus, Degree<2048>, inputs>,
         cudaFuncCachePreferShared));
     check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,
-        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-            Torus, Degree<2048>, FULLSM>,
-        Degree<2048>::degree / Degree<2048>::opt, 3 * full_sm_keybundle));
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
+            Torus, Degree<2048>, inputs>,
+        Degree<2048>::degree / Degree<2048>::opt, multi_input_sm));
   } else {
     check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,
