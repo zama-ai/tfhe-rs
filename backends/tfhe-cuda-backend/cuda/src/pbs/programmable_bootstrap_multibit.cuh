@@ -1024,15 +1024,6 @@ __host__ void execute_compute_keybundle_with_mode(
             get_buffer_size_multi_input_keybundle_2_2<Torus>(inputs);
         if (lwe_offset == 0) {
           check_cuda_error(cudaFuncSetAttribute(
-              device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                  Torus, Degree<2048>, FULLSM>,
-              cudaFuncAttributeMaxDynamicSharedMemorySize,
-              3 * full_sm_keybundle));
-          check_cuda_error(cudaFuncSetCacheConfig(
-              device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                  Torus, Degree<2048>, FULLSM>,
-              cudaFuncCachePreferShared));
-          check_cuda_error(cudaFuncSetAttribute(
               device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
                   Torus, Degree<2048>, inputs>,
               cudaFuncAttributeMaxDynamicSharedMemorySize, multi_input_sm));
@@ -1048,11 +1039,10 @@ __host__ void execute_compute_keybundle_with_mode(
         if (programmatic_launch) {
           // The keybundle may start before the preceding accumulate on this
           // stream finishes; see host_tbc_multi_bit_programmable_bootstrap.
-          // This path still launches the one-input kernel.
           cudaLaunchConfig_t config = {0};
-          config.gridDim = grid_keybundle;
+          config.gridDim = grid_multi_input;
           config.blockDim = thds_new_keybundle;
-          config.dynamicSmemBytes = 3 * full_sm_keybundle;
+          config.dynamicSmemBytes = multi_input_sm;
           config.stream = stream;
           cudaLaunchAttribute attribute[1];
           attribute[0].id = cudaLaunchAttributeProgrammaticStreamSerialization;
@@ -1061,10 +1051,11 @@ __host__ void execute_compute_keybundle_with_mode(
           config.numAttrs = 1;
           check_cuda_error(cudaLaunchKernelEx(
               &config,
-              device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                  Torus, Degree<2048>, FULLSM>,
+              device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
+                  Torus, Degree<2048>, inputs>,
               lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-              lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input));
+              lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input,
+              num_samples));
         } else {
           device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
               Torus, Degree<2048>, inputs>
