@@ -96,9 +96,9 @@ void cuda_setup_mempool(uint32_t caller_gpu_index) {
             default_pool, cudaMemPoolReuseAllowOpportunistic, &reuse));
 
         // Prevent memory from being released back to the OS too soon
+        uint64_t release_threshold = total_mem;
         check_cuda_error(cudaMemPoolSetAttribute(
-            default_pool, cudaMemPoolAttrReleaseThreshold,
-            &mem_pool_threshold));
+            default_pool, cudaMemPoolAttrReleaseThreshold, &release_threshold));
 
         // Warm up the pool by allocating and freeing a large block
         cudaStream_t stream;

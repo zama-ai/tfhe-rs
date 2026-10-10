@@ -708,7 +708,7 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap(
 
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
       gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
-      level_count, full_sm_keybundle);
+      level_count, full_sm_keybundle, false);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -768,10 +768,12 @@ __host__ void execute_compute_keybundle_with_mode(
             level_count, lwe_offset, chunk_size, keybundle_size_per_input,
             d_mem, full_sm_keybundle);
   } else {
-    bool supports_tbc =
-        has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
-            num_samples, glwe_dimension, polynomial_size, level_count,
-            cuda_get_max_shared_memory(gpu_index));
+    if (lwe_offset == 0)
+      buffer->keybundle_supports_tbc =
+          has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
+              num_samples, glwe_dimension, polynomial_size, level_count,
+              cuda_get_max_shared_memory(gpu_index));
+    bool supports_tbc = buffer->keybundle_supports_tbc;
 
     bool can_use_specialized = supports_tbc && polynomial_size == 2048 &&
                                grouping_factor == 4 && level_count == 1 &&
@@ -795,16 +797,18 @@ __host__ void execute_compute_keybundle_with_mode(
       dim3 thds_new_keybundle(512, 1, 1);
       if (use_noise_test_template) {
         // Set up the noise-test variant of the specialized 2_2 kernel
-        check_cuda_error(cudaFuncSetAttribute(
-            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                Torus, Degree<2048>, FULLSM, true>,
-            cudaFuncAttributeMaxDynamicSharedMemorySize,
-            3 * full_sm_keybundle));
-        check_cuda_error(cudaFuncSetCacheConfig(
-            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                Torus, Degree<2048>, FULLSM, true>,
-            cudaFuncCachePreferShared));
-        check_cuda_error(cudaGetLastError());
+        if (lwe_offset == 0) {
+          check_cuda_error(cudaFuncSetAttribute(
+              device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                  Torus, Degree<2048>, FULLSM, true>,
+              cudaFuncAttributeMaxDynamicSharedMemorySize,
+              3 * full_sm_keybundle));
+          check_cuda_error(cudaFuncSetCacheConfig(
+              device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                  Torus, Degree<2048>, FULLSM, true>,
+              cudaFuncCachePreferShared));
+          check_cuda_error(cudaGetLastError());
+        }
         device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
             Torus, Degree<2048>, FULLSM, true>
             <<<grid_keybundle, thds_new_keybundle, 3 * full_sm_keybundle,
@@ -812,16 +816,18 @@ __host__ void execute_compute_keybundle_with_mode(
                          bootstrapping_key, lwe_dimension, lwe_offset,
                          chunk_size, keybundle_size_per_input);
       } else {
-        check_cuda_error(cudaFuncSetAttribute(
-            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                Torus, Degree<2048>, FULLSM>,
-            cudaFuncAttributeMaxDynamicSharedMemorySize,
-            3 * full_sm_keybundle));
-        check_cuda_error(cudaFuncSetCacheConfig(
-            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                Torus, Degree<2048>, FULLSM>,
-            cudaFuncCachePreferShared));
-        check_cuda_error(cudaGetLastError());
+        if (lwe_offset == 0) {
+          check_cuda_error(cudaFuncSetAttribute(
+              device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                  Torus, Degree<2048>, FULLSM>,
+              cudaFuncAttributeMaxDynamicSharedMemorySize,
+              3 * full_sm_keybundle));
+          check_cuda_error(cudaFuncSetCacheConfig(
+              device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+                  Torus, Degree<2048>, FULLSM>,
+              cudaFuncCachePreferShared));
+          check_cuda_error(cudaGetLastError());
+        }
         device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
             Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,
                                            3 * full_sm_keybundle, stream>>>(

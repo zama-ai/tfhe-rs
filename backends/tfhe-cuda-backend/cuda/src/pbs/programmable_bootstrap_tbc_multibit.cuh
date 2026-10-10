@@ -526,9 +526,15 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
+  // Must match can_use_specialized in execute_compute_keybundle_with_mode. TBC
+  // support is implied on the automatic dispatch path and assumed on the
+  // test-only TBC entry points, and the grouping factor is not known at
+  // scratch time.
+  bool specialized_keybundle =
+      polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1;
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
       gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
-      level_count, full_sm_keybundle);
+      level_count, full_sm_keybundle, specialized_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -654,20 +660,22 @@ __host__ void execute_tbc_external_product_loop(
     if (use_specialized) {
 
       config.dynamicSmemBytes = full_dm + 2 * minimum_dm;
-      check_cuda_error(cudaFuncSetAttribute(
-          device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          full_dm + 2 * minimum_dm));
-      check_cuda_error(cudaFuncSetAttribute(
-          device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
-          cudaFuncAttributePreferredSharedMemoryCarveout,
-          cudaSharedmemCarveoutMaxShared));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
-              Torus, params, FULLSM>,
-          cudaFuncCachePreferShared));
+      if (lwe_offset == 0) {
+        check_cuda_error(cudaFuncSetAttribute(
+            device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
+                Torus, params, FULLSM>,
+            cudaFuncAttributeMaxDynamicSharedMemorySize,
+            full_dm + 2 * minimum_dm));
+        check_cuda_error(cudaFuncSetAttribute(
+            device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
+                Torus, params, FULLSM>,
+            cudaFuncAttributePreferredSharedMemoryCarveout,
+            cudaSharedmemCarveoutMaxShared));
+        check_cuda_error(cudaFuncSetCacheConfig(
+            device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
+                Torus, params, FULLSM>,
+            cudaFuncCachePreferShared));
+      }
       check_cuda_error(cudaLaunchKernelEx(
           &config,
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<

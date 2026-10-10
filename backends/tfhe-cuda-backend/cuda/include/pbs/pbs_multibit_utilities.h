@@ -100,7 +100,8 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size, uint32_t glwe_dimension,
-                            uint32_t level_count, uint64_t full_sm_keybundle);
+                            uint32_t level_count, uint64_t full_sm_keybundle,
+                            bool specialized_keybundle);
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
                                 uint32_t polynomial_size,
@@ -120,6 +121,9 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
 
   PBS_VARIANT pbs_variant;
   bool gpu_memory_allocated;
+  // Written by the keybundle on the first chunk of each PBS call
+  // (lwe_offset == 0) and read by the following chunks of that call.
+  bool keybundle_supports_tbc = false;
 
   pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
              uint32_t polynomial_size, uint32_t level_count,

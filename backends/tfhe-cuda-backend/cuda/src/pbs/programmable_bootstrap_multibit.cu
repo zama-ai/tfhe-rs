@@ -4,6 +4,11 @@
 #include "polynomial/dispatch.cuh"
 #include "programmable_bootstrap_cg_multibit.cuh"
 #include "programmable_bootstrap_multibit.cuh"
+#include <atomic>
+#include <cctype>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 #include <type_traits>
 
 #if (CUDA_ARCH >= 900)
@@ -511,13 +516,55 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
   }
 }
 
+// Test-only: TFHE_RS_GPU_MULTIBIT_LWE_CHUNK forces the LWE chunk size of the
+// 64-bit multi-bit PBS, for chunk-size sweeps in benchmarks. Production code
+// must never set it. The variable is read once per process; unset or 0 keeps
+// the heuristic of get_lwe_chunk_size. The forced value is capped by
+// max_num_chunks (the memory rule) and, at launch, by the number of groups.
+// Returns the capped value, or 0 when there is no override.
+static uint64_t get_lwe_chunk_size_test_override(uint32_t max_num_chunks) {
+  static const uint64_t requested = []() -> uint64_t {
+    const char *env = std::getenv("TFHE_RS_GPU_MULTIBIT_LWE_CHUNK");
+    if (env == nullptr || env[0] == '\0')
+      return 0;
+    char *end = nullptr;
+    errno = 0;
+    unsigned long long parsed = std::strtoull(env, &end, 10);
+    PANIC_IF_FALSE(std::isdigit(static_cast<unsigned char>(env[0])) &&
+                       *end == '\0' && errno != ERANGE,
+                   "Cuda error (multi-bit PBS): TFHE_RS_GPU_MULTIBIT_LWE_CHUNK "
+                   "must be an unsigned 64-bit integer, got '%s'",
+                   env);
+    return parsed;
+  }();
+  if (requested == 0)
+    return 0;
+
+  uint64_t effective =
+      (max_num_chunks > requested) ? requested : (uint64_t)max_num_chunks;
+  // Reported whenever the effective value changes, so a log shows every chunk
+  // that ran.
+  static std::atomic<uint64_t> last_reported{0};
+  if (last_reported.exchange(effective) != effective)
+    fprintf(stderr,
+            "TFHE_RS_GPU_MULTIBIT_LWE_CHUNK override (test only): requested "
+            "lwe_chunk_size = %llu, effective = %llu after the memory cap\n",
+            (unsigned long long)requested, (unsigned long long)effective);
+  return effective;
+}
+
 /**
  * Computes divisors of the product of num_sms (streaming multiprocessors on the
- * GPU) and max_blocks_per_sm (maximum active blocks per SM to launch
- * device_multi_bit_programmable_bootstrap_keybundle) smaller than its square
- * root, based on max_num_pbs. If log2(max_num_pbs) <= 13, selects the first
- * suitable divisor. If greater, calculates an offset as max(1,log2(max_num_pbs)
- * - 13) for additional logic.
+ * GPU) and max_blocks_per_sm (maximum active blocks per SM of the keybundle
+ * kernel that will be launched) smaller than its square root, based on
+ * max_num_pbs. If log2(max_num_pbs) <= 13, selects the first suitable divisor.
+ * If greater, calculates an offset as max(1,log2(max_num_pbs) - 13) for
+ * additional logic.
+ *
+ * specialized_keybundle must be true exactly when the keybundle launch will
+ * pick device_multi_bit_programmable_bootstrap_keybundle_2_2_params (see
+ * execute_compute_keybundle_with_mode), so the occupancy is queried with that
+ * kernel's block size and dynamic shared memory.
  *
  * The value 13 was empirically determined based on memory requirements for
  * benchmarking on an RTX 4090 GPU, balancing performance and resource use.
@@ -525,23 +572,10 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size, uint32_t glwe_dimension,
-                            uint32_t level_count, uint64_t full_sm_keybundle) {
+                            uint32_t level_count, uint64_t full_sm_keybundle,
+                            bool specialized_keybundle) {
 
-  int max_blocks_per_sm;
-  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
-  if (max_shared_memory < full_sm_keybundle) {
-    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-        &max_blocks_per_sm,
-        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
-        polynomial_size / params::opt, full_sm_keybundle));
-  } else {
-    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-        &max_blocks_per_sm,
-        device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
-                                                          FULLSM>,
-        polynomial_size / params::opt, 0));
-  }
 
   int num_sms = 0;
   check_cuda_error(cudaDeviceGetAttribute(
@@ -566,19 +600,14 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
       "temporary arrays. free_mem: %lu, size_one_chunk: %lu, max_num_chunks: "
       "%u, max_num_pbs %u",
       free_mem, size_one_chunk, max_num_chunks, max_num_pbs);
-  int x = num_sms * max_blocks_per_sm;
-  int count = 0;
 
-  int divisor = 1;
+  uint64_t chunk_override = get_lwe_chunk_size_test_override(max_num_chunks);
+  if (chunk_override != 0)
+    return chunk_override;
+
   int ith_divisor = 0;
 
-#if CUDA_ARCH < 900
-  // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
-  // multiplication can run
-  int log2_max_num_pbs = log2_int(max_num_pbs);
-  if (log2_max_num_pbs > 13)
-    ith_divisor = log2_max_num_pbs - 11;
-#else
+#if CUDA_ARCH >= 900
   // When having few samples we are interested in using a larger chunksize so
   // the keybundle can saturate the GPU. To obtain homogeneous waves we use half
   // of the sms as the chunksize, by doing so we always get a multiple of the
@@ -589,7 +618,48 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   if (max_num_pbs <= 8) {
     return (max_num_chunks > num_sms / 2) ? num_sms / 2 : max_num_chunks;
   }
+#else
+  // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
+  // multiplication can run
+  int log2_max_num_pbs = log2_int(max_num_pbs);
+  if (log2_max_num_pbs > 13)
+    ith_divisor = log2_max_num_pbs - 11;
 #endif
+
+  int max_blocks_per_sm = 0;
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  if (max_shared_memory < full_sm_keybundle) {
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
+        polynomial_size / params::opt, full_sm_keybundle));
+  } else if (specialized_keybundle) {
+    // The query must see the same function attributes as the launch in
+    // execute_compute_keybundle_with_mode, so they are set here the same way.
+    check_cuda_error(cudaFuncSetAttribute(
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+            Torus, Degree<2048>, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, 3 * full_sm_keybundle));
+    check_cuda_error(cudaFuncSetCacheConfig(
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+            Torus, Degree<2048>, FULLSM>,
+        cudaFuncCachePreferShared));
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+            Torus, Degree<2048>, FULLSM>,
+        Degree<2048>::degree / Degree<2048>::opt, 3 * full_sm_keybundle));
+  } else {
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
+                                                          FULLSM>,
+        polynomial_size / params::opt, 0));
+  }
+
+  int x = num_sms * max_blocks_per_sm;
+  int count = 0;
+  int divisor = 1;
 
   for (int i = sqrt(x); i >= 1; i--) {
     if (x % i == 0) {
