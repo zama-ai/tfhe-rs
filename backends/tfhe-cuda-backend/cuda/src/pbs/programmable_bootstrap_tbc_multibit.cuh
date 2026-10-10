@@ -34,6 +34,34 @@ enum class MultiBitTbcLaunchMode {
   SPECIALIZED_2_2, // Force-select the 2.2 specialized variant
 };
 
+// Single-stream overlap of the specialized TBC schedule. The accumulate of
+// chunk c (c >= 1) waits until acc_progress[sample] reaches progress_target,
+// the value written by the accumulate of chunk c-1 of the same call, then
+// allows the keybundle of chunk c+1 to launch. The keybundle of chunk c+1
+// writes the slot read by the accumulate of chunk c-1, so the trigger must
+// follow the wait.
+__device__ __forceinline__ uint32_t
+acc_progress_load_acquire(const uint32_t *address) {
+  uint32_t value;
+  asm volatile("ld.acquire.gpu.global.u32 %0, [%1];"
+               : "=r"(value)
+               : "l"(address)
+               : "memory");
+  return value;
+}
+
+__device__ __forceinline__ void acc_progress_store_release(uint32_t *address,
+                                                           uint32_t value) {
+  asm volatile("st.release.gpu.global.u32 [%0], %1;" ::"l"(address), "r"(value)
+               : "memory");
+}
+
+__device__ __forceinline__ void allow_dependent_launch() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
+  asm volatile("griddepcontrol.launch_dependents;" ::: "memory");
+#endif
+}
+
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_multi_bit_programmable_bootstrap_tbc_accumulate(
@@ -229,14 +257,14 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     const double2 *__restrict__ keybundle_array, Torus *global_accumulator,
     uint32_t lwe_dimension, uint32_t lwe_offset, uint32_t lwe_chunk_size,
     uint64_t keybundle_size_per_input, uint32_t num_many_lut,
-    uint32_t lut_stride) {
+    uint32_t lut_stride, uint32_t *acc_progress, uint32_t progress_target) {
+  cluster_group cluster = this_cluster();
 
   constexpr uint32_t level_count = 1;
   constexpr uint32_t grouping_factor = 4;
   constexpr uint32_t polynomial_size = 2048;
   constexpr uint32_t glwe_dimension = 1;
   constexpr uint32_t base_log = 22;
-  cluster_group cluster = this_cluster();
   auto this_block_rank = cluster.block_index().y;
   // We use shared memory for the polynomials that are used often during the
   // bootstrap, since shared memory is kept in L1 cache and accessing it is
@@ -281,6 +309,20 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
 
   const double2 *keybundle =
       &keybundle_array[blockIdx.x * keybundle_size_per_input];
+
+  if (acc_progress != nullptr) {
+    if (lwe_offset != 0) {
+      if (threadIdx.x == 0) {
+        // Signed difference: the counter wraps around across calls.
+        while ((int32_t)(acc_progress_load_acquire(&acc_progress[blockIdx.x]) -
+                         progress_target) < 0) {
+          __nanosleep(64);
+        }
+      }
+      __syncthreads();
+    }
+    allow_dependent_launch();
+  }
 
   // The acc rotated is moved to registers to free shared memory for other
   // potential improvements. itself this change doesn't report much benefit.
@@ -400,10 +442,18 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     // Load the accumulator calculated in previous iterations
     copy_polynomial_from_regs<Torus, params::opt, params::degree / params::opt>(
         reg_acc_rotated, global_accumulator_slice);
+    // Make this block's accumulator visible before the cluster barrier below,
+    // so the release store after it covers both blocks of the cluster.
+    if (acc_progress != nullptr)
+      __threadfence();
   }
   // Before exiting the kernel we need to sync the cluster to ensure that
   // other blocks can still access the dsm in the ping pong buffer
   cluster.sync();
+  if (acc_progress != nullptr && this_block_rank == 0 && threadIdx.x == 0 &&
+      lwe_offset + lwe_chunk_size < (lwe_dimension / grouping_factor)) {
+    acc_progress_store_release(&acc_progress[blockIdx.x], progress_target + 1);
+  }
 }
 
 template <typename Torus>
@@ -534,7 +584,7 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
       polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1;
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
       gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
-      level_count, full_sm_keybundle, specialized_keybundle);
+      level_count, full_sm_keybundle, specialized_keybundle, 2);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -552,7 +602,9 @@ __host__ void execute_tbc_external_product_loop(
     uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
     uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
-    uint32_t lut_stride, MultiBitTbcLaunchMode launch_mode) {
+    uint32_t lut_stride, MultiBitTbcLaunchMode launch_mode,
+    double2 *keybundle_slot = nullptr, uint32_t *acc_progress = nullptr,
+    uint32_t progress_target = 0) {
 
   PANIC_IF_FALSE(
       sizeof(Torus) == 8,
@@ -588,7 +640,8 @@ __host__ void execute_tbc_external_product_loop(
       (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset));
 
   auto d_mem = buffer->d_mem_acc_tbc;
-  auto keybundle_fft = buffer->keybundle_fft;
+  auto keybundle_fft =
+      keybundle_slot != nullptr ? keybundle_slot : buffer->keybundle_fft;
   auto global_accumulator = buffer->global_accumulator;
   auto buffer_fft = buffer->global_join_buffer;
 
@@ -612,6 +665,9 @@ __host__ void execute_tbc_external_product_loop(
   config.stream = stream;
 
   if (max_shared_memory < partial_dm + minimum_dm) {
+    PANIC_IF_FALSE(acc_progress == nullptr,
+                   "Cuda error (multi-bit PBS): the single-stream overlap "
+                   "requires the specialized TBC 2_2 kernel.");
     PANIC_IF_FALSE(
         launch_mode != MultiBitTbcLaunchMode::SPECIALIZED_2_2,
         "Cuda error (multi-bit PBS): specialized TBC 2_2 requires FULLSM.");
@@ -627,6 +683,9 @@ __host__ void execute_tbc_external_product_loop(
         keybundle_size_per_input, d_mem, full_dm, supports_dsm, num_many_lut,
         lut_stride));
   } else if (max_shared_memory < full_dm + minimum_dm) {
+    PANIC_IF_FALSE(acc_progress == nullptr,
+                   "Cuda error (multi-bit PBS): the single-stream overlap "
+                   "requires the specialized TBC 2_2 kernel.");
     PANIC_IF_FALSE(
         launch_mode != MultiBitTbcLaunchMode::SPECIALIZED_2_2,
         "Cuda error (multi-bit PBS): specialized TBC 2_2 requires FULLSM.");
@@ -657,6 +716,9 @@ __host__ void execute_tbc_external_product_loop(
     bool use_specialized =
         launch_mode == MultiBitTbcLaunchMode::SPECIALIZED_2_2 ||
         (launch_mode == MultiBitTbcLaunchMode::AUTO && can_use_specialized);
+    PANIC_IF_FALSE(acc_progress == nullptr || use_specialized,
+                   "Cuda error (multi-bit PBS): the single-stream overlap "
+                   "requires the specialized TBC 2_2 kernel.");
     if (use_specialized) {
 
       config.dynamicSmemBytes = full_dm + 2 * minimum_dm;
@@ -683,7 +745,7 @@ __host__ void execute_tbc_external_product_loop(
           lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
           lwe_array_in, lwe_input_indexes, keybundle_fft, global_accumulator,
           lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input,
-          num_many_lut, lut_stride));
+          num_many_lut, lut_stride, acc_progress, progress_target));
     } else {
       check_cuda_error(cudaLaunchKernelEx(
           &config,
@@ -713,39 +775,120 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
-  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
-       lwe_offset += lwe_chunk_size) {
+  uint32_t num_groups = lwe_dimension / grouping_factor;
+  uint32_t num_chunks =
+      static_cast<uint32_t>((num_groups + lwe_chunk_size - 1) / lwe_chunk_size);
 
-    // Compute a keybundle
+  // The overlap needs the specialized keybundle and the specialized TBC
+  // accumulate, because only those carry the programmatic launch and the
+  // progress flag. Every other configuration runs serially on one slot.
+  const auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  const bool supports_dsm =
+      supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
+          Torus>(polynomial_size, max_shared_memory);
+  const uint64_t full_dm =
+      get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap<Torus>(
+          polynomial_size);
+  const uint64_t minimum_dm =
+      supports_dsm
+          ? get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<
+                Torus>(polynomial_size)
+          : 0;
+  const bool params_2_2 = polynomial_size == 2048 && grouping_factor == 4 &&
+                          level_count == 1 && glwe_dimension == 1 &&
+                          base_log == 22;
+  const bool overlap =
+      buffer->acc_progress != nullptr &&
+      launch_mode != MultiBitTbcLaunchMode::GENERIC && params_2_2 &&
+      max_shared_memory >= full_dm + minimum_dm &&
+      max_shared_memory >=
+          get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
+              Torus>(polynomial_size) &&
+      has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
+          num_samples, glwe_dimension, polynomial_size, level_count,
+          max_shared_memory);
+
+  // Progress values of this call are base + c. The base advances by the
+  // number of chunks, so values left by an earlier call are always behind.
+  // Entries of samples that recent calls did not use keep old values, so the
+  // flags are cleared before the base could get 2^31 ahead of them, which
+  // would make the signed comparison in the kernel wrong. The memset is
+  // ordered after every earlier kernel on this stream.
+  uint32_t progress_base = buffer->acc_progress_base;
+  if (overlap) {
+    if (progress_base + num_chunks >= (1u << 30)) {
+      cuda_memset_with_size_tracking_async(
+          buffer->acc_progress, 0,
+          safe_mul_sizeof<uint32_t>(
+              static_cast<size_t>(buffer->acc_progress_count)),
+          stream, gpu_index, true);
+      progress_base = 0;
+    }
+    buffer->acc_progress_base = progress_base + num_chunks;
+  }
+
+  auto slot_pointer = [&](uint32_t slot) -> double2 * {
+    // SAFETY: slot is 0 or 1, and the TBC buffer allocates two contiguous
+    // slots of keybundle_slot_stride double2 elements each.
+    return buffer->keybundle_fft +
+           static_cast<size_t>(slot) * buffer->keybundle_slot_stride;
+  };
+
+  // Single stream. Order on the stream: keybundle(0), accumulate(0),
+  // keybundle(1), accumulate(1), ... Slot s(c) = c mod 2 when overlapping.
+  // - keybundle(c+1) is a programmatic dependent launch: it starts once every
+  //   block of accumulate(c) has passed its progress wait, so it overlaps
+  //   accumulate(c). It reads only the input and the key.
+  // - accumulate(c) waits, per sample, for accumulate(c-1) through
+  //   acc_progress, so the slot keybundle(c+1) writes is no longer read and
+  //   the global accumulator of chunk c-1 is complete. It does not rely on
+  //   transitive stream ordering across the programmatic launch.
+  // - accumulate(c) is an ordinary launch, so it waits for keybundle(c).
+  auto launch_keybundle = [&](uint32_t lwe_offset, uint32_t slot,
+                              bool programmatic_launch) {
+    double2 *keybundle_slot = slot_pointer(slot);
     switch (launch_mode) {
     case MultiBitTbcLaunchMode::GENERIC:
       execute_compute_keybundle_generic<Torus, params>(
           stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
           buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, level_count, lwe_offset);
+          grouping_factor, level_count, lwe_offset, keybundle_slot);
       break;
     case MultiBitTbcLaunchMode::SPECIALIZED_2_2:
       execute_compute_keybundle_2_2_specialized<Torus, params>(
           stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
           buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, level_count, lwe_offset);
+          grouping_factor, level_count, lwe_offset, keybundle_slot,
+          programmatic_launch);
       break;
     case MultiBitTbcLaunchMode::AUTO:
     default:
       execute_compute_keybundle<Torus, params>(
           stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
           buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, level_count, lwe_offset);
+          grouping_factor, level_count, lwe_offset, keybundle_slot,
+          programmatic_launch);
       break;
     }
+  };
 
-    // Accumulate
+  launch_keybundle(0, 0, false);
+  uint32_t chunk_index = 0;
+  for (uint32_t lwe_offset = 0; lwe_offset < num_groups;
+       lwe_offset += lwe_chunk_size, ++chunk_index) {
+    uint32_t slot = overlap ? (chunk_index & 1u) : 0u;
     execute_tbc_external_product_loop<Torus, params>(
         stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
         num_samples, lwe_dimension, glwe_dimension, polynomial_size,
         grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
-        lut_stride, launch_mode);
+        lut_stride, launch_mode, slot_pointer(slot),
+        overlap ? buffer->acc_progress : nullptr, progress_base + chunk_index);
+
+    uint32_t next_offset = lwe_offset + static_cast<uint32_t>(lwe_chunk_size);
+    if (next_offset < num_groups)
+      launch_keybundle(next_offset, overlap ? ((chunk_index + 1u) & 1u) : 0u,
+                       overlap);
   }
 }
 

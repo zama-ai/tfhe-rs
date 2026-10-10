@@ -9,6 +9,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
 #include <type_traits>
 
 #if (CUDA_ARCH >= 900)
@@ -518,12 +519,12 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
 
 // Test-only: TFHE_RS_GPU_MULTIBIT_LWE_CHUNK forces the LWE chunk size of the
 // 64-bit multi-bit PBS, for chunk-size sweeps in benchmarks. Production code
-// must never set it. The variable is read once per process; unset or 0 keeps
+// must never set it. The variable is read on every call; unset or 0 keeps
 // the heuristic of get_lwe_chunk_size. The forced value is capped by
 // max_num_chunks (the memory rule) and, at launch, by the number of groups.
 // Returns the capped value, or 0 when there is no override.
 static uint64_t get_lwe_chunk_size_test_override(uint32_t max_num_chunks) {
-  static const uint64_t requested = []() -> uint64_t {
+  const uint64_t requested = []() -> uint64_t {
     const char *env = std::getenv("TFHE_RS_GPU_MULTIBIT_LWE_CHUNK");
     if (env == nullptr || env[0] == '\0')
       return 0;
@@ -553,6 +554,23 @@ static uint64_t get_lwe_chunk_size_test_override(uint32_t max_num_chunks) {
   return effective;
 }
 
+// Chunk size of the 64-bit multi-bit PBS measured on H100 (132 SMs) for the
+// specialized keybundle with two keybundle slots, keyed by max_num_pbs ranges.
+struct LweChunkSizeForBatchRange {
+  uint32_t max_num_pbs;
+  uint32_t lwe_chunk_size;
+};
+constexpr LweChunkSizeForBatchRange h100_specialized_keybundle_chunk_sizes[] = {
+    {5, 16}, {6, 13}, {7, 11}, {23, 10}, {4096, 32}};
+
+constexpr std::optional<uint32_t>
+h100_specialized_keybundle_chunk_size(uint32_t max_num_pbs) {
+  for (const auto &range : h100_specialized_keybundle_chunk_sizes)
+    if (max_num_pbs <= range.max_num_pbs)
+      return range.lwe_chunk_size;
+  return std::nullopt;
+}
+
 /**
  * Computes divisors of the product of num_sms (streaming multiprocessors on the
  * GPU) and max_blocks_per_sm (maximum active blocks per SM of the keybundle
@@ -573,7 +591,8 @@ template <typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size, uint32_t glwe_dimension,
                             uint32_t level_count, uint64_t full_sm_keybundle,
-                            bool specialized_keybundle) {
+                            bool specialized_keybundle,
+                            uint32_t keybundle_copies) {
 
   cuda_set_device(gpu_index);
 
@@ -589,11 +608,12 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                (size_t)(glwe_dimension + 1)),
       (size_t)polynomial_size, (size_t)level_count);
 
-  // We calculate the maximum number of chunks that can fit in the 50% of free
-  // memory. We don't want the pbs temp array uses more than 50% of the free
-  // memory if 1 chunk doesn't fit in the 50% of free memory we panic
-  uint32_t max_num_chunks =
-      static_cast<uint32_t>(free_mem / (2 * size_one_chunk));
+  // All keybundle slots together must fit in 50% of free memory, leaving
+  // room for the other PBS temporary arrays.
+  uint32_t max_num_chunks = static_cast<uint32_t>(
+      free_mem / safe_mul(static_cast<size_t>(2),
+                          static_cast<size_t>(keybundle_copies),
+                          static_cast<size_t>(size_one_chunk)));
   PANIC_IF_FALSE(
       max_num_chunks > 0,
       "Cuda error (multi-bit PBS): Not enough GPU memory to allocate PBS "
@@ -608,6 +628,11 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   int ith_divisor = 0;
 
 #if CUDA_ARCH >= 900
+  if (specialized_keybundle && keybundle_copies == 2 && num_sms == 132) {
+    if (const auto chunk = h100_specialized_keybundle_chunk_size(max_num_pbs))
+      return (max_num_chunks > *chunk) ? *chunk : max_num_chunks;
+  }
+
   // When having few samples we are interested in using a larger chunksize so
   // the keybundle can saturate the GPU. To obtain homogeneous waves we use half
   // of the sms as the chunksize, by doing so we always get a multiple of the
