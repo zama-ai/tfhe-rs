@@ -100,7 +100,9 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size, uint32_t glwe_dimension,
-                            uint32_t level_count, uint64_t full_sm_keybundle);
+                            uint32_t level_count, uint64_t full_sm_keybundle,
+                            bool specialized_keybundle,
+                            uint32_t keybundle_copies);
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
                                 uint32_t polynomial_size,
@@ -120,18 +122,44 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
 
   PBS_VARIANT pbs_variant;
   bool gpu_memory_allocated;
+  // Set at scratch time. The result does not depend on the number of samples.
+  bool keybundle_supports_tbc = false;
+  // Inputs per block of the specialized 2_2 keybundle for the current call.
+  // Written by the keybundle on the first chunk of each PBS call
+  // (lwe_offset == 0) and read by the following chunks of that call.
+  uint32_t keybundle_inputs_per_block = 0;
+  // The overlapped TBC schedule runs on the caller's stream only. The
+  // keybundle of chunk c+1 is a programmatic dependent launch that starts
+  // while the accumulate of chunk c runs. acc_progress holds, per sample, the
+  // number of accumulate chunks finished, offset by acc_progress_base; the
+  // accumulate of chunk c waits on it for chunk c-1. Not null only when the
+  // scratch allocated two keybundle slots. keybundle_slot_stride is the number
+  // of double2 elements between the two keybundle slots; slot 0 is
+  // keybundle_fft.
+  uint32_t *acc_progress = nullptr;
+  uint32_t acc_progress_base = 0;
+  uint32_t acc_progress_count = 0;
+  uint64_t keybundle_slot_stride = 0;
 
   pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
              uint32_t polynomial_size, uint32_t level_count,
              uint32_t input_lwe_ciphertext_count, uint64_t lwe_chunk_size,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory,
-             uint64_t &size_tracker) {
+             uint64_t &size_tracker, uint32_t keybundle_copies = 1) {
+    PANIC_IF_FALSE(keybundle_copies == 1 ||
+                       (keybundle_copies == 2 && pbs_variant == TBC),
+                   "Cuda error (multi-bit PBS): only the TBC variant can "
+                   "allocate two keybundle slots.");
     gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
 
     this->pbs_variant = pbs_variant;
     this->lwe_chunk_size = lwe_chunk_size;
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+    keybundle_supports_tbc =
+        has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<Torus>(
+            input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
+            level_count, max_shared_memory);
 
     // default
     uint64_t full_sm_keybundle =
@@ -242,9 +270,22 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }
 
+    if (keybundle_copies == 2) {
+      keybundle_slot_stride =
+          safe_mul(num_blocks_keybundle, (size_t)(polynomial_size / 2));
+      acc_progress_count = input_lwe_ciphertext_count;
+      acc_progress = (uint32_t *)cuda_malloc_with_size_tracking_async(
+          safe_mul_sizeof<uint32_t>((size_t)input_lwe_ciphertext_count), stream,
+          gpu_index, size_tracker, allocate_gpu_memory);
+      cuda_memset_with_size_tracking_async(
+          acc_progress, 0,
+          safe_mul_sizeof<uint32_t>((size_t)input_lwe_ciphertext_count), stream,
+          gpu_index, allocate_gpu_memory);
+    }
     keybundle_fft = (double2 *)cuda_malloc_with_size_tracking_async(
         safe_mul_sizeof<double2>(num_blocks_keybundle,
-                                 (size_t)(polynomial_size / 2)),
+                                 (size_t)(polynomial_size / 2),
+                                 (size_t)keybundle_copies),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
     global_accumulator = (Torus *)cuda_malloc_with_size_tracking_async(
         safe_mul_sizeof<Torus>((size_t)input_lwe_ciphertext_count,
@@ -259,7 +300,6 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
   }
 
   void release(cudaStream_t stream, uint32_t gpu_index) override {
-
     if (d_mem_keybundle)
       cuda_drop_with_size_tracking_async(d_mem_keybundle, stream, gpu_index,
                                          gpu_memory_allocated);
@@ -294,6 +334,10 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
                                        gpu_memory_allocated);
+
+    if (acc_progress)
+      cuda_drop_with_size_tracking_async(acc_progress, stream, gpu_index,
+                                         gpu_memory_allocated);
 
     cuda_synchronize_stream(stream, gpu_index);
   }

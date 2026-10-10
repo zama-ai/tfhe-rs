@@ -64,6 +64,7 @@ uint32_t cuda_is_available();
 void *cuda_malloc(uint64_t size, uint32_t gpu_index);
 void *cuda_malloc_async(uint64_t size, void *stream, uint32_t gpu_index);
 bool cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
+uint64_t cuda_get_available_memory(uint32_t gpu_index);
 uint64_t cuda_device_total_memory(uint32_t gpu_index);
 
 void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,

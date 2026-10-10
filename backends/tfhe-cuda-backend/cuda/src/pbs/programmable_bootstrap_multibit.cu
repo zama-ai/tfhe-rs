@@ -4,6 +4,12 @@
 #include "polynomial/dispatch.cuh"
 #include "programmable_bootstrap_cg_multibit.cuh"
 #include "programmable_bootstrap_multibit.cuh"
+#include <atomic>
+#include <cctype>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <optional>
 #include <type_traits>
 
 #if (CUDA_ARCH >= 900)
@@ -511,13 +517,74 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
   }
 }
 
+// Test-only: TFHE_RS_GPU_MULTIBIT_LWE_CHUNK forces the LWE chunk size of the
+// 64-bit multi-bit PBS, for chunk-size sweeps in benchmarks. Production code
+// must never set it. The variable is read on every call; unset or 0 keeps
+// the heuristic of get_lwe_chunk_size. The forced value is capped by
+// max_num_chunks (the memory rule) and, at launch, by the number of groups.
+// Returns the capped value, or 0 when there is no override.
+static uint64_t get_lwe_chunk_size_test_override(uint32_t max_num_chunks) {
+  const uint64_t requested = []() -> uint64_t {
+    const char *env = std::getenv("TFHE_RS_GPU_MULTIBIT_LWE_CHUNK");
+    if (env == nullptr || env[0] == '\0')
+      return 0;
+    char *end = nullptr;
+    errno = 0;
+    unsigned long long parsed = std::strtoull(env, &end, 10);
+    PANIC_IF_FALSE(std::isdigit(static_cast<unsigned char>(env[0])) &&
+                       *end == '\0' && errno != ERANGE,
+                   "Cuda error (multi-bit PBS): TFHE_RS_GPU_MULTIBIT_LWE_CHUNK "
+                   "must be an unsigned 64-bit integer, got '%s'",
+                   env);
+    return parsed;
+  }();
+  if (requested == 0)
+    return 0;
+
+  uint64_t effective =
+      (max_num_chunks > requested) ? requested : (uint64_t)max_num_chunks;
+  // Reported whenever the effective value changes, so a log shows every chunk
+  // that ran.
+  static std::atomic<uint64_t> last_reported{0};
+  if (last_reported.exchange(effective) != effective)
+    fprintf(stderr,
+            "TFHE_RS_GPU_MULTIBIT_LWE_CHUNK override (test only): requested "
+            "lwe_chunk_size = %llu, effective = %llu after the memory cap\n",
+            (unsigned long long)requested, (unsigned long long)effective);
+  return effective;
+}
+
+// Chunk size of the 64-bit multi-bit PBS measured on H100 (132 SMs) for the
+// specialized keybundle with two keybundle slots, keyed by max_num_pbs ranges.
+struct LweChunkSizeForBatchRange {
+  uint32_t max_num_pbs;
+  uint32_t lwe_chunk_size;
+};
+constexpr LweChunkSizeForBatchRange h100_specialized_keybundle_chunk_sizes[] = {
+    {5, 16}, {6, 13}, {7, 11}, {23, 10}, {4096, 32}};
+
+constexpr std::optional<uint32_t>
+h100_specialized_keybundle_chunk_size(uint32_t max_num_pbs) {
+  for (const auto &range : h100_specialized_keybundle_chunk_sizes)
+    if (max_num_pbs <= range.max_num_pbs)
+      return range.lwe_chunk_size;
+  return std::nullopt;
+}
+
 /**
  * Computes divisors of the product of num_sms (streaming multiprocessors on the
- * GPU) and max_blocks_per_sm (maximum active blocks per SM to launch
- * device_multi_bit_programmable_bootstrap_keybundle) smaller than its square
- * root, based on max_num_pbs. If log2(max_num_pbs) <= 13, selects the first
- * suitable divisor. If greater, calculates an offset as max(1,log2(max_num_pbs)
- * - 13) for additional logic.
+ * GPU) and max_blocks_per_sm (maximum active blocks per SM of the keybundle
+ * kernel that will be launched) smaller than its square root, based on
+ * max_num_pbs. If log2(max_num_pbs) <= 13, selects the first suitable divisor.
+ * If greater, calculates an offset as max(1,log2(max_num_pbs) - 13) for
+ * additional logic.
+ *
+ * specialized_keybundle is true when the TBC scratch selects the single-stream
+ * overlap, which launches
+ * device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input (see
+ * execute_compute_keybundle_with_mode), so the occupancy is queried with that
+ * kernel's block size and dynamic shared memory. On a 132-SM H100 the chunk
+ * comes from h100_specialized_keybundle_chunk_size before this query.
  *
  * The value 13 was empirically determined based on memory requirements for
  * benchmarking on an RTX 4090 GPU, balancing performance and resource use.
@@ -525,60 +592,48 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size, uint32_t glwe_dimension,
-                            uint32_t level_count, uint64_t full_sm_keybundle) {
+                            uint32_t level_count, uint64_t full_sm_keybundle,
+                            bool specialized_keybundle,
+                            uint32_t keybundle_copies) {
 
-  int max_blocks_per_sm;
-  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
-  if (max_shared_memory < full_sm_keybundle) {
-    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-        &max_blocks_per_sm,
-        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
-        polynomial_size / params::opt, full_sm_keybundle));
-  } else {
-    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-        &max_blocks_per_sm,
-        device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
-                                                          FULLSM>,
-        polynomial_size / params::opt, 0));
-  }
 
   int num_sms = 0;
   check_cuda_error(cudaDeviceGetAttribute(
       &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));
 
-  size_t total_mem, free_mem;
-  check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
+  uint64_t free_mem = cuda_get_available_memory(gpu_index);
   // Estimate the size of one chunk
   uint64_t size_one_chunk = safe_mul_sizeof<Torus>(
       safe_mul((size_t)max_num_pbs, (size_t)(glwe_dimension + 1),
                (size_t)(glwe_dimension + 1)),
       (size_t)polynomial_size, (size_t)level_count);
 
-  // We calculate the maximum number of chunks that can fit in the 50% of free
-  // memory. We don't want the pbs temp array uses more than 50% of the free
-  // memory if 1 chunk doesn't fit in the 50% of free memory we panic
-  uint32_t max_num_chunks =
-      static_cast<uint32_t>(free_mem / (2 * size_one_chunk));
+  // All keybundle slots together must fit in 50% of free memory, leaving
+  // room for the other PBS temporary arrays.
+  uint32_t max_num_chunks = static_cast<uint32_t>(
+      free_mem / safe_mul(static_cast<size_t>(2),
+                          static_cast<size_t>(keybundle_copies),
+                          static_cast<size_t>(size_one_chunk)));
   PANIC_IF_FALSE(
       max_num_chunks > 0,
       "Cuda error (multi-bit PBS): Not enough GPU memory to allocate PBS "
       "temporary arrays. free_mem: %lu, size_one_chunk: %lu, max_num_chunks: "
       "%u, max_num_pbs %u",
       free_mem, size_one_chunk, max_num_chunks, max_num_pbs);
-  int x = num_sms * max_blocks_per_sm;
-  int count = 0;
 
-  int divisor = 1;
+  uint64_t chunk_override = get_lwe_chunk_size_test_override(max_num_chunks);
+  if (chunk_override != 0)
+    return chunk_override;
+
   int ith_divisor = 0;
 
-#if CUDA_ARCH < 900
-  // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
-  // multiplication can run
-  int log2_max_num_pbs = log2_int(max_num_pbs);
-  if (log2_max_num_pbs > 13)
-    ith_divisor = log2_max_num_pbs - 11;
-#else
+#if CUDA_ARCH >= 900
+  if (specialized_keybundle && keybundle_copies == 2 && num_sms == 132) {
+    if (const auto chunk = h100_specialized_keybundle_chunk_size(max_num_pbs))
+      return (max_num_chunks > *chunk) ? *chunk : max_num_chunks;
+  }
+
   // When having few samples we are interested in using a larger chunksize so
   // the keybundle can saturate the GPU. To obtain homogeneous waves we use half
   // of the sms as the chunksize, by doing so we always get a multiple of the
@@ -589,7 +644,49 @@ uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   if (max_num_pbs <= 8) {
     return (max_num_chunks > num_sms / 2) ? num_sms / 2 : max_num_chunks;
   }
+#else
+  // We pick a smaller divisor on GPUs other than H100, so 256-bit integer
+  // multiplication can run
+  int log2_max_num_pbs = log2_int(max_num_pbs);
+  if (log2_max_num_pbs > 13)
+    ith_divisor = log2_max_num_pbs - 11;
 #endif
+
+  int max_blocks_per_sm = 0;
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  if (max_shared_memory < full_sm_keybundle) {
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
+        polynomial_size / params::opt, full_sm_keybundle));
+  } else if (specialized_keybundle) {
+    // The scratch set the function attributes of every compiled M with
+    // setup_specialized_2_2_keybundle_attributes before this query. The query
+    // uses the M that a call of max_num_pbs inputs launches.
+    dispatch_keybundle_inputs_per_block(
+        select_keybundle_inputs_per_block(max_num_pbs),
+        [&](auto inputs_constant) {
+          constexpr uint32_t inputs = decltype(inputs_constant)::value;
+          auto kernel =
+              device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
+                  Torus, Degree<2048>, inputs>;
+          const uint64_t multi_input_sm =
+              get_buffer_size_multi_input_keybundle_2_2<Torus>(inputs);
+          check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+              &max_blocks_per_sm, kernel,
+              Degree<2048>::degree / Degree<2048>::opt, multi_input_sm));
+        });
+  } else {
+    check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_blocks_per_sm,
+        device_multi_bit_programmable_bootstrap_keybundle<Torus, params,
+                                                          FULLSM>,
+        polynomial_size / params::opt, 0));
+  }
+
+  int x = num_sms * max_blocks_per_sm;
+  int count = 0;
+  int divisor = 1;
 
   for (int i = sqrt(x); i >= 1; i--) {
     if (x % i == 0) {

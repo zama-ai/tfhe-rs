@@ -96,9 +96,9 @@ void cuda_setup_mempool(uint32_t caller_gpu_index) {
             default_pool, cudaMemPoolReuseAllowOpportunistic, &reuse));
 
         // Prevent memory from being released back to the OS too soon
+        uint64_t release_threshold = total_mem;
         check_cuda_error(cudaMemPoolSetAttribute(
-            default_pool, cudaMemPoolAttrReleaseThreshold,
-            &mem_pool_threshold));
+            default_pool, cudaMemPoolAttrReleaseThreshold, &release_threshold));
 
         // Warm up the pool by allocating and freeing a large block
         cudaStream_t stream;
@@ -225,11 +225,36 @@ void *cuda_malloc_async(uint64_t size, void *stream, uint32_t gpu_index) {
       size, static_cast<cudaStream_t>(stream), gpu_index, size_tracker, true);
 }
 
-/// Check that allocation is valid
-bool cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
+/// Returns the device memory that a new allocation can use: the memory that
+/// is free on the device plus the memory that the default pool holds but does
+/// not use. cudaMemGetInfo counts the second part as used.
+uint64_t cuda_get_available_memory(uint32_t gpu_index) {
   cuda_set_device(gpu_index);
   size_t total_mem, free_mem;
   check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
+  uint64_t available_mem = free_mem;
+#if CUDART_VERSION >= 11020
+  int support_async_alloc;
+  check_cuda_error(cudaDeviceGetAttribute(
+      &support_async_alloc, cudaDevAttrMemoryPoolsSupported, gpu_index));
+  if (support_async_alloc) {
+    cudaMemPool_t default_pool;
+    check_cuda_error(cudaDeviceGetDefaultMemPool(&default_pool, gpu_index));
+    uint64_t reserved_mem = 0, used_mem = 0;
+    check_cuda_error(cudaMemPoolGetAttribute(
+        default_pool, cudaMemPoolAttrReservedMemCurrent, &reserved_mem));
+    check_cuda_error(cudaMemPoolGetAttribute(
+        default_pool, cudaMemPoolAttrUsedMemCurrent, &used_mem));
+    if (reserved_mem > used_mem)
+      available_mem += reserved_mem - used_mem;
+  }
+#endif
+  return available_mem;
+}
+
+/// Check that allocation is valid
+bool cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
+  uint64_t free_mem = cuda_get_available_memory(gpu_index);
   if (size > free_mem) {
     return false;
   } else {

@@ -16,6 +16,11 @@
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap_cg_classic.cuh"
 #include "types/complex/operations.cuh"
+#include <atomic>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <type_traits>
 #include <vector>
 
 __device__ __forceinline__ int
@@ -326,6 +331,324 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
                               params::degree / params::opt>(fft_regs,
                                                             keybundle_poly);
   }
+}
+
+// Number of inputs (M) whose keybundles one block of the specialized 2_2 kernel
+// computes. Each key polynomial is read from global memory once per block and
+// reused from shared memory for every input of the block. The kernel is
+// compiled for the values below; select_keybundle_inputs_per_block picks one
+// per call.
+//
+// min_blocks is the __launch_bounds__ minimum of resident blocks per SM. It is
+// the largest value at which the M accumulators (M * params::opt words of
+// Torus per thread) stay in registers without spilling.
+template <uint32_t INPUTS> struct MultiInputKeybundleBounds;
+template <> struct MultiInputKeybundleBounds<1> {
+  static constexpr int min_blocks = 3;
+};
+template <> struct MultiInputKeybundleBounds<2> {
+  static constexpr int min_blocks = 3;
+};
+template <> struct MultiInputKeybundleBounds<3> {
+  static constexpr int min_blocks = 2;
+};
+template <> struct MultiInputKeybundleBounds<4> {
+  static constexpr int min_blocks = 2;
+};
+template <> struct MultiInputKeybundleBounds<8> {
+  static constexpr int min_blocks = 1;
+};
+
+#if !defined(__CUDACC_DEBUG__)
+#define MULTI_INPUT_KEYBUNDLE_LAUNCH_BOUNDS(INPUTS)                            \
+  __launch_bounds__(512, MultiInputKeybundleBounds<INPUTS>::min_blocks)
+#else
+#define MULTI_INPUT_KEYBUNDLE_LAUNCH_BOUNDS(INPUTS)
+#endif
+
+// Inputs per block of the specialized 2_2 keybundle for a call of num_samples
+// inputs, from forced-M sweeps on H100 at every batch size from 9 to 32 and at
+// the powers of two from 1 to 4096: 2 up to 10 inputs, 8 from 11 to 16, 2 from
+// 17 to 23, 4 from 24. The switch to 4 at 24 follows the H100 chunk table
+// (chunk 10 up to 23 inputs, 32 above). The keybundle layout is per input, so M
+// can differ from call to call.
+//
+// Test-only: TFHE_RS_GPU_MULTIBIT_KEYBUNDLE_INPUTS forces M, for sweeps in
+// benchmarks and tests. Production code must never set it. The variable is
+// read on every call; unset or 0 keeps the rule above. Allowed values are the
+// compiled ones: 1, 2, 3, 4 and 8.
+inline uint32_t select_keybundle_inputs_per_block(uint32_t num_samples) {
+  const char *env = std::getenv("TFHE_RS_GPU_MULTIBIT_KEYBUNDLE_INPUTS");
+  if (env != nullptr && env[0] != '\0' && std::string(env) != "0") {
+    const std::string value(env);
+    PANIC_IF_FALSE(value == "1" || value == "2" || value == "3" ||
+                       value == "4" || value == "8",
+                   "Cuda error (multi-bit PBS): "
+                   "TFHE_RS_GPU_MULTIBIT_KEYBUNDLE_INPUTS must be 1, 2, 3, 4 "
+                   "or 8, got '%s'",
+                   env);
+    const uint32_t forced = static_cast<uint32_t>(value[0] - '0');
+    // Reported whenever the forced value changes, so a log shows every M
+    // that ran.
+    static std::atomic<uint32_t> last_reported{0};
+    if (last_reported.exchange(forced) != forced)
+      fprintf(stderr,
+              "TFHE_RS_GPU_MULTIBIT_KEYBUNDLE_INPUTS override (test only): "
+              "keybundle inputs per block = %u\n",
+              forced);
+    return forced;
+  }
+  if (num_samples <= 10)
+    return 2;
+  if (num_samples <= 16)
+    return 8;
+  if (num_samples <= 23)
+    return 2;
+  return 4;
+}
+
+// Calls f with std::integral_constant<uint32_t, M> for the compiled M equal to
+// inputs.
+template <typename F>
+void dispatch_keybundle_inputs_per_block(uint32_t inputs, F &&f) {
+  switch (inputs) {
+  case 1:
+    f(std::integral_constant<uint32_t, 1>{});
+    break;
+  case 2:
+    f(std::integral_constant<uint32_t, 2>{});
+    break;
+  case 3:
+    f(std::integral_constant<uint32_t, 3>{});
+    break;
+  case 4:
+    f(std::integral_constant<uint32_t, 4>{});
+    break;
+  case 8:
+    f(std::integral_constant<uint32_t, 8>{});
+    break;
+  default:
+    PANIC("Cuda error (multi-bit PBS): no keybundle kernel compiled for this "
+          "number of inputs per block.")
+  }
+}
+
+// Shared memory of the multi-input 2_2 keybundle: monomial degrees, the
+// precalculated coefficients, the FFT buffer, the twiddles and one staged key
+// polynomial.
+template <typename Torus>
+constexpr uint64_t
+get_buffer_size_multi_input_keybundle_2_2(uint32_t inputs_per_block) {
+  return sizeof(uint32_t) * 16 * inputs_per_block + 3 * 2048 +
+         2 * sizeof(double2) * 1024 + sizeof(Torus) * 2048;
+}
+
+// Same arithmetic as
+// device_multi_bit_programmable_bootstrap_keybundle_2_2_params for every input,
+// in the same order, so the output is bit-identical. Block x handles inputs [(x
+// / lwe_chunk_size) * INPUTS, +INPUTS) at chunk position x % lwe_chunk_size.
+template <typename Torus, class params, uint32_t INPUTS>
+__global__ void MULTI_INPUT_KEYBUNDLE_LAUNCH_BOUNDS(INPUTS)
+    device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input(
+        const Torus *__restrict__ lwe_array_in,
+        const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
+        const Torus *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
+        uint32_t lwe_offset, uint64_t lwe_chunk_size,
+        uint64_t keybundle_size_per_input, uint32_t num_samples) {
+
+  constexpr uint32_t polynomial_size = 2048;
+  constexpr uint32_t grouping_factor = 4;
+  constexpr uint32_t glwe_dimension = 1;
+  constexpr uint32_t level_count = 1;
+  constexpr uint32_t num_terms = 1 << grouping_factor;
+  // One thread computes each monomial degree of each input of the block.
+  static_assert(INPUTS >= 1 &&
+                    num_terms * INPUTS <= params::degree / params::opt,
+                "the monomial degrees of all inputs need one thread each");
+
+  extern __shared__ int8_t sharedmem[];
+  uint32_t *monomial_degrees = (uint32_t *)sharedmem;
+  int8_t *precalc_coefs = sharedmem + sizeof(uint32_t) * num_terms * INPUTS;
+  for (int i = 0; i < params::opt; i++) {
+    precalc_coefs[threadIdx.x + i * (params::degree / params::opt)] = -1;
+    precalc_coefs[threadIdx.x + i * (params::degree / params::opt) +
+                  params::degree] = 1;
+    precalc_coefs[threadIdx.x + i * (params::degree / params::opt) +
+                  2 * params::degree] = -1;
+  }
+
+  double2 *shared_fft = (double2 *)(precalc_coefs + polynomial_size * 3);
+  double2 *shared_twiddles = shared_fft + (polynomial_size / 2);
+  Torus *staged_bsk_poly = (Torus *)(shared_twiddles + (polynomial_size / 2));
+  for (int k = 0; k < params::opt / 2; k++) {
+    shared_twiddles[threadIdx.x + k * (params::degree / params::opt)] =
+        negtwiddles[threadIdx.x + k * (params::degree / params::opt)];
+  }
+
+  // Ids
+  constexpr uint32_t level_id = 0;
+  uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
+  uint32_t poly_id = blockIdx.y % (glwe_dimension + 1);
+  uint32_t chunk_position = blockIdx.x % lwe_chunk_size;
+  uint32_t lwe_iteration = chunk_position + lwe_offset;
+  uint32_t first_input = (blockIdx.x / lwe_chunk_size) * INPUTS;
+  // Uniform across the block, so the barriers below are reached by all
+  // threads.
+  uint32_t block_inputs = min(INPUTS, num_samples - first_input);
+
+  if (lwe_iteration < (lwe_dimension / grouping_factor)) {
+    uint32_t rev_lwe_iteration =
+        ((lwe_dimension / grouping_factor) - lwe_iteration - 1);
+
+    if (threadIdx.x < num_terms * INPUTS) {
+      uint32_t input = threadIdx.x / num_terms;
+      uint32_t term = threadIdx.x % num_terms;
+      if (input < block_inputs) {
+        const Torus *block_lwe_array_in =
+            &lwe_array_in[lwe_input_indexes[first_input + input] *
+                          (lwe_dimension + 1)];
+        const Torus *lwe_array_group =
+            block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+        monomial_degrees[threadIdx.x] =
+            calculates_monomial_degree<Torus, params>(lwe_array_group, term,
+                                                      grouping_factor);
+      }
+    }
+
+    // Keygen guarantees the first term is a constant term of the polynomial,
+    // no polynomial multiplication required
+    const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+        bootstrapping_key, 0, rev_lwe_iteration, glwe_id, level_id,
+        grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
+    const Torus *bsk_poly_ini = bsk_slice + poly_id * params::degree;
+
+    Torus reg_acc[INPUTS][params::opt];
+    copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
+        bsk_poly_ini, reg_acc[0]);
+#pragma unroll
+    for (int input = 1; input < INPUTS; input++) {
+#pragma unroll
+      for (int i = 0; i < params::opt; i++)
+        reg_acc[input][i] = reg_acc[0][i];
+    }
+
+    constexpr int offset = polynomial_size * (glwe_dimension + 1) *
+                           (glwe_dimension + 1) * level_count;
+
+    // Accumulate the other terms. The key polynomial of term g is staged in
+    // shared memory once and read by every input with its own rotation.
+    for (int g = 1; g < num_terms; g++) {
+      const Torus *bsk_poly = bsk_poly_ini + g * offset;
+#pragma unroll
+      for (int i = 0; i < params::opt; i++) {
+        int pos = threadIdx.x + i * (params::degree / params::opt);
+        staged_bsk_poly[pos] = bsk_poly[pos];
+      }
+      // Also orders the monomial degrees before their first use.
+      __syncthreads();
+
+#pragma unroll
+      for (int input = 0; input < INPUTS; input++) {
+        if (input < block_inputs) {
+          uint32_t monomial_degree = monomial_degrees[input * num_terms + g];
+          int full_cycles_count = monomial_degree / params::degree;
+          int remainder_degrees = monomial_degree % params::degree;
+          int jump = full_cycles_count * params::degree + params::degree -
+                     remainder_degrees;
+          polynomial_accumulate_monic_monomial_mul_on_regs_precalc<Torus,
+                                                                   params>(
+              reg_acc[input], staged_bsk_poly, precalc_coefs + jump,
+              monomial_degree);
+        }
+      }
+      // The next term overwrites the staged polynomial.
+      __syncthreads();
+    }
+
+#pragma unroll
+    for (int input = 0; input < INPUTS; input++) {
+      if (input < block_inputs) {
+        double2 fft_regs[params::opt / 2];
+#pragma unroll
+        for (int i = 0; i < params::opt / 2; i++) {
+          fft_regs[i] = make_double2(
+              __ll2double_rn((int64_t)reg_acc[input][i]) /
+                  (double)std::numeric_limits<Torus>::max(),
+              __ll2double_rn((int64_t)reg_acc[input][i + params::opt / 2]) /
+                  (double)std::numeric_limits<Torus>::max());
+        }
+
+        NSMFFT_direct_2_2_params<HalfDegree<params>>(shared_fft, fft_regs,
+                                                     shared_twiddles);
+
+        double2 *keybundle = keybundle_array + (uint64_t)(first_input + input) *
+                                                   keybundle_size_per_input;
+        auto keybundle_out = get_ith_mask_kth_block(
+            keybundle, chunk_position, glwe_id, level_id, polynomial_size,
+            glwe_dimension, level_count);
+        auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
+        copy_polynomial_from_regs<double2, params::opt / 2,
+                                  params::degree / params::opt>(fft_regs,
+                                                                keybundle_poly);
+        // The next input reuses the shared FFT buffer.
+        __syncthreads();
+      }
+    }
+  }
+}
+
+// True when the keybundle launch can pick a specialized 2_2 kernel.
+__host__ inline bool can_use_specialized_2_2_keybundle(
+    bool supports_tbc, uint32_t polynomial_size, uint32_t grouping_factor,
+    uint32_t level_count, uint32_t glwe_dimension) {
+  return supports_tbc && polynomial_size == 2048 && grouping_factor == 4 &&
+         level_count == 1 && glwe_dimension == 1;
+}
+
+// Sets the function attributes of the specialized 2_2 keybundle kernels. The
+// scratch functions call it, so the launches do not set them. The grouping
+// factor is not known at scratch time, so the attributes are set whenever the
+// other conditions of can_use_specialized_2_2_keybundle are true.
+template <typename Torus>
+__host__ void setup_specialized_2_2_keybundle_attributes(
+    uint32_t gpu_index, uint32_t input_lwe_ciphertext_count,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count) {
+  if (polynomial_size != 2048 || level_count != 1 || glwe_dimension != 1)
+    return;
+  const auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  const uint64_t full_sm_keybundle =
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
+          polynomial_size);
+  if (max_shared_memory < full_sm_keybundle ||
+      !has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
+          input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
+          level_count, max_shared_memory))
+    return;
+
+  // M is chosen per call by select_keybundle_inputs_per_block, so every
+  // compiled multi-input kernel gets its attributes here.
+  for (const uint32_t inputs_value : {1u, 2u, 3u, 4u, 8u}) {
+    dispatch_keybundle_inputs_per_block(inputs_value, [&](auto inputs_constant) {
+      constexpr uint32_t inputs = decltype(inputs_constant)::value;
+      auto kernel =
+          device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
+              Torus, Degree<2048>, inputs>;
+      check_cuda_error(cudaFuncSetAttribute(
+          kernel, cudaFuncAttributeMaxDynamicSharedMemorySize,
+          get_buffer_size_multi_input_keybundle_2_2<Torus>(inputs)));
+      check_cuda_error(
+          cudaFuncSetCacheConfig(kernel, cudaFuncCachePreferShared));
+    });
+  }
+  check_cuda_error(cudaFuncSetAttribute(
+      device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+          Torus, Degree<2048>, FULLSM, true>,
+      cudaFuncAttributeMaxDynamicSharedMemorySize, 3 * full_sm_keybundle));
+  check_cuda_error(cudaFuncSetCacheConfig(
+      device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+          Torus, Degree<2048>, FULLSM, true>,
+      cudaFuncCachePreferShared));
+  check_cuda_error(cudaGetLastError());
 }
 
 template <typename Torus, class params, sharedMemDegree SMD, bool is_first_iter>
@@ -706,9 +1029,13 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
+  setup_specialized_2_2_keybundle_attributes<Torus>(
+      gpu_index, input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
+      level_count);
+
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
       gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
-      level_count, full_sm_keybundle);
+      level_count, full_sm_keybundle, false, 1);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -731,7 +1058,8 @@ __host__ void execute_compute_keybundle_with_mode(
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset,
-    MultiBitKeybundleLaunchMode launch_mode) {
+    MultiBitKeybundleLaunchMode launch_mode, double2 *keybundle_slot = nullptr,
+    bool programmatic_launch = false) {
   cuda_set_device(gpu_index);
   PANIC_IF_FALSE(sizeof(Torus) == 8,
                  "Error: PBS keybundle only supports 64-bit "
@@ -750,7 +1078,8 @@ __host__ void execute_compute_keybundle_with_mode(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   auto d_mem = buffer->d_mem_keybundle;
-  auto keybundle_fft = buffer->keybundle_fft;
+  auto keybundle_fft =
+      keybundle_slot != nullptr ? keybundle_slot : buffer->keybundle_fft;
 
   // Compute a keybundle
   dim3 grid_keybundle(num_samples * chunk_size,
@@ -758,6 +1087,9 @@ __host__ void execute_compute_keybundle_with_mode(
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < full_sm_keybundle) {
+    PANIC_IF_FALSE(!programmatic_launch,
+                   "Cuda error (multi-bit PBS): a programmatic keybundle "
+                   "launch requires the specialized 2_2 kernel.");
     PANIC_IF_FALSE(launch_mode != MultiBitKeybundleLaunchMode::SPECIALIZED_2_2,
                    "Cuda error (multi-bit PBS): specialized keybundle 2_2 "
                    "requires FULLSM.");
@@ -768,14 +1100,12 @@ __host__ void execute_compute_keybundle_with_mode(
             level_count, lwe_offset, chunk_size, keybundle_size_per_input,
             d_mem, full_sm_keybundle);
   } else {
-    bool supports_tbc =
-        has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
-            num_samples, glwe_dimension, polynomial_size, level_count,
-            cuda_get_max_shared_memory(gpu_index));
-
-    bool can_use_specialized = supports_tbc && polynomial_size == 2048 &&
-                               grouping_factor == 4 && level_count == 1 &&
-                               glwe_dimension == 1;
+    if (lwe_offset == 0)
+      buffer->keybundle_inputs_per_block =
+          select_keybundle_inputs_per_block(num_samples);
+    bool can_use_specialized = can_use_specialized_2_2_keybundle(
+        buffer->keybundle_supports_tbc, polynomial_size, grouping_factor,
+        level_count, glwe_dimension);
     if (launch_mode == MultiBitKeybundleLaunchMode::SPECIALIZED_2_2) {
       PANIC_IF_FALSE(
           can_use_specialized,
@@ -791,20 +1121,13 @@ __host__ void execute_compute_keybundle_with_mode(
          can_use_specialized);
     bool use_noise_test_template =
         launch_mode == MultiBitKeybundleLaunchMode::NOISE_TESTS;
+    PANIC_IF_FALSE(!programmatic_launch ||
+                       (use_specialized && !use_noise_test_template),
+                   "Cuda error (multi-bit PBS): a programmatic keybundle "
+                   "launch requires the specialized 2_2 kernel.");
     if (use_specialized) {
       dim3 thds_new_keybundle(512, 1, 1);
       if (use_noise_test_template) {
-        // Set up the noise-test variant of the specialized 2_2 kernel
-        check_cuda_error(cudaFuncSetAttribute(
-            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                Torus, Degree<2048>, FULLSM, true>,
-            cudaFuncAttributeMaxDynamicSharedMemorySize,
-            3 * full_sm_keybundle));
-        check_cuda_error(cudaFuncSetCacheConfig(
-            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                Torus, Degree<2048>, FULLSM, true>,
-            cudaFuncCachePreferShared));
-        check_cuda_error(cudaGetLastError());
         device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
             Torus, Degree<2048>, FULLSM, true>
             <<<grid_keybundle, thds_new_keybundle, 3 * full_sm_keybundle,
@@ -812,21 +1135,44 @@ __host__ void execute_compute_keybundle_with_mode(
                          bootstrapping_key, lwe_dimension, lwe_offset,
                          chunk_size, keybundle_size_per_input);
       } else {
-        check_cuda_error(cudaFuncSetAttribute(
-            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                Torus, Degree<2048>, FULLSM>,
-            cudaFuncAttributeMaxDynamicSharedMemorySize,
-            3 * full_sm_keybundle));
-        check_cuda_error(cudaFuncSetCacheConfig(
-            device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-                Torus, Degree<2048>, FULLSM>,
-            cudaFuncCachePreferShared));
-        check_cuda_error(cudaGetLastError());
-        device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-            Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,
-                                           3 * full_sm_keybundle, stream>>>(
-            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input);
+        dispatch_keybundle_inputs_per_block(
+            buffer->keybundle_inputs_per_block, [&](auto inputs_constant) {
+              constexpr uint32_t inputs = decltype(inputs_constant)::value;
+              auto kernel =
+                  device_multi_bit_programmable_bootstrap_keybundle_2_2_multi_input<
+                      Torus, Degree<2048>, inputs>;
+              const uint64_t multi_input_sm =
+                  get_buffer_size_multi_input_keybundle_2_2<Torus>(inputs);
+              dim3 grid_multi_input(
+                  ((num_samples + inputs - 1) / inputs) * chunk_size,
+                  (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
+              if (programmatic_launch) {
+                // The keybundle may start before the preceding accumulate on
+                // this stream finishes; see
+                // host_tbc_multi_bit_programmable_bootstrap.
+                cudaLaunchConfig_t config = {0};
+                config.gridDim = grid_multi_input;
+                config.blockDim = thds_new_keybundle;
+                config.dynamicSmemBytes = multi_input_sm;
+                config.stream = stream;
+                cudaLaunchAttribute attribute[1];
+                attribute[0].id =
+                    cudaLaunchAttributeProgrammaticStreamSerialization;
+                attribute[0].val.programmaticStreamSerializationAllowed = 1;
+                config.attrs = attribute;
+                config.numAttrs = 1;
+                check_cuda_error(cudaLaunchKernelEx(
+                    &config, kernel, lwe_array_in, lwe_input_indexes,
+                    keybundle_fft, bootstrapping_key, lwe_dimension, lwe_offset,
+                    chunk_size, keybundle_size_per_input, num_samples));
+              } else {
+                kernel<<<grid_multi_input, thds_new_keybundle, multi_input_sm,
+                         stream>>>(lwe_array_in, lwe_input_indexes,
+                                   keybundle_fft, bootstrapping_key,
+                                   lwe_dimension, lwe_offset, chunk_size,
+                                   keybundle_size_per_input, num_samples);
+              }
+            });
       }
     } else {
       if (use_noise_test_template) {
@@ -856,12 +1202,13 @@ __host__ void execute_compute_keybundle(
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset,
+    double2 *keybundle_slot = nullptr, bool programmatic_launch = false) {
   execute_compute_keybundle_with_mode<Torus, params>(
       stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
       grouping_factor, level_count, lwe_offset,
-      MultiBitKeybundleLaunchMode::AUTO);
+      MultiBitKeybundleLaunchMode::AUTO, keybundle_slot, programmatic_launch);
 }
 
 template <typename Torus, class params>
@@ -870,12 +1217,13 @@ __host__ void execute_compute_keybundle_generic(
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset,
+    double2 *keybundle_slot = nullptr) {
   execute_compute_keybundle_with_mode<Torus, params>(
       stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
       grouping_factor, level_count, lwe_offset,
-      MultiBitKeybundleLaunchMode::GENERIC);
+      MultiBitKeybundleLaunchMode::GENERIC, keybundle_slot);
 }
 
 template <typename Torus, class params>
@@ -884,12 +1232,14 @@ __host__ void execute_compute_keybundle_2_2_specialized(
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset,
+    double2 *keybundle_slot = nullptr, bool programmatic_launch = false) {
   execute_compute_keybundle_with_mode<Torus, params>(
       stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
       grouping_factor, level_count, lwe_offset,
-      MultiBitKeybundleLaunchMode::SPECIALIZED_2_2);
+      MultiBitKeybundleLaunchMode::SPECIALIZED_2_2, keybundle_slot,
+      programmatic_launch);
 }
 // Used only to run noise tests
 template <typename Torus, class params>
@@ -898,12 +1248,13 @@ __host__ void execute_compute_keybundle_noise_tests(
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
     pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset,
+    double2 *keybundle_slot = nullptr) {
   execute_compute_keybundle_with_mode<Torus, params>(
       stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
       buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
       grouping_factor, level_count, lwe_offset,
-      MultiBitKeybundleLaunchMode::NOISE_TESTS);
+      MultiBitKeybundleLaunchMode::NOISE_TESTS, keybundle_slot);
 }
 
 template <typename Torus, class params, bool is_first_iter>
