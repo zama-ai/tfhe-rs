@@ -329,13 +329,12 @@ impl CudaCompressedCiphertextList {
                         flat_cpu_data.len()
                     )
                 })?;
+            let mut packed_integers =
+                PackedIntegers::from_raw_parts(chunk.to_vec(), storage_log_modulus, initial_len)?;
+
             modulus_switched_glwe_ciphertext_list.push(
                 CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
-                    PackedIntegers::from_raw_parts(
-                        chunk.to_vec(),
-                        storage_log_modulus,
-                        initial_len,
-                    ),
+                    packed_integers,
                     glwe_dimension,
                     polynomial_size,
                     bodies_count,
