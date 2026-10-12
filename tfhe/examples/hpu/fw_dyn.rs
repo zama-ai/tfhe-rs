@@ -13,7 +13,7 @@ use tfhe::*;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 
 use zhc::config::multi_hpu::MultiHpuConfig;
-use zhc::prelude::{Pipeline, PipelineExt};
+use zhc::prelude::{Pipeline, PipelineExt, SchedPolicy};
 
 
 use rand::rngs::StdRng;
@@ -38,6 +38,10 @@ pub struct Args {
     // #[arg(long, default_values_t = ["MhMulF2", "MhMulF4", "MhMulF8", ])]
     #[arg(long, required=true, num_args = 1..)]
     pub zhc_ops: Vec<ZhcDynOp>,
+
+    /// Use asap scheduler, otherwise default to alap.
+    #[arg(long)]
+    pub asap: bool,
 
     /// Select integer width to tests on
     #[arg(long, required=true, num_args = 1..)]
@@ -205,7 +209,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         for zhc_op in args.zhc_ops.iter() {
             // Build custom IOp Ir ----------------------------------------------------
             println!("FwDyn_{width}b:: Start fw generation for {zhc_op} ...");
-            let mut mh_pipeline = match zhc_op {
+            let mh_pipeline = match zhc_op {
                 ZhcDynOp::MhMul(mh_factor) => {
                     let mh_config = MultiHpuConfig {
                         n_hpus: *mh_factor as u8,
@@ -237,6 +241,13 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     .with_multi_hpu_config(mh_config)
                 }
                 _ => unimplemented!("Current op not defined"),
+            };
+
+            // Select correct scheduling policy
+            let mut  mh_pipeline = if args.asap {
+                mh_pipeline.with_schedule_policy(SchedPolicy::AsSoonAsPossible)
+            } else {
+                mh_pipeline.with_schedule_policy(SchedPolicy::AsLateAsPossible)
             };
 
             // Dump assembly if required
