@@ -301,6 +301,41 @@ where
         assert_eq!(clear.wrapping_mul(scalar as u128), dec_res);
     }
 
+    // Multiplying by zero must give a clean trivial zero,
+    // even when the input has non-empty carries
+    {
+        let clear = 42u128;
+        let ct = cks.encrypt(clear);
+        let ct = sks.unchecked_add(&ct, &ct);
+        assert!(!ct.block_carries_are_empty());
+
+        let ct_res = executor.execute((&ct, 0u64));
+        let dec_res: u128 = cks.decrypt(&ct_res);
+        assert_eq!(dec_res, 0);
+        assert!(ct_res.block_carries_are_empty());
+        assert!(ct_res.blocks.iter().all(|block| block.degree.get() == 0));
+    }
+
+    // Multiplying by one must return the input value
+    {
+        let clear = 307096569525960547621731375222677666984u128;
+        let ct = cks.encrypt(clear);
+        let ct_res = executor.execute((&ct, 1u64));
+        let dec_res: u128 = cks.decrypt(&ct_res);
+        assert_eq!(dec_res, clear);
+    }
+
+    // Power-of-two scalars take the left-shift path
+    {
+        let clear = 307096569525960547621731375222677666984u128;
+        for scalar in [2u64, 64u64] {
+            let ct = cks.encrypt(clear);
+            let ct_res = executor.execute((&ct, scalar));
+            let dec_res: u128 = cks.decrypt(&ct_res);
+            assert_eq!(dec_res, clear.wrapping_mul(scalar as u128));
+        }
+    }
+
     // Trying to multiply a ciphertext with a scalar value
     // bigger than the ciphertext modulus should work
     {
@@ -319,6 +354,15 @@ where
         let ct_res = executor.execute((&ct, scalar));
         let dec_res: u64 = cks.decrypt(&ct_res);
         assert_eq!(clear.wrapping_mul(scalar) % 256, dec_res);
+
+        // A power-of-two scalar wider than the ciphertext shifts
+        // every bit out, the result must be a clean zero
+        let scalar = 1u64 << 40;
+        let ct = cks.encrypt(clear);
+        let ct_res = executor.execute((&ct, scalar));
+        let dec_res: u64 = cks.decrypt(&ct_res);
+        assert_eq!(dec_res, 0);
+        assert!(ct_res.block_carries_are_empty());
     }
 }
 
