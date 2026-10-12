@@ -29,15 +29,22 @@ use strum::IntoEnumIterator;
 /// Widest radix the harness can test: clear models are backed by `u128`.
 pub(crate) const MAX_RADIX_BITS: u32 = 128;
 
-/// Default block counts depending on parameters
+/// Highest block count the tests go up to, depending on parameters
 ///
 /// 2_2 is more extensive than others as its the parameters we rely on
-pub(crate) fn default_block_counts(params: TestParameters) -> Vec<u32> {
+pub(crate) fn max_block_requirement(params: TestParameters) -> u32 {
     let bits_per_block = params.message_modulus().0.ilog2();
     match bits_per_block {
-        2 => (1..=32).collect(),
-        _ => (1..=MAX_NB_CTXT as u32).collect(),
+        2 => 32,
+        _ => MAX_NB_CTXT as u32,
     }
+}
+
+/// Default block counts depending on parameters
+pub(crate) fn default_block_requirements(params: TestParameters) -> Vec<SizeRequirements> {
+    (1..=max_block_requirement(params))
+        .map(SizeRequirements::new_scalar)
+        .collect()
 }
 
 /// Environment variable overriding the seed used by [`TestBuilder`]
@@ -136,6 +143,34 @@ impl TestContext {
     }
 }
 
+/// Required sizes an input of a test must follow when generating the inputs
+///
+/// `n_blocks` is for radix
+/// `vec_len` is for vec
+///
+/// e.g: a test working with some Vec<RadixCiphertext> as input may see
+/// n_blocks = 4, vec_len = 8, it means it MUST produce an input Vec with 8 elements
+/// and each of them has 4 blocks
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SizeRequirements {
+    pub(crate) n_blocks: u32,
+    pub(crate) vec_len: Option<u32>,
+}
+
+impl SizeRequirements {
+    /// Creates a requirement that only specifies a number of blocks,
+    /// meant for tests on scalar values like `RadixCiphertext`
+    pub(crate) fn new_scalar(n_blocks: u32) -> Self {
+        Self {
+            n_blocks,
+            vec_len: None,
+        }
+    }
+}
+
+/// Builder of the hardcoded cases of a test, for one size requirement.
+type FixedCaseFn<ClearInput> = Box<dyn Fn(SizeRequirements, &TestContext) -> Vec<ClearInput>>;
+
 /// Recipe for a default-op test: which block counts to cover, how many random cases to
 /// draw, and hardcoded edge cases.
 ///
@@ -143,10 +178,11 @@ impl TestContext {
 /// It is inferred from the closures given to [`Self::fixed_cases`] and [`Self::execute`].
 pub(crate) struct TestBuilder<'a, ClearInput> {
     ctx: &'a TestContext,
-    block_counts: Vec<u32>,
+    size_requirements: Vec<SizeRequirements>,
     n_random: u32,
-    /// Hardcoded cases, built per width in bits since edge values depend on it.
-    fixed_cases: Vec<Box<dyn Fn(u32) -> Vec<ClearInput>>>,
+    /// Hardcoded cases, built per size requirement since edge values depend on the radix
+    /// width (and, for vector inputs, on the number of elements).
+    fixed_cases: Vec<FixedCaseFn<ClearInput>>,
 }
 
 impl<'a, ClearInput> TestBuilder<'a, ClearInput>
@@ -157,14 +193,17 @@ where
     pub(crate) fn new(ctx: &'a TestContext) -> Self {
         Self {
             ctx,
-            block_counts: default_block_counts(ctx.params),
+            size_requirements: default_block_requirements(ctx.params),
             n_random: 0,
             fixed_cases: vec![],
         }
     }
 
-    pub(crate) fn block_counts(&mut self, block_counts: Vec<u32>) -> &mut Self {
-        self.block_counts = block_counts;
+    pub(crate) fn size_requirements(
+        &mut self,
+        size_requirements: Vec<SizeRequirements>,
+    ) -> &mut Self {
+        self.size_requirements = size_requirements;
         self
     }
 
@@ -174,18 +213,22 @@ where
         self
     }
 
-    /// Adds hardcoded cases; `f` receives the width in bits of the radix and returns
-    /// the clear inputs to test at that width. Can be called several times.
+    /// Adds hardcoded cases; `f` receives the size the inputs must satisfy and returns the
+    /// clear inputs to test at that size. `ctx` is passed along so `f` can turn a block count
+    /// into a width in bits, which is what edge values depend on. Can be called several times.
     pub(crate) fn fixed_cases(
         &mut self,
-        f: impl Fn(u32) -> Vec<ClearInput> + 'static,
+        f: impl Fn(SizeRequirements, &TestContext) -> Vec<ClearInput> + 'static,
     ) -> &mut Self {
         self.fixed_cases.push(Box::new(f));
         self
     }
 
-    fn fixed_cases_for_bits(&self, bits: u32) -> Vec<ClearInput> {
-        self.fixed_cases.iter().flat_map(|f| f(bits)).collect()
+    fn fixed_cases_for_requirements(&self, size_requirements: SizeRequirements) -> Vec<ClearInput> {
+        self.fixed_cases
+            .iter()
+            .flat_map(|f| f(size_requirements, self.ctx))
+            .collect()
     }
 
     /// Runs every case with `executor` and panics with the report if any failed.
@@ -208,16 +251,16 @@ where
         let mut rng = ctx.new_rng();
         let mut runner = CaseRunner::new(ctx, executor, clear_func);
 
-        for n_blocks in self.block_counts.iter().copied() {
-            let fixed_cases = self.fixed_cases_for_bits(ctx.radix_bits(n_blocks));
+        for size_req in self.size_requirements.iter().copied() {
+            let fixed_cases = self.fixed_cases_for_requirements(size_req);
 
             // Fixed cases and random cases with clean inputs
             let randoms: Vec<ClearInput> = (0..self.n_random)
-                .map(|_| ClearInput::generate_random(&mut rng, n_blocks, ctx))
+                .map(|_| ClearInput::generate_random(&mut rng, size_req, ctx))
                 .collect();
-            for clear_inputs in fixed_cases.iter().copied().chain(randoms) {
+            for clear_inputs in fixed_cases.iter().cloned().chain(randoms) {
                 runner.run(
-                    n_blocks,
+                    size_req,
                     clear_inputs,
                     <ClearInput::Input as TestInput>::State::clean(),
                     &mut rng,
@@ -228,8 +271,8 @@ where
             // are the edge case (the HLAPI serves clean ciphertexts), so one random case per
             // combination is enough; fixed cases only run with clean inputs.
             for states in <ClearInput::Input as TestInput>::State::all_combinations() {
-                let clear_inputs = ClearInput::generate_random(&mut rng, n_blocks, ctx);
-                runner.run(n_blocks, clear_inputs, states, &mut rng);
+                let clear_inputs = ClearInput::generate_random(&mut rng, size_req, ctx);
+                runner.run(size_req, clear_inputs, states, &mut rng);
             }
         }
 
@@ -262,7 +305,7 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
     /// Non clean inputs are an edge case and the check would double their cost for little value.
     fn run<C, O>(
         &mut self,
-        n_blocks: u32,
+        size_req: SizeRequirements,
         clear_inputs: C,
         states: <C::Input as TestInput>::State,
         rng: &mut StdRng,
@@ -284,12 +327,16 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
         {
             failures.push(FailureKind::NonDeterministic);
         }
-        outputs.validate((self.clear_func)(clear_inputs), self.ctx, &mut failures);
+        outputs.validate(
+            (self.clear_func)(clear_inputs.clone()),
+            self.ctx,
+            &mut failures,
+        );
 
         self.report.cases_run += 1;
         if !failures.is_empty() {
             self.report.failing_cases.push(CaseFailure {
-                n_blocks,
+                size_req,
                 states: format!("{states:?}"),
                 inputs: format!("{clear_inputs:?}"),
                 failures: failures.failures,
@@ -390,7 +437,7 @@ impl FailureSink {
 
 /// One failing case: what was run and everything that went wrong with its outputs.
 pub(crate) struct CaseFailure {
-    n_blocks: u32,
+    size_req: SizeRequirements,
     /// `Debug` of the input states tuple
     states: String,
     /// `Debug` of the clear inputs, as seen by the clear model (i.e. after `prepare`)
@@ -451,8 +498,8 @@ impl std::fmt::Display for Report {
         for case in &self.failing_cases {
             writeln!(
                 f,
-                "\n{} block(s), states {}, inputs {}:",
-                case.n_blocks, case.states, case.inputs
+                "\nsize_requirements {:?}, states {}, inputs {}:",
+                case.size_req, case.states, case.inputs
             )?;
             for failure in &case.failures {
                 writeln!(f, "  output {}: {}", failure.output_index, failure.kind)?;
@@ -546,7 +593,7 @@ impl_input_state_for_tuple!(A, B);
 impl_input_state_for_tuple!(A, B, C);
 
 /// Trait for types representing clear inputs of a test
-pub(crate) trait TestClearInput: Copy + std::fmt::Debug {
+pub(crate) trait TestClearInput: Clone + std::fmt::Debug {
     /// The input type that this clear input maps to once prepared
     ///
     /// As radix integer operations have variants accepting clear(s), an input
@@ -555,8 +602,12 @@ pub(crate) trait TestClearInput: Copy + std::fmt::Debug {
     /// The harness derives the signature of the FHE function based on this
     type Input;
 
-    /// Draws a random clear value fitting in `n_blocks` radix blocks under `ctx`'s parameters.
-    fn generate_random(rng: &mut dyn RngCore, n_blocks: u32, ctx: &TestContext) -> Self;
+    /// Draws a random clear value fitting the requirements
+    fn generate_random(
+        rng: &mut dyn RngCore,
+        size_requirements: SizeRequirements,
+        ctx: &TestContext,
+    ) -> Self;
 }
 
 /// Trait for inputs of an FHE function to be tested.
@@ -657,17 +708,25 @@ fn saturate_degree(
 impl TestClearInput for Uint {
     type Input = RadixCiphertext;
 
-    fn generate_random(rng: &mut dyn RngCore, n_blocks: u32, ctx: &TestContext) -> Self {
+    fn generate_random(
+        rng: &mut dyn RngCore,
+        size_requirements: SizeRequirements,
+        ctx: &TestContext,
+    ) -> Self {
         // The Uint stores the number of bits, this is what the radix will use to create
         // its proper size
-        Self::random(ctx.radix_bits(n_blocks))(rng)
+        Self::random(ctx.radix_bits(size_requirements.n_blocks))(rng)
     }
 }
 
 impl TestClearInput for bool {
     type Input = BooleanBlock;
 
-    fn generate_random(rng: &mut dyn RngCore, _n_blocks: u32, _ctx: &TestContext) -> Self {
+    fn generate_random(
+        rng: &mut dyn RngCore,
+        _size_requirements: SizeRequirements,
+        _ctx: &TestContext,
+    ) -> Self {
         rng.gen_bool(0.5)
     }
 }
@@ -675,8 +734,28 @@ impl TestClearInput for bool {
 impl TestClearInput for Int {
     type Input = SignedRadixCiphertext;
 
-    fn generate_random(rng: &mut dyn RngCore, n_blocks: u32, ctx: &TestContext) -> Self {
-        Self::random(ctx.radix_bits(n_blocks))(rng)
+    fn generate_random(
+        rng: &mut dyn RngCore,
+        size_requirements: SizeRequirements,
+        ctx: &TestContext,
+    ) -> Self {
+        Self::random(ctx.radix_bits(size_requirements.n_blocks))(rng)
+    }
+}
+
+impl TestClearInput for Vec<Uint> {
+    type Input = Vec<RadixCiphertext>;
+
+    fn generate_random(
+        rng: &mut dyn RngCore,
+        size_requirements: SizeRequirements,
+        ctx: &TestContext,
+    ) -> Self {
+        (0..size_requirements
+            .vec_len
+            .expect("vector tests needs SizeRequirements with a vec_len"))
+            .map(|_| <Uint as TestClearInput>::generate_random(rng, size_requirements, ctx))
+            .collect()
     }
 }
 
@@ -792,6 +871,52 @@ impl TestInput for SignedRadixCiphertext {
 
     fn as_ref(&self) -> Self::Ref<'_> {
         self
+    }
+}
+
+impl TestInput for Vec<RadixCiphertext> {
+    type Clear = Vec<Uint>;
+
+    type Ref<'a>
+        = &'a [RadixCiphertext]
+    where
+        Self: 'a;
+
+    type State = RadixState;
+
+    fn prepare(
+        clear: Self::Clear,
+        state: Self::State,
+        rng: &mut dyn RngCore,
+        ctx: &TestContext,
+    ) -> (Self, Self::Clear) {
+        let mut states = vec![RadixState::Clean; clear.len()];
+        // An empty input has nothing to dirty, and the range below would be empty
+        if state != RadixState::Clean && !clear.is_empty() {
+            // Inclusive end so that a single element vec can be dirtied, and so that
+            // the case where every element is dirty is reachable
+            let n_dirty = rng.gen_range(1..=clear.len());
+            let dirty_indices = (0..n_dirty).map(|_| rng.gen_range(0..clear.len()));
+
+            for dirty_index in dirty_indices {
+                states[dirty_index] = state;
+            }
+        }
+
+        let mut prepared_radixes = Self::with_capacity(clear.len());
+        let mut adjusted_clears = Vec::with_capacity(clear.len());
+        for (clear_value, state) in clear.into_iter().zip(states) {
+            let (prepared, adjusted_clear) =
+                <RadixCiphertext as TestInput>::prepare(clear_value, state, rng, ctx);
+            prepared_radixes.push(prepared);
+            adjusted_clears.push(adjusted_clear);
+        }
+
+        (prepared_radixes, adjusted_clears)
+    }
+
+    fn as_ref(&self) -> Self::Ref<'_> {
+        self.as_slice()
     }
 }
 
@@ -1028,8 +1153,10 @@ impl<T: ScalarType> TestScalar<T> {
 /// Fixed cases for an operation between a radix of `radix_bits` bits and a scalar of type
 /// `T`: the radix edges against the scalar edge values (see [`ClearInteger`]).
 pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(
-    radix_bits: u32,
+    size_requirements: SizeRequirements,
+    ctx: &TestContext,
 ) -> Vec<(T::Clear, TestScalar<T>)> {
+    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
     let scalar_edges: Vec<TestScalar<T>> =
         <T::Clear as ClearInteger>::scalar_edges(radix_bits, T::BITS)
             .into_iter()
@@ -1046,8 +1173,10 @@ pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(
 /// the radix edges (see [`ClearInteger`]) against the amount edge values (see
 /// [`shift_amount_edge_values`]).
 pub(crate) fn shift_amount_fixed_cases<C: ClearInteger>(
-    radix_bits: u32,
+    size_requirements: SizeRequirements,
+    ctx: &TestContext,
 ) -> Vec<(C, TestScalar<u128>)> {
+    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
     iproduct!(
         C::radix_edges(radix_bits),
         shift_amount_edge_values(radix_bits)
@@ -1088,10 +1217,14 @@ fn shift_amount_edge_values(radix_bits: u32) -> Vec<TestScalar<u128>> {
 impl<T: ScalarType> TestClearInput for TestScalar<T> {
     type Input = T;
 
-    fn generate_random(rng: &mut dyn RngCore, n_blocks: u32, ctx: &TestContext) -> Self {
+    fn generate_random(
+        rng: &mut dyn RngCore,
+        size_requirements: SizeRequirements,
+        ctx: &TestContext,
+    ) -> Self {
         Self::new(<T::Clear as ClearInteger>::random_scalar(
             rng,
-            ctx.radix_bits(n_blocks),
+            ctx.radix_bits(size_requirements.n_blocks),
             T::BITS,
         ))
     }
@@ -1137,8 +1270,8 @@ macro_rules! impl_test_input_for_tuple {
         {
             type Input = ($($ty::Input,)+);
 
-            fn generate_random(rng: &mut dyn RngCore, n_blocks: u32, ctx: &TestContext) -> Self {
-                ($($ty::generate_random(rng, n_blocks, ctx),)+)
+            fn generate_random(rng: &mut dyn RngCore, size_requirements: SizeRequirements, ctx: &TestContext) -> Self {
+                ($($ty::generate_random(rng, size_requirements, ctx),)+)
             }
         }
 
@@ -1206,6 +1339,32 @@ impl TestOutput for RadixCiphertext {
 
         for (block, reason) in blocks_not_clean_or_trivial(self, &ctx.cks) {
             failures.push(FailureKind::NotClean { block, reason });
+        }
+    }
+}
+
+impl<T> TestOutput for Option<T>
+where
+    T: TestOutput,
+{
+    type Clear = Option<T::Clear>;
+
+    fn validate(&self, expected: Self::Clear, ctx: &TestContext, failures: &mut FailureSink) {
+        match (self, expected) {
+            (Some(value), Some(expected)) => {
+                <T as TestOutput>::validate(value, expected, ctx, failures);
+            }
+            (None, Some(_)) => failures.push(FailureKind::ValueMismatch {
+                expected: "Some(_)".to_string(),
+                got: "None".to_string(),
+            }),
+            (Some(_), None) => failures.push(FailureKind::ValueMismatch {
+                expected: "None".to_string(),
+                got: "Some(_)".to_string(),
+            }),
+            (None, None) => {
+                // Valid
+            }
         }
     }
 }
