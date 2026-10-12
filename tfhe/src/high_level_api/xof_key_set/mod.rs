@@ -539,14 +539,9 @@ impl ParameterSetConformant for CompressedXofKeySet {
         }
 
         let sk_conformance_params = IntegerServerKeyConformanceParams::from(config);
-        if !self
-            .compressed_server_key
-            .is_conformant(&sk_conformance_params)
-        {
-            return false;
-        }
 
-        true
+        self.compressed_server_key
+            .is_conformant(&sk_conformance_params)
     }
 }
 

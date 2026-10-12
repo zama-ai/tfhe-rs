@@ -2360,8 +2360,8 @@ where
                 .chunks_mut(max_ciphertext_per_bin)
                 .zip(encoded.chunks(max_ciphertext_per_bin))
                 .zip(binary_random_vector.chunks(max_ciphertext_per_bin))
-                .zip(mask_noise.as_slice().chunks(max_ciphertext_per_bin))
-                .zip(body_noise.as_slice().chunks(max_ciphertext_per_bin)),
+                .zip(mask_noise.chunks(max_ciphertext_per_bin))
+                .zip(body_noise.chunks(max_ciphertext_per_bin)),
         )
         .for_each(
             |(

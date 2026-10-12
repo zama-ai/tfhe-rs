@@ -7,34 +7,44 @@ fn gen_c_api() {
         return;
     }
 
-    fn get_build_profile_name() -> String {
-        // The profile name is always the 3rd last part of the path (with 1 based indexing).
-        // e.g. /code/core/target/cli/build/my-build-info-9f91ba6f99d7a061/out
+    fn header_output_dir() -> PathBuf {
         let out_dir = std::env::var("OUT_DIR")
-            .expect("OUT_DIR is not set, cannot determine build profile, aborting");
-        out_dir
-            .split(std::path::MAIN_SEPARATOR)
-            .nth_back(3)
-            .expect("Cannot determine build profile, aborting")
-            .to_string()
-    }
+            .expect("OUT_DIR is not set, cannot locate where to output tfhe.h");
+        let mut out_dir_path = PathBuf::from(&out_dir);
+        let pkg_name = std::env::var("CARGO_PKG_NAME").expect("Cannot get our own name");
 
-    /// Find the location of the `target/` directory. Note that this may be
-    /// overridden by `cmake`, so we also need to check the `CARGO_TARGET_DIR`
-    /// variable.
-    fn target_dir() -> PathBuf {
-        if let Ok(target) = env::var("CARGO_TARGET_DIR") {
-            PathBuf::from(target)
-        } else {
-            PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join(format!("../target/{}", get_build_profile_name()))
+        // OUT_DIR format
+        // Old : OUT_DIR = <build-dir>/[<triple>/]<profile>/build/<pkg>-<hash>/out
+        // New : OUT_DIR = <build-dir>/[<triple>/]<profile>/build/<pkg>/<hash>/out
+        // Notice the additional dir for pkg in new, containing the hash dirs
+
+        // check the last component of the path
+        while let Some(last_component_name) = out_dir_path.file_name() {
+            let last_component_name = last_component_name.to_str().expect(
+                "Should not fail, OUT_DIR is a String, all components should be valid UTF-8",
+            );
+            // If this component starts with our pkg_name e.g. "tfhe"
+            // Then this is the fragment after "build", meaning two parents up is the profile dir
+            if last_component_name.starts_with(&pkg_name) {
+                return out_dir_path
+                    .parent()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .to_path_buf();
+            } else {
+                out_dir_path = out_dir_path.parent().unwrap().to_path_buf();
+                continue;
+            }
         }
+
+        panic!("could not find the profile dir in the out_dir path: {out_dir}");
     }
 
     extern crate cbindgen;
     let crate_dir: PathBuf = env::var("CARGO_MANIFEST_DIR").unwrap().into();
     let package_name = env::var("CARGO_PKG_NAME").unwrap();
-    let output_file = target_dir().join(format!("{package_name}.h"));
+    let output_file = header_output_dir().join(format!("{package_name}.h"));
 
     let parse_expand_features_vec = vec![
         // Note that this list may not be complete, but as macro expansion is used mostly/only for
