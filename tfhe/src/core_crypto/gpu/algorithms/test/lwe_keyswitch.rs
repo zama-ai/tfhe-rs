@@ -176,7 +176,7 @@ fn base_lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + CastFrom<usize
             };
 
             let lwe_indexes_usize = (0..num_blocks).collect_vec();
-            let mut lwe_indexes = lwe_indexes_usize.clone();
+            let mut lwe_indexes = lwe_indexes_usize;
 
             let mut lwe_indexes_out = lwe_indexes.clone();
 
@@ -485,7 +485,7 @@ fn lwe_encrypt_ks_decrypt_ks32_common<
 
             let output_ct_gemm = d_output_ct_gemm.into_lwe_ciphertext(&stream);
 
-            let tmp = output_ct_gemm.clone().into_container();
+            let tmp = output_ct_gemm.into_container();
             let tmp_cpu = output_ct_ref.clone().into_container();
             for (v1, v2) in tmp.iter().zip(tmp_cpu.iter()) {
                 assert_eq!(v1, v2);

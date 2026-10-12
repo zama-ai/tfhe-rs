@@ -235,7 +235,7 @@ fn bitonic_shuffle_cpu_gpu_same_permutation() {
             "len={len}: CPU and GPU produced different permutations for the same seed"
         );
 
-        let mut sorted = cpu_dec.clone();
+        let mut sorted = cpu_dec;
         sorted.sort_unstable();
         assert_eq!(sorted, clear_data, "len={len}: result is not a permutation");
     }

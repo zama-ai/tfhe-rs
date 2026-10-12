@@ -357,11 +357,8 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             }
         }
 
-        if remaining_len != 0 {
-            return false;
-        }
-
-        true
+        // All LWE ciphertexts must be accounted for
+        remaining_len == 0
     }
 }
 

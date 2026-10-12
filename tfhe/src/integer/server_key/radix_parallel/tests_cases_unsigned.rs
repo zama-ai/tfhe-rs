@@ -1292,7 +1292,7 @@ where
         let multiplier = cks.parameters().message_modulus().0.pow(index) as u64;
         let index = index as usize;
 
-        let mut res = ctxt_1.clone();
+        let mut res = ctxt_1;
         let mut clear = clear1;
 
         for _ in 0..nb_tests_smaller {
