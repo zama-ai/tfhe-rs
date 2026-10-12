@@ -1203,6 +1203,12 @@ mod tests {
                 let compressed_list: CompressedCiphertextList =
                     safe_deserialize(serialized.as_slice(), 1024 * 1024 * 16).unwrap();
 
+                // The GPU packs all the bodies a GLWE can hold, the unused ones must not leak into
+                // the list copied to the CPU
+                let conformance_params =
+                    CompressedCiphertextListConformanceParams::from((params, comp_params));
+                assert!(compressed_list.is_conformant(&conformance_params));
+
                 set_server_key(sk.decompress());
                 check_is_correct(&compressed_list, &ck);
 
