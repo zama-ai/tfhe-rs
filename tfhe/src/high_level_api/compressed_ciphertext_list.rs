@@ -1110,7 +1110,7 @@ mod tests {
                 #[cfg(feature = "gpu")]
                 {
                     set_server_key(sk.decompress_to_gpu());
-                    let mut gpu_compressed_list = compressed_list.clone();
+                    let mut gpu_compressed_list = compressed_list;
                     gpu_compressed_list.move_to_current_device().unwrap();
                     assert_eq!(gpu_compressed_list.current_device(), crate::Device::CudaGpu);
                     check_is_correct(&gpu_compressed_list, &ck);

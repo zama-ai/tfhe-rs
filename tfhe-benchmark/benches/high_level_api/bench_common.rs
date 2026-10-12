@@ -68,7 +68,8 @@ pub fn bench_fhe_type_op<FheType, Op>(
                     reset_pbs_count();
                     let res = op.execute(&inputs);
                     res.wait_bench();
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
                     let num_block = (bit_size as f64 / (param.message_modulus().0 as f64).log(2.0))
                         .ceil() as usize;
                     throughput_num_threads(num_block, pbs_count)

@@ -132,8 +132,7 @@ impl ServerKey {
                 if column.is_empty() {
                     self.key.create_trivial(0)
                 } else {
-                    let (first_block, other_blocks) =
-                        column.as_mut_slice().split_first_mut().unwrap();
+                    let (first_block, other_blocks) = column.split_first_mut().unwrap();
                     for other in other_blocks {
                         self.key.unchecked_add_assign(first_block, other);
                     }

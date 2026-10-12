@@ -267,7 +267,7 @@ where
             let ctxt_1 = cks.as_ref().encrypt_radix(clear1, num_blocks);
             let ctxt_2 = cks.as_ref().encrypt_radix(clear2, num_blocks);
 
-            let mut res = ctxt_1.clone();
+            let mut res = ctxt_1;
             let mut clear = clear1;
 
             // Subtract multiple times to raise the degree

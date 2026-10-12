@@ -48,7 +48,8 @@ pub(crate) const RX_FIFO_DEPTH: u32 = 256;
 pub(crate) const CT_MEM_BYTES: u64 = 0x3000; // per-ciphertext stride (page aligned)
 pub(crate) const PC0_ADDR: u64 = 0x44_0000_0000;
 pub(crate) const PC1_ADDR: u64 = 0x44_2000_0000;
-pub(crate) const PC0_SIZE: usize = 8224; // 0x2020 = 257 words x 32B at AXI_DATA_W=256 (AXI-width dependent)
+pub(crate) const PC0_SIZE: usize = 8224; // 0x2020 = 257 words x 32B at AXI_DATA_W=256 (AXI-width
+                                         // dependent)
 pub(crate) const PC1_SIZE: usize = 8192; // 0x2000 bytes
 
 // The pseudo-channels
