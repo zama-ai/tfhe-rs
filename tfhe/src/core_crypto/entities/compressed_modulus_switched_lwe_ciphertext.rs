@@ -332,7 +332,8 @@ mod test {
             vec![0u64; (lwe_size * br_input_modulus_log.0).div_ceil(u64::BITS as usize)],
             br_input_modulus_log,
             lwe_size,
-        );
+        )
+        .unwrap();
 
         let ct = CompressedModulusSwitchedLweCiphertext::from_raw_parts(
             packed_integers,
