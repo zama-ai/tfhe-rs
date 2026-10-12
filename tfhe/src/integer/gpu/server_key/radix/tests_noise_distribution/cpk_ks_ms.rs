@@ -627,7 +627,7 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
             //This is for the ap
             let cuda_no_casting_compact_list =
                 CudaFlattenedVecCompactCiphertextList::from_vec_shortint_compact_ciphertext_list(
-                    vec![no_casting_compact_list.clone()],
+                    vec![no_casting_compact_list],
                     data_info,
                     &cuda_side_resources.streams,
                 )
@@ -699,7 +699,7 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
             .as_lwe_64()
             .to_lwe_ciphertext_list(&cuda_side_resources.streams);
 
-        results.push((pbs_result_list.clone(), shortint_res.clone()));
+        results.push((pbs_result_list, shortint_res));
     }
 
     let res_cond = results.iter().all(|(lhs, rhs)| lhs == rhs);

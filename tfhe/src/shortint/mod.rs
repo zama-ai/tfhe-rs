@@ -14,11 +14,9 @@
 //! # Keys
 //!
 //! This crates exposes two type of keys:
-//! * The [`ClientKey`](crate::shortint::client_key::ClientKey) is used to encrypt and decrypt and
-//!   has to be kept secret;
-//! * The [`ServerKey`](crate::shortint::server_key::ServerKey) is used to perform homomorphic
-//!   operations on the server side and it is meant to be published (the client sends it to the
-//!   server).
+//! * The [`ClientKey`] is used to encrypt and decrypt and has to be kept secret;
+//! * The [`ServerKey`] is used to perform homomorphic operations on the server side and it is meant
+//!   to be published (the client sends it to the server).
 //!
 //!
 //! # Quick Example

@@ -482,11 +482,8 @@ impl<G: Curve> PublicParams<G> {
             Some(v) => v,
             None => return false,
         };
-        if n != n_expected {
-            return false;
-        }
 
-        true
+        n == n_expected
     }
 }
 

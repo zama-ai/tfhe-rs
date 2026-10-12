@@ -527,7 +527,7 @@ fn test_not_gate(parameters: BooleanParameters) {
         assert_eq!(expected_result, dec_not);
 
         // NOT gate
-        let mut ct_res = ct1.clone();
+        let mut ct_res = ct1;
         sks.not_assign(&mut ct_res);
 
         let dec_not = cks.decrypt(&ct_res);

@@ -1021,7 +1021,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters, file
         };
 
         let recovered = decomp_key.unpack(&shortint_compressed_list, 0).unwrap();
-        let mut shortint_res = recovered.clone();
+        let mut shortint_res = recovered;
 
         let cpk_zero_sample_input = {
             let compact_list = cpk

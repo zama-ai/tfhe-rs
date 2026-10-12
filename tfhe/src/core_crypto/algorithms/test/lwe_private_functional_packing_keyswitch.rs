@@ -223,7 +223,8 @@ fn test_parallel_pfpks_lwe_list_equivalence<Scalar: UnsignedTorus + Send + Sync>
         let noise_distribution =
             DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.0000006791658447437413));
 
-        let lwe_ciphertext_count = LweCiphertextCount(320); // 32 blocks 2_2 times 10 (thus 10 64bits integer)
+        let lwe_ciphertext_count = LweCiphertextCount(320); // 32 blocks 2_2 times 10 (thus 10
+                                                            // 64bits integer)
 
         let mut rsc = TestResources::new();
 

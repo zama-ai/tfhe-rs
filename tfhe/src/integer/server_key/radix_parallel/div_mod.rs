@@ -586,7 +586,8 @@ impl ServerKey {
 
             // Here, we will do what zero_out_if does, but to stay within noise constraints,
             // we do it by hand so that we apply the factor (shift) to the correct block
-            assert!(overflow_sum.degree.get() <= 2); // at_least_one_upper_block_is_non_zero maybe be a trivial 0
+            assert!(overflow_sum.degree.get() <= 2); // at_least_one_upper_block_is_non_zero maybe
+                                                     // be a trivial 0
             let factor = MessageModulus(overflow_sum.degree.get() + 1);
             let mut conditionally_zero_out_merged_interesting_remainder = || {
                 let zero_out_if_overflow_did_not_happen =

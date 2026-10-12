@@ -278,7 +278,8 @@ pub mod cuda {
                         num_block as u64,
                         &cpu_sks,
                     );
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));

@@ -860,13 +860,13 @@ impl InfoIsc {
     }
 
     pub fn update_isc_info(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
-        for idx in 0..4 {
+        for (idx, isc_info) in self.isc_info.iter_mut().enumerate() {
             let name = format!("runtime_1in3::isc_latest_instruction_{idx}");
             let reg = regmap
                 .register()
                 .get(&name)
                 .expect("Unknown register, check regmap definition");
-            self.isc_info[idx] = ffi_hw.read_reg(*reg.offset() as u64);
+            *isc_info = ffi_hw.read_reg(*reg.offset() as u64);
         }
     }
 
@@ -1214,13 +1214,13 @@ impl InfoMhDma {
         self.errors = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_hpu_id(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
-        for i in 0..8_usize {
+        for (i, hpu_id) in self.hpu_id.iter_mut().enumerate() {
             let reg_name = format!("mhdma_system::hpu_id_{i}");
             let reg = regmap
                 .register()
                 .get(&reg_name)
                 .expect("Unknown register, check regmap definition");
-            self.hpu_id[i] = ffi_hw.read_reg(*reg.offset() as u64);
+            *hpu_id = ffi_hw.read_reg(*reg.offset() as u64);
         }
     }
 
