@@ -1,5 +1,5 @@
-# Compile and test tfhe-cuda-backend on a multi-GPU Scaleway instance,
-# falling back to smaller Scaleway flavors then to Hyperstack when unavailable.
+# Compile and test tfhe-cuda-backend on a multi-GPU instance,
+# falling back to smaller flavors when unavailable.
 name: gpu_full_multi_gpu_tests
 
 env:
@@ -78,7 +78,7 @@ jobs:
     uses: ./.github/workflows/slab_setup.yml
     with:
       backend: terraform
-      profile: scaleway-4-l40-tests
+      profile: generic-4-l4orl40-tests
       fallback-runner: gpu_ubuntu-22.04
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}

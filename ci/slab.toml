@@ -246,6 +246,25 @@ fallbacks = [
     "hyperstack.4-l40",
 ]
 
+[backend.terraform.nebius-2-l40]
+script_path = "ci/terraform_scripts/nebius/terraform_l40.tf"
+instance_type = "2gpu-64vcpu-384gb"
+hardware_name = "nebius-L40"
+user = "ubuntu"
+
+[backend.terraform.generic-4-l4orl40-tests]
+script_path = "ci/terraform_scripts/nebius/terraform_l40.tf"
+instance_type = "4gpu-128vcpu-768gb"
+hardware_name = "nebius-L40"
+user = "ubuntu"
+fallbacks = [
+    "terraform.nebius-2-l40",
+    "terraform.scaleway-2-l40",
+    "terraform.scaleway-4-l4",
+    "terraform.scaleway-2-l4",
+    "hyperstack.4-l40",
+]
+
 [backend.terraform.scaleway-2-l40]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-2-48G"
@@ -295,14 +314,25 @@ user = "ubuntu"
 fallbacks = [ "hyperstack.gpu-test-sanitizer" ]
 
 [backend.terraform.nebius-single-h100]
-script_path = "ci/terraform_scripts/nebius/terraform.tf"
+script_path = "ci/terraform_scripts/nebius/terraform_h100.tf"
 instance_type = "1gpu-16vcpu-200gb"
 # Nebius presets do not name the GPU, this is the name reported in benchmark results
 hardware_name = "nebius-H100-SXM-1-80G"
 user = "ubuntu"
 
 [backend.terraform.nebius-multi-h100-sxm5]
-script_path = "ci/terraform_scripts/nebius/terraform.tf"
+script_path = "ci/terraform_scripts/nebius/terraform_h100.tf"
 instance_type = "8gpu-128vcpu-1600gb"
 hardware_name = "nebius-H100-SXM-8-80G"
 user = "ubuntu"
+
+[backend.terraform.generic-1or2-h100]
+script_path = "ci/terraform_scripts/nebius/terraform_h100.tf"
+instance_type = "1gpu-16vcpu-200gb"
+hardware_name = "nebius-H100-SXM-1-80G"
+user = "ubuntu"
+fallbacks = [
+    "terraform.scaleway-2-h100-sxm5",
+    "terraform.scaleway-single-h100",
+    "hyperstack.single-h100",
+]

@@ -69,7 +69,7 @@ jobs:
     uses: ./.github/workflows/slab_setup.yml
     with:
       backend: terraform
-      profile: scaleway-2-h100-sxm5-tests
+      profile: generic-1or2-h100
       fallback-runner: gpu_ubuntu-22.04
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
@@ -129,7 +129,14 @@ jobs:
         run: |
           GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
           echo "Found ${GPU_COUNT} GPU(s)"
-          [ "${GPU_COUNT}" -ge 2 ] || { echo "Error: at least 2 GPUs required"; exit 1; }
+          if [ "${GPU_COUNT}" -ge 2 ]; then
+            echo "GPU0=0" >> "${GITHUB_ENV}"
+            echo "GPU1=1" >> "${GITHUB_ENV}"
+          else
+            echo "Only 1 GPU available, both lanes will share GPU 0 via MPS"
+            echo "GPU0=0" >> "${GITHUB_ENV}"
+            echo "GPU1=0" >> "${GITHUB_ENV}"
+          fi
 
       - name: Enable nvidia multi-process service
         run: |
@@ -142,13 +149,13 @@ jobs:
         run: |
           run_memcheck() {
             local rc=0
-            CUDA_VISIBLE_DEVICES=0 make test_high_level_api_gpu_memcheck || rc=$?
+            CUDA_VISIBLE_DEVICES=${GPU0} make test_high_level_api_gpu_memcheck || rc=$?
             echo "${rc}" > /tmp/memcheck.rc
           }
           run_racecheck() {
             local rc=0
-            CUDA_VISIBLE_DEVICES=1 make test_gpu_racecheck || rc=$?
-            CUDA_VISIBLE_DEVICES=1 make test_gpu_racecheck_relaxed_pbs128 || rc=$?
+            CUDA_VISIBLE_DEVICES=${GPU1} make test_gpu_racecheck || rc=$?
+            CUDA_VISIBLE_DEVICES=${GPU1} make test_gpu_racecheck_relaxed_pbs128 || rc=$?
             echo "${rc}" > /tmp/racecheck.rc
           }
           run_memcheck 2>&1 | sed -u 's/^/[memcheck]  /' &
