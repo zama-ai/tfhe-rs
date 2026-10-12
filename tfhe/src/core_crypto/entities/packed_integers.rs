@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
@@ -40,6 +42,59 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
             log_modulus,
             initial_len,
         }
+    }
+
+    /// Number of bits of the last packed coefficient that hold packed values.
+    ///
+    /// Returns `Ok(None)` if the list is empty or an error if its length does not
+    /// match `initial_len` and `log_modulus`.
+    fn last_coeff_used_bits(&self) -> Result<Option<NonZeroUsize>, ()> {
+        let len = self.packed_coeffs.len();
+        if len == 0 {
+            return Ok(None);
+        }
+
+        let used_bits = self.initial_len.checked_mul(self.log_modulus.0).ok_or(())?;
+        if len != used_bits.div_ceil(Scalar::BITS) {
+            return Err(());
+        }
+
+        // The length check guarantees the result is in `1..=Scalar::BITS`
+        let res = NonZeroUsize::new(used_bits - (len - 1) * Scalar::BITS).ok_or(())?;
+        Ok(Some(res))
+    }
+
+    /// Returns true if the bits of the last packed coefficient past the last value are zero.
+    ///
+    /// When the last coefficient is only partially filled, `pack` leaves the bits above
+    /// `initial_len * log_modulus` to zero. `unpack` never reads them, but rejecting other values
+    /// keeps the representation canonical.
+    pub(crate) fn is_canonical(&self) -> bool {
+        match (self.last_coeff_used_bits(), self.packed_coeffs.last()) {
+            (Ok(Some(used_bits)), Some(&last)) => {
+                used_bits.get() == Scalar::BITS || last >> used_bits.get() == Scalar::ZERO
+            }
+            // True empty lists are considered canonical
+            (Ok(None), None) => true,
+            // If the length is incorrect, the list is not canonical
+            _ => false,
+        }
+    }
+
+    /// Clears the bits of the last packed coefficient that do not hold any packed value.
+    ///
+    /// See [`Self::is_canonical`].
+    ///
+    /// Does nothing if the length of the list does not match `initial_len` and `log_modulus`.
+    pub(crate) fn clear_unused_bits(&mut self) -> Result<(), ()> {
+        if let (Some(used_bits), Some(last)) =
+            (self.last_coeff_used_bits()?, self.packed_coeffs.last_mut())
+        {
+            if used_bits.get() < Scalar::BITS {
+                *last &= (Scalar::ONE << used_bits.get()) - Scalar::ONE;
+            }
+        }
+        Ok(())
     }
 
     /// Pack the input slice, assuming its values are reduced mod `2**log_modulus`.
@@ -279,16 +334,7 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant for PackedIntegers<Scalar> 
         (1..=max_log_modulus).contains(&log_modulus.0)
             && *initial_len == params.initial_len
             && packed_coeffs.len() == (params.initial_len * log_modulus.0).div_ceil(Scalar::BITS)
-            // When the last coefficient is only partially filled, `pack` leaves the bits above
-            // `initial_len * log_modulus` to zero. `unpack` never reads them, but rejecting other
-            // values keeps the representation canonical.
-            && packed_coeffs.last().is_none_or(|last| {
-                // The length check above guarantees `used_bits` is in `1..=Scalar::BITS`
-                let last_used_bits =
-                    initial_len * log_modulus.0 - (packed_coeffs.len() - 1) * Scalar::BITS;
-
-                last_used_bits == Scalar::BITS || *last >> last_used_bits == Scalar::ZERO
-            })
+            && self.is_canonical()
     }
 }
 
@@ -397,6 +443,9 @@ mod test {
         assert!(packed.is_conformant(&PackedIntegersConformanceParams::new::<u64>(len)));
         *packed.packed_coeffs.last_mut().unwrap() |= 1 << 16;
         assert!(!packed.is_conformant(&PackedIntegersConformanceParams::new::<u64>(len)));
+
+        packed.clear_unused_bits().unwrap();
+        assert!(packed.is_conformant(&PackedIntegersConformanceParams::new::<u64>(len)));
 
         // `700 * 32 = 22400` bits span exactly 350 u64, the last one has no padding bit
         let mut packed = packed_with_log_modulus(32, len);
