@@ -263,6 +263,24 @@ impl PfailAndPrecision {
     pub fn precision_with_padding(&self) -> PrecisionWithPadding {
         self.precision_with_padding
     }
+
+    /// Return the expected pfail and precision when the same gaussian noise is decoded with the
+    /// encoding defined by the given message and carry moduli
+    pub fn equivalent_for_msg_and_carry_moduli(
+        &self,
+        new_msg_mod: MessageModulus,
+        new_carry_mod: CarryModulus,
+    ) -> Self {
+        let new_precision_with_padding = precision_with_padding(new_msg_mod, new_carry_mod);
+
+        let new_pfail = equivalent_pfail_gaussian_noise(
+            self.precision_with_padding.value,
+            self.pfail,
+            new_precision_with_padding.value,
+        );
+
+        Self::new(new_pfail, new_msg_mod, new_carry_mod)
+    }
 }
 
 #[derive(Clone, Copy)]
