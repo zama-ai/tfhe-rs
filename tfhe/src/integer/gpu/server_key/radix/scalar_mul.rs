@@ -10,6 +10,7 @@ use crate::integer::gpu::{
 };
 use crate::integer::server_key::ScalarMultiplier;
 use crate::prelude::CastInto;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use itertools::Itertools;
 
 impl CudaServerKey {
@@ -74,7 +75,13 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if scalar == Scalar::ZERO {
-            ct.as_mut().d_blocks.0.d_vec.memset(0, streams, 0);
+            let ct = ct.as_mut();
+            ct.d_blocks.0.d_vec.memset(0, streams, 0);
+            // The result is a trivial encryption of zero, noise and degree are set to zero
+            for info in ct.info.blocks.iter_mut() {
+                info.degree = Degree::new(0);
+                info.noise_level = NoiseLevel::ZERO;
+            }
             return;
         }
 

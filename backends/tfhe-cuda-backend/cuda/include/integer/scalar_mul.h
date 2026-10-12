@@ -4,11 +4,20 @@
 
 template <typename Torus> struct int_scalar_mul_buffer {
   int_radix_params params;
-  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer;
-  int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_vec_mem;
-  CudaRadixCiphertextFFI *preshifted_buffer;
-  CudaRadixCiphertextFFI *all_shifted_buffer;
-  int_sc_prop_memory<Torus> *sc_prop_mem;
+  /// @brief Scratch memory for the logical left shifts producing the
+  /// preshifted copies of the input
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_buffer = nullptr;
+  /// @brief Scratch memory for the sum of the shifted copies, allocated only
+  /// when the scalar has at least one set bit within the ciphertext width
+  int_sum_ciphertexts_vec_memory<Torus> *sum_ciphertexts_vec_mem = nullptr;
+  /// @brief Holds the input shifted by each bit amount in
+  /// (0..log2(message_modulus))
+  CudaRadixCiphertextFFI *preshifted_buffer = nullptr;
+  /// @brief Holds one block-rotated copy of the preshifted input per set
+  /// scalar bit, the terms of the final sum
+  CudaRadixCiphertextFFI *all_shifted_buffer = nullptr;
+  /// @brief Scratch memory for the final single carry propagation
+  int_sc_prop_memory<Torus> *sc_prop_mem = nullptr;
   bool anticipated_buffers_drop;
   bool gpu_memory_allocated;
   uint32_t num_ciphertext_bits;

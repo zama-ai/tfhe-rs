@@ -1466,22 +1466,37 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   bool gpu_memory_allocated;
   bool reduce_degrees_for_single_carry_propagation;
 
-  // temporary buffers
-  CudaRadixCiphertextFFI *current_blocks;
-  CudaRadixCiphertextFFI *small_lwe_vector;
+  /// @brief Working copy of the ciphertext blocks being summed, reduced in
+  /// place column by column
+  CudaRadixCiphertextFFI *current_blocks = nullptr;
+  /// @brief Temporary buffer holding small-LWE ciphertexts between the
+  /// keyswitch and the PBS during the reduction
+  CudaRadixCiphertextFFI *small_lwe_vector = nullptr;
 
-  uint32_t *d_columns_data;
-  uint32_t *d_columns_counter;
-  uint32_t **d_columns;
+  /// @brief Flattened device storage of the block indexes of each column for
+  /// the current reduction round
+  uint32_t *d_columns_data = nullptr;
+  /// @brief Device counters holding the number of blocks in each column for
+  /// the current reduction round
+  uint32_t *d_columns_counter = nullptr;
+  /// @brief Device array of per-column pointers into d_columns_data
+  uint32_t **d_columns = nullptr;
 
-  uint32_t *d_new_columns_data;
-  uint32_t *d_new_columns_counter;
-  uint32_t **d_new_columns;
+  /// @brief Flattened device storage of the block indexes of each column for
+  /// the next reduction round
+  uint32_t *d_new_columns_data = nullptr;
+  /// @brief Device counters holding the number of blocks in each column for
+  /// the next reduction round
+  uint32_t *d_new_columns_counter = nullptr;
+  /// @brief Device array of per-column pointers into d_new_columns_data
+  uint32_t **d_new_columns = nullptr;
 
-  uint64_t *d_degrees;
+  /// @brief Device copy of the block degrees driving the reduction
+  uint64_t *d_degrees = nullptr;
 
-  // lookup table for extracting message and carry
-  int_radix_lut<Torus> *luts_message_carry;
+  /// @brief Lookup table extracting message and carry, lazily allocated at
+  /// first use when memory is not reused
+  int_radix_lut<Torus> *luts_message_carry = nullptr;
 
   bool mem_reuse = false;
   bool allocated_luts_message_carry;
@@ -2273,15 +2288,30 @@ template <typename Torus> struct int_sc_prop_memory {
   uint32_t lut_stride;
 
   uint32_t num_groups;
-  CudaRadixCiphertextFFI *output_flag;
-  CudaRadixCiphertextFFI *last_lhs;
-  CudaRadixCiphertextFFI *last_rhs;
-  int_radix_lut<Torus> *lut_message_extract;
+  /// @brief Ciphertext holding the requested output flag (carry or overflow)
+  /// block
+  CudaRadixCiphertextFFI *output_flag = nullptr;
+  /// @brief Copy of the last left input block, used to prepare the overflow
+  /// flag, allocated only when the overflow flag is requested
+  CudaRadixCiphertextFFI *last_lhs = nullptr;
+  /// @brief Copy of the last right input block, used to prepare the overflow
+  /// flag, allocated only when the overflow flag is requested
+  CudaRadixCiphertextFFI *last_rhs = nullptr;
+  /// @brief Lookup table extracting the message part of each block
+  int_radix_lut<Torus> *lut_message_extract = nullptr;
 
-  int_radix_lut<Torus> *lut_overflow_flag_prep;
+  /// @brief Lookup table preparing the overflow flag, allocated only when the
+  /// overflow flag is requested
+  int_radix_lut<Torus> *lut_overflow_flag_prep = nullptr;
 
-  int_shifted_blocks_and_states_memory<Torus> *shifted_blocks_state_mem;
-  int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
+  /// @brief Scratch memory used to compute the shifted blocks and the carry
+  /// propagation states
+  int_shifted_blocks_and_states_memory<Torus> *shifted_blocks_state_mem =
+      nullptr;
+  /// @brief Scratch memory used to compute the propagation simulators and the
+  /// group carries
+  int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem =
+      nullptr;
 
   int_radix_params params;
   uint32_t requested_flag;
