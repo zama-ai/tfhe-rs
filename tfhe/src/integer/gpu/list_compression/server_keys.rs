@@ -249,11 +249,15 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
                 };
                 let initial_len = glwe_mask_size + body_count;
                 let expected_packed = (initial_len * log_modulus.0).div_ceil(T::BITS);
-                PackedIntegers::from_raw_parts(
+                let mut packed_integers = PackedIntegers::from_raw_parts(
                     chunk[..expected_packed].to_vec(),
                     log_modulus,
                     initial_len,
-                )
+                );
+                // The GPU packs all the bodies a GLWE can hold, so the unused bodies of a partial
+                // GLWE can fill the end of its last packed coefficient
+                packed_integers.clear_unused_bits();
+                packed_integers
             })
             .collect_vec())
     }

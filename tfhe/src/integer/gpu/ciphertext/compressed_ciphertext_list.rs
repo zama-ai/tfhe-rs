@@ -330,13 +330,14 @@ impl CudaCompressedCiphertextList {
                         flat_cpu_data.len()
                     )
                 })?;
+            let mut packed_integers =
+                PackedIntegers::from_raw_parts(chunk.to_vec(), storage_log_modulus, initial_len);
+            // The GPU packs all the bodies a GLWE can hold, so the unused bodies of a partial GLWE
+            // can fill the end of its last packed coefficient
+            packed_integers.clear_unused_bits();
             modulus_switched_glwe_ciphertext_list.push(
                 CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
-                    PackedIntegers::from_raw_parts(
-                        chunk.to_vec(),
-                        storage_log_modulus,
-                        initial_len,
-                    ),
+                    packed_integers,
                     glwe_dimension,
                     polynomial_size,
                     bodies_count,
