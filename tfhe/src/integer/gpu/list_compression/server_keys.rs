@@ -233,7 +233,7 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
         }
         streams.synchronize();
 
-        Ok(packed_coeffs
+        packed_coeffs
             .chunks(per_glwe_packed)
             .enumerate()
             .map(|(i, chunk)| {
@@ -255,7 +255,7 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
                     initial_len,
                 )
             })
-            .collect_vec())
+            .collect()
     }
 
     /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty

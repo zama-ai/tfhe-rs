@@ -21,7 +21,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     Upgrade<CompressedModulusSwitchedMultiBitLweCiphertextV1<Scalar>>
     for CompressedModulusSwitchedMultiBitLweCiphertextV0<Scalar>
 {
-    type Error = Infallible;
+    type Error = crate::Error;
 
     fn upgrade(
         self,
@@ -29,11 +29,13 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
         // In the previous version a last coefficient for the body was stored along the mask
         // elements. This was a duplicate, so we remove it.
 
-        let mask_without_body = PackedIntegers::from_raw_parts(
-            self.packed_mask.packed_coeffs()[..self.lwe_dimension.0].to_vec(),
-            self.packed_mask.log_modulus(),
-            self.packed_mask.initial_len(),
-        );
+        let mask: Vec<usize> = self
+            .packed_mask
+            .unpack()
+            .take(self.lwe_dimension.0)
+            .collect();
+        let mask_without_body = PackedIntegers::pack(&mask, self.packed_mask.log_modulus());
+
         Ok(CompressedModulusSwitchedMultiBitLweCiphertextV1 {
             body: self.body,
             packed_mask: mask_without_body,

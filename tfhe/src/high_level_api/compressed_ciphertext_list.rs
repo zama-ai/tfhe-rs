@@ -1184,6 +1184,12 @@ mod tests {
                 compressed_list.move_to_current_device().unwrap();
                 assert_eq!(compressed_list.current_device(), crate::Device::CudaGpu);
 
+                // The GPU packs all the bodies a GLWE can hold, the unused ones must not leak into
+                // the list copied to the CPU
+                let conformance_params =
+                    CompressedCiphertextListConformanceParams::from((params, comp_params));
+                assert!(compressed_list.is_conformant(&conformance_params));
+
                 set_server_key(sk.decompress());
                 check_is_correct(&compressed_list, &ck);
 
