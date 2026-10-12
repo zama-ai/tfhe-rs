@@ -631,6 +631,7 @@ mod test {
             log_modulus,
             initial_len,
         )
+        .unwrap()
     }
 
     fn dummy_comp_ct(
