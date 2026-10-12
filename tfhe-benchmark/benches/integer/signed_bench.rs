@@ -199,7 +199,8 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
 
                 reset_pbs_count();
                 binary_op(&sks, &ct_0, &ct_1);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so
+                                                         // we take 1 as default
 
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
@@ -301,7 +302,8 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 
                 reset_pbs_count();
                 unary_fn(&sks, &ct_0);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so
+                                                         // we take 1 as default
 
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
@@ -389,7 +391,8 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
 
                 reset_pbs_count();
                 sks.if_then_else_parallelized(&cond, &ct_then, &ct_else);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so
+                                                         // we take 1 as default
 
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
@@ -943,7 +946,8 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
                 reset_pbs_count();
                 binary_op(&sks, &mut ct_0, clear_1);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so
+                                                         // we take 1 as default
 
                 let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
@@ -1014,7 +1018,8 @@ fn positive_bit_mask_for_bit_size(bit_size: u32) -> ScalarType {
     assert!(bit_size <= ScalarType::BITS);
     assert!(bit_size > 0);
     let minus_one = -ScalarType::ONE; // (In two's complement this is full of 1s)
-                                      // The last bit of bit_size can only be set for when value is positive
+                                      // The last bit of bit_size can only be set for when value is
+                                      // positive
     let bitmask = (minus_one) >> (ScalarType::BITS - bit_size - 1);
     // flib msb as they would still be one due to '>>' being arithmetic shift
     bitmask ^ ((minus_one) << (bit_size - 1))
@@ -1123,7 +1128,8 @@ fn signed_flip_parallelized(c: &mut Criterion) {
 
                 reset_pbs_count();
                 sks.flip_parallelized(&condition, &true_ct, &false_ct);
-                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so
+                                                         // we take 1 as default
 
                 bench_group
                     .sample_size(10)
@@ -1678,7 +1684,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     binary_op_cpu(&cpu_sks, &mut ct_0, &mut ct_1);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
@@ -1840,7 +1847,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     unary_op_cpu(&cpu_sks, &ct_0);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
@@ -1994,7 +2002,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     binary_op_cpu(&cpu_sks, &mut ct_0, clear_0);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
@@ -2184,7 +2193,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     binary_op_cpu(&cpu_sks, &ct_0, &ct_1);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
@@ -2352,7 +2362,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     cpu_sks.if_then_else_parallelized(&cond, &ct_then, &ct_else);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));

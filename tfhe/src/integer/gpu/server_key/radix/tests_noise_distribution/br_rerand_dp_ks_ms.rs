@@ -1020,7 +1020,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs_gpu(
         let rerand_xof_seed = XofSeed::new(seed_bytes, *b"TFHE_Enc");
 
         // Manually build as the seed is made non Clone to protect user normally
-        let noise_simulation_rerand_seed = ReRandomizationSeed(rerand_xof_seed.clone());
+        let noise_simulation_rerand_seed = ReRandomizationSeed(rerand_xof_seed);
 
         let sample_input = ShortintEngine::with_thread_local_mut(|engine| {
             comp_private_key

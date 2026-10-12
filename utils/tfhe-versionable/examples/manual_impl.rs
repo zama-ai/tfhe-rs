@@ -70,9 +70,12 @@ impl<T: Unversionize + Serialize + for<'de> Deserialize<'de> + Default> Unversio
 {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
         match versioned {
-            MyStructVersionsDispatchOwned::V0(v0) => v0
-                .upgrade()
-                .map_err(|e| UnversionizeError::upgrade("V0", "V1", e)),
+            MyStructVersionsDispatchOwned::V0(v0) => Ok({
+                // upgrade from v0 to v1 has an infallible error type, rust is able to assert that
+                // this pattern matching is therefore exhaustive.
+                let Ok(v1) = v0.upgrade();
+                v1
+            }),
             MyStructVersionsDispatchOwned::V1(v1) => Ok(Self {
                 attr: T::unversionize(v1.attr)?,
                 builtin: v1.builtin,

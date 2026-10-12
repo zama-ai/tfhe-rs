@@ -7,34 +7,36 @@ fn gen_c_api() {
         return;
     }
 
-    fn get_build_profile_name() -> String {
-        // The profile name is always the 3rd last part of the path (with 1 based indexing).
-        // e.g. /code/core/target/cli/build/my-build-info-9f91ba6f99d7a061/out
-        let out_dir = std::env::var("OUT_DIR")
-            .expect("OUT_DIR is not set, cannot determine build profile, aborting");
-        out_dir
-            .split(std::path::MAIN_SEPARATOR)
-            .nth_back(3)
-            .expect("Cannot determine build profile, aborting")
-            .to_string()
-    }
-
-    /// Find the location of the `target/` directory. Note that this may be
-    /// overridden by `cmake`, so we also need to check the `CARGO_TARGET_DIR`
-    /// variable.
-    fn target_dir() -> PathBuf {
-        if let Ok(target) = env::var("CARGO_TARGET_DIR") {
+    /// Finds the location of the `target/$profile` directory where we output the C API header.
+    fn header_output_dir() -> PathBuf {
+        // Note that this may be overridden by `cmake`, so we also need to check the
+        // `CARGO_TARGET_DIR` variable.
+        let target_dir_path = if let Ok(target) = env::var("CARGO_TARGET_DIR") {
             PathBuf::from(target)
         } else {
             PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join(format!("../target/{}", get_build_profile_name()))
-        }
+                .parent()
+                .unwrap()
+                .join("target")
+        };
+
+        let out_dir = std::env::var("OUT_DIR")
+            .expect("OUT_DIR is not set, cannot locate where to output tfhe.h");
+
+        let out_dir_path = PathBuf::from(out_dir);
+        let relative_to_target_dir = out_dir_path
+            .strip_prefix(&target_dir_path)
+            .expect("OUT_DIR is not inside CARGO_TARGET_DIR");
+
+        let profile = relative_to_target_dir.components().next().unwrap();
+
+        target_dir_path.join(profile)
     }
 
     extern crate cbindgen;
     let crate_dir: PathBuf = env::var("CARGO_MANIFEST_DIR").unwrap().into();
     let package_name = env::var("CARGO_PKG_NAME").unwrap();
-    let output_file = target_dir().join(format!("{package_name}.h"));
+    let output_file = header_output_dir().join(format!("{package_name}.h"));
 
     let parse_expand_features_vec = vec![
         // Note that this list may not be complete, but as macro expansion is used mostly/only for

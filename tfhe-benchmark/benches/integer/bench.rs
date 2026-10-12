@@ -1331,7 +1331,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     unary_op_cpu(&cpu_sks, &mut ct_0);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     bench_group
                         .sample_size(10)
@@ -1463,7 +1464,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     binary_op_cpu(&cpu_sks, &mut ct_0, &mut ct_1);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     bench_group
                         .sample_size(10)
@@ -1613,7 +1615,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     binary_op_cpu(&cpu_sks, &mut ct_0, clear_1);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     bench_group
                         .sample_size(10)
@@ -1751,7 +1754,8 @@ mod cuda {
                     reset_pbs_count();
                     // Use CPU operation as pbs_count do not count PBS on GPU backend.
                     cpu_sks.if_then_else_parallelized(&ct_cond, &ct_then, &ct_else);
-                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS,
+                                                             // so we take 1 as default
 
                     bench_group
                         .sample_size(10)

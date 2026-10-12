@@ -349,7 +349,8 @@ fn read_plan(
         ReadPattern::FanIn if node == source => Vec::new(),
         ReadPattern::FanIn => (0..count)
             .map(|l| {
-                let s = (p as u32 - 1) * count + l; // this requester's own source block; s is the golden key
+                let s = (p as u32 - 1) * count + l; // this requester's own source block; s is the
+                                                    // golden key
                 Read {
                     l: s,
                     src_node: source,
