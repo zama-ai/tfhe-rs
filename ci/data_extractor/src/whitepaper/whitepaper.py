@@ -214,41 +214,26 @@ def _generate_latex_tables(
     case_config.backend = config.Backend.CPU
     case_config.pbs_kind = config.PBSKind.Any
 
-    # for case in CORE_CRYPTO_PARAM_CASES:
-    #     case_config.layer = config.Layer.CoreCrypto
-    #     param_patterns = case.get_parameter_variants()
-    #     res = conn.fetch_benchmark_data(case_config, param_name_patterns=param_patterns)
-    #
-    #     generic_formatter = CoreFormatter(
-    #         case_config.layer,
-    #         case_config.backend,
-    #         case_config.pbs_kind,
-    #         case_config.grouping_factor,
-    #     )
-    #     formatted_results = generic_formatter.format_data_with_available_sizes(
-    #         res,
-    #         conversion_func,
-    #     )
-    #
-    #     for k, v in formatted_results.items():  # DEBUG
-    #         print(k)
-    #         for sub_k, sub_v in v.items():
-    #             print(f"\t{sub_k}: {sub_v}")
-    #         print("")
-    #
-    #     print("--------------------------------------------------")
-    #     print("--------------------------------------------------")
-    #     print("--------------------------------------------------")
-    #
-    #     for table in case.associated_tables:
-    #         formatted_table = table.format_table(
-    #             formatted_results
-    #         )
-    #         filename = result_dir.joinpath(table.table_label + ".tex")
-    #         filename.write_text(
-    #             formatted_table, encoding="utf-8"
-    #         )
-    #         print(formatted_table)  # DEBUG
+    for case in CORE_CRYPTO_PARAM_CASES:
+        case_config.layer = config.Layer.CoreCrypto
+        param_patterns = case.get_parameter_variants()
+        res = conn.fetch_benchmark_data(case_config, param_name_patterns=param_patterns)
+
+        generic_formatter = CoreFormatter(
+            case_config.layer,
+            case_config.backend,
+            case_config.pbs_kind,
+            case_config.grouping_factor,
+        )
+        formatted_results = generic_formatter.format_data_with_available_sizes(
+            res,
+            conversion_func,
+        )
+
+        for table in case.associated_tables:
+            formatted_table = table.format_table(formatted_results)
+            filename = result_dir.joinpath(table.table_label + ".tex")
+            filename.write_text(formatted_table, encoding="utf-8")
 
     for case in INTEGER_PARAM_CASES:
         case_config.layer = config.Layer.Integer
