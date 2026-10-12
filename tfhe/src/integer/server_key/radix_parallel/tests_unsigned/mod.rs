@@ -610,6 +610,8 @@ impl<T> NotTuple for &mut crate::integer::ciphertext::BaseSignedRadixCiphertext<
 
 impl<T> NotTuple for &Vec<T> {}
 
+impl<T> NotTuple for &[T] {}
+
 impl NotTuple for &crate::integer::ciphertext::BooleanBlock {}
 
 /// For unary operations
@@ -627,6 +629,25 @@ where
     fn execute(&mut self, input: I1) -> O {
         let sks = self.sks.as_ref().expect("setup was not properly called");
         (self.func)(sks, input)
+    }
+}
+
+/// For unary operations given as a 1-tuple
+///
+/// The harness always describes the inputs of an operation as a tuple, so a unary operation
+/// arrives here as `(I1,)`. The tuple is unwrapped so the tested function keeps its natural
+/// signature.
+impl<F, I1, O> FunctionExecutor<(I1,), O> for CpuFunctionExecutor<F>
+where
+    F: Fn(&ServerKey, I1) -> O,
+{
+    fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.sks = Some(sks);
+    }
+
+    fn execute(&mut self, input: (I1,)) -> O {
+        let sks = self.sks.as_ref().expect("setup was not properly called");
+        (self.func)(sks, input.0)
     }
 }
 

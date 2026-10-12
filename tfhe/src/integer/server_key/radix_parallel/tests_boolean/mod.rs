@@ -1,6 +1,6 @@
 use crate::integer::prelude::*;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    ExecuteOn, TestBuilder, TestContext,
+    ExecuteOn, SizeRequirements, TestBuilder, TestContext,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -15,13 +15,12 @@ pub(crate) fn test_boolean_flip_test_case<E>(ctxt: &TestContext, executor: E)
 where
     E: ExecuteOn<(BooleanBlock, BooleanBlock, BooleanBlock), (BooleanBlock, BooleanBlock)>,
 {
-    let bits_per_block = ctxt.bits_per_block();
     TestBuilder::new(ctxt)
-        .block_counts(vec![1])
+        .size_requirements(vec![SizeRequirements::new_scalar(1)])
         // Only fixed_cases because we test the whole truth table
-        .fixed_cases(move |bit_count| {
+        .fixed_cases(move |size_req, _ctx| {
             assert_eq!(
-                bit_count, bits_per_block,
+                size_req.n_blocks, 1,
                 "BooleanBlock tests should only be 1-block"
             );
             vec![
