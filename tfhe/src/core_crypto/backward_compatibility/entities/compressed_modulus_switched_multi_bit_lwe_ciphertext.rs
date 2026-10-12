@@ -21,7 +21,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     Upgrade<CompressedModulusSwitchedMultiBitLweCiphertextV1<Scalar>>
     for CompressedModulusSwitchedMultiBitLweCiphertextV0<Scalar>
 {
-    type Error = Infallible;
+    type Error = crate::Error;
 
     fn upgrade(
         self,
@@ -33,7 +33,8 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
             self.packed_mask.packed_coeffs()[..self.lwe_dimension.0].to_vec(),
             self.packed_mask.log_modulus(),
             self.packed_mask.initial_len(),
-        );
+        )?;
+
         Ok(CompressedModulusSwitchedMultiBitLweCiphertextV1 {
             body: self.body,
             packed_mask: mask_without_body,

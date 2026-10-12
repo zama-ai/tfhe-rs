@@ -430,7 +430,8 @@ mod test {
                     vec![0u64; (initial_len * log_modulus.0).div_ceil(u64::BITS as usize)],
                     log_modulus,
                     initial_len,
-                ),
+                )
+                .unwrap(),
                 glwe_dimension,
                 polynomial_size,
                 bodies_count,
