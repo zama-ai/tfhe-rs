@@ -233,7 +233,7 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
         }
         streams.synchronize();
 
-        Ok(packed_coeffs
+        packed_coeffs
             .chunks(per_glwe_packed)
             .enumerate()
             .map(|(i, chunk)| {
@@ -249,13 +249,21 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
                 };
                 let initial_len = glwe_mask_size + body_count;
                 let expected_packed = (initial_len * log_modulus.0).div_ceil(T::BITS);
-                PackedIntegers::from_raw_parts(
+                let mut packed_integers = PackedIntegers::from_raw_parts(
                     chunk[..expected_packed].to_vec(),
                     log_modulus,
                     initial_len,
-                )
+                );
+                // The GPU packs all the bodies a GLWE can hold, so the unused bodies of a partial
+                // GLWE can fill the end of its last packed coefficient
+                match packed_integers.clear_unused_bits() {
+                    Ok(_) => Ok(packed_integers),
+                    Err(_) => Err(crate::error!(
+                        "Failed to canonicalize packed ciphertext to cpu form"
+                    )),
+                }
             })
-            .collect_vec())
+            .collect()
     }
 
     /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
