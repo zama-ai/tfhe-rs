@@ -47,6 +47,12 @@ bool cuda_pbs128_golden_is_supported_async(uint32_t gpu_index);
 // compute capability 8.x (Ampere) or newer, checked on A100, L40 and H100.
 bool cuda_pbs_golden_is_supported_async(uint32_t gpu_index);
 
+// True iff the GPU reproduces the committed multi-bit PBS golden data of the
+// integer golden tests bit for bit: compute capability 9.x (Hopper) or newer,
+// the only architecture that data is validated on. Kept separate from the PBS
+// golden probe above so the classical and multi-bit policies can diverge.
+bool cuda_multi_bit_pbs_golden_is_supported_async(uint32_t gpu_index);
+
 // True iff the GPU runs the FFT16x16x4 transforms and reproduces the committed
 // FFT golden data bit for bit: compute capability 8.x (Ampere) or newer,
 // checked on A100, L40 and H100. A deliberate twin of the PBS golden probe
