@@ -435,39 +435,33 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
     let bsk_glwe_size = noise_squashing_key.glwe_size();
     let br_input_modulus_log = noise_squashing_key.br_input_modulus_log();
 
-    let u128_encoding = ShortintEncoding {
-        ciphertext_modulus: noise_squashing_params.ciphertext_modulus(),
-        message_modulus: noise_squashing_params.message_modulus(),
-        carry_modulus: noise_squashing_params.carry_modulus(),
-        padding_bit: PaddingBit::Yes,
-    };
+    // The PBS128 input is encoded with the compute parameters, which share their message and
+    // carry moduli with the noise squashing parameters (enforced at key generation). The input
+    // cleartext space drives the number of boxes of the LUT.
+    let pbs128_input_cleartext_space = params.message_modulus().0 * params.carry_modulus().0;
 
-    // The packing output lives in the encoding of the compression parameters, the pfail test
-    // relies on this to change the precision used to decode at the measurement point without
-    // changing the computation itself
-    let after_packing_encoding = ShortintEncoding {
-        ciphertext_modulus: noise_squashing_compression_params.ciphertext_modulus,
+    // The PBS128 output, and therefore the packing output, is encoded with the moduli of the
+    // noise squashing compression parameters, which only drive the delta of the LUT. The pfail
+    // test inflates the carry modulus of these parameters to fail more frequently while keeping
+    // the input precision untouched.
+    assert_eq!(
+        noise_squashing_compression_params.ciphertext_modulus,
+        noise_squashing_params.ciphertext_modulus(),
+        "Packing output modulus is expected to match the PBS128 output modulus"
+    );
+    let output_encoding = ShortintEncoding {
+        ciphertext_modulus: noise_squashing_params.ciphertext_modulus(),
         message_modulus: noise_squashing_compression_params.message_modulus,
         carry_modulus: noise_squashing_compression_params.carry_modulus,
         padding_bit: PaddingBit::Yes,
     };
 
-    // Decoding with an encoding different from the one used for the computation is only
-    // meaningful for a 0 message
-    assert!(
-        msg == 0 || after_packing_encoding.delta() == u128_encoding.delta(),
-        "Decoding the packing output with a different encoding requires a 0 message"
-    );
-
     let id_lut = generate_programmable_bootstrap_glwe_lut(
         bsk_polynomial_size,
         bsk_glwe_size,
-        u128_encoding
-            .cleartext_space_without_padding()
-            .try_into()
-            .unwrap(),
-        u128_encoding.ciphertext_modulus,
-        u128_encoding.delta(),
+        pbs128_input_cleartext_space.try_into().unwrap(),
+        output_encoding.ciphertext_modulus,
+        output_encoding.delta(),
         |x| x,
     );
 
@@ -531,7 +525,7 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
                         &after_pbs128,
                         &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
                         msg.into(),
-                        &u128_encoding,
+                        &output_encoding,
                     ),
                 )
             },
@@ -543,7 +537,7 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         noise_squashing_compression_private_key.post_packing_ks_key(),
         lwe_per_glwe,
         msg.into(),
-        &after_packing_encoding,
+        &output_encoding,
     );
 
     assert_eq!(after_packing.len(), lwe_per_glwe.0);
@@ -896,10 +890,12 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_pfail(
             carry_modulus_for_precision(noise_bound_precision),
         );
 
-        // Decode the packing output with a larger precision to fail more frequently, 59 bits give
-        // an expected pfail of ~2^-3.3. Only the decoding at the measurement point is affected,
-        // the computation stays the same as the moduli of the compression parameters are used
-        // neither by the key generation nor by the packing keyswitch.
+        // Use a larger precision for the output encoding of the PBS128 to fail more frequently,
+        // 59 bits give an expected pfail of ~2^-3.3. The input precision is untouched: the LUT
+        // keeps the box count of the 2_2 input and only its output delta changes, which does not
+        // affect the noise of the blind rotation. The moduli of the compression parameters are
+        // used neither by the key generation nor by the packing keyswitch, so the computation is
+        // the same as in the noise test.
         let pfail_precision = 59;
         let pfail_carry_modulus = carry_modulus_for_precision(pfail_precision);
 
