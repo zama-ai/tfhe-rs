@@ -2,11 +2,12 @@
 //!
 //! FIXME(gpu): the CPU tests for these operations moved to
 //! `radix_parallel::test_harness` (see `radix_parallel::tests_unsigned::test_add`,
-//! `test_scalar_add`, `test_scalar_shift` and `test_scalar_rotate`), which also exercises inputs
-//! at the maximum degree and noise level.
+//! `test_scalar_add`, `test_scalar_shift`, `test_scalar_rotate` and `test_sum`), which also
+//! exercises inputs at the maximum degree and noise level.
 //! The GPU full propagation cannot take blocks at the maximum degree yet.
 //! Once it is aligned with the CPU one point the GPU wrappers at the harness
 //! tests and delete this file.
+use crate::integer::ciphertext::{IntegerCiphertext, IntegerRadixCiphertext};
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
@@ -531,6 +532,74 @@ where
             let dec_res: u64 = cks.decrypt(&ct_res);
             let expected = rotate_left_helper(clear, scalar, nb_bits);
             assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+pub(crate) fn legacy_default_sum_ciphertexts_vec_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>,
+{
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
+
+    executor.setup(&cks, sks.clone());
+
+    for len in [1, 2, 15, 16, 17, 64, 65] {
+        for _ in 0..nb_tests_smaller {
+            let clears = (0..len)
+                .map(|_| rng.gen::<u64>() % modulus)
+                .collect::<Vec<_>>();
+
+            let mut ctxts = clears
+                .iter()
+                .copied()
+                .map(|clear| cks.encrypt(clear))
+                .collect::<Vec<_>>();
+
+            // One of the inputs has non empty carries, to exercise the path where the
+            // implementation has to propagate an input before summing. The other inputs
+            // are left clean, so both paths are covered.
+            let extra_clear = rng.gen::<u64>() % modulus;
+            let extra_ctxt = cks.encrypt(extra_clear);
+            let dirty_index = rng.gen_range(0..ctxts.len());
+            sks.unchecked_add_assign(&mut ctxts[dirty_index], &extra_ctxt);
+            assert!(!ctxts[dirty_index].block_carries_are_empty());
+
+            // Another input has empty carries but a noise level above nominal, so the noise
+            // half of the cleanliness check is exercised too. No cheap operation raises the
+            // noise without also filling the carries, so the metadata is set directly. The
+            // real noise being lower than advertised does not matter for what is tested here.
+            if ctxts.len() >= 2 {
+                let noisy_index = (dirty_index + 1) % ctxts.len();
+                for block in ctxts[noisy_index].blocks_mut() {
+                    block.set_noise_level(
+                        NoiseLevel::NOMINAL + NoiseLevel::NOMINAL,
+                        sks.key.max_noise_level,
+                    );
+                }
+                assert!(ctxts[noisy_index].block_carries_are_empty());
+                assert!(!ctxts[noisy_index].is_clean());
+            }
+
+            let ct_res = executor.execute(&ctxts).unwrap();
+            let res: u64 = cks.decrypt(&ct_res);
+            let clear = (clears.iter().sum::<u64>() + extra_clear) % modulus;
+
+            assert_eq!(res, clear);
+
+            let ct_res_2 = executor.execute(&ctxts).unwrap();
+            assert_eq!(ct_res, ct_res_2, "Failed determinism check");
         }
     }
 }

@@ -1,215 +1,88 @@
-use crate::integer::keycache::KEY_CACHE;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
-use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, overflowing_sum_slice_under_modulus, CpuFunctionExecutor,
+use crate::integer::server_key::radix_parallel::test_harness::{
+    vec_size_requirements, ExecuteOn, TestBuilder, TestContext,
 };
+use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{
-    IntegerCiphertext, IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey,
-    ServerKey,
-};
+use crate::integer::tests::uint::Uint;
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
-use rand::Rng;
-use std::sync::Arc;
 
 create_parameterized_test!(integer_default_unsigned_overflowing_sum_ciphertexts_vec);
 create_parameterized_test!(integer_default_sum_ciphertexts_vec);
+
+/// Vector lengths both sum tests cover.
+const VEC_LENS: [u32; 8] = [0, 1, 2, 15, 16, 17, 64, 65];
 
 fn integer_default_unsigned_overflowing_sum_ciphertexts_vec<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    integer_default_unsigned_overflowing_sum_ciphertexts_test(param);
+    let ctx = TestContext::from_env(param);
+    // Same inference problem as in `integer_default_sum_ciphertexts_vec`
+    let overflowing_sum_vec =
+        |sks: &ServerKey, ctxts: &[RadixCiphertext]| -> Option<(RadixCiphertext, BooleanBlock)> {
+            sks.unsigned_overflowing_sum_ciphertexts_parallelized(ctxts)
+        };
+    let mut executor = CpuFunctionExecutor::new(overflowing_sum_vec);
+    executor.setup_with_server_key(ctx.server_key());
+    default_unsigned_overflowing_sum_ciphertexts_vec_test(&ctx, executor);
+}
+
+pub(crate) fn default_unsigned_overflowing_sum_ciphertexts_vec_test<E>(
+    ctx: &TestContext,
+    executor: E,
+) where
+    E: ExecuteOn<(Vec<RadixCiphertext>,), Option<(RadixCiphertext, BooleanBlock)>>,
+{
+    // Same lengths as `default_sum_ciphertexts_vec_test`
+    TestBuilder::new(ctx)
+        .size_requirements(vec_size_requirements(ctx, VEC_LENS))
+        .n_random(2)
+        .execute(executor, |(clears,): (Vec<Uint>,)| {
+            let bits = clears.first()?.bits();
+            let mut overflowed = false;
+            let sum = clears.iter().copied().fold(Uint::zero(bits), |acc, clear| {
+                let (sum, overflow) = acc.overflowing_add(clear);
+                overflowed |= overflow;
+                sum
+            });
+            Some((sum, overflowed))
+        });
 }
 
 fn integer_default_sum_ciphertexts_vec<P>(param: P)
 where
     P: Into<TestParameters>,
 {
+    let ctx = TestContext::from_env(param);
     // Without this the compiler seems lost, and outputs errors about
     // 'one type is more general than the other' probably because the
     // `sum_ciphertexts_parallelized` is generic over the input collection
-    let sum_vec = |sks: &ServerKey, ctxt: &Vec<RadixCiphertext>| -> Option<RadixCiphertext> {
-        sks.sum_ciphertexts_parallelized(ctxt)
+    let sum_vec = |sks: &ServerKey, ctxts: &[RadixCiphertext]| -> Option<RadixCiphertext> {
+        sks.sum_ciphertexts_parallelized(ctxts)
     };
-    let executor = CpuFunctionExecutor::new(sum_vec);
-    default_sum_ciphertexts_vec_test(param, executor);
+    let mut executor = CpuFunctionExecutor::new(sum_vec);
+    executor.setup_with_server_key(ctx.server_key());
+    default_sum_ciphertexts_vec_test(&ctx, executor);
 }
 
-pub(crate) fn integer_default_unsigned_overflowing_sum_ciphertexts_test<P>(param: P)
+pub(crate) fn default_sum_ciphertexts_vec_test<E>(ctx: &TestContext, executor: E)
 where
-    P: Into<TestParameters>,
+    E: ExecuteOn<(Vec<RadixCiphertext>,), Option<RadixCiphertext>>,
 {
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
-
-    for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..nb_tests_smaller {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            let ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            let (ct_res, overflow_res) = sks
-                .unsigned_overflowing_sum_ciphertexts_parallelized(&ctxts)
-                .unwrap();
-
-            assert_eq!(
-                overflow_res.0.degree.get(),
-                if len == 1 { 0 } else { 1 },
-                "invalid degree"
-            );
-            assert_eq!(
-                overflow_res.0.noise_level(),
-                if len == 1 {
-                    NoiseLevel::ZERO
-                } else {
-                    NoiseLevel::NOMINAL
-                },
-                "invalid noise level"
-            );
-
-            let decrypted_res: u64 = cks.decrypt(&ct_res);
-            let decrypted_overflow = cks.decrypt_bool(&overflow_res);
-
-            let (expected_clear, expected_overflow) =
-                overflowing_sum_slice_under_modulus(&clears, modulus);
-
-            assert_eq!(decrypted_res, expected_clear,
-            "Invalid result for sum of ciphertext, expected {expected_clear} got {decrypted_res}");
-            assert_eq!(decrypted_overflow, expected_overflow,
-            "Invalid result for overflow flag of sum of ciphertext, expected {decrypted_overflow} got {expected_overflow}");
-        }
-    }
-
-    // Tests on trivial ciphertexts
-    for len in [3, 4, 64] {
-        for _ in 0..nb_tests_smaller {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            let ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| sks.create_trivial_radix(clear, NB_CTXT))
-                .collect::<Vec<_>>();
-
-            let (ct_res, overflow_res) = sks
-                .unsigned_overflowing_sum_ciphertexts_parallelized(&ctxts)
-                .unwrap();
-
-            assert_eq!(
-                overflow_res.0.degree.get(),
-                if len == 1 { 0 } else { 1 },
-                "invalid degree"
-            );
-            assert_eq!(
-                overflow_res.0.noise_level(),
-                NoiseLevel::ZERO,
-                "invalid noise level"
-            );
-
-            let decrypted_res: u64 = cks.decrypt(&ct_res);
-            let decrypted_overflow = cks.decrypt_bool(&overflow_res);
-
-            let (expected_clear, expected_overflow) =
-                overflowing_sum_slice_under_modulus(&clears, modulus);
-
-            assert_eq!(decrypted_res, expected_clear,
-                       "Invalid result for sum of ciphertext, expected {expected_clear} got {decrypted_res}");
-            assert_eq!(decrypted_overflow, expected_overflow,
-                       "Invalid result for overflow flag of sum of ciphertext, expected {decrypted_overflow} got {expected_overflow}");
-        }
-    }
-}
-
-pub(crate) fn default_sum_ciphertexts_vec_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((
-        cks,
-        crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT,
-    ));
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks
-        .parameters()
-        .message_modulus()
-        .0
-        .pow(crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT as u32);
-
-    executor.setup(&cks, sks.clone());
-
-    for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..nb_tests_smaller {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            let mut ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            // One of the inputs has non empty carries, to exercise the path where the
-            // implementation has to propagate an input before summing. The other inputs
-            // are left clean, so both paths are covered.
-            let extra_clear = rng.gen::<u64>() % modulus;
-            let extra_ctxt = cks.encrypt(extra_clear);
-            let dirty_index = rng.gen_range(0..ctxts.len());
-            sks.unchecked_add_assign(&mut ctxts[dirty_index], &extra_ctxt);
-            assert!(!ctxts[dirty_index].block_carries_are_empty());
-
-            // Another input has empty carries but a noise level above nominal, so the noise
-            // half of the cleanliness check is exercised too. No cheap operation raises the
-            // noise without also filling the carries, so the metadata is set directly. The
-            // real noise being lower than advertised does not matter for what is tested here.
-            if ctxts.len() >= 2 {
-                let noisy_index = (dirty_index + 1) % ctxts.len();
-                for block in ctxts[noisy_index].blocks_mut() {
-                    block.set_noise_level(
-                        NoiseLevel::NOMINAL + NoiseLevel::NOMINAL,
-                        sks.key.max_noise_level,
-                    );
-                }
-                assert!(ctxts[noisy_index].block_carries_are_empty());
-                assert!(!ctxts[noisy_index].is_clean());
-            }
-
-            let ct_res = executor.execute(&ctxts).unwrap();
-            let res: u64 = cks.decrypt(&ct_res);
-            let clear = (clears.iter().sum::<u64>() + extra_clear) % modulus;
-
-            assert_eq!(res, clear);
-
-            let ct_res_2 = executor.execute(&ctxts).unwrap();
-            assert_eq!(ct_res, ct_res_2, "Failed determinism check");
-        }
-    }
+    TestBuilder::new(ctx)
+        .size_requirements(vec_size_requirements(ctx, VEC_LENS))
+        .n_random(2)
+        .execute(executor, |(clears,): (Vec<Uint>,)| {
+            let bits = clears.first()?.bits();
+            Some(
+                clears
+                    .iter()
+                    .copied()
+                    .fold(Uint::zero(bits), Uint::wrapping_add),
+            )
+        });
 }

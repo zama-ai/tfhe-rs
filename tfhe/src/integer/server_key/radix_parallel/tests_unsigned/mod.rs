@@ -256,17 +256,6 @@ pub(crate) fn overflowing_add_under_modulus<T: UnsignedInteger>(
     (result % modulus, overflowed || result >= modulus)
 }
 
-pub(crate) fn overflowing_sum_slice_under_modulus(elems: &[u64], modulus: u64) -> (u64, bool) {
-    let mut s = 0u64;
-    let mut o = false;
-    for e in elems.iter().copied() {
-        let (curr_s, curr_o) = overflowing_add_under_modulus(s, e, modulus);
-        s = curr_s;
-        o |= curr_o;
-    }
-    (s, o)
-}
-
 pub(crate) fn overflowing_mul_under_modulus(a: u64, b: u64, modulus: u64) -> (u64, bool) {
     let (mut result, mut overflow) = a.overflowing_mul(b);
     overflow |= result >= modulus;
