@@ -124,7 +124,8 @@ fn bench_sns_only_fhe_type<FheType>(
                 {
                     use benchmark::find_optimal_batch::find_optimal_batch;
 
-                    let _ = num_bits; // Avoid clippy warning since FheType::num_bits() is not available.
+                    let _ = num_bits; // Avoid clippy warning since FheType::num_bits() is not
+                                      // available.
 
                     let setup = |batch_size: usize| {
                         (0..batch_size)
@@ -302,7 +303,8 @@ fn bench_decomp_sns_comp_fhe_type<FheType>(
                 {
                     use benchmark::find_optimal_batch::find_optimal_batch;
 
-                    let _ = num_bits; // Avoid clippy warning since FheType::num_bits() is not available.
+                    let _ = num_bits; // Avoid clippy warning since FheType::num_bits() is not
+                                      // available.
 
                     // Noise squashing is the current bottleneck.
                     // Measuring CPU load with decompression and compression operations alongside

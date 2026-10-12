@@ -56,6 +56,9 @@
 // Warns for field names that have a common prefix/suffix or that include the name of the type.
 // Renaming fields would be a data breaking change, plus we often want the extra verbosity
 #![allow(clippy::struct_field_names)]
+// New lint from rust 1.99 that forces to have assert_eq!(some_array, []); instead of
+// assert!(some_array.is_empty())
+#![allow(clippy::assert_is_empty)]
 // End allowed pedantic lints
 
 // The following lints have been temporarily allowed

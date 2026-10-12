@@ -425,7 +425,9 @@ pub(crate) fn pkt_trace_print_ring(entries: &[PktTraceEntry], n_valid: usize, fi
 
         let req_nm = en.req_name();
         let mark = if en.errbits != 0 { '*' } else { ' ' }; // entry captured with a live error bit
-                                                            // interpret this entry's error bits inline (only when set), instead of a global legend
+                                                            // interpret this entry's error bits
+                                                            // inline (only when set), instead of a
+                                                            // global legend
         let err_txt = if en.errbits != 0 {
             format!("  <{}>", err_names(en.errbits))
         } else {
