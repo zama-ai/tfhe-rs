@@ -74,7 +74,7 @@ where
                 let ciphertexts = iter.map(|elem| elem.ciphertext.into_cpu()).collect();
                 cpu_key
                     .pbs_key()
-                    .unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
+                    .sum_ciphertexts_vec_parallelized(ciphertexts)
                     .map_or_else(
                         || {
                             Self::new(
@@ -169,7 +169,7 @@ where
                 let msg_mod = cpu_key.pbs_key().message_modulus();
                 cpu_key
                     .pbs_key()
-                    .unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
+                    .sum_ciphertexts_vec_parallelized(ciphertexts)
                     .map_or_else(
                         || {
                             Self::new(

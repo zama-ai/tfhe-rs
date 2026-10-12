@@ -67,7 +67,7 @@ where
                     .collect::<Vec<_>>();
                 cpu_key
                     .pbs_key()
-                    .sum_ciphertexts_parallelized(ciphertexts.iter())
+                    .sum_ciphertexts_vec_parallelized(ciphertexts)
                     .map_or_else(
                         || {
                             let radix: crate::integer::SignedRadixCiphertext =
@@ -154,7 +154,7 @@ where
                     .collect::<Vec<_>>();
                 cpu_key
                     .pbs_key()
-                    .sum_ciphertexts_parallelized(ciphertexts.iter())
+                    .sum_ciphertexts_vec_parallelized(ciphertexts)
                     .map_or_else(
                         || {
                             let radix: crate::integer::SignedRadixCiphertext =
