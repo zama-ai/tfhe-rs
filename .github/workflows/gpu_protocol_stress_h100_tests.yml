@@ -32,8 +32,8 @@ jobs:
     name: gpu_protocol_stress_h100_tests/setup-instance
     uses: ./.github/workflows/slab_setup.yml
     with:
-      backend: hyperstack
-      profile: single-h100-protocol-stress
+      backend: terraform
+      profile: generic-1or2-h100
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
