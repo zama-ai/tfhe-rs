@@ -47,6 +47,49 @@ pub(crate) fn default_block_requirements(params: TestParameters) -> Vec<SizeRequ
         .collect()
 }
 
+/// Block budget for a vector operation about as costly as a sum.
+///
+/// Operations doing more work per block need a smaller budget to run in a comparable time,
+/// hence [`vec_size_requirements_with_budget`].
+pub(crate) const DEFAULT_VEC_BLOCK_BUDGET: u32 = 128;
+
+/// [`vec_size_requirements_with_budget`] with [`DEFAULT_VEC_BLOCK_BUDGET`].
+pub(crate) fn vec_size_requirements(
+    ctx: &TestContext,
+    vec_lens: impl IntoIterator<Item = u32>,
+) -> Vec<SizeRequirements> {
+    vec_size_requirements_with_budget(ctx, vec_lens, DEFAULT_VEC_BLOCK_BUDGET)
+}
+
+/// Block counts to pair with each of `vec_lens`, for a test taking a vector input.
+///
+/// The cost of a vector operation grows with both the number of elements and the number of
+/// blocks of each element, so sweeping the two axes independently is too slow. The block
+/// count is instead made to shrink as the vector grows, which keeps the total amount of
+/// work per case roughly flat while still reaching both ends of both axes: short vectors
+/// are tested with wide radixes, long vectors with narrow ones.
+///
+/// `budget` is how many blocks a case may use in total, summed over the elements of one
+/// input vector. It is only a budget, not a hard limit: an element is never given less
+/// than one block, so a vector longer than `budget` goes over it. The right value depends
+/// on how costly the tested operation is per block, so each test picks its own, starting
+/// from [`DEFAULT_VEC_BLOCK_BUDGET`].
+pub(crate) fn vec_size_requirements_with_budget(
+    ctx: &TestContext,
+    vec_lens: impl IntoIterator<Item = u32>,
+    budget: u32,
+) -> Vec<SizeRequirements> {
+    let max_n_blocks = max_block_requirement(ctx.params);
+    vec_lens
+        .into_iter()
+        .map(|vec_len| SizeRequirements {
+            // `max(1)` as the empty vector has no element to size, any block count does
+            n_blocks: (budget / vec_len.max(1)).clamp(1, max_n_blocks),
+            vec_len: Some(vec_len),
+        })
+        .collect()
+}
+
 /// Environment variable overriding the seed used by [`TestBuilder`]
 /// (decimal or `0x`-prefixed hex).
 /// The seed is printed by every run so the cases of a failing run (clear values, input

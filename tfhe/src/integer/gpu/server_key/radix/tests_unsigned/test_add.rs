@@ -1,4 +1,7 @@
-use super::legacy_default_tests::{legacy_default_add_test, legacy_default_overflowing_add_test};
+use super::legacy_default_tests::{
+    legacy_default_add_test, legacy_default_overflowing_add_test,
+    legacy_default_sum_ciphertexts_vec_test,
+};
 use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
@@ -7,7 +10,7 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    default_sum_ciphertexts_vec_test, unchecked_add_assign_test, unchecked_add_test,
+    unchecked_add_assign_test, unchecked_add_test,
 };
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
@@ -93,7 +96,7 @@ where
         sks.sum_ciphertexts(ctxt, &streams)
     };
     let executor = GpuFunctionExecutor::new(sum_vec);
-    default_sum_ciphertexts_vec_test(param, executor);
+    legacy_default_sum_ciphertexts_vec_test(param, executor);
 }
 
 fn integer_default_overflowing_add<P>(param: P)

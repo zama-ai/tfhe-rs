@@ -312,12 +312,8 @@ impl ServerKey {
             .collect::<Vec<_>>();
         ciphertexts
             .par_iter_mut()
-            .filter(|ct| ct.block_carries_are_empty())
-            .for_each(|ct| {
-                if !ct.block_carries_are_empty() {
-                    self.full_propagate_parallelized(&mut *ct);
-                }
-            });
+            .filter(|ct| !ct.is_clean())
+            .for_each(|ct| self.full_propagate_parallelized(&mut *ct));
 
         self.unchecked_unsigned_overflowing_sum_ciphertexts_vec_parallelized(ciphertexts)
     }

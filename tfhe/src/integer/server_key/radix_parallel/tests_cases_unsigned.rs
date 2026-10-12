@@ -56,7 +56,6 @@ pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::default_sub_test;
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::unchecked_sub_test;
 #[cfg(feature = "gpu")]
-pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sum::default_sum_ciphertexts_vec_test;
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_vector_find::{
     default_contains_clear_test_case, default_contains_test_case,
