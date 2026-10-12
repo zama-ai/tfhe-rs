@@ -1,12 +1,12 @@
 use super::dp_ks_ms::any_ms;
-use super::should_use_single_key_debug;
 use super::utils::noise_simulation::*;
 use super::utils::to_json::TestResult;
 use super::utils::traits::*;
 use super::utils::{
-    mean_and_variance_check, noise_check, post_squashing_and_packing_noise_check,
-    DecryptionAndNoiseResult, NoiseSample,
+    mean_and_variance_check, noise_check, pfail_check, post_squashing_and_packing_noise_check,
+    DecryptionAndNoiseResult, NoiseSample, PfailAndPrecision, PfailTestMeta, PfailTestResult,
 };
+use super::{should_run_short_pfail_tests_debug, should_use_single_key_debug};
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
@@ -24,7 +24,7 @@ use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{
-    AtomicPatternParameters, MetaParameters, NoiseSquashingCompressionParameters,
+    AtomicPatternParameters, CarryModulus, MetaParameters, NoiseSquashingCompressionParameters,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
@@ -435,22 +435,33 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
     let bsk_glwe_size = noise_squashing_key.glwe_size();
     let br_input_modulus_log = noise_squashing_key.br_input_modulus_log();
 
-    let u128_encoding = ShortintEncoding {
+    // The PBS128 input is encoded with the compute parameters, which share their message and
+    // carry moduli with the noise squashing parameters (enforced at key generation). The input
+    // cleartext space drives the number of boxes of the LUT.
+    let pbs128_input_cleartext_space = params.message_modulus().0 * params.carry_modulus().0;
+
+    // The PBS128 output, and therefore the packing output, is encoded with the moduli of the
+    // noise squashing compression parameters, which only drive the delta of the LUT. The pfail
+    // test inflates the carry modulus of these parameters to fail more frequently while keeping
+    // the input precision untouched.
+    assert_eq!(
+        noise_squashing_compression_params.ciphertext_modulus,
+        noise_squashing_params.ciphertext_modulus(),
+        "Packing output modulus is expected to match the PBS128 output modulus"
+    );
+    let output_encoding = ShortintEncoding {
         ciphertext_modulus: noise_squashing_params.ciphertext_modulus(),
-        message_modulus: noise_squashing_params.message_modulus(),
-        carry_modulus: noise_squashing_params.carry_modulus(),
+        message_modulus: noise_squashing_compression_params.message_modulus,
+        carry_modulus: noise_squashing_compression_params.carry_modulus,
         padding_bit: PaddingBit::Yes,
     };
 
     let id_lut = generate_programmable_bootstrap_glwe_lut(
         bsk_polynomial_size,
         bsk_glwe_size,
-        u128_encoding
-            .cleartext_space_without_padding()
-            .try_into()
-            .unwrap(),
-        u128_encoding.ciphertext_modulus,
-        u128_encoding.delta(),
+        pbs128_input_cleartext_space.try_into().unwrap(),
+        output_encoding.ciphertext_modulus,
+        output_encoding.delta(),
         |x| x,
     );
 
@@ -514,7 +525,7 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
                         &after_pbs128,
                         &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
                         msg.into(),
-                        &u128_encoding,
+                        &output_encoding,
                     ),
                 )
             },
@@ -526,7 +537,7 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
         noise_squashing_compression_private_key.post_packing_ks_key(),
         lwe_per_glwe,
         msg.into(),
-        &u128_encoding,
+        &output_encoding,
     );
 
     assert_eq!(after_packing.len(), lwe_per_glwe.0);
@@ -611,6 +622,37 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_noise_helper(
             })
             .collect(),
     )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn encrypt_dp_ks_standard_pbs128_packing_ks_pfail_helper(
+    params: AtomicPatternParameters,
+    noise_squashing_params: NoiseSquashingParameters,
+    noise_squashing_compression_params: NoiseSquashingCompressionParameters,
+    single_cks: &ClientKey,
+    single_sks: &ServerKey,
+    single_noise_squashing_private_key: &NoiseSquashingPrivateKey,
+    single_noise_squashing_key: &NoiseSquashingKey,
+    single_noise_squashing_compression_private_key: &NoiseSquashingCompressionPrivateKey,
+    single_noise_squashing_compression_key: &NoiseSquashingCompressionKey,
+    msg: u64,
+    scalar_for_multiplication: u64,
+) -> Vec<DecryptionAndNoiseResult> {
+    let (_before_packing, after_packing) = encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper(
+        params,
+        noise_squashing_params,
+        noise_squashing_compression_params,
+        single_cks,
+        single_sks,
+        single_noise_squashing_private_key,
+        single_noise_squashing_key,
+        single_noise_squashing_compression_private_key,
+        single_noise_squashing_compression_key,
+        msg,
+        scalar_for_multiplication,
+    );
+
+    after_packing
 }
 
 fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
@@ -774,6 +816,183 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
 
 create_parameterized_stringified_test!(
     noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise {
+        TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+        TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+    }
+);
+
+fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_pfail(
+    meta_params: MetaParameters,
+    filename_suffix: &str,
+) {
+    let function_name = this_function_name!();
+    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let (pfail_test_meta, params, noise_squashing_params, noise_squashing_compression_params) = {
+        let (params, noise_squashing_params, mut noise_squashing_compression_params) = {
+            let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
+            (
+                meta_params
+                    .compute_parameters
+                    .with_deterministic_execution(),
+                meta_noise_squashing_params
+                    .parameters
+                    .with_deterministic_execution(),
+                meta_noise_squashing_params.compression_parameters.unwrap(),
+            )
+        };
+
+        let original_message_modulus = noise_squashing_compression_params.message_modulus;
+        let original_carry_modulus = noise_squashing_compression_params.carry_modulus;
+
+        // For now only allow 2_2 parameters, and see later for heuristics to use
+        assert_eq!(original_message_modulus.0, 4);
+        assert_eq!(original_carry_modulus.0, 4);
+        assert_eq!(
+            noise_squashing_params.message_modulus(),
+            original_message_modulus
+        );
+        assert_eq!(
+            noise_squashing_params.carry_modulus(),
+            original_carry_modulus
+        );
+
+        // The measurement point is the output of the packing keyswitch. The 2_2 encoding is not
+        // what drives the noise squashing and packing parameters: they are designed so that the
+        // noise after packing stays below 2^70 under the 2^128 ciphertext modulus with a failure
+        // probability of 2^-128 (see post_squashing_and_packing_noise_check), which is far more
+        // restrictive than what the 2_2 encoding requires.
+        // Exceeding that bound is equivalent to a decryption failure for an encoding with
+        // delta / 2 = 2^70, i.e. delta = 2^71, that is 128 - 71 = 57 bits of precision with
+        // padding, or 56 bits of precision without padding.
+        let ciphertext_modulus_log2: u32 = noise_squashing_compression_params
+            .ciphertext_modulus
+            .into_modulus_log()
+            .0
+            .try_into()
+            .unwrap();
+        let noise_bound_log2 = 70;
+        let noise_bound_pfail = 2.0f64.powi(-128);
+        // Remove the padding bit and the bit that must not be touched by the noise to decrypt
+        // properly
+        let noise_bound_precision = ciphertext_modulus_log2 - noise_bound_log2 - 2;
+
+        assert_eq!(noise_bound_precision, 56);
+
+        let message_modulus_log2 = original_message_modulus.0.ilog2();
+        // Keep the message modulus and inflate the carry modulus to reach the given precision
+        let carry_modulus_for_precision = |precision: u32| {
+            assert!(precision > message_modulus_log2);
+            CarryModulus(1 << (precision - message_modulus_log2))
+        };
+
+        let original_pfail_and_precision = PfailAndPrecision::new(
+            noise_bound_pfail,
+            original_message_modulus,
+            carry_modulus_for_precision(noise_bound_precision),
+        );
+
+        // Use a larger precision for the output encoding of the PBS128 to fail more frequently,
+        // 59 bits give an expected pfail of ~2^-3.3. The input precision is untouched: the LUT
+        // keeps the box count of the 2_2 input and only its output delta changes, which does not
+        // affect the noise of the blind rotation. The moduli of the compression parameters are
+        // used neither by the key generation nor by the packing keyswitch, so the computation is
+        // the same as in the noise test.
+        let pfail_precision = 59;
+        let pfail_carry_modulus = carry_modulus_for_precision(pfail_precision);
+
+        let new_expected_pfail_and_precision = original_pfail_and_precision
+            .equivalent_for_msg_and_carry_moduli(original_message_modulus, pfail_carry_modulus);
+
+        noise_squashing_compression_params.carry_modulus = pfail_carry_modulus;
+
+        let pfail_test_meta = if should_run_short_pfail_tests_debug() {
+            let expected_fails = 200;
+            PfailTestMeta::new_with_desired_expected_fails(
+                original_pfail_and_precision,
+                new_expected_pfail_and_precision,
+                expected_fails,
+            )
+        } else {
+            let total_runs = 1_000_000;
+            PfailTestMeta::new_with_total_runs(
+                original_pfail_and_precision,
+                new_expected_pfail_and_precision,
+                total_runs,
+            )
+        };
+
+        (
+            pfail_test_meta,
+            params,
+            noise_squashing_params,
+            noise_squashing_compression_params,
+        )
+    };
+
+    let cks = ClientKey::new(params);
+    let sks = ServerKey::new(&cks);
+    let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_params);
+    let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
+    let noise_squashing_compression_private_key =
+        NoiseSquashingCompressionPrivateKey::new(noise_squashing_compression_params);
+    let noise_squashing_compression_key = NoiseSquashingCompressionKey::new(
+        &noise_squashing_private_key,
+        &noise_squashing_compression_private_key,
+    );
+
+    let max_scalar_mul = sks.max_noise_level.get();
+
+    let lwe_per_glwe: u32 = noise_squashing_compression_key
+        .lwe_per_glwe()
+        .0
+        .try_into()
+        .unwrap();
+
+    // Each run packs lwe_per_glwe ciphertexts and each of them is a sample
+    let total_samples = pfail_test_meta.total_runs_for_expected_fails();
+    let total_runs = total_samples.div_ceil(lwe_per_glwe);
+
+    println!("Actual runs with {lwe_per_glwe} samples per run: {total_runs}");
+
+    let measured_fails: f64 = (0..total_runs)
+        .into_par_iter()
+        .map(|run_idx| {
+            // The last run may produce more samples than needed to reach the total, ignore the
+            // extra ones so that the measured pfail is computed on the exact number of samples
+            let samples_for_run: usize = (total_samples - run_idx * lwe_per_glwe)
+                .min(lwe_per_glwe)
+                .try_into()
+                .unwrap();
+            let after_packing_decryption_results =
+                encrypt_dp_ks_standard_pbs128_packing_ks_pfail_helper(
+                    params,
+                    noise_squashing_params,
+                    noise_squashing_compression_params,
+                    &cks,
+                    &sks,
+                    &noise_squashing_private_key,
+                    &noise_squashing_key,
+                    &noise_squashing_compression_private_key,
+                    &noise_squashing_compression_key,
+                    0,
+                    max_scalar_mul,
+                );
+            after_packing_decryption_results
+                .iter()
+                .take(samples_for_run)
+                .map(|x| x.failure_as_f64())
+                .sum::<f64>()
+        })
+        .sum();
+
+    let test_result = PfailTestResult { measured_fails };
+
+    pfail_check(&pfail_test_meta, test_result, &guard);
+}
+
+create_parameterized_stringified_test!(
+    noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_pfail {
         TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
         TEST_META_PARAM_CPU_2_2_KS32_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
         TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
