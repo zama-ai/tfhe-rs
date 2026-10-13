@@ -1,3 +1,4 @@
+use crate::core_crypto::gpu::lwe_bootstrap_key::CudaBootstrapKey;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
@@ -122,51 +123,27 @@ impl CudaServerKey {
         let mut value_refs: Vec<_> = data.iter_mut().map(|v| v.as_mut()).collect();
 
         unsafe {
-            match (&self.bootstrapping_key, oprf_bsk) {
-                (
-                    CudaBootstrappingKey::Classic(d_bsk),
-                    CudaBootstrappingKey::Classic(oprf_d_bsk),
-                ) => {
-                    cuda_backend_oprf_bitonic_shuffle(
-                        streams,
-                        &mut value_refs,
-                        &d_seeded_lwe_input,
-                        oprf_d_bsk,
-                        d_bsk,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        computing_ks_key.params_ffi(),
-                        key_num_blocks as u32,
-                        data_num_blocks as u32,
-                        false,
-                        None,
-                        None,
-                    );
-                }
-                (
-                    CudaBootstrappingKey::MultiBit(d_multibit_bsk),
-                    CudaBootstrappingKey::MultiBit(oprf_d_multibit_bsk),
-                ) => {
-                    cuda_backend_oprf_bitonic_shuffle(
-                        streams,
-                        &mut value_refs,
-                        &d_seeded_lwe_input,
-                        oprf_d_multibit_bsk,
-                        d_multibit_bsk,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        computing_ks_key.params_ffi(),
-                        key_num_blocks as u32,
-                        data_num_blocks as u32,
-                        false,
-                        None,
-                        None,
-                    );
-                }
-                _ => panic!("OPRF key and compute key must use the same kind of bootstrapping key"),
-            }
+            assert_eq!(
+                self.bootstrapping_key.params_ffi().pbs_type,
+                oprf_bsk.params_ffi().pbs_type,
+                "OPRF key and compute key must use the same kind of bootstrapping key"
+            );
+            cuda_backend_oprf_bitonic_shuffle(
+                streams,
+                &mut value_refs,
+                &d_seeded_lwe_input,
+                oprf_bsk,
+                &self.bootstrapping_key,
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                computing_ks_key.params_ffi(),
+                key_num_blocks as u32,
+                data_num_blocks as u32,
+                false,
+                None,
+                None,
+            );
         }
 
         Ok(data)
@@ -289,51 +266,27 @@ impl CudaServerKey {
         );
 
         unsafe {
-            match (&self.bootstrapping_key, oprf_bsk) {
-                (
-                    CudaBootstrappingKey::Classic(d_bsk),
-                    CudaBootstrappingKey::Classic(oprf_d_bsk),
-                ) => {
-                    cuda_backend_oprf_bitonic_shuffle(
-                        streams,
-                        &mut value_refs,
-                        &d_seeded_lwe_input,
-                        oprf_d_bsk,
-                        d_bsk,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        computing_ks_key.params_ffi(),
-                        key_num_blocks as u32,
-                        data_num_blocks as u32,
-                        true,
-                        Some(&d_zero_lwes),
-                        rerand_ksk,
-                    );
-                }
-                (
-                    CudaBootstrappingKey::MultiBit(d_multibit_bsk),
-                    CudaBootstrappingKey::MultiBit(oprf_d_multibit_bsk),
-                ) => {
-                    cuda_backend_oprf_bitonic_shuffle(
-                        streams,
-                        &mut value_refs,
-                        &d_seeded_lwe_input,
-                        oprf_d_multibit_bsk,
-                        d_multibit_bsk,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        computing_ks_key.params_ffi(),
-                        key_num_blocks as u32,
-                        data_num_blocks as u32,
-                        true,
-                        Some(&d_zero_lwes),
-                        rerand_ksk,
-                    );
-                }
-                _ => panic!("OPRF key and compute key must use the same kind of bootstrapping key"),
-            }
+            assert_eq!(
+                self.bootstrapping_key.params_ffi().pbs_type,
+                oprf_bsk.params_ffi().pbs_type,
+                "OPRF key and compute key must use the same kind of bootstrapping key"
+            );
+            cuda_backend_oprf_bitonic_shuffle(
+                streams,
+                &mut value_refs,
+                &d_seeded_lwe_input,
+                oprf_bsk,
+                &self.bootstrapping_key,
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                computing_ks_key.params_ffi(),
+                key_num_blocks as u32,
+                data_num_blocks as u32,
+                true,
+                Some(&d_zero_lwes),
+                rerand_ksk,
+            );
         }
 
         Ok(data)
@@ -451,36 +404,18 @@ impl CudaServerKey {
         let mut value_refs: Vec<_> = data.iter_mut().map(|v| v.as_mut()).collect();
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_unchecked_bitonic_shuffle(
-                        streams,
-                        &mut key_refs,
-                        &mut value_refs,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        key_num_blocks,
-                        data_num_blocks,
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_unchecked_bitonic_shuffle(
-                        streams,
-                        &mut key_refs,
-                        &mut value_refs,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        key_num_blocks,
-                        data_num_blocks,
-                    );
-                }
-            }
+            cuda_backend_unchecked_bitonic_shuffle(
+                streams,
+                &mut key_refs,
+                &mut value_refs,
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                key_num_blocks,
+                data_num_blocks,
+            );
         }
         data
     }

@@ -11,7 +11,7 @@ use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextIn
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaVec, KsType, LweDimension};
 use crate::integer::gpu::cuda_backend_expand;
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
+use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{CompactCiphertextListExpansionKind, Degree, NoiseLevel};
 use crate::shortint::{AtomicPatternKind, CarryModulus, Ciphertext, MessageModulus};
@@ -490,46 +490,23 @@ impl CudaFlattenedVecCompactCiphertextList {
             let computing_ksk_params = computing_ks_key.params_ffi();
             let casting_ksk_params = casting_key.lwe_keyswitch_key.params_ffi();
 
-            match &sks.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_expand(
-                        streams,
-                        &mut d_output,
-                        d_input,
-                        &computing_ks_key.d_vec,
-                        &casting_key.lwe_keyswitch_key.d_vec,
-                        d_bsk,
-                        sks.message_modulus,
-                        sks.carry_modulus,
-                        computing_ksk_params,
-                        casting_ksk_params,
-                        casting_key_type,
-                        self.num_lwe_per_compact_list.as_slice(),
-                        self.is_boolean.as_slice(),
-                        self.is_boolean.len() as u32,
-                        zk_type,
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_expand(
-                        streams,
-                        &mut d_output,
-                        d_input,
-                        &computing_ks_key.d_vec,
-                        &casting_key.lwe_keyswitch_key.d_vec,
-                        d_multibit_bsk,
-                        sks.message_modulus,
-                        sks.carry_modulus,
-                        computing_ksk_params,
-                        casting_ksk_params,
-                        casting_key_type,
-                        self.num_lwe_per_compact_list.as_slice(),
-                        self.is_boolean.as_slice(),
-                        self.is_boolean.len() as u32,
-                        zk_type,
-                    );
-                }
-            }
+            cuda_backend_expand(
+                streams,
+                &mut d_output,
+                d_input,
+                &computing_ks_key.d_vec,
+                &casting_key.lwe_keyswitch_key.d_vec,
+                &sks.bootstrapping_key,
+                sks.message_modulus,
+                sks.carry_modulus,
+                computing_ksk_params,
+                casting_ksk_params,
+                casting_key_type,
+                self.num_lwe_per_compact_list.as_slice(),
+                self.is_boolean.as_slice(),
+                self.is_boolean.len() as u32,
+                zk_type,
+            );
             d_output
         };
 

@@ -12,9 +12,7 @@
 
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
-use crate::integer::gpu::server_key::{
-    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
-};
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 use crate::integer::gpu::{
     cuda_backend_mul_add_fixed_point_with_rescaling, cuda_backend_mul_low_partial_sum,
 };
@@ -68,40 +66,20 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_mul_add_fixed_point_with_rescaling(
-                        streams,
-                        result.as_mut(),
-                        lhs.as_ref(),
-                        rhs.as_ref(),
-                        added.map(|a| a.as_ref()),
-                        rescaling,
-                        precision,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_mul_add_fixed_point_with_rescaling(
-                        streams,
-                        result.as_mut(),
-                        lhs.as_ref(),
-                        rhs.as_ref(),
-                        added.map(|a| a.as_ref()),
-                        rescaling,
-                        precision,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-            }
+            cuda_backend_mul_add_fixed_point_with_rescaling(
+                streams,
+                result.as_mut(),
+                lhs.as_ref(),
+                rhs.as_ref(),
+                added.map(|a| a.as_ref()),
+                rescaling,
+                precision,
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
         streams.synchronize();
         result
@@ -167,40 +145,20 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_mul_low_partial_sum(
-                        streams,
-                        result.as_mut(),
-                        lhs.as_ref(),
-                        rhs.as_ref(),
-                        extra_list.as_ref(),
-                        num_extra_terms,
-                        propagate_carries,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_mul_low_partial_sum(
-                        streams,
-                        result.as_mut(),
-                        lhs.as_ref(),
-                        rhs.as_ref(),
-                        extra_list.as_ref(),
-                        num_extra_terms,
-                        propagate_carries,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-            }
+            cuda_backend_mul_low_partial_sum(
+                streams,
+                result.as_mut(),
+                lhs.as_ref(),
+                rhs.as_ref(),
+                extra_list.as_ref(),
+                num_extra_terms,
+                propagate_carries,
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
         streams.synchronize();
         result

@@ -18,6 +18,7 @@ use crate::shortint::oprf::{
 };
 use crate::shortint::OprfSeed;
 
+use crate::core_crypto::gpu::lwe_bootstrap_key::CudaBootstrapKey;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::vec::CudaVec;
@@ -654,34 +655,17 @@ where
         }
 
         unsafe {
-            match bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_grouped_oprf(
-                        streams,
-                        result,
-                        &d_seeded_lwe_input,
-                        num_active_blocks as u32,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        target_sks.message_modulus,
-                        target_sks.carry_modulus,
-                        total_random_bits as u32,
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_bsk) => {
-                    cuda_backend_grouped_oprf(
-                        streams,
-                        result,
-                        &d_seeded_lwe_input,
-                        num_active_blocks as u32,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        target_sks.message_modulus,
-                        target_sks.carry_modulus,
-                        total_random_bits as u32,
-                    );
-                }
-            }
+            cuda_backend_grouped_oprf(
+                streams,
+                result,
+                &d_seeded_lwe_input,
+                num_active_blocks as u32,
+                bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                target_sks.message_modulus,
+                target_sks.carry_modulus,
+                total_random_bits as u32,
+            );
         }
 
         rle_info
@@ -993,60 +977,29 @@ where
         zero_lwes: Option<&CudaLweCompactCiphertextList<u64>>,
         rerand_keyswitch_key: Option<&CudaLweKeyswitchKey<u64>>,
     ) {
-        match (
+        assert_eq!(
+            self.bootstrapping_key.borrow().params_ffi().pbs_type,
+            target_sks.bootstrapping_key.params_ffi().pbs_type,
+            "OPRF and compute bootstrapping keys must have matching types"
+        );
+        cuda_backend_grouped_oprf_custom_range(
+            streams,
+            result,
+            num_blocks_intermediate,
+            d_seeded_lwe_input,
+            decomposed_scalar,
+            has_at_least_one_set,
+            num_input_random_bits,
             self.bootstrapping_key.borrow(),
             &target_sks.bootstrapping_key,
-        ) {
-            (
-                CudaBootstrappingKey::Classic(d_bsk),
-                CudaBootstrappingKey::Classic(compute_d_bsk),
-            ) => {
-                cuda_backend_grouped_oprf_custom_range(
-                    streams,
-                    result,
-                    num_blocks_intermediate,
-                    d_seeded_lwe_input,
-                    decomposed_scalar,
-                    has_at_least_one_set,
-                    num_input_random_bits,
-                    d_bsk,
-                    compute_d_bsk,
-                    &computing_ks_key.d_vec,
-                    computing_ks_key.params_ffi(),
-                    target_sks.message_modulus,
-                    target_sks.carry_modulus,
-                    apply_rerand,
-                    zero_lwes,
-                    rerand_keyswitch_key,
-                );
-            }
-            (
-                CudaBootstrappingKey::MultiBit(d_bsk),
-                CudaBootstrappingKey::MultiBit(compute_d_bsk),
-            ) => {
-                cuda_backend_grouped_oprf_custom_range(
-                    streams,
-                    result,
-                    num_blocks_intermediate,
-                    d_seeded_lwe_input,
-                    decomposed_scalar,
-                    has_at_least_one_set,
-                    num_input_random_bits,
-                    d_bsk,
-                    compute_d_bsk,
-                    &computing_ks_key.d_vec,
-                    computing_ks_key.params_ffi(),
-                    target_sks.message_modulus,
-                    target_sks.carry_modulus,
-                    apply_rerand,
-                    zero_lwes,
-                    rerand_keyswitch_key,
-                );
-            }
-            (_, _) => {
-                panic!("OPRF and compute bootstrapping keys must have matching types");
-            }
-        }
+            &computing_ks_key.d_vec,
+            computing_ks_key.params_ffi(),
+            target_sks.message_modulus,
+            target_sks.carry_modulus,
+            apply_rerand,
+            zero_lwes,
+            rerand_keyswitch_key,
+        );
     }
 
     /// Getter for the GPU memory usage of OPRF.
@@ -1061,26 +1014,15 @@ where
             panic!("Only the standard atomic pattern is supported");
         };
 
-        match &self.bootstrapping_key.borrow() {
-            CudaBootstrappingKey::Classic(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
-                streams,
-                1,
-                d_bsk,
-                computing_ks_key.params_ffi(),
-                target_sks.message_modulus,
-                target_sks.carry_modulus,
-                message_bits,
-            ),
-            CudaBootstrappingKey::MultiBit(d_bsk) => cuda_backend_get_grouped_oprf_size_on_gpu(
-                streams,
-                1,
-                d_bsk,
-                computing_ks_key.params_ffi(),
-                target_sks.message_modulus,
-                target_sks.carry_modulus,
-                message_bits,
-            ),
-        }
+        cuda_backend_get_grouped_oprf_size_on_gpu(
+            streams,
+            1,
+            self.bootstrapping_key.borrow(),
+            computing_ks_key.params_ffi(),
+            target_sks.message_modulus,
+            target_sks.carry_modulus,
+            message_bits,
+        )
     }
 
     pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(

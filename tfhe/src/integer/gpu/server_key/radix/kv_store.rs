@@ -16,7 +16,7 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey,
 };
-use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaDynamicKeyswitchingKey};
+use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
     cuda_backend_kv_store_contains_key, cuda_backend_kv_store_get, cuda_backend_kv_store_map,
     cuda_backend_kv_store_update, CudaServerKey,
@@ -460,42 +460,21 @@ impl CudaServerKey {
         // to `streams` with exclusive write access. All input buffers are
         // read-only and live on the same device.
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_kv_store_get(
-                        streams,
-                        &mut result_ct,
-                        &mut result_bool,
-                        &mut selectors_ct,
-                        encrypted_key.as_ref(),
-                        &concatenated_values,
-                        &clear_keys,
-                        num_blocks_per_value_u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_kv_store_get(
-                        streams,
-                        &mut result_ct,
-                        &mut result_bool,
-                        &mut selectors_ct,
-                        encrypted_key.as_ref(),
-                        &concatenated_values,
-                        &clear_keys,
-                        num_blocks_per_value_u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-            }
+            cuda_backend_kv_store_get(
+                streams,
+                &mut result_ct,
+                &mut result_bool,
+                &mut selectors_ct,
+                encrypted_key.as_ref(),
+                &concatenated_values,
+                &clear_keys,
+                num_blocks_per_value_u32,
+                self.message_modulus,
+                self.carry_modulus,
+                &computing_ks_key.d_vec,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
 
         (result_ct, result_bool, selectors_ct.d_blocks)
@@ -531,34 +510,17 @@ impl CudaServerKey {
         // SAFETY: all buffers are valid allocations on the same device.
         // result_bool has exclusive write access; all others are read-only.
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_kv_store_contains_key(
-                        streams,
-                        &mut result_bool,
-                        encrypted_key.as_ref(),
-                        &clear_keys,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_kv_store_contains_key(
-                        streams,
-                        &mut result_bool,
-                        encrypted_key.as_ref(),
-                        &clear_keys,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-            }
+            cuda_backend_kv_store_contains_key(
+                streams,
+                &mut result_bool,
+                encrypted_key.as_ref(),
+                &clear_keys,
+                self.message_modulus,
+                self.carry_modulus,
+                &computing_ks_key.d_vec,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
 
         result_bool
@@ -658,42 +620,21 @@ impl CudaServerKey {
         // to `streams` with exclusive write access. All input buffers are
         // read-only and live on the same device.
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_kv_store_update(
-                        streams,
-                        &mut d_check_block.ciphertext,
-                        &mut d_updated_values.ciphertext,
-                        encrypted_key.as_ref(),
-                        &concatenated_old_values,
-                        new_value.as_ref(),
-                        &clear_keys,
-                        num_blocks_per_value_u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_kv_store_update(
-                        streams,
-                        &mut d_check_block.ciphertext,
-                        &mut d_updated_values.ciphertext,
-                        encrypted_key.as_ref(),
-                        &concatenated_old_values,
-                        new_value.as_ref(),
-                        &clear_keys,
-                        num_blocks_per_value_u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-            }
+            cuda_backend_kv_store_update(
+                streams,
+                &mut d_check_block.ciphertext,
+                &mut d_updated_values.ciphertext,
+                encrypted_key.as_ref(),
+                &concatenated_old_values,
+                new_value.as_ref(),
+                &clear_keys,
+                num_blocks_per_value_u32,
+                self.message_modulus,
+                self.carry_modulus,
+                &computing_ks_key.d_vec,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
 
         map.update_from_concatenated(&d_updated_values.ciphertext, streams);
@@ -773,40 +714,20 @@ impl CudaServerKey {
         // to `streams` with exclusive write access. All input buffers are
         // read-only and live on the same device.
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_kv_store_map(
-                        streams,
-                        &mut d_check_block.ciphertext,
-                        &mut d_updated_values.ciphertext,
-                        &concatenated_old_values,
-                        new_value.as_ref(),
-                        &selectors_ct,
-                        num_blocks_per_value_u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_kv_store_map(
-                        streams,
-                        &mut d_check_block.ciphertext,
-                        &mut d_updated_values.ciphertext,
-                        &concatenated_old_values,
-                        new_value.as_ref(),
-                        &selectors_ct,
-                        num_blocks_per_value_u32,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-            }
+            cuda_backend_kv_store_map(
+                streams,
+                &mut d_check_block.ciphertext,
+                &mut d_updated_values.ciphertext,
+                &concatenated_old_values,
+                new_value.as_ref(),
+                &selectors_ct,
+                num_blocks_per_value_u32,
+                self.message_modulus,
+                self.carry_modulus,
+                &computing_ks_key.d_vec,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
 
         map.update_from_concatenated(&d_updated_values.ciphertext, streams);

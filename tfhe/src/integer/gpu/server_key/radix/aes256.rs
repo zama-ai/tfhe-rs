@@ -2,9 +2,7 @@ use crate::core_crypto::gpu::{
     check_valid_cuda_malloc, check_valid_cuda_malloc_assert_oom, CudaStreams,
 };
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
-use crate::integer::gpu::server_key::{
-    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
-};
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 
 use crate::integer::gpu::{
     cuda_backend_aes_key_expansion_256, cuda_backend_get_aes_key_expansion_256_size_on_gpu,
@@ -203,40 +201,20 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_unchecked_aes_ctr_256_encrypt(
-                        streams,
-                        result.as_mut(),
-                        iv.as_ref(),
-                        round_keys.as_ref(),
-                        start_counter,
-                        num_aes_inputs as u32,
-                        sbox_parallelism as u32,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_unchecked_aes_ctr_256_encrypt(
-                        streams,
-                        result.as_mut(),
-                        iv.as_ref(),
-                        round_keys.as_ref(),
-                        start_counter,
-                        num_aes_inputs as u32,
-                        sbox_parallelism as u32,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-            }
+            cuda_backend_unchecked_aes_ctr_256_encrypt(
+                streams,
+                result.as_mut(),
+                iv.as_ref(),
+                round_keys.as_ref(),
+                start_counter,
+                num_aes_inputs as u32,
+                sbox_parallelism as u32,
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
         result
     }
@@ -266,32 +244,16 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_aes_key_expansion_256(
-                        streams,
-                        expanded_keys.as_mut(),
-                        key.as_ref(),
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_aes_key_expansion_256(
-                        streams,
-                        expanded_keys.as_mut(),
-                        key.as_ref(),
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                    );
-                }
-            }
+            cuda_backend_aes_key_expansion_256(
+                streams,
+                expanded_keys.as_mut(),
+                key.as_ref(),
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
         expanded_keys
     }
@@ -301,25 +263,12 @@ impl CudaServerKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_backend_get_aes_key_expansion_256_size_on_gpu(
-                    streams,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk,
-                    computing_ks_key.params_ffi(),
-                )
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_backend_get_aes_key_expansion_256_size_on_gpu(
-                    streams,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk,
-                    computing_ks_key.params_ffi(),
-                )
-            }
-        }
+        cuda_backend_get_aes_key_expansion_256_size_on_gpu(
+            streams,
+            self.message_modulus,
+            self.carry_modulus,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+        )
     }
 }
