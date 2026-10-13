@@ -180,23 +180,27 @@ impl ServerKey {
     /// Computes the sum of the ciphertexts in parallel.
     ///
     /// - Returns None if ciphertexts is empty
-    ///
-    /// See [Self::unchecked_sum_ciphertexts_parallelized] for constraints
-    pub fn sum_ciphertexts_parallelized<'a, T, C>(&self, ciphertexts: C) -> Option<T>
+    /// - Expects all ciphertexts to have the same size
+    pub fn sum_ciphertexts_vec_parallelized<T>(&self, mut ciphertexts: Vec<T>) -> Option<T>
     where
-        C: IntoIterator<Item = &'a T>,
-        T: IntegerRadixCiphertext + 'a,
+        T: IntegerRadixCiphertext,
     {
-        let mut ciphertexts = ciphertexts
-            .into_iter()
-            .map(Clone::clone)
-            .collect::<Vec<T>>();
         ciphertexts
             .par_iter_mut()
             .filter(|ct| !ct.is_clean())
             .for_each(|ct| self.full_propagate_parallelized(&mut *ct));
 
         self.unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
+    }
+
+    /// See [Self::sum_ciphertexts_vec_parallelized]
+    pub fn sum_ciphertexts_parallelized<'a, T, C>(&self, ciphertexts: C) -> Option<T>
+    where
+        C: IntoIterator<Item = &'a T>,
+        T: IntegerRadixCiphertext + 'a,
+    {
+        let ciphertexts = ciphertexts.into_iter().map(Clone::clone).collect();
+        self.sum_ciphertexts_vec_parallelized(ciphertexts)
     }
 
     /// - Expects all ciphertexts to have empty carries
