@@ -1,4 +1,4 @@
-use crate::core_crypto::gpu::vec::CudaVec;
+use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{
     convert_lwe_programmable_bootstrap_key_async, CudaStreams, PBSMSNoiseReductionType,
 };
@@ -7,12 +7,15 @@ use crate::core_crypto::prelude::{
     GlweDimension, LweBootstrapKey, LweDimension, PolynomialSize, UnsignedInteger,
 };
 use crate::shortint::server_key::ModulusSwitchConfiguration;
+use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::{
     CudaClassicalPbsParamsFFI, CudaLweBootstrapKeyParamsFFI, CudaPbsTypeParamsFFI,
     PBS_TYPE_CLASSICAL,
 };
 
-pub(crate) trait CudaBskParams {
+pub(crate) trait CudaBootstrapKey {
+    fn ptrs(&self) -> &[*mut c_void];
+    fn gpu_index(&self, index: u32) -> GpuIndex;
     fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI;
 }
 
@@ -152,7 +155,15 @@ impl CudaLweBootstrapKey {
     }
 }
 
-impl CudaBskParams for CudaLweBootstrapKey {
+impl CudaBootstrapKey for CudaLweBootstrapKey {
+    fn ptrs(&self) -> &[*mut c_void] {
+        &self.d_vec.ptr
+    }
+
+    fn gpu_index(&self, index: u32) -> GpuIndex {
+        self.d_vec.gpu_index(index)
+    }
+
     fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
         CudaLweBootstrapKeyParamsFFI {
             input_lwe_dimension: u32::try_from(self.input_lwe_dimension.0).unwrap(),

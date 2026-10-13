@@ -34,7 +34,6 @@ impl CudaServerKey {
                     cuda_backend_unchecked_signed_abs_assign(
                         streams,
                         ct.as_mut(),
-                        &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,
@@ -59,7 +58,6 @@ impl CudaServerKey {
                     cuda_backend_unchecked_signed_abs_assign(
                         streams,
                         ct.as_mut(),
-                        &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
                         self.message_modulus,
                         self.carry_modulus,

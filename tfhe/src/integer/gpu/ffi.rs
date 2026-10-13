@@ -1,6 +1,6 @@
 #![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaBskParams;
+use crate::core_crypto::gpu::lwe_bootstrap_key::CudaBootstrapKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
@@ -358,20 +358,15 @@ pub(crate) unsafe fn cuda_backend_scalar_addition_assign<T: UnsignedInteger>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
-    T: UnsignedInteger,
-    KST: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
     decomposed_scalar: &[T],
     has_at_least_one_set: &[T],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_scalars: u32,
 ) {
@@ -385,10 +380,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -441,7 +436,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
         decomposed_scalar.as_ptr().cast::<u64>(),
         has_at_least_one_set.as_ptr().cast::<u64>(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(message_modulus.0).unwrap(),
         num_scalars,
@@ -457,7 +452,7 @@ pub(crate) fn cuda_backend_get_scalar_mul_size_on_gpu<T: UnsignedInteger>(
     decomposed_scalar: &[T],
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -501,7 +496,7 @@ pub(crate) fn cuda_backend_get_scalar_div_size_on_gpu<Scalar>(
     divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64
@@ -590,7 +585,7 @@ pub(crate) fn cuda_backend_get_signed_scalar_div_size_on_gpu<Scalar>(
     divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64
@@ -817,18 +812,17 @@ pub(crate) fn cuda_backend_get_compression_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
+pub(crate) unsafe fn cuda_backend_decompress(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<u64>,
     glwe_in: &CudaPackedGlweCiphertextList<u64>,
-    bootstrapping_key: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     encryption_glwe_dimension: GlweDimension,
     encryption_polynomial_size: PolynomialSize,
     compression_glwe_dimension: GlweDimension,
     compression_polynomial_size: PolynomialSize,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     vec_indexes: &[u32],
     num_blocks_to_decompress: u32,
 ) {
@@ -857,7 +851,7 @@ pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
         &raw mut lwe_array_out_ffi,
         &raw const glwe_array_in_ffi,
         vec_indexes.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         mem_ptr,
     );
 
@@ -942,7 +936,7 @@ pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
     encryption_polynomial_size: PolynomialSize,
     compression_glwe_dimension: GlweDimension,
     compression_polynomial_size: PolynomialSize,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     num_blocks_to_decompress: u32,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -1046,17 +1040,16 @@ pub(crate) unsafe fn cuda_backend_unchecked_add_assign(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     is_boolean_left: bool,
     radix_lwe_right: &CudaRadixCiphertext,
     is_boolean_right: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) {
@@ -1077,10 +1070,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1143,7 +1136,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         is_boolean_left,
         &raw const cuda_ffi_radix_lwe_right,
         is_boolean_right,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         mem_ptr,
         bsk_params.polynomial_size,
@@ -1160,7 +1153,7 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
     is_boolean_right: bool,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -1193,15 +1186,14 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     num_blocks: u32,
@@ -1223,10 +1215,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1287,7 +1279,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1300,15 +1292,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     is_unchecked: bool,
@@ -1331,10 +1322,10 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1396,7 +1387,7 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_boolean_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1408,7 +1399,7 @@ pub(crate) fn cuda_backend_get_boolean_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     is_unchecked: bool,
@@ -1442,7 +1433,7 @@ pub(crate) fn cuda_backend_get_boolean_bitnot_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     is_unchecked: bool,
     num_blocks: u32,
@@ -1474,7 +1465,7 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     num_blocks: u32,
@@ -1510,17 +1501,15 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
     T: UnsignedInteger,
     KST: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     radix_lwe: &mut CudaRadixCiphertext,
     clear_blocks: &CudaVec<T>,
     h_clear_blocks: &[T],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     num_blocks: u32,
@@ -1542,10 +1531,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1586,7 +1575,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
         min(u32::try_from(clear_blocks.len()).unwrap(), num_blocks),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_scalar_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1598,7 +1587,7 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     num_blocks: u32,
@@ -1634,16 +1623,15 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_left: &CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: ComparisonType,
     is_signed: bool,
@@ -1672,10 +1660,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Nu
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1758,7 +1746,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Nu
         &raw const cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -1771,7 +1759,7 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     op: ComparisonType,
@@ -1809,18 +1797,16 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
     T: UnsignedInteger,
     KST: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
     scalar_blocks: &CudaVec<T>,
     h_scalar_blocks: &[T],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_scalar_blocks: u32,
     op: ComparisonType,
@@ -1850,10 +1836,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1918,7 +1904,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
         scalar_blocks.as_c_ptr(0),
         h_scalar_blocks.as_ptr().cast::<std::ffi::c_void>(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         num_scalar_blocks,
     );
@@ -1933,12 +1919,11 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
@@ -1954,10 +1939,10 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: N
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1999,7 +1984,7 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: N
         &raw mut cuda_ffi_radix_lwe_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         num_blocks,
     );
     cleanup_cuda_full_propagation_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -2009,7 +1994,7 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: N
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
     streams: &CudaStreams,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -2040,14 +2025,13 @@ pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
     carry_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
@@ -2065,10 +2049,10 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2134,7 +2118,7 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2147,7 +2131,7 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
     streams: &CudaStreams,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
@@ -2182,7 +2166,7 @@ pub(crate) fn cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu(
     streams: &CudaStreams,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
@@ -2220,18 +2204,14 @@ pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     lhs_input: &mut CudaRadixCiphertext,
     rhs_input: &CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
     carry_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
@@ -2270,10 +2250,10 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2353,7 +2333,7 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2374,18 +2354,14 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     lhs_input: &mut CudaRadixCiphertext,
     rhs_input: &CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
     carry_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
@@ -2424,10 +2400,10 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2501,7 +2477,7 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2520,13 +2496,12 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
+pub(crate) unsafe fn cuda_backend_grouped_oprf(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     seeded_lwe_input: &CudaVec<u64>,
     num_blocks_to_process: u32,
-    bootstrapping_key: &CudaVec<B>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -2538,7 +2513,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
     );
     assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0),);
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0),);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -2575,7 +2550,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
         seeded_lwe_input.as_c_ptr(0),
         num_blocks_to_process,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
     );
 
     cleanup_cuda_integer_grouped_oprf_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -2602,11 +2577,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
 ///   directly. In `rerand_ksk_params`, only `input_lwe_dimension` is read in that mode: it sizes
 ///   the expanded encryptions of zero and selects the expansion kernel. `output_lwe_dimension`,
 ///   `base_log` and `level_count` are unused.
-pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
-    T: UnsignedInteger,
-    B: Numeric,
-    KST: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<T: UnsignedInteger, KST: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     num_blocks_intermediate: u32,
@@ -2614,10 +2585,9 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     decomposed_scalar: &[T],
     has_at_least_one_set: &[T],
     shift: u32,
-    bootstrapping_key: &CudaVec<B>,
-    compute_bootstrapping_key: &CudaVec<B>,
+    bsk: &impl CudaBootstrapKey,
+    compute_bsk: &impl CudaBootstrapKey,
     key_switching_key: &CudaVec<KST>,
-    bsk: &impl CudaBskParams,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -2631,11 +2601,8 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
     );
     assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
-    assert_eq!(
-        streams.gpu_indexes[0],
-        compute_bootstrapping_key.gpu_index(0)
-    );
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], compute_bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], key_switching_key.gpu_index(0));
 
     let num_scalars = u32::try_from(decomposed_scalar.len()).unwrap();
@@ -2723,8 +2690,8 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         shift,
         zero_lwes_ptr,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        compute_bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
+        compute_bsk.ptrs().as_ptr(),
         key_switching_key.ptr.as_ptr(),
         rerand_ksks_ptr,
     );
@@ -2741,7 +2708,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
 pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
     streams: &CudaStreams,
     num_blocks_to_process: u32,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -2776,20 +2743,15 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
-    T: UnsignedInteger,
-    B: Numeric,
-    Scalar,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<T: UnsignedInteger, Scalar>(
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
     divisor: Scalar,
     ksks: &CudaVec<T>,
-    bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -2943,7 +2905,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        bsks.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         divisor_has_at_least_one_set.as_ptr(),
@@ -2971,7 +2933,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     T: UnsignedInteger,
-    B: Numeric,
     Scalar,
 >(
     streams: &CudaStreams,
@@ -2979,10 +2940,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     remainder: &mut CudaRadixCiphertext,
     divisor: Scalar,
     ksks: &CudaVec<T>,
-    bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) where
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -3122,7 +3082,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        bsks.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         divisor_has_at_least_one_set.as_ptr(),
@@ -3146,7 +3106,7 @@ pub(crate) fn cuda_backend_get_scalar_div_rem_size_on_gpu<Scalar>(
     divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64
@@ -3249,7 +3209,7 @@ pub(crate) fn cuda_backend_get_signed_scalar_div_rem_size_on_gpu<Scalar>(
     divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64
@@ -3339,19 +3299,14 @@ where
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
-    T: UnsignedInteger,
-    B: Numeric,
-    Scalar,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<T: UnsignedInteger, Scalar>(
     streams: &CudaStreams,
     numerator: &mut CudaRadixCiphertext,
     divisor: Scalar,
     ksks: &CudaVec<T>,
-    bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) where
     Scalar: Reciprocable,
@@ -3362,7 +3317,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
         numerator.d_blocks.0.d_vec.gpu_index(0)
     );
     assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
 
     let num_blocks = u32::try_from(numerator.d_blocks.lwe_ciphertext_count().0).unwrap();
 
@@ -3480,7 +3435,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
         streams.ffi(),
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        bsks.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
     );
@@ -3499,19 +3454,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
-    T: UnsignedInteger,
-    B: Numeric,
-    Scalar,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<T: UnsignedInteger, Scalar>(
     streams: &CudaStreams,
     numerator: &mut CudaRadixCiphertext,
     divisor: Scalar,
     ksks: &CudaVec<T>,
-    bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) where
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -3610,7 +3560,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
         streams.ffi(),
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        bsks.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         numerator_bits,
@@ -3627,18 +3577,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     input: &mut CudaRadixCiphertext,
     shift: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) {
@@ -3652,10 +3598,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3691,7 +3637,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_logical_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3706,16 +3652,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
     T: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     input: &mut CudaRadixCiphertext,
     shift: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) {
@@ -3729,10 +3673,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3768,7 +3712,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_logical_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3783,16 +3727,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign<
     T: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     input: &mut CudaRadixCiphertext,
     shift: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -3805,10 +3747,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3844,7 +3786,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_arithmetic_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3857,15 +3799,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_shift: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
@@ -3887,10 +3828,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3944,7 +3885,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3957,15 +3898,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_shift: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
@@ -3987,10 +3927,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4044,7 +3984,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4057,15 +3997,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_rotation: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
@@ -4087,10 +4026,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4149,7 +4088,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4162,15 +4101,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_rotation: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
@@ -4192,10 +4130,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4254,7 +4192,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4266,7 +4204,7 @@ pub(crate) fn cuda_backend_get_scalar_left_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -4300,7 +4238,7 @@ pub(crate) fn cuda_backend_get_scalar_logical_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -4334,7 +4272,7 @@ pub(crate) fn cuda_backend_get_scalar_arithmetic_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -4368,7 +4306,7 @@ pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
@@ -4401,7 +4339,7 @@ pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
@@ -4434,7 +4372,7 @@ pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
@@ -4467,7 +4405,7 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
@@ -4501,17 +4439,16 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_condition: &CudaBooleanBlock,
     radix_lwe_true: &CudaRadixCiphertext,
     radix_lwe_false: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) {
@@ -4559,10 +4496,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4662,7 +4599,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
         &raw const cuda_ffi_radix_lwe_true,
         &raw const cuda_ffi_radix_lwe_false,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_cmux_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4820,7 +4757,7 @@ pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -4851,18 +4788,14 @@ pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     n: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) {
@@ -4876,10 +4809,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4918,7 +4851,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
         &raw mut cuda_ffi_radix_lwe_left,
         n,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_scalar_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4931,18 +4864,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     n: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) {
@@ -4956,10 +4885,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4998,7 +4927,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
         &raw mut cuda_ffi_radix_lwe_left,
         n,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_scalar_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5010,7 +4939,7 @@ pub(crate) fn cuda_backend_get_scalar_rotate_left_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -5041,7 +4970,7 @@ pub(crate) fn get_scalar_rotate_right_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -5073,19 +5002,15 @@ pub(crate) fn get_scalar_rotate_right_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     result: &mut CudaRadixCiphertext,
     radix_list: &mut CudaRadixCiphertext,
     reduce_degrees_for_single_carry_propagation: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     num_radixes: u32,
@@ -5107,10 +5032,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5154,7 +5079,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
         &raw mut cuda_ffi_result,
         &raw mut cuda_ffi_radix_list,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_partial_sum_ciphertexts_vec_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5175,10 +5100,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<T: UnsignedInteger>(
     streams: &CudaStreams,
     result: &mut CudaRadixCiphertext,
     lhs: &CudaRadixCiphertext,
@@ -5186,11 +5108,10 @@ pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
     added: Option<&CudaRadixCiphertext>,
     rescaling: u32,
     precision: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -5239,7 +5160,7 @@ pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
             .as_ref()
             .map_or(std::ptr::null(), std::ptr::from_ref),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_mul_add_fixed_point_with_rescaling_64(
@@ -5260,7 +5181,7 @@ pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger>(
     streams: &CudaStreams,
     result: &mut CudaRadixCiphertext,
     lhs: &CudaRadixCiphertext,
@@ -5268,11 +5189,10 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Num
     extra_terms: Option<&CudaRadixCiphertext>,
     num_extra_terms: u32,
     propagate_carries: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -5320,7 +5240,7 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Num
         num_extra_terms,
         propagate_carries,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_mul_low_partial_sum_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5333,11 +5253,7 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Num
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
-    T: UnsignedInteger,
-    KST: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -5345,9 +5261,8 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
     input: &CudaSlice<T>,
     input_lut: &[T],
     lut_degree: u64,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
@@ -5370,10 +5285,10 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5418,7 +5333,7 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
     );
     cleanup_cuda_apply_univariate_lut_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
@@ -5432,7 +5347,6 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
 pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
     T: UnsignedInteger,
     KST: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
@@ -5441,9 +5355,8 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
     input: &CudaSlice<T>,
     input_lut: &[T],
     lut_degree: u64,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
@@ -5468,10 +5381,10 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5516,7 +5429,7 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         num_many_lut,
         lut_stride,
     );
@@ -5529,18 +5442,17 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
     numerator: &CudaRadixCiphertext,
     divisor: &CudaRadixCiphertext,
     is_signed: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) {
@@ -5575,10 +5487,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5650,7 +5562,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B
         &raw const cuda_ffi_divisor,
         is_signed,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_div_rem_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5664,7 +5576,7 @@ pub(crate) fn cuda_backend_get_div_rem_size_on_gpu(
     is_signed: bool,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) -> u64 {
@@ -5696,13 +5608,12 @@ pub(crate) fn cuda_backend_get_div_rem_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger>(
     streams: &CudaStreams,
     output_ct: &mut CudaRadixCiphertext,
     input_ct: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -5722,7 +5633,7 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: stream and bootstrapping_key are on different GPUs"
     );
     assert_eq!(
@@ -5775,7 +5686,7 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
         &raw mut cuda_ffi_output_ct,
         &raw const cuda_ffi_input_ct,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -5793,16 +5704,15 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
     trivial_ct_neg_n: &CudaRadixCiphertext,
     trivial_ct_2: &CudaRadixCiphertext,
     trivial_ct_m_minus_1_block: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -5912,7 +5822,7 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
         &raw const cuda_ffi_trivial_ct_2,
         &raw const cuda_ffi_trivial_all_ones_block,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -5927,18 +5837,14 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
     carry_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -5962,10 +5868,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6049,7 +5955,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         compute_overflow as u32,
         uses_input_borrow,
@@ -6065,14 +5971,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     ct: &mut CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
 ) {
@@ -6086,10 +5991,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6119,7 +6024,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
         &raw mut cuda_ffi_ct,
         mem_ptr,
         true,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_abs_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -6134,16 +6039,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_true<
     T: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -6163,10 +6066,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6227,7 +6130,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
@@ -6245,18 +6148,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -6276,10 +6175,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6340,7 +6239,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
@@ -6502,11 +6401,7 @@ pub(crate) unsafe fn cuda_backend_extend_radix_with_trivial_zero_blocks_msb(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_noise_squashing<
-    T: UnsignedInteger,
-    KST: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -6514,9 +6409,8 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
     input: &CudaSlice<u64>,
     input_degrees: &mut Vec<u64>,
     input_noise_levels: &mut Vec<u64>,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     input_glwe_dimension: GlweDimension,
     input_polynomial_size: PolynomialSize,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
@@ -6542,10 +6436,10 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6596,7 +6490,7 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
     );
 
     cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -6615,14 +6509,13 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
 /// that were inside that vector of compact list. Handling the input this way removes the need
 /// to process multiple compact lists separately, simplifying GPU-based operations. The variable
 /// name `lwe_flattened_compact_array_in` makes this intent explicit.
-pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<T>,
     lwe_flattened_compact_array_in: &CudaVec<T>,
-    bootstrapping_key: &CudaVec<B>,
     computing_ks_key: &CudaVec<KST>,
     casting_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     computing_ksk_params: CudaLweKeyswitchKeyParamsFFI,
@@ -6649,10 +6542,10 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_indexes[0],
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_indexes[0].get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6693,7 +6586,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
         lwe_array_out.0.d_vec.as_mut_c_ptr(0),
         lwe_flattened_compact_array_in.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         computing_ks_key.ptr.as_ptr(),
         casting_key.ptr.as_ptr(),
     );
@@ -6706,7 +6599,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
@@ -6714,11 +6607,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
     start_counter: u128,
     num_aes_inputs: u32,
     sbox_parallelism: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -6772,7 +6664,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
         counter_bits_le.as_ptr(),
         num_aes_inputs,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -6787,7 +6679,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
@@ -6795,11 +6687,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteg
     start_counter: u128,
     num_aes_inputs: u32,
     sbox_parallelism: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -6853,7 +6744,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteg
         counter_bits_le.as_ptr(),
         num_aes_inputs,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -6869,7 +6760,7 @@ pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
     sbox_parallelism: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -6902,15 +6793,14 @@ pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger>(
     streams: &CudaStreams,
     expanded_keys: &mut CudaRadixCiphertext,
     key: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -6952,7 +6842,7 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numer
         &raw mut cuda_ffi_expanded_keys,
         &raw const cuda_ffi_key,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -6966,7 +6856,7 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -6997,15 +6887,14 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger>(
     streams: &CudaStreams,
     expanded_keys: &mut CudaRadixCiphertext,
     key: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -7047,7 +6936,7 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger, B: N
         &raw mut cuda_ffi_expanded_keys,
         &raw const cuda_ffi_key,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7061,7 +6950,7 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_256_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -7092,15 +6981,14 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_256_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     ciphertext: &mut CudaRadixCiphertext,
     is_unchecked: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -7113,10 +7001,10 @@ pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: N
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7156,7 +7044,7 @@ pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: N
         streams.ffi(),
         &raw mut cuda_ffi_ciphertext,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_boolean_bitnot_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -7214,7 +7102,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitnot_assign(
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     T: UnsignedInteger,
-    B: Numeric,
     R: CudaIntegerRadixCiphertext,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
@@ -7225,13 +7112,12 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     matches: &MatchValues<Clear>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7381,7 +7267,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         h_match_inputs.as_ptr(),
         h_match_outputs.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7403,7 +7289,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_kv_store_get<
     T: UnsignedInteger,
-    B: Numeric,
     R: CudaIntegerRadixCiphertext,
     Clear: DecomposableInto<u64> + CastInto<usize>,
 >(
@@ -7417,14 +7302,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
     num_blocks_per_value: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
 
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7581,7 +7465,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
         &raw const ffi_in_values_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7605,7 +7489,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_kv_store_update<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: DecomposableInto<u64> + CastInto<usize>,
 >(
     streams: &CudaStreams,
@@ -7618,14 +7501,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
     num_blocks_per_value: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
 
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7777,7 +7659,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
         &raw const ffi_in_new_value_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7793,7 +7675,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_check_out_block: &mut CudaRadixCiphertext,
     lwe_array_out_values: &mut CudaRadixCiphertext,
@@ -7803,14 +7685,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
     num_blocks_per_value: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
 
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7948,7 +7829,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
         &raw const ffi_in_new_value_struct,
         &raw const ffi_in_selectors_struct,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7966,7 +7847,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: DecomposableInto<u64> + CastInto<usize>,
 >(
     streams: &CudaStreams,
@@ -7975,14 +7855,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
     clear_keys: &[Clear],
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
 
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -8067,7 +7946,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
         &raw const ffi_in_key_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8089,7 +7968,7 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu<Clear>(
     streams: &CudaStreams,
     ct: &CudaRadixCiphertext,
     matches: &MatchValues<Clear>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -8157,7 +8036,7 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_or_size_on_gpu<Clear>(
     ct: &CudaRadixCiphertext,
     matches: &MatchValues<Clear>,
     or_value: Clear,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -8228,16 +8107,15 @@ where
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     input: &mut CudaRadixCiphertext,
     input_is_signed: bool,
     requires_full_propagate: bool,
     target_num_blocks: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
@@ -8280,7 +8158,7 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeri
         mem_ptr,
         target_num_blocks,
         input_is_signed,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8300,7 +8178,6 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeri
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     T: UnsignedInteger,
-    B: Numeric,
     R: CudaIntegerRadixCiphertext,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
 >(
@@ -8311,13 +8188,12 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     or_value: Clear,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -8446,7 +8322,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         h_match_outputs.as_ptr(),
         h_or_value.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8463,22 +8339,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_contains<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
     output: &mut CudaBooleanBlock,
     inputs: &[C],
     value: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
@@ -8551,7 +8425,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8568,7 +8442,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
     Clear: DecomposableInto<u64>,
 >(
@@ -8576,15 +8449,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
     output: &mut CudaBooleanBlock,
     inputs: &[C],
     clear: Clear,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
 
@@ -8657,7 +8529,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8674,22 +8546,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
     output: &mut CudaBooleanBlock,
     input: &CudaRadixCiphertext,
     clears: &[Clear],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
@@ -8742,7 +8612,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
         num_clears,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8759,7 +8629,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
@@ -8767,15 +8636,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
     match_ct: &mut CudaBooleanBlock,
     input: &CudaRadixCiphertext,
     clears: &[Clear],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
@@ -8847,7 +8715,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8865,7 +8733,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
 >(
     streams: &CudaStreams,
@@ -8873,15 +8740,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
     match_ct: &mut CudaBooleanBlock,
     input: &CudaRadixCiphertext,
     clears: &[Clear],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
@@ -8979,7 +8845,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8997,7 +8863,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
@@ -9006,15 +8871,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     match_ct: &mut CudaBooleanBlock,
     inputs: &[C],
     clear: Clear,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
 
@@ -9106,7 +8970,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9124,7 +8988,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
@@ -9132,15 +8995,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     match_ct: &mut CudaBooleanBlock,
     inputs: &[C],
     value: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
@@ -9232,7 +9094,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9250,7 +9112,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
@@ -9258,15 +9119,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     match_ct: &mut CudaBooleanBlock,
     inputs: &[C],
     value: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
@@ -9358,7 +9218,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9376,7 +9236,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
     Clear: DecomposableInto<u64> + CastInto<usize>,
 >(
@@ -9385,15 +9244,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     match_ct: &mut CudaBooleanBlock,
     inputs: &[C],
     clear: Clear,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
 
@@ -9492,7 +9350,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         num_blocks_in_ct,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9510,22 +9368,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
     match_ct: &mut CudaBooleanBlock,
     lhs: &[C],
     rhs: &[C],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, lhs);
     assert_all_inputs_are_on_same_gpu(streams, rhs);
@@ -9623,7 +9479,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9640,22 +9496,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
     match_ct: &mut CudaBooleanBlock,
     lhs: &[C],
     rhs: &[C],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, lhs);
     assert_all_inputs_are_on_same_gpu(streams, rhs);
@@ -9755,7 +9609,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
         num_inputs_rhs,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9770,20 +9624,19 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
     input_is_signed: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
 
     let num_input_blocks = u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -9819,7 +9672,7 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>
         &raw const cuda_ffi_input,
         mem_ptr,
         input_is_signed,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9935,18 +9788,17 @@ const FAST_KREYVIUM_REGISTER_A_BITS: usize = 93;
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger>(
     streams: &CudaStreams,
     a: &mut CudaRadixCiphertext,
     b: &mut CudaRadixCiphertext,
     c: &mut CudaRadixCiphertext,
     key: &CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     assert_eq!(message_modulus.0, TRIVIUM_REQUIRED_MESSAGE_MODULUS);
@@ -10034,7 +9886,7 @@ pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger, B: Numeric>(
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_trivium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10050,18 +9902,17 @@ pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger>(
     streams: &CudaStreams,
     keystream_output: &mut CudaRadixCiphertext,
     a: &mut CudaRadixCiphertext,
     b: &mut CudaRadixCiphertext,
     c: &mut CudaRadixCiphertext,
     num_steps: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     assert_eq!(message_modulus.0, TRIVIUM_REQUIRED_MESSAGE_MODULUS);
@@ -10135,7 +9986,7 @@ pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger, B: Numeric>(
         &raw mut ffi_c,
         num_steps,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_trivium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10152,7 +10003,7 @@ pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger>(
     streams: &CudaStreams,
     a: &mut CudaRadixCiphertext,
     b: &mut CudaRadixCiphertext,
@@ -10163,11 +10014,10 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
     iv_offset: &mut u32,
     key: &CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     assert_eq!(message_modulus.0, TRIVIUM_REQUIRED_MESSAGE_MODULUS);
@@ -10282,7 +10132,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_kreyvium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10300,7 +10150,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger>(
     streams: &CudaStreams,
     keystream_output: &mut CudaRadixCiphertext,
     a: &mut CudaRadixCiphertext,
@@ -10311,11 +10161,10 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
     k_offset: &mut u32,
     iv_offset: &mut u32,
     num_steps: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     assert_eq!(message_modulus.0, TRIVIUM_REQUIRED_MESSAGE_MODULUS);
@@ -10417,7 +10266,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
         num_inputs,
         num_steps,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_kreyvium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10436,7 +10285,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger>(
     streams: &CudaStreams,
     a: &mut CudaRadixCiphertext,
     b: &mut CudaRadixCiphertext,
@@ -10447,11 +10296,10 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Nume
     iv_offset: &mut u32,
     key: &CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     assert_eq!(message_modulus.0, FAST_KREYVIUM_REQUIRED_MESSAGE_MODULUS);
@@ -10566,7 +10414,7 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Nume
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_fast_kreyvium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10584,7 +10432,7 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Nume
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger>(
     streams: &CudaStreams,
     keystream_output: &mut CudaRadixCiphertext,
     a: &mut CudaRadixCiphertext,
@@ -10595,11 +10443,10 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Nume
     k_offset: &mut u32,
     iv_offset: &mut u32,
     num_steps: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
 ) {
     assert_eq!(message_modulus.0, FAST_KREYVIUM_REQUIRED_MESSAGE_MODULUS);
@@ -10701,7 +10548,7 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Nume
         num_inputs,
         num_steps,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_fast_kreyvium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10720,15 +10567,14 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Nume
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger>(
     streams: &CudaStreams,
     keys: &mut [&mut CudaRadixCiphertext],
     values: &mut [&mut CudaRadixCiphertext],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     key_num_blocks: u32,
     data_num_blocks: u32,
@@ -10747,10 +10593,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, 
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -10812,7 +10658,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, 
         data_ptrs.as_mut_ptr(),
         u32::try_from(num_values).unwrap(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -10836,16 +10682,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, 
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger>(
     streams: &CudaStreams,
     values: &mut [&mut CudaRadixCiphertext],
     seeded_lwe_input: &CudaVec<u64>,
-    oprf_bootstrapping_key: &CudaVec<B>,
-    bootstrapping_key: &CudaVec<B>,
+    oprf_bsk: &impl CudaBootstrapKey,
+    bsk: &impl CudaBootstrapKey,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     key_num_blocks: u32,
     data_num_blocks: u32,
@@ -10860,10 +10705,10 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -10875,10 +10720,10 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
     assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
-        oprf_bootstrapping_key.gpu_index(0),
+        oprf_bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first oprf bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        oprf_bootstrapping_key.gpu_index(0).get(),
+        oprf_bsk.gpu_index(0).get(),
     );
 
     let bsk_params = bsk.params_ffi();
@@ -10961,8 +10806,8 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
         u32::try_from(num_values).unwrap(),
         seeded_lwe_input.as_c_ptr(0),
         mem_ptr,
-        oprf_bootstrapping_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        oprf_bsk.ptrs().as_ptr(),
+        bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
         zero_lwes_ptr,
         rerand_ksks_ptr,
