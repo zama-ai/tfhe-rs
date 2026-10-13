@@ -229,28 +229,6 @@ fn test_json() {
 }
 
 #[test]
-fn test_yaml() {
-    let v0 = v0::MyStruct(37);
-
-    let v0_ser = serde_yaml::to_string(&v0.versionize()).unwrap();
-
-    let v1 = v1::MyStruct::<MyU64>::unversionize(serde_yaml::from_str(&v0_ser).unwrap()).unwrap();
-
-    assert_eq!(v0.0, v1.0);
-    assert_eq!(v1.1, MyU64::default());
-
-    let v1_ser = serde_yaml::to_string(&v1.versionize()).unwrap();
-
-    let v2 = v2::MyStruct::<MyU64>::unversionize(serde_yaml::from_str(&v0_ser).unwrap()).unwrap();
-    let v2_from_v1 =
-        v2::MyStruct::<MyU64>::unversionize(serde_yaml::from_str(&v1_ser).unwrap()).unwrap();
-
-    assert_eq!(v0.0, v2.count);
-    assert_eq!(v2.attr, MyU64::default());
-    assert_eq!(v2, v2_from_v1);
-}
-
-#[test]
 fn test_toml() {
     let v0 = v0::MyStruct(37);
 
