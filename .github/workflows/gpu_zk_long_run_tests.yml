@@ -17,7 +17,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 20 * * 1"
-  pull_request:
 
 permissions:
   contents: read
