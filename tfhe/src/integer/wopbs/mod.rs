@@ -23,7 +23,7 @@ mod experimental {
     pub use crate::core_crypto::commons::parameters::{CiphertextCount, PlaintextCount};
     use crate::core_crypto::prelude::*;
     use crate::integer::client_key::utils::i_crt;
-    use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertext, ServerKey};
+    use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertext};
     use crate::shortint::atomic_pattern::AtomicPattern;
     use crate::shortint::ciphertext::{Degree, NoiseLevel};
     use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
@@ -231,15 +231,20 @@ mod experimental {
         /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, 1);
         /// let wopbs_key = WopbsKey::new_wopbs_key(&cks, &sks, &LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// ```
-        pub fn new_wopbs_key<IntegerClientKey: AsRef<ClientKey>>(
+        pub fn new_wopbs_key<IntegerClientKey, IntegerServerKey>(
             cks: &IntegerClientKey,
-            sks: &ServerKey,
+            sks: &IntegerServerKey,
             parameters: &WopbsParameters,
-        ) -> Self {
-            let sk = StandardServerKeyView::try_from(sks.key.as_view()).unwrap_or_else(|_| {
+        ) -> Self
+        where
+            IntegerClientKey: AsRef<ClientKey>,
+            IntegerServerKey: AsRef<crate::shortint::ServerKey>,
+        {
+            let sks = sks.as_ref();
+            let sk = StandardServerKeyView::try_from(sks.as_view()).unwrap_or_else(|_| {
                 panic!(
                     "Wopbs is not supported by the chosen atomic pattern: {:?}",
-                    sks.key.atomic_pattern.kind()
+                    sks.atomic_pattern.kind()
                 )
             });
 
@@ -266,15 +271,20 @@ mod experimental {
             Self { wopbs_key }
         }
 
-        pub fn new_wopbs_key_only_for_wopbs<IntegerClientKey: AsRef<ClientKey>>(
+        pub fn new_wopbs_key_only_for_wopbs<IntegerClientKey, IntegerServerKey>(
             cks: &IntegerClientKey,
-            sks: &ServerKey,
+            sks: &IntegerServerKey,
             parameters: &WopbsParameters,
-        ) -> Self {
-            let sk = StandardServerKeyView::try_from(sks.key.as_view()).unwrap_or_else(|_| {
+        ) -> Self
+        where
+            IntegerClientKey: AsRef<ClientKey>,
+            IntegerServerKey: AsRef<crate::shortint::ServerKey>,
+        {
+            let sks = sks.as_ref();
+            let sk = StandardServerKeyView::try_from(sks.as_view()).unwrap_or_else(|_| {
                 panic!(
                     "Wopbs is not supported by the chosen atomic pattern: {:?}",
-                    sks.key.atomic_pattern.kind()
+                    sks.atomic_pattern.kind()
                 )
             });
 
@@ -1191,16 +1201,22 @@ mod experimental {
             T::from_blocks(ct_vec_out)
         }
 
-        pub fn keyswitch_to_wopbs_params<'a, T>(&self, sks: &ServerKey, ct_in: &'a T) -> T
+        pub fn keyswitch_to_wopbs_params<'a, T, IntegerServerKey>(
+            &self,
+            sks: &IntegerServerKey,
+            ct_in: &'a T,
+        ) -> T
         where
             T: IntegerCiphertext,
+            IntegerServerKey: AsRef<crate::shortint::ServerKey>,
             &'a [crate::shortint::Ciphertext]:
                 IntoParallelIterator<Item = &'a crate::shortint::Ciphertext>,
         {
+            let sks = sks.as_ref();
             let blocks: Vec<_> = ct_in
                 .blocks()
                 .par_iter()
-                .map(|block| self.wopbs_key.keyswitch_to_wopbs_params(&sks.key, block))
+                .map(|block| self.wopbs_key.keyswitch_to_wopbs_params(sks, block))
                 .collect();
             T::from_blocks(blocks)
         }
