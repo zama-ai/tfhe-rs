@@ -2802,7 +2802,7 @@ dependencies = [
 
 [[package]]
 name = "tfhe"
-version = "1.7.1"
+version = "1.7.2"
 dependencies = [
  "aligned-vec",
  "bincode",
