@@ -977,3 +977,44 @@ pub(crate) fn narrow_scalar_cases(
         [0, 1, u8::MAX].map(|scalar| TestScalar::<u8>::new(Uint::new(scalar.into(), u8::BITS)));
     iproduct!(lhs_values, scalars).collect()
 }
+
+/// The sequential carry propagation must keep room in each block for the carry it receives,
+/// regardless of the max degree the server key was built with.
+#[test]
+fn test_sequential_propagation_does_not_depend_on_key_max_degree() {
+    let (cks, mut sks) = KEY_CACHE.get_from_params(
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        IntegerKeyKind::Radix,
+    );
+    // Allow blocks to be full, so that they cannot receive a carry
+    sks.key.max_degree =
+        MaxDegree::from_msg_carry_modulus(sks.message_modulus(), sks.carry_modulus());
+
+    // A single thread makes the parallel propagation slower, so the sequential one is used
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .unwrap();
+
+    for num_blocks in [2, 3, 4] {
+        assert!(pool.install(|| !sks.is_eligible_for_parallel_single_carry_propagation(num_blocks)));
+
+        let modulus = sks.message_modulus().0.pow(num_blocks as u32);
+        // Each block holds 3 in its message and 3 in its carry (degree 15). Trivial
+        // ciphertexts have no noise, so only the degree can trigger a first extraction
+        let mut ct: RadixCiphertext = sks.create_trivial_radix(modulus - 1, num_blocks);
+        for block in ct.blocks.iter_mut() {
+            sks.key.unchecked_scalar_add_assign(block, 12);
+        }
+        assert!(ct
+            .blocks
+            .iter()
+            .all(|block| block.degree.get() == sks.key.max_degree.get()));
+
+        pool.install(|| sks.full_propagate_parallelized(&mut ct));
+
+        let decrypted: u64 = cks.decrypt_radix(&ct);
+        assert_eq!(decrypted, (5 * (modulus - 1)) % modulus);
+        assert!(ct.block_carries_are_empty());
+    }
+}
