@@ -179,13 +179,20 @@ impl HpuVar {
                     .collect::<Vec<_>>();
 
                 let mut bufs = C2H_BUFS.lock().unwrap();
-                bufs.resize_with(strides.len(), || &mut []);
+                assert_eq!(
+                    bufs.len(),
+                    strides.len(),
+                    "Copy-back buffers not initialised"
+                );
                 let mut reads = std::iter::zip(first.mz.iter(), bufs.iter_mut())
                     .zip(&strides)
                     .map(|((mz, buf), stride)| {
-                        if buf.len() < stride * n_slots {
-                            *buf = huge_buf(stride * n_slots);
-                        }
+                        // Sized at node open for far more blocks than any enabled integer width
+                        assert!(
+                            stride * n_slots <= buf.len(),
+                            "Copy-back of {n_slots} slots x {stride} words exceeds the {} words buffer",
+                            buf.len()
+                        );
                         (mz, &mut buf[..stride * n_slots])
                     })
                     .collect::<Vec<_>>();
