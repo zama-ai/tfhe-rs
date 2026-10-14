@@ -3,7 +3,7 @@
 use crate::integer::keycache::{KEY_CACHE, KEY_CACHE_WOPBS};
 use crate::integer::parameters::*;
 use crate::integer::wopbs::{encode_radix, WopbsKey};
-use crate::integer::{gen_keys, IntegerKeyKind};
+use crate::integer::{gen_keys, CrtClientKey, IntegerKeyKind};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::test_params::*;
@@ -71,7 +71,8 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let nb_block = basis.len();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_crt_from_params(params.0);
+    let cks = CrtClientKey::from((cks, basis.clone()));
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space = 1;
@@ -82,21 +83,21 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut tmp = 0;
     for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % msg_space;
-        let mut ct1 = cks.encrypt_crt(clear1, basis.clone());
+        let mut ct1 = cks.encrypt(clear1);
         //artificially modify the degree
         for ct in ct1.blocks.iter_mut() {
             let degree = params.0.message_modulus.0
                 * ((rng.gen::<u64>() % (params.0.carry_modulus.0 - 1)) + 1);
             ct.degree = Degree::new(degree);
         }
-        let res = cks.decrypt_crt(&ct1);
+        let res = cks.decrypt(&ct1);
 
         let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
         let lut = wopbs_key.generate_lut_crt(&ct1, |x| (x * x) + x);
         let ct_res = wopbs_key.wopbs(&ct1, &lut);
         let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
 
-        let res_wop = cks.decrypt_crt(&ct_res);
+        let res_wop = cks.decrypt(&ct_res);
         if ((res * res) + res) % msg_space != res_wop {
             tmp += 1;
         }
@@ -117,7 +118,8 @@ pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let nb_block = basis.len();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_crt_from_params(params.0);
+    let cks = CrtClientKey::from((cks, basis.clone()));
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space = 1;
@@ -132,14 +134,14 @@ pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
     let mut tmp = 0;
     for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % msg_space;
-        let mut ct1 = cks.encrypt_crt(clear1, basis.clone());
+        let mut ct1 = cks.encrypt(clear1);
         //artificially modify the degree
         for ct in ct1.blocks.iter_mut() {
             let degree = params.0.message_modulus.0
                 * ((rng.gen::<u64>() % (params.0.carry_modulus.0 - 1)) + 1);
             ct.degree = Degree::new(degree);
         }
-        let sanity_dec = cks.decrypt_crt(&ct1);
+        let sanity_dec = cks.decrypt(&ct1);
         assert_eq!(clear1, sanity_dec);
 
         let ct1 = wopbs_key.keyswitch_to_wopbs_params(&sks, &ct1);
@@ -147,7 +149,7 @@ pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
         let ct_res = wopbs_key.wopbs(&ct1, &lut);
         let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
 
-        let res_wop = cks.decrypt_crt(&ct_res);
+        let res_wop = cks.decrypt(&ct_res);
         if f(clear1) % msg_space != res_wop {
             tmp += 1;
         }
@@ -241,7 +243,8 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     let basis = make_basis(params.1.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(params.0, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_crt_from_params(params.0);
+    let cks = CrtClientKey::from((cks, basis.clone()));
     let wopbs_key = KEY_CACHE_WOPBS.get_from_params(params);
 
     let mut msg_space: u64 = 1;
@@ -252,8 +255,8 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % msg_space;
         let clear2 = rng.gen::<u64>() % msg_space;
-        let mut ct1 = cks.encrypt_crt(clear1, basis.clone());
-        let mut ct2 = cks.encrypt_crt(clear2, basis.clone());
+        let mut ct1 = cks.encrypt(clear1);
+        let mut ct2 = cks.encrypt(clear2);
         //artificially modify the degree
         for (ct_1, ct_2) in ct1.blocks.iter_mut().zip(ct2.blocks.iter_mut()) {
             // Do not go too far otherwise we explode the RAM for larger parameters
@@ -267,7 +270,7 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
         let ct_res = wopbs_key.bivariate_wopbs_with_degree(&ct1, &ct2, &lut);
         let ct_res = wopbs_key.keyswitch_to_pbs_params(&ct_res);
 
-        let res = cks.decrypt_crt(&ct_res);
+        let res = cks.decrypt(&ct_res);
         assert_eq!(res, ((clear1 * clear2) + clear2) % msg_space);
     }
 }

@@ -70,10 +70,8 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
     );
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        IntegerKeyKind::CRT,
-    );
+    let (client_key_2, server_key_2) =
+        KEY_CACHE.get_crt_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
     assert_eq!(
@@ -88,7 +86,7 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
         client_key_2.parameters().ks_level(),
         client_key_2.parameters().encryption_key_choice(),
     );
-    let ksk = KeySwitchingKey::new(
+    let ksk = KeySwitchingKey::new_crt(
         (&client_key_1, None),
         (&client_key_2, &server_key_2),
         ksk_params,
@@ -110,16 +108,12 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
 fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
-    let (client_key_1, server_key_1) = KEY_CACHE.get_from_params(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        IntegerKeyKind::CRT,
-    );
+    let (client_key_1, server_key_1) =
+        KEY_CACHE.get_crt_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     let client_key_1 = CrtClientKey::from((client_key_1, basis.clone()));
 
-    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        IntegerKeyKind::CRT,
-    );
+    let (client_key_2, server_key_2) =
+        KEY_CACHE.get_crt_from_params(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
     let client_key_2 = CrtClientKey::from((client_key_2, basis));
 
     assert_eq!(
@@ -134,7 +128,7 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
         client_key_2.parameters().ks_level(),
         client_key_2.parameters().encryption_key_choice(),
     );
-    let _ = KeySwitchingKey::new(
+    let _ = KeySwitchingKey::new_crt(
         (&client_key_1, Some(&server_key_1)),
         (&client_key_2, &server_key_2),
         ksk_params,

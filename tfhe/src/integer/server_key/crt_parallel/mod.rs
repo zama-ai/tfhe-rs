@@ -9,10 +9,10 @@ mod sub_crt;
 mod tests;
 
 use crate::integer::ciphertext::CrtCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::CrtServerKey;
 use rayon::prelude::*;
 
-impl ServerKey {
+impl CrtServerKey {
     /// Extract all the messages.
     ///
     /// # Example
