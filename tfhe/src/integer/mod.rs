@@ -86,15 +86,20 @@ pub use bigint::i512::I512;
 pub use bigint::u256::U256;
 pub use bigint::u512::U512;
 pub use ciphertext::boolean_value::BooleanBlock;
+#[cfg(feature = "experimental")]
+pub use ciphertext::CrtCiphertext;
 pub use ciphertext::{
-    CrtCiphertext, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext,
-    SignedRadixCiphertext,
+    IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext, SignedRadixCiphertext,
 };
-pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
+#[cfg(feature = "experimental")]
+pub use client_key::CrtClientKey;
+pub use client_key::{ClientKey, RadixClientKey};
 pub use public_key::{
     CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
 };
-pub use server_key::{CheckError, CompressedServerKey, CrtServerKey, ServerKey};
+#[cfg(feature = "experimental")]
+pub use server_key::CrtServerKey;
+pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
 /// Enum to indicate which kind of computations the [`ServerKey`] will be performing, this changes
 /// the parameterization of the key to manage carries in the Radix case.
@@ -153,6 +158,7 @@ where
     }
 }
 
+#[cfg(feature = "experimental")]
 /// Same as [`gen_keys`] but for a [`CrtServerKey`]
 fn gen_keys_crt_impl<P>(parameters_set: P) -> (ClientKey, CrtServerKey)
 where
@@ -264,6 +270,7 @@ where
 /// let basis = vec![2, 3, 5];
 /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, basis);
 /// ```
+#[cfg(feature = "experimental")]
 pub fn gen_keys_crt<P>(parameters_set: P, basis: Vec<u64>) -> (CrtClientKey, CrtServerKey)
 where
     P: TryInto<crate::shortint::parameters::ShortintParameterSet>,

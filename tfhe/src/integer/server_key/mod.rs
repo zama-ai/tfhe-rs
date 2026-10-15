@@ -2,10 +2,13 @@
 //!
 //! This module implements the generation of the server public key, together with all the
 //! available homomorphic integer operations.
+#[cfg(feature = "experimental")]
 pub(crate) mod crt;
+#[cfg(feature = "experimental")]
 mod crt_parallel;
 pub(crate) mod radix;
 pub(crate) mod radix_parallel;
+#[cfg(feature = "experimental")]
 pub use crt::CrtServerKey;
 pub use radix_parallel::kv_store::{CompressedKVStore, KVStore};
 
@@ -311,6 +314,7 @@ mod test {
             assert_eq!(decompressed_sks.key.max_degree, expected_radix_max_degree);
         }
 
+        #[cfg(feature = "experimental")]
         {
             let cks = ClientKey::new(
                 crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,

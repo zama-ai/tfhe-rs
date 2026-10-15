@@ -1,8 +1,10 @@
 use super::super::parameters::RadixCiphertextConformanceParams;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedNumeric;
+#[cfg(feature = "experimental")]
+use crate::integer::backward_compatibility::ciphertext::BaseCrtCiphertextVersions;
 use crate::integer::backward_compatibility::ciphertext::{
-    BaseCrtCiphertextVersions, BaseRadixCiphertextVersions, BaseSignedRadixCiphertextVersions,
+    BaseRadixCiphertextVersions, BaseSignedRadixCiphertextVersions,
 };
 use crate::integer::block_decomposition::{
     BlockRecomposer, RecomposableFrom, RecomposableSignedInteger,
@@ -256,6 +258,7 @@ impl SignedRadixCiphertext {
 ///
 /// For this CRT decomposition, each block is encrypted using
 /// the same parameters.
+#[cfg(feature = "experimental")]
 #[derive(Serialize, Clone, Deserialize, Versionize)]
 #[versionize(BaseCrtCiphertextVersions)]
 pub struct BaseCrtCiphertext<Block> {
@@ -264,8 +267,10 @@ pub struct BaseCrtCiphertext<Block> {
 }
 
 /// Structure containing a ciphertext in CRT decomposition.
+#[cfg(feature = "experimental")]
 pub type CrtCiphertext = BaseCrtCiphertext<Ciphertext>;
 
+#[cfg(feature = "experimental")]
 impl<Block> From<(Vec<Block>, Vec<u64>)> for BaseCrtCiphertext<Block> {
     fn from((blocks, moduli): (Vec<Block>, Vec<u64>)) -> Self {
         Self { blocks, moduli }

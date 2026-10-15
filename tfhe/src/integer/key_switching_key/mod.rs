@@ -2,7 +2,9 @@ use super::backward_compatibility::key_switching_key::{
     CompressedKeySwitchingKeyMaterialVersions, CompressedKeySwitchingKeyVersions,
     KeySwitchingKeyMaterialVersions, KeySwitchingKeyVersions,
 };
-use super::{ClientKey, CompressedServerKey, CrtClientKey, CrtServerKey, ServerKey};
+use super::{ClientKey, CompressedServerKey, ServerKey};
+#[cfg(feature = "experimental")]
+use super::{CrtClientKey, CrtServerKey};
 use crate::conformance::ParameterSetConformant;
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::integer::IntegerCiphertext;
@@ -118,6 +120,7 @@ impl KeySwitchingKey {
     }
 
     /// Same as [`Self::new`], for keys used with [`CrtCiphertext`](crate::integer::CrtCiphertext)
+    #[cfg(feature = "experimental")]
     pub fn new_crt<'input_key, InputEncryptionKey>(
         input_key_pair: (InputEncryptionKey, Option<&CrtServerKey>),
         output_key_pair: (&CrtClientKey, &CrtServerKey),

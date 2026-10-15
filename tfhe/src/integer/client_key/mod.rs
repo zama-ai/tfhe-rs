@@ -3,9 +3,11 @@
 //! Client keys are the keys used to encrypt an decrypt data.
 //! These are private and **MUST NOT** be shared.
 
+#[cfg(feature = "experimental")]
 mod crt;
 mod radix;
 pub(crate) mod secret_encryption_key;
+#[cfg(feature = "experimental")]
 pub(crate) mod utils;
 
 use super::backward_compatibility::client_key::ClientKeyVersions;
@@ -25,6 +27,7 @@ use crate::shortint::parameters::CompressionParameters;
 use crate::shortint::{
     Ciphertext, ClientKey as ShortintClientKey, ShortintParameterSet as ShortintParameters,
 };
+#[cfg(feature = "experimental")]
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 use secret_encryption_key::SecretEncryptionKeyView;
@@ -36,7 +39,7 @@ use tfhe_versionable::Versionize;
 /// This key encrypts integers in radix decomposition, each block
 /// using the same crypto parameters.
 ///
-/// To encrypt in CRT decomposition, see [`CrtClientKey`].
+/// To encrypt in CRT decomposition, see `CrtClientKey` (requires the `experimental` feature).
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Versionize)]
 #[versionize(ClientKeyVersions)]
 pub struct ClientKey {

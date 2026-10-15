@@ -1,6 +1,8 @@
 #[cfg(feature = "experimental")]
 use crate::integer::wopbs::WopbsKey;
-use crate::integer::{ClientKey, CrtServerKey, IntegerKeyKind, ServerKey};
+#[cfg(feature = "experimental")]
+use crate::integer::CrtServerKey;
+use crate::integer::{ClientKey, IntegerKeyKind, ServerKey};
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 #[cfg(feature = "experimental")]
 use crate::shortint::{PBSParameters, WopbsParameters};
@@ -37,6 +39,7 @@ impl IntegerKeyCache {
         (client_key, server_key)
     }
 
+    #[cfg(feature = "experimental")]
     pub fn get_crt_from_params<P>(&self, params: P) -> (ClientKey, CrtServerKey)
     where
         P: Into<AtomicPatternParameters>,

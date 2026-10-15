@@ -1,14 +1,17 @@
 use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
+#[cfg(feature = "experimental")]
+use crate::integer::CrtClientKey;
 use crate::integer::{
     ClientKey, CompactPrivateKey, CompactPublicKey, CrtClientKey, IntegerCiphertext,
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
 };
+#[cfg(feature = "experimental")]
+use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
 use crate::shortint::parameters::test_params::{
     TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -61,6 +64,7 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
 }
 
 #[test]
+#[cfg(feature = "experimental")]
 fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
     let basis = vec![2, 3, 5, 7, 11];
 
@@ -102,6 +106,7 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
 }
 
 #[test]
+#[cfg(feature = "experimental")]
 #[should_panic(
     expected = "Attempt to build a KeySwitchingKey between integer key pairs with different message modulus and carry"
 )]
