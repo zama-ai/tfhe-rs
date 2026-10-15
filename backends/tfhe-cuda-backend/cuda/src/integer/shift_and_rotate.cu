@@ -16,8 +16,8 @@ uint64_t scratch_cuda_shift_and_rotate_64_inplace_async(
 
 void cuda_shift_and_rotate_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
-    CudaRadixCiphertextFFI const *lwe_shift, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    CudaRadixCiphertextFFI const *lwe_shift, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   host_shift_and_rotate_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, lwe_shift,

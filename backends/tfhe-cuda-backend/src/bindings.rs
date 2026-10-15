@@ -579,6 +579,37 @@ const _: () = {
     ["Offset of field: CudaLweBootstrapKeyParamsFFI::pbs_params"]
         [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, pbs_params) - 28usize];
 };
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaMultiGpuVecFFI {
+    pub ptrs: *const *mut ffi::c_void,
+    pub byte_sizes: *const u64,
+    pub gpu_count: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaMultiGpuVecFFI"][::std::mem::size_of::<CudaMultiGpuVecFFI>() - 24usize];
+    ["Alignment of CudaMultiGpuVecFFI"][::std::mem::align_of::<CudaMultiGpuVecFFI>() - 8usize];
+    ["Offset of field: CudaMultiGpuVecFFI::ptrs"]
+        [::std::mem::offset_of!(CudaMultiGpuVecFFI, ptrs) - 0usize];
+    ["Offset of field: CudaMultiGpuVecFFI::byte_sizes"]
+        [::std::mem::offset_of!(CudaMultiGpuVecFFI, byte_sizes) - 8usize];
+    ["Offset of field: CudaMultiGpuVecFFI::gpu_count"]
+        [::std::mem::offset_of!(CudaMultiGpuVecFFI, gpu_count) - 16usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaBootstrappingKeyFFI {
+    pub bsk: CudaMultiGpuVecFFI,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaBootstrappingKeyFFI"][::std::mem::size_of::<CudaBootstrappingKeyFFI>() - 24usize];
+    ["Alignment of CudaBootstrappingKeyFFI"]
+        [::std::mem::align_of::<CudaBootstrappingKeyFFI>() - 8usize];
+    ["Offset of field: CudaBootstrappingKeyFFI::bsk"]
+        [::std::mem::offset_of!(CudaBootstrappingKeyFFI, bsk) - 0usize];
+};
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_64_async(
         streams: CudaStreamsFFI,
@@ -615,7 +646,7 @@ unsafe extern "C" {
         input_radix_lwe: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -637,7 +668,7 @@ unsafe extern "C" {
         input_radix_lwe: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         num_luts: u32,
         lut_stride: u32,
     );
@@ -659,7 +690,7 @@ unsafe extern "C" {
         input_blocks: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         num_blocks: u32,
     );
 }
@@ -676,7 +707,7 @@ unsafe extern "C" {
         is_bool_left: bool,
         radix_lwe_right: *const CudaRadixCiphertextFFI,
         is_bool_right: bool,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         mem_ptr: *mut i8,
         polynomial_size: u32,
@@ -743,7 +774,7 @@ unsafe extern "C" {
         lwe_array: *mut CudaRadixCiphertextFFI,
         shift: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -766,7 +797,7 @@ unsafe extern "C" {
         lwe_array: *mut CudaRadixCiphertextFFI,
         shift: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -802,7 +833,7 @@ unsafe extern "C" {
         lwe_array: *mut CudaRadixCiphertextFFI,
         lwe_shift: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -847,7 +878,7 @@ unsafe extern "C" {
         lwe_array_1: *const CudaRadixCiphertextFFI,
         lwe_array_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -859,7 +890,7 @@ unsafe extern "C" {
         scalar_blocks: *const ffi::c_void,
         h_scalar_blocks: *const ffi::c_void,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         num_scalar_blocks: u32,
     );
@@ -879,7 +910,7 @@ unsafe extern "C" {
         lwe_array_inout: *mut CudaRadixCiphertextFFI,
         lwe_array_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -921,7 +952,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         lwe_array: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -969,7 +1000,7 @@ unsafe extern "C" {
         lwe_array_inout: *mut CudaRadixCiphertextFFI,
         lwe_array_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -981,7 +1012,7 @@ unsafe extern "C" {
         h_clear_blocks: *const ffi::c_void,
         num_clear_blocks: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1017,7 +1048,7 @@ unsafe extern "C" {
         lwe_array_true: *const CudaRadixCiphertextFFI,
         lwe_array_false: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1043,7 +1074,7 @@ unsafe extern "C" {
         lwe_array: *mut CudaRadixCiphertextFFI,
         n: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1086,7 +1117,7 @@ unsafe extern "C" {
         carry_out: *mut CudaRadixCiphertextFFI,
         carry_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         requested_flag: u32,
         uses_carry: u32,
@@ -1100,7 +1131,7 @@ unsafe extern "C" {
         carry_out: *mut CudaRadixCiphertextFFI,
         carry_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         requested_flag: u32,
         uses_carry: u32,
@@ -1139,7 +1170,7 @@ unsafe extern "C" {
         overflow_block: *mut CudaRadixCiphertextFFI,
         input_borrow: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         compute_overflow: u32,
         uses_input_borrow: u32,
@@ -1171,7 +1202,7 @@ unsafe extern "C" {
         radix_lwe_out: *mut CudaRadixCiphertextFFI,
         radix_lwe_vec: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1204,7 +1235,7 @@ unsafe extern "C" {
         rhs: *const CudaRadixCiphertextFFI,
         added: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1237,7 +1268,7 @@ unsafe extern "C" {
         num_extra_terms: u32,
         propagate_carries: bool,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1264,7 +1295,7 @@ unsafe extern "C" {
         decomposed_scalar: *const u64,
         has_at_least_one_set: *const u64,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         message_modulus: u32,
         num_scalars: u32,
@@ -1295,7 +1326,7 @@ unsafe extern "C" {
         divisor: *const CudaRadixCiphertextFFI,
         is_signed: bool,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1327,7 +1358,7 @@ unsafe extern "C" {
         ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         is_signed: bool,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1352,7 +1383,7 @@ unsafe extern "C" {
         lwe_array_out: *mut CudaRadixCiphertextFFI,
         lwe_array_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         num_radix_blocks: u32,
     );
@@ -1381,7 +1412,7 @@ unsafe extern "C" {
         lwe_array_out: *mut CudaRadixCiphertextFFI,
         lwe_array_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         num_radix_blocks: u32,
     );
@@ -1435,7 +1466,7 @@ unsafe extern "C" {
         input_radix_lwe: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -1462,7 +1493,7 @@ unsafe extern "C" {
         carry_out: *mut CudaRadixCiphertextFFI,
         carry_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         requested_flag: u32,
         uses_carry: u32,
@@ -1492,7 +1523,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         numerator_ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
     );
@@ -1521,7 +1552,7 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         numerator_ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         numerator_bits: u32,
@@ -1553,7 +1584,7 @@ unsafe extern "C" {
         quotient_ct: *mut CudaRadixCiphertextFFI,
         remainder_ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         divisor_has_at_least_one_set: *const u64,
@@ -1590,7 +1621,7 @@ unsafe extern "C" {
         quotient_ct: *mut CudaRadixCiphertextFFI,
         remainder_ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         divisor_has_at_least_one_set: *const u64,
@@ -1626,7 +1657,7 @@ unsafe extern "C" {
         output_ct: *mut CudaRadixCiphertextFFI,
         input_ct: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1656,7 +1687,7 @@ unsafe extern "C" {
         seeded_lwe_input: *const ffi::c_void,
         num_blocks_to_process: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -1694,8 +1725,8 @@ unsafe extern "C" {
         shift: u32,
         lwe_flattened_encryptions_of_zero_compact_array_in: *const ffi::c_void,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        compute_bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
+        compute_bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         rerand_ksks: *const *mut ffi::c_void,
     );
@@ -1729,7 +1760,7 @@ unsafe extern "C" {
         trivial_ct_2: *const CudaRadixCiphertextFFI,
         trivial_ct_m_minus_1_block: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1760,7 +1791,7 @@ unsafe extern "C" {
         h_match_inputs: *const u64,
         h_match_outputs: *const u64,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1793,7 +1824,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         target_num_blocks: u32,
         input_is_signed: bool,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1825,7 +1856,7 @@ unsafe extern "C" {
         h_match_outputs: *const u64,
         h_or_value: *const u64,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1857,7 +1888,7 @@ unsafe extern "C" {
         num_inputs: u32,
         num_blocks: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1886,7 +1917,7 @@ unsafe extern "C" {
         num_inputs: u32,
         num_blocks: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1918,7 +1949,7 @@ unsafe extern "C" {
         num_clears: u32,
         num_blocks: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1953,7 +1984,7 @@ unsafe extern "C" {
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -1989,7 +2020,7 @@ unsafe extern "C" {
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2033,7 +2064,7 @@ unsafe extern "C" {
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2068,7 +2099,7 @@ unsafe extern "C" {
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2103,7 +2134,7 @@ unsafe extern "C" {
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2136,7 +2167,7 @@ unsafe extern "C" {
         num_blocks: u32,
         num_blocks_index: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2168,7 +2199,7 @@ unsafe extern "C" {
         num_inputs: u32,
         num_blocks: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2201,7 +2232,7 @@ unsafe extern "C" {
         num_rhs: u32,
         num_blocks: u32,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2232,7 +2263,7 @@ unsafe extern "C" {
         input: *const CudaRadixCiphertextFFI,
         mem: *mut i8,
         input_is_signed: bool,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2260,7 +2291,7 @@ unsafe extern "C" {
         values: *mut *mut CudaRadixCiphertextFFI,
         num_values: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2294,8 +2325,8 @@ unsafe extern "C" {
         num_values: u32,
         seeded_lwe_input: *const ffi::c_void,
         mem_ptr: *mut i8,
-        oprf_bsks: *const *mut ffi::c_void,
-        bsks: *const *mut ffi::c_void,
+        oprf_bsks: CudaBootstrappingKeyFFI,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
         lwe_flattened_encryptions_of_zero_compact_array_in: *const ffi::c_void,
         rerand_ksks: *const *mut ffi::c_void,
@@ -2353,7 +2384,7 @@ unsafe extern "C" {
         lwe_array_out: *mut CudaLweCiphertextListFFI,
         glwe_in: *const CudaPackedGlweCiphertextListFFI,
         indexes_array: *const u32,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         mem_ptr: *mut i8,
     );
 }
@@ -2470,7 +2501,7 @@ unsafe extern "C" {
         lwe_array_in_values: *const CudaRadixCiphertextFFI,
         h_decomposed_clear_keys: *const u64,
         mem: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2504,7 +2535,7 @@ unsafe extern "C" {
         lwe_in_new_value: *const CudaRadixCiphertextFFI,
         h_decomposed_clear_keys: *const u64,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2536,7 +2567,7 @@ unsafe extern "C" {
         lwe_in_new_value: *const CudaRadixCiphertextFFI,
         lwe_array_in_selectors: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2566,7 +2597,7 @@ unsafe extern "C" {
         lwe_array_in_encrypted_key: *const CudaRadixCiphertextFFI,
         h_decomposed_clear_keys: *const u64,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2636,7 +2667,7 @@ unsafe extern "C" {
         counter_bits_le_all_blocks: *const u64,
         num_aes_inputs: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2669,7 +2700,7 @@ unsafe extern "C" {
         expanded_keys: *mut CudaRadixCiphertextFFI,
         key: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2688,7 +2719,7 @@ unsafe extern "C" {
         counter_bits_le_all_blocks: *const u64,
         num_aes_inputs: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2709,7 +2740,7 @@ unsafe extern "C" {
         expanded_keys: *mut CudaRadixCiphertextFFI,
         key: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2740,7 +2771,7 @@ unsafe extern "C" {
         key: *const CudaRadixCiphertextFFI,
         iv: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2768,7 +2799,7 @@ unsafe extern "C" {
         c_reg: *mut CudaRadixCiphertextFFI,
         num_steps: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2818,7 +2849,7 @@ unsafe extern "C" {
         key: *const CudaRadixCiphertextFFI,
         iv_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2836,7 +2867,7 @@ unsafe extern "C" {
         num_inputs: u32,
         num_steps: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2883,7 +2914,7 @@ unsafe extern "C" {
         key: *const CudaRadixCiphertextFFI,
         iv_in: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2901,7 +2932,7 @@ unsafe extern "C" {
         num_inputs: u32,
         num_steps: u32,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         ksks: *const *mut ffi::c_void,
     );
 }
@@ -2933,7 +2964,7 @@ unsafe extern "C" {
         lwe_array_out: *mut ffi::c_void,
         lwe_flattened_compact_array_in: *const ffi::c_void,
         mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
+        bsks: CudaBootstrappingKeyFFI,
         computing_ksks: *const *mut ffi::c_void,
         casting_keys: *const *mut ffi::c_void,
     );

@@ -5,18 +5,26 @@
 #include "integer/cmux.h"
 #include "radix_ciphertext.cuh"
 
-// Conditionally zeros a radix ciphertext: if lwe_condition encrypts true,
-// lwe_array_out encrypts zero; otherwise lwe_array_out = lwe_array_input.
-// The condition is a single LWE block broadcast to every block of the input
-// via bivariate packing, then evaluated through the predicate LUT.
+/** @brief Conditionally zeros a radix ciphertext: if lwe_condition encrypts
+ * true, lwe_array_out encrypts zero; otherwise lwe_array_out =
+ * lwe_array_input.
+ * The condition is a single LWE block broadcast to every block of the input
+ * via bivariate packing, then evaluated through the predicate LUT.
+ * @param lwe_array_out output radix ciphertext
+ * @param lwe_array_input input radix ciphertext
+ * @param lwe_condition single-block encrypted boolean condition
+ * @param predicate bivariate LUT applied to each packed (block, condition)
+ * pair
+ * @param num_radix_blocks number of blocks to process
+ */
 template <typename Torus, typename KSTorus>
-__host__ void zero_out_if(CudaStreams streams,
-                          CudaRadixCiphertextFFI *lwe_array_out,
-                          CudaRadixCiphertextFFI const *lwe_array_input,
-                          CudaRadixCiphertextFFI const *lwe_condition,
-                          int_zero_out_if_buffer<Torus> *mem_ptr,
-                          int_radix_lut<Torus> *predicate, void *const *bsks,
-                          KSTorus *const *ksks, uint32_t num_radix_blocks) {
+__host__ void
+zero_out_if(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+            CudaRadixCiphertextFFI const *lwe_array_input,
+            CudaRadixCiphertextFFI const *lwe_condition,
+            int_zero_out_if_buffer<Torus> *mem_ptr,
+            int_radix_lut<Torus> *predicate, BootstrappingKey const &bsks,
+            KSTorus *const *ksks, uint32_t num_radix_blocks) {
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks >= num_radix_blocks &&
           lwe_array_input->num_radix_blocks >= num_radix_blocks,
@@ -67,8 +75,8 @@ __host__ void host_zero_out_if_batch(
     CudaRadixCiphertextFFI const *lwe_array_input,
     CudaRadixCiphertextFFI const *lwe_conditions,
     int_zero_out_if_batch_buffer<Torus> *mem_ptr,
-    int_radix_lut<Torus> *predicate, void *const *bsks, KSTorus *const *ksks,
-    uint32_t num_entries, uint32_t num_blocks_per_ct) {
+    int_radix_lut<Torus> *predicate, BootstrappingKey const &bsks,
+    KSTorus *const *ksks, uint32_t num_entries, uint32_t num_blocks_per_ct) {
 
   uint32_t total_num_blocks =
       static_cast<uint32_t>(safe_mul((size_t)num_entries, num_blocks_per_ct));
@@ -125,8 +133,8 @@ __host__ void host_cmux(CudaStreams streams,
                         CudaRadixCiphertextFFI const *lwe_condition,
                         CudaRadixCiphertextFFI const *lwe_array_true,
                         CudaRadixCiphertextFFI const *lwe_array_false,
-                        int_cmux_buffer<Torus> *mem_ptr, void *const *bsks,
-                        KSTorus *const *ksks) {
+                        int_cmux_buffer<Torus> *mem_ptr,
+                        BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   if (lwe_array_out->num_radix_blocks != lwe_array_true->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
@@ -211,9 +219,10 @@ host_cmux_batch(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
                 CudaRadixCiphertextFFI const *lwe_array_true,
                 CudaRadixCiphertextFFI const *lwe_array_false,
                 CudaRadixCiphertextFFI const *lwe_conditions,
-                int_cmux_batch_buffer<Torus> *mem_ptr, void *const *bsks,
-                KSTorus *const *ksks, uint32_t num_entries,
-                uint32_t num_blocks_per_ct, bool replicate_true = false) {
+                int_cmux_batch_buffer<Torus> *mem_ptr,
+                BootstrappingKey const &bsks, KSTorus *const *ksks,
+                uint32_t num_entries, uint32_t num_blocks_per_ct,
+                bool replicate_true = false) {
 
   auto params = mem_ptr->params;
   uint32_t total_num_blocks =

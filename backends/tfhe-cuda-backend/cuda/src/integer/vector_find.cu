@@ -21,7 +21,7 @@ void cuda_unchecked_match_value_64_async(
     CudaRadixCiphertextFFI *lwe_array_out_boolean,
     CudaRadixCiphertextFFI const *lwe_array_in_ct,
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
-    int8_t *mem, void *const *bsks, void *const *ksks) {
+    int8_t *mem, CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(lwe_array_out_result != lwe_array_in_ct,
                  "Output result and input pointers must be different for "
                  "out-of-place operations");
@@ -72,7 +72,7 @@ void cuda_unchecked_match_value_or_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in_ct,
     const uint64_t *h_match_inputs, const uint64_t *h_match_outputs,
-    const uint64_t *h_or_value, int8_t *mem, void *const *bsks,
+    const uint64_t *h_or_value, int8_t *mem, CudaBootstrappingKeyFFI bsks,
     void *const *ksks) {
   PANIC_IF_FALSE(lwe_array_out != lwe_array_in_ct,
                  "Output and input pointers must be different for out-of-place "
@@ -115,7 +115,7 @@ void cuda_unchecked_contains_64_async(CudaStreamsFFI streams,
                                       CudaRadixCiphertextFFI const *inputs,
                                       CudaRadixCiphertextFFI const *value,
                                       uint32_t num_inputs, uint32_t num_blocks,
-                                      int8_t *mem, void *const *bsks,
+                                      int8_t *mem, CudaBootstrappingKeyFFI bsks,
                                       void *const *ksks) {
   PANIC_IF_FALSE(output != inputs,
                  "Output and first input pointers must be different for "
@@ -159,8 +159,8 @@ uint64_t scratch_cuda_unchecked_contains_clear_64_async(
 void cuda_unchecked_contains_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *inputs, const uint64_t *h_clear_val,
-    uint32_t num_inputs, uint32_t num_blocks, int8_t *mem, void *const *bsks,
-    void *const *ksks) {
+    uint32_t num_inputs, uint32_t num_blocks, int8_t *mem,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(output != inputs, "Output and input pointers must be "
                                    "different for out-of-place operations");
 
@@ -199,8 +199,8 @@ uint64_t scratch_cuda_unchecked_is_in_clears_64_async(
 void cuda_unchecked_is_in_clears_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input, const uint64_t *h_cleartexts,
-    uint32_t num_clears, uint32_t num_blocks, int8_t *mem, void *const *bsks,
-    void *const *ksks) {
+    uint32_t num_clears, uint32_t num_blocks, int8_t *mem,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
                                   "for out-of-place operations");
 
@@ -240,7 +240,7 @@ void cuda_unchecked_index_in_clears_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *input,
     const uint64_t *h_cleartexts, uint32_t num_clears, uint32_t num_blocks,
-    uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
+    uint32_t num_blocks_index, int8_t *mem, CudaBootstrappingKeyFFI bsks,
     void *const *ksks) {
   PANIC_IF_FALSE(index_ct != input, "Output and input pointers must be "
                                     "different for out-of-place operations");
@@ -288,7 +288,7 @@ void cuda_unchecked_first_index_in_clears_64_async(
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *input,
     const uint64_t *h_unique_values, const uint64_t *h_unique_indices,
     uint32_t num_unique, uint32_t num_blocks, uint32_t num_blocks_index,
-    int8_t *mem, void *const *bsks, void *const *ksks) {
+    int8_t *mem, CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(index_ct != input, "Output and input pointers must be "
                                     "different for out-of-place operations");
   PANIC_IF_FALSE(match_ct != input, "Output and input pointers must be "
@@ -334,7 +334,7 @@ void cuda_unchecked_first_index_of_clear_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
     const uint64_t *h_clear_val, uint32_t num_inputs, uint32_t num_blocks,
-    uint32_t num_blocks_index, int8_t *mem, void *const *bsks,
+    uint32_t num_blocks_index, int8_t *mem, CudaBootstrappingKeyFFI bsks,
     void *const *ksks) {
   PANIC_IF_FALSE(index_ct != inputs, "Output and input pointers must be "
                                      "different for out-of-place operations");
@@ -382,7 +382,7 @@ void cuda_unchecked_first_index_of_64_async(
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
     CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
     uint32_t num_blocks, uint32_t num_blocks_index, int8_t *mem,
-    void *const *bsks, void *const *ksks) {
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(index_ct != inputs, "Output and input pointers must be "
                                      "different for out-of-place operations");
   PANIC_IF_FALSE(match_ct != inputs, "Output and input pointers must be "
@@ -423,14 +423,23 @@ uint64_t scratch_cuda_unchecked_index_of_64_async(
       params, num_inputs, num_blocks, num_blocks_index, allocate_gpu_memory);
 }
 
-void cuda_unchecked_index_of_64_async(CudaStreamsFFI streams,
-                                      CudaRadixCiphertextFFI *index_ct,
-                                      CudaRadixCiphertextFFI *match_ct,
-                                      CudaRadixCiphertextFFI const *inputs,
-                                      CudaRadixCiphertextFFI const *value,
-                                      uint32_t num_inputs, uint32_t num_blocks,
-                                      uint32_t num_blocks_index, int8_t *mem,
-                                      void *const *bsks, void *const *ksks) {
+/** @brief Finds the index of the first input equal to value (64-bit entry
+ * point).
+ * @param index_ct output radix ciphertext with the index
+ * @param match_ct output boolean block; true if a match was found
+ * @param inputs num_inputs radix ciphertexts stored contiguously
+ * @param value radix ciphertext to search for
+ * @param num_inputs number of input ciphertexts
+ * @param num_blocks number of blocks of each input and of value
+ * @param num_blocks_index number of blocks of index_ct
+ * @param mem workspace created by scratch_cuda_unchecked_index_of_64_async
+ */
+void cuda_unchecked_index_of_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *index_ct,
+    CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
+    CudaRadixCiphertextFFI const *value, uint32_t num_inputs,
+    uint32_t num_blocks, uint32_t num_blocks_index, int8_t *mem,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(index_ct != inputs, "Output and input pointers must be "
                                      "different for out-of-place operations");
   PANIC_IF_FALSE(match_ct != inputs, "Output and input pointers must be "
@@ -477,7 +486,7 @@ void cuda_unchecked_index_of_clear_64_async(
     CudaRadixCiphertextFFI *match_ct, CudaRadixCiphertextFFI const *inputs,
     const uint64_t *h_clear_val, bool is_scalar_obviously_bigger,
     uint32_t num_inputs, uint32_t num_blocks, uint32_t num_blocks_index,
-    int8_t *mem, void *const *bsks, void *const *ksks) {
+    int8_t *mem, CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(index_ct != inputs, "Output and input pointers must be "
                                      "different for out-of-place operations");
   PANIC_IF_FALSE(match_ct != inputs, "Output and input pointers must be "

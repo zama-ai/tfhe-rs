@@ -198,6 +198,60 @@ public:
   }
 };
 
+// Non-owning view of a buffer allocated on several GPUs, built from the FFI
+// struct CudaMultiGpuVecFFI. The memory is owned by the Rust side.
+struct MultiGpuVec {
+private:
+  void *const *_ptrs;
+  uint64_t const *_byte_sizes;
+  uint32_t _gpu_count;
+
+  MultiGpuVec(void *const *ptrs, uint64_t const *byte_sizes, uint32_t gpu_count)
+      : _ptrs(ptrs), _byte_sizes(byte_sizes), _gpu_count(gpu_count) {}
+
+public:
+  // Construct an empty view. Any access to it raises an error
+  MultiGpuVec() : _ptrs(nullptr), _byte_sizes(nullptr), _gpu_count(0) {}
+
+  MultiGpuVec(CudaMultiGpuVecFFI const &ffi)
+      : _ptrs(ffi.ptrs), _byte_sizes(ffi.byte_sizes),
+        _gpu_count(ffi.gpu_count) {}
+
+  void *ptr(uint32_t idx) const {
+    PANIC_IF_FALSE(idx < _gpu_count, "Invalid GPU index");
+    return _ptrs[idx];
+  }
+  uint64_t byte_size(uint32_t idx) const {
+    PANIC_IF_FALSE(idx < _gpu_count, "Invalid GPU index");
+    return _byte_sizes[idx];
+  }
+  uint32_t count() const { return _gpu_count; }
+
+  // Returns a view of the allocation on the ith GPU only, to use with
+  // CudaStreams::get_ith
+  MultiGpuVec get_ith(uint32_t idx) const {
+    PANIC_IF_FALSE(idx < _gpu_count, "Invalid GPU index");
+    return MultiGpuVec(&_ptrs[idx], &_byte_sizes[idx], 1);
+  }
+};
+
+// Non-owning view of a bootstrapping key on several GPUs, built from the FFI
+// struct CudaBootstrappingKeyFFI
+struct BootstrappingKey {
+  MultiGpuVec bsk;
+
+  // Construct an empty view, for paths that do not run a PBS
+  BootstrappingKey() = default;
+  BootstrappingKey(CudaBootstrappingKeyFFI const &ffi) : bsk(ffi.bsk) {}
+  explicit BootstrappingKey(MultiGpuVec const &bsk) : bsk(bsk) {}
+
+  // Returns a view of the key on the ith GPU only, to use with
+  // CudaStreams::get_ith
+  BootstrappingKey get_ith(uint32_t idx) const {
+    return BootstrappingKey(bsk.get_ith(idx));
+  }
+};
+
 struct InternalCudaStreams {
 private:
   CudaStreams *_internal_cuda_streams;

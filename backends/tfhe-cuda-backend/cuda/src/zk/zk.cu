@@ -49,7 +49,8 @@ uint64_t scratch_cuda_expand_without_verification_64_async(
 void cuda_expand_without_verification_64_async(
     CudaStreamsFFI streams, void *lwe_array_out,
     const void *lwe_flattened_compact_array_in, int8_t *mem_ptr,
-    void *const *bsks, void *const *computing_ksks, void *const *casting_keys) {
+    CudaBootstrappingKeyFFI bsks, void *const *computing_ksks,
+    void *const *casting_keys) {
 
   auto expand_buffer = reinterpret_cast<zk_expand_mem<uint64_t> *>(mem_ptr);
 

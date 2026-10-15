@@ -22,7 +22,7 @@ void cuda_add_lwe_ciphertext_vector_inplace_64(
 
 void cuda_full_propagation_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *input_blocks,
-    int8_t *mem_ptr, void *const *ksks, void *const *bsks,
+    int8_t *mem_ptr, void *const *ksks, CudaBootstrappingKeyFFI bsks,
     uint32_t num_blocks) {
 
   int_fullprop_buffer<uint64_t> *buffer =
@@ -102,7 +102,7 @@ uint64_t scratch_cuda_integer_overflowing_sub_64_inplace_async(
 void cuda_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
     CudaRadixCiphertextFFI *carry_out, const CudaRadixCiphertextFFI *carry_in,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
+    int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks, void *const *ksks,
     uint32_t requested_flag, uint32_t uses_carry) {
 
   host_propagate_single_carry<uint64_t>(
@@ -114,8 +114,9 @@ void cuda_propagate_single_carry_64_inplace_async(
 void cuda_add_and_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
-    const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t requested_flag, uint32_t uses_carry) {
+    const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks, uint32_t requested_flag,
+    uint32_t uses_carry) {
 
   host_add_and_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,
@@ -128,7 +129,7 @@ void cuda_integer_overflowing_sub_64_inplace_async(
     const CudaRadixCiphertextFFI *rhs_array,
     CudaRadixCiphertextFFI *overflow_block,
     const CudaRadixCiphertextFFI *input_borrow, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks, uint32_t compute_overflow,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks, uint32_t compute_overflow,
     uint32_t uses_input_borrow) {
   PUSH_RANGE("overflow sub")
   host_integer_overflowing_sub<uint64_t>(
@@ -203,7 +204,7 @@ uint64_t scratch_cuda_apply_many_univariate_lut_64_async(
 void cuda_apply_univariate_lut_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks) {
+    void *const *ksks, CudaBootstrappingKeyFFI bsks) {
   PANIC_IF_FALSE(output_radix_lwe != input_radix_lwe,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
@@ -236,7 +237,7 @@ void cleanup_cuda_apply_many_univariate_lut_64(CudaStreamsFFI streams,
 void cuda_apply_many_univariate_lut_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks, uint32_t num_luts,
+    void *const *ksks, CudaBootstrappingKeyFFI bsks, uint32_t num_luts,
     uint32_t lut_stride) {
   PANIC_IF_FALSE(output_radix_lwe != input_radix_lwe,
                  "Output and input pointers must be different for out-of-place "
@@ -304,7 +305,7 @@ uint64_t scratch_cuda_apply_noise_squashing_async(
 void cuda_apply_noise_squashing_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output_radix_lwe,
     CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
-    void *const *ksks, void *const *bsks) {
+    void *const *ksks, CudaBootstrappingKeyFFI bsks) {
   PANIC_IF_FALSE(output_radix_lwe != input_radix_lwe,
                  "Output and input pointers must be different for out-of-place "
                  "operations");

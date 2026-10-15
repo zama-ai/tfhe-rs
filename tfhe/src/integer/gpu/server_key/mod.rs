@@ -32,8 +32,7 @@ pub use radix::{
     AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey,
     CudaOprfServerKeyView, GenericCudaOprfServerKey,
 };
-use std::ffi::c_void;
-use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
+use tfhe_cuda_backend::bindings::{CudaBootstrappingKeyFFI, CudaLweBootstrapKeyParamsFFI};
 
 #[cfg(test)]
 pub(crate) use radix::tests_unsigned;
@@ -117,10 +116,10 @@ where
 }
 
 impl<Scalar: UnsignedInteger> CudaBootstrapKey for CudaBootstrappingKey<Scalar> {
-    fn ptrs(&self) -> &[*mut c_void] {
+    fn ffi(&self) -> CudaBootstrappingKeyFFI {
         match self {
-            Self::Classic(bsk) => bsk.ptrs(),
-            Self::MultiBit(bsk) => bsk.ptrs(),
+            Self::Classic(bsk) => bsk.ffi(),
+            Self::MultiBit(bsk) => bsk.ffi(),
         }
     }
 
@@ -482,16 +481,14 @@ mod tests {
     use tfhe_cuda_backend::bindings::{PBS_TYPE_CLASSICAL, PBS_TYPE_MULTI_BIT};
 
     fn check_enum_forwards_to_inner_key(sks: &CudaServerKey) {
-        let (inner_ptrs, inner_gpu_index, inner_params) = match &sks.bootstrapping_key {
-            CudaBootstrappingKey::Classic(bsk) => {
-                (bsk.ptrs().to_vec(), bsk.gpu_index(0), bsk.params_ffi())
-            }
-            CudaBootstrappingKey::MultiBit(bsk) => {
-                (bsk.ptrs().to_vec(), bsk.gpu_index(0), bsk.params_ffi())
-            }
+        let (inner_ffi, inner_gpu_index, inner_params) = match &sks.bootstrapping_key {
+            CudaBootstrappingKey::Classic(bsk) => (bsk.ffi(), bsk.gpu_index(0), bsk.params_ffi()),
+            CudaBootstrappingKey::MultiBit(bsk) => (bsk.ffi(), bsk.gpu_index(0), bsk.params_ffi()),
         };
         let key = &sks.bootstrapping_key;
-        assert_eq!(key.ptrs(), inner_ptrs.as_slice());
+        assert_eq!(key.ffi().bsk.ptrs, inner_ffi.bsk.ptrs);
+        assert_eq!(key.ffi().bsk.byte_sizes, inner_ffi.bsk.byte_sizes);
+        assert_eq!(key.ffi().bsk.gpu_count, inner_ffi.bsk.gpu_count);
         assert_eq!(key.gpu_index(0), inner_gpu_index);
         assert_eq!(key.params_ffi().pbs_type, inner_params.pbs_type);
         assert_eq!(

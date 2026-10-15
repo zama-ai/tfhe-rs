@@ -28,8 +28,8 @@ void cuda_kv_store_get_64_async(
     CudaRadixCiphertextFFI *lwe_array_out_selectors,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
     CudaRadixCiphertextFFI const *lwe_array_in_values,
-    const uint64_t *h_decomposed_clear_keys, int8_t *mem, void *const *bsks,
-    void *const *ksks) {
+    const uint64_t *h_decomposed_clear_keys, int8_t *mem,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   PUSH_RANGE("kv_store_get")
 
@@ -95,8 +95,8 @@ void cuda_kv_store_update_64_async(
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
     CudaRadixCiphertextFFI const *lwe_array_in_values,
     CudaRadixCiphertextFFI const *lwe_in_new_value,
-    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   PUSH_RANGE("kv_store_update")
 
@@ -157,7 +157,7 @@ void cuda_kv_store_map_64_async(
     CudaRadixCiphertextFFI const *lwe_array_in_values,
     CudaRadixCiphertextFFI const *lwe_in_new_value,
     CudaRadixCiphertextFFI const *lwe_array_in_selectors, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   PUSH_RANGE("kv_store_map")
 
@@ -221,8 +221,8 @@ uint64_t scratch_cuda_kv_store_contains_key_64_async(
 void cuda_kv_store_contains_key_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
-    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   PUSH_RANGE("kv_store_contains_key")
 

@@ -395,13 +395,23 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   check_cuda_error(cudaGetLastError());
 }
 
+/** @brief Decompresses selected LWE ciphertexts from a packed GLWE list.
+ * The required GLWEs are extracted, then the selected LWEs are sample
+ * extracted. For 64-bit Torus, a PBS then rescales the LWEs and moves them to
+ * the big LWE dimension. For 128-bit Torus, the PBS is skipped.
+ * @param d_lwe_array_out output LWE list on the device
+ * @param d_packed_glwe_in packed GLWE list to decompress from
+ * @param h_indexes_array host array with the indexes of the LWEs to
+ * decompress
+ * @param d_bsks bootstrapping key used by the rescale PBS (64-bit only)
+ * @param h_mem_ptr workspace created by the decompression scratch function
+ */
 template <typename Torus>
-__host__ void
-host_integer_decompress(CudaStreams streams,
-                        CudaLweCiphertextListFFI *d_lwe_array_out,
-                        CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
-                        uint32_t const *h_indexes_array, void *const *d_bsks,
-                        int_decompression<Torus> *h_mem_ptr) {
+__host__ void host_integer_decompress(
+    CudaStreams streams, CudaLweCiphertextListFFI *d_lwe_array_out,
+    CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
+    uint32_t const *h_indexes_array, BootstrappingKey const &d_bsks,
+    int_decompression<Torus> *h_mem_ptr) {
 
   static_assert(std::is_same_v<Torus, uint64_t> ||
                     std::is_same_v<Torus, __uint128_t>,

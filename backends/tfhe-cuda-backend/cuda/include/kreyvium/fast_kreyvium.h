@@ -26,15 +26,15 @@ void cuda_fast_kreyvium_init_async(
     CudaRadixCiphertextFFI *b_reg, CudaRadixCiphertextFFI *c_reg,
     CudaRadixCiphertextFFI *k_reg, CudaRadixCiphertextFFI *iv_reg,
     uint32_t *k_offset, uint32_t *iv_offset, const CudaRadixCiphertextFFI *key,
-    const CudaRadixCiphertextFFI *iv_in, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks);
+    const CudaRadixCiphertextFFI *iv_in, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks);
 void cuda_fast_kreyvium_step_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *keystream_output,
     CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
     CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
-    uint32_t num_inputs, uint32_t num_steps, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks);
+    uint32_t num_inputs, uint32_t num_steps, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks);
 }
 
 #endif

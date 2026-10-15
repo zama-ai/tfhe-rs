@@ -27,7 +27,8 @@ void cuda_integer_compress_radix_ciphertext_64_async(
 void cuda_integer_decompress_radix_ciphertext_64_async(
     CudaStreamsFFI streams, CudaLweCiphertextListFFI *lwe_array_out,
     CudaPackedGlweCiphertextListFFI const *glwe_in,
-    uint32_t const *indexes_array, void *const *bsks, int8_t *mem_ptr);
+    uint32_t const *indexes_array, CudaBootstrappingKeyFFI bsks,
+    int8_t *mem_ptr);
 
 void cleanup_cuda_integer_compress_radix_ciphertext_64(CudaStreamsFFI streams,
                                                        int8_t **mem_ptr_void);

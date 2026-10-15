@@ -18,7 +18,8 @@ uint64_t scratch_cuda_scalar_rotate_64_inplace_async(
 void cuda_scalar_rotate_64_inplace_async(CudaStreamsFFI streams,
                                          CudaRadixCiphertextFFI *lwe_array,
                                          uint32_t n, int8_t *mem_ptr,
-                                         void *const *bsks, void *const *ksks) {
+                                         CudaBootstrappingKeyFFI bsks,
+                                         void *const *ksks) {
 
   host_scalar_rotate_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, n,

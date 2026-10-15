@@ -30,14 +30,14 @@ uint64_t scratch_cuda_integer_bitonic_shuffle_64_async(
  * @param num_values Number of key-value pairs.
  * @param mem_ptr    Scratch buffer cast to
  * int_bitonic_shuffle_buffer<uint64_t>.
- * @param bsks       Array of bootstrapping key pointers, one per GPU.
+ * @param bsks       Bootstrapping key, with its data on each GPU.
  * @param ksks       Array of keyswitch key pointers, one per GPU.
  */
 void cuda_integer_bitonic_shuffle_64_async(CudaStreamsFFI streams,
                                            CudaRadixCiphertextFFI **keys,
                                            CudaRadixCiphertextFFI **values,
                                            uint32_t num_values, int8_t *mem_ptr,
-                                           void *const *bsks,
+                                           CudaBootstrappingKeyFFI bsks,
                                            void *const *ksks) {
 
   PUSH_RANGE("bitonic shuffle")
@@ -98,9 +98,8 @@ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
  * @param seeded_lwe_input Seeded LWE ciphertext used as OPRF input.
  * @param mem_ptr          Scratch buffer cast to
  *                         int_oprf_bitonic_shuffle_buffer<uint64_t>.
- * @param oprf_bsks        Array of OPRF bootstrapping key pointers, one per
- * GPU.
- * @param bsks             Array of bootstrapping key pointers, one per GPU.
+ * @param oprf_bsks        OPRF bootstrapping key, with its data on each GPU.
+ * @param bsks             Bootstrapping key, with its data on each GPU.
  * @param ksks             Array of keyswitch key pointers, one per GPU.
  * @param lwe_flattened_encryptions_of_zero_compact_array_in Compact array of
  * encryptions of zero for re-randomization.
@@ -110,7 +109,8 @@ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_64_async(
 void cuda_integer_oprf_bitonic_shuffle_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI **values,
     uint32_t num_values, const void *seeded_lwe_input, int8_t *mem_ptr,
-    void *const *oprf_bsks, void *const *bsks, void *const *ksks,
+    CudaBootstrappingKeyFFI oprf_bsks, CudaBootstrappingKeyFFI bsks,
+    void *const *ksks,
     const void *lwe_flattened_encryptions_of_zero_compact_array_in,
     void *const *rerand_ksks) {
 

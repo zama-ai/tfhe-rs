@@ -8,10 +8,9 @@ use crate::core_crypto::prelude::{
     GlweDimension, LweBskGroupingFactor, LweDimension, LweMultiBitBootstrapKey, PolynomialSize,
     UnsignedInteger,
 };
-use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::{
-    CudaLweBootstrapKeyParamsFFI, CudaMultiBitPbsParamsFFI, CudaPbsTypeParamsFFI,
-    PBS_TYPE_MULTI_BIT,
+    CudaBootstrappingKeyFFI, CudaLweBootstrapKeyParamsFFI, CudaMultiBitPbsParamsFFI,
+    CudaPbsTypeParamsFFI, PBS_TYPE_MULTI_BIT,
 };
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
@@ -19,6 +18,8 @@ use tfhe_cuda_backend::bindings::{
 pub struct CudaLweMultiBitBootstrapKey<Scalar: UnsignedInteger> {
     // Pointers to GPU data
     pub(crate) d_vec: CudaVec<Scalar>,
+    // Allocation size in bytes on each GPU, passed through the FFI with d_vec
+    pub(crate) d_vec_byte_sizes: Vec<u64>,
     // Lwe dimension
     pub(crate) input_lwe_dimension: LweDimension,
     // Glwe dimension
@@ -72,6 +73,7 @@ impl<Scalar: UnsignedInteger> CudaLweMultiBitBootstrapKey<Scalar> {
         }
         streams.synchronize();
         Self {
+            d_vec_byte_sizes: d_vec.byte_sizes(),
             d_vec,
             input_lwe_dimension,
             glwe_dimension,
@@ -112,8 +114,10 @@ impl<Scalar: UnsignedInteger> CudaLweMultiBitBootstrapKey<Scalar> {
 }
 
 impl<Scalar: UnsignedInteger> CudaBootstrapKey for CudaLweMultiBitBootstrapKey<Scalar> {
-    fn ptrs(&self) -> &[*mut c_void] {
-        &self.d_vec.ptr
+    fn ffi(&self) -> CudaBootstrappingKeyFFI {
+        CudaBootstrappingKeyFFI {
+            bsk: self.d_vec.multi_gpu_ffi(&self.d_vec_byte_sizes),
+        }
     }
 
     fn gpu_index(&self, index: u32) -> GpuIndex {

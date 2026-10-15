@@ -450,11 +450,11 @@ void execute_pbs_async(
     const std::vector<InputTorus *> lut_indexes_vec,
     const LweArrayVariant<InputTorus> &lwe_array_in,
     const LweArrayVariant<InputTorus> &lwe_input_indexes,
-    void *const *bootstrapping_keys, std::vector<pbs_buffer_base *> pbs_buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, pbs_type_params pbs_params,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+    BootstrappingKey const &bootstrapping_keys,
+    std::vector<pbs_buffer_base *> pbs_buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    pbs_type_params pbs_params, uint32_t num_many_lut, uint32_t lut_stride) {
 
   if constexpr (std::is_same_v<OutputTorus, uint32_t>) {
     // 32 bits
@@ -486,7 +486,7 @@ void execute_pbs_async(
                     streams.stream(i), streams.gpu_index(i),
                     current_lwe_array_out, current_lwe_output_indexes,
                     lut_vec[i], d_lut_vector_indexes, current_lwe_array_in,
-                    current_lwe_input_indexes, bootstrapping_keys[i],
+                    current_lwe_input_indexes, bootstrapping_keys.bsk.ptr(i),
                     reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
                     glwe_dimension, polynomial_size, base_log, level_count,
                     num_inputs_on_gpu, num_many_lut, lut_stride);
@@ -526,7 +526,7 @@ void execute_pbs_async(
                     streams.stream(i), streams.gpu_index(i),
                     current_lwe_array_out, current_lwe_output_indexes,
                     lut_vec[i], d_lut_vector_indexes, current_lwe_array_in,
-                    current_lwe_input_indexes, bootstrapping_keys[i],
+                    current_lwe_input_indexes, bootstrapping_keys.bsk.ptr(i),
                     reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
                     glwe_dimension, polynomial_size, base_log, level_count,
                     num_inputs_on_gpu, num_many_lut, lut_stride);
@@ -560,7 +560,7 @@ void execute_pbs_async(
                     streams.stream(i), streams.gpu_index(i),
                     current_lwe_array_out, current_lwe_output_indexes,
                     lut_vec[i], d_lut_vector_indexes, current_lwe_array_in,
-                    current_lwe_input_indexes, bootstrapping_keys[i],
+                    current_lwe_input_indexes, bootstrapping_keys.bsk.ptr(i),
                     reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
                     glwe_dimension, polynomial_size, multi_bit.grouping_factor,
                     base_log, level_count, num_inputs_on_gpu, num_many_lut,
@@ -597,7 +597,7 @@ void execute_pbs_async(
                 cuda_programmable_bootstrap_128_async(
                     streams.stream(i), streams.gpu_index(i),
                     current_lwe_array_out, lut_vec[i], current_lwe_array_in,
-                    bootstrapping_keys[i],
+                    bootstrapping_keys.bsk.ptr(i),
                     reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
                     glwe_dimension, polynomial_size, base_log, level_count,
                     num_inputs_on_gpu);
@@ -626,7 +626,7 @@ void execute_pbs_async(
                     streams.stream(i), streams.gpu_index(i),
                     current_lwe_array_out, current_lwe_output_indexes,
                     lut_vec[i], current_lwe_array_in, current_lwe_input_indexes,
-                    bootstrapping_keys[i],
+                    bootstrapping_keys.bsk.ptr(i),
                     reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
                     glwe_dimension, polynomial_size, multi_bit.grouping_factor,
                     base_log, level_count, num_inputs_on_gpu, num_many_lut,

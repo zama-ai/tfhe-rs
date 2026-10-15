@@ -7,7 +7,7 @@ void cuda_trivium_init_async(CudaStreamsFFI streams,
                              CudaRadixCiphertextFFI *c_reg,
                              const CudaRadixCiphertextFFI *key,
                              const CudaRadixCiphertextFFI *iv, int8_t *mem_ptr,
-                             void *const *bsks, void *const *ksks) {
+                             CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   auto buffer = (int_trivium_buffer<uint64_t> *)mem_ptr;
   host_trivium_init<uint64_t>(CudaStreams(streams), buffer, a_reg, b_reg, c_reg,
@@ -19,7 +19,7 @@ void cuda_trivium_step_async(CudaStreamsFFI streams,
                              CudaRadixCiphertextFFI *a_reg,
                              CudaRadixCiphertextFFI *b_reg,
                              CudaRadixCiphertextFFI *c_reg, uint32_t num_steps,
-                             int8_t *mem_ptr, void *const *bsks,
+                             int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks,
                              void *const *ksks) {
 
   auto buffer = (int_trivium_buffer<uint64_t> *)mem_ptr;

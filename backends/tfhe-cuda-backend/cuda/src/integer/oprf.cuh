@@ -27,7 +27,7 @@ void host_integer_grouped_oprf(CudaStreams streams,
                                const Torus *seeded_lwe_input,
                                uint32_t num_blocks_to_process,
                                int_grouped_oprf_memory<Torus> *mem_ptr,
-                               void *const *bsks) {
+                               BootstrappingKey const &bsks) {
 
   auto active_streams = streams.active_gpu_subset(num_blocks_to_process,
                                                   mem_ptr->params.pbs_type());
@@ -129,8 +129,9 @@ void host_integer_grouped_oprf_custom_range(
     const Torus *decomposed_scalar, const Torus *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
-    int_grouped_oprf_custom_range_memory<Torus> *mem_ptr, void *const *bsks,
-    void *const *compute_bsks, Torus *const *ksks, Torus *const *rerand_ksks) {
+    int_grouped_oprf_custom_range_memory<Torus> *mem_ptr,
+    BootstrappingKey const &bsks, BootstrappingKey const &compute_bsks,
+    Torus *const *ksks, Torus *const *rerand_ksks) {
 
   CudaRadixCiphertextFFI *computation_buffer = mem_ptr->tmp_oprf_output;
   set_zero_radix_ciphertext_slice_async<Torus>(

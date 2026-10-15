@@ -436,7 +436,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<T: UnsignedInteger, KST: 
         decomposed_scalar.as_ptr().cast::<u64>(),
         has_at_least_one_set.as_ptr().cast::<u64>(),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(message_modulus.0).unwrap(),
         num_scalars,
@@ -851,7 +851,7 @@ pub(crate) unsafe fn cuda_backend_decompress(
         &raw mut lwe_array_out_ffi,
         &raw const glwe_array_in_ffi,
         vec_indexes.as_ptr(),
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         mem_ptr,
     );
 
@@ -1136,7 +1136,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger>(
         is_boolean_left,
         &raw const cuda_ffi_radix_lwe_right,
         is_boolean_right,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         mem_ptr,
         bsk_params.polynomial_size,
@@ -1279,7 +1279,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger>(
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1387,7 +1387,7 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger>(
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_boolean_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1575,7 +1575,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
         min(u32::try_from(clear_blocks.len()).unwrap(), num_blocks),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_scalar_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1746,7 +1746,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger>(
         &raw const cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -1904,7 +1904,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
         scalar_blocks.as_c_ptr(0),
         h_scalar_blocks.as_ptr().cast::<std::ffi::c_void>(),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         num_scalar_blocks,
     );
@@ -1984,7 +1984,7 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger>(
         &raw mut cuda_ffi_radix_lwe_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         num_blocks,
     );
     cleanup_cuda_full_propagation_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -2118,7 +2118,7 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2333,7 +2333,7 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<T: Unsig
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2477,7 +2477,7 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<T: Unsig
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2550,7 +2550,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf(
         seeded_lwe_input.as_c_ptr(0),
         num_blocks_to_process,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
     );
 
     cleanup_cuda_integer_grouped_oprf_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -2690,8 +2690,8 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<T: UnsignedInteger, 
         shift,
         zero_lwes_ptr,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
-        compute_bsk.ptrs().as_ptr(),
+        bsk.ffi(),
+        compute_bsk.ffi(),
         key_switching_key.ptr.as_ptr(),
         rerand_ksks_ptr,
     );
@@ -2905,7 +2905,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<T: UnsignedI
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         divisor_has_at_least_one_set.as_ptr(),
@@ -3082,7 +3082,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         divisor_has_at_least_one_set.as_ptr(),
@@ -3435,7 +3435,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<T: Unsign
         streams.ffi(),
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
     );
@@ -3560,7 +3560,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<T: Unsigned
         streams.ffi(),
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         numerator_bits,
@@ -3637,7 +3637,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<T: Unsigned
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_logical_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3712,7 +3712,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_logical_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3786,7 +3786,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_arithmetic_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3885,7 +3885,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3984,7 +3984,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4088,7 +4088,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4192,7 +4192,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4599,7 +4599,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger>(
         &raw const cuda_ffi_radix_lwe_true,
         &raw const cuda_ffi_radix_lwe_false,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_cmux_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4851,7 +4851,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<T: Unsigne
         &raw mut cuda_ffi_radix_lwe_left,
         n,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_scalar_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4927,7 +4927,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<T: Unsign
         &raw mut cuda_ffi_radix_lwe_left,
         n,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_scalar_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5079,7 +5079,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<T: Un
         &raw mut cuda_ffi_result,
         &raw mut cuda_ffi_radix_list,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_partial_sum_ciphertexts_vec_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5160,7 +5160,7 @@ pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<T: Unsigned
             .as_ref()
             .map_or(std::ptr::null(), std::ptr::from_ref),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_mul_add_fixed_point_with_rescaling_64(
@@ -5240,7 +5240,7 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger>(
         num_extra_terms,
         propagate_carries,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_mul_low_partial_sum_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5333,7 +5333,7 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, KST: 
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
     );
     cleanup_cuda_apply_univariate_lut_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
@@ -5429,7 +5429,7 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         num_many_lut,
         lut_stride,
     );
@@ -5562,7 +5562,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger>(
         &raw const cuda_ffi_divisor,
         is_signed,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_div_rem_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5686,7 +5686,7 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger>(
         &raw mut cuda_ffi_output_ct,
         &raw const cuda_ffi_input_ct,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -5822,7 +5822,7 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger>(
         &raw const cuda_ffi_trivial_ct_2,
         &raw const cuda_ffi_trivial_all_ones_block,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -5955,7 +5955,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<T: U
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         compute_overflow as u32,
         uses_input_borrow,
@@ -6024,7 +6024,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
         &raw mut cuda_ffi_ct,
         mem_ptr,
         true,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_abs_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -6130,7 +6130,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
@@ -6239,7 +6239,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<T: Un
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
@@ -6490,7 +6490,7 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, KST: Unsig
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
     );
 
     cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -6586,7 +6586,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
         lwe_array_out.0.d_vec.as_mut_c_ptr(0),
         lwe_flattened_compact_array_in.as_c_ptr(0),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         computing_ks_key.ptr.as_ptr(),
         casting_key.ptr.as_ptr(),
     );
@@ -6664,7 +6664,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger>(
         counter_bits_le.as_ptr(),
         num_aes_inputs,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -6744,7 +6744,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteg
         counter_bits_le.as_ptr(),
         num_aes_inputs,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -6842,7 +6842,7 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger>(
         &raw mut cuda_ffi_expanded_keys,
         &raw const cuda_ffi_key,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -6936,7 +6936,7 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger>(
         &raw mut cuda_ffi_expanded_keys,
         &raw const cuda_ffi_key,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7044,7 +7044,7 @@ pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger>(
         streams.ffi(),
         &raw mut cuda_ffi_ciphertext,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_boolean_bitnot_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -7267,7 +7267,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         h_match_inputs.as_ptr(),
         h_match_outputs.as_ptr(),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7465,7 +7465,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
         &raw const ffi_in_values_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7659,7 +7659,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
         &raw const ffi_in_new_value_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7829,7 +7829,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger>(
         &raw const ffi_in_new_value_struct,
         &raw const ffi_in_selectors_struct,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7946,7 +7946,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
         &raw const ffi_in_key_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8158,7 +8158,7 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger>(
         mem_ptr,
         target_num_blocks,
         input_is_signed,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8322,7 +8322,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         h_match_outputs.as_ptr(),
         h_or_value.as_ptr(),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8425,7 +8425,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8529,7 +8529,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8612,7 +8612,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
         num_clears,
         num_blocks,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8715,7 +8715,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8845,7 +8845,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8970,7 +8970,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9094,7 +9094,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9218,7 +9218,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9350,7 +9350,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         num_blocks_in_ct,
         num_blocks_index,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9479,7 +9479,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9609,7 +9609,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
         num_inputs_rhs,
         num_blocks,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9672,7 +9672,7 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger>(
         &raw const cuda_ffi_input,
         mem_ptr,
         input_is_signed,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9886,7 +9886,7 @@ pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger>(
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_trivium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -9986,7 +9986,7 @@ pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger>(
         &raw mut ffi_c,
         num_steps,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_trivium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10132,7 +10132,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger>(
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_kreyvium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10266,7 +10266,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger>(
         num_inputs,
         num_steps,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_kreyvium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10414,7 +10414,7 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger>(
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_fast_kreyvium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10548,7 +10548,7 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger>(
         num_inputs,
         num_steps,
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_fast_kreyvium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10658,7 +10658,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger>(
         data_ptrs.as_mut_ptr(),
         u32::try_from(num_values).unwrap(),
         mem_ptr,
-        bsk.ptrs().as_ptr(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -10806,8 +10806,8 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger>(
         u32::try_from(num_values).unwrap(),
         seeded_lwe_input.as_c_ptr(0),
         mem_ptr,
-        oprf_bsk.ptrs().as_ptr(),
-        bsk.ptrs().as_ptr(),
+        oprf_bsk.ffi(),
+        bsk.ffi(),
         keyswitch_key.ptr.as_ptr(),
         zero_lwes_ptr,
         rerand_ksks_ptr,

@@ -26,7 +26,8 @@ void cuda_cmux_64_async(CudaStreamsFFI streams,
                         CudaRadixCiphertextFFI const *lwe_condition,
                         CudaRadixCiphertextFFI const *lwe_array_true,
                         CudaRadixCiphertextFFI const *lwe_array_false,
-                        int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+                        int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks,
+                        void *const *ksks) {
   PANIC_IF_FALSE(
       lwe_array_out != lwe_condition,
       "Output and condition pointers must be different for out-of-place "

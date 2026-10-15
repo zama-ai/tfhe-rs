@@ -16,13 +16,20 @@ uint64_t scratch_cuda_integer_div_rem_64_async(
   POP_RANGE()
 }
 
-void cuda_integer_div_rem_64_async(CudaStreamsFFI streams,
-                                   CudaRadixCiphertextFFI *quotient,
-                                   CudaRadixCiphertextFFI *remainder,
-                                   CudaRadixCiphertextFFI const *numerator,
-                                   CudaRadixCiphertextFFI const *divisor,
-                                   bool is_signed, int8_t *mem_ptr,
-                                   void *const *bsks, void *const *ksks) {
+/** @brief Computes the quotient and the remainder of an encrypted division
+ * (64-bit entry point). All pointers must be different.
+ * @param quotient output radix ciphertext for the quotient
+ * @param remainder output radix ciphertext for the remainder
+ * @param numerator numerator radix ciphertext
+ * @param divisor divisor radix ciphertext
+ * @param is_signed true for a signed division
+ * @param mem_ptr workspace created by scratch_cuda_integer_div_rem_64_async
+ */
+void cuda_integer_div_rem_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient,
+    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
+    CudaRadixCiphertextFFI const *divisor, bool is_signed, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(quotient != numerator,
                  "Quotient and numerator pointers must be different for "
                  "out-of-place operations");

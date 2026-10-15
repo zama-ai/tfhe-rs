@@ -49,12 +49,19 @@ uint64_t scratch_cuda_cast_to_unsigned_64_async(
       requires_full_propagate, allocate_gpu_memory);
 }
 
-void cuda_cast_to_unsigned_64_async(CudaStreamsFFI streams,
-                                    CudaRadixCiphertextFFI *output,
-                                    CudaRadixCiphertextFFI *input,
-                                    int8_t *mem_ptr, uint32_t target_num_blocks,
-                                    bool input_is_signed, void *const *bsks,
-                                    void *const *ksks) {
+/** @brief Casts a radix ciphertext to an unsigned radix ciphertext with
+ * target_num_blocks blocks (64-bit entry point).
+ * @param output output radix ciphertext; must be different from input
+ * @param input input radix ciphertext
+ * @param mem_ptr workspace created by scratch_cuda_cast_to_unsigned_64_async
+ * @param target_num_blocks number of blocks of the result
+ * @param input_is_signed true if input is a signed integer; the sign is then
+ * extended when blocks are added
+ */
+void cuda_cast_to_unsigned_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI *input, int8_t *mem_ptr, uint32_t target_num_blocks,
+    bool input_is_signed, CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
                                   "for out-of-place operations");
 
@@ -93,7 +100,8 @@ void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
                                   CudaRadixCiphertextFFI *output,
                                   CudaRadixCiphertextFFI const *input,
                                   int8_t *mem, bool input_is_signed,
-                                  void *const *bsks, void *const *ksks) {
+                                  CudaBootstrappingKeyFFI bsks,
+                                  void *const *ksks) {
   PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
                                   "for out-of-place operations");
 

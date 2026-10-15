@@ -74,7 +74,7 @@ __host__ void trivium_compute_64_steps(
     CudaStreams streams, int_trivium_buffer<Torus> *buffer,
     CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *output_dest,
-    void *const *bsks, uint64_t *const *ksks) {
+    BootstrappingKey const &bsks, uint64_t *const *ksks) {
 
   uint32_t N = buffer->num_inputs;
   constexpr uint32_t BATCH = TRIVIUM_BATCH_SIZE;
@@ -283,8 +283,8 @@ host_trivium_init(CudaStreams streams, int_trivium_buffer<Torus> *buffer,
                   CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
                   CudaRadixCiphertextFFI *c_reg,
                   const CudaRadixCiphertextFFI *key_bitsliced,
-                  const CudaRadixCiphertextFFI *iv_bitsliced, void *const *bsks,
-                  uint64_t *const *ksks) {
+                  const CudaRadixCiphertextFFI *iv_bitsliced,
+                  BootstrappingKey const &bsks, uint64_t *const *ksks) {
 
   uint32_t N = buffer->num_inputs;
   auto ws = buffer->ws;
@@ -335,8 +335,8 @@ __host__ void
 host_trivium_step(CudaStreams streams, CudaRadixCiphertextFFI *keystream_output,
                   CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
                   CudaRadixCiphertextFFI *c_reg, uint32_t num_steps,
-                  int_trivium_buffer<Torus> *buffer, void *const *bsks,
-                  uint64_t *const *ksks) {
+                  int_trivium_buffer<Torus> *buffer,
+                  BootstrappingKey const &bsks, uint64_t *const *ksks) {
 
   PANIC_IF_FALSE(
       num_steps % TRIVIUM_BATCH_SIZE == 0,

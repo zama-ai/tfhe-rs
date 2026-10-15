@@ -32,7 +32,7 @@ SKIP_PARAMS = {
     ("int_radix_params", "params"),
     ("bool", "allocate_gpu_memory"),
     ("uint64_t", "size_tracker"),
-    ("void", "bsks"),
+    ("BootstrappingKey", "bsks"),
     ("", "ksks"),
     ("cudaStream_t", "stream"),
     ("void *", "stream"),

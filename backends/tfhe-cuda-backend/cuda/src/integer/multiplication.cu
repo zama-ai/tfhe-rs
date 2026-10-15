@@ -4,7 +4,7 @@
 void cuda_integer_mult_inplace_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_inout,
     bool const is_bool_left, CudaRadixCiphertextFFI const *radix_lwe_right,
-    bool const is_bool_right, void *const *bsks, void *const *ksks,
+    bool const is_bool_right, CudaBootstrappingKeyFFI bsks, void *const *ksks,
     int8_t *mem_ptr, uint32_t polynomial_size, uint32_t num_blocks) {
   // In-place variant: radix_lwe_inout *= radix_lwe_right, no aliasing check
   // needed
@@ -69,8 +69,8 @@ uint64_t scratch_cuda_partial_sum_ciphertexts_vec_64_async(
 
 void cuda_partial_sum_ciphertexts_vec_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(radix_lwe_out != radix_lwe_vec,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
@@ -123,8 +123,8 @@ uint64_t scratch_cuda_mul_add_fixed_point_with_rescaling_64_async(
 void cuda_mul_add_fixed_point_with_rescaling_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
-    CudaRadixCiphertextFFI const *added, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    CudaRadixCiphertextFFI const *added, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(result != lhs && result != added,
                  "Output and input pointers must be different for "
                  "out-of-place operations");
@@ -178,7 +178,7 @@ void cuda_mul_low_partial_sum_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
-    bool propagate_carries, int8_t *mem_ptr, void *const *bsks,
+    bool propagate_carries, int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks,
     void *const *ksks) {
   PANIC_IF_FALSE(result != lhs && result != rhs,
                  "Output and input pointers must be different for "

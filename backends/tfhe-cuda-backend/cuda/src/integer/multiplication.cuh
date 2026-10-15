@@ -286,8 +286,8 @@ __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec(
 template <typename Torus>
 __host__ void host_integer_partial_sum_ciphertexts_vec(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *terms, void *const *bsks, uint64_t *const *ksks,
-    int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
+    CudaRadixCiphertextFFI *terms, BootstrappingKey const &bsks,
+    uint64_t *const *ksks, int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec) {
   auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
   auto big_lwe_size = big_lwe_dimension + 1;
@@ -488,8 +488,8 @@ __host__ void host_integer_mult_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
-    void *const *bsks, uint64_t *const *ksks, int_mul_memory<Torus> *mem_ptr,
-    uint32_t num_blocks) {
+    BootstrappingKey const &bsks, uint64_t *const *ksks,
+    int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
 
   if (radix_lwe_out->lwe_dimension != radix_lwe_left->lwe_dimension ||
       radix_lwe_right->lwe_dimension != radix_lwe_left->lwe_dimension)
@@ -774,7 +774,7 @@ __host__ void host_mul_add_fixed_point_core(
     CudaRadixCiphertextFFI const *added,
     CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
     bool propagate_carries, int_mul_add_fixed_point_memory<Torus> *mem,
-    void *const *bsks, uint64_t *const *ksks) {
+    BootstrappingKey const &bsks, uint64_t *const *ksks) {
   PUSH_RANGE("mul_add_fixed_point")
 
   auto stream = streams.stream(0);
@@ -877,7 +877,7 @@ __host__ void host_mul_add_fixed_point_with_rescaling(
     CudaStreams streams, CudaRadixCiphertextFFI *result,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     CudaRadixCiphertextFFI const *added,
-    int_mul_add_fixed_point_memory<Torus> *mem, void *const *bsks,
+    int_mul_add_fixed_point_memory<Torus> *mem, BootstrappingKey const &bsks,
     uint64_t *const *ksks) {
   PANIC_IF_FALSE(mem->mode == MUL_ADD_MODE_FIXED_POINT,
                  "Cuda error (mul_add_fixed_point): buffer was scratched for "
@@ -901,7 +901,7 @@ __host__ void host_mul_low_partial_sum(
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
     bool propagate_carries, int_mul_add_fixed_point_memory<Torus> *mem,
-    void *const *bsks, uint64_t *const *ksks) {
+    BootstrappingKey const &bsks, uint64_t *const *ksks) {
   PANIC_IF_FALSE(mem->mode == MUL_ADD_MODE_MUL_LOW,
                  "Cuda error (mul_add_fixed_point): buffer was scratched for "
                  "the fixed-point shape");

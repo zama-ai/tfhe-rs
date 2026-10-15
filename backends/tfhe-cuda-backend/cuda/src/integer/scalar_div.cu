@@ -17,7 +17,7 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_64_async(
 
 void cuda_integer_unsigned_scalar_div_radix_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *numerator_ct,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
+    int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks, void *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
   host_integer_unsigned_scalar_div_radix<uint64_t>(
@@ -55,7 +55,7 @@ uint64_t scratch_cuda_integer_signed_scalar_div_radix_64_async(
 
 void cuda_integer_signed_scalar_div_radix_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *numerator_ct,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
+    int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks, void *const *ksks,
     const CudaScalarDivisorFFI *scalar_divisor_ffi, uint32_t numerator_bits) {
 
   host_integer_signed_scalar_div_radix<uint64_t>(
@@ -94,8 +94,9 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_rem_radix_64_async(
 
 void cuda_integer_unsigned_scalar_div_rem_radix_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient_ct,
-    CudaRadixCiphertextFFI *remainder_ct, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    CudaRadixCiphertextFFI *remainder_ct, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     void const *clear_blocks, void const *h_clear_blocks,
@@ -142,8 +143,9 @@ uint64_t scratch_cuda_integer_signed_scalar_div_rem_radix_64_async(
 
 void cuda_integer_signed_scalar_div_rem_radix_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *quotient_ct,
-    CudaRadixCiphertextFFI *remainder_ct, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    CudaRadixCiphertextFFI *remainder_ct, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     uint32_t numerator_bits) {

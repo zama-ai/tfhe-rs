@@ -5,7 +5,7 @@ void cuda_integer_aes_ctr_256_encrypt_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
     const uint64_t *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+    int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   host_integer_aes_ctr_256_encrypt<uint64_t>(
       CudaStreams(streams), output, iv, round_keys, counter_bits_le_all_blocks,
@@ -29,8 +29,8 @@ uint64_t scratch_cuda_integer_key_expansion_256_64_async(
 
 void cuda_integer_key_expansion_256_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *expanded_keys,
-    CudaRadixCiphertextFFI const *key, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    CudaRadixCiphertextFFI const *key, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   host_integer_key_expansion_256<uint64_t>(
       CudaStreams(streams), expanded_keys, key,

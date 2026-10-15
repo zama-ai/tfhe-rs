@@ -22,13 +22,22 @@ __host__ uint64_t scratch_cuda_boolean_bitop(
   return size_tracker;
 }
 
+/** @brief Applies the bitwise operation stored in mem_ptr (AND, OR or XOR)
+ * to two radix ciphertexts whose blocks encrypt boolean values. If all degrees
+ * of one operand are zero, the result is computed without a PBS.
+ * @param lwe_array_out output radix ciphertext
+ * @param lwe_array_1 first operand; must have the same number of blocks and
+ * lwe_dimension as lwe_array_out
+ * @param lwe_array_2 second operand; must have the same number of blocks and
+ * lwe_dimension as lwe_array_out
+ */
 template <typename Torus, typename KSTorus>
-__host__ void host_boolean_bitop(CudaStreams streams,
-                                 CudaRadixCiphertextFFI *lwe_array_out,
-                                 CudaRadixCiphertextFFI const *lwe_array_1,
-                                 CudaRadixCiphertextFFI const *lwe_array_2,
-                                 boolean_bitop_buffer<Torus> *mem_ptr,
-                                 void *const *bsks, KSTorus *const *ksks) {
+__host__ void
+host_boolean_bitop(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+                   CudaRadixCiphertextFFI const *lwe_array_1,
+                   CudaRadixCiphertextFFI const *lwe_array_2,
+                   boolean_bitop_buffer<Torus> *mem_ptr,
+                   BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&
@@ -204,11 +213,16 @@ __host__ uint64_t scratch_cuda_boolean_bitnot(
   return size_tracker;
 }
 
+/** @brief Computes in place the bitwise NOT of a radix ciphertext whose
+ * blocks encrypt boolean values. In checked mode, if a block has a non-empty
+ * carry, a message extraction PBS is applied first.
+ * @param lwe_array radix ciphertext to transform in place
+ */
 template <typename Torus, typename KSTorus>
-__host__ void host_boolean_bitnot(CudaStreams streams,
-                                  CudaRadixCiphertextFFI *lwe_array,
-                                  boolean_bitnot_buffer<Torus> *mem_ptr,
-                                  void *const *bsks, KSTorus *const *ksks) {
+__host__ void
+host_boolean_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
+                    boolean_bitnot_buffer<Torus> *mem_ptr,
+                    BootstrappingKey const &bsks, KSTorus *const *ksks) {
   bool carries_empty = true;
   for (size_t i = 0; i < lwe_array->num_radix_blocks; ++i) {
     if (lwe_array->degrees[i] >= mem_ptr->params.message_modulus) {
@@ -234,8 +248,8 @@ __host__ void host_bitop(CudaStreams streams,
                          CudaRadixCiphertextFFI *lwe_array_out,
                          CudaRadixCiphertextFFI const *lwe_array_1,
                          CudaRadixCiphertextFFI const *lwe_array_2,
-                         int_bitop_buffer<Torus> *mem_ptr, void *const *bsks,
-                         KSTorus *const *ksks) {
+                         int_bitop_buffer<Torus> *mem_ptr,
+                         BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   PANIC_IF_FALSE(
       lwe_array_out->num_radix_blocks == lwe_array_1->num_radix_blocks &&

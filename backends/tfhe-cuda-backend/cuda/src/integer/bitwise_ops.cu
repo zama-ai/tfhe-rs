@@ -3,7 +3,7 @@
 void cuda_boolean_bitop_inplace_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout,
     CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   // In-place variant: lwe_array_inout op= lwe_array_2, no aliasing check needed
   host_boolean_bitop<uint64_t>(
       CudaStreams(streams), lwe_array_inout, lwe_array_inout, lwe_array_2,
@@ -50,7 +50,7 @@ uint64_t scratch_cuda_boolean_bitnot_64_async(
 
 void cuda_boolean_bitnot_64_async(CudaStreamsFFI streams,
                                   CudaRadixCiphertextFFI *lwe_array,
-                                  int8_t *mem_ptr, void *const *bsks,
+                                  int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks,
                                   void *const *ksks) {
   host_boolean_bitnot<uint64_t>(CudaStreams(streams), lwe_array,
                                 (boolean_bitnot_buffer<uint64_t> *)mem_ptr,
@@ -109,7 +109,7 @@ void cuda_bitnot_ciphertext_64(CudaStreamsFFI streams,
 void cuda_integer_bitop_inplace_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout,
     CudaRadixCiphertextFFI const *lwe_array_2, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   // In-place variant: lwe_array_inout op= lwe_array_2, no aliasing check needed
   host_bitop<uint64_t>(CudaStreams(streams), lwe_array_inout, lwe_array_inout,
                        lwe_array_2, (int_bitop_buffer<uint64_t> *)mem_ptr, bsks,

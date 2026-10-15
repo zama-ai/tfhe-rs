@@ -59,7 +59,8 @@ void cuda_integer_compress_radix_ciphertext_64_async(
 void cuda_integer_decompress_radix_ciphertext_64_async(
     CudaStreamsFFI streams, CudaLweCiphertextListFFI *lwe_array_out,
     CudaPackedGlweCiphertextListFFI const *glwe_in,
-    uint32_t const *indexes_array, void *const *bsks, int8_t *mem_ptr) {
+    uint32_t const *indexes_array, CudaBootstrappingKeyFFI bsks,
+    int8_t *mem_ptr) {
 
   host_integer_decompress<uint64_t>(CudaStreams(streams), lwe_array_out,
                                     glwe_in, indexes_array, bsks,
@@ -136,8 +137,8 @@ void cuda_integer_decompress_radix_ciphertext_128_async(
     uint32_t const *indexes_array, int8_t *mem_ptr) {
 
   host_integer_decompress<__uint128_t>(
-      CudaStreams(streams), lwe_array_out, glwe_in, indexes_array, nullptr,
-      (int_decompression<__uint128_t> *)mem_ptr);
+      CudaStreams(streams), lwe_array_out, glwe_in, indexes_array,
+      BootstrappingKey(), (int_decompression<__uint128_t> *)mem_ptr);
 }
 void cleanup_cuda_integer_compress_radix_ciphertext_128(CudaStreamsFFI streams,
                                                         int8_t **mem_ptr_void) {

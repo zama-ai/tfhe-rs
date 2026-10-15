@@ -18,7 +18,8 @@ void cuda_integer_grouped_oprf_64_async(CudaStreamsFFI streams,
                                         CudaRadixCiphertextFFI *radix_lwe_out,
                                         const void *seeded_lwe_input,
                                         uint32_t num_blocks_to_process,
-                                        int8_t *mem, void *const *bsks) {
+                                        int8_t *mem,
+                                        CudaBootstrappingKeyFFI bsks) {
 
   host_integer_grouped_oprf<uint64_t>(
       CudaStreams(streams), radix_lwe_out, (const uint64_t *)seeded_lwe_input,
@@ -116,9 +117,9 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
 /// encryptions of zero consumed by the re-randomization stage (only read when
 /// rerand was enabled at scratch time).
 /// @param mem Pre-allocated scratch buffer for this operation.
-/// @param bsks Array of bootstrapping key pointers, one per GPU.
-/// @param compute_bsks Array of bootstrapping key pointers for the
-/// scalar-multiply and shift stages.
+/// @param bsks Bootstrapping key, with its data on each GPU.
+/// @param compute_bsks Bootstrapping key for the scalar-multiply and shift
+/// stages, with its data on each GPU.
 /// @param ksks Array of keyswitch key pointers, one per GPU.
 /// @param rerand_ksks Array of keyswitch key pointers for the re-randomization
 /// stage (only read when rerand was enabled at scratch time).
@@ -128,8 +129,8 @@ void cuda_integer_grouped_oprf_custom_range_64_async(
     const uint64_t *decomposed_scalar, const uint64_t *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift,
     const void *lwe_flattened_encryptions_of_zero_compact_array_in, int8_t *mem,
-    void *const *bsks, void *const *compute_bsks, void *const *ksks,
-    void *const *rerand_ksks) {
+    CudaBootstrappingKeyFFI bsks, CudaBootstrappingKeyFFI compute_bsks,
+    void *const *ksks, void *const *rerand_ksks) {
 
   host_integer_grouped_oprf_custom_range<uint64_t>(
       CudaStreams(streams), radix_lwe_out, num_blocks_intermediate,

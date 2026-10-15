@@ -17,7 +17,8 @@ uint64_t scratch_cuda_integer_abs_inplace_64_async(
 void cuda_integer_abs_inplace_64_async(CudaStreamsFFI streams,
                                        CudaRadixCiphertextFFI *ct,
                                        int8_t *mem_ptr, bool is_signed,
-                                       void *const *bsks, void *const *ksks) {
+                                       CudaBootstrappingKeyFFI bsks,
+                                       void *const *ksks) {
 
   auto mem = (int_abs_buffer<uint64_t> *)mem_ptr;
 

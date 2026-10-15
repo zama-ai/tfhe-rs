@@ -29,7 +29,7 @@ template <typename Torus>
 __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
-    CudaRadixCiphertextFFI const *divisor, void *const *bsks,
+    CudaRadixCiphertextFFI const *divisor, BootstrappingKey const &bsks,
     uint64_t *const *ksks, unsigned_int_div_rem_2_2_memory<uint64_t> *mem_ptr) {
 
   if (streams.count() < 4) {
@@ -86,7 +86,7 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
   host_extend_radix_with_trivial_zero_blocks_msb<Torus>(
       mem_ptr->d2, divisor_gpu_1, streams.get_ith(1));
   host_logical_scalar_shift_inplace<Torus>(
-      streams.get_ith(1), mem_ptr->d2, 1, mem_ptr->shift_mem, &bsks[1],
+      streams.get_ith(1), mem_ptr->d2, 1, mem_ptr->shift_mem, bsks.get_ith(1),
       &ksks[1], mem_ptr->d2->num_radix_blocks);
 
   // Computes 3*d = 4*d - d using block shift and subtraction on gpu[0]
@@ -97,10 +97,10 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
                                         mem_ptr->tmp_gpu_0->num_radix_blocks);
   set_zero_radix_ciphertext_slice_async<Torus>(
       streams.stream(0), streams.gpu_index(0), mem_ptr->d3, 0, 1);
-  host_sub_and_propagate_single_carry(streams.get_ith(0), mem_ptr->d3,
-                                      mem_ptr->tmp_gpu_0, nullptr, nullptr,
-                                      mem_ptr->sub_and_propagate_mem, &bsks[0],
-                                      &ksks[0], outputFlag::FLAG_NONE, 0);
+  host_sub_and_propagate_single_carry(
+      streams.get_ith(0), mem_ptr->d3, mem_ptr->tmp_gpu_0, nullptr, nullptr,
+      mem_ptr->sub_and_propagate_mem, bsks.get_ith(0), &ksks[0],
+      outputFlag::FLAG_NONE, 0);
 
   // +-----------------+-----------------+-----------------+-----------------+
   // |     GPU[0]      |     GPU[1]      |     GPU[2]      |     GPU[3]      |
@@ -160,7 +160,7 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
       host_integer_overflowing_sub<uint64_t>(
           streams.get_ith(gpu_index), sub_result, rem, low, sub_overflowed,
           (const CudaRadixCiphertextFFI *)nullptr, overflow_sub_mem,
-          &bsks[gpu_index], &ksks[gpu_index], compute_overflow,
+          bsks.get_ith(gpu_index), &ksks[gpu_index], compute_overflow,
           uses_input_borrow);
     };
 
@@ -183,11 +183,11 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
       } else {
         host_compare_blocks_with_zero<Torus>(
             streams.get_ith(gpu_index), comparison_blocks, &d_msb,
-            comparison_buffer, &bsks[gpu_index], &ksks[gpu_index],
+            comparison_buffer, bsks.get_ith(gpu_index), &ksks[gpu_index],
             d_msb.num_radix_blocks, comparison_buffer->is_zero_lut);
         are_all_comparisons_block_true(
             streams.get_ith(gpu_index), out_boolean_block, comparison_blocks,
-            comparison_buffer, &bsks[gpu_index], &ksks[gpu_index],
+            comparison_buffer, bsks.get_ith(gpu_index), &ksks[gpu_index],
             comparison_blocks->num_radix_blocks);
 
         GPU_ASSERT(radix_params.big_lwe_dimension ==
@@ -256,13 +256,13 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
 
     // used as a bitor
     host_bitop(streams.get_ith(0), o3, o3, mem_ptr->cmp_1, mem_ptr->bitor_mem_1,
-               &bsks[0], &ksks[0]);
+               bsks.get_ith(0), &ksks[0]);
     // used as a bitor
     host_bitop(streams.get_ith(1), o2, o2, mem_ptr->cmp_2, mem_ptr->bitor_mem_2,
-               &bsks[1], &ksks[1]);
+               bsks.get_ith(1), &ksks[1]);
     // used as a bitor
     host_bitop(streams.get_ith(2), o1, o1, mem_ptr->cmp_3, mem_ptr->bitor_mem_3,
-               &bsks[2], &ksks[2]);
+               bsks.get_ith(2), &ksks[2]);
 
     // cmp_1, cmp_2, cmp_3 are not needed anymore, we can reuse them as c3,
     // c2, c1. c0 is allocated on gpu[3], we take it from mem_ptr.
@@ -354,7 +354,7 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
                                                    streams.gpu_index(gpu_index),
                                                    rx, rx, cx, 4, 4);
       integer_radix_apply_univariate_lookup_table<Torus>(
-          streams.get_ith(gpu_index), rx, rx, &bsks[gpu_index],
+          streams.get_ith(gpu_index), rx, rx, bsks.get_ith(gpu_index),
           &ksks[gpu_index], lut, rx->num_radix_blocks);
     };
 
@@ -372,16 +372,16 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
 
     // calculate quotient bits GPU[2]
     integer_radix_apply_univariate_lookup_table<Torus>(
-        mem_ptr->sub_streams_1.get_ith(2), mem_ptr->q1, c1, &bsks[2], &ksks[2],
-        mem_ptr->quotient_lut_1, 1);
+        mem_ptr->sub_streams_1.get_ith(2), mem_ptr->q1, c1, bsks.get_ith(2),
+        &ksks[2], mem_ptr->quotient_lut_1, 1);
     // calculate quotient bits GPU[1]
     integer_radix_apply_univariate_lookup_table<Torus>(
-        mem_ptr->sub_streams_1.get_ith(1), mem_ptr->q2, c2, &bsks[1], &ksks[1],
-        mem_ptr->quotient_lut_2, 1);
+        mem_ptr->sub_streams_1.get_ith(1), mem_ptr->q2, c2, bsks.get_ith(1),
+        &ksks[1], mem_ptr->quotient_lut_2, 1);
     // calculate quotient bits GPU[0]
     integer_radix_apply_univariate_lookup_table<Torus>(
-        mem_ptr->sub_streams_1.get_ith(0), mem_ptr->q3, c3, &bsks[0], &ksks[0],
-        mem_ptr->quotient_lut_3, 1);
+        mem_ptr->sub_streams_1.get_ith(0), mem_ptr->q3, c3, bsks.get_ith(0),
+        &ksks[0], mem_ptr->quotient_lut_3, 1);
 
     for (uint j = 0; j < 4; j++) {
       cuda_synchronize_stream(streams.stream(j), streams.gpu_index(j));
@@ -488,7 +488,7 @@ template <typename Torus>
 __host__ void host_unsigned_integer_div_rem(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient,
     CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
-    CudaRadixCiphertextFFI const *divisor, void *const *bsks,
+    CudaRadixCiphertextFFI const *divisor, BootstrappingKey const &bsks,
     uint64_t *const *ksks, unsigned_int_div_rem_memory<uint64_t> *mem_ptr) {
 
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
@@ -914,12 +914,24 @@ __host__ void host_unsigned_integer_div_rem(
   mem_ptr->sub_streams_2.synchronize();
 }
 
+/** @brief Computes the quotient and the remainder of an encrypted division.
+ * For a signed division, the absolute values are divided and the signs of the
+ * results are then corrected.
+ * @param quotient output radix ciphertext for the quotient
+ * @param remainder output radix ciphertext for the remainder
+ * @param numerator numerator radix ciphertext
+ * @param divisor divisor radix ciphertext
+ * @param is_signed true for a signed division
+ * @param int_mem_ptr workspace created by scratch_cuda_integer_div_rem
+ */
 template <typename Torus>
-__host__ void host_integer_div_rem(
-    CudaStreams streams, CudaRadixCiphertextFFI *quotient,
-    CudaRadixCiphertextFFI *remainder, CudaRadixCiphertextFFI const *numerator,
-    CudaRadixCiphertextFFI const *divisor, bool is_signed, void *const *bsks,
-    uint64_t *const *ksks, int_div_rem_memory<uint64_t> *int_mem_ptr) {
+__host__ void
+host_integer_div_rem(CudaStreams streams, CudaRadixCiphertextFFI *quotient,
+                     CudaRadixCiphertextFFI *remainder,
+                     CudaRadixCiphertextFFI const *numerator,
+                     CudaRadixCiphertextFFI const *divisor, bool is_signed,
+                     BootstrappingKey const &bsks, uint64_t *const *ksks,
+                     int_div_rem_memory<uint64_t> *int_mem_ptr) {
   if (remainder->num_radix_blocks != numerator->num_radix_blocks ||
       remainder->num_radix_blocks != divisor->num_radix_blocks ||
       remainder->num_radix_blocks != quotient->num_radix_blocks)
