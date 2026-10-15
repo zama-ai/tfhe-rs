@@ -1,6 +1,8 @@
 # Run data related tests
 name: aws_data_tests
 
+# test trigger
+
 env:
   CARGO_TERM_COLOR: always
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
