@@ -32,7 +32,7 @@ endef
 
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
 install_cargo_dylint:
-	cargo install --locked cargo-dylint dylint-link
+	cargo install --locked cargo-dylint dylint-link --version 5.0.0
 
 .PHONY: install_tfhe_lints_toolchain # Install the nightly toolchain required by tfhe-lints (from utils/tfhe-lints/rust-toolchain)
 install_tfhe_lints_toolchain:
