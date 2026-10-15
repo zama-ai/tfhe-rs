@@ -104,3 +104,40 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
         assert_eq!(val, d);
     }
 }
+
+#[test]
+fn test_repro_noise_squashing_degree_handling() {
+    use crate::integer::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
+    use crate::integer::{gen_keys_radix, ClientKey, IntegerCiphertext};
+    use crate::shortint::parameters::{
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 as NSP,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 as P22,
+    };
+
+    let (rck, sks) = gen_keys_radix(P22, 4);
+    let cks: &ClientKey = rck.as_ref();
+    // public handle on the underlying shortint key (integer ServerKey::key is private)
+    let shortint_sks = sks.clone().into_raw_parts();
+    let nspk = NoiseSquashingPrivateKey::new(NSP);
+    let nsk = NoiseSquashingKey::new(cks, &nspk);
+
+    // --- non-canonical but valid radix encoding of 17 -> blocks [1, 4, 0, 0] ---
+    {
+        let mut ct = cks.encrypt_signed_radix(1i8, 4);
+        shortint_sks.unchecked_scalar_add_assign(&mut ct.blocks_mut()[1], 4);
+        let dec_signed: i8 = cks.decrypt_signed_radix(&ct);
+        assert_eq!(dec_signed, 17);
+        let should_fail_signed = nsk.squash_signed_radix_ciphertext_noise(&sks, &ct);
+        assert!(should_fail_signed.is_err());
+    }
+
+    // unsigned mirror of the identical construction
+    {
+        let mut ctu = cks.encrypt_radix(1u8, 4);
+        shortint_sks.unchecked_scalar_add_assign(&mut ctu.blocks_mut()[1], 4);
+        let dec_unsigned: u8 = cks.decrypt_radix(&ctu);
+        assert_eq!(dec_unsigned, 17);
+        let should_fail_unsigned = nsk.squash_radix_ciphertext_noise(&sks, &ctu);
+        assert!(should_fail_unsigned.is_err());
+    }
+}
