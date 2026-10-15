@@ -79,6 +79,10 @@ jobs:
         run: |
           make test_c_api_gpu
 
+      - name: Run protocol support matrix test
+        run: |
+          make test_protocol_support_gpu
+
       - name: Run High Level API Tests
         run: |
           make test_high_level_api_gpu
