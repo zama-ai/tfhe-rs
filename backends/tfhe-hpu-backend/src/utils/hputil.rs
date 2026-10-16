@@ -16,6 +16,7 @@ use clap_num::maybe_hex;
 
 use std::fs::{File, OpenOptions};
 
+mod fw_trace;
 mod mhdma;
 
 #[derive(Clone, Debug, Parser)]
@@ -75,6 +76,19 @@ pub enum Commands {
         size_mib: Option<usize>,
         #[arg(default_value = "trace_dump.json")]
         file: String,
+    },
+
+    /// Ucore firmware DDR debug trace (multi-HPU IOp control / MHDMA events)
+    #[command(about = "Dump the ucore firmware debug trace as JSON (one entry per event)")]
+    FwTrace {
+        /// Card address of the trace pointer word, the circular buffer follows it
+        #[arg(long, value_parser=maybe_hex::<u64>, default_value = "0x3FF00000")]
+        addr: u64,
+        /// Circular buffer depth in 32b words
+        #[arg(long, value_parser=maybe_hex::<usize>, default_value = "0x20000")]
+        words: usize,
+        /// Output file [default: fw_trace_<fpga_id>.json]
+        file: Option<String>,
     },
 
     /// MHDMA packet-trace (network debug) ring operations
@@ -437,6 +451,12 @@ fn main() {
                 * 1024;
 
             trace_dump(&mut hpu_hw, &regmap, lut_map, size_b, file)
+        }
+        Commands::FwTrace { addr, words, file } => {
+            let file = file
+                .clone()
+                .unwrap_or_else(|| format!("fw_trace_{fpga_id}.json"));
+            fw_trace::fw_trace_dump(&mut hpu_hw, fpga_id, *addr, *words, &file)
         }
         Commands::PktTrace { action } => match action {
             PktTraceAction::Status => mhdma::pkt_trace_status(&mut hpu_hw, &regmap),
