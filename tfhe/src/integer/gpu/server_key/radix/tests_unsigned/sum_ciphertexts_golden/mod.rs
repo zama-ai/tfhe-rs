@@ -1,3 +1,5 @@
+pub mod sum_ciphertexts_golden_data;
+
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seed};
 use crate::core_crypto::gpu::vec::GpuIndex;
@@ -12,10 +14,13 @@ use crate::shortint::parameters::{
 };
 use rand::Rng;
 use std::fmt::Write;
+use sum_ciphertexts_golden_data::sum_ciphertexts_golden_v1::{
+    CLASSICAL_EXPECTED, GOLDEN_SEED, INPUT_MESSAGES, MULTI_BIT_GROUP_4_EXPECTED,
+};
 use tfhe_cuda_backend::bindings::cuda_fft16x4x16_is_supported_async;
 
 // ============================================================================
-// Bit-wise regression ("golden values") data for the GPU `sum_ciphertexts`.
+// Bit-wise regression ("golden values") test for the GPU `sum_ciphertexts`.
 //
 // Integer counterpart of the core_crypto GPU golden tests (`pbs_golden`,
 // `pbs128_golden`): a fixed seed and fixed clear inputs drive a fully
@@ -43,9 +48,15 @@ use tfhe_cuda_backend::bindings::cuda_fft16x4x16_is_supported_async;
 // `ShortintEngine::new()` from the OS entropy, so its keys would differ on every
 // run whatever the thread-local engine is seeded with.
 //
-// The GPU FFT is only bit-reproducible within a GPU generation and the PBS
-// golden data is captured on H100, so the data must be generated on compute
-// capability 9.x (H100) or newer.
+// The regression tests rebuild this pipeline from the committed seed and
+// messages and compare the output limbs with the committed ones; the
+// `generate_sum_ciphertexts_golden` helper rewrites the data file. Test names
+// follow `create_gpu_parameterized_test!` (`test_gpu_integer_default_*_param_*`)
+// so the GPU CI filters, fast ones included, pick them up.
+//
+// The GPU FFT is only bit-reproducible within a GPU generation and the golden
+// data is captured on H100, so both the tests and the generator only run on
+// compute capability 9.x (H100) or newer, and skip elsewhere.
 // ============================================================================
 
 /// Number of radix blocks of every input and of the output.
@@ -145,6 +156,80 @@ where
     limbs
 }
 
+/// Compares every output block with its golden reference limb by limb and
+/// reports only the first mismatch: a block is 2049 limbs wide, so a plain
+/// `assert_eq!` on the slices would bury the failure under a dump of both.
+fn assert_blocks_match(actual: &[Vec<u64>], expected: &[&[u64]], label: &str) {
+    assert_eq!(
+        actual.len(),
+        expected.len(),
+        "{label}: got {} output blocks but the golden data holds {}; regenerate it with \
+         `generate_sum_ciphertexts_golden` after changing NUM_BLOCKS",
+        actual.len(),
+        expected.len()
+    );
+    for (block, (got, want)) in actual.iter().zip(expected).enumerate() {
+        assert_eq!(
+            got.len(),
+            want.len(),
+            "{label}: block {block} has {} limbs but the golden data holds {}; regenerate it \
+             with `generate_sum_ciphertexts_golden` after changing the parameters",
+            got.len(),
+            want.len()
+        );
+        if let Some((limb, (got_limb, want_limb))) = got
+            .iter()
+            .zip(want.iter())
+            .enumerate()
+            .find(|(_, (got_limb, want_limb))| got_limb != want_limb)
+        {
+            panic!(
+                "{label}: block {block} limb {limb}/{} does not match the golden data: \
+                 got {got_limb:#018x}, expected {want_limb:#018x}",
+                got.len()
+            );
+        }
+    }
+}
+
+/// Reruns the committed pipeline for `params` and checks its output against
+/// `expected`, or skips on GPUs older than Hopper, where the data does not apply.
+fn check_sum_ciphertexts_golden<P>(params: P, expected: &[&[u64]], label: &str)
+where
+    P: TryInto<ShortintParameterSet>,
+    <P as TryInto<ShortintParameterSet>>::Error: std::fmt::Debug,
+{
+    if !hopper_or_newer_is_supported() {
+        println!(
+            "skipping the {label} sum_ciphertexts golden test: the golden data requires \
+             compute capability 9.x (H100) or newer"
+        );
+        return;
+    }
+
+    let output = run_sum_ciphertexts_golden(params, GOLDEN_SEED, INPUT_MESSAGES);
+    assert_blocks_match(&output, expected, label);
+}
+
+#[test]
+fn test_gpu_integer_default_sum_ciphertexts_golden_param_message_2_carry_2_ks_pbs_tuniform_2m128() {
+    check_sum_ciphertexts_golden(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        CLASSICAL_EXPECTED,
+        "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+    );
+}
+
+#[test]
+fn test_gpu_integer_default_sum_ciphertexts_golden_param_gpu_multi_bit_group_4_message_2_carry_2_ks_pbs_tuniform_2m128(
+) {
+    check_sum_ciphertexts_golden(
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        MULTI_BIT_GROUP_4_EXPECTED,
+        "PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+    );
+}
+
 /// Formats a `pub const <name>: &[&[u64]] = &[...]` block holding one inner
 /// slice of hex limbs per output block, in block order.
 fn format_golden_const(name: &str, blocks: &[Vec<u64>]) -> String {
@@ -165,7 +250,8 @@ fn format_golden_const(name: &str, blocks: &[Vec<u64>]) -> String {
 ///
 /// This is *not* a regression test: it is `#[ignore]`d so no test run ever
 /// executes it, and is run by hand on an H100 (sm_90) with
-/// `cargo test ... generate_sum_ciphertexts_golden -- --ignored --exact`,
+/// `cargo test --profile release --features=integer,internal-keycache,gpu -p tfhe --lib --
+/// sum_ciphertexts_golden::generate_sum_ciphertexts_golden --ignored`,
 /// then the regenerated file is committed.
 #[test]
 #[ignore = "maintenance helper: regenerates the golden data, run by hand on an H100"]
