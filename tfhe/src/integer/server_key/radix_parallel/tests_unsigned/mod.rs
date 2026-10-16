@@ -925,3 +925,52 @@ where
     let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate_parallelized);
     full_propagate_test(param, executor);
 }
+
+/// The sequential carry propagation must keep room in each block for the carry it receives,
+/// regardless of the max degree the server key was built with.
+#[test]
+fn test_sequential_propagation_does_not_depend_on_key_max_degree() {
+    let (cks, mut sks) = KEY_CACHE.get_from_params(
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        IntegerKeyKind::Radix,
+    );
+    // Allow blocks to be full, so that they cannot receive a carry
+    sks.key.max_degree =
+        MaxDegree::from_msg_carry_modulus(sks.message_modulus(), sks.carry_modulus());
+
+    // A single thread makes the parallel propagation slower, so the sequential one is used
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(1)
+        .build()
+        .unwrap();
+
+    for num_blocks in [1, 2, 3, 4, 5, 8, 16] {
+        assert!(pool.install(|| !sks.is_eligible_for_parallel_single_carry_propagation(num_blocks)));
+        let modulus = sks
+            .message_modulus()
+            .0
+            .checked_pow(num_blocks as u32)
+            .unwrap();
+        // Each block holds 3 in its message and 3 in its carry (degree 15). Trivial
+        // ciphertexts have no noise, so only the degree can trigger a first extraction
+        for mut ct in [
+            sks.create_trivial_radix(modulus - 1, num_blocks),
+            cks.encrypt_radix(modulus - 1, num_blocks),
+        ] {
+            for block in ct.blocks.iter_mut() {
+                sks.key.unchecked_scalar_add_assign(block, 12);
+            }
+            assert!(ct
+                .blocks
+                .iter()
+                // Remember we changed the max degree earlier to be == true max
+                .all(|block| block.degree.get() == sks.key.max_degree.get()));
+
+            pool.install(|| sks.full_propagate_parallelized(&mut ct));
+
+            let decrypted: u64 = cks.decrypt_radix(&ct);
+            assert_eq!(decrypted, (5 * (modulus - 1)) % modulus);
+            assert!(ct.block_carries_are_empty());
+        }
+    }
+}
