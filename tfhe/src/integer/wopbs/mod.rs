@@ -269,6 +269,7 @@ mod experimental {
         pub fn new_wopbs_key_only_for_wopbs<IntegerClientKey: AsRef<ClientKey>>(
             cks: &IntegerClientKey,
             sks: &ServerKey,
+            parameters: &WopbsParameters,
         ) -> Self {
             let sk = StandardServerKeyView::try_from(sks.key.as_view()).unwrap_or_else(|_| {
                 panic!(
@@ -286,7 +287,9 @@ mod experimental {
             });
 
             Self {
-                wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key_only_for_wopbs(ck, sk),
+                wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key_only_for_wopbs(
+                    ck, sk, parameters,
+                ),
             }
         }
 
@@ -396,7 +399,7 @@ mod experimental {
         /// let nb_block = 3;
         /// //Generate the client key and the server key:
         /// let (cks, sks) = gen_keys_radix(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS, nb_block);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut moduli = 1_u64;
         /// for _ in 0..nb_block {
         ///     moduli *= cks.parameters().message_modulus().0;
@@ -488,7 +491,7 @@ mod experimental {
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
         /// //Generate the client key and the server key:
         /// let (cks, sks) = gen_keys_crt(param, basis);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         ///
         /// let clear = 42 % msg_space; // Encrypt the integers
         /// let ct = cks.encrypt_native_crt(clear);
@@ -696,7 +699,7 @@ mod experimental {
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
         /// //Generate the client key and the server key:
         /// let (cks, sks) = gen_keys_crt(param, basis);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         ///
         /// let clear = 42 % msg_space; // Encrypt the integers
         /// let ct = cks.encrypt_native_crt(clear);
@@ -1008,7 +1011,7 @@ mod experimental {
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
         /// //Generate the client key and the server key:
         /// let (cks, sks) = gen_keys_crt(param, basis);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         ///
         /// let clear1 = 42 % msg_space;
         /// let clear2 = 24 % msg_space;
@@ -1079,7 +1082,7 @@ mod experimental {
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
         /// //Generate the client key and the server key:
         /// let (cks, sks) = gen_keys_crt(param, basis);
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         ///
         /// let clear1 = 42 % msg_space;
         /// let clear2 = 24 % msg_space;

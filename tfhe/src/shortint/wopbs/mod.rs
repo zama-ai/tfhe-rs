@@ -250,14 +250,18 @@ mod experimental {
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(),
-        ///                                                        sks.as_view().try_into().unwrap());
+        ///                                                        sks.as_view().try_into().unwrap(),
+        ///                                                        &LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
         /// ```
         pub fn new_wopbs_key_only_for_wopbs(
             cks: StandardClientKeyView<'_>,
             sks: StandardServerKeyView<'_>,
+            parameters: &WopbsParameters,
         ) -> Self {
             ShortintEngine::with_thread_local_mut(|engine| {
-                engine.new_wopbs_key_only_for_wopbs(cks, sks).unwrap()
+                engine
+                    .new_wopbs_key_only_for_wopbs(cks, sks, parameters)
+                    .unwrap()
             })
         }
 
@@ -404,7 +408,7 @@ mod experimental {
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let std_sks = sks.as_view().try_into().unwrap();
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(), std_sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(), std_sks, &LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let m = 2;
         /// let ct = cks.encrypt_without_padding(m);
@@ -447,7 +451,8 @@ mod experimental {
         /// // Generate the client key and the server key:
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(),
-        ///                                                        sks.as_view().try_into().unwrap());
+        ///                                                        sks.as_view().try_into().unwrap(),
+        ///                                                        &LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
         /// let message_modulus = MessageModulus(5);
         /// let m = 2;
         /// let ct = cks.encrypt_native_crt(m, message_modulus);
@@ -532,7 +537,7 @@ mod experimental {
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
         /// let mut rng = rand::thread_rng();
         /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
         /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus);
@@ -576,7 +581,7 @@ mod experimental {
         /// let (cks, sks) = gen_keys(msg_1_carry_0_params);
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &msg_1_carry_0_params);
         /// let mut rng = rand::thread_rng();
         /// let ct = cks.encrypt_without_padding(rng.gen::<u64>() % 2);
         /// let lut = vec![1_u64 << 63; wopbs_key.param.polynomial_size.0].into();
@@ -622,7 +627,7 @@ mod experimental {
         /// let (cks, sks) = gen_keys(LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
         /// let msg = 2;
         /// let modulus = MessageModulus(5);
         /// let ct = cks.encrypt_native_crt(msg, modulus);
