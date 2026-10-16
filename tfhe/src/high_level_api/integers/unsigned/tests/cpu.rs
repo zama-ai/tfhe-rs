@@ -459,6 +459,12 @@ fn test_leading_trailing_zeros_ones() {
 }
 
 #[test]
+fn test_count_zeros_ones() {
+    let client_key = setup_default_cpu();
+    super::test_case_count_zeros_ones(&client_key);
+}
+
+#[test]
 fn test_sum() {
     let client_key = setup_default_cpu();
     super::test_case_sum(&client_key);
