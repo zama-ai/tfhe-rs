@@ -9,6 +9,7 @@ use super::ggsw::{
 };
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::algorithms::*;
+use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
@@ -16,6 +17,7 @@ use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, StackReq};
+use rayon::prelude::*;
 use tfhe_fft::c64;
 
 pub fn extract_bits_scratch<Scalar>(
@@ -437,6 +439,252 @@ pub fn homomorphic_shift_boolean<Scalar: UnsignedTorus + CastInto<usize>>(
     let out_body = lwe_out.get_mut_body();
     *out_body.data = (*out_body.data)
         .wrapping_add(Scalar::ONE << (ciphertext_n_bits - 1 - base_log_cbs.0 * level_count_cbs.0));
+}
+
+/// Circuit bootstrapping for messages holding `message_modulus_log` bits of information
+///
+/// The input LWE ciphertext must have its `message_modulus_log` bits of message in the MSBs, just
+/// under a **bit of padding**
+///
+/// The resulting GGSW is a valid encryption of the input message for an external product, i.e.
+/// `GGSW(m) ⊡ GLWE(µ) = GLWE(m·µ)`
+///
+/// One bootstrap is performed per decomposition level, all of them in parallel.
+pub fn par_circuit_bootstrap_non_binary<Scalar>(
+    fourier_bsk: FourierLweBootstrapKeyView<'_>,
+    lwe_in: LweCiphertext<&[Scalar]>,
+    mut ggsw_out: GgswCiphertext<&mut [Scalar]>,
+    message_modulus_log: MessageModulusLog,
+    pfpksk_list: LwePrivateFunctionalPackingKeyswitchKeyList<&[Scalar]>,
+    fft: FftView<'_>,
+) where
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync + Send,
+{
+    assert_eq!(
+        lwe_in.lwe_size(),
+        fourier_bsk.input_lwe_dimension().to_lwe_size()
+    );
+
+    assert_eq!(lwe_in.ciphertext_modulus(), ggsw_out.ciphertext_modulus());
+    assert_eq!(
+        ggsw_out.ciphertext_modulus(),
+        pfpksk_list.ciphertext_modulus()
+    );
+
+    assert!(
+        pfpksk_list.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
+    let level_cbs = ggsw_out.decomposition_level_count();
+    let base_log_cbs = ggsw_out.decomposition_base_log();
+
+    assert!(
+        level_cbs.0 >= 1,
+        "level_cbs needs to be >= 1, got {}",
+        level_cbs.0
+    );
+    assert!(
+        base_log_cbs.0 >= 1,
+        "base_log_cbs needs to be >= 1, got {}",
+        base_log_cbs.0
+    );
+    assert!(
+        message_modulus_log.0 >= 1,
+        "message_modulus_log needs to be >= 1, got {}",
+        message_modulus_log.0
+    );
+    assert!(
+        base_log_cbs.0 * level_cbs.0 <= Scalar::BITS,
+        "base_log_cbs * level_cbs needs to be <= {}, got {} * {}",
+        Scalar::BITS,
+        base_log_cbs.0,
+        level_cbs.0
+    );
+
+    let fpksk_input_lwe_key_dimension = pfpksk_list.input_key_lwe_dimension();
+    let fourier_bsk_output_lwe_dimension = fourier_bsk.output_lwe_dimension();
+
+    assert!(
+        fpksk_input_lwe_key_dimension == fourier_bsk_output_lwe_dimension,
+        "The fourier_bsk output_lwe_dimension, got {}, must be equal to the fpksk \
+        input_lwe_key_dimension, got {}",
+        fourier_bsk_output_lwe_dimension.0,
+        fpksk_input_lwe_key_dimension.0
+    );
+
+    let fpksk_output_polynomial_size = pfpksk_list.output_polynomial_size();
+    let fpksk_output_glwe_key_dimension = pfpksk_list.output_key_glwe_dimension();
+
+    assert!(
+        ggsw_out.polynomial_size() == fpksk_output_polynomial_size,
+        "The output GGSW ciphertext needs to have the same polynomial size as the fpksks, \
+        got {}, expected {}",
+        ggsw_out.polynomial_size().0,
+        fpksk_output_polynomial_size.0
+    );
+
+    assert!(
+        ggsw_out.glwe_size().to_glwe_dimension() == fpksk_output_glwe_key_dimension,
+        "The output GGSW ciphertext needs to have the same GLWE dimension as the fpksks, \
+        got {}, expected {}",
+        ggsw_out.glwe_size().to_glwe_dimension().0,
+        fpksk_output_glwe_key_dimension.0
+    );
+
+    assert!(
+        ggsw_out.glwe_size().0 == pfpksk_list.lwe_pfpksk_count().0,
+        "The input vector of pfpksk_list needs to have {} ggsw.glwe_size elements got {}",
+        ggsw_out.glwe_size().0,
+        pfpksk_list.lwe_pfpksk_count().0,
+    );
+
+    let bsk_output_lwe_size = fourier_bsk_output_lwe_dimension.to_lwe_size();
+    let ciphertext_modulus = lwe_in.ciphertext_modulus();
+    let shift_scratch_size = homomorphic_shift_non_binary_scratch::<Scalar>(
+        fourier_bsk.glwe_size(),
+        fourier_bsk.polynomial_size(),
+        fft,
+    )
+    .unaligned_bytes_required();
+
+    ggsw_out
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(output_index, mut ggsw_level_matrix)| {
+            let decomposition_level = DecompositionLevel(level_cbs.0 - output_index);
+
+            let mut lwe_out_bs_buffer =
+                LweCiphertext::new(Scalar::ZERO, bsk_output_lwe_size, ciphertext_modulus);
+            let mut buffers = ComputationBuffers::new();
+            buffers.resize(shift_scratch_size);
+
+            homomorphic_shift_non_binary(
+                fourier_bsk,
+                lwe_out_bs_buffer.as_mut_view(),
+                lwe_in.as_view(),
+                decomposition_level,
+                base_log_cbs,
+                message_modulus_log,
+                fft,
+                buffers.stack(),
+            );
+
+            let mut glwe_list = ggsw_level_matrix.as_mut_glwe_list();
+
+            pfpksk_list
+                .par_iter()
+                .zip(glwe_list.par_iter_mut())
+                .for_each(|(pfpksk, mut glwe_out)| {
+                    private_functional_keyswitch_lwe_ciphertext_into_glwe_ciphertext(
+                        &pfpksk,
+                        &mut glwe_out,
+                        &lwe_out_bs_buffer,
+                    );
+                });
+        });
+}
+
+pub fn homomorphic_shift_non_binary_scratch<Scalar>(
+    glwe_size: GlweSize,
+    polynomial_size: PolynomialSize,
+    fft: FftView<'_>,
+) -> StackReq {
+    let align = CACHELINE_ALIGN;
+    StackReq::new_aligned::<Scalar>(polynomial_size.0 * glwe_size.0, align)
+        .and(bootstrap_scratch::<Scalar>(glwe_size, polynomial_size, fft))
+}
+
+/// Homomorphic shift for an LWE with `message_modulus_log` bits of message in the MSBs, just under
+/// a bit of padding
+///
+/// Produces an LWE encryption of `m · q / B^level`, the `level`-th term of the LEV ciphertext that
+/// makes up a GGSW row, by evaluating the look-up table `x -> x · q / B^level` on the input.
+pub fn homomorphic_shift_non_binary<Scalar>(
+    fourier_bsk: FourierLweBootstrapKeyView<'_>,
+    mut lwe_out: LweCiphertext<&mut [Scalar]>,
+    lwe_in: LweCiphertext<&[Scalar]>,
+    decomposition_level: DecompositionLevel,
+    base_log_cbs: DecompositionBaseLog,
+    message_modulus_log: MessageModulusLog,
+    fft: FftView<'_>,
+    stack: &mut PodStack,
+) where
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>,
+{
+    assert_eq!(lwe_out.ciphertext_modulus(), lwe_in.ciphertext_modulus());
+    assert!(
+        lwe_in.ciphertext_modulus().is_native_modulus(),
+        "This operation currently only supports native moduli"
+    );
+
+    let ciphertext_n_bits = Scalar::BITS;
+
+    assert!(
+        decomposition_level.0 >= 1,
+        "decomposition_level needs to be >= 1, got {}",
+        decomposition_level.0
+    );
+    assert!(
+        base_log_cbs.0 >= 1,
+        "base_log_cbs needs to be >= 1, got {}",
+        base_log_cbs.0
+    );
+    assert!(
+        message_modulus_log.0 >= 1,
+        "message_modulus_log needs to be >= 1, got {}",
+        message_modulus_log.0
+    );
+
+    let level_bit_count = base_log_cbs.0 * decomposition_level.0;
+
+    assert!(
+        level_bit_count <= ciphertext_n_bits,
+        "base_log_cbs * decomposition_level needs to be <= {}, got {} * {}",
+        ciphertext_n_bits,
+        base_log_cbs.0,
+        decomposition_level.0
+    );
+
+    let polynomial_size = fourier_bsk.polynomial_size();
+
+    assert!(
+        message_modulus_log.0 < polynomial_size.0.ilog2() as usize,
+        "The LUT box size N / 2^message_modulus_log needs to be >= 2, got N = {} and \
+        message_modulus_log = {}",
+        polynomial_size.0,
+        message_modulus_log.0
+    );
+
+    let message_modulus = 1usize << message_modulus_log.0;
+
+    let level_delta = Scalar::ONE << (ciphertext_n_bits - level_bit_count);
+
+    let level_mask = Scalar::MAX >> (ciphertext_n_bits - level_bit_count);
+
+    let (pbs_accumulator_data, stack) = stack.make_aligned_with(
+        polynomial_size.0 * fourier_bsk.glwe_size().0,
+        CACHELINE_ALIGN,
+        |_| Scalar::ZERO,
+    );
+    let mut pbs_accumulator = GlweCiphertextMutView::from_container(
+        pbs_accumulator_data,
+        polynomial_size,
+        lwe_out.ciphertext_modulus(),
+    );
+    fill_programmable_bootstrap_glwe_lut(&mut pbs_accumulator, message_modulus, level_delta, |x| {
+        // x·level_delta can overflow so we reduce x here
+        // x & level_mask = x % 2^level_bit_count
+        x & level_mask
+    });
+
+    fourier_bsk.bootstrap(
+        lwe_out.as_mut_view(),
+        lwe_in.as_view(),
+        pbs_accumulator.as_view(),
+        fft,
+        stack,
+    );
 }
 
 pub fn cmux_tree_memory_optimized_scratch<Scalar>(
