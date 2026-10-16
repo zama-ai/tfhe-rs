@@ -4,11 +4,10 @@
 //! side of the proof carries the work, and a proof-heavy run is not comparable
 //! with a verify-heavy one, so the two never share a grid.
 
-use benchmark_spec::{
-    Backend, BenchPath, ComputeLoad, IntegerBench, TfheLayer, TypeTag, ZkPkeBench,
-};
-
 use super::{Cells, GridSpec, Measured, Table, build_grid, readable_value};
+use benchmark_spec::{
+    Backend, BenchPath, ComputeLoad, IntegerBench, TfheLayer, TypeTag, ZkPkeBenchKind,
+};
 
 /// Only the 2048-bit CRS is published. The other sizes are benchmarked to track
 /// the cost of the CRS itself, not to be read next to it.
@@ -16,16 +15,16 @@ const CRS_BITS: u32 = 2048;
 
 /// Columns in publication order. The spec knows three more (`only_expand`,
 /// `crs`, `proven_list`) that the documentation does not show.
-const COLUMNS: &[(&str, ZkPkeBench)] = &[
-    ("Proving", ZkPkeBench::Proof),
-    ("Verifying", ZkPkeBench::Verify),
-    ("Verify + expand", ZkPkeBench::VerifyAndExpand),
+const COLUMNS: &[(&str, ZkPkeBenchKind)] = &[
+    ("Proving", ZkPkeBenchKind::Proof),
+    ("Verifying", ZkPkeBenchKind::Verify),
+    ("Verify + expand", ZkPkeBenchKind::VerifyAndExpand),
 ];
 
 /// A browser only proves, verification happens server side.
-const BROWSER_COLUMNS: &[(&str, ZkPkeBench)] = &[("Proving", ZkPkeBench::Proof)];
+const BROWSER_COLUMNS: &[(&str, ZkPkeBenchKind)] = &[("Proving", ZkPkeBenchKind::Proof)];
 
-fn columns(backend: Backend) -> &'static [(&'static str, ZkPkeBench)] {
+fn columns(backend: Backend) -> &'static [(&'static str, ZkPkeBenchKind)] {
     match backend {
         Backend::Wasm => BROWSER_COLUMNS,
         Backend::Cpu | Backend::Cuda | Backend::Hpu => COLUMNS,
@@ -67,30 +66,30 @@ pub fn tables(measured: &[Measured], backend: Backend) -> Vec<(String, Table)> {
     LOADS
         .iter()
         .map(|load| {
-            let mut cells: Cells<(u32, ZkPkeBench)> = Cells::new();
+            let mut cells: Cells<(u32, ZkPkeBenchKind)> = Cells::new();
 
             for m in measured {
                 let BenchPath::Tfhe(TfheLayer::Integer(IntegerBench::Zk(op))) = m.spec.bench_path()
                 else {
                     continue;
                 };
+                let Some(variant) = op.variant() else {
+                    continue;
+                };
                 let Some(TypeTag::ZkPke(config)) = m.spec.type_tag() else {
                     continue;
                 };
-                // The CRS is measured per CRS size alone, so it carries neither
-                // a packed size nor a load and drops out on its tag.
-                let (Some(bits_packed), Some(measured_load)) =
-                    (config.bits_packed, config.compute_load)
-                else {
+                let Some(bits_packed) = config.bits_packed else {
                     continue;
                 };
-                if measured_load != *load || config.crs_bits != CRS_BITS {
+                if variant.compute_load() != *load || config.crs_bits != CRS_BITS {
                     continue;
                 }
-                // `proven_list` and `only_expand` are tagged like the published
-                // operations, so they have to be turned away by name. Letting
-                // them in would cost nothing at lookup, which never asks for
-                // them, but they would contest cells and be reported for it.
+                // `proven_list` and `only_expand` carry the same variants as the
+                // published operations, so they have to be turned away by name.
+                // Letting them in would cost nothing at lookup, which never asks
+                // for them, but they would contest cells and be reported for it.
+                let op = ZkPkeBenchKind::from(op);
                 if !columns.iter().any(|(_, column)| *column == op) {
                     continue;
                 }
@@ -160,25 +159,25 @@ mod tests {
     fn loads_are_split_and_unpublished_rows_dropped() {
         let rows = vec![
             measured(
-                "tfhe::integer::zk::proof::PARAM_MESSAGE_2_CARRY_2\
-                 ::64_bits_packed::2048_bits_crs::compute_load_proof::zk_v2_mean_avx512",
+                "tfhe::integer::zk::proof::v2::compute_load_proof::PARAM_MESSAGE_2_CARRY_2\
+                 ::64_bits_packed::2048_bits_crs_mean_avx512",
                 2_310_000.0,
             ),
             measured(
-                "tfhe::integer::zk::verify::PARAM_MESSAGE_2_CARRY_2\
-                 ::64_bits_packed::2048_bits_crs::compute_load_verify::zk_v2_mean_avx512",
+                "tfhe::integer::zk::verify::v2::compute_load_verify::PARAM_MESSAGE_2_CARRY_2\
+                 ::64_bits_packed::2048_bits_crs_mean_avx512",
                 1_230_000.0,
             ),
             // Another CRS size: benchmarked, not published.
             measured(
-                "tfhe::integer::zk::proof::PARAM_MESSAGE_2_CARRY_2\
-                 ::64_bits_packed::4096_bits_crs::compute_load_proof::zk_v2_mean_avx512",
+                "tfhe::integer::zk::proof::v2::compute_load_proof::PARAM_MESSAGE_2_CARRY_2\
+                 ::64_bits_packed::4096_bits_crs_mean_avx512",
                 9_990_000.0,
             ),
             // The CRS itself carries no load and no packed size.
             measured(
-                "tfhe::integer::zk::crs::key_size::PARAM_MESSAGE_2_CARRY_2\
-                 ::2048_bits_crs::zk_v2_mean_avx512",
+                "tfhe::integer::zk::crs::v2::key_size::PARAM_MESSAGE_2_CARRY_2\
+                 ::2048_bits_crs_mean_avx512",
                 4096.0,
             ),
         ];
@@ -218,23 +217,23 @@ mod tests {
         let rows = vec![
             measured(
                 &format!(
-                    "tfhe::integer::zk::proof::wasm::{PARAM}\
-                     ::64_bits_packed::2048_bits_crs::compute_load_proof::zk_v2_mean_chrome"
+                    "tfhe::integer::zk::proof::v2::compute_load_proof::wasm::{PARAM}\
+                     ::64_bits_packed::2048_bits_crs_mean_chrome"
                 ),
                 8_710_000.0,
             ),
             measured(
                 &format!(
-                    "tfhe::integer::zk::proof::wasm::{PARAM}\
-                     ::256_bits_packed::2048_bits_crs::compute_load_verify::zk_v2_mean_chrome"
+                    "tfhe::integer::zk::proof::v2::compute_load_verify::wasm::{PARAM}\
+                     ::256_bits_packed::2048_bits_crs_mean_chrome"
                 ),
                 5_430_000.0,
             ),
-            // Same tag as the proof, must be dropped by the column set.
+            // Same variant and tag as the proof, must be dropped by the column set.
             measured(
                 &format!(
-                    "tfhe::integer::zk::proven_list::wasm::key_size::{PARAM}\
-                     ::64_bits_packed::2048_bits_crs::compute_load_proof::zk_v2_mean_chrome"
+                    "tfhe::integer::zk::proven_list::v2::compute_load_proof::wasm::key_size\
+                     ::{PARAM}::64_bits_packed::2048_bits_crs_mean_chrome"
                 ),
                 32_768.0,
             ),

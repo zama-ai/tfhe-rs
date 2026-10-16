@@ -40,14 +40,4 @@ gpu = ["dep:zk-cuda-backend", "dep:tfhe-cuda-common"]
 
 [dev-dependencies]
 serde_json = { workspace = true }
-itertools = { workspace = true }
 bincode = { workspace = true }
-criterion = { workspace = true }
-
-[[bench]]
-name = "pke_v1"
-harness = false
-
-[[bench]]
-name = "pke_v2"
-harness = false
