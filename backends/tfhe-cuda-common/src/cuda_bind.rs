@@ -49,14 +49,6 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_memcpy_gpu_to_gpu(
-        dest: *mut ffi::c_void,
-        src: *const ffi::c_void,
-        size: u64,
-        gpu_index: u32,
-    );
-}
-unsafe extern "C" {
     pub fn cuda_memcpy_async_to_cpu(
         dest: *mut ffi::c_void,
         src: *const ffi::c_void,

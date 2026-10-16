@@ -3744,7 +3744,7 @@ dependencies = [
 
 [[package]]
 name = "tfhe-cuda-common"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "bindgen",
  "cmake",
@@ -3887,7 +3887,7 @@ dependencies = [
 
 [[package]]
 name = "tfhe-zk-pok"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
@@ -5394,7 +5394,7 @@ dependencies = [
 
 [[package]]
 name = "zk-cuda-backend"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "ark-ec",
  "ark-ff",

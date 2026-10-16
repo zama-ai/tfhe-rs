@@ -39,7 +39,7 @@ use serde::{Deserialize, Serialize};
 use std::num::NonZero;
 use tfhe_safe_serialize::ParameterSetConformant;
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Serialize, Deserialize, Versionize)]
 #[serde(
     from = "IntegerCompressedSquashedNoiseCiphertextList",
     into = "IntegerCompressedSquashedNoiseCiphertextList"
@@ -49,6 +49,20 @@ pub(in crate::high_level_api) enum InnerCompressedSquashedNoiseCiphertextList {
     Cpu(IntegerCompressedSquashedNoiseCiphertextList),
     #[cfg(feature = "gpu")]
     Cuda(CudaCompressedSquashedNoiseCiphertextList),
+}
+
+impl Clone for InnerCompressedSquashedNoiseCiphertextList {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Cpu(inner) => Self::Cpu(inner.clone()),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
+                    Self::Cuda(inner.duplicate(streams))
+                })
+            }
+        }
+    }
 }
 
 impl From<InnerCompressedSquashedNoiseCiphertextList>

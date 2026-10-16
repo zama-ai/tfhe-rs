@@ -160,7 +160,7 @@ impl Drop for CudaStreams {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct CudaLweList<T: UnsignedInteger> {
     // Pointer to GPU data
     pub d_vec: CudaVec<T>,
@@ -183,7 +183,7 @@ impl<T: UnsignedInteger> CudaLweList<T> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CudaGlweList<T: UnsignedInteger> {
     // Pointer to GPU data
     pub d_vec: CudaVec<T>,

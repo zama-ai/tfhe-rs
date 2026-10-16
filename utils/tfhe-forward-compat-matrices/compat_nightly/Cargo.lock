@@ -1180,7 +1180,7 @@ dependencies = [
 
 [[package]]
 name = "tfhe-zk-pok"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
