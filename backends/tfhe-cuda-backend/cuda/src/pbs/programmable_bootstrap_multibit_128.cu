@@ -5,7 +5,7 @@
 template <typename InputTorus>
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, MULTI_BIT> **buffer, uint32_t glwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
@@ -21,7 +21,7 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
 template <typename InputTorus>
 uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap_128(
     void *stream, uint32_t gpu_index,
-    pbs_buffer_128<InputTorus, MULTI_BIT> **buffer, uint32_t glwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
@@ -49,13 +49,13 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
   if (supports_cg)
     return scratch_cuda_cg_multi_bit_programmable_bootstrap_128<uint64_t>(
         stream, gpu_index,
-        reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> **>(buffer),
+        reinterpret_cast<pbs_buffer<__uint128_t, MULTI_BIT> **>(buffer),
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory);
   else
     return scratch_cuda_multi_bit_programmable_bootstrap_128_async<uint64_t>(
         stream, gpu_index,
-        reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> **>(buffer),
+        reinterpret_cast<pbs_buffer<__uint128_t, MULTI_BIT> **>(buffer),
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory);
 }
@@ -66,7 +66,7 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
@@ -88,7 +88,7 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128_async(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer_128<InputTorus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
+    pbs_buffer<__uint128_t, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
@@ -117,7 +117,7 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
     PANIC("Cuda error (multi-bit PBS): base log should be <= 64")
 
   auto *buffer =
-      reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> *>(mem_ptr);
+      reinterpret_cast<pbs_buffer<__uint128_t, MULTI_BIT> *>(mem_ptr);
   switch (buffer->pbs_variant) {
   case PBS_VARIANT::CG:
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128_async<
@@ -151,7 +151,7 @@ void cleanup_cuda_multi_bit_programmable_bootstrap_128(void *stream,
                                                        const uint32_t gpu_index,
                                                        int8_t **buffer) {
   const auto x =
-      reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> *>(*buffer);
+      reinterpret_cast<pbs_buffer<__uint128_t, MULTI_BIT> *>(*buffer);
   x->release(static_cast<cudaStream_t>(stream), gpu_index);
   delete x;
   *buffer = nullptr;
@@ -199,7 +199,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
                  polynomial_size);
 
   auto *pbs_buf =
-      reinterpret_cast<pbs_buffer_128<uint64_t, MULTI_BIT> *>(buffer);
+      reinterpret_cast<pbs_buffer<__uint128_t, MULTI_BIT> *>(buffer);
   switch (pbs_buf->pbs_variant) {
   case PBS_VARIANT::CG:
     host_cg_multi_bit_programmable_bootstrap_noise_tests_128<uint64_t,

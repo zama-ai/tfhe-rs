@@ -544,6 +544,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size) {
+  if constexpr (sizeof(Torus) == 16)
+    return safe_mul_sizeof<Torus>((size_t)polynomial_size,
+                                  (size_t)2);           // accumulator
   return safe_mul_sizeof<double2>(polynomial_size / 2); // accumulator
 }
 template <typename Torus>
@@ -712,8 +715,9 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap(
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, size_tracker);
+      input_lwe_ciphertext_count, lwe_chunk_size,
+      pbs_variant_tag<PBS_VARIANT::DEFAULT>{}, allocate_gpu_memory,
+      size_tracker);
   return size_tracker;
 }
 
