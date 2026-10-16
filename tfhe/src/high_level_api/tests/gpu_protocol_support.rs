@@ -1409,11 +1409,12 @@ fn test_case_fhevm_shl_u8(cks: &ClientKey) {
             let r = &enc_a << &enc_s;
             check_uint_noise(&r, cks);
             let d: u8 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shl((s % 8) as u32));
+            let expected = if s < 8 { a << s } else { 0u8 };
+            assert_eq!(d, expected);
             let r2 = &enc_a << s;
             check_uint_noise(&r2, cks);
             let d2: u8 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shl((s % 8) as u32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1425,11 +1426,12 @@ fn test_case_fhevm_shl_u16(cks: &ClientKey) {
             let r = &enc_a << &enc_s;
             check_uint16_noise(&r, cks);
             let d: u16 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shl((s % 16) as u32));
+            let expected = if s < 16 { a << s } else { 0u16 };
+            assert_eq!(d, expected);
             let r2 = &enc_a << s;
             check_uint16_noise(&r2, cks);
             let d2: u16 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shl((s % 16) as u32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1441,11 +1443,12 @@ fn test_case_fhevm_shl_u32(cks: &ClientKey) {
             let r = &enc_a << &enc_s;
             check_uint32_noise(&r, cks);
             let d: u32 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shl(s % 32));
+            let expected = if s < 32 { a << s } else { 0u32 };
+            assert_eq!(d, expected);
             let r2 = &enc_a << s;
             check_uint32_noise(&r2, cks);
             let d2: u32 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shl(s % 32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1457,11 +1460,12 @@ fn test_case_fhevm_shl_u64(cks: &ClientKey) {
             let r = &enc_a << &enc_s;
             check_uint64_noise(&r, cks);
             let d: u64 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shl((s % 64) as u32));
+            let expected = if s < 64 { a << s } else { 0u64 };
+            assert_eq!(d, expected);
             let r2 = &enc_a << s;
             check_uint64_noise(&r2, cks);
             let d2: u64 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shl((s % 64) as u32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1473,11 +1477,12 @@ fn test_case_fhevm_shl_u128(cks: &ClientKey) {
             let r = &enc_a << &enc_s;
             check_uint128_noise(&r, cks);
             let d: u128 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shl((s % 128) as u32));
+            let expected = if s < 128 { a << s } else { 0u128 };
+            assert_eq!(d, expected);
             let r2 = &enc_a << s;
             check_uint128_noise(&r2, cks);
             let d2: u128 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shl((s % 128) as u32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1488,8 +1493,7 @@ fn test_case_fhevm_shl_u256(cks: &ClientKey) {
             let enc_s = FheUint256::encrypt(s, cks);
             let r = &enc_a << &enc_s;
             check_uint256_noise(&r, cks);
-            let sh = (s % U256::from(256u64)).0[0] as u32;
-            let expected = a << sh;
+            let expected = if s < U256::from(256u64) { a << s.0[0] as u32 } else { U256::ZERO };
             let d: U256 = r.decrypt(cks);
             assert_eq!(d, expected);
             let r2 = &enc_a << s;
@@ -1555,11 +1559,12 @@ fn test_case_fhevm_shr_u8(cks: &ClientKey) {
             let r = &enc_a >> &enc_s;
             check_uint_noise(&r, cks);
             let d: u8 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shr((s % 8) as u32));
+            let expected = if s < 8 { a >> s } else { 0u8 };
+            assert_eq!(d, expected);
             let r2 = &enc_a >> s;
             check_uint_noise(&r2, cks);
             let d2: u8 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shr((s % 8) as u32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1571,11 +1576,12 @@ fn test_case_fhevm_shr_u16(cks: &ClientKey) {
             let r = &enc_a >> &enc_s;
             check_uint16_noise(&r, cks);
             let d: u16 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shr((s % 16) as u32));
+            let expected = if s < 16 { a >> s } else { 0u16 };
+            assert_eq!(d, expected);
             let r2 = &enc_a >> s;
             check_uint16_noise(&r2, cks);
             let d2: u16 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shr((s % 16) as u32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1587,11 +1593,12 @@ fn test_case_fhevm_shr_u32(cks: &ClientKey) {
             let r = &enc_a >> &enc_s;
             check_uint32_noise(&r, cks);
             let d: u32 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shr(s % 32));
+            let expected = if s < 32 { a >> s } else { 0u32 };
+            assert_eq!(d, expected);
             let r2 = &enc_a >> s;
             check_uint32_noise(&r2, cks);
             let d2: u32 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shr(s % 32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1603,11 +1610,12 @@ fn test_case_fhevm_shr_u64(cks: &ClientKey) {
             let r = &enc_a >> &enc_s;
             check_uint64_noise(&r, cks);
             let d: u64 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shr((s % 64) as u32));
+            let expected = if s < 64 { a >> s } else { 0u64 };
+            assert_eq!(d, expected);
             let r2 = &enc_a >> s;
             check_uint64_noise(&r2, cks);
             let d2: u64 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shr((s % 64) as u32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1619,11 +1627,12 @@ fn test_case_fhevm_shr_u128(cks: &ClientKey) {
             let r = &enc_a >> &enc_s;
             check_uint128_noise(&r, cks);
             let d: u128 = r.decrypt(cks);
-            assert_eq!(d, a.wrapping_shr((s % 128) as u32));
+            let expected = if s < 128 { a >> s } else { 0u128 };
+            assert_eq!(d, expected);
             let r2 = &enc_a >> s;
             check_uint128_noise(&r2, cks);
             let d2: u128 = r2.decrypt(cks);
-            assert_eq!(d2, a.wrapping_shr((s % 128) as u32));
+            assert_eq!(d2, expected);
         }
     }
 }
@@ -1634,8 +1643,7 @@ fn test_case_fhevm_shr_u256(cks: &ClientKey) {
             let enc_s = FheUint256::encrypt(s, cks);
             let r = &enc_a >> &enc_s;
             check_uint256_noise(&r, cks);
-            let sh = (s % U256::from(256u64)).0[0] as u32;
-            let expected = a >> sh;
+            let expected = if s < U256::from(256u64) { a >> s.0[0] as u32 } else { U256::ZERO };
             let d: U256 = r.decrypt(cks);
             assert_eq!(d, expected);
             let r2 = &enc_a >> s;

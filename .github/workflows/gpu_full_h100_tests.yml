@@ -67,6 +67,15 @@ jobs:
       - name: Enable nvidia multi-process service
         run: |
           nvidia-cuda-mps-control -d
+
+      - name: Run protocol support matrix test
+        run: |
+          make test_protocol_support_gpu
+
+      - name: Run protocol workflow stress test
+        run: |
+          make test_protocol_long_run_gpu
+
       - name: Run core crypto, integer and internal CUDA backend tests
         run: |
           make test_gpu
@@ -79,17 +88,9 @@ jobs:
         run: |
           make test_c_api_gpu
 
-      - name: Run protocol support matrix test
-        run: |
-          make test_protocol_support_gpu
-
       - name: Run High Level API Tests
         run: |
           make test_high_level_api_gpu
-
-      - name: Run protocol workflow stress test
-        run: |
-          make test_protocol_long_run_gpu
 
   slack-notify:
     name: gpu_full_h100_tests/slack-notify
