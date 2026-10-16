@@ -70,8 +70,6 @@ void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
                               void *stream, uint32_t gpu_index);
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
                                   void *stream, uint32_t gpu_index);
-void cuda_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
-                            uint32_t gpu_index);
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
                               void *stream, uint32_t gpu_index);
 

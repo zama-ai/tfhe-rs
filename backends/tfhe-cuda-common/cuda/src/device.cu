@@ -334,33 +334,6 @@ void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
       dest, src, size, static_cast<cudaStream_t>(stream), gpu_index, true);
 }
 
-/// Copy memory within a GPU
-void cuda_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
-                            uint32_t gpu_index) {
-  if (size == 0)
-    return;
-
-  GPU_ASSERT(src != nullptr, "Cuda error: null device ptr");
-  GPU_ASSERT(dest != nullptr, "Cuda error: null device ptr");
-
-  cudaPointerAttributes attr_dest{};
-  check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
-  PANIC_IF_FALSE(
-      attr_dest.type == cudaMemoryTypeDevice,
-      "Cuda error: invalid dest device pointer in copy from GPU to GPU.");
-  cudaPointerAttributes attr_src{};
-  check_cuda_error(cudaPointerGetAttributes(&attr_src, src));
-  PANIC_IF_FALSE(
-      attr_src.type == cudaMemoryTypeDevice,
-      "Cuda error: invalid src device pointer in copy from GPU to GPU.");
-  cuda_set_device(gpu_index);
-  if (attr_src.device == attr_dest.device) {
-    check_cuda_error(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToDevice));
-  } else {
-    check_cuda_error(
-        cudaMemcpyPeer(dest, attr_dest.device, src, attr_src.device, size));
-  }
-}
 
 /// Synchronizes device
 void cuda_synchronize_device(uint32_t gpu_index) {

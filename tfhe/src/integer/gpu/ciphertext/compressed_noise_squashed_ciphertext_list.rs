@@ -29,7 +29,6 @@ pub struct CudaCompressedSquashedNoiseCiphertextListBuilder {
     pub(crate) info: Vec<DataKind>,
 }
 
-#[derive(Clone)]
 pub struct CudaCompressedSquashedNoiseCiphertextList {
     pub(crate) packed_list: CudaPackedGlweCiphertextList<u128>,
     pub(crate) info: Vec<DataKind>,

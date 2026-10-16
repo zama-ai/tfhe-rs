@@ -310,15 +310,6 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
     }
 }
 
-impl<T: UnsignedInteger> Clone for CudaPackedGlweCiphertextList<T> {
-    fn clone(&self) -> Self {
-        Self {
-            data: self.data.clone(),
-            meta: self.meta,
-        }
-    }
-}
-
 impl CudaCompressionKey {
     pub fn from_compression_key(compression_key: &CompressionKey, streams: &CudaStreams) -> Self {
         Self {

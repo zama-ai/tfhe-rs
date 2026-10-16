@@ -599,15 +599,6 @@ impl CudaCompressedCiphertextListBuilder {
     }
 }
 
-impl Clone for CudaCompressedCiphertextList {
-    fn clone(&self) -> Self {
-        Self {
-            packed_list: self.packed_list.clone(),
-            info: self.info.clone(),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
