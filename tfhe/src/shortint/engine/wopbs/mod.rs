@@ -17,6 +17,7 @@ impl ShortintEngine {
         &mut self,
         cks: StandardClientKeyView<'_>,
         sks: StandardServerKeyView<'_>,
+        wop_params: &WopbsParameters,
     ) -> crate::Result<WopbsKey> {
         if matches!(
             sks.atomic_pattern.bootstrapping_key,
@@ -27,8 +28,6 @@ impl ShortintEngine {
                 WopbsKeyCreationError::UnsupportedMultiBit
             )));
         }
-
-        let wop_params = cks.parameters().wopbs_parameters().unwrap();
 
         let cbs_pfpksk = par_allocate_and_generate_new_circuit_bootstrap_lwe_pfpksk_list(
             &cks.atomic_pattern.large_lwe_secret_key(),
@@ -46,7 +45,7 @@ impl ShortintEngine {
             wopbs_server_key: sks_copy.clone(),
             cbs_pfpksk,
             ksk_pbs_to_wopbs: sks.atomic_pattern.key_switching_key.clone(),
-            param: wop_params,
+            param: *wop_params,
             pbs_server_key: sks_copy,
         };
         Ok(wopbs_key)
