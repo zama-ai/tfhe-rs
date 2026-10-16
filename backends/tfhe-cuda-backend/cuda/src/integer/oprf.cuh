@@ -27,10 +27,10 @@ void host_integer_grouped_oprf(CudaStreams streams,
                                const Torus *seeded_lwe_input,
                                uint32_t num_blocks_to_process,
                                int_grouped_oprf_memory<Torus> *mem_ptr,
-                               void *const *bsks) {
+                               BootstrappingKey const &bsks) {
 
   auto active_streams = streams.active_gpu_subset(num_blocks_to_process,
-                                                  mem_ptr->params.pbs_type);
+                                                  mem_ptr->params.pbs_type());
   auto lut = mem_ptr->luts;
 
   if (active_streams.count() == 1) {
@@ -41,8 +41,7 @@ void host_integer_grouped_oprf(CudaStreams streams,
         lut->buffer, mem_ptr->params.glwe_dimension,
         mem_ptr->params.small_lwe_dimension, mem_ptr->params.polynomial_size,
         mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
-        mem_ptr->params.grouping_factor, num_blocks_to_process,
-        mem_ptr->params.pbs_type, 1, 0);
+        num_blocks_to_process, mem_ptr->params.pbs_params(), 1, 0);
   } else {
     std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
     std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
@@ -65,8 +64,8 @@ void host_integer_grouped_oprf(CudaStreams streams,
         lwe_trivial_indexes_vec, bsks, lut->buffer,
         mem_ptr->params.glwe_dimension, mem_ptr->params.small_lwe_dimension,
         mem_ptr->params.polynomial_size, mem_ptr->params.pbs_base_log,
-        mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
-        num_blocks_to_process, mem_ptr->params.pbs_type, 1, 0);
+        mem_ptr->params.pbs_level, num_blocks_to_process,
+        mem_ptr->params.pbs_params(), 1, 0);
 
     PUSH_RANGE("gather")
     multi_gpu_gather_lwe_async<Torus>(
@@ -130,8 +129,9 @@ void host_integer_grouped_oprf_custom_range(
     const Torus *decomposed_scalar, const Torus *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
-    int_grouped_oprf_custom_range_memory<Torus> *mem_ptr, void *const *bsks,
-    void *const *compute_bsks, Torus *const *ksks, Torus *const *rerand_ksks) {
+    int_grouped_oprf_custom_range_memory<Torus> *mem_ptr,
+    BootstrappingKey const &bsks, BootstrappingKey const &compute_bsks,
+    Torus *const *ksks, Torus *const *rerand_ksks) {
 
   CudaRadixCiphertextFFI *computation_buffer = mem_ptr->tmp_oprf_output;
   set_zero_radix_ciphertext_slice_async<Torus>(

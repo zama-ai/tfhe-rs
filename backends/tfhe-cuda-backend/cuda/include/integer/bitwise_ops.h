@@ -21,7 +21,7 @@ template <typename Torus> struct boolean_bitop_buffer {
     this->op = op;
     this->params = params;
     auto active_streams =
-        streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type);
+        streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type());
     this->unchecked = is_unchecked;
     switch (op) {
     case BITAND:
@@ -112,7 +112,7 @@ template <typename Torus> struct int_bitop_buffer {
     this->op = op;
     this->params = params;
     auto active_streams =
-        streams.active_gpu_subset(num_radix_blocks, params.pbs_type);
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     switch (op) {
     case BITAND:
     case BITOR:
@@ -200,7 +200,7 @@ template <typename Torus> struct boolean_bitnot_buffer {
       };
 
       auto active_streams =
-          streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type);
+          streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type());
 
       message_extract_lut->generate_and_broadcast_lut(
           active_streams, {0}, {lut_f_message_extract}, LUT_0_FOR_ALL_BLOCKS);

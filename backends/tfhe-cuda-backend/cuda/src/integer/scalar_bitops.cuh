@@ -9,7 +9,7 @@ host_scalar_bitop(CudaStreams streams, CudaRadixCiphertextFFI *output,
                   CudaRadixCiphertextFFI const *input,
                   Torus const *clear_blocks, Torus const *h_clear_blocks,
                   uint32_t num_clear_blocks, int_bitop_buffer<Torus> *mem_ptr,
-                  void *const *bsks, KSTorus *const *ksks) {
+                  BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   if (output->num_radix_blocks != input->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be equal")
@@ -43,7 +43,7 @@ host_scalar_bitop(CudaStreams streams, CudaRadixCiphertextFFI *output,
                                          input->degrees, num_clear_blocks);
     }
     auto active_streams = streams.active_gpu_subset(
-        num_clear_blocks, mem_ptr->lut->params.pbs_type);
+        num_clear_blocks, mem_ptr->lut->params.pbs_type());
     lut->set_lut_indexes_and_broadcast_from_gpu(active_streams, clear_blocks,
                                                 num_clear_blocks);
 

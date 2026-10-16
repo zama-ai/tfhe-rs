@@ -83,7 +83,8 @@ template <typename Torus, class params>
 __host__ void host_expand_without_verification(
     CudaStreams streams, Torus *lwe_array_out,
     const Torus *lwe_flattened_compact_array_in, zk_expand_mem<Torus> *mem_ptr,
-    Torus *const *casting_keys, void *const *bsks, Torus *const *compute_ksks) {
+    Torus *const *casting_keys, BootstrappingKey const &bsks,
+    Torus *const *compute_ksks) {
   // Expand
   auto casting_key_type = mem_ptr->casting_key_type;
   auto expanded_lwes = mem_ptr->tmp_expanded_lwes;

@@ -419,7 +419,8 @@ template <typename Torus> struct int_mul_add_fixed_point_memory {
       for (uint32_t i = 0; i < num_indexes; i++)
         h_lut_indexes[i] = (i < num_lsb) ? 0 : 1;
     };
-    auto active_streams = streams.active_gpu_subset(num_pairs, params.pbs_type);
+    auto active_streams =
+        streams.active_gpu_subset(num_pairs, params.pbs_type());
     luts_array->generate_and_broadcast_bivariate_lut(
         active_streams, {0, 1}, {lut_f_lsb, lut_f_msb}, lut_index_generator);
 

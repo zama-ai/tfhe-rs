@@ -10,7 +10,7 @@ template <typename Torus, typename KSTorus>
 __host__ void host_integer_prepare_count_of_consecutive_bits(
     CudaStreams streams, CudaRadixCiphertextFFI *ciphertext,
     int_prepare_count_of_consecutive_bits_buffer<Torus> *mem_ptr,
-    void *const *bsks, KSTorus *const *ksks) {
+    BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   auto tmp = mem_ptr->tmp_ct;
 
@@ -46,8 +46,8 @@ template <typename Torus, typename KSTorus>
 __host__ void host_integer_count_of_consecutive_bits(
     CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
     CudaRadixCiphertextFFI const *input_ct,
-    int_count_of_consecutive_bits_buffer<Torus> *mem_ptr, void *const *bsks,
-    KSTorus *const *ksks) {
+    int_count_of_consecutive_bits_buffer<Torus> *mem_ptr,
+    BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   auto params = mem_ptr->params;
   auto ct_prepared = mem_ptr->ct_prepared;
@@ -105,8 +105,8 @@ host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
                    CudaRadixCiphertextFFI const *trivial_ct_neg_n,
                    CudaRadixCiphertextFFI const *trivial_ct_2,
                    CudaRadixCiphertextFFI const *trivial_ct_m_minus_1_block,
-                   int_ilog2_buffer<Torus> *mem_ptr, void *const *bsks,
-                   KSTorus *const *ksks) {
+                   int_ilog2_buffer<Torus> *mem_ptr,
+                   BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   // Prepare the input ciphertext by computing the number of consecutive
   // leading zeros for each of its blocks.

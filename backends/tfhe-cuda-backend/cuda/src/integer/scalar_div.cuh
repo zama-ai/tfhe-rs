@@ -27,7 +27,7 @@ __host__ uint64_t scratch_integer_unsigned_scalar_div_radix(
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_unsigned_scalar_div_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *numerator_ct,
-    int_unsigned_scalar_div_mem<Torus> *mem_ptr, void *const *bsks,
+    int_unsigned_scalar_div_mem<Torus> *mem_ptr, BootstrappingKey const &bsks,
     KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
   if (scalar_divisor_ffi->is_abs_divisor_one) {
@@ -120,7 +120,7 @@ __host__ uint64_t scratch_integer_signed_scalar_div_radix(
 template <typename Torus, typename KSTorus>
 __host__ void host_integer_signed_scalar_div_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *numerator_ct,
-    int_signed_scalar_div_mem<Torus> *mem_ptr, void *const *bsks,
+    int_signed_scalar_div_mem<Torus> *mem_ptr, BootstrappingKey const &bsks,
     KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t numerator_bits) {
 
@@ -250,8 +250,9 @@ template <typename Torus, typename KSTorus>
 __host__ void host_integer_unsigned_scalar_div_rem_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient_ct,
     CudaRadixCiphertextFFI *remainder_ct,
-    int_unsigned_scalar_div_rem_buffer<Torus> *mem_ptr, void *const *bsks,
-    KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    int_unsigned_scalar_div_rem_buffer<Torus> *mem_ptr,
+    BootstrappingKey const &bsks, KSTorus *const *ksks,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     Torus const *clear_blocks, Torus const *h_clear_blocks,
@@ -320,8 +321,9 @@ template <typename Torus, typename KSTorus>
 __host__ void host_integer_signed_scalar_div_rem_radix(
     CudaStreams streams, CudaRadixCiphertextFFI *quotient_ct,
     CudaRadixCiphertextFFI *remainder_ct,
-    int_signed_scalar_div_rem_buffer<Torus> *mem_ptr, void *const *bsks,
-    KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    int_signed_scalar_div_rem_buffer<Torus> *mem_ptr,
+    BootstrappingKey const &bsks, KSTorus *const *ksks,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint64_t const *divisor_has_at_least_one_set,
     uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     uint32_t numerator_bits) {

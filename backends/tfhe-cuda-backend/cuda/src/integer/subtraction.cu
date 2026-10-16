@@ -5,9 +5,9 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, uint32_t requested_flag,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_sub_and_propagate_single_carry<uint64_t>(
       CudaStreams(streams), (int_sub_and_propagate<uint64_t> **)mem_ptr,
@@ -17,8 +17,9 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
 void cuda_sub_and_propagate_single_carry_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lhs_array,
     const CudaRadixCiphertextFFI *rhs_array, CudaRadixCiphertextFFI *carry_out,
-    const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t requested_flag, uint32_t uses_carry) {
+    const CudaRadixCiphertextFFI *carry_in, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks, uint32_t requested_flag,
+    uint32_t uses_carry) {
   PUSH_RANGE("sub")
   host_sub_and_propagate_single_carry<uint64_t>(
       CudaStreams(streams), lhs_array, rhs_array, carry_out, carry_in,

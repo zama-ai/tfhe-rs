@@ -87,7 +87,7 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
     }
 
     this->comparison_luts->generate_and_broadcast_many_lut(
-        streams.active_gpu_subset(num_blocks, params.pbs_type), {0}, {fs},
+        streams.active_gpu_subset(num_blocks, params.pbs_type()), {0}, {fs},
         LUT_0_FOR_ALL_BLOCKS);
     fs.clear();
 
@@ -176,7 +176,8 @@ template <typename Torus> struct int_kv_store_eq_selectors_small_map_buffer {
         lut_fns.push_back([lcl](Torus x) -> Torus { return x == lcl; });
       }
 
-      auto lut_active = streams.active_gpu_subset(acc_blocks, params.pbs_type);
+      auto lut_active =
+          streams.active_gpu_subset(acc_blocks, params.pbs_type());
       this->is_max_value_lut->generate_and_broadcast_lut(
           lut_active, lut_ids, lut_fns, LUT_0_FOR_ALL_BLOCKS);
 
@@ -384,7 +385,7 @@ template <typename Torus> struct int_kv_store_get_buffer {
                                  allocate_gpu_memory, size_tracker);
 
     auto active_streams =
-        streams.active_gpu_subset(total_value_blocks, params.pbs_type);
+        streams.active_gpu_subset(total_value_blocks, params.pbs_type());
     this->one_hot_vector_predicate->generate_and_broadcast_bivariate_lut(
         active_streams, {0}, {zero_out_predicate_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
@@ -407,7 +408,7 @@ template <typename Torus> struct int_kv_store_get_buffer {
         new int_radix_lut<Torus>(streams, params, 1, pbs_batch_blocks,
                                  allocate_gpu_memory, size_tracker);
     this->identity_lut->generate_and_broadcast_lut(
-        streams.active_gpu_subset(pbs_batch_blocks, params.pbs_type), {0},
+        streams.active_gpu_subset(pbs_batch_blocks, params.pbs_type()), {0},
         {identity_fn}, LUT_0_FOR_ALL_BLOCKS);
 
     this->at_least_one_true_buffer = new int_comparison_buffer<Torus>(

@@ -8,8 +8,7 @@ uint64_t scratch_cuda_kreyvium_init_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_inputs);
+    uint32_t carry_modulus, bool allocate_gpu_memory, uint32_t num_inputs);
 
 void cleanup_cuda_kreyvium_init(CudaStreamsFFI streams, int8_t **mem_ptr_void);
 
@@ -17,8 +16,7 @@ uint64_t scratch_cuda_kreyvium_step_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type, uint32_t num_inputs);
+    uint32_t carry_modulus, bool allocate_gpu_memory, uint32_t num_inputs);
 void cleanup_cuda_kreyvium_step(CudaStreamsFFI streams, int8_t **mem_ptr_void);
 
 void cuda_kreyvium_init_async(
@@ -26,15 +24,15 @@ void cuda_kreyvium_init_async(
     CudaRadixCiphertextFFI *b_reg, CudaRadixCiphertextFFI *c_reg,
     CudaRadixCiphertextFFI *k_reg, CudaRadixCiphertextFFI *iv_reg,
     uint32_t *k_offset, uint32_t *iv_offset, const CudaRadixCiphertextFFI *key,
-    const CudaRadixCiphertextFFI *iv_in, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks);
+    const CudaRadixCiphertextFFI *iv_in, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks);
 void cuda_kreyvium_step_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *keystream_output,
     CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
     CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
-    uint32_t num_inputs, uint32_t num_steps, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks);
+    uint32_t num_inputs, uint32_t num_steps, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks);
 }
 
 #endif

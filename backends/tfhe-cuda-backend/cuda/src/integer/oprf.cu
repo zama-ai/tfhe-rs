@@ -5,9 +5,9 @@ uint64_t scratch_cuda_integer_grouped_oprf_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_to_process,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    uint32_t total_random_bits, PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t total_random_bits) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_integer_grouped_oprf_async<uint64_t>(
       CudaStreams(streams), (int_grouped_oprf_memory<uint64_t> **)mem_ptr,
@@ -18,7 +18,8 @@ void cuda_integer_grouped_oprf_64_async(CudaStreamsFFI streams,
                                         CudaRadixCiphertextFFI *radix_lwe_out,
                                         const void *seeded_lwe_input,
                                         uint32_t num_blocks_to_process,
-                                        int8_t *mem, void *const *bsks) {
+                                        int8_t *mem,
+                                        CudaBootstrappingKeyFFI bsks) {
 
   host_integer_grouped_oprf<uint64_t>(
       CudaStreams(streams), radix_lwe_out, (const uint64_t *)seeded_lwe_input,
@@ -53,7 +54,6 @@ void cleanup_cuda_integer_grouped_oprf_64(CudaStreamsFFI streams,
 /// mapping.
 /// @param num_scalar_bits Bit-width of the scalar the intermediate value is
 /// multiplied by.
-/// @param noise_reduction_type Modulus-switch noise reduction strategy.
 /// @param apply_rerand When true, allocate the re-randomization scratch; when
 /// false, allocate only the plain custom-range scratch and ignore the rerand
 /// parameters.
@@ -66,20 +66,19 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_intermediate,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    uint32_t num_input_random_bits, uint32_t num_scalar_bits,
-    PBS_MS_REDUCTION_T noise_reduction_type, bool apply_rerand,
+    uint32_t num_input_random_bits, uint32_t num_scalar_bits, bool apply_rerand,
     CudaLweKeyswitchKeyParamsFFI rerand_ksk_params, RERAND_MODE rerand_mode) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   uint64_t size_tracker = 0;
 
   if (apply_rerand) {
     int_radix_params rerand_params(
-        PBS_TYPE::CLASSICAL, 0, 0, rerand_ksk_params.input_lwe_dimension,
+        classical_pbs_params{PBS_MS_REDUCTION_T::NO_REDUCTION}, 0, 0,
+        rerand_ksk_params.input_lwe_dimension,
         rerand_ksk_params.output_lwe_dimension, rerand_ksk_params.level_count,
-        rerand_ksk_params.base_log, 0, 0, 0, message_modulus, carry_modulus,
-        PBS_MS_REDUCTION_T::NO_REDUCTION);
+        rerand_ksk_params.base_log, 0, 0, message_modulus, carry_modulus);
 
     size_tracker =
         scratch_cuda_integer_grouped_oprf_custom_range_async<uint64_t>(
@@ -118,9 +117,9 @@ uint64_t scratch_cuda_integer_grouped_oprf_custom_range_64_async(
 /// encryptions of zero consumed by the re-randomization stage (only read when
 /// rerand was enabled at scratch time).
 /// @param mem Pre-allocated scratch buffer for this operation.
-/// @param bsks Array of bootstrapping key pointers, one per GPU.
-/// @param compute_bsks Array of bootstrapping key pointers for the
-/// scalar-multiply and shift stages.
+/// @param bsks Bootstrapping key, with its data on each GPU.
+/// @param compute_bsks Bootstrapping key for the scalar-multiply and shift
+/// stages, with its data on each GPU.
 /// @param ksks Array of keyswitch key pointers, one per GPU.
 /// @param rerand_ksks Array of keyswitch key pointers for the re-randomization
 /// stage (only read when rerand was enabled at scratch time).
@@ -130,8 +129,8 @@ void cuda_integer_grouped_oprf_custom_range_64_async(
     const uint64_t *decomposed_scalar, const uint64_t *has_at_least_one_set,
     uint32_t num_scalars, uint32_t shift,
     const void *lwe_flattened_encryptions_of_zero_compact_array_in, int8_t *mem,
-    void *const *bsks, void *const *compute_bsks, void *const *ksks,
-    void *const *rerand_ksks) {
+    CudaBootstrappingKeyFFI bsks, CudaBootstrappingKeyFFI compute_bsks,
+    void *const *ksks, void *const *rerand_ksks) {
 
   host_integer_grouped_oprf_custom_range<uint64_t>(
       CudaStreams(streams), radix_lwe_out, num_blocks_intermediate,

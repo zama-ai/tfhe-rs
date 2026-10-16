@@ -33,7 +33,8 @@ template <typename Torus>
 __host__ void vectorized_aes_256_encrypt_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *all_states_bitsliced,
     CudaRadixCiphertextFFI const *round_keys, uint32_t num_aes_inputs,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
+    int_aes_encrypt_buffer<Torus> *mem, BootstrappingKey const &bsks,
+    Torus *const *ksks) {
 
   constexpr uint32_t BITS_PER_BYTE = 8;
   constexpr uint32_t STATE_BYTES = 16;
@@ -184,7 +185,8 @@ __host__ void host_integer_aes_ctr_256_encrypt(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *iv, CudaRadixCiphertextFFI const *round_keys,
     const Torus *counter_bits_le_all_blocks, uint32_t num_aes_inputs,
-    int_aes_encrypt_buffer<Torus> *mem, void *const *bsks, Torus *const *ksks) {
+    int_aes_encrypt_buffer<Torus> *mem, BootstrappingKey const &bsks,
+    Torus *const *ksks) {
 
   constexpr uint32_t NUM_BITS = 128;
 
@@ -242,7 +244,7 @@ template <typename Torus>
 __host__ void host_integer_key_expansion_256(
     CudaStreams streams, CudaRadixCiphertextFFI *expanded_keys,
     CudaRadixCiphertextFFI const *key, int_key_expansion_256_buffer<Torus> *mem,
-    void *const *bsks, Torus *const *ksks) {
+    BootstrappingKey const &bsks, Torus *const *ksks) {
 
   constexpr uint32_t BITS_PER_WORD = 32;
   constexpr uint32_t BITS_PER_BYTE = 8;

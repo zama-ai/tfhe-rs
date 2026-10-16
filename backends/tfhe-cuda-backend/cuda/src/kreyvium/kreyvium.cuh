@@ -17,7 +17,7 @@ __host__ void kreyvium_compute_64_steps(
     CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
     CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
-    CudaRadixCiphertextFFI *output_dest, void *const *bsks,
+    CudaRadixCiphertextFFI *output_dest, BootstrappingKey const &bsks,
     uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
@@ -200,7 +200,7 @@ host_kreyvium_init(CudaStreams streams, int_kreyvium_buffer<Torus> *mem,
                    uint32_t *iv_offset,
                    CudaRadixCiphertextFFI const *key_bitsliced,
                    CudaRadixCiphertextFFI const *iv_bitsliced,
-                   void *const *bsks, uint64_t *const *ksks) {
+                   BootstrappingKey const &bsks, uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
   *k_offset = 0;
@@ -296,7 +296,7 @@ __host__ void host_kreyvium_step(
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
     CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
     uint32_t num_inputs, uint32_t num_steps, int_kreyvium_buffer<Torus> *mem,
-    void *const *bsks, uint64_t *const *ksks) {
+    BootstrappingKey const &bsks, uint64_t *const *ksks) {
 
   PANIC_IF_FALSE(num_steps % KREYVIUM_BATCH_SIZE == 0,
                  "Kreyvium Error: num_steps must be a multiple of 64.\n");

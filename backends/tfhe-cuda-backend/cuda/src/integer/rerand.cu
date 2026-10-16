@@ -10,10 +10,10 @@ uint64_t scratch_cuda_rerand_64_async(CudaStreamsFFI streams, int8_t **mem_ptr,
                                       RERAND_MODE rerand_type) {
   PUSH_RANGE("scratch rerand")
   int_radix_params params(
-      PBS_TYPE::CLASSICAL, 0, 0, ksk_params.input_lwe_dimension,
-      ksk_params.output_lwe_dimension, ksk_params.level_count,
-      ksk_params.base_log, 0, 0, 0, message_modulus, carry_modulus,
-      PBS_MS_REDUCTION_T::NO_REDUCTION);
+      classical_pbs_params{PBS_MS_REDUCTION_T::NO_REDUCTION}, 0, 0,
+      ksk_params.input_lwe_dimension, ksk_params.output_lwe_dimension,
+      ksk_params.level_count, ksk_params.base_log, 0, 0, message_modulus,
+      carry_modulus);
 
   uint64_t ret = scratch_cuda_rerand<uint64_t>(
       CudaStreams(streams),

@@ -3,7 +3,7 @@
 void cuda_integer_scalar_bitop_inplace_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_inout,
     void const *clear_blocks, void const *h_clear_blocks,
-    uint32_t num_clear_blocks, int8_t *mem_ptr, void *const *bsks,
+    uint32_t num_clear_blocks, int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks,
     void *const *ksks) {
   // In-place variant: lwe_array_inout op= scalar, no aliasing check needed
   host_scalar_bitop<uint64_t>(

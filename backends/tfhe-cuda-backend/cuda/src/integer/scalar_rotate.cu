@@ -5,10 +5,9 @@ uint64_t scratch_cuda_scalar_rotate_64_inplace_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus,
-    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_scalar_rotate<uint64_t>(
       CudaStreams(streams),
@@ -19,7 +18,8 @@ uint64_t scratch_cuda_scalar_rotate_64_inplace_async(
 void cuda_scalar_rotate_64_inplace_async(CudaStreamsFFI streams,
                                          CudaRadixCiphertextFFI *lwe_array,
                                          uint32_t n, int8_t *mem_ptr,
-                                         void *const *bsks, void *const *ksks) {
+                                         CudaBootstrappingKeyFFI bsks,
+                                         void *const *ksks) {
 
   host_scalar_rotate_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, n,

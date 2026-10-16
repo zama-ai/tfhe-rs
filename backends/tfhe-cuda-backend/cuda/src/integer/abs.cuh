@@ -24,11 +24,18 @@ __host__ uint64_t scratch_cuda_integer_abs(CudaStreams streams,
   return size_tracker;
 }
 
+/** @brief Computes in place the absolute value of a signed radix ciphertext.
+ * The sign mask is computed with an arithmetic shift, added to ct, the carry
+ * is propagated, and the result is XORed with the mask. Does nothing when
+ * is_signed is false.
+ * @param ct radix ciphertext to transform in place
+ * @param is_signed if false, ct is unsigned and is left unchanged
+ */
 template <typename Torus>
-__host__ void host_integer_abs(CudaStreams streams, CudaRadixCiphertextFFI *ct,
-                               void *const *bsks, uint64_t *const *ksks,
-                               int_abs_buffer<uint64_t> *mem_ptr,
-                               bool is_signed) {
+__host__ void
+host_integer_abs(CudaStreams streams, CudaRadixCiphertextFFI *ct,
+                 BootstrappingKey const &bsks, uint64_t *const *ksks,
+                 int_abs_buffer<uint64_t> *mem_ptr, bool is_signed) {
   if (!is_signed)
     return;
 

@@ -395,13 +395,23 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   check_cuda_error(cudaGetLastError());
 }
 
+/** @brief Decompresses selected LWE ciphertexts from a packed GLWE list.
+ * The required GLWEs are extracted, then the selected LWEs are sample
+ * extracted. For 64-bit Torus, a PBS then rescales the LWEs and moves them to
+ * the big LWE dimension. For 128-bit Torus, the PBS is skipped.
+ * @param d_lwe_array_out output LWE list on the device
+ * @param d_packed_glwe_in packed GLWE list to decompress from
+ * @param h_indexes_array host array with the indexes of the LWEs to
+ * decompress
+ * @param d_bsks bootstrapping key used by the rescale PBS (64-bit only)
+ * @param h_mem_ptr workspace created by the decompression scratch function
+ */
 template <typename Torus>
-__host__ void
-host_integer_decompress(CudaStreams streams,
-                        CudaLweCiphertextListFFI *d_lwe_array_out,
-                        CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
-                        uint32_t const *h_indexes_array, void *const *d_bsks,
-                        int_decompression<Torus> *h_mem_ptr) {
+__host__ void host_integer_decompress(
+    CudaStreams streams, CudaLweCiphertextListFFI *d_lwe_array_out,
+    CudaPackedGlweCiphertextListFFI const *d_packed_glwe_in,
+    uint32_t const *h_indexes_array, BootstrappingKey const &d_bsks,
+    int_decompression<Torus> *h_mem_ptr) {
 
   static_assert(std::is_same_v<Torus, uint64_t> ||
                     std::is_same_v<Torus, __uint128_t>,
@@ -492,7 +502,7 @@ host_integer_decompress(CudaStreams streams,
     auto lut = h_mem_ptr->decompression_rescale_lut;
     auto active_streams = streams.active_gpu_subset(
         num_blocks_to_decompress,
-        h_mem_ptr->decompression_rescale_lut->params.pbs_type);
+        h_mem_ptr->decompression_rescale_lut->params.pbs_type());
     if (active_streams.count() == 1) {
       execute_pbs_async<Torus, Torus>(
           active_streams, (Torus *)d_lwe_array_out->ptr, lut->lwe_indexes_out,
@@ -501,9 +511,8 @@ host_integer_decompress(CudaStreams streams,
           encryption_params.glwe_dimension,
           compression_params.small_lwe_dimension,
           encryption_params.polynomial_size, encryption_params.pbs_base_log,
-          encryption_params.pbs_level, encryption_params.grouping_factor,
-          num_blocks_to_decompress, encryption_params.pbs_type, num_many_lut,
-          lut_stride);
+          encryption_params.pbs_level, num_blocks_to_decompress,
+          encryption_params.pbs_params(), num_many_lut, lut_stride);
     } else {
       /// For multi GPU execution we create vectors of pointers for inputs and
       /// outputs
@@ -531,9 +540,8 @@ host_integer_decompress(CudaStreams streams,
           encryption_params.glwe_dimension,
           compression_params.small_lwe_dimension,
           encryption_params.polynomial_size, encryption_params.pbs_base_log,
-          encryption_params.pbs_level, encryption_params.grouping_factor,
-          num_blocks_to_decompress, encryption_params.pbs_type, num_many_lut,
-          lut_stride);
+          encryption_params.pbs_level, num_blocks_to_decompress,
+          encryption_params.pbs_params(), num_many_lut, lut_stride);
 
       /// Copy data back to GPU 0 and release vecs
       multi_gpu_gather_lwe_async<Torus>(

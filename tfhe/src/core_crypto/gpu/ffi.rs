@@ -1,6 +1,8 @@
 #![deny(clippy::cast_possible_truncation)]
-use super::{CudaStreams, PBSMSNoiseReductionType};
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
+use super::CudaStreams;
+use crate::core_crypto::gpu::lwe_bootstrap_key::{
+    ms_noise_reduction_type, CudaModulusSwitchNoiseReductionConfiguration,
+};
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
@@ -44,11 +46,7 @@ pub unsafe fn programmable_bootstrap<T: UnsignedInteger>(
         "CUDA TFHE backend only supports u64 PBS indices and u64 LWE inputs"
     );
 
-    // Initializes as NoReduction and change variables later if otherwise
-    let noise_reduction_type = ms_noise_reduction_configuration
-        .map_or(PBSMSNoiseReductionType::NoReduction, |_config| {
-            PBSMSNoiseReductionType::Centered
-        });
+    let noise_reduction_type = ms_noise_reduction_type(ms_noise_reduction_configuration);
 
     scratch_cuda_programmable_bootstrap_64_async(
         streams.ptr[0],
@@ -102,10 +100,7 @@ pub fn get_programmable_bootstrap_size_on_gpu(
     ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    let noise_reduction_type = ms_noise_reduction_configuration
-        .map_or(PBSMSNoiseReductionType::NoReduction, |_config| {
-            PBSMSNoiseReductionType::Centered
-        });
+    let noise_reduction_type = ms_noise_reduction_type(ms_noise_reduction_configuration);
     let size_tracker = unsafe {
         scratch_cuda_programmable_bootstrap_64_async(
             streams.ptr[0],
@@ -155,11 +150,7 @@ pub unsafe fn programmable_bootstrap_128<T: UnsignedInteger>(
 ) {
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
 
-    // Initializes as NoReduction and change variables later if otherwise
-    let noise_reduction_type = ms_noise_reduction_configuration
-        .map_or(PBSMSNoiseReductionType::NoReduction, |_config| {
-            PBSMSNoiseReductionType::Centered
-        });
+    let noise_reduction_type = ms_noise_reduction_type(ms_noise_reduction_configuration);
 
     scratch_cuda_programmable_bootstrap_128_async(
         streams.ptr[0],

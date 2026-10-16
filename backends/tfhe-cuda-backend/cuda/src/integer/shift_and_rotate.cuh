@@ -34,12 +34,11 @@ __host__ uint64_t scratch_cuda_shift_and_rotate(
  * @param mem Scratch buffer holding the comparison memory, scalar and LUTs.
  */
 template <typename Torus, typename KSTorus>
-__host__ void
-host_compute_overshift_condition(CudaStreams streams,
-                                 CudaRadixCiphertextFFI const *lwe_shift,
-                                 CudaRadixCiphertextFFI const *last_bit,
-                                 int_shift_and_rotate_buffer<Torus> *mem,
-                                 void *const *bsks, KSTorus *const *ksks) {
+__host__ void host_compute_overshift_condition(
+    CudaStreams streams, CudaRadixCiphertextFFI const *lwe_shift,
+    CudaRadixCiphertextFFI const *last_bit,
+    int_shift_and_rotate_buffer<Torus> *mem, BootstrappingKey const &bsks,
+    KSTorus *const *ksks) {
   auto message_modulus = mem->params.message_modulus;
   auto carry_modulus = mem->params.carry_modulus;
 
@@ -92,7 +91,7 @@ template <typename Torus, typename KSTorus>
 __host__ void host_apply_overshift_cleanup(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI *shifted_ct, int_shift_and_rotate_buffer<Torus> *mem,
-    void *const *bsks, KSTorus *const *ksks) {
+    BootstrappingKey const &bsks, KSTorus *const *ksks) {
   auto num_radix_blocks = output->num_radix_blocks;
   host_add_the_same_block_to_all_blocks<Torus>(
       streams.stream(0), streams.gpu_index(0), shifted_ct, shifted_ct,
@@ -103,13 +102,19 @@ __host__ void host_apply_overshift_cleanup(
       num_radix_blocks);
 }
 
+/** @brief Shifts or rotates in place a radix ciphertext by an encrypted
+ * amount. The operation type is stored in mem.
+ * @param lwe_array radix ciphertext to transform in place
+ * @param lwe_shift encrypted shift amount; must have the same number of
+ * blocks and lwe_dimension as lwe_array
+ * @param mem workspace created by scratch_cuda_shift_and_rotate
+ */
 template <typename Torus, typename KSTorus>
-__host__ void
-host_shift_and_rotate_inplace(CudaStreams streams,
-                              CudaRadixCiphertextFFI *lwe_array,
-                              CudaRadixCiphertextFFI const *lwe_shift,
-                              int_shift_and_rotate_buffer<Torus> *mem,
-                              void *const *bsks, KSTorus *const *ksks) {
+__host__ void host_shift_and_rotate_inplace(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
+    CudaRadixCiphertextFFI const *lwe_shift,
+    int_shift_and_rotate_buffer<Torus> *mem, BootstrappingKey const &bsks,
+    KSTorus *const *ksks) {
   if (mem->use_block_path) {
     auto block_mem = mem->block_mem;
     host_block_shift_and_rotate<Torus, KSTorus>(streams, lwe_array, lwe_shift,

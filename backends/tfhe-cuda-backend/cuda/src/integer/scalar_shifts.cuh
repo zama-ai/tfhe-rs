@@ -25,7 +25,7 @@ __host__ uint64_t scratch_cuda_logical_scalar_shift(
 template <typename Torus, typename KSTorus>
 __host__ void host_logical_scalar_shift_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
+    int_logical_scalar_shift_buffer<Torus> *mem, BootstrappingKey const &bsks,
     KSTorus *const *ksks, uint32_t num_blocks) {
 
   if (lwe_array->num_radix_blocks < num_blocks)
@@ -140,15 +140,15 @@ __host__ uint64_t scratch_cuda_arithmetic_scalar_shift(
  * the "sign block" (message_modulus - 1 if the input is negative, else 0).
  * @param shifted_ct Ciphertext shifted in place; overwritten with the sign.
  * @param mem Scratch buffer holding the padding-block LUT and tmp_rotated.
- * @param num_blocks Number of radix blocks in shifted_ct.
  * @param num_bits_in_block Message bits per block (1 skips the sign-extract
  * PBS).
  */
 template <typename Torus, typename KSTorus>
 __host__ void host_arithmetic_scalar_shift_overshift(
     CudaStreams streams, CudaRadixCiphertextFFI *shifted_ct,
-    int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    KSTorus *const *ksks, size_t num_bits_in_block) {
+    int_arithmetic_scalar_shift_buffer<Torus> *mem,
+    BootstrappingKey const &bsks, KSTorus *const *ksks,
+    size_t num_bits_in_block) {
   auto num_blocks = shifted_ct->num_radix_blocks;
   CudaRadixCiphertextFFI sign_block;
   as_radix_ciphertext_slice<Torus>(&sign_block, mem->tmp_rotated,
@@ -180,8 +180,8 @@ __host__ void host_arithmetic_scalar_shift_overshift(
 template <typename Torus, typename KSTorus>
 __host__ void host_arithmetic_scalar_shift_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    KSTorus *const *ksks) {
+    int_arithmetic_scalar_shift_buffer<Torus> *mem,
+    BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   auto num_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;

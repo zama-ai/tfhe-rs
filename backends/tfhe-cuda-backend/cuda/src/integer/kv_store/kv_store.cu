@@ -5,13 +5,13 @@ uint64_t scratch_cuda_kv_store_get_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t num_value_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch kv_store_get")
 
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   auto size = scratch_cuda_kv_store_get<uint64_t>(
       CudaStreams(streams), (int_kv_store_get_buffer<uint64_t> **)mem_ptr,
@@ -28,8 +28,8 @@ void cuda_kv_store_get_64_async(
     CudaRadixCiphertextFFI *lwe_array_out_selectors,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
     CudaRadixCiphertextFFI const *lwe_array_in_values,
-    const uint64_t *h_decomposed_clear_keys, int8_t *mem, void *const *bsks,
-    void *const *ksks) {
+    const uint64_t *h_decomposed_clear_keys, int8_t *mem,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   PUSH_RANGE("kv_store_get")
 
@@ -72,13 +72,13 @@ uint64_t scratch_cuda_kv_store_update_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t num_value_blocks,
-    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch kv_store_update")
 
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   auto size = scratch_cuda_kv_store_update<uint64_t>(
       CudaStreams(streams), (int_kv_store_update_buffer<uint64_t> **)mem_ptr,
@@ -95,8 +95,8 @@ void cuda_kv_store_update_64_async(
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
     CudaRadixCiphertextFFI const *lwe_array_in_values,
     CudaRadixCiphertextFFI const *lwe_in_new_value,
-    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   PUSH_RANGE("kv_store_update")
 
@@ -136,12 +136,12 @@ uint64_t scratch_cuda_kv_store_map_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_value_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch kv_store_map")
 
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   auto size = scratch_cuda_kv_store_map<uint64_t>(
       CudaStreams(streams), (int_kv_store_map_buffer<uint64_t> **)mem_ptr,
@@ -157,7 +157,7 @@ void cuda_kv_store_map_64_async(
     CudaRadixCiphertextFFI const *lwe_array_in_values,
     CudaRadixCiphertextFFI const *lwe_in_new_value,
     CudaRadixCiphertextFFI const *lwe_array_in_selectors, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   PUSH_RANGE("kv_store_map")
 
@@ -202,12 +202,12 @@ uint64_t scratch_cuda_kv_store_contains_key_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_entries,
     uint32_t num_key_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool allocate_gpu_memory) {
 
   PUSH_RANGE("scratch kv_store_contains_key")
 
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   auto size = scratch_cuda_kv_store_contains_key<uint64_t>(
       CudaStreams(streams),
@@ -221,8 +221,8 @@ uint64_t scratch_cuda_kv_store_contains_key_64_async(
 void cuda_kv_store_contains_key_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array_out_boolean,
     CudaRadixCiphertextFFI const *lwe_array_in_encrypted_key,
-    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    const uint64_t *h_decomposed_clear_keys, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   PUSH_RANGE("kv_store_contains_key")
 

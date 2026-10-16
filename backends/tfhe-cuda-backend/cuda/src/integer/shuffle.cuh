@@ -253,8 +253,8 @@ template <typename Torus, typename KSTorus>
 __host__ void bitonic_sort_compare_phase_batched(
     CudaStreams streams, CudaRadixCiphertextFFI **keys, uint32_t num_values,
     uint32_t bitonic_subsequence_stride,
-    int_batched_compare_buffer<Torus> *batched_buf, void *const *bsks,
-    KSTorus *const *ksks) {
+    int_batched_compare_buffer<Torus> *batched_buf,
+    BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   auto params = batched_buf->params;
   uint32_t blocks_per_key = batched_buf->key_num_blocks;
@@ -557,8 +557,8 @@ __host__ void
 apply_cmux_batched(CudaStreams streams, CudaRadixCiphertextFFI **keys,
                    CudaRadixCiphertextFFI **values, uint32_t num_values,
                    uint32_t bitonic_subsequence_stride,
-                   int_fused_cmux_buffer<Torus> *fused_buf, void *const *bsks,
-                   KSTorus *const *ksks) {
+                   int_fused_cmux_buffer<Torus> *fused_buf,
+                   BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   auto params = fused_buf->params;
   uint32_t num_pairs = num_values / 2;
@@ -671,7 +671,7 @@ bitonic_shuffle_substep(CudaStreams streams, CudaRadixCiphertextFFI **keys,
                         uint32_t bitonic_subsequence_length_k,
                         uint32_t bitonic_subsequence_stride,
                         int_bitonic_shuffle_buffer<Torus> *mem_ptr,
-                        void *const *bsks, KSTorus *const *ksks) {
+                        BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   auto batched_buf = mem_ptr->batched_compare;
   auto fused_buf = mem_ptr->fused_cmux;
@@ -770,7 +770,7 @@ __host__ void
 host_bitonic_shuffle(CudaStreams streams, CudaRadixCiphertextFFI **keys,
                      CudaRadixCiphertextFFI **values, uint32_t num_values,
                      int_bitonic_shuffle_buffer<Torus> *mem_ptr,
-                     void *const *bsks, KSTorus *const *ksks) {
+                     BootstrappingKey const &bsks, KSTorus *const *ksks) {
 
   CudaRadixCiphertextFFI **eff_keys;
   CudaRadixCiphertextFFI **eff_values;
@@ -816,8 +816,7 @@ __host__ uint64_t scratch_cuda_integer_oprf_bitonic_shuffle_async(
  * array of encryptions of zero used for re-randomization.
  * @param rerand_ksks      Array of re-randomization keyswitch key pointers, one
  * per GPU.
- * @param oprf_bsks        Array of OPRF bootstrapping key pointers, one per
- * GPU.
+ * @param oprf_bsks        OPRF bootstrapping key, with its data on each GPU.
  */
 template <typename Torus, typename KSTorus>
 __host__ void host_oprf_bitonic_shuffle(
@@ -825,7 +824,8 @@ __host__ void host_oprf_bitonic_shuffle(
     const Torus *seeded_lwe_input,
     const Torus *lwe_flattened_encryptions_of_zero_compact_array_in,
     Torus *const *rerand_ksks, int_oprf_bitonic_shuffle_buffer<Torus> *mem_ptr,
-    void *const *oprf_bsks, void *const *bsks, KSTorus *const *ksks) {
+    BootstrappingKey const &oprf_bsks, BootstrappingKey const &bsks,
+    KSTorus *const *ksks) {
 
   uint32_t key_num_blocks = mem_ptr->key_num_blocks;
 

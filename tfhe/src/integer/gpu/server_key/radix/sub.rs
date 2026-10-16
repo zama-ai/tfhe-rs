@@ -6,7 +6,6 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 
-use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     cuda_backend_sub_and_propagate_single_carry_assign,
     cuda_backend_unchecked_unsigned_overflowing_sub_assign,
@@ -300,44 +299,20 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_unchecked_unsigned_overflowing_sub_assign(
-                        stream,
-                        ciphertext,
-                        rhs.as_ref(),
-                        overflow_block.as_mut(),
-                        in_carry_dvec,
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        ciphertext.info.blocks.first().unwrap().message_modulus,
-                        ciphertext.info.blocks.first().unwrap().carry_modulus,
-                        compute_overflow,
-                        uses_input_borrow,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_unchecked_unsigned_overflowing_sub_assign(
-                        stream,
-                        ciphertext,
-                        rhs.as_ref(),
-                        overflow_block.as_mut(),
-                        in_carry_dvec,
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        ciphertext.info.blocks.first().unwrap().message_modulus,
-                        ciphertext.info.blocks.first().unwrap().carry_modulus,
-                        compute_overflow,
-                        uses_input_borrow,
-                        None,
-                    );
-                }
-            }
+            cuda_backend_unchecked_unsigned_overflowing_sub_assign(
+                stream,
+                ciphertext,
+                rhs.as_ref(),
+                overflow_block.as_mut(),
+                in_carry_dvec,
+                &computing_ks_key.d_vec,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                ciphertext.info.blocks.first().unwrap().message_modulus,
+                ciphertext.info.blocks.first().unwrap().carry_modulus,
+                compute_overflow,
+                uses_input_borrow,
+            );
         }
         let ct_overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(overflow_block.ciphertext);
 
@@ -367,46 +342,21 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_sub_and_propagate_single_carry_assign(
-                        streams,
-                        lhs.as_mut(),
-                        rhs.as_ref(),
-                        carry_out.as_mut(),
-                        in_carry,
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        num_blocks,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        requested_flag,
-                        uses_carry,
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_sub_and_propagate_single_carry_assign(
-                        streams,
-                        lhs.as_mut(),
-                        rhs.as_ref(),
-                        carry_out.as_mut(),
-                        in_carry,
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        num_blocks,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        requested_flag,
-                        uses_carry,
-                        None,
-                    );
-                }
-            }
+            cuda_backend_sub_and_propagate_single_carry_assign(
+                streams,
+                lhs.as_mut(),
+                rhs.as_ref(),
+                carry_out.as_mut(),
+                in_carry,
+                &computing_ks_key.d_vec,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                num_blocks,
+                self.message_modulus,
+                self.carry_modulus,
+                requested_flag,
+                uses_carry,
+            );
         }
         carry_out
     }

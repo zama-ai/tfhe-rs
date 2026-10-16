@@ -4,7 +4,7 @@
 void cuda_integer_mult_inplace_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_inout,
     bool const is_bool_left, CudaRadixCiphertextFFI const *radix_lwe_right,
-    bool const is_bool_right, void *const *bsks, void *const *ksks,
+    bool const is_bool_right, CudaBootstrappingKeyFFI bsks, void *const *ksks,
     int8_t *mem_ptr, uint32_t polynomial_size, uint32_t num_blocks) {
   // In-place variant: radix_lwe_inout *= radix_lwe_right, no aliasing check
   // needed
@@ -23,10 +23,10 @@ uint64_t scratch_cuda_integer_mult_inplace_64_async(
     bool const is_boolean_right, uint32_t message_modulus,
     uint32_t carry_modulus, CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_radix_blocks,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool allocate_gpu_memory) {
   const uint32_t polynomial_size = bsk_params.polynomial_size;
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   if (polynomial_size < 256 || polynomial_size > 16384 ||
       (polynomial_size & (polynomial_size - 1)) != 0)
@@ -57,9 +57,9 @@ uint64_t scratch_cuda_partial_sum_ciphertexts_vec_64_async(
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_in_radix,
     uint32_t max_num_radix_in_vec, uint32_t message_modulus,
     uint32_t carry_modulus, bool reduce_degrees_for_single_carry_propagation,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
   return scratch_cuda_integer_partial_sum_ciphertexts_vec<uint64_t>(
       CudaStreams(streams),
       (int_sum_ciphertexts_vec_memory<uint64_t> **)mem_ptr, num_blocks_in_radix,
@@ -69,8 +69,8 @@ uint64_t scratch_cuda_partial_sum_ciphertexts_vec_64_async(
 
 void cuda_partial_sum_ciphertexts_vec_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(radix_lwe_out != radix_lwe_vec,
                  "Output and input pointers must be different for out-of-place "
                  "operations");
@@ -100,10 +100,9 @@ uint64_t scratch_cuda_mul_add_fixed_point_with_rescaling_64_async(
     uint32_t rhs_blocks, uint32_t rescaling, uint32_t precision,
     uint32_t message_modulus, uint32_t carry_modulus,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
   // The fixed-point shape takes its addend through `added`, never as extra
   // terms.
   return scratch_cuda_mul_add_fixed_point<uint64_t>(
@@ -124,8 +123,8 @@ uint64_t scratch_cuda_mul_add_fixed_point_with_rescaling_64_async(
 void cuda_mul_add_fixed_point_with_rescaling_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
-    CudaRadixCiphertextFFI const *added, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks) {
+    CudaRadixCiphertextFFI const *added, int8_t *mem_ptr,
+    CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(result != lhs && result != added,
                  "Output and input pointers must be different for "
                  "out-of-place operations");
@@ -151,10 +150,9 @@ uint64_t scratch_cuda_mul_low_partial_sum_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, uint32_t num_blocks,
     uint32_t max_extra_terms, uint32_t message_modulus, uint32_t carry_modulus,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
   // The mul-low shape is square and keeps every column: no rescaling, and a
   // zero precision so that nothing is skipped.
   return scratch_cuda_mul_add_fixed_point<uint64_t>(
@@ -180,7 +178,7 @@ void cuda_mul_low_partial_sum_64_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *result,
     CudaRadixCiphertextFFI const *lhs, CudaRadixCiphertextFFI const *rhs,
     CudaRadixCiphertextFFI const *extra_terms, uint32_t num_extra_terms,
-    bool propagate_carries, int8_t *mem_ptr, void *const *bsks,
+    bool propagate_carries, int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks,
     void *const *ksks) {
   PANIC_IF_FALSE(result != lhs && result != rhs,
                  "Output and input pointers must be different for "

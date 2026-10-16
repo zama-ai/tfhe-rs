@@ -73,7 +73,8 @@ __host__ void host_extend_radix_with_sign_msb(
     CudaStreams streams, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input,
     int_extend_radix_with_sign_msb_buffer<Torus> *mem_ptr,
-    uint32_t num_additional_blocks, void *const *bsks, KSTorus *const *ksks) {
+    uint32_t num_additional_blocks, BootstrappingKey const &bsks,
+    KSTorus *const *ksks) {
 
   if (num_additional_blocks == 0) {
     PUSH_RANGE("cast/extend no addblocks")
@@ -129,7 +130,7 @@ host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertextFFI *output,
                       CudaRadixCiphertextFFI *input,
                       int_cast_to_unsigned_buffer<Torus> *mem_ptr,
                       uint32_t target_num_blocks, bool input_is_signed,
-                      void *const *bsks, Torus *const *ksks) {
+                      BootstrappingKey const &bsks, Torus *const *ksks) {
 
   uint32_t current_num_blocks = input->num_radix_blocks;
 
@@ -176,12 +177,21 @@ scratch_cuda_cast_to_signed(CudaStreams streams,
   return size_tracker;
 }
 
+/** @brief Casts a radix ciphertext to a signed radix ciphertext with
+ * mem_ptr->target_num_blocks blocks. Extra blocks are filled with the sign of
+ * a signed input or with trivial zeros for an unsigned input. Blocks above the
+ * target are removed.
+ * @param output output radix ciphertext
+ * @param input input radix ciphertext
+ * @param input_is_signed true if input is a signed integer
+ */
 template <typename Torus>
-__host__ void
-host_cast_to_signed(CudaStreams streams, CudaRadixCiphertextFFI *output,
-                    CudaRadixCiphertextFFI const *input,
-                    int_cast_to_signed_buffer<Torus> *mem_ptr,
-                    bool input_is_signed, void *const *bsks, Torus **ksks) {
+__host__ void host_cast_to_signed(CudaStreams streams,
+                                  CudaRadixCiphertextFFI *output,
+                                  CudaRadixCiphertextFFI const *input,
+                                  int_cast_to_signed_buffer<Torus> *mem_ptr,
+                                  bool input_is_signed,
+                                  BootstrappingKey const &bsks, Torus **ksks) {
 
   uint32_t current_num_blocks = input->num_radix_blocks;
   uint32_t target_num_blocks = mem_ptr->target_num_blocks;

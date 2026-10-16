@@ -1,8 +1,10 @@
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
-    CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+    CudaBootstrapKey, CudaBootstrappingKeyFfiGuard, CudaLweBootstrapKey,
+    CudaModulusSwitchNoiseReductionConfiguration,
 };
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
+use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, par_allocate_and_generate_new_lwe_bootstrap_key,
@@ -31,6 +33,7 @@ pub use radix::{
     AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey,
     CudaOprfServerKeyView, GenericCudaOprfServerKey,
 };
+use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
 
 #[cfg(test)]
 pub(crate) use radix::tests_unsigned;
@@ -109,6 +112,29 @@ where
         match self {
             Self::Classic(bsk) => bsk.glwe_dimension().to_glwe_size(),
             Self::MultiBit(mb_bsk) => mb_bsk.glwe_dimension().to_glwe_size(),
+        }
+    }
+}
+
+impl<Scalar: UnsignedInteger> CudaBootstrapKey for CudaBootstrappingKey<Scalar> {
+    fn ffi(&self) -> CudaBootstrappingKeyFfiGuard<'_> {
+        match self {
+            Self::Classic(bsk) => bsk.ffi(),
+            Self::MultiBit(bsk) => bsk.ffi(),
+        }
+    }
+
+    fn gpu_index(&self, index: u32) -> GpuIndex {
+        match self {
+            Self::Classic(bsk) => bsk.gpu_index(index),
+            Self::MultiBit(bsk) => bsk.gpu_index(index),
+        }
+    }
+
+    fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
+        match self {
+            Self::Classic(bsk) => bsk.params_ffi(),
+            Self::MultiBit(bsk) => bsk.params_ffi(),
         }
     }
 }
@@ -442,5 +468,70 @@ impl CudaServerKey {
         let num_bits_to_represent_output_value = num_bits_to_represent_unsigned_value(clear);
         let num_bits_in_message = self.message_modulus.0.ilog2();
         num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::integer::gpu::gen_keys_radix_gpu;
+    use crate::shortint::parameters::{
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    use tfhe_cuda_backend::bindings::{PBS_TYPE_CLASSICAL, PBS_TYPE_MULTI_BIT};
+
+    fn check_enum_forwards_to_inner_key(sks: &CudaServerKey) {
+        let (inner_ffi, inner_gpu_index, inner_params) = match &sks.bootstrapping_key {
+            CudaBootstrappingKey::Classic(bsk) => (bsk.ffi(), bsk.gpu_index(0), bsk.params_ffi()),
+            CudaBootstrappingKey::MultiBit(bsk) => (bsk.ffi(), bsk.gpu_index(0), bsk.params_ffi()),
+        };
+        let key = &sks.bootstrapping_key;
+        let key_guard = key.ffi();
+        let (key_ffi, inner_ffi) = (key_guard.as_raw(), inner_ffi.as_raw());
+        assert_eq!(key_ffi.bsk.ptrs, inner_ffi.bsk.ptrs);
+        assert_eq!(key_ffi.bsk.gpu_count, inner_ffi.bsk.gpu_count);
+        let count = key_ffi.bsk.gpu_count as usize;
+        // SAFETY: both arrays have `gpu_count` entries and their owners are alive
+        let (key_sizes, inner_sizes) = unsafe {
+            (
+                std::slice::from_raw_parts(key_ffi.bsk.byte_sizes, count),
+                std::slice::from_raw_parts(inner_ffi.bsk.byte_sizes, count),
+            )
+        };
+        assert_eq!(key_sizes, inner_sizes);
+        assert_eq!(key.gpu_index(0), inner_gpu_index);
+        assert_eq!(key.params_ffi().pbs_type, inner_params.pbs_type);
+        assert_eq!(
+            key.params_ffi().input_lwe_dimension,
+            inner_params.input_lwe_dimension
+        );
+    }
+
+    #[test]
+    fn bootstrapping_key_enum_forwards_classical() {
+        let streams = CudaStreams::new_single_gpu(GpuIndex::new(0));
+        let (_, sks) =
+            gen_keys_radix_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, 1, &streams);
+        assert_eq!(
+            sks.bootstrapping_key.params_ffi().pbs_type,
+            PBS_TYPE_CLASSICAL
+        );
+        check_enum_forwards_to_inner_key(&sks);
+    }
+
+    #[test]
+    fn bootstrapping_key_enum_forwards_multi_bit() {
+        let streams = CudaStreams::new_single_gpu(GpuIndex::new(0));
+        let (_, sks) = gen_keys_radix_gpu(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            1,
+            &streams,
+        );
+        assert_eq!(
+            sks.bootstrapping_key.params_ffi().pbs_type,
+            PBS_TYPE_MULTI_BIT
+        );
+        check_enum_forwards_to_inner_key(&sks);
     }
 }

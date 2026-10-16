@@ -48,12 +48,11 @@
  * @param mem Scratch holding the block-path buffers and LUTs.
  */
 template <typename Torus, typename KSTorus>
-__host__ void
-host_block_shift_and_rotate(CudaStreams streams,
-                            CudaRadixCiphertextFFI const *lwe_array,
-                            CudaRadixCiphertextFFI const *lwe_shift,
-                            int_shift_and_rotate_by_block_buffer<Torus> *mem,
-                            void *const *bsks, KSTorus *const *ksks) {
+__host__ void host_block_shift_and_rotate(
+    CudaStreams streams, CudaRadixCiphertextFFI const *lwe_array,
+    CudaRadixCiphertextFFI const *lwe_shift,
+    int_shift_and_rotate_by_block_buffer<Torus> *mem,
+    BootstrappingKey const &bsks, KSTorus *const *ksks) {
   cuda_set_device(streams.gpu_index(0));
   auto params = mem->params;
   auto message_modulus = params.message_modulus;

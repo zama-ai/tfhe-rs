@@ -91,7 +91,7 @@ __host__ void fast_kreyvium_compute_64_steps(
     CudaRadixCiphertextFFI *a_reg, CudaRadixCiphertextFFI *b_reg,
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
     CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
-    CudaRadixCiphertextFFI *output_dest, void *const *bsks,
+    CudaRadixCiphertextFFI *output_dest, BootstrappingKey const &bsks,
     uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
@@ -232,7 +232,7 @@ __host__ void host_fast_kreyvium_init(
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
     CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
     CudaRadixCiphertextFFI const *key_bitsliced,
-    CudaRadixCiphertextFFI const *iv_bitsliced, void *const *bsks,
+    CudaRadixCiphertextFFI const *iv_bitsliced, BootstrappingKey const &bsks,
     uint64_t *const *ksks) {
 
   uint32_t N = mem->num_inputs;
@@ -335,7 +335,7 @@ __host__ void host_fast_kreyvium_step(
     CudaRadixCiphertextFFI *c_reg, CudaRadixCiphertextFFI *k_reg,
     CudaRadixCiphertextFFI *iv_reg, uint32_t *k_offset, uint32_t *iv_offset,
     uint32_t num_inputs, uint32_t num_steps,
-    int_fast_kreyvium_buffer<Torus> *mem, void *const *bsks,
+    int_fast_kreyvium_buffer<Torus> *mem, BootstrappingKey const &bsks,
     uint64_t *const *ksks) {
 
   PANIC_IF_FALSE(num_steps % FAST_KREYVIUM_BATCH_SIZE == 0,

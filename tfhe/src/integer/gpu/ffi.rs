@@ -1,17 +1,14 @@
 #![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::lwe_bootstrap_key::{
-    CudaBskParams, CudaModulusSwitchNoiseReductionConfiguration,
-};
+use crate::core_crypto::gpu::lwe_bootstrap_key::CudaBootstrapKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{CudaStreams, PBSMSNoiseReductionType};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
-    LweCiphertextCount, LweDimension, Numeric, PolynomialSize, UnsignedInteger,
+    GlweDimension, LweCiphertextCount, LweDimension, Numeric, PolynomialSize, UnsignedInteger,
 };
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -47,7 +44,6 @@ pub enum BitOpType {
     ScalarXor = 5,
 }
 
-#[allow(dead_code)]
 #[repr(u32)]
 pub enum PBSType {
     MultiBit = 0,
@@ -84,31 +80,6 @@ pub enum ZKType {
 pub enum RerandMode {
     WithKs = 0,
     WithoutKs = 1,
-}
-
-fn resolve_noise_reduction_type(
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) -> PBSMSNoiseReductionType {
-    ms_noise_reduction_configuration.map_or(PBSMSNoiseReductionType::NoReduction, |config| {
-        match config {
-            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
-                PBSMSNoiseReductionType::Centered
-            }
-        }
-    })
-}
-
-fn resolve_ms_noise_reduction_config(
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) -> PBSMSNoiseReductionType {
-    ms_noise_reduction_configuration.map_or_else(
-        || PBSMSNoiseReductionType::NoReduction,
-        |config| match config {
-            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
-                PBSMSNoiseReductionType::Centered
-            }
-        },
-    )
 }
 
 /// The backend dereferences every input's device pointer on
@@ -387,23 +358,17 @@ pub(crate) unsafe fn cuda_backend_scalar_addition_assign<T: UnsignedInteger>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
-    T: UnsignedInteger,
-    KST: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
     decomposed_scalar: &[T],
     has_at_least_one_set: &[T],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_scalars: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -415,10 +380,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -427,7 +392,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut lwe_array_degrees = lwe_array.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -464,7 +428,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
         u32::try_from(carry_modulus.0).unwrap(),
         num_scalar_bits,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_scalar_mul_64_async(
@@ -473,7 +436,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_mul<
         decomposed_scalar.as_ptr().cast::<u64>(),
         has_at_least_one_set.as_ptr().cast::<u64>(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(message_modulus.0).unwrap(),
         num_scalars,
@@ -489,13 +452,11 @@ pub(crate) fn cuda_backend_get_scalar_mul_size_on_gpu<T: UnsignedInteger>(
     decomposed_scalar: &[T],
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let msg_bits = message_modulus.0.ilog2() as usize;
@@ -520,7 +481,6 @@ pub(crate) fn cuda_backend_get_scalar_mul_size_on_gpu<T: UnsignedInteger>(
             u32::try_from(carry_modulus.0).unwrap(),
             num_scalar_bits,
             false,
-            noise_reduction_type as u32,
         )
     };
 
@@ -536,10 +496,9 @@ pub(crate) fn cuda_backend_get_scalar_div_size_on_gpu<Scalar>(
     divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -596,8 +555,6 @@ where
     )
     .unwrap();
 
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
@@ -611,7 +568,6 @@ where
             u32::try_from(carry_modulus.0).unwrap(),
             &raw const scalar_divisor_ffi,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -629,10 +585,9 @@ pub(crate) fn cuda_backend_get_signed_scalar_div_size_on_gpu<Scalar>(
     divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Scalar: SignedReciprocable,
@@ -678,8 +633,6 @@ where
     )
     .unwrap();
 
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
@@ -693,7 +646,6 @@ where
             u32::try_from(carry_modulus.0).unwrap(),
             &raw const scalar_divisor_ffi,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -767,7 +719,6 @@ pub(crate) unsafe fn cuda_backend_compress<
             num_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
-            PBSType::Classical as u32,
             lwe_per_glwe,
             true,
         );
@@ -797,7 +748,6 @@ pub(crate) unsafe fn cuda_backend_compress<
             num_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
-            PBSType::Classical as u32,
             lwe_per_glwe,
             true,
         );
@@ -842,7 +792,6 @@ pub(crate) fn cuda_backend_get_compression_size_on_gpu(
             num_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
-            PBSType::Classical as u32,
             lwe_per_glwe,
             false,
         )
@@ -863,18 +812,17 @@ pub(crate) fn cuda_backend_get_compression_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
+pub(crate) unsafe fn cuda_backend_decompress(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<u64>,
     glwe_in: &CudaPackedGlweCiphertextList<u64>,
-    bootstrapping_key: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     encryption_glwe_dimension: GlweDimension,
     encryption_polynomial_size: PolynomialSize,
     compression_glwe_dimension: GlweDimension,
     compression_polynomial_size: PolynomialSize,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     vec_indexes: &[u32],
     num_blocks_to_decompress: u32,
 ) {
@@ -896,7 +844,6 @@ pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        PBSMSNoiseReductionType::NoReduction as u32,
     );
 
     cuda_integer_decompress_radix_ciphertext_64_async(
@@ -904,7 +851,7 @@ pub(crate) unsafe fn cuda_backend_decompress<B: Numeric>(
         &raw mut lwe_array_out_ffi,
         &raw const glwe_array_in_ffi,
         vec_indexes.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         mem_ptr,
     );
 
@@ -989,7 +936,7 @@ pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
     encryption_polynomial_size: PolynomialSize,
     compression_glwe_dimension: GlweDimension,
     compression_polynomial_size: PolynomialSize,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     num_blocks_to_decompress: u32,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -1007,7 +954,6 @@ pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
-            PBSMSNoiseReductionType::NoReduction as u32,
         )
     };
 
@@ -1094,20 +1040,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_add_assign(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     is_boolean_left: bool,
     radix_lwe_right: &CudaRadixCiphertext,
     is_boolean_right: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -1126,10 +1070,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1138,7 +1082,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
@@ -1186,7 +1129,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         ksk_params,
         num_blocks,
         true,
-        noise_reduction_type as u32,
     );
     cuda_integer_mult_inplace_64_async(
         streams.ffi(),
@@ -1194,7 +1136,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_mul_assign<T: UnsignedInteger, B: Nu
         is_boolean_left,
         &raw const cuda_ffi_radix_lwe_right,
         is_boolean_right,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         mem_ptr,
         bsk_params.polynomial_size,
@@ -1211,13 +1153,11 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
     is_boolean_right: bool,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -1232,7 +1172,6 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
             ksk_params,
             num_blocks,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1247,19 +1186,17 @@ pub(crate) fn cuda_backend_get_mul_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -1278,10 +1215,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1290,7 +1227,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
@@ -1337,14 +1273,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
         u32::try_from(carry_modulus.0).unwrap(),
         op as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_integer_bitop_inplace_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1357,20 +1292,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitop_assign<T: UnsignedInteger, B: 
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     is_unchecked: bool,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -1389,10 +1322,10 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1401,7 +1334,6 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
@@ -1449,14 +1381,13 @@ pub(crate) unsafe fn cuda_backend_boolean_bitop_assign<T: UnsignedInteger, B: Nu
         op as u32,
         is_unchecked,
         true,
-        noise_reduction_type as u32,
     );
     cuda_boolean_bitop_inplace_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_boolean_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1468,15 +1399,13 @@ pub(crate) fn cuda_backend_get_boolean_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     is_unchecked: bool,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -1491,7 +1420,6 @@ pub(crate) fn cuda_backend_get_boolean_bitop_size_on_gpu(
             op as u32,
             is_unchecked,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1505,14 +1433,12 @@ pub(crate) fn cuda_backend_get_boolean_bitnot_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     is_unchecked: bool,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -1526,7 +1452,6 @@ pub(crate) fn cuda_backend_get_boolean_bitnot_size_on_gpu(
             num_blocks,
             is_unchecked,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1540,14 +1465,12 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -1561,7 +1484,6 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             op as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1579,21 +1501,18 @@ pub(crate) fn cuda_backend_get_bitop_size_on_gpu(
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
     T: UnsignedInteger,
     KST: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     radix_lwe: &mut CudaRadixCiphertext,
     clear_blocks: &CudaVec<T>,
     h_clear_blocks: &[T],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -1612,10 +1531,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1624,7 +1543,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_degrees = radix_lwe.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -1649,7 +1567,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         op as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_integer_scalar_bitop_inplace_64_async(
         streams.ffi(),
@@ -1658,7 +1575,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_bitop_assign<
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
         min(u32::try_from(clear_blocks.len()).unwrap(), num_blocks),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_scalar_bitop_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -1670,14 +1587,12 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: BitOpType,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -1691,7 +1606,6 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             op as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1709,20 +1623,18 @@ pub(crate) fn cuda_backend_get_scalar_bitop_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_left: &CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     op: ComparisonType,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -1748,10 +1660,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Nu
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1760,8 +1672,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Nu
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
@@ -1828,7 +1738,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Nu
         op as u32,
         is_signed,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_comparison_64_async(
@@ -1837,7 +1746,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_comparison<T: UnsignedInteger, B: Nu
         &raw const cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_lwe_right,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -1850,15 +1759,13 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     op: ComparisonType,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -1873,7 +1780,6 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
             op as u32,
             is_signed,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -1891,23 +1797,20 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
     T: UnsignedInteger,
     KST: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
     scalar_blocks: &CudaVec<T>,
     h_scalar_blocks: &[T],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_scalar_blocks: u32,
     op: ComparisonType,
     signed_with_positive_scalar: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -1933,10 +1836,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1945,7 +1848,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
@@ -1993,7 +1895,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
         op as u32,
         signed_with_positive_scalar,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_scalar_comparison_64_async(
@@ -2003,7 +1904,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
         scalar_blocks.as_c_ptr(0),
         h_scalar_blocks.as_ptr().cast::<std::ffi::c_void>(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         num_scalar_blocks,
     );
@@ -2018,17 +1919,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_comparison<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -2040,10 +1939,10 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: N
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2052,7 +1951,6 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: N
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_input_degrees = radix_lwe_input
@@ -2080,14 +1978,13 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: N
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
     cuda_full_propagation_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         num_blocks,
     );
     cleanup_cuda_full_propagation_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -2097,14 +1994,12 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger, B: N
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
     streams: &CudaStreams,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -2116,7 +2011,6 @@ pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -2131,21 +2025,19 @@ pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_input: &mut CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
     carry_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     requested_flag: OutputFlag,
     uses_carry: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -2157,10 +2049,10 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2169,8 +2061,6 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_input_degrees = radix_lwe_input
@@ -2221,7 +2111,6 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
         u32::try_from(carry_modulus.0).unwrap(),
         requested_flag as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_propagate_single_carry_64_inplace_async(
         streams.ffi(),
@@ -2229,7 +2118,7 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2242,16 +2131,14 @@ pub(crate) unsafe fn cuda_backend_propagate_single_carry_assign<T: UnsignedInteg
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
     streams: &CudaStreams,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     requested_flag: OutputFlag,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -2265,7 +2152,6 @@ pub(crate) fn cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             requested_flag as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -2280,16 +2166,14 @@ pub(crate) fn cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu(
     streams: &CudaStreams,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     requested_flag: OutputFlag,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -2303,7 +2187,6 @@ pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu
             u32::try_from(carry_modulus.0).unwrap(),
             requested_flag as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -2321,25 +2204,20 @@ pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     lhs_input: &mut CudaRadixCiphertext,
     rhs_input: &CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
     carry_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     requested_flag: OutputFlag,
     uses_carry: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -2372,10 +2250,10 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2384,8 +2262,6 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -2448,7 +2324,6 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         requested_flag as u32,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_sub_and_propagate_single_carry_64_inplace_async(
@@ -2458,7 +2333,7 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2479,25 +2354,20 @@ pub(crate) unsafe fn cuda_backend_sub_and_propagate_single_carry_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     lhs_input: &mut CudaRadixCiphertext,
     rhs_input: &CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
     carry_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     requested_flag: OutputFlag,
     uses_carry: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -2530,10 +2400,10 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2542,8 +2412,6 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut lhs_input_degrees = lhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -2601,7 +2469,6 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         requested_flag as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_add_and_propagate_single_carry_64_inplace_async(
         streams.ffi(),
@@ -2610,7 +2477,7 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         requested_flag as u32,
         uses_carry,
@@ -2629,18 +2496,16 @@ pub(crate) unsafe fn cuda_backend_add_and_propagate_single_carry_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
+pub(crate) unsafe fn cuda_backend_grouped_oprf(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     seeded_lwe_input: &CudaVec<u64>,
     num_blocks_to_process: u32,
-    bootstrapping_key: &CudaVec<B>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     total_random_bits: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -2648,9 +2513,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
     );
     assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0),);
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0),);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -2679,7 +2542,6 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
         u32::try_from(carry_modulus.0).unwrap(),
         true,
         total_random_bits,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_grouped_oprf_64_async(
@@ -2688,7 +2550,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
         seeded_lwe_input.as_c_ptr(0),
         num_blocks_to_process,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
     );
 
     cleanup_cuda_integer_grouped_oprf_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -2715,11 +2577,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf<B: Numeric>(
 ///   directly. In `rerand_ksk_params`, only `input_lwe_dimension` is read in that mode: it sizes
 ///   the expanded encryptions of zero and selects the expansion kernel. `output_lwe_dimension`,
 ///   `base_log` and `level_count` are unused.
-pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
-    T: UnsignedInteger,
-    B: Numeric,
-    KST: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<T: UnsignedInteger, KST: Numeric>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     num_blocks_intermediate: u32,
@@ -2727,14 +2585,12 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
     decomposed_scalar: &[T],
     has_at_least_one_set: &[T],
     shift: u32,
-    bootstrapping_key: &CudaVec<B>,
-    compute_bootstrapping_key: &CudaVec<B>,
+    bsk: &impl CudaBootstrapKey,
+    compute_bsk: &impl CudaBootstrapKey,
     key_switching_key: &CudaVec<KST>,
-    bsk: &impl CudaBskParams,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     apply_rerand: bool,
     zero_lwes: Option<&CudaLweCompactCiphertextList<u64>>,
     rerand_keyswitch_key: Option<&CudaLweKeyswitchKey<u64>>,
@@ -2745,14 +2601,9 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
     );
     assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
-    assert_eq!(
-        streams.gpu_indexes[0],
-        compute_bootstrapping_key.gpu_index(0)
-    );
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], compute_bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], key_switching_key.gpu_index(0));
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let num_scalars = u32::try_from(decomposed_scalar.len()).unwrap();
 
@@ -2823,7 +2674,6 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         true,
         shift,
         num_scalars,
-        noise_reduction_type as u32,
         apply_rerand,
         rerand_ksk_params,
         rerand_mode as u32,
@@ -2840,8 +2690,8 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
         shift,
         zero_lwes_ptr,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
-        compute_bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
+        compute_bsk.ffi().as_raw(),
         key_switching_key.ptr.as_ptr(),
         rerand_ksks_ptr,
     );
@@ -2858,15 +2708,13 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf_custom_range<
 pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
     streams: &CudaStreams,
     num_blocks_to_process: u32,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     total_random_bits: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -2881,7 +2729,6 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             false,
             total_random_bits,
-            noise_reduction_type as u32,
         )
     };
 
@@ -2896,22 +2743,16 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
-    T: UnsignedInteger,
-    B: Numeric,
-    Scalar,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<T: UnsignedInteger, Scalar>(
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
     divisor: Scalar,
     ksks: &CudaVec<T>,
-    bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
 {
@@ -3012,8 +2853,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
             .collect::<Vec<_>>();
     let clear_blocks = CudaVec::from_cpu_async(&h_clear_blocks, streams, 0);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3059,7 +2898,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
         &raw const scalar_divisor_ffi,
         active_bits_divisor,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_unsigned_scalar_div_rem_radix_64_async(
@@ -3067,7 +2905,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        bsks.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         divisor_has_at_least_one_set.as_ptr(),
@@ -3095,7 +2933,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     T: UnsignedInteger,
-    B: Numeric,
     Scalar,
 >(
     streams: &CudaStreams,
@@ -3103,12 +2940,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
     remainder: &mut CudaRadixCiphertext,
     divisor: Scalar,
     ksks: &CudaVec<T>,
-    bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
@@ -3193,8 +3028,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
         0u32
     };
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3242,7 +3075,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
         &raw const scalar_divisor_ffi,
         active_bits_divisor,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_signed_scalar_div_rem_radix_64_async(
@@ -3250,7 +3082,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_rem_assign<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        bsks.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         divisor_has_at_least_one_set.as_ptr(),
@@ -3274,10 +3106,9 @@ pub(crate) fn cuda_backend_get_scalar_div_rem_size_on_gpu<Scalar>(
     divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -3345,8 +3176,6 @@ where
     )
     .unwrap();
 
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
@@ -3361,7 +3190,6 @@ where
             &raw const scalar_divisor_ffi,
             active_bits_divisor,
             false,
-            noise_reduction_type as u32,
         )
     };
 
@@ -3381,10 +3209,9 @@ pub(crate) fn cuda_backend_get_signed_scalar_div_rem_size_on_gpu<Scalar>(
     divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
@@ -3439,8 +3266,6 @@ where
     )
     .unwrap();
 
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
@@ -3455,7 +3280,6 @@ where
             &raw const scalar_divisor_ffi,
             active_bits_divisor,
             false,
-            noise_reduction_type as u32,
         )
     };
 
@@ -3475,21 +3299,15 @@ where
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
-    T: UnsignedInteger,
-    B: Numeric,
-    Scalar,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<T: UnsignedInteger, Scalar>(
     streams: &CudaStreams,
     numerator: &mut CudaRadixCiphertext,
     divisor: Scalar,
     ksks: &CudaVec<T>,
-    bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
     Scalar: Reciprocable,
 {
@@ -3499,7 +3317,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
         numerator.d_blocks.0.d_vec.gpu_index(0)
     );
     assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
 
     let num_blocks = u32::try_from(numerator.d_blocks.lwe_ciphertext_count().0).unwrap();
 
@@ -3586,8 +3404,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
         0u32
     };
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let mut numerator_degrees = numerator.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3613,14 +3429,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         &raw const scalar_divisor_ffi,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_unsigned_scalar_div_radix_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        bsks.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
     );
@@ -3639,21 +3454,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
-    T: UnsignedInteger,
-    B: Numeric,
-    Scalar,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<T: UnsignedInteger, Scalar>(
     streams: &CudaStreams,
     numerator: &mut CudaRadixCiphertext,
     divisor: Scalar,
     ksks: &CudaVec<T>,
-    bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) where
     Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
@@ -3720,8 +3529,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
         0u32
     };
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let mut numerator_degrees = numerator.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3747,14 +3554,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         &raw const scalar_divisor_ffi,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_signed_scalar_div_radix_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        bsks.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         ksks.ptr.as_ptr(),
         &raw const scalar_divisor_ffi,
         numerator_bits,
@@ -3771,21 +3577,16 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_scalar_div_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     input: &mut CudaRadixCiphertext,
     shift: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -3797,10 +3598,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3809,8 +3610,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3832,14 +3631,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::LeftShift as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_logical_scalar_shift_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_logical_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3854,19 +3652,16 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_left_shift_assign<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
     T: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     input: &mut CudaRadixCiphertext,
     shift: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -3878,10 +3673,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3890,8 +3685,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3913,14 +3706,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::RightShift as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_logical_scalar_shift_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_logical_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -3935,18 +3727,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_logical_right_shift_assign<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign<
     T: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     input: &mut CudaRadixCiphertext,
     shift: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -3958,10 +3747,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3970,8 +3759,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3993,14 +3780,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::RightShift as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_arithmetic_scalar_shift_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_arithmetic_scalar_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4013,19 +3799,17 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_arithmetic_right_shift_assign
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_shift: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -4044,10 +3828,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4056,7 +3840,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -4096,14 +3879,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
         ShiftRotateType::RightShift as u32,
         is_signed,
         true,
-        noise_reduction_type as u32,
     );
     cuda_shift_and_rotate_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4116,19 +3898,17 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_shift: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -4147,10 +3927,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4159,7 +3939,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -4199,14 +3978,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
         ShiftRotateType::LeftShift as u32,
         is_signed,
         true,
-        noise_reduction_type as u32,
     );
     cuda_shift_and_rotate_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4219,19 +3997,17 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_rotation: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -4250,10 +4026,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4262,7 +4038,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -4307,14 +4082,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
         ShiftRotateType::RightRotate as u32,
         is_signed,
         true,
-        noise_reduction_type as u32,
     );
     cuda_shift_and_rotate_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4327,19 +4101,17 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     radix_rotation: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -4358,10 +4130,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4370,7 +4142,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -4415,14 +4186,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
         ShiftRotateType::LeftRotate as u32,
         is_signed,
         true,
-        noise_reduction_type as u32,
     );
     cuda_shift_and_rotate_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -4434,13 +4204,11 @@ pub(crate) fn cuda_backend_get_scalar_left_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -4454,7 +4222,6 @@ pub(crate) fn cuda_backend_get_scalar_left_shift_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::LeftShift as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4471,13 +4238,11 @@ pub(crate) fn cuda_backend_get_scalar_logical_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -4491,7 +4256,6 @@ pub(crate) fn cuda_backend_get_scalar_logical_right_shift_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::RightShift as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4508,13 +4272,11 @@ pub(crate) fn cuda_backend_get_scalar_arithmetic_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -4528,7 +4290,6 @@ pub(crate) fn cuda_backend_get_scalar_arithmetic_right_shift_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::RightShift as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4545,14 +4306,12 @@ pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -4567,7 +4326,6 @@ pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
             ShiftRotateType::RightShift as u32,
             is_signed,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4581,14 +4339,12 @@ pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -4603,7 +4359,6 @@ pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
             ShiftRotateType::LeftShift as u32,
             is_signed,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4617,14 +4372,12 @@ pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -4639,7 +4392,6 @@ pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
             ShiftRotateType::RightRotate as u32,
             is_signed,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4653,14 +4405,12 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     is_signed: bool,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -4675,7 +4425,6 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
             ShiftRotateType::LeftRotate as u32,
             is_signed,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -4690,20 +4439,18 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_condition: &CudaBooleanBlock,
     radix_lwe_true: &CudaRadixCiphertext,
     radix_lwe_false: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -4749,10 +4496,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4761,7 +4508,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -4845,7 +4591,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
     cuda_cmux_64_async(
         streams.ffi(),
@@ -4854,7 +4599,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_cmux<T: UnsignedInteger, B: Numeric>
         &raw const cuda_ffi_radix_lwe_true,
         &raw const cuda_ffi_radix_lwe_false,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_cmux_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5012,13 +4757,11 @@ pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -5031,7 +4774,6 @@ pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5046,21 +4788,16 @@ pub(crate) fn cuda_backend_get_cmux_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     n: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -5072,10 +4809,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5084,7 +4821,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -5109,14 +4845,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::LeftShift as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_scalar_rotate_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         n,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_scalar_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5129,21 +4864,16 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_left_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_input: &mut CudaRadixCiphertext,
     n: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -5155,10 +4885,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5167,7 +4897,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -5192,14 +4921,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_scalar_rotate_right_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::RightShift as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_scalar_rotate_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         n,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_scalar_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5211,13 +4939,11 @@ pub(crate) fn cuda_backend_get_scalar_rotate_left_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -5231,7 +4957,6 @@ pub(crate) fn cuda_backend_get_scalar_rotate_left_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::LeftShift as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5245,13 +4970,11 @@ pub(crate) fn get_scalar_rotate_right_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -5265,7 +4988,6 @@ pub(crate) fn get_scalar_rotate_right_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::RightShift as u32,
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5280,23 +5002,18 @@ pub(crate) fn get_scalar_rotate_right_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     result: &mut CudaRadixCiphertext,
     radix_list: &mut CudaRadixCiphertext,
     reduce_degrees_for_single_carry_propagation: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     num_radixes: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -5315,10 +5032,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5327,7 +5044,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut result_degrees = result.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -5357,14 +5073,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         reduce_degrees_for_single_carry_propagation,
         true,
-        noise_reduction_type as u32,
     );
     cuda_partial_sum_ciphertexts_vec_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_result,
         &raw mut cuda_ffi_radix_list,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_partial_sum_ciphertexts_vec_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5385,10 +5100,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_partial_sum_ciphertexts_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<T: UnsignedInteger>(
     streams: &CudaStreams,
     result: &mut CudaRadixCiphertext,
     lhs: &CudaRadixCiphertext,
@@ -5396,16 +5108,13 @@ pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
     added: Option<&CudaRadixCiphertext>,
     rescaling: u32,
     precision: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let lhs_blocks = u32::try_from(lhs.d_blocks.lwe_ciphertext_count().0).unwrap();
     let rhs_blocks = u32::try_from(rhs.d_blocks.lwe_ciphertext_count().0).unwrap();
 
@@ -5441,7 +5150,6 @@ pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
         bsk_params,
         ksk_params,
         true,
-        noise_reduction_type as u32,
     );
     cuda_mul_add_fixed_point_with_rescaling_64_async(
         streams.ffi(),
@@ -5452,7 +5160,7 @@ pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
             .as_ref()
             .map_or(std::ptr::null(), std::ptr::from_ref),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_mul_add_fixed_point_with_rescaling_64(
@@ -5473,7 +5181,7 @@ pub(crate) unsafe fn cuda_backend_mul_add_fixed_point_with_rescaling<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger>(
     streams: &CudaStreams,
     result: &mut CudaRadixCiphertext,
     lhs: &CudaRadixCiphertext,
@@ -5481,16 +5189,13 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Num
     extra_terms: Option<&CudaRadixCiphertext>,
     num_extra_terms: u32,
     propagate_carries: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let num_blocks = u32::try_from(lhs.d_blocks.lwe_ciphertext_count().0).unwrap();
 
     let mut result_degrees = result.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -5523,7 +5228,6 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Num
         bsk_params,
         ksk_params,
         true,
-        noise_reduction_type as u32,
     );
     cuda_mul_low_partial_sum_64_async(
         streams.ffi(),
@@ -5536,7 +5240,7 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Num
         num_extra_terms,
         propagate_carries,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_mul_low_partial_sum_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5549,11 +5253,7 @@ pub(crate) unsafe fn cuda_backend_mul_low_partial_sum<T: UnsignedInteger, B: Num
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
-    T: UnsignedInteger,
-    KST: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_apply_univariate_lut<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -5561,14 +5261,12 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
     input: &CudaSlice<T>,
     input_lut: &[T],
     lut_degree: u64,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -5587,10 +5285,10 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5600,7 +5298,6 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
         keyswitch_key.gpu_index(0).get(),
     );
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let big_lwe_dimension = bsk_params.big_lwe_dimension;
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -5629,7 +5326,6 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
         u32::try_from(carry_modulus.0).unwrap(),
         lut_degree,
         true,
-        noise_reduction_type as u32,
     );
     cuda_apply_univariate_lut_64_async(
         streams.ffi(),
@@ -5637,7 +5333,7 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
     );
     cleanup_cuda_apply_univariate_lut_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
@@ -5651,7 +5347,6 @@ pub(crate) unsafe fn cuda_backend_apply_univariate_lut<
 pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
     T: UnsignedInteger,
     KST: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
@@ -5660,16 +5355,14 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
     input: &CudaSlice<T>,
     input_lut: &[T],
     lut_degree: u64,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     num_many_lut: u32,
     lut_stride: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -5688,10 +5381,10 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5700,7 +5393,6 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let big_lwe_dimension = bsk_params.big_lwe_dimension;
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -5730,7 +5422,6 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
         num_many_lut,
         lut_degree,
         true,
-        noise_reduction_type as u32,
     );
     cuda_apply_many_univariate_lut_64_async(
         streams.ffi(),
@@ -5738,7 +5429,7 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         num_many_lut,
         lut_stride,
     );
@@ -5751,21 +5442,19 @@ pub(crate) unsafe fn cuda_backend_apply_many_univariate_lut<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
     numerator: &CudaRadixCiphertext,
     divisor: &CudaRadixCiphertext,
     is_signed: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -5798,10 +5487,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -5810,7 +5499,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -5865,7 +5553,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
     cuda_integer_div_rem_64_async(
         streams.ffi(),
@@ -5875,7 +5562,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_div_rem_assign<T: UnsignedInteger, B
         &raw const cuda_ffi_divisor,
         is_signed,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_div_rem_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -5889,13 +5576,11 @@ pub(crate) fn cuda_backend_get_div_rem_size_on_gpu(
     is_signed: bool,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -5909,7 +5594,6 @@ pub(crate) fn cuda_backend_get_div_rem_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
-            noise_reduction_type as u32,
         )
     };
     unsafe {
@@ -5924,19 +5608,17 @@ pub(crate) fn cuda_backend_get_div_rem_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger>(
     streams: &CudaStreams,
     output_ct: &mut CudaRadixCiphertext,
     input_ct: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     direction: Direction,
     bit_value: BitValue,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -5951,7 +5633,7 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: stream and bootstrapping_key are on different GPUs"
     );
     assert_eq!(
@@ -5962,8 +5644,6 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
 
     let num_blocks = u32::try_from(input_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
     let counter_num_blocks = u32::try_from(output_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -5999,7 +5679,6 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
         direction,
         bit_value,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_count_of_consecutive_bits_64_async(
@@ -6007,7 +5686,7 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
         &raw mut cuda_ffi_output_ct,
         &raw const cuda_ffi_input_ct,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -6025,23 +5704,21 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
     trivial_ct_neg_n: &CudaRadixCiphertext,
     trivial_ct_2: &CudaRadixCiphertext,
     trivial_ct_m_minus_1_block: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     input_num_blocks: u32,
     counter_num_blocks: u32,
     num_bits_in_ciphertext: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(streams.gpu_indexes[0], output.d_blocks.0.d_vec.gpu_index(0));
@@ -6058,8 +5735,6 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
         streams.gpu_indexes[0],
         trivial_ct_m_minus_1_block.d_blocks.0.d_vec.gpu_index(0)
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -6137,7 +5812,6 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
         counter_num_blocks,
         num_bits_in_ciphertext,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_ilog2_64_async(
@@ -6148,7 +5822,7 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
         &raw const cuda_ffi_trivial_ct_2,
         &raw const cuda_ffi_trivial_all_ones_block,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -6163,24 +5837,19 @@ pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
     carry_out: &mut CudaRadixCiphertext,
     carry_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     compute_overflow: bool,
     uses_input_borrow: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -6199,10 +5868,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6211,7 +5880,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
@@ -6279,7 +5947,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
         u32::try_from(carry_modulus.0).unwrap(),
         compute_overflow as u32,
         true,
-        noise_reduction_type as u32,
     );
     cuda_integer_overflowing_sub_64_inplace_async(
         streams.ffi(),
@@ -6288,7 +5955,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
         &raw mut cuda_ffi_carry_out,
         &raw const cuda_ffi_carry_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         compute_overflow as u32,
         uses_input_borrow,
@@ -6304,17 +5971,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_overflowing_sub_assign<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     ct: &mut CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -6326,10 +5991,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6338,8 +6003,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut ct_degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -6355,14 +6018,13 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
     cuda_integer_abs_inplace_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_ct,
         mem_ptr,
         true,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_integer_abs_inplace_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -6377,18 +6039,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_true<
     T: UnsignedInteger,
-    B: Numeric,
 >(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -6407,10 +6066,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6419,7 +6078,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
@@ -6465,7 +6123,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_is_at_least_one_comparisons_block_true_64_async(
@@ -6473,7 +6130,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
@@ -6491,20 +6148,15 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_tr
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
-    T: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<T: UnsignedInteger>(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
     radix_lwe_in: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -6523,10 +6175,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6535,7 +6187,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -6581,7 +6232,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_are_all_comparisons_block_true_64_async(
@@ -6589,7 +6239,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<
         &raw mut cuda_ffi_radix_lwe_out,
         &raw const cuda_ffi_radix_lwe_in,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
@@ -6751,11 +6401,7 @@ pub(crate) unsafe fn cuda_backend_extend_radix_with_trivial_zero_blocks_msb(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_noise_squashing<
-    T: UnsignedInteger,
-    KST: UnsignedInteger,
-    B: Numeric,
->(
+pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,
     output_degrees: &mut Vec<u64>,
@@ -6763,9 +6409,8 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
     input: &CudaSlice<u64>,
     input_degrees: &mut Vec<u64>,
     input_noise_levels: &mut Vec<u64>,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<KST>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     input_glwe_dimension: GlweDimension,
     input_polynomial_size: PolynomialSize,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
@@ -6773,7 +6418,6 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
     original_num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -6792,10 +6436,10 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6804,8 +6448,6 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
@@ -6840,7 +6482,6 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_apply_noise_squashing_async(
@@ -6849,7 +6490,7 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
         &raw const cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
     );
 
     cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -6868,29 +6509,22 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<
 /// that were inside that vector of compact list. Handling the input this way removes the need
 /// to process multiple compact lists separately, simplifying GPU-based operations. The variable
 /// name `lwe_flattened_compact_array_in` makes this intent explicit.
-pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<T>,
     lwe_flattened_compact_array_in: &CudaVec<T>,
-    bootstrapping_key: &CudaVec<B>,
     computing_ks_key: &CudaVec<KST>,
     casting_key: &CudaVec<T>,
+    bsk: &impl CudaBootstrapKey,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    computing_glwe_dimension: GlweDimension,
-    computing_polynomial_size: PolynomialSize,
     computing_ksk_params: CudaLweKeyswitchKeyParamsFFI,
     casting_ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_type: PBSType,
     casting_key_type: KsType,
-    grouping_factor: LweBskGroupingFactor,
     num_lwes_per_compact_list: &[u32],
     is_boolean: &[bool],
     is_boolean_len: u32,
     zk_type: ZKType,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6908,10 +6542,10 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_indexes[0],
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_indexes[0].get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -6927,39 +6561,32 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
         streams.gpu_indexes[0].get(),
         casting_key.gpu_indexes[0].get(),
     );
+    let bsk_params = bsk.params_ffi();
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let num_compact_lists = num_lwes_per_compact_list.len();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     scratch_cuda_expand_without_verification_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
-        u32::try_from(computing_glwe_dimension.0).unwrap(),
-        u32::try_from(computing_polynomial_size.0).unwrap(),
+        bsk_params,
         computing_ksk_params,
         casting_ksk_params,
-        u32::try_from(pbs_level.0).unwrap(),
-        u32::try_from(pbs_base_log.0).unwrap(),
-        u32::try_from(grouping_factor.0).unwrap(),
         num_lwes_per_compact_list.as_ptr(),
         is_boolean.as_ptr(),
         is_boolean_len,
         u32::try_from(num_compact_lists).unwrap(),
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
-        pbs_type as u32,
         casting_key_type as u32,
         true,
         zk_type as u32,
-        noise_reduction_type as u32,
     );
     cuda_expand_without_verification_64_async(
         streams.ffi(),
         lwe_array_out.0.d_vec.as_mut_c_ptr(0),
         lwe_flattened_compact_array_in.as_c_ptr(0),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         computing_ks_key.ptr.as_ptr(),
         casting_key.ptr.as_ptr(),
     );
@@ -6972,7 +6599,7 @@ pub(crate) unsafe fn cuda_backend_expand<T: UnsignedInteger, KST: UnsignedIntege
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
@@ -6980,13 +6607,11 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
     start_counter: u128,
     num_aes_inputs: u32,
     sbox_parallelism: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -7010,8 +6635,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
         &mut round_keys_degrees,
         &mut round_keys_noise_levels,
     );
-
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let counter_bits_le: Vec<u64> = (0..num_aes_inputs)
         .flat_map(|i| {
@@ -7029,7 +6652,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         num_aes_inputs,
         sbox_parallelism,
     );
@@ -7042,7 +6664,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
         counter_bits_le.as_ptr(),
         num_aes_inputs,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7057,7 +6679,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_encrypt<T: UnsignedInteger, 
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
@@ -7065,13 +6687,11 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteg
     start_counter: u128,
     num_aes_inputs: u32,
     sbox_parallelism: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -7096,8 +6716,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteg
         &mut round_keys_noise_levels,
     );
 
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
-
     let counter_bits_le: Vec<u64> = (0..num_aes_inputs)
         .flat_map(|i| {
             let current_counter = start_counter + i as u128;
@@ -7114,7 +6732,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteg
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         num_aes_inputs,
         sbox_parallelism,
     );
@@ -7127,7 +6744,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_aes_ctr_256_encrypt<T: UnsignedInteg
         counter_bits_le.as_ptr(),
         num_aes_inputs,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7143,12 +6760,10 @@ pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
     sbox_parallelism: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size = unsafe {
@@ -7160,7 +6775,6 @@ pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
-            noise_reduction_type as u32,
             num_aes_inputs,
             sbox_parallelism,
         )
@@ -7179,17 +6793,15 @@ pub(crate) fn cuda_backend_get_aes_ctr_encrypt_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger>(
     streams: &CudaStreams,
     expanded_keys: &mut CudaRadixCiphertext,
     key: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     let mut expanded_keys_degrees = expanded_keys
@@ -7214,8 +6826,6 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numer
     let mut key_noise_levels = key.info.blocks.iter().map(|b| b.noise_level.0).collect();
     let cuda_ffi_key = prepare_cuda_radix_ffi(key, &mut key_degrees, &mut key_noise_levels);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_key_expansion_64_async(
         streams.ffi(),
@@ -7225,7 +6835,6 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numer
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_key_expansion_64_async(
@@ -7233,7 +6842,7 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion<T: UnsignedInteger, B: Numer
         &raw mut cuda_ffi_expanded_keys,
         &raw const cuda_ffi_key,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7247,12 +6856,10 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size = unsafe {
@@ -7264,7 +6871,6 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             true,
-            noise_reduction_type as u32,
         )
     };
 
@@ -7281,17 +6887,15 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger>(
     streams: &CudaStreams,
     expanded_keys: &mut CudaRadixCiphertext,
     key: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     let mut expanded_keys_degrees = expanded_keys
@@ -7316,8 +6920,6 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger, B: N
     let mut key_noise_levels = key.info.blocks.iter().map(|b| b.noise_level.0).collect();
     let cuda_ffi_key = prepare_cuda_radix_ffi(key, &mut key_degrees, &mut key_noise_levels);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_key_expansion_256_64_async(
         streams.ffi(),
@@ -7327,7 +6929,6 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger, B: N
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_key_expansion_256_64_async(
@@ -7335,7 +6936,7 @@ pub(crate) unsafe fn cuda_backend_aes_key_expansion_256<T: UnsignedInteger, B: N
         &raw mut cuda_ffi_expanded_keys,
         &raw const cuda_ffi_key,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7349,12 +6950,10 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_256_size_on_gpu(
     streams: &CudaStreams,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_noise_reduction_type(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size = unsafe {
@@ -7366,7 +6965,6 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_256_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             true,
-            noise_reduction_type as u32,
         )
     };
 
@@ -7383,17 +6981,15 @@ pub(crate) fn cuda_backend_get_aes_key_expansion_256_size_on_gpu(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger>(
     streams: &CudaStreams,
     ciphertext: &mut CudaRadixCiphertext,
     is_unchecked: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -7405,10 +7001,10 @@ pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: N
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7417,7 +7013,6 @@ pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: N
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut ciphertext_degrees = ciphertext.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -7443,14 +7038,13 @@ pub(crate) unsafe fn cuda_backend_boolean_bitnot_assign<T: UnsignedInteger, B: N
         1u32,
         is_unchecked,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_boolean_bitnot_64_async(
         streams.ffi(),
         &raw mut cuda_ffi_ciphertext,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_boolean_bitnot_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -7508,7 +7102,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitnot_assign(
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     T: UnsignedInteger,
-    B: Numeric,
     R: CudaIntegerRadixCiphertext,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
@@ -7519,14 +7112,12 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     matches: &MatchValues<Clear>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7599,8 +7190,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
     let max_output_is_zero = max_output_value == Clear::ZERO;
     let num_matches = u32::try_from(matches.get_values().len()).unwrap();
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
     let mut ffi_out_result_degrees: Vec<u64> = lwe_array_out_result
         .as_ref()
         .info
@@ -7668,7 +7257,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_match_value_64_async(
@@ -7679,7 +7267,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
         h_match_inputs.as_ptr(),
         h_match_outputs.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7701,7 +7289,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_kv_store_get<
     T: UnsignedInteger,
-    B: Numeric,
     R: CudaIntegerRadixCiphertext,
     Clear: DecomposableInto<u64> + CastInto<usize>,
 >(
@@ -7715,15 +7302,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
     num_blocks_per_value: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
 
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7766,8 +7351,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
                 .collect::<Vec<u64>>()
         })
         .collect();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut ffi_out_result_degrees: Vec<u64> = lwe_array_out_result
         .as_ref()
@@ -7871,7 +7454,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_kv_store_get_64_async(
@@ -7883,7 +7465,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
         &raw const ffi_in_values_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -7907,7 +7489,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_get<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_kv_store_update<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: DecomposableInto<u64> + CastInto<usize>,
 >(
     streams: &CudaStreams,
@@ -7920,15 +7501,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
     num_blocks_per_value: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
 
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -7965,8 +7544,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
                 .collect::<Vec<u64>>()
         })
         .collect();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut ffi_out_degrees: Vec<u64> = lwe_check_out_block
         .info
@@ -8071,7 +7648,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_kv_store_update_64_async(
@@ -8083,7 +7659,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
         &raw const ffi_in_new_value_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8099,7 +7675,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_update<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_check_out_block: &mut CudaRadixCiphertext,
     lwe_array_out_values: &mut CudaRadixCiphertext,
@@ -8109,15 +7685,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
     num_blocks_per_value: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
 
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -8142,8 +7716,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
 
     let num_entries =
         u32::try_from(lwe_array_in_selectors.d_blocks.lwe_ciphertext_count().0).unwrap();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut ffi_out_degrees: Vec<u64> = lwe_check_out_block
         .info
@@ -8247,7 +7819,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_kv_store_map_64_async(
@@ -8258,7 +7829,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
         &raw const ffi_in_new_value_struct,
         &raw const ffi_in_selectors_struct,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8276,7 +7847,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_map<T: UnsignedInteger, B: Numeric>(
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: DecomposableInto<u64> + CastInto<usize>,
 >(
     streams: &CudaStreams,
@@ -8285,15 +7855,13 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
     clear_keys: &[Clear],
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
 
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -8324,8 +7892,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
                 .collect::<Vec<u64>>()
         })
         .collect();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut ffi_out_boolean_degrees: Vec<u64> =
         vec![lwe_array_out_boolean.0.ciphertext.info.blocks[0]
@@ -8372,7 +7938,6 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_kv_store_contains_key_64_async(
@@ -8381,7 +7946,7 @@ pub(crate) unsafe fn cuda_backend_kv_store_contains_key<
         &raw const ffi_in_key_struct,
         h_decomposed_clear_keys.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8403,11 +7968,10 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_size_on_gpu<Clear>(
     streams: &CudaStreams,
     ct: &CudaRadixCiphertext,
     matches: &MatchValues<Clear>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
@@ -8436,7 +8000,6 @@ where
     let max_output_is_zero = max_output_value == Clear::ZERO;
     let num_matches = u32::try_from(matches.get_values().len()).unwrap();
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
@@ -8452,7 +8015,6 @@ where
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
-            noise_reduction_type as u32,
         )
     };
 
@@ -8474,11 +8036,10 @@ pub(crate) fn cuda_backend_get_unchecked_match_value_or_size_on_gpu<Clear>(
     ct: &CudaRadixCiphertext,
     matches: &MatchValues<Clear>,
     or_value: Clear,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64
 where
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
@@ -8514,7 +8075,6 @@ where
     let max_output_is_zero = max_output_value == Clear::ZERO;
     let num_matches = u32::try_from(matches.get_values().len()).unwrap();
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
@@ -8531,7 +8091,6 @@ where
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
-            noise_reduction_type as u32,
         )
     };
 
@@ -8548,25 +8107,21 @@ where
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     input: &mut CudaRadixCiphertext,
     input_is_signed: bool,
     requires_full_propagate: bool,
     target_num_blocks: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
     let message_modulus = input.info.blocks.first().unwrap().message_modulus;
     let carry_modulus = input.info.blocks.first().unwrap().carry_modulus;
     let num_input_blocks = u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut input_degrees: Vec<u64> = input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut input_noise_levels: Vec<u64> =
@@ -8594,7 +8149,6 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeri
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_cast_to_unsigned_64_async(
@@ -8604,7 +8158,7 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeri
         mem_ptr,
         target_num_blocks,
         input_is_signed,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8624,7 +8178,6 @@ pub(crate) unsafe fn cuda_backend_cast_to_unsigned<T: UnsignedInteger, B: Numeri
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     T: UnsignedInteger,
-    B: Numeric,
     R: CudaIntegerRadixCiphertext,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + CastInto<u64> + Sync + Send,
 >(
@@ -8635,14 +8188,12 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
     or_value: Clear,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
@@ -8652,8 +8203,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         streams.gpu_indexes[0],
         lwe_array_out.as_ref().d_blocks.0.d_vec.gpu_index(0)
     );
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let num_input_blocks =
         u32::try_from(lwe_array_in_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
@@ -8763,7 +8312,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_match_value_or_64_async(
@@ -8774,7 +8322,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
         h_match_outputs.as_ptr(),
         h_or_value.as_ptr(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8791,31 +8339,26 @@ pub(crate) unsafe fn cuda_backend_unchecked_match_value_or<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_contains<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
     output: &mut CudaBooleanBlock,
     inputs: &[C],
     value: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
 
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut output_degrees = vec![output.0.ciphertext.info.blocks[0].degree.get()];
     let mut output_noise_levels = vec![output.0.ciphertext.info.blocks[0].noise_level.0];
@@ -8872,7 +8415,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_contains_64_async(
@@ -8883,7 +8425,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -8900,7 +8442,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
     Clear: DecomposableInto<u64>,
 >(
@@ -8908,16 +8449,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
     output: &mut CudaBooleanBlock,
     inputs: &[C],
     clear: Clear,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
 
@@ -8929,8 +8468,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
         .take(num_blocks as usize)
         .map(|block_value| block_value.cast_into())
         .collect();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut output_degrees = vec![output.0.ciphertext.info.blocks[0].degree.get()];
     let mut output_noise_levels = vec![output.0.ciphertext.info.blocks[0].noise_level.0];
@@ -8982,7 +8519,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_contains_clear_64_async(
@@ -8993,7 +8529,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9010,23 +8546,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_clear<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
     output: &mut CudaBooleanBlock,
     input: &CudaRadixCiphertext,
     clears: &[Clear],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
@@ -9043,8 +8576,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut output_degrees = vec![output.0.ciphertext.info.blocks[0].degree.get()];
     let mut output_noise_levels = vec![output.0.ciphertext.info.blocks[0].noise_level.0];
@@ -9071,7 +8602,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_is_in_clears_64_async(
@@ -9082,7 +8612,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
         num_clears,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9099,7 +8629,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_is_in_clears<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
     streams: &CudaStreams,
@@ -9107,16 +8636,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
     match_ct: &mut CudaBooleanBlock,
     input: &CudaRadixCiphertext,
     clears: &[Clear],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
@@ -9134,8 +8661,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut index_degrees = index_ct
         .info
@@ -9178,7 +8703,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_index_in_clears_64_async(
@@ -9191,7 +8715,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9209,7 +8733,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_in_clears<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
     T: UnsignedInteger,
-    B: Numeric,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Hash + Sync + Send,
 >(
     streams: &CudaStreams,
@@ -9217,16 +8740,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
     match_ct: &mut CudaBooleanBlock,
     input: &CudaRadixCiphertext,
     clears: &[Clear],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
 
@@ -9270,8 +8791,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         })
         .collect();
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
-
     let mut index_degrees = index_ct
         .info
         .blocks
@@ -9313,7 +8832,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_first_index_in_clears_64_async(
@@ -9327,7 +8845,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9345,7 +8863,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_in_clears<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
     Clear: UnsignedInteger + DecomposableInto<u64> + CastInto<usize> + Sync + Send,
 >(
@@ -9354,16 +8871,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
     match_ct: &mut CudaBooleanBlock,
     inputs: &[C],
     clear: Clear,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
 
@@ -9376,8 +8891,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
         .take(num_blocks as usize)
         .map(|block_value| block_value.cast_into())
         .collect();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut index_degrees = index_ct
         .info
@@ -9445,7 +8958,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_first_index_of_clear_64_async(
@@ -9458,7 +8970,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9476,7 +8988,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of_clear<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
@@ -9484,16 +8995,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     match_ct: &mut CudaBooleanBlock,
     inputs: &[C],
     value: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
@@ -9501,8 +9010,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_blocks_index = u32::try_from(index_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut index_degrees = index_ct
         .info
@@ -9575,7 +9082,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_first_index_of_64_async(
@@ -9588,7 +9094,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9606,7 +9112,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_first_index_of<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
@@ -9614,16 +9119,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     match_ct: &mut CudaBooleanBlock,
     inputs: &[C],
     value: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], value.d_blocks.0.d_vec.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
@@ -9631,8 +9134,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
     let num_inputs = u32::try_from(inputs.len()).unwrap();
     let num_blocks = u32::try_from(value.d_blocks.lwe_ciphertext_count().0).unwrap();
     let num_blocks_index = u32::try_from(index_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut index_degrees = index_ct
         .info
@@ -9705,7 +9206,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_index_of_64_async(
@@ -9718,7 +9218,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
         num_blocks,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9736,7 +9236,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
     Clear: DecomposableInto<u64> + CastInto<usize>,
 >(
@@ -9745,16 +9244,14 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
     match_ct: &mut CudaBooleanBlock,
     inputs: &[C],
     clear: Clear,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, inputs);
 
@@ -9773,8 +9270,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         .is_some_and(|sub_slice| sub_slice.iter().any(|&scalar_block| scalar_block != 0));
 
     scalar_blocks.resize(num_blocks_in_ct as usize, 0u64);
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut index_degrees = index_ct
         .info
@@ -9842,7 +9337,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_index_of_clear_64_async(
@@ -9856,7 +9350,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
         num_blocks_in_ct,
         num_blocks_index,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -9874,30 +9368,26 @@ pub(crate) unsafe fn cuda_backend_unchecked_index_of_clear<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
     match_ct: &mut CudaBooleanBlock,
     lhs: &[C],
     rhs: &[C],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, lhs);
     assert_all_inputs_are_on_same_gpu(streams, rhs);
 
     let num_inputs = u32::try_from(lhs.len()).unwrap();
     let num_blocks = u32::try_from(lhs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
     let mut match_noise_levels = vec![match_ct.0.ciphertext.info.blocks[0].noise_level.0];
@@ -9979,7 +9469,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_all_eq_slices_64_async(
@@ -9990,7 +9479,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
         num_inputs,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -10007,23 +9496,20 @@ pub(crate) unsafe fn cuda_backend_unchecked_all_eq_slices<
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
     T: UnsignedInteger,
-    B: Numeric,
     C: CudaIntegerRadixCiphertext,
 >(
     streams: &CudaStreams,
     match_ct: &mut CudaBooleanBlock,
     lhs: &[C],
     rhs: &[C],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
     assert_all_inputs_are_on_same_gpu(streams, lhs);
     assert_all_inputs_are_on_same_gpu(streams, rhs);
@@ -10031,7 +9517,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
     let num_inputs_lhs = u32::try_from(lhs.len()).unwrap();
     let num_inputs_rhs = u32::try_from(rhs.len()).unwrap();
     let num_blocks = u32::try_from(lhs[0].as_ref().d_blocks.lwe_ciphertext_count().0).unwrap();
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut match_degrees = vec![match_ct.0.ciphertext.info.blocks[0].degree.get()];
     let mut match_noise_levels = vec![match_ct.0.ciphertext.info.blocks[0].noise_level.0];
@@ -10114,7 +9599,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_unchecked_contains_sub_slice_64_async(
@@ -10125,7 +9609,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
         num_inputs_rhs,
         num_blocks,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -10140,27 +9624,23 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains_sub_slice<
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger>(
     streams: &CudaStreams,
     output: &mut CudaRadixCiphertext,
     input: &CudaRadixCiphertext,
     input_is_signed: bool,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let bsk_params = bsk.params_ffi();
-    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsk.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], keyswitch_key.gpu_index(0));
 
     let num_input_blocks = u32::try_from(input.d_blocks.lwe_ciphertext_count().0).unwrap();
     let target_num_blocks = u32::try_from(output.d_blocks.lwe_ciphertext_count().0).unwrap();
-
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut input_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut input_noise_levels = input.info.blocks.iter().map(|b| b.noise_level.0).collect();
@@ -10184,7 +9664,6 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>
         u32::try_from(carry_modulus.0).unwrap(),
         input_is_signed,
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_cast_to_signed_64_async(
@@ -10193,7 +9672,7 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger, B: Numeric>
         &raw const cuda_ffi_input,
         mem_ptr,
         input_is_signed,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -10309,20 +9788,18 @@ const FAST_KREYVIUM_REGISTER_A_BITS: usize = 93;
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger>(
     streams: &CudaStreams,
     a: &mut CudaRadixCiphertext,
     b: &mut CudaRadixCiphertext,
     c: &mut CudaRadixCiphertext,
     key: &CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(message_modulus.0, TRIVIUM_REQUIRED_MESSAGE_MODULUS);
     assert_eq!(carry_modulus.0, TRIVIUM_REQUIRED_CARRY_MODULUS);
@@ -10389,7 +9866,6 @@ pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger, B: Numeric>(
     let num_inputs = u32::try_from(key_len / TRIVIUM_KEY_BITS).unwrap();
     assert!(num_inputs <= TRIVIUM_MAX_NUM_INPUTS);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     scratch_cuda_trivium_init_async(
@@ -10400,7 +9876,6 @@ pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger, B: Numeric>(
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         num_inputs,
     );
     cuda_trivium_init_async(
@@ -10411,7 +9886,7 @@ pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger, B: Numeric>(
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_trivium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10427,20 +9902,18 @@ pub(crate) unsafe fn cuda_backend_trivium_init<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger>(
     streams: &CudaStreams,
     keystream_output: &mut CudaRadixCiphertext,
     a: &mut CudaRadixCiphertext,
     b: &mut CudaRadixCiphertext,
     c: &mut CudaRadixCiphertext,
     num_steps: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(message_modulus.0, TRIVIUM_REQUIRED_MESSAGE_MODULUS);
     assert_eq!(carry_modulus.0, TRIVIUM_REQUIRED_CARRY_MODULUS);
@@ -10493,7 +9966,6 @@ pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger, B: Numeric>(
     let num_inputs = u32::try_from(a_len / TRIVIUM_REGISTER_A_BITS).unwrap();
     assert!(num_inputs <= TRIVIUM_MAX_NUM_INPUTS);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     scratch_cuda_trivium_step_async(
@@ -10504,7 +9976,6 @@ pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger, B: Numeric>(
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         num_inputs,
     );
     cuda_trivium_step_async(
@@ -10515,7 +9986,7 @@ pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger, B: Numeric>(
         &raw mut ffi_c,
         num_steps,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_trivium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10532,7 +10003,7 @@ pub(crate) unsafe fn cuda_backend_trivium_step<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger>(
     streams: &CudaStreams,
     a: &mut CudaRadixCiphertext,
     b: &mut CudaRadixCiphertext,
@@ -10543,13 +10014,11 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
     iv_offset: &mut u32,
     key: &CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(message_modulus.0, TRIVIUM_REQUIRED_MESSAGE_MODULUS);
     assert_eq!(carry_modulus.0, TRIVIUM_REQUIRED_CARRY_MODULUS);
@@ -10639,7 +10108,6 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
     let num_inputs = u32::try_from(key_len / KREYVIUM_KEY_BITS).unwrap();
     assert!(num_inputs <= TRIVIUM_MAX_NUM_INPUTS);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     scratch_cuda_kreyvium_init_async(
@@ -10650,7 +10118,6 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         num_inputs,
     );
     cuda_kreyvium_init_async(
@@ -10665,7 +10132,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_kreyvium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10683,7 +10150,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_init<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger>(
     streams: &CudaStreams,
     keystream_output: &mut CudaRadixCiphertext,
     a: &mut CudaRadixCiphertext,
@@ -10694,13 +10161,11 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
     k_offset: &mut u32,
     iv_offset: &mut u32,
     num_steps: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(message_modulus.0, TRIVIUM_REQUIRED_MESSAGE_MODULUS);
     assert_eq!(carry_modulus.0, TRIVIUM_REQUIRED_CARRY_MODULUS);
@@ -10776,7 +10241,6 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
     let num_inputs = u32::try_from(a_len / TRIVIUM_REGISTER_A_BITS).unwrap();
     assert!(num_inputs <= TRIVIUM_MAX_NUM_INPUTS);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     scratch_cuda_kreyvium_step_async(
@@ -10787,7 +10251,6 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         num_inputs,
     );
     cuda_kreyvium_step_async(
@@ -10803,7 +10266,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
         num_inputs,
         num_steps,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_kreyvium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10822,7 +10285,7 @@ pub(crate) unsafe fn cuda_backend_kreyvium_step<T: UnsignedInteger, B: Numeric>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger>(
     streams: &CudaStreams,
     a: &mut CudaRadixCiphertext,
     b: &mut CudaRadixCiphertext,
@@ -10833,13 +10296,11 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Nume
     iv_offset: &mut u32,
     key: &CudaRadixCiphertext,
     iv: &CudaRadixCiphertext,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(message_modulus.0, FAST_KREYVIUM_REQUIRED_MESSAGE_MODULUS);
     assert_eq!(carry_modulus.0, FAST_KREYVIUM_REQUIRED_CARRY_MODULUS);
@@ -10929,7 +10390,6 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Nume
     let num_inputs = u32::try_from(key_len / FAST_KREYVIUM_KEY_BITS).unwrap();
     assert!(num_inputs <= TRIVIUM_MAX_NUM_INPUTS);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     scratch_cuda_fast_kreyvium_init_async(
@@ -10940,7 +10400,6 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Nume
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         num_inputs,
     );
     cuda_fast_kreyvium_init_async(
@@ -10955,7 +10414,7 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Nume
         &raw const ffi_key,
         &raw const ffi_iv,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_fast_kreyvium_init(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -10973,7 +10432,7 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_init<T: UnsignedInteger, B: Nume
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger>(
     streams: &CudaStreams,
     keystream_output: &mut CudaRadixCiphertext,
     a: &mut CudaRadixCiphertext,
@@ -10984,13 +10443,11 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Nume
     k_offset: &mut u32,
     iv_offset: &mut u32,
     num_steps: u32,
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     assert_eq!(message_modulus.0, FAST_KREYVIUM_REQUIRED_MESSAGE_MODULUS);
     assert_eq!(carry_modulus.0, FAST_KREYVIUM_REQUIRED_CARRY_MODULUS);
@@ -11066,7 +10523,6 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Nume
     let num_inputs = u32::try_from(a_len / FAST_KREYVIUM_REGISTER_A_BITS).unwrap();
     assert!(num_inputs <= TRIVIUM_MAX_NUM_INPUTS);
 
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     scratch_cuda_fast_kreyvium_step_async(
@@ -11077,7 +10533,6 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Nume
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         num_inputs,
     );
     cuda_fast_kreyvium_step_async(
@@ -11093,7 +10548,7 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Nume
         num_inputs,
         num_steps,
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
     cleanup_cuda_fast_kreyvium_step(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
@@ -11112,19 +10567,17 @@ pub(crate) unsafe fn cuda_backend_fast_kreyvium_step<T: UnsignedInteger, B: Nume
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
 #[allow(clippy::too_many_arguments)]
-pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger>(
     streams: &CudaStreams,
     keys: &mut [&mut CudaRadixCiphertext],
     values: &mut [&mut CudaRadixCiphertext],
-    bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
+    bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     key_num_blocks: u32,
     data_num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) {
     let num_values = values.len();
     assert_eq!(
@@ -11140,10 +10593,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, 
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -11154,7 +10607,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, 
     );
 
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let mut keys_degrees: Vec<Vec<u64>> = keys
         .iter()
@@ -11198,7 +10650,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, 
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
     );
 
     cuda_integer_bitonic_shuffle_64_async(
@@ -11207,7 +10658,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, 
         data_ptrs.as_mut_ptr(),
         u32::try_from(num_values).unwrap(),
         mem_ptr,
-        bootstrapping_key.ptr.as_ptr(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
     );
 
@@ -11231,20 +10682,18 @@ pub(crate) unsafe fn cuda_backend_unchecked_bitonic_shuffle<T: UnsignedInteger, 
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger>(
     streams: &CudaStreams,
     values: &mut [&mut CudaRadixCiphertext],
     seeded_lwe_input: &CudaVec<u64>,
-    oprf_bootstrapping_key: &CudaVec<B>,
-    bootstrapping_key: &CudaVec<B>,
+    oprf_bsk: &impl CudaBootstrapKey,
+    bsk: &impl CudaBootstrapKey,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    bsk: &impl CudaBskParams,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     key_num_blocks: u32,
     data_num_blocks: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     apply_rerand: bool,
     zero_lwes: Option<&CudaLweCompactCiphertextList<u64>>,
     rerand_keyswitch_key: Option<&CudaLweKeyswitchKey<u64>>,
@@ -11256,10 +10705,10 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
+        bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
+        bsk.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -11271,14 +10720,13 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
     assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
     assert_eq!(
         streams.gpu_indexes[0],
-        oprf_bootstrapping_key.gpu_index(0),
+        oprf_bsk.gpu_index(0),
         "GPU error: first stream is on GPU {}, first oprf bsk pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        oprf_bootstrapping_key.gpu_index(0).get(),
+        oprf_bsk.gpu_index(0).get(),
     );
 
     let bsk_params = bsk.params_ffi();
-    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
 
     let (rerand_ksk_params, rerand_mode, zero_lwes_ptr) = if apply_rerand {
         let zero_lwes = zero_lwes.expect("apply_rerand requires zero_lwes to be Some");
@@ -11347,7 +10795,6 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
-        noise_reduction_type as u32,
         apply_rerand,
         rerand_ksk_params,
         rerand_mode as u32,
@@ -11359,8 +10806,8 @@ pub(crate) unsafe fn cuda_backend_oprf_bitonic_shuffle<T: UnsignedInteger, B: Nu
         u32::try_from(num_values).unwrap(),
         seeded_lwe_input.as_c_ptr(0),
         mem_ptr,
-        oprf_bootstrapping_key.ptr.as_ptr(),
-        bootstrapping_key.ptr.as_ptr(),
+        oprf_bsk.ffi().as_raw(),
+        bsk.ffi().as_raw(),
         keyswitch_key.ptr.as_ptr(),
         zero_lwes_ptr,
         rerand_ksks_ptr,

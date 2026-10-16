@@ -1,8 +1,6 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
-use crate::integer::gpu::server_key::{
-    CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
-};
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 use crate::integer::gpu::{cuda_backend_trivium_init, cuda_backend_trivium_step};
 
 const TRIVIUM_KEY_BITS: usize = 80;
@@ -58,42 +56,19 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_trivium_init(
-                        streams,
-                        state.a.as_mut(),
-                        state.b.as_mut(),
-                        state.c.as_mut(),
-                        key.as_ref(),
-                        iv.as_ref(),
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_trivium_init(
-                        streams,
-                        state.a.as_mut(),
-                        state.b.as_mut(),
-                        state.c.as_mut(),
-                        key.as_ref(),
-                        iv.as_ref(),
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        None,
-                    );
-                }
-            }
+            cuda_backend_trivium_init(
+                streams,
+                state.a.as_mut(),
+                state.b.as_mut(),
+                state.c.as_mut(),
+                key.as_ref(),
+                iv.as_ref(),
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
         Ok(state)
     }
@@ -116,42 +91,19 @@ impl CudaServerKey {
         };
 
         unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => {
-                    cuda_backend_trivium_step(
-                        streams,
-                        keystream.as_mut(),
-                        state.a.as_mut(),
-                        state.b.as_mut(),
-                        state.c.as_mut(),
-                        num_steps as u32,
-                        &d_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_bsk,
-                        computing_ks_key.params_ffi(),
-                        d_bsk.ms_noise_reduction_configuration.as_ref(),
-                    );
-                }
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                    cuda_backend_trivium_step(
-                        streams,
-                        keystream.as_mut(),
-                        state.a.as_mut(),
-                        state.b.as_mut(),
-                        state.c.as_mut(),
-                        num_steps as u32,
-                        &d_multibit_bsk.d_vec,
-                        &computing_ks_key.d_vec,
-                        self.message_modulus,
-                        self.carry_modulus,
-                        d_multibit_bsk,
-                        computing_ks_key.params_ffi(),
-                        None,
-                    );
-                }
-            }
+            cuda_backend_trivium_step(
+                streams,
+                keystream.as_mut(),
+                state.a.as_mut(),
+                state.b.as_mut(),
+                state.c.as_mut(),
+                num_steps as u32,
+                &computing_ks_key.d_vec,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+            );
         }
         Ok(keystream)
     }

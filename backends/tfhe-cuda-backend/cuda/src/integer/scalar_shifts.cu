@@ -5,10 +5,9 @@ uint64_t scratch_cuda_logical_scalar_shift_64_inplace_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus,
-    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_logical_scalar_shift<uint64_t>(
       CudaStreams(streams),
@@ -22,7 +21,7 @@ uint64_t scratch_cuda_logical_scalar_shift_64_inplace_async(
 /// rotations - 1 The remaining blocks are padded with zeros
 void cuda_logical_scalar_shift_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+    int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   host_logical_scalar_shift_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, shift,
@@ -35,10 +34,9 @@ uint64_t scratch_cuda_arithmetic_scalar_shift_64_inplace_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus,
-    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    SHIFT_OR_ROTATE_TYPE shift_type, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_arithmetic_scalar_shift<uint64_t>(
       CudaStreams(streams),
@@ -55,7 +53,7 @@ uint64_t scratch_cuda_arithmetic_scalar_shift_64_inplace_async(
 /// zeros as would be done in the logical shift.
 void cuda_arithmetic_scalar_shift_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks) {
+    int8_t *mem_ptr, CudaBootstrappingKeyFFI bsks, void *const *ksks) {
 
   host_arithmetic_scalar_shift_inplace<uint64_t>(
       CudaStreams(streams), lwe_array, shift,

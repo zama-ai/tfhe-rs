@@ -39,10 +39,9 @@ uint64_t scratch_cuda_cast_to_unsigned_64_async(
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks,
     uint32_t target_num_blocks, bool input_is_signed,
     bool requires_full_propagate, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t carry_modulus, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_cast_to_unsigned<uint64_t>(
       CudaStreams(streams), (int_cast_to_unsigned_buffer<uint64_t> **)mem_ptr,
@@ -50,12 +49,19 @@ uint64_t scratch_cuda_cast_to_unsigned_64_async(
       requires_full_propagate, allocate_gpu_memory);
 }
 
-void cuda_cast_to_unsigned_64_async(CudaStreamsFFI streams,
-                                    CudaRadixCiphertextFFI *output,
-                                    CudaRadixCiphertextFFI *input,
-                                    int8_t *mem_ptr, uint32_t target_num_blocks,
-                                    bool input_is_signed, void *const *bsks,
-                                    void *const *ksks) {
+/** @brief Casts a radix ciphertext to an unsigned radix ciphertext with
+ * target_num_blocks blocks (64-bit entry point).
+ * @param output output radix ciphertext; must be different from input
+ * @param input input radix ciphertext
+ * @param mem_ptr workspace created by scratch_cuda_cast_to_unsigned_64_async
+ * @param target_num_blocks number of blocks of the result
+ * @param input_is_signed true if input is a signed integer; the sign is then
+ * extended when blocks are added
+ */
+void cuda_cast_to_unsigned_64_async(
+    CudaStreamsFFI streams, CudaRadixCiphertextFFI *output,
+    CudaRadixCiphertextFFI *input, int8_t *mem_ptr, uint32_t target_num_blocks,
+    bool input_is_signed, CudaBootstrappingKeyFFI bsks, void *const *ksks) {
   PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
                                   "for out-of-place operations");
 
@@ -80,10 +86,9 @@ uint64_t scratch_cuda_cast_to_signed_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_input_blocks,
     uint32_t target_num_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus, bool input_is_signed, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t carry_modulus, bool input_is_signed, bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
-                          carry_modulus, noise_reduction_type);
+                          carry_modulus);
 
   return scratch_cuda_cast_to_signed<uint64_t>(
       CudaStreams(streams), (int_cast_to_signed_buffer<uint64_t> **)mem_ptr,
@@ -95,7 +100,8 @@ void cuda_cast_to_signed_64_async(CudaStreamsFFI streams,
                                   CudaRadixCiphertextFFI *output,
                                   CudaRadixCiphertextFFI const *input,
                                   int8_t *mem, bool input_is_signed,
-                                  void *const *bsks, void *const *ksks) {
+                                  CudaBootstrappingKeyFFI bsks,
+                                  void *const *ksks) {
   PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
                                   "for out-of-place operations");
 
