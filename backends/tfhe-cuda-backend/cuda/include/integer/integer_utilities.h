@@ -324,6 +324,142 @@ struct radix_columns {
   }
 };
 
+/// @brief Filler for rows with fewer terms than the table width, so uneven
+/// sums still fit in one rectangular table
+static constexpr uint32_t RADIX_INDEX_NO_TERM = 0xFFFFFFFFu;
+
+/**
+ * @brief A levelled linear layer stored as a table, on host and device.
+ *
+ * Between two PBS layers a bitsliced cipher mostly moves and sums blocks
+ * around (permutations, repacking, column mixes). Writing the whole layer as
+ * one table makes it a single kernel launch instead of one per wire.
+ *
+ * Row r lists the sources summed into output row r. For pairs over 8 sources
+ *
+ *     out row | term 0 | term 1
+ *     --------+--------+--------
+ *        0    |   0    |   1
+ *        1    |   2    |   3       stored as {0, 1, 2, 3, 4, 5, 6, 7}
+ *        2    |   4    |   5       num_sources = 8
+ *        3    |   6    |   7
+ *
+ * Each row covers num_lanes blocks, one per batch instance, so the table is
+ * written once and doesn't grow with the batch. Layers that move blocks
+ * across instances use num_lanes = 1 and list every block.
+ */
+template <typename T> struct radix_index_table {
+  /// @brief Host copy, used for the degree and noise bookkeeping
+  T *h_table = nullptr;
+  /// @brief Device copy, read by the gather kernel
+  T *d_table = nullptr;
+  /// @brief Terms summed per output row
+  uint32_t num_terms = 0;
+  /// @brief Output rows
+  uint32_t num_rows = 0;
+  /// @brief Blocks per output row, usually the batch size
+  uint32_t num_lanes = 1;
+  /// @brief Blocks per source row, 1 when the batch shares the source (a key)
+  uint32_t num_source_lanes = 1;
+  /// @brief Largest source plus one, to check the input is big enough
+  uint32_t num_sources = 0;
+
+  /// @brief Blocks the output must hold
+  uint32_t num_out_blocks() const { return num_rows * num_lanes; }
+  /// @brief Blocks the input must hold
+  uint32_t num_source_blocks() const { return num_sources * num_source_lanes; }
+};
+
+/**
+ * @brief Owns the index tables of a scratch buffer and frees them in one go.
+ *
+ * With the 4 x 2 table above
+ *
+ *     create(table, num_rows = 4, num_terms = 2, ...)
+ *            |   fills h_table {0,1, 2,3, 4,5, 6,7}, uploads d_table
+ *            v   and registers the table
+ *     d_table -> gather kernel   out = in0+in1, in2+in3, in4+in5, in6+in7
+ *     h_table -> host            degrees and noise summed over the same rows
+ *            |
+ *            v
+ *     release()                  drops every d_table, syncs, frees every
+ *                                h_table
+ *
+ * So the buffers using it don't have to do that dance by hand. Tables are
+ * tracked by pointer, keep them alive until release().
+ */
+template <typename T> struct radix_index_tables {
+  /// @brief Tables to free in release()
+  std::vector<radix_index_table<T> *> tables;
+
+  radix_index_tables() = default;
+  radix_index_tables(const radix_index_tables &) = delete;
+  /// @brief Deleted, a copy would free the same tables twice
+  radix_index_tables &operator=(const radix_index_tables &) = delete;
+
+  /// @brief Fills a table, uploads it and registers it for release().
+  ///
+  /// @param table Table to fill, overwritten
+  /// @param num_rows Output rows
+  /// @param num_terms Terms per row
+  /// @param num_lanes Blocks per output row, the batch size
+  /// @param num_source_lanes Blocks per source row, 1 for a shared source
+  /// @param row_source Source row of (row, term), or RADIX_INDEX_NO_TERM to
+  /// skip that term
+  void create(CudaStreams streams, bool allocate_gpu_memory,
+              uint64_t &size_tracker, radix_index_table<T> &table,
+              uint32_t num_rows, uint32_t num_terms, uint32_t num_lanes,
+              uint32_t num_source_lanes,
+              const std::function<T(uint32_t, uint32_t)> &row_source) {
+    PANIC_IF_FALSE(num_rows > 0 && num_terms > 0 && num_lanes > 0,
+                   "radix index table: a table needs rows, terms and lanes");
+    PANIC_IF_FALSE(num_source_lanes == num_lanes || num_source_lanes == 1,
+                   "radix index table: sources are either laned like the "
+                   "output or shared by every lane");
+    table.num_terms = num_terms;
+    table.num_rows = num_rows;
+    table.num_lanes = num_lanes;
+    table.num_source_lanes = num_source_lanes;
+    table.num_sources = 0;
+    uint64_t table_bytes =
+        safe_mul_sizeof<T>((size_t)num_rows, (size_t)num_terms);
+    table.h_table = (T *)malloc(table_bytes);
+    PANIC_IF_FALSE(table.h_table != nullptr,
+                   "radix index table: host allocation failed");
+    for (uint32_t r = 0; r < num_rows; ++r)
+      for (uint32_t t = 0; t < num_terms; ++t) {
+        T source = row_source(r, t);
+        table.h_table[r * num_terms + t] = source;
+        if (source == (T)RADIX_INDEX_NO_TERM)
+          continue;
+        if ((uint32_t)source + 1 > table.num_sources)
+          table.num_sources = (uint32_t)source + 1;
+      }
+    table.d_table = (T *)cuda_malloc_with_size_tracking_async(
+        table_bytes, streams.stream(0), streams.gpu_index(0), size_tracker,
+        allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        table.d_table, table.h_table, table_bytes, streams.stream(0),
+        streams.gpu_index(0), allocate_gpu_memory);
+    tables.push_back(&table);
+  }
+
+  /// @brief Frees every tracked table, device copies first.
+  void release(CudaStreams streams, bool allocate_gpu_memory) {
+    if (allocate_gpu_memory)
+      for (auto *table : tables)
+        if (table->d_table != nullptr)
+          cuda_drop_async(table->d_table, streams.stream(0),
+                          streams.gpu_index(0));
+    cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+    for (auto *table : tables) {
+      free(table->h_table);
+      *table = {};
+    }
+    tables.clear();
+  }
+};
+
 inline void calculate_final_degrees(uint64_t *const out_degrees,
                                     const uint64_t *const input_degrees,
                                     uint32_t num_blocks,

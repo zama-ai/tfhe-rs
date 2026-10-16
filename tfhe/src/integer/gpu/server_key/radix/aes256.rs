@@ -92,6 +92,8 @@ impl CudaServerKey {
         num_aes_inputs: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        self.assert_aes_params();
+
         let gpu_index = streams.gpu_indexes[0];
 
         let key_expansion_size = self.get_key_expansion_256_size_on_gpu(streams);
@@ -139,10 +141,8 @@ impl CudaServerKey {
         sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        assert!(
-            [1, 2, 4, 8, 16].contains(&sbox_parallelism),
-            "Invalid S-Box parallelism: must be one of [1, 2, 4, 8, 16], got {sbox_parallelism}"
-        );
+        self.assert_aes_params();
+        Self::assert_aes_sbox_parallelism(sbox_parallelism);
 
         let gpu_index = streams.gpu_indexes[0];
 
@@ -173,6 +173,9 @@ impl CudaServerKey {
         sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        self.assert_aes_params();
+        Self::assert_aes_sbox_parallelism(sbox_parallelism);
+
         let mut result: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(num_aes_inputs * 128, streams);
 
@@ -250,6 +253,8 @@ impl CudaServerKey {
         key: &CudaUnsignedRadixCiphertext,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        self.assert_aes_params();
+
         let num_round_keys = 15;
         let input_key_bits = 256;
         let round_key_bits = 128;
@@ -305,6 +310,8 @@ impl CudaServerKey {
     }
 
     pub fn get_key_expansion_256_size_on_gpu(&self, streams: &CudaStreams) -> u64 {
+        self.assert_aes_params();
+
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
