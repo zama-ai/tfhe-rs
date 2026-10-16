@@ -25,6 +25,9 @@ jobs:
           persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
+      - name: Install Aikido safe-chain
+        run: make install_aikido_safe_chain_ci
+
       - name: Get actionlint
         run: |
           wget "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
