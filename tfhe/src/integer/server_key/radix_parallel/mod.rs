@@ -47,7 +47,7 @@ use std::borrow::Cow;
 use super::ServerKey;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::RadixCiphertext;
-use crate::shortint::ciphertext::{Ciphertext, NoiseLevel};
+use crate::shortint::ciphertext::{Ciphertext, MaxDegree, NoiseLevel};
 pub(crate) use add::OutputFlag;
 pub use bitonic_shuffle::{AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability};
 use rayon::prelude::*;
@@ -168,8 +168,16 @@ impl ServerKey {
                     .max_by(|block_a, block_b| block_a.degree.get().cmp(&block_b.degree.get()))
                     .map(|block| block.degree.get());
 
+            // A block must keep room for the carry it receives,
+            // The carry will at most be `carry_modulus - 1`, because it's
+            // extracted from a block of degree at most `message_modulus * carry_modulus - 1`.
+            let max_degree_to_receive_carry =
+                MaxDegree::from_msg_carry_modulus(self.key.message_modulus, self.key.carry_modulus)
+                    .get()
+                    - (self.key.carry_modulus.0 - 1);
+
             let mut start_index = 0;
-            if maybe_highest_degree.is_some_and(|degree| degree > self.key.max_degree.get())
+            if maybe_highest_degree.is_some_and(|degree| degree > max_degree_to_receive_carry)
                 || blocks[1..]
                     .iter()
                     // We need to be able to add a carry, which is a fresh ciphertext
