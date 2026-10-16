@@ -347,7 +347,7 @@ impl CompressedCiphertextListBuilder {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Serialize, Deserialize, Versionize)]
 #[serde(
     from = "crate::integer::ciphertext::CompressedCiphertextList",
     into = "crate::integer::ciphertext::CompressedCiphertextList"
@@ -357,6 +357,20 @@ pub(crate) enum InnerCompressedCiphertextList {
     Cpu(crate::integer::ciphertext::CompressedCiphertextList),
     #[cfg(feature = "gpu")]
     Cuda(crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList),
+}
+
+impl Clone for InnerCompressedCiphertextList {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Cpu(inner) => Self::Cpu(inner.clone()),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
+                    Self::Cuda(inner.duplicate(streams))
+                })
+            }
+        }
+    }
 }
 
 impl From<InnerCompressedCiphertextList> for crate::integer::ciphertext::CompressedCiphertextList {

@@ -6,9 +6,8 @@ use std::collections::Bound::{Excluded, Included, Unbounded};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use tfhe_cuda_backend::cuda_bind::{
-    cuda_drop, cuda_malloc, cuda_malloc_async, cuda_memcpy_async_gpu_to_gpu,
-    cuda_memcpy_async_to_cpu, cuda_memcpy_async_to_gpu, cuda_memcpy_gpu_to_gpu, cuda_memset_async,
-    cuda_synchronize_device,
+    cuda_drop, cuda_malloc_async, cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_async_to_cpu,
+    cuda_memcpy_async_to_gpu, cuda_memset_async,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,27 +64,6 @@ pub struct CudaVec<T: Numeric> {
     pub len: usize,
     pub gpu_indexes: Vec<GpuIndex>,
     _phantom: PhantomData<T>,
-}
-
-impl<T: Numeric> Clone for CudaVec<T> {
-    fn clone(&self) -> Self {
-        let size = self.len as u64 * std::mem::size_of::<T>() as u64;
-        let mut cloned_vec = Vec::with_capacity(self.ptr.len());
-        for (index, &gpu_index) in self.gpu_indexes.iter().enumerate() {
-            unsafe {
-                cuda_synchronize_device(gpu_index.0);
-                let ptr = cuda_malloc(size, gpu_index.0);
-                cuda_memcpy_gpu_to_gpu(ptr, self.ptr[index], size, gpu_index.0);
-                cloned_vec.push(ptr);
-            }
-        }
-        Self {
-            ptr: cloned_vec,
-            len: self.len,
-            gpu_indexes: self.gpu_indexes.clone(),
-            _phantom: self._phantom,
-        }
-    }
 }
 
 impl<T: Numeric> CudaVec<T> {

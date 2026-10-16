@@ -38,7 +38,6 @@ impl CudaCompactCiphertextListInfo {
     }
 }
 
-#[derive(Clone)]
 pub struct CudaCompactCiphertextListExpander {
     pub(crate) expanded_blocks: CudaLweCiphertextList<u64>,
     pub(crate) blocks_info: Vec<CudaCompactCiphertextListInfo>,
@@ -210,9 +209,9 @@ impl CudaCompactCiphertextListExpander {
         CompactCiphertextListExpander::new(expanded_blocks, info)
     }
 
-    pub fn duplicate(&self) -> Self {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
         Self {
-            expanded_blocks: self.expanded_blocks.clone(),
+            expanded_blocks: self.expanded_blocks.duplicate(streams),
             blocks_info: self.blocks_info.iter().cloned().collect_vec(),
         }
     }
