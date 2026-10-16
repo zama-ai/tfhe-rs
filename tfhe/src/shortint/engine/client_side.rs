@@ -53,11 +53,7 @@ impl ShortintEngine {
                 .into()
             });
 
-            let std_ck = StandardAtomicPatternClientKey::new_with_engine(
-                pbs_params,
-                Some(wopbs_params),
-                self,
-            );
+            let std_ck = StandardAtomicPatternClientKey::new_with_engine(pbs_params, self);
             AtomicPatternClientKey::Standard(std_ck)
         } else if let Some(ap_params) = shortint_params.ap_parameters() {
             AtomicPatternClientKey::new_with_engine(ap_params, self)
