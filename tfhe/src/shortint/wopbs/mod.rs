@@ -247,17 +247,22 @@ mod experimental {
         /// use tfhe::shortint::parameters::parameters_wopbs_only::LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// use tfhe::shortint::wopbs::*;
         ///
+        /// let param = LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS);
+        /// let (cks, sks) = gen_keys(param);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(),
-        ///                                                        sks.as_view().try_into().unwrap());
+        ///                                                        sks.as_view().try_into().unwrap(),
+        ///                                                        &param);
         /// ```
         pub fn new_wopbs_key_only_for_wopbs(
             cks: StandardClientKeyView<'_>,
             sks: StandardServerKeyView<'_>,
+            parameters: &WopbsParameters,
         ) -> Self {
             ShortintEngine::with_thread_local_mut(|engine| {
-                engine.new_wopbs_key_only_for_wopbs(cks, sks).unwrap()
+                engine
+                    .new_wopbs_key_only_for_wopbs(cks, sks, parameters)
+                    .unwrap()
             })
         }
 
@@ -401,11 +406,12 @@ mod experimental {
         /// use tfhe::shortint::parameters::parameters_wopbs_only::LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// use tfhe::shortint::wopbs::WopbsKey;
         ///
+        /// let param = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let (cks, sks) = gen_keys(param);
         /// let std_sks = sks.as_view().try_into().unwrap();
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(), std_sks);
-        /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(), std_sks, &param);
+        /// let message_modulus = param.message_modulus.0;
         /// let m = 2;
         /// let ct = cks.encrypt_without_padding(m);
         /// let lut = wopbs_key.generate_lut(&ct, |x| x * x % message_modulus);
@@ -444,10 +450,12 @@ mod experimental {
         /// use tfhe::shortint::wopbs::WopbsKey;
         /// use tfhe::shortint::parameters::MessageModulus;
         ///
+        /// let param = LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+        /// let (cks, sks) = gen_keys(param);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(),
-        ///                                                        sks.as_view().try_into().unwrap());
+        ///                                                        sks.as_view().try_into().unwrap(),
+        ///                                                        &param);
         /// let message_modulus = MessageModulus(5);
         /// let m = 2;
         /// let ct = cks.encrypt_native_crt(m, message_modulus);
@@ -528,13 +536,14 @@ mod experimental {
         /// use tfhe::shortint::parameters::parameters_wopbs_only::LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// use tfhe::shortint::wopbs::*;
         ///
+        /// let param = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        /// let (cks, sks) = gen_keys(param);
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &param);
         /// let mut rng = rand::thread_rng();
-        /// let message_modulus = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS.message_modulus.0;
+        /// let message_modulus = param.message_modulus.0;
         /// let ct = cks.encrypt(rng.gen::<u64>() % message_modulus);
         /// let lut = vec![1_u64 << 59; wopbs_key.param.polynomial_size.0].into();
         /// let ct_res = wopbs_key.wopbs(&ct, &lut);
@@ -576,7 +585,7 @@ mod experimental {
         /// let (cks, sks) = gen_keys(msg_1_carry_0_params);
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &msg_1_carry_0_params);
         /// let mut rng = rand::thread_rng();
         /// let ct = cks.encrypt_without_padding(rng.gen::<u64>() % 2);
         /// let lut = vec![1_u64 << 63; wopbs_key.param.polynomial_size.0].into();
@@ -619,10 +628,11 @@ mod experimental {
         /// use tfhe::shortint::parameters::MessageModulus;
         /// use tfhe::shortint::wopbs::*;
         ///
-        /// let (cks, sks) = gen_keys(LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS);
+        /// let param = LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
+        /// let (cks, sks) = gen_keys(param);
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
-        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks);
+        /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &param);
         /// let msg = 2;
         /// let modulus = MessageModulus(5);
         /// let ct = cks.encrypt_native_crt(msg, modulus);
