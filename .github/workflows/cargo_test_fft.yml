@@ -10,7 +10,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
@@ -184,10 +183,21 @@ jobs:
           job-secret: ${{ secrets.JOB_SECRET }}
           label: ${{ needs.setup-instance.outputs.runner-name }}
 
+      - name: Checkout notification action
+        if: ${{ failure() }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ env.CHECKOUT_TOKEN }}
+          sparse-checkout: .github/actions/slack_notify
+
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (cargo-tests-fft) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+        uses: ./.github/actions/slack_notify
+        with:
+          status: ${{ job.status }}
+          message: "Instance teardown (cargo-tests-fft) finished with status: ${{ job.status }}."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}

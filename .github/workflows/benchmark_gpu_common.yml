@@ -58,13 +58,8 @@ env:
   CARGO_TERM_COLOR: always
   RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
   PROTOCOL_TABLE_CSV: protocol_results_table_${{ github.sha }}.csv
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 permissions: {}
 
@@ -351,11 +346,21 @@ jobs:
     if: ${{ always() && needs.cuda-benchmarks.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
+      - name: Checkout notification action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+          sparse-checkout: .github/actions/slack_notify
+
       - name: Send message
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: ${{ needs.cuda-benchmarks.result }}
-          SLACK_MESSAGE: "Cuda benchmarks (${{ inputs.profile }}) finished with status: ${{ needs.cuda-benchmarks.result }}. (${{ env.ACTION_RUN_URL }})"
+        uses: ./.github/actions/slack_notify
+        with:
+          status: ${{ needs.cuda-benchmarks.result }}
+          message: "Cuda benchmarks (${{ inputs.profile }}) finished with status: ${{ needs.cuda-benchmarks.result }}."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}
 
   teardown-instance:
     name: benchmark_gpu_common/teardown-instance
