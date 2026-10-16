@@ -275,7 +275,7 @@ impl HpuVar {
                     let stride = mz.size() / std::mem::size_of::<u64>();
                     let mut buf = vec![0u64; stride * conts.len()];
                     for (slot, cont) in buf.chunks_exact_mut(stride).zip(&conts) {
-                        slot[..cont[id].len()].copy_from_slice(&cont[id]);
+                        slot[..cont[id].len()].copy_from_slice(cont[id]);
                     }
                     mz.write(0, &buf);
                 });
