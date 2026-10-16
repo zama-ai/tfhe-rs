@@ -1414,6 +1414,12 @@ test_protocol_long_run_gpu:
 		--features=integer,gpu -p tfhe -- \
 		high_level_api::tests::gpu_protocol_long_run --test-threads=1 --nocapture
 
+.PHONY: test_protocol_support_gpu # Run the long run protocol workflow test on the gpu backend
+test_protocol_support_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_support --test-threads=8 --nocapture
+
 .PHONY: test_protocol_short_run_gpu # Run the protocol workflow test on the gpu backend, fewer iterations
 test_protocol_short_run_gpu:
 	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
