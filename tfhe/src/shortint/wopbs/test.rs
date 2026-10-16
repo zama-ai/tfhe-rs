@@ -138,6 +138,7 @@ fn generate_lut_wop_only(params: WopbsParameters) {
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(
         cks.as_view().try_into().unwrap(),
         sks.as_view().try_into().unwrap(),
+        &params,
     );
     let mut rng = rand::thread_rng();
 
@@ -191,6 +192,7 @@ fn generate_lut_modulus_not_power_of_two(params: WopbsParameters) {
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(
         cks.as_view().try_into().unwrap(),
         sks.as_view().try_into().unwrap(),
+        &params,
     );
 
     let mut rng = rand::thread_rng();
