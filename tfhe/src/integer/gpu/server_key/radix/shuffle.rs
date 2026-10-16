@@ -19,8 +19,11 @@ use crate::shortint::OprfSeed;
 use std::borrow::Borrow;
 
 impl CudaServerKey {
-    /// Shuffles `data` into a uniformly random permutation using a bitonic sorting network
-    /// with OPRF-generated random sort keys.
+    /// Obliviously shuffles `data` with a permutation chosen almost uniformly at random,
+    /// using a bitonic sorting network with OPRF-generated random sort keys.
+    ///
+    /// See [`crate::integer::ServerKey::bitonic_shuffle`] for how `key_size` affects the
+    /// uniformity of the permutation.
     ///
     /// The sort keys are derived from `seed` with `oprf_key` (the dedicated OPRF key),
     /// then `data` is sorted by them. For an OPRF key shared with the
@@ -45,16 +48,16 @@ impl CudaServerKey {
             ));
         }
 
+        if data.len() <= 1 {
+            return Ok(data);
+        }
+
         let key_num_blocks = key_size.num_blocks_of_keys(data.len(), self.message_modulus) as u64;
 
         if key_num_blocks == 0 {
             return Err(crate::Error::new(
                 "key_num_blocks must be at least 1".to_string(),
             ));
-        }
-
-        if data.len() <= 1 {
-            return Ok(data);
         }
 
         let data_num_blocks = data[0].as_ref().d_blocks.lwe_ciphertext_count().0;
@@ -199,16 +202,16 @@ impl CudaServerKey {
             ));
         }
 
+        if data.len() <= 1 {
+            return Ok(data);
+        }
+
         let key_num_blocks = key_size.num_blocks_of_keys(data.len(), self.message_modulus) as u64;
 
         if key_num_blocks == 0 {
             return Err(crate::Error::new(
                 "key_num_blocks must be at least 1".to_string(),
             ));
-        }
-
-        if data.len() <= 1 {
-            return Ok(data);
         }
 
         let data_num_blocks = data[0].as_ref().d_blocks.lwe_ciphertext_count().0;
