@@ -19,7 +19,7 @@ use crate::shortint::parameters::{
     CompressionParameters, DynamicDistribution, ShortintKeySwitchingParameters,
 };
 use crate::shortint::{
-    AtomicPatternKind, EncryptionKeyChoice, PBSParameters, ShortintParameterSet, WopbsParameters,
+    AtomicPatternKind, EncryptionKeyChoice, PBSParameters, ShortintParameterSet,
 };
 
 use super::EncryptionAtomicPattern;
@@ -31,15 +31,10 @@ pub struct StandardAtomicPatternClientKey {
     /// Key used as the output of the keyswitch operation
     pub(crate) lwe_secret_key: LweSecretKeyOwned<u64>,
     pub parameters: PBSParameters,
-    pub wopbs_parameters: Option<WopbsParameters>,
 }
 
 impl StandardAtomicPatternClientKey {
-    pub(crate) fn new_with_engine(
-        parameters: PBSParameters,
-        wopbs_parameters: Option<WopbsParameters>,
-        engine: &mut ShortintEngine,
-    ) -> Self {
+    pub(crate) fn new_with_engine(parameters: PBSParameters, engine: &mut ShortintEngine) -> Self {
         // generate the lwe secret key
         let lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
             parameters.lwe_dimension(),
@@ -58,14 +53,11 @@ impl StandardAtomicPatternClientKey {
             glwe_secret_key,
             lwe_secret_key,
             parameters,
-            wopbs_parameters,
         }
     }
 
-    pub fn new(parameters: PBSParameters, wopbs_parameters: Option<WopbsParameters>) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            Self::new_with_engine(parameters, wopbs_parameters, engine)
-        })
+    pub fn new(parameters: PBSParameters) -> Self {
+        ShortintEngine::with_thread_local_mut(|engine| Self::new_with_engine(parameters, engine))
     }
 
     /// Deconstruct a [`StandardAtomicPatternClientKey`] into its constituents.
@@ -77,9 +69,9 @@ impl StandardAtomicPatternClientKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // Generate the client key:
-    /// let cks = StandardAtomicPatternClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(), None);
+    /// let cks = StandardAtomicPatternClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into());
     ///
-    /// let (glwe_secret_key, lwe_secret_key, parameters, wopbs_parameters) = cks.into_raw_parts();
+    /// let (glwe_secret_key, lwe_secret_key, parameters) = cks.into_raw_parts();
     /// ```
     pub fn into_raw_parts(
         self,
@@ -87,21 +79,14 @@ impl StandardAtomicPatternClientKey {
         GlweSecretKeyOwned<u64>,
         LweSecretKeyOwned<u64>,
         PBSParameters,
-        Option<WopbsParameters>,
     ) {
         let Self {
             glwe_secret_key,
             lwe_secret_key,
             parameters,
-            wopbs_parameters,
         } = self;
 
-        (
-            glwe_secret_key,
-            lwe_secret_key,
-            parameters,
-            wopbs_parameters,
-        )
+        (glwe_secret_key, lwe_secret_key, parameters)
     }
 
     /// construct a [`StandardAtomicPatternClientKey`] from its constituents.
@@ -117,22 +102,17 @@ impl StandardAtomicPatternClientKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///
     /// // Generate the client key:
-    /// let cks = StandardAtomicPatternClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(), None);
+    /// let cks = StandardAtomicPatternClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS.into());
     ///
-    /// let (glwe_secret_key, lwe_secret_key, parameters, wopbs_parameters) = cks.into_raw_parts();
+    /// let (glwe_secret_key, lwe_secret_key, parameters) = cks.into_raw_parts();
     ///
-    /// let cks = StandardAtomicPatternClientKey::from_raw_parts(
-    ///     glwe_secret_key,
-    ///     lwe_secret_key,
-    ///     parameters,
-    ///     wopbs_parameters,
-    /// );
+    /// let cks =
+    ///     StandardAtomicPatternClientKey::from_raw_parts(glwe_secret_key, lwe_secret_key, parameters);
     /// ```
     pub fn from_raw_parts(
         glwe_secret_key: GlweSecretKeyOwned<u64>,
         lwe_secret_key: LweSecretKeyOwned<u64>,
         parameters: PBSParameters,
-        wopbs_parameters: Option<WopbsParameters>,
     ) -> Self {
         assert_eq!(
             lwe_secret_key.lwe_dimension(),
@@ -163,7 +143,6 @@ impl StandardAtomicPatternClientKey {
             glwe_secret_key,
             lwe_secret_key,
             parameters,
-            wopbs_parameters,
         }
     }
 
@@ -200,7 +179,6 @@ impl StandardAtomicPatternClientKey {
                     ),
                     lwe_secret_key: small_key,
                     parameters,
-                    wopbs_parameters: None,
                 })
             }
             EncryptionKeyChoice::Small => {
@@ -217,7 +195,6 @@ impl StandardAtomicPatternClientKey {
                     glwe_secret_key,
                     lwe_secret_key: encryption_key,
                     parameters,
-                    wopbs_parameters: None,
                 })
             }
         }
@@ -376,16 +353,7 @@ impl StandardAtomicPatternClientKey {
 
 impl EncryptionAtomicPattern for StandardAtomicPatternClientKey {
     fn parameters(&self) -> ShortintParameterSet {
-        self.wopbs_parameters.map_or_else(
-            || self.parameters.into(),
-            |wopbs_params| {
-                ShortintParameterSet::try_new_pbs_and_wopbs_param_set((
-                    self.parameters,
-                    wopbs_params,
-                ))
-                .unwrap()
-            },
-        )
+        self.parameters.into()
     }
 
     fn encryption_key(&self) -> LweSecretKeyView<'_, u64> {
