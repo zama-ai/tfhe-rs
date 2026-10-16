@@ -77,6 +77,7 @@ impl<T: Numeric> Clone for CudaVec<T> {
                 let ptr = cuda_malloc(size, gpu_index.0);
                 cuda_memcpy_gpu_to_gpu(ptr, self.ptr[index], size, gpu_index.0);
                 cloned_vec.push(ptr);
+                cuda_synchronize_device(gpu_index.0);
             }
         }
         Self {
