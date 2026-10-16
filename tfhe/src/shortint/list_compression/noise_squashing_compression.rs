@@ -156,7 +156,7 @@ mod test {
             TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
                 .lwe_per_glwe;
 
-        for ct_count in [0, 1, max_ct_count.0] {
+        for ct_count in [0, 1, max_ct_count.0, max_ct_count.0 + 1] {
             // Generate random msgs
             let msgs: Vec<_> = (0..ct_count)
                 .map(|_| {
@@ -197,18 +197,21 @@ mod test {
             );
 
             // Extract from the list
-            let extracted = (0..compressed.len()).map(|i| {
-                let ciphertext = compressed.unpack(i).unwrap();
-                assert_eq!(ciphertext.degree(), expected_degree);
-                ciphertext
-            });
+            let extracted = compressed.unpack_range(0..compressed.len()).unwrap();
+            assert!(extracted.iter().all(|ct| ct.degree() == expected_degree));
 
             // Decrypt
             let decryption_key = NoiseSquashingPrivateKeyView::from(&compression_private_key);
             let decrypted_values = extracted
-                .map(|ciphertext| decryption_key.decrypt_squashed_noise_ciphertext(&ciphertext));
+                .iter()
+                .map(|ciphertext| decryption_key.decrypt_squashed_noise_ciphertext(ciphertext))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                decrypted_values,
+                compression_private_key.unpack_and_decrypt_squashed_noise_ciphertexts(&compressed)
+            );
 
-            for (idx, value) in decrypted_values.enumerate() {
+            for (idx, value) in decrypted_values.into_iter().enumerate() {
                 let dec_msg1 = value / (sks.message_modulus.0 as u128);
                 let dec_msg2 = value % (sks.message_modulus.0 as u128);
 
