@@ -3,7 +3,6 @@ use crate::core_crypto::prelude::{lwe_ciphertext_sub_assign, Numeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::server_key::comparator::ZeroComparisonType;
 use crate::integer::server_key::radix_parallel::comparison::{
     is_x_less_than_y_given_input_borrow, ComparisonKind, PreparedSignedCheck,
 };
@@ -11,6 +10,15 @@ use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
+
+/// Used for compare_blocks_with_zero
+#[derive(Clone, Copy)]
+pub(crate) enum ZeroComparisonType {
+    // We want to compare with zeros for equality (==)
+    Equality,
+    // We want to compare with zeros for difference (!=)
+    Difference,
+}
 
 impl ServerKey {
     /// Returns whether the clear scalar is outside of the
