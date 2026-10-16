@@ -222,7 +222,7 @@ impl CompressedSquashedNoiseCiphertextList {
 
     /// Unpack a single ciphertext from the list.
     ///
-    /// Return an error if the index is greater than the size of the list.
+    /// Return an error if the index is greater than or equal to the size of the list.
     ///
     /// After unpacking, the individual ciphertexts must be decrypted with the
     /// [`NoiseSquashingPrivateKey`] derived from the [`NoiseSquashingCompressionPrivateKey`] used
@@ -240,25 +240,59 @@ impl CompressedSquashedNoiseCiphertextList {
             ));
         }
 
-        let meta = self.meta.as_ref().ok_or_else(|| {
-            error!("Missing ciphertext metadata in CompressedSquashedNoiseCiphertextList")
-        })?;
-
+        let meta = self.metadata()?;
         let lwe_per_glwe = meta.lwe_per_glwe.get();
         let glwe_idx = index / lwe_per_glwe;
-
+        let sample = index % lwe_per_glwe;
         let glwe = self
-            .glwe_ciphertext_list
-            .get(glwe_idx)
-            .ok_or_else(|| {
-                error!(
-                    "Invalid CompressedSquashedNoiseCiphertextList: index {index} is in GLWE \
-                    {glwe_idx}, but the list only has {} GLWEs",
-                    self.glwe_ciphertext_list.len()
-                )
-            })?
+            .get_glwe_checked(glwe_idx, sample..sample + 1, meta)?
             .extract();
 
+        Ok(Self::extract_sample(&glwe, meta, MonomialDegree(sample)))
+    }
+
+    fn metadata(&self) -> crate::Result<&CompressedSquashedNoiseCiphertextListMeta> {
+        self.meta.as_ref().ok_or_else(|| {
+            error!("Missing ciphertext metadata in CompressedSquashedNoiseCiphertextList")
+        })
+    }
+
+    /// Check the packing layout and requested samples before expanding a GLWE.
+    fn get_glwe_checked(
+        &self,
+        glwe_idx: usize,
+        samples: std::ops::Range<usize>,
+        meta: &CompressedSquashedNoiseCiphertextListMeta,
+    ) -> crate::Result<&CompressedModulusSwitchedGlweCiphertext<u128>> {
+        let glwe = self.glwe_ciphertext_list.get(glwe_idx).ok_or_else(|| {
+            error!(
+                "Invalid CompressedSquashedNoiseCiphertextList: GLWE index {glwe_idx} \
+                is out of bounds for {} GLWEs",
+                self.glwe_ciphertext_list.len()
+            )
+        })?;
+        let lwe_per_glwe = meta.lwe_per_glwe.get();
+        let bodies_count = glwe.bodies_count().0;
+        let polynomial_size = glwe.polynomial_size().0;
+        if lwe_per_glwe > polynomial_size
+            || bodies_count > lwe_per_glwe
+            || (glwe_idx < self.glwe_ciphertext_list.len() - 1 && bodies_count != lwe_per_glwe)
+            || samples.end > bodies_count
+        {
+            return Err(error!(
+                "Invalid CompressedSquashedNoiseCiphertextList: GLWE {glwe_idx} has \
+                {bodies_count} bodies and polynomial size {polynomial_size}, but the metadata \
+                specifies {lwe_per_glwe} samples per GLWE and samples {samples:?} were requested"
+            ));
+        }
+        Ok(glwe)
+    }
+
+    fn extract_sample(
+        glwe: &GlweCiphertextOwned<u128>,
+        meta: &CompressedSquashedNoiseCiphertextListMeta,
+        monomial_degree: MonomialDegree,
+    ) -> SquashedNoiseCiphertext {
         let glwe_dimension = glwe.glwe_size().to_glwe_dimension();
         let polynomial_size = glwe.polynomial_size();
         let ciphertext_modulus = glwe.ciphertext_modulus();
@@ -266,8 +300,6 @@ impl CompressedSquashedNoiseCiphertextList {
         let lwe_size = glwe_dimension
             .to_equivalent_lwe_dimension(polynomial_size)
             .to_lwe_size();
-
-        let monomial_degree = MonomialDegree(index % lwe_per_glwe);
 
         let mut extracted_lwe = SquashedNoiseCiphertext::new_zero(
             lwe_size,
@@ -277,7 +309,7 @@ impl CompressedSquashedNoiseCiphertextList {
         );
 
         extract_lwe_sample_from_glwe_ciphertext(
-            &glwe,
+            glwe,
             extracted_lwe.lwe_ciphertext_mut(),
             monomial_degree,
         );
@@ -285,11 +317,163 @@ impl CompressedSquashedNoiseCiphertextList {
             MaxDegree::from_msg_carry_modulus(meta.message_modulus, meta.carry_modulus).get(),
         ));
 
-        Ok(extracted_lwe)
+        extracted_lwe
+    }
+
+    /// Unpacks a half-open range, expanding each touched GLWE only once.
+    ///
+    /// Empty ranges within the list (including `len()..len()`) return an empty vector.
+    /// Reversed ranges and ranges extending past the list return an error.
+    pub(crate) fn unpack_range(
+        &self,
+        range: std::ops::Range<usize>,
+    ) -> crate::Result<Vec<SquashedNoiseCiphertext>> {
+        let len = self.len();
+        if range.start > range.end || range.end > len {
+            return Err(error!(
+                "Tried getting range {range:?} for CompressedSquashedNoiseCiphertextList \
+                with {len} elements, out of bound access."
+            ));
+        }
+        if range.is_empty() {
+            return Ok(Vec::new());
+        }
+        let meta = self.metadata()?;
+        let lwe_per_glwe = meta.lwe_per_glwe.get();
+        let mut result = Vec::with_capacity(range.len());
+        let mut index = range.start;
+        while index < range.end {
+            let glwe_idx = index / lwe_per_glwe;
+            let first_sample = index % lwe_per_glwe;
+            // Stop at either the GLWE boundary or the end of the requested range.
+            let count = (lwe_per_glwe - first_sample).min(range.end - index);
+            let glwe = self
+                .get_glwe_checked(glwe_idx, first_sample..first_sample + count, meta)?
+                .extract();
+            for sample in first_sample..first_sample + count {
+                result.push(Self::extract_sample(&glwe, meta, MonomialDegree(sample)));
+            }
+            index += count;
+        }
+        Ok(result)
     }
 
     /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
     pub fn message_modulus(&self) -> Option<MessageModulus> {
         self.meta.as_ref().map(|meta| meta.message_modulus)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn squashed_list() -> CompressedSquashedNoiseCiphertextList {
+        let glwe_ciphertext_list = [4, 4, 2]
+            .into_iter()
+            .enumerate()
+            .map(|(glwe_index, count)| {
+                // Nonzero, distinct mask and body coefficients exercise sample offsets,
+                // negacyclic mask rotations, and modulus-switch decompression.
+                let coefficients = (0..16)
+                    .map(|i| ((glwe_index * 16 + i + 1) as u128) << 116)
+                    .collect::<Vec<_>>();
+                let glwe = GlweCiphertext::from_container(
+                    coefficients,
+                    PolynomialSize(8),
+                    CiphertextModulus::new_native(),
+                );
+                CompressedModulusSwitchedGlweCiphertext::compress(
+                    &glwe,
+                    CiphertextModulusLog(12),
+                    LweCiphertextCount(count),
+                )
+            })
+            .collect();
+        CompressedSquashedNoiseCiphertextList {
+            glwe_ciphertext_list,
+            meta: Some(CompressedSquashedNoiseCiphertextListMeta {
+                message_modulus: MessageModulus(4),
+                carry_modulus: CarryModulus(4),
+                lwe_per_glwe: NonZeroLweCiphertextCount::new(4).unwrap(),
+            }),
+        }
+    }
+
+    #[test]
+    fn unpack_range_matches_individual_samples() {
+        let list = squashed_list();
+        assert_eq!(list.len(), 10);
+        // Exhaustively covers singleton, empty, aligned, mid-GLWE, and crossing ranges,
+        // including the partially filled last GLWE.
+        for start in 0..=list.len() {
+            for end in start..=list.len() {
+                let expected = (start..end)
+                    .map(|index| list.unpack(index).unwrap())
+                    .collect::<Vec<_>>();
+                assert_eq!(list.unpack_range(start..end).unwrap(), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn unpack_range_rejects_invalid_ranges() {
+        let list = squashed_list();
+        for (start, end) in [
+            (4, 3),
+            (0, 11),
+            (11, 11),
+            (0, usize::MAX),
+            (usize::MAX, usize::MAX),
+        ] {
+            assert!(list.unpack_range(start..end).is_err());
+        }
+        assert!(list.unpack(list.len()).is_err());
+        assert!(list.unpack(usize::MAX).is_err());
+    }
+
+    #[test]
+    fn unpack_range_empty_and_inconsistent_lists() {
+        let empty = CompressedSquashedNoiseCiphertextList {
+            glwe_ciphertext_list: Vec::new(),
+            meta: None,
+        };
+        assert!(empty.unpack_range(0..0).unwrap().is_empty());
+        assert!(empty.unpack_range(0..1).is_err());
+        assert!(empty.unpack(0).is_err());
+
+        let mut list = squashed_list();
+        list.meta = None;
+        assert!(list.unpack_range(0..1).is_err());
+        assert!(list.unpack_range(0..0).unwrap().is_empty());
+
+        let mut list = squashed_list();
+        list.meta.as_mut().unwrap().lwe_per_glwe = NonZeroLweCiphertextCount::new(1).unwrap();
+        // The body count admits the range, but the inconsistent metadata maps it past
+        // the available GLWEs. Preserve the single-item accessor's error behavior.
+        assert!(list.unpack_range(0..4).is_err());
+        assert!(list.unpack(3).is_err());
+    }
+
+    #[test]
+    fn unpack_range_rejects_samples_outside_glwe() {
+        // Even though len() admits the indices, the metadata must fit the polynomial.
+        let mut list = squashed_list();
+        list.meta.as_mut().unwrap().lwe_per_glwe = NonZeroLweCiphertextCount::new(16).unwrap();
+        assert!(list.unpack_range(0..10).is_err());
+        assert!(list.unpack_range(8..10).is_err());
+        assert!(list.unpack(8).is_err());
+
+        // Metadata fits the polynomial, but not the stored bodies of a non-final GLWE.
+        list.meta.as_mut().unwrap().lwe_per_glwe = NonZeroLweCiphertextCount::new(8).unwrap();
+        assert!(list.unpack_range(0..5).is_err());
+        assert!(list.unpack_range(4..5).is_err());
+        assert!(list.unpack(4).is_err());
+
+        // A partial GLWE is only allowed at the end, even for an in-bounds sample.
+        let mut list = squashed_list();
+        list.glwe_ciphertext_list.swap(0, 2);
+        assert!(list.unpack_range(0..1).is_err());
+        assert!(list.unpack(0).is_err());
     }
 }
