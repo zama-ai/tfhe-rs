@@ -266,7 +266,8 @@ impl<T: AtomicPattern> AtomicPattern for &T {
 /// The server key materials for all the supported Atomic Patterns
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(AtomicPatternServerKeyVersions)]
-#[allow(clippy::large_enum_variant)] // The most common variant should be `Standard` so we optimize for it
+#[allow(clippy::large_enum_variant)] // The most common variant should be `Standard` so we optimize
+                                     // for it
 pub enum AtomicPatternServerKey {
     Standard(StandardAtomicPatternServerKey),
     KeySwitch32(KS32AtomicPatternServerKey),

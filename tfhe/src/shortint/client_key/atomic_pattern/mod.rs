@@ -69,7 +69,8 @@ impl<T: EncryptionAtomicPattern> EncryptionAtomicPattern for &T {
 /// The client key materials for all the supported Atomic Patterns
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(AtomicPatternClientKeyVersions)]
-#[allow(clippy::large_enum_variant)] // The difference in size is just because of the wopbs params in std key
+#[allow(clippy::large_enum_variant)] // The difference in size is just because of the wopbs params
+                                     // in std key
 pub enum AtomicPatternClientKey {
     Standard(StandardAtomicPatternClientKey),
     KeySwitch32(KS32AtomicPatternClientKey),

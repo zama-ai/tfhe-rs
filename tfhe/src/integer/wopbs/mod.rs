@@ -661,6 +661,10 @@ mod experimental {
             }
             let mut lut = IntegerWopbsLUT::new(PlaintextCount(lut_size), CiphertextCount(nb_block));
 
+            #[allow(
+                clippy::needless_range_loop,
+                reason = "not modifying wop for a clippy lint"
+            )]
             for index in 0..lut_size {
                 // find the value represented by the index
                 let mut value = 0;

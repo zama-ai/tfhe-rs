@@ -909,7 +909,8 @@ impl CudaServerKey {
 
         let mut ciphertexts = Vec::<CudaRadixCiphertext>::with_capacity(function_count);
 
-        for i in 0..function_count {
+        for (i, lut_per_function_output_degree) in lut.per_function_output_degree.iter().enumerate()
+        {
             let slice_size = num_ct_blocks * lwe_size;
             let mut ct = input.duplicate(streams);
             let mut ct_slice = ct.d_blocks.0.d_vec.as_mut_slice(0..slice_size, 0).unwrap();
@@ -925,7 +926,7 @@ impl CudaServerKey {
             }
 
             for info in ct.info.blocks.iter_mut() {
-                info.degree = lut.per_function_output_degree[i];
+                info.degree = *lut_per_function_output_degree;
                 info.noise_level = NoiseLevel::NOMINAL;
             }
 

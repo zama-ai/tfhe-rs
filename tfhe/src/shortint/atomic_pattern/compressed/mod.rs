@@ -18,7 +18,8 @@ use tfhe_versionable::Versionize;
 /// The server key materials for all the supported Atomic Patterns
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedAtomicPatternServerKeyVersions)]
-#[allow(clippy::large_enum_variant)] // The most common variant should be `Standard` so we optimize for it
+#[allow(clippy::large_enum_variant)] // The most common variant should be `Standard` so we optimize
+                                     // for it
 pub enum CompressedAtomicPatternServerKey {
     Standard(CompressedStandardAtomicPatternServerKey),
     KeySwitch32(CompressedKS32AtomicPatternServerKey),
