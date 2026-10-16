@@ -1,5 +1,6 @@
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
-    CudaBootstrapKey, CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+    CudaBootstrapKey, CudaBootstrappingKeyFfiGuard, CudaLweBootstrapKey,
+    CudaModulusSwitchNoiseReductionConfiguration,
 };
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
@@ -32,7 +33,7 @@ pub use radix::{
     AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability, CudaOprfServerKey,
     CudaOprfServerKeyView, GenericCudaOprfServerKey,
 };
-use tfhe_cuda_backend::bindings::{CudaBootstrappingKeyFFI, CudaLweBootstrapKeyParamsFFI};
+use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
 
 #[cfg(test)]
 pub(crate) use radix::tests_unsigned;
@@ -116,7 +117,7 @@ where
 }
 
 impl<Scalar: UnsignedInteger> CudaBootstrapKey for CudaBootstrappingKey<Scalar> {
-    fn ffi(&self) -> CudaBootstrappingKeyFFI {
+    fn ffi(&self) -> CudaBootstrappingKeyFfiGuard<'_> {
         match self {
             Self::Classic(bsk) => bsk.ffi(),
             Self::MultiBit(bsk) => bsk.ffi(),
@@ -486,9 +487,19 @@ mod tests {
             CudaBootstrappingKey::MultiBit(bsk) => (bsk.ffi(), bsk.gpu_index(0), bsk.params_ffi()),
         };
         let key = &sks.bootstrapping_key;
-        assert_eq!(key.ffi().bsk.ptrs, inner_ffi.bsk.ptrs);
-        assert_eq!(key.ffi().bsk.byte_sizes, inner_ffi.bsk.byte_sizes);
-        assert_eq!(key.ffi().bsk.gpu_count, inner_ffi.bsk.gpu_count);
+        let key_guard = key.ffi();
+        let (key_ffi, inner_ffi) = (key_guard.as_raw(), inner_ffi.as_raw());
+        assert_eq!(key_ffi.bsk.ptrs, inner_ffi.bsk.ptrs);
+        assert_eq!(key_ffi.bsk.gpu_count, inner_ffi.bsk.gpu_count);
+        let count = key_ffi.bsk.gpu_count as usize;
+        // SAFETY: both arrays have `gpu_count` entries and their owners are alive
+        let (key_sizes, inner_sizes) = unsafe {
+            (
+                std::slice::from_raw_parts(key_ffi.bsk.byte_sizes, count),
+                std::slice::from_raw_parts(inner_ffi.bsk.byte_sizes, count),
+            )
+        };
+        assert_eq!(key_sizes, inner_sizes);
         assert_eq!(key.gpu_index(0), inner_gpu_index);
         assert_eq!(key.params_ffi().pbs_type, inner_params.pbs_type);
         assert_eq!(

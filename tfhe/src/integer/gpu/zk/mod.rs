@@ -679,7 +679,8 @@ mod tests {
     }
 
     #[test]
-    fn test_expand_rejects_server_key_with_mismatched_bsk_and_ksk() {
+    #[should_panic(expected = "Inconsistent server key")]
+    fn test_expand_panics_on_server_key_with_mismatched_bsk_and_ksk() {
         let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let classical_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let multi_bit_params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -734,12 +735,6 @@ mod tests {
         )
         .unwrap();
 
-        let Err(err) = d_list.expand(&d_ksk, ZKType::Casting, &streams) else {
-            panic!("expand must reject a server key whose BSK and KSK LWE dimensions differ")
-        };
-        assert!(
-            err.to_string().contains("inconsistent server key"),
-            "unexpected error: {err}"
-        );
+        let _ = d_list.expand(&d_ksk, ZKType::Casting, &streams);
     }
 }

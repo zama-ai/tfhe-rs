@@ -453,26 +453,21 @@ impl CudaFlattenedVecCompactCiphertextList {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
-        // GPU-specific: scratch_cuda_expand_without_verification_64_async builds its PBS parameters
-        // from the computing KSK dimensions and the BSK without checking that they agree, so an
-        // inconsistent server key (e.g. a mismatched deserialized key) is rejected here.
+        // scratch_cuda_expand_without_verification_64_async builds its PBS parameters from the
+        // computing KSK dimensions and the BSK without checking that they agree. A mismatch is an
+        // implementation error, not a user input error.
         let bsk_input_lwe_dimension = sks.bootstrapping_key.input_lwe_dimension();
         let bsk_output_lwe_dimension = sks.bootstrapping_key.output_lwe_dimension();
         let ksk_input_lwe_dimension = computing_ks_key.input_key_lwe_size().to_lwe_dimension();
         let ksk_output_lwe_dimension = computing_ks_key.output_key_lwe_size().to_lwe_dimension();
-        if bsk_input_lwe_dimension != ksk_output_lwe_dimension
-            || bsk_output_lwe_dimension != ksk_input_lwe_dimension
-        {
-            return Err(crate::error!(
-                "Cannot expand compact ciphertext list on GPU: inconsistent server key: the \
-                keyswitching key maps LWE dimension {} to {}, \
-                but the bootstrapping key maps LWE dimension {} to {}",
-                ksk_input_lwe_dimension.0,
-                ksk_output_lwe_dimension.0,
-                bsk_input_lwe_dimension.0,
-                bsk_output_lwe_dimension.0,
-            ));
-        }
+        assert_eq!(
+            bsk_input_lwe_dimension, ksk_output_lwe_dimension,
+            "Inconsistent server key: BSK input LWE dimension must match the computing KSK output"
+        );
+        assert_eq!(
+            bsk_output_lwe_dimension, ksk_input_lwe_dimension,
+            "Inconsistent server key: BSK output LWE dimension must match the computing KSK input"
+        );
 
         let d_expanded_blocks = unsafe {
             let mut d_output = CudaLweCiphertextList::new(

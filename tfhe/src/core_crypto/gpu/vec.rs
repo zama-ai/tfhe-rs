@@ -89,6 +89,23 @@ impl<T: Numeric> Clone for CudaVec<T> {
     }
 }
 
+/// Owns the per-GPU allocation sizes of a [`CudaVec`] and borrows its pointers, to build a
+/// [`CudaMultiGpuVecFFI`] that remains valid while the guard is alive.
+pub(crate) struct CudaMultiGpuVecFfiGuard<'a> {
+    ptrs: &'a [*mut c_void],
+    byte_sizes: Vec<u64>,
+}
+
+impl CudaMultiGpuVecFfiGuard<'_> {
+    pub(crate) fn as_raw(&self) -> CudaMultiGpuVecFFI {
+        CudaMultiGpuVecFFI {
+            ptrs: self.ptrs.as_ptr(),
+            byte_sizes: self.byte_sizes.as_ptr(),
+            gpu_count: u32::try_from(self.ptrs.len()).unwrap(),
+        }
+    }
+}
+
 impl<T: Numeric> CudaVec<T> {
     /// This creates a `CudaVec` that holds memory of `len` elements
     /// on the GPU with index `gpu_index`
@@ -397,18 +414,15 @@ impl<T: Numeric> CudaVec<T> {
         self.ptr[index as usize].cast_const()
     }
 
-    /// Returns the allocation size in bytes on each GPU
-    pub(crate) fn byte_sizes(&self) -> Vec<u64> {
-        vec![self.len as u64 * std::mem::size_of::<T>() as u64; self.ptr.len()]
-    }
-
-    /// `byte_sizes` must outlive the returned struct, as `self` must
-    pub(crate) fn multi_gpu_ffi(&self, byte_sizes: &[u64]) -> CudaMultiGpuVecFFI {
-        assert_eq!(byte_sizes.len(), self.ptr.len());
-        CudaMultiGpuVecFFI {
-            ptrs: self.ptr.as_ptr(),
-            byte_sizes: byte_sizes.as_ptr(),
-            gpu_count: u32::try_from(self.ptr.len()).unwrap(),
+    /// Builds the FFI view of this vector, with the allocation size in bytes on each GPU.
+    ///
+    /// The returned guard owns the sizes array and borrows `self`, so both stay alive as long as
+    /// the raw struct obtained from [`CudaMultiGpuVecFfiGuard::as_raw`] is used.
+    pub(crate) fn multi_gpu_ffi(&self) -> CudaMultiGpuVecFfiGuard<'_> {
+        let byte_size = self.len as u64 * std::mem::size_of::<T>() as u64;
+        CudaMultiGpuVecFfiGuard {
+            ptrs: &self.ptr,
+            byte_sizes: vec![byte_size; self.ptr.len()],
         }
     }
 
