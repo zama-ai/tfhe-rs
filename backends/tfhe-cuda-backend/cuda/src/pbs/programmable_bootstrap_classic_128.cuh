@@ -529,7 +529,6 @@ __global__ void device_programmable_bootstrap_cg_128(
   }
 }
 
-#if CUDA_ARCH >= 900
 /*
  * Kernel that computes the classical PBS using thread block clusters
  *
@@ -549,6 +548,7 @@ __global__ void device_programmable_bootstrap_tbc_128(
     const InputTorus *__restrict__ lwe_array_in,
     const double *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
     PBS_MS_REDUCTION_T noise_reduction_type) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
   constexpr uint32_t polynomial_size = 2048;
   constexpr uint32_t base_log = 24;
   constexpr uint32_t level_count = 3;
@@ -663,8 +663,8 @@ __global__ void device_programmable_bootstrap_tbc_128(
     }
   }
   cluster.sync();
-}
 #endif
+}
 
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_cg_128(
@@ -893,9 +893,6 @@ supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
   if (polynomial_size != 2048 || level_count != 3 || glwe_dimension != 2) {
     return false;
   }
-#if CUDA_ARCH < 900
-  return false;
-#else
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_128_tbc<__uint128_t>(
           polynomial_size);
@@ -930,7 +927,6 @@ supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
       &config));
 
   return cluster_size >= level_count * (glwe_dimension + 1);
-#endif
 }
 
 // The noise-squashing shape the host-driven TBC flavor is compiled for. The
