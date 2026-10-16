@@ -3,21 +3,21 @@
 
 bool has_support_to_cuda_programmable_bootstrap_128_cg(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples, uint32_t max_shared_memory) {
+    uint32_t num_samples, uint32_t max_shared_memory, uint32_t gpu_index) {
   return supports_cooperative_groups_on_programmable_bootstrap_128(
       glwe_dimension, polynomial_size, level_count, num_samples,
-      max_shared_memory);
+      max_shared_memory, gpu_index);
 }
 
 bool has_support_to_cuda_programmable_bootstrap_128_tbc(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory) {
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index) {
   // Verify cluster size requirements based on polynomial size
   switch (polynomial_size) {
   case 2048:
     return supports_thread_block_clusters_on_classic_programmable_bootstrap_128<
         uint64_t, Degree<2048>>(num_samples, glwe_dimension, polynomial_size,
-                                level_count, max_shared_memory);
+                                level_count, max_shared_memory, gpu_index);
   default:
     return false;
   }

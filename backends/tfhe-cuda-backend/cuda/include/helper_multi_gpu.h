@@ -11,9 +11,9 @@ extern bool p2p_enabled;
 extern const int THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS;
 extern const int THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128;
 
-// Returns the threshold for multi-GPU with classical params.
-// Computed once based on GPU 0's compute capability and SM count.
-int get_threshold_multi_gpu_classical();
+// Returns the threshold for multi-GPU with classical params for a given GPU.
+// Computed once per gpu_index (up to 8 GPUs supported).
+int get_threshold_multi_gpu_classical(uint32_t gpu_index);
 // Define a variant type that can be either a vector or a single pointer
 template <typename Torus>
 using LweArrayVariant = std::variant<std::vector<Torus *>, Torus *>;
@@ -40,7 +40,7 @@ get_variant_element(const std::variant<std::vector<Torus>, Torus> &variant,
 }
 
 uint32_t get_active_gpu_count(uint32_t num_inputs, uint32_t gpu_count,
-                              PBS_TYPE pbs_type);
+                              PBS_TYPE pbs_type, uint32_t gpu_index);
 uint32_t get_active_gpu_count_u128(uint32_t num_inputs, uint32_t gpu_count,
                                    PBS_TYPE pbs_type);
 
@@ -77,9 +77,9 @@ public:
   // Returns a subset of this set as an active subset. An active subset is one
   // that is temporarily used to perform some computation
   CudaStreams active_gpu_subset(int num_radix_blocks, PBS_TYPE pbs_type) {
-    return CudaStreams(
-        _streams, _gpu_indexes,
-        get_active_gpu_count(num_radix_blocks, _gpu_count, pbs_type));
+    return CudaStreams(_streams, _gpu_indexes,
+                       get_active_gpu_count(num_radix_blocks, _gpu_count,
+                                            pbs_type, _gpu_indexes[0]));
   }
   // Returns a subset of this set as an active subset for pbs128. An active
   // subset is one that is temporarily used to perform some computation. For

@@ -247,10 +247,11 @@ uint64_t cuda_device_total_memory(uint32_t gpu_index) {
 /// Returns
 ///  false if Cooperative Groups is not supported.
 ///  true otherwise
-bool cuda_check_support_cooperative_groups() {
+bool cuda_check_support_cooperative_groups(uint32_t gpu_index) {
   int cooperative_groups_supported = 0;
   check_cuda_error(cudaDeviceGetAttribute(&cooperative_groups_supported,
-                                          cudaDevAttrCooperativeLaunch, 0));
+                                          cudaDevAttrCooperativeLaunch,
+                                          gpu_index));
 
   return cooperative_groups_supported > 0;
 }
@@ -258,15 +259,17 @@ bool cuda_check_support_cooperative_groups() {
 /// Returns
 ///  false if Thread Block Cluster is not supported.
 ///  true otherwise
-bool cuda_check_support_thread_block_clusters() {
+bool cuda_check_support_thread_block_clusters(uint32_t gpu_index) {
 #if CUDA_ARCH >= 900
   // To-do: Is this really the best way to check support?
   int tbc_supported = 0;
   check_cuda_error(
-      cudaDeviceGetAttribute(&tbc_supported, cudaDevAttrClusterLaunch, 0));
+      cudaDeviceGetAttribute(&tbc_supported, cudaDevAttrClusterLaunch,
+                             gpu_index));
 
   return tbc_supported > 0;
 #else
+  (void)gpu_index;
   return false;
 #endif
 }
@@ -446,10 +449,11 @@ int cuda_get_number_of_gpus() {
   return num_gpus;
 }
 
-int cuda_get_number_of_sms() {
+int cuda_get_number_of_sms(uint32_t gpu_index) {
   int num_sms = 0;
   check_cuda_error(
-      cudaDeviceGetAttribute(&num_sms, cudaDevAttrMultiProcessorCount, 0));
+      cudaDeviceGetAttribute(&num_sms, cudaDevAttrMultiProcessorCount,
+                             gpu_index));
   return num_sms;
 }
 

@@ -26,7 +26,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_64_async(
                (size_t)(glwe_dim + 1), (size_t)level_count);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool use_specialized = supports_specialized_2_2_params<uint64_t>(
-      polynomial_size, glwe_dim, level_count, max_shared_memory);
+      polynomial_size, glwe_dim, level_count, max_shared_memory, gpu_index);
   bool use_throughput_oriented =
       use_specialized && specialized_2_2_use_throughput_oriented<uint64_t>(
                              polynomial_size, glwe_dim, level_count,

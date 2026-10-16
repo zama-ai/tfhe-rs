@@ -418,7 +418,7 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-          Torus>(polynomial_size, max_shared_memory);
+          Torus>(polynomial_size, max_shared_memory, gpu_index);
 
   uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
       polynomial_size);
@@ -488,7 +488,7 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-          Torus>(polynomial_size, max_shared_memory);
+          Torus>(polynomial_size, max_shared_memory, gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
@@ -740,10 +740,10 @@ __host__ void host_programmable_bootstrap_tbc_2_2_specialized(
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
     int glwe_dimension, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    uint32_t max_shared_memory, uint32_t gpu_index) {
 
   // If Cooperative Groups is not supported, no need to check anything else
-  if (!cuda_check_support_cooperative_groups())
+  if (!cuda_check_support_cooperative_groups(gpu_index))
     return false;
 
   // Calculate the dimension of the kernel
@@ -778,14 +778,14 @@ __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
 
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
-  check_cuda_error(
-      cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0));
+  check_cuda_error(cudaDeviceGetAttribute(
+      &number_of_sm, cudaDevAttrMultiProcessorCount, gpu_index));
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
-    uint32_t polynomial_size, uint32_t max_shared_memory) {
+    uint32_t polynomial_size, uint32_t max_shared_memory, uint32_t gpu_index) {
   uint64_t minimum_sm =
       get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
           polynomial_size);
@@ -795,16 +795,16 @@ bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
     // use TBC
     return false;
   } else {
-    return cuda_check_support_thread_block_clusters();
+    return cuda_check_support_thread_block_clusters(gpu_index);
   }
 }
 
 template <typename Torus, class params>
 __host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory) {
+    uint32_t level_count, uint32_t max_shared_memory, uint32_t gpu_index) {
 
-  if (!cuda_check_support_thread_block_clusters())
+  if (!cuda_check_support_thread_block_clusters(gpu_index))
     return false;
 
   uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
@@ -814,7 +814,7 @@ __host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
           polynomial_size);
   uint64_t minimum_sm_tbc = 0;
   if (supports_distributed_shared_memory_on_classic_programmable_bootstrap<
-          Torus>(polynomial_size, max_shared_memory))
+          Torus>(polynomial_size, max_shared_memory, gpu_index))
     minimum_sm_tbc =
         get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
             polynomial_size);

@@ -78,7 +78,7 @@ unsafe extern "C" {
     pub fn cuda_get_number_of_gpus() -> ffi::c_int;
 }
 unsafe extern "C" {
-    pub fn cuda_get_number_of_sms() -> ffi::c_int;
+    pub fn cuda_get_number_of_sms(gpu_index: u32) -> ffi::c_int;
 }
 unsafe extern "C" {
     pub fn cuda_synchronize_device(gpu_index: u32);
