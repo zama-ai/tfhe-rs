@@ -253,6 +253,39 @@ pub fn bootstrap_scratch<Scalar>(
     ))
 }
 
+/// One cmux of a blind rotation: `ct0 <- cmux(ggsw, ct0, ct0 * X^{lwe_mask_element})`.
+///
+/// A no-op when `lwe_mask_element == 0` (`ct0 * X^0 == ct0`, so the cmux would leave `ct0`
+/// unchanged). Shared by [`Fourier128LweBootstrapKey::blind_rotate_assign`] and the half-rotate
+/// bootstrap.
+#[inline(always)]
+pub(crate) fn cmux_step<OutputScalar, ContGgsw>(
+    ct0: &mut GlweCiphertext<&mut [OutputScalar]>,
+    lwe_mask_element: usize,
+    ggsw: &Fourier128GgswCiphertext<ContGgsw>,
+    fft: Fft128View<'_>,
+    stack: &mut PodStack,
+) where
+    OutputScalar: UnsignedTorus,
+    ContGgsw: Container<Element = f64>,
+{
+    if lwe_mask_element == 0 {
+        return;
+    }
+
+    // We copy ct_0 to ct_1
+    let (ct1, stack) = stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
+    let mut ct1 =
+        GlweCiphertextMutView::from_container(ct1, ct0.polynomial_size(), ct0.ciphertext_modulus());
+
+    // We rotate ct_1 by performing ct_1 <- ct_1 * X^{lwe_mask_element}
+    for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
+        polynomial_wrapping_monic_monomial_mul_assign(&mut poly, MonomialDegree(lwe_mask_element));
+    }
+
+    cmux(ct0, &mut ct1, ggsw, fft, stack);
+}
+
 impl<Cont> Fourier128LweBootstrapKey<Cont>
 where
     Cont: Container<Element = f64>,
@@ -297,29 +330,7 @@ where
             for (lwe_mask_element, bootstrap_key_ggsw) in
                 izip_eq!(msed_lwe_mask, this.into_ggsw_iter())
             {
-                if lwe_mask_element != 0 {
-                    let stack = &mut *stack;
-                    // We copy ct_0 to ct_1
-                    let (ct1, stack) =
-                        stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
-                    let mut ct1 = GlweCiphertextMutView::from_container(
-                        ct1,
-                        ct0.polynomial_size(),
-                        ct0.ciphertext_modulus(),
-                    );
-
-                    // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
-                    for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
-                        polynomial_wrapping_monic_monomial_mul_assign(
-                            &mut poly,
-                            MonomialDegree(lwe_mask_element),
-                        );
-                    }
-
-                    // ct1 is re-created each loop it can be moved, ct0 is already a view, but
-                    // as_mut_view is required to keep borrow rules consistent
-                    cmux(&mut ct0, &mut ct1, &bootstrap_key_ggsw, fft, stack);
-                }
+                cmux_step(&mut ct0, lwe_mask_element, &bootstrap_key_ggsw, fft, stack);
             }
 
             if !ciphertext_modulus.is_native_modulus() {
