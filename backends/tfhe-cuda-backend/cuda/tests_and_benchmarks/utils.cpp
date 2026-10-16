@@ -9,6 +9,7 @@
 #include <functional>
 #include <random>
 #include <utils.h>
+#include <vector>
 
 #include "checked_arithmetic.h"
 
@@ -265,6 +266,48 @@ void generate_lwe_programmable_bootstrap_keys_specialized_2_2(
   free(bsk_array);
 }
 
+// Use the bsk layout required by the throughput oriented 2_2 classical PBS
+// kernel (H100 only).
+void generate_lwe_programmable_bootstrap_keys_specialized_2_2_throughput(
+    cudaStream_t stream, uint32_t gpu_index, double **d_fourier_bsk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pbs_level, int pbs_base_log,
+    Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions) {
+  size_t bsk_size = safe_mul(
+      safe_mul(glwe_dimension + 1, glwe_dimension + 1, pbs_level,
+               polynomial_size),
+      (size_t)(lwe_dimension + 1));
+  size_t bsk_array_size = safe_mul(bsk_size, repetitions);
+
+  uint64_t *bsk_array =
+      (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(bsk_array_size));
+  *d_fourier_bsk_array = (double *)cuda_malloc_async(
+      safe_mul_sizeof<double>(bsk_array_size), stream, gpu_index);
+  int shift_in = 0;
+  int shift_out = 0;
+  int shift_bsk = 0;
+
+  for (uint r = 0; r < repetitions; r++) {
+    core_crypto_par_generate_lwe_bootstrapping_key(
+        bsk_array + (ptrdiff_t)(shift_bsk), pbs_base_log, pbs_level,
+        lwe_sk_in_array + (ptrdiff_t)(shift_in), lwe_dimension,
+        lwe_sk_out_array + (ptrdiff_t)(shift_out), glwe_dimension,
+        polynomial_size, noise_distribution, seed->lo, seed->hi);
+    double *d_fourier_bsk = *d_fourier_bsk_array + (ptrdiff_t)(shift_bsk);
+    uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
+    cuda_synchronize_stream(stream, gpu_index);
+    cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_throughput_64_async(
+        stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
+        lwe_dimension, glwe_dimension, pbs_level, polynomial_size);
+    shift_in += lwe_dimension;
+    shift_out += glwe_dimension * polynomial_size;
+    shift_bsk += bsk_size;
+  }
+  cuda_synchronize_stream(stream, gpu_index);
+  free(bsk_array);
+}
+
 void generate_lwe_multi_bit_programmable_bootstrap_keys(
     cudaStream_t stream, uint32_t gpu_index, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, int lwe_dimension, int glwe_dimension,
@@ -344,4 +387,136 @@ void generate_lwe_keyswitch_keys(
   }
   cuda_synchronize_stream(stream, gpu_index);
   free(ksk_array);
+}
+
+// The C API only generates 64-bit keyswitch keys. The 64 -> 32 flavors read a
+// 32-bit ksk, obtained here by modulus switching the 64-bit one.
+void generate_lwe_keyswitch_keys_u32(
+    cudaStream_t stream, uint32_t gpu_index, uint32_t **d_ksk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array,
+    int input_lwe_dimension, int output_lwe_dimension, int ksk_level,
+    int ksk_base_log, Seed *seed, DynamicDistribution noise_distribution,
+    const unsigned repetitions) {
+
+  size_t ksk_size =
+      safe_mul(ksk_level, output_lwe_dimension + 1, input_lwe_dimension);
+  size_t ksk_array_size = safe_mul(ksk_size, repetitions);
+
+  uint64_t *ksk_array =
+      (uint64_t *)malloc(safe_mul_sizeof<uint64_t>(ksk_array_size));
+  uint32_t *ksk_array_u32 =
+      (uint32_t *)malloc(safe_mul_sizeof<uint32_t>(ksk_array_size));
+  *d_ksk_array = (uint32_t *)cuda_malloc_async(
+      safe_mul_sizeof<uint32_t>(ksk_array_size), stream, gpu_index);
+  int shift_in = 0;
+  int shift_out = 0;
+  int shift_ksk = 0;
+
+  for (uint r = 0; r < repetitions; r++) {
+    core_crypto_par_generate_lwe_keyswitch_key(
+        ksk_array + (ptrdiff_t)(shift_ksk), ksk_base_log, ksk_level,
+        lwe_sk_in_array + (ptrdiff_t)(shift_in), input_lwe_dimension,
+        lwe_sk_out_array + (ptrdiff_t)(shift_out), output_lwe_dimension,
+        noise_distribution, seed->lo, seed->hi);
+    shift_in += input_lwe_dimension;
+    shift_out += output_lwe_dimension;
+    shift_ksk += ksk_size;
+  }
+  for (size_t i = 0; i < ksk_array_size; i++)
+    ksk_array_u32[i] = (uint32_t)(ksk_array[i] >> 32);
+  cuda_memcpy_async_to_gpu(*d_ksk_array, ksk_array_u32,
+                           safe_mul_sizeof<uint32_t>(ksk_array_size), stream,
+                           gpu_index);
+  cuda_synchronize_stream(stream, gpu_index);
+  free(ksk_array);
+  free(ksk_array_u32);
+}
+
+// The C API has no packing keyswitch key generator and is 64-bit only, so the
+// test builds the key itself: GLWE encryptions of s_i * B^-l with monomial
+// masks, which turn the mask times key products into rotations, and uniform
+// noise in [-2^b, 2^b] with b from the t_uniform distribution.
+template <typename Torus>
+static std::vector<Torus> generate_lwe_packing_keyswitch_key_host(
+    uint64_t *lwe_sk_in_array, uint64_t *glwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pksk_level, int pksk_base_log,
+    DynamicDistribution noise_distribution) {
+  // Only the t_uniform tag is supported here.
+  PANIC_IF_FALSE(noise_distribution.tag == 1,
+                 "packing keyswitch key generation needs a t_uniform noise");
+  const uint32_t bound_log2 =
+      noise_distribution.distribution.t_uniform.bound_log2;
+  const int torus_bits = 8 * sizeof(Torus);
+  static std::mt19937_64 rng(0);
+  auto random_torus = [&]() {
+    Torus r = rng();
+    if (sizeof(Torus) > 8)
+      r = (r << 32 << 32) | (Torus)rng();
+    return r;
+  };
+
+  size_t glwe_size = safe_mul(glwe_dimension + 1, polynomial_size);
+  std::vector<Torus> pksk(safe_mul(lwe_dimension, pksk_level, glwe_size));
+  Torus *block = pksk.data();
+  for (int i = 0; i < lwe_dimension; i++) {
+    // Blocks go from the highest level down to 1, as in the Rust key layout.
+    for (int l = pksk_level; l >= 1; l--, block += glwe_size) {
+      Torus *body = block + glwe_dimension * polynomial_size;
+      for (int t = 0; t < polynomial_size; t++)
+        body[t] = (Torus)(rng() % ((1ull << (bound_log2 + 1)) + 1)) -
+                  ((Torus)1 << bound_log2);
+      body[0] += (Torus)lwe_sk_in_array[i]
+                 << (torus_bits - pksk_base_log * l);
+      for (int j = 0; j < glwe_dimension; j++) {
+        const uint64_t *sk = glwe_sk_out_array + j * polynomial_size;
+        Torus r = random_torus();
+        int d = rng() % polynomial_size;
+        block[j * polynomial_size + d] = r;
+        // body += r * X^d * S_j, negacyclic
+        for (int t = 0; t < polynomial_size; t++) {
+          Torus s = r * (Torus)sk[(t - d + polynomial_size) % polynomial_size];
+          body[t] += t >= d ? s : -s;
+        }
+      }
+    }
+  }
+  return pksk;
+}
+
+template <typename Torus>
+static void upload_lwe_packing_keyswitch_keys(
+    cudaStream_t stream, uint32_t gpu_index, Torus **d_pksk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *glwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pksk_level, int pksk_base_log,
+    DynamicDistribution noise_distribution) {
+  std::vector<Torus> pksk = generate_lwe_packing_keyswitch_key_host<Torus>(
+      lwe_sk_in_array, glwe_sk_out_array, lwe_dimension, glwe_dimension,
+      polynomial_size, pksk_level, pksk_base_log, noise_distribution);
+  size_t pksk_bytes = safe_mul_sizeof<Torus>(pksk.size());
+  *d_pksk_array = (Torus *)cuda_malloc_async(pksk_bytes, stream, gpu_index);
+  cuda_memcpy_async_to_gpu(*d_pksk_array, pksk.data(), pksk_bytes, stream,
+                           gpu_index);
+  cuda_synchronize_stream(stream, gpu_index);
+}
+
+void generate_lwe_packing_keyswitch_keys(
+    cudaStream_t stream, uint32_t gpu_index, uint64_t **d_pksk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *glwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pksk_level, int pksk_base_log,
+    DynamicDistribution noise_distribution) {
+  upload_lwe_packing_keyswitch_keys<uint64_t>(
+      stream, gpu_index, d_pksk_array, lwe_sk_in_array, glwe_sk_out_array,
+      lwe_dimension, glwe_dimension, polynomial_size, pksk_level,
+      pksk_base_log, noise_distribution);
+}
+
+void generate_lwe_packing_keyswitch_keys_128(
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t **d_pksk_array,
+    uint64_t *lwe_sk_in_array, uint64_t *glwe_sk_out_array, int lwe_dimension,
+    int glwe_dimension, int polynomial_size, int pksk_level, int pksk_base_log,
+    DynamicDistribution noise_distribution) {
+  upload_lwe_packing_keyswitch_keys<__uint128_t>(
+      stream, gpu_index, d_pksk_array, lwe_sk_in_array, glwe_sk_out_array,
+      lwe_dimension, glwe_dimension, polynomial_size, pksk_level,
+      pksk_base_log, noise_distribution);
 }

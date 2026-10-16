@@ -1248,8 +1248,9 @@ __host__ void execute_step_two(
 }
 
 enum class ClassicalLaunchMode {
-  AUTO,
-  SPECIALIZED_2_2,
+  AUTO,                       // Heuristic-based selection based on parameters
+  SPECIALIZED_2_2,            // Force-select the 2.2 specialized variant
+  SPECIALIZED_2_2_THROUGHPUT, // Force-select the 2.2 throughput variant
 };
 
 template <typename Torus, class params>
@@ -1268,7 +1269,7 @@ __host__ void host_programmable_bootstrap_with_mode(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   bool use_specialized;
-  if (launch_mode == ClassicalLaunchMode::SPECIALIZED_2_2) {
+  if (launch_mode != ClassicalLaunchMode::AUTO) {
     // This is a more relaxed constraint that just makes sure we have the right
     // params and enough shared memory. It is used in the test.
     use_specialized = specialized_2_2_params_checker<uint64_t>(
@@ -1288,10 +1289,22 @@ __host__ void host_programmable_bootstrap_with_mode(
     auto noise_reduction_type = pbs_buffer->noise_reduction_type;
 
     // Kept the old specialized version as fallback, default is throughput
-    // oriented version.
-    if (specialized_2_2_use_throughput_oriented<Torus>(
-            polynomial_size, glwe_dimension, level_count, lwe_dimension,
-            max_shared_memory)) {
+    // oriented version. The forced modes bypass this selection.
+    bool can_use_throughput = specialized_2_2_use_throughput_oriented<Torus>(
+        polynomial_size, glwe_dimension, level_count, lwe_dimension,
+        max_shared_memory);
+    if (launch_mode == ClassicalLaunchMode::SPECIALIZED_2_2_THROUGHPUT) {
+      PANIC_IF_FALSE(can_use_throughput,
+                     "Cuda error (classical PBS): forced specialized 2_2 "
+                     "throughput requires (N=2048, level_count=1, "
+                     "glwe_dimension=1, lwe_dimension<=1024, sufficient "
+                     "shared memory).");
+    }
+    bool use_throughput =
+        launch_mode == ClassicalLaunchMode::SPECIALIZED_2_2_THROUGHPUT ||
+        (launch_mode == ClassicalLaunchMode::AUTO && can_use_throughput);
+
+    if (use_throughput) {
       using mp_params = AccumulatorDegree<2048>;
       int mp_thds = polynomial_size / mp_params::opt; // 64
       dim3 mp_grid(input_lwe_ciphertext_count, 1, level_count);
@@ -1567,6 +1580,24 @@ __host__ void host_programmable_bootstrap_specialized_2_2(
       pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
       level_count, input_lwe_ciphertext_count, num_many_lut, lut_stride,
       ClassicalLaunchMode::SPECIALIZED_2_2);
+}
+
+template <typename Torus, class params>
+__host__ void host_programmable_bootstrap_specialized_2_2_throughput(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
+    pbs_buffer<Torus, CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+  host_programmable_bootstrap_with_mode<Torus, params>(
+      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+      pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
+      level_count, input_lwe_ciphertext_count, num_many_lut, lut_stride,
+      ClassicalLaunchMode::SPECIALIZED_2_2_THROUGHPUT);
 }
 
 #endif // CUDA_PBS_CUH

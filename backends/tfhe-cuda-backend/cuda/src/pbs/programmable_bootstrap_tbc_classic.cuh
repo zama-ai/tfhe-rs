@@ -570,8 +570,10 @@ __host__ void host_programmable_bootstrap_tbc_with_mode(
 
     if (use_specialized) {
       // For now i left a fallback to the old tbc version which i plan to modify
-      // a bit in the future to perform more generic params efficiently
-      if (specialized_2_2_use_throughput_oriented<Torus>(
+      // a bit in the future to perform more generic params efficiently.
+      // The forced SPECIALIZED_2_2 mode bypasses the throughput selection.
+      if (launch_mode == ClassicalTbcLaunchMode::AUTO &&
+          specialized_2_2_use_throughput_oriented<Torus>(
               polynomial_size, glwe_dimension, level_count, lwe_dimension,
               max_shared_memory)) {
         using mp_params = AccumulatorDegree<2048>;
