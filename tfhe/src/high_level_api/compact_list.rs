@@ -945,10 +945,11 @@ impl CiphertextList for CompactCiphertextListExpander {
         let mut expanded = match &self.inner {
             InnerCompactCiphertextListExpander::Cpu(inner) => inner.get::<T>(index),
             #[cfg(feature = "gpu")]
-            InnerCompactCiphertextListExpander::Cuda(inner) => with_cuda_internal_keys(|keys| {
-                let streams = &keys.streams;
-                inner.get::<T>(index, streams)
-            }),
+            InnerCompactCiphertextListExpander::Cuda(inner) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
+                    inner.get::<T>(index, streams)
+                })
+            }
         };
 
         if let Ok(Some(inner)) = &mut expanded {
@@ -962,8 +963,7 @@ impl CiphertextList for CompactCiphertextListExpander {
             match &self.inner {
                 InnerCompactCiphertextListExpander::Cpu(_) => Ok(Some(0)),
                 InnerCompactCiphertextListExpander::Cuda(inner) => {
-                    with_cuda_internal_keys(|keys| {
-                        let streams = &keys.streams;
+                    with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
                         inner.get_decompression_size_on_gpu(index, streams)
                     })
                 }
