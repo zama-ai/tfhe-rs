@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
@@ -19,27 +21,101 @@ pub struct PackedIntegers<Scalar: UnsignedInteger> {
 }
 
 impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
+    /// Returns an error if initial_len * log_modulus != packed_coeffs.len()
+    ///
+    /// The last coefficient will be cleaned if it holds garbage beyond its last used bit,
+    /// so that calling `is_canonical()` on the resulting list will return true.
     pub(crate) fn from_raw_parts(
         packed_coeffs: Vec<Scalar>,
         log_modulus: CiphertextModulusLog,
         initial_len: usize,
-    ) -> Self {
-        let required_bits_packed = initial_len * log_modulus.0;
-        let expected_len = required_bits_packed.div_ceil(Scalar::BITS);
+    ) -> crate::Result<Self> {
+        Self::check_raw_parts(&packed_coeffs, log_modulus, initial_len)?;
 
-        assert_eq!(
-            packed_coeffs.len(),
-            expected_len,
-            "Invalid size for the packed coeffs, got {}, expected {}",
-            packed_coeffs.len(),
-            expected_len
-        );
-
-        Self {
+        let mut packed_integers = Self {
             packed_coeffs,
             log_modulus,
             initial_len,
+        };
+        packed_integers.clear_unused_bits().map_err(|_| {
+            crate::Error::new("Failed to canonicalize packed ciphertext".to_string())
+        })?;
+
+        Ok(packed_integers)
+    }
+
+    fn check_raw_parts(
+        packed_coeffs: &[Scalar],
+        log_modulus: CiphertextModulusLog,
+        initial_len: usize,
+    ) -> crate::Result<()> {
+        let expected_len = initial_len
+            .checked_mul(log_modulus.0)
+            .map(|used_bits| used_bits.div_ceil(Scalar::BITS));
+
+        if expected_len != Some(packed_coeffs.len()) {
+            return Err(crate::Error::new(format!(
+                "Invalid PackedIntegers: {} packed coefficients do not hold {initial_len} \
+                integers of {} bits",
+                packed_coeffs.len(),
+                log_modulus.0
+            )));
         }
+
+        Ok(())
+    }
+
+    /// Number of bits of the last packed coefficient that hold packed values.
+    ///
+    /// Returns `Ok(None)` if the list is empty or an error if its length does not
+    /// match `initial_len` and `log_modulus`.
+    fn last_coeff_used_bits(&self) -> Result<Option<NonZeroUsize>, ()> {
+        let len = self.packed_coeffs.len();
+        let used_bits = self.initial_len.checked_mul(self.log_modulus.0).ok_or(())?;
+        if len != used_bits.div_ceil(Scalar::BITS) {
+            return Err(());
+        }
+
+        if len == 0 {
+            return Ok(None);
+        }
+
+        // The length check guarantees the result is in `1..=Scalar::BITS`
+        let res = NonZeroUsize::new(used_bits - (len - 1) * Scalar::BITS).ok_or(())?;
+        Ok(Some(res))
+    }
+
+    /// Returns true if the bits of the last packed coefficient past the last value are zero.
+    ///
+    /// When the last coefficient is only partially filled, `pack` leaves the bits above
+    /// `initial_len * log_modulus` to zero. `unpack` never reads them, but rejecting other values
+    /// keeps the representation canonical.
+    pub(crate) fn is_canonical(&self) -> bool {
+        match (self.last_coeff_used_bits(), self.packed_coeffs.last()) {
+            (Ok(Some(used_bits)), Some(&last)) => {
+                used_bits.get() == Scalar::BITS || last >> used_bits.get() == Scalar::ZERO
+            }
+            // True empty lists are considered canonical
+            (Ok(None), None) => true,
+            // If the length is incorrect, the list is not canonical
+            _ => false,
+        }
+    }
+
+    /// Clears the bits of the last packed coefficient that do not hold any packed value.
+    ///
+    /// See [`Self::is_canonical`].
+    ///
+    /// Does nothing if the length of the list does not match `initial_len` and `log_modulus`.
+    pub fn clear_unused_bits(&mut self) -> Result<(), ()> {
+        if let (Some(used_bits), Some(last)) =
+            (self.last_coeff_used_bits()?, self.packed_coeffs.last_mut())
+        {
+            if used_bits.get() < Scalar::BITS {
+                *last &= (Scalar::ONE << used_bits.get()) - Scalar::ONE;
+            }
+        }
+        Ok(())
     }
 
     /// Pack the input slice, assuming its values are reduced mod `2**log_modulus`.
@@ -278,17 +354,8 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant for PackedIntegers<Scalar> 
 
         (1..=max_log_modulus).contains(&log_modulus.0)
             && *initial_len == params.initial_len
-            && packed_coeffs.len() == (params.initial_len * log_modulus.0).div_ceil(Scalar::BITS)
-            // When the last coefficient is only partially filled, `pack` leaves the bits above
-            // `initial_len * log_modulus` to zero. `unpack` never reads them, but rejecting other
-            // values keeps the representation canonical.
-            && packed_coeffs.last().is_none_or(|last| {
-                // The length check above guarantees `used_bits` is in `1..=Scalar::BITS`
-                let last_used_bits =
-                    initial_len * log_modulus.0 - (packed_coeffs.len() - 1) * Scalar::BITS;
-
-                last_used_bits == Scalar::BITS || *last >> last_used_bits == Scalar::ZERO
-            })
+            && Self::check_raw_parts(packed_coeffs, *log_modulus, *initial_len).is_ok()
+            && self.is_canonical()
     }
 }
 
@@ -366,6 +433,7 @@ mod test {
             CiphertextModulusLog(log_modulus),
             initial_len,
         )
+        .unwrap()
     }
 
     #[test]

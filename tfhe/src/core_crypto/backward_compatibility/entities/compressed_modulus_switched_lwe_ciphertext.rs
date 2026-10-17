@@ -19,14 +19,14 @@ pub struct CompressedModulusSwitchedLweCiphertextV0<Scalar: UnsignedInteger> {
 impl<Scalar: UnsignedInteger> Upgrade<CompressedModulusSwitchedLweCiphertextV1<Scalar>>
     for CompressedModulusSwitchedLweCiphertextV0<Scalar>
 {
-    type Error = Infallible;
+    type Error = crate::Error;
 
     fn upgrade(self) -> Result<CompressedModulusSwitchedLweCiphertextV1<Scalar>, Self::Error> {
         let packed_integers = PackedIntegers::from_raw_parts(
             self.packed_coeffs,
             self.log_modulus,
             self.lwe_dimension.to_lwe_size().0,
-        );
+        )?;
 
         Ok(CompressedModulusSwitchedLweCiphertextV1 {
             packed_integers,
