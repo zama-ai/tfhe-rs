@@ -148,7 +148,6 @@ fn borrow_streams(streams: &CudaStreams) -> CudaStreams {
 }
 
 /// GPU version of DynLwe for CUDA operations
-#[derive(Clone)]
 pub enum CudaDynLwe {
     U32(CudaLweCiphertextList<u32>),
     U64(CudaLweCiphertextList<u64>),

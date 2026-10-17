@@ -11,7 +11,6 @@ use crate::core_crypto::prelude::{
 };
 use tfhe_cuda_backend::bindings::CudaLweKeyswitchKeyParamsFFI;
 
-#[derive(Clone)]
 #[allow(dead_code)]
 pub struct CudaLweKeyswitchKey<T: UnsignedInteger> {
     pub(crate) d_vec: CudaVec<T>,
