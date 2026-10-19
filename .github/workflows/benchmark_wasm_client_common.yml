@@ -175,7 +175,7 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ github.sha }}_wasm_${{ matrix.browser }}
           path: ${{ env.RESULTS_FILENAME }}
