@@ -180,13 +180,9 @@ impl Upgrade<ShortintParameterSetInner> for ShortintParameterSetInnerV0 {
     fn upgrade(self) -> Result<ShortintParameterSetInner, Self::Error> {
         match self {
             Self::PBSOnly(params) => Ok(ShortintParameterSetInner::PBSOnly(params)),
-            Self::PBSAndWopbs(pbs_params, wopbs_params) => Ok(
-                ShortintParameterSetInner::PBSAndWopbs(pbs_params, wopbs_params),
-            ),
             Self::KS32PBS(params) => Ok(ShortintParameterSetInner::KS32PBS(params)),
-            Self::WopbsOnly(_) => Err(crate::Error::new(
-                "ShortintParameterSet with Wopbs only parameters is not supported anymore"
-                    .to_string(),
+            Self::WopbsOnly(_) | Self::PBSAndWopbs(_, _) => Err(crate::Error::new(
+                "ShortintParameterSet with Wopbs parameters is not supported anymore".to_string(),
             )),
         }
     }
