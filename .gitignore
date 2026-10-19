@@ -35,6 +35,7 @@ backends/zk-cuda-backend/cuda/build/
 # WASM tests
 tfhe/web_wasm_parallel_tests/server.PID
 venv/
+venv_uv/
 web-test-runner/
 node_modules/
 utils/wasm-par-mq/examples/*/pkg/

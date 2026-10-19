@@ -59,3 +59,7 @@ jobs:
           allowlist: |
             slsa-framework/slsa-github-generator
             ./
+
+      - name: Check Python requirements lock files are up to date
+        run: |
+          make check_python_requirements

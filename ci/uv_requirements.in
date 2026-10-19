@@ -1,0 +1,4 @@
+# uv is used to generate the *requirements.txt lock files, see 'make compile_python_requirements'.
+# To update it, change the version below and run 'make compile_python_requirements', the generated
+# files may need a second run if their format changed between uv versions.
+uv==0.13.3
