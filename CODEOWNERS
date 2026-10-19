@@ -44,6 +44,8 @@
 # Protect manifests
 **/Cargo.toml                           @mayeul-zama @tmontaigu @zama-ai/tfhe-rs
 **/package.json                         @IceTDrinker @tmontaigu @zama-ai/tfhe-rs
+**/*requirements.in                     @IceTDrinker @tmontaigu @zama-ai/tfhe-rs
+**/*requirements.txt                    @IceTDrinker @tmontaigu @zama-ai/tfhe-rs
 
 # Various configurations
 /.cargo/audit.toml                      @nsarlin-zama @IceTDrinker @zama-ai/tfhe-rs

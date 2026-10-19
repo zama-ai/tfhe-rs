@@ -427,6 +427,8 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
       input_lwe_ciphertext_count, allocate_gpu_memory);
 }
 
+// This is fine, the underlying function does it.
+// nosemgrep: cleanup-missing-release-or-synchronize
 void cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
     void *stream, uint32_t gpu_index, int8_t **buffer) {
   cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index, buffer);
