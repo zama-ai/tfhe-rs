@@ -1,0 +1,10 @@
+# Tooling used to manage the *requirements.txt lock files: uv generates them and pip-audit checks
+# them for known vulnerabilities, see 'make compile_python_requirements' and
+# 'make audit_python_requirements'. To update a tool, change its version below and run
+# 'make compile_python_requirements', the generated files may need a second run if their format
+# changed between uv versions.
+# pip-audit depends on pip, keep the one installed in the tooling venv aligned with the pip pinned
+# for every venv
+-c pip_requirements.in
+uv==0.13.4
+pip-audit==2.10.1

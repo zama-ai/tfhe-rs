@@ -40,6 +40,8 @@
 # Protect manifests
 **/Cargo.toml                           @mayeul-zama @tmontaigu
 **/package.json                         @IceTDrinker @tmontaigu
+**/*requirements.in                     @IceTDrinker @tmontaigu
+**/*requirements.txt                    @IceTDrinker @tmontaigu
 
 # Various configurations
 /.cargo/audit.toml                      @nsarlin-zama @IceTDrinker

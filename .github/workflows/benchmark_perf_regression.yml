@@ -85,7 +85,7 @@ jobs:
 
       - name: Install Python requirements
         run: |
-          python3 -m pip install -r ci/perf_regression/requirements.txt
+          make install_python_requirements PYTHON_REQUIREMENTS=ci/perf_regression/requirements.txt
 
       - name: Generate cargo commands and env from label
         if: github.event_name == 'pull_request'
@@ -294,7 +294,8 @@ jobs:
       - name: Install requirements
         run: |
           python3.12 -m venv venv
-          venv/bin/pip3 install -r ci/data_extractor/requirements.txt -r ci/perf_regression/requirements.txt
+          make install_python_requirements PYTHON_EXE=venv/bin/python \
+            PYTHON_REQUIREMENTS="ci/data_extractor/requirements.txt ci/perf_regression/requirements.txt"
 
       - name: Fetch data
         run: |
