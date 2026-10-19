@@ -121,15 +121,22 @@ jobs:
           GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
           echo "Found ${GPU_COUNT} GPU(s)"
           if [ "${GPU_COUNT}" -ge 2 ]; then
-            echo "GPU0=0" >> "${GITHUB_ENV}"
-            echo "GPU1=1" >> "${GITHUB_ENV}"
+            {
+              echo "GPU0=0";
+              echo "GPU1=1";
+              echo "LANES_IN_PARALLEL=true";
+            } >> "${GITHUB_ENV}"
           else
-            echo "Only 1 GPU available, both lanes will share GPU 0 via MPS"
-            echo "GPU0=0" >> "${GITHUB_ENV}"
-            echo "GPU1=0" >> "${GITHUB_ENV}"
+            echo "Only 1 GPU available, the lanes will run one after the other on GPU 0"
+            {
+              echo "GPU0=0";
+              echo "GPU1=0";
+              echo "LANES_IN_PARALLEL=false";
+            } >> "${GITHUB_ENV}"
           fi
 
       - name: Enable nvidia multi-process service
+        if: env.LANES_IN_PARALLEL == 'true'
         run: |
           nvidia-cuda-mps-control -d
 
@@ -148,12 +155,17 @@ jobs:
             CUDA_VISIBLE_DEVICES=${GPU1} BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_multi_bit_gpu_ci || rc=$?
             echo "${rc}" > /tmp/unsigned.rc
           }
-          run_signed 2>&1 | sed -u 's/^/[signed]   /' &
-          PID0=$!
-          run_unsigned 2>&1 | sed -u 's/^/[unsigned] /' &
-          PID1=$!
-          wait "${PID0}" || true
-          wait "${PID1}" || true
+          if [ "${LANES_IN_PARALLEL}" = "true" ]; then
+            run_signed 2>&1 | sed -u 's/^/[signed]   /' &
+            PID0=$!
+            run_unsigned 2>&1 | sed -u 's/^/[unsigned] /' &
+            PID1=$!
+            wait "${PID0}" || true
+            wait "${PID1}" || true
+          else
+            run_signed 2>&1 | sed -u 's/^/[signed]   /'
+            run_unsigned 2>&1 | sed -u 's/^/[unsigned] /'
+          fi
 
           STATUS=0
           for lane in signed unsigned; do
