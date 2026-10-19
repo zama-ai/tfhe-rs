@@ -3,6 +3,7 @@
 exclude = [
     "backends/tfhe-hpu-backend/**/*.toml",
     "utils/tfhe-backward-compat-data/crates/**/Cargo.toml",
+    "target/**/*.toml",
 ]
 include = [
     "**/Cargo.toml"
