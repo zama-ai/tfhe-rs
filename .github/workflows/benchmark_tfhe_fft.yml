@@ -101,6 +101,7 @@ jobs:
         with:
           repository: zama-ai/slab
           path: slab
+          ref: a0d3a61d593fc69bcdd13cb834323f8645258246
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
