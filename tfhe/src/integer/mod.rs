@@ -119,23 +119,6 @@ where
     let shortint_parameters_set: crate::shortint::parameters::ShortintParameterSet =
         parameters_set.try_into().unwrap();
 
-    let is_wopbs_only_params = shortint_parameters_set.wopbs_only();
-
-    // TODO
-    // Manually manage the wopbs only case as a workaround pending wopbs rework
-    let shortint_parameters_set = if is_wopbs_only_params {
-        let wopbs_params = shortint_parameters_set.wopbs_parameters().unwrap();
-        let pbs_params = wopbs_params.to_pbs_parameters();
-
-        crate::shortint::parameters::ShortintParameterSet::try_new_pbs_and_wopbs_param_set((
-            pbs_params,
-            wopbs_params,
-        ))
-        .unwrap()
-    } else {
-        shortint_parameters_set
-    };
-
     let gen_keys_inner = |parameters_set| {
         let cks = ClientKey::new(parameters_set);
         let sks = match key_kind {
@@ -148,7 +131,7 @@ where
 
     #[cfg(any(test, feature = "internal-keycache"))]
     {
-        if is_wopbs_only_params {
+        if shortint_parameters_set.wopbs_only() {
             // TODO
             // Keycache is broken for the wopbs only case, so generate keys instead
             gen_keys_inner(shortint_parameters_set)
