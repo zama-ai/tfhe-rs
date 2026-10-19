@@ -2,12 +2,13 @@
 //!
 //! FIXME(gpu): the CPU tests for these operations moved to
 //! `radix_parallel::test_harness` (see `radix_parallel::tests_unsigned::test_add`,
-//! `test_scalar_add`, `test_scalar_shift`, `test_scalar_rotate`, `test_sum` and `test_neg`),
-//! which also
-//! exercises inputs at the maximum degree and noise level.
+//! `test_scalar_add`, `test_scalar_shift`, `test_scalar_rotate`, `test_sum`, `test_neg` and
+//! `test_comparison`), which also exercises inputs at the maximum degree and noise level.
 //! The GPU full propagation cannot take blocks at the maximum degree yet.
 //! Once it is aligned with the CPU one point the GPU wrappers at the harness
 //! tests and delete this file.
+use crate::core_crypto::prelude::UnsignedNumeric;
+use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{IntegerCiphertext, IntegerRadixCiphertext};
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
@@ -18,7 +19,9 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey};
 use crate::shortint::parameters::*;
-use rand::Rng;
+use rand::distributions::Standard;
+use rand::prelude::*;
+use std::ops::AddAssign;
 use std::sync::Arc;
 
 pub(crate) fn legacy_default_add_test<P, T>(param: P, mut executor: T)
@@ -742,5 +745,178 @@ where
                 Expected 0, got {dec_ct}\n\
                 num_blocks: {num_blocks}, modulus: {modulus}"
         );
+    }
+}
+
+/// Function to test a "default" comparison server_key function.
+///
+/// This calls the `server_key_method` with non-fresh ciphertexts,
+/// that is ciphertexts that have non-zero carries, and compares that the result is
+/// the same as the one of`clear_fn`.
+pub(crate) fn legacy_default_comparison_test<P, T, ClearF, Scalar>(
+    param: P,
+    num_test: usize,
+    mut executor: T,
+    clear_fn: ClearF,
+) where
+    P: Into<TestParameters>,
+    Scalar: UnsignedNumeric
+        + AddAssign<Scalar>
+        + DecomposableInto<u64>
+        + RecomposableFrom<u64>
+        + From<bool>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
+    ClearF: Fn(Scalar, Scalar) -> Scalar,
+    Standard: Distribution<Scalar>,
+{
+    let mut rng = rand::thread_rng();
+
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
+    let cks = RadixClientKey::from((cks, num_block));
+
+    executor.setup(&cks, sks.clone());
+
+    assert_eq!(
+        Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
+        0,
+        "bit width must be a multiple of number of bit in a block"
+    );
+
+    for _ in 0..num_test {
+        let mut clear_0 = rng.gen::<Scalar>();
+        let mut clear_1 = rng.gen::<Scalar>();
+        let mut ct_0 = cks.encrypt(clear_0);
+        let mut ct_1 = cks.encrypt(clear_1);
+
+        // Raise the degree, so as to ensure worst case path in operations
+        while ct_0.block_carries_are_empty() {
+            let clear_2 = rng.gen::<Scalar>();
+            let ct_2 = cks.encrypt(clear_2);
+            sks.unchecked_add_assign(&mut ct_0, &ct_2);
+            clear_0 += clear_2;
+        }
+
+        while ct_1.block_carries_are_empty() {
+            let clear_2 = rng.gen::<Scalar>();
+            let ct_2 = cks.encrypt(clear_2);
+            sks.unchecked_add_assign(&mut ct_1, &ct_2);
+            clear_1 += clear_2;
+        }
+
+        // Sanity decryption checks
+        {
+            let a: Scalar = cks.decrypt(&ct_0);
+            assert_eq!(a, clear_0);
+
+            let b: Scalar = cks.decrypt(&ct_1);
+            assert_eq!(b, clear_1);
+        }
+
+        assert!(!ct_0.block_carries_are_empty());
+        assert!(!ct_1.block_carries_are_empty());
+        let encrypted_result = executor.execute((&ct_0, &ct_1));
+
+        // Sanity decryption checks
+        {
+            let a: Scalar = cks.decrypt(&ct_0);
+            assert_eq!(a, clear_0);
+
+            let b: Scalar = cks.decrypt(&ct_1);
+            assert_eq!(b, clear_1);
+        }
+
+        let decrypted_result: Scalar = cks.decrypt_bool(&encrypted_result).into();
+
+        let expected_result = clear_fn(clear_0, clear_1);
+        assert_eq!(decrypted_result, expected_result);
+    }
+}
+
+/// Function to test a "default" `min`/`max` server_key function.
+///
+/// This calls the `server_key_method` with non-fresh ciphertexts,
+/// that is ciphertexts that have non-zero carries, and compares that the result is
+/// the same as the one of`clear_fn`.
+pub(crate) fn legacy_default_minmax_test<P, T, ClearF, Scalar>(
+    param: P,
+    num_test: usize,
+    mut executor: T,
+    clear_fn: ClearF,
+) where
+    P: Into<TestParameters>,
+    Scalar: UnsignedNumeric
+        + AddAssign<Scalar>
+        + DecomposableInto<u64>
+        + RecomposableFrom<u64>
+        + From<bool>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+    ClearF: Fn(Scalar, Scalar) -> Scalar,
+    Standard: Distribution<Scalar>,
+{
+    let mut rng = rand::thread_rng();
+
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
+    let cks = RadixClientKey::from((cks, num_block));
+
+    executor.setup(&cks, sks.clone());
+
+    assert_eq!(
+        Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
+        0,
+        "bit width must be a multiple of number of bit in a block"
+    );
+
+    for _ in 0..num_test {
+        let mut clear_0 = rng.gen::<Scalar>();
+        let mut clear_1 = rng.gen::<Scalar>();
+        let mut ct_0 = cks.encrypt(clear_0);
+        let mut ct_1 = cks.encrypt(clear_1);
+
+        // Raise the degree, so as to ensure worst case path in operations
+        while ct_0.block_carries_are_empty() {
+            let clear_2 = rng.gen::<Scalar>();
+            let ct_2 = cks.encrypt(clear_2);
+            sks.unchecked_add_assign(&mut ct_0, &ct_2);
+            clear_0 += clear_2;
+        }
+
+        while ct_1.block_carries_are_empty() {
+            let clear_2 = rng.gen::<Scalar>();
+            let ct_2 = cks.encrypt(clear_2);
+            sks.unchecked_add_assign(&mut ct_1, &ct_2);
+            clear_1 += clear_2;
+        }
+
+        // Sanity decryption checks
+        {
+            let a: Scalar = cks.decrypt(&ct_0);
+            assert_eq!(a, clear_0);
+
+            let b: Scalar = cks.decrypt(&ct_1);
+            assert_eq!(b, clear_1);
+        }
+
+        assert!(!ct_0.block_carries_are_empty());
+        assert!(!ct_1.block_carries_are_empty());
+        let encrypted_result = executor.execute((&ct_0, &ct_1));
+        assert!(encrypted_result.block_carries_are_empty());
+
+        // Sanity decryption checks
+        {
+            let a: Scalar = cks.decrypt(&ct_0);
+            assert_eq!(a, clear_0);
+
+            let b: Scalar = cks.decrypt(&ct_1);
+            assert_eq!(b, clear_1);
+        }
+
+        let decrypted_result: Scalar = cks.decrypt(&encrypted_result);
+
+        let expected_result = clear_fn(clear_0, clear_1);
+        assert_eq!(decrypted_result, expected_result);
     }
 }

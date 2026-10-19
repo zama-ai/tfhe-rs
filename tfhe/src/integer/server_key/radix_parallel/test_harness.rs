@@ -1213,6 +1213,19 @@ pub(crate) fn radix_edges_fixed_cases<C: ClearInteger>(
         .collect()
 }
 
+/// Fixed cases for an operation between two radixes of `radix_bits` bits: every edge value
+/// against every other (see [`ClearInteger`]).
+///
+/// The product includes the pairs of equal values, which comparison-like operations treat
+/// specially and random cases practically never draw.
+pub(crate) fn radix_pair_fixed_cases<C: ClearInteger>(
+    size_requirements: SizeRequirements,
+    ctx: &TestContext,
+) -> Vec<(C, C)> {
+    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+    iproduct!(C::radix_edges(radix_bits), C::radix_edges(radix_bits)).collect()
+}
+
 /// Fixed cases for an operation between a radix of `radix_bits` bits and a scalar of type
 /// `T`: the radix edges against the scalar edge values (see [`ClearInteger`]).
 pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(
