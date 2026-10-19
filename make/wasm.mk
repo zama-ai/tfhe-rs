@@ -78,7 +78,7 @@ build_web_js_api_parallel_client: install_rs_check_toolchain install_wasm_pack i
 
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
-	python3 -m venv venv
+	$(call setup_python_venv,venv)
 	@source venv/bin/activate && \
 	pip3 install -r ci/webdriver_requirements.txt
 
