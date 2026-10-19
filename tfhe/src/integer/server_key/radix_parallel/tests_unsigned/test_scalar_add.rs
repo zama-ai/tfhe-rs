@@ -1,5 +1,5 @@
 use crate::integer::server_key::radix_parallel::test_harness::{
-    default_scalar_fixed_cases, ExecuteOn, TestBuilder, TestContext, TestScalar,
+    default_scalar_fixed_cases, ExecuteOn, SizeRequirements, TestBuilder, TestContext, TestScalar,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::default_overflowing_scalar_add_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
@@ -69,7 +69,11 @@ where
 /// against zero, one, the radix maximum and just past it, the negatives whose low
 /// `radix_bits` bits are all set (-1) or all clear (-2ⁿ), just past them, and the scalar
 /// type bounds.
-fn signed_scalar_on_unsigned_radix_cases(radix_bits: u32) -> Vec<(Uint, TestScalar<i64>)> {
+fn signed_scalar_on_unsigned_radix_cases(
+    size_requirements: SizeRequirements,
+    ctx: &TestContext,
+) -> Vec<(Uint, TestScalar<i64>)> {
+    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
     let mut scalars: Vec<i128> = vec![0, 1, -1, -2, i128::from(i64::MIN), i128::from(i64::MAX)];
     if radix_bits < i64::BITS {
         let two_pow_radix_bits = 1i128 << radix_bits;
@@ -134,7 +138,11 @@ where
 {
     let scalar_width = u8::BITS.div_ceil(ctx.bits_per_block());
     TestBuilder::new(ctx)
-        .block_counts(vec![1, scalar_width, scalar_width + 1, 2 * scalar_width])
+        .size_requirements(
+            [1, scalar_width, scalar_width + 1, 2 * scalar_width]
+                .map(SizeRequirements::new_scalar)
+                .to_vec(),
+        )
         .n_random(0)
         .fixed_cases(narrow_scalar_cases)
         .execute(executor, |(lhs, rhs): (Uint, TestScalar<u8>)| {
