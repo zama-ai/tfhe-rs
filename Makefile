@@ -1597,7 +1597,7 @@ test_zk_wasm_x86_compat_ci: check_nvm_installed
 
 .PHONY: test_zk_wasm_x86_compat # Check compatibility between wasm and x86_64 proofs
 test_zk_wasm_x86_compat: build_node_js_api_client
-	cd tfhe/tests/zk_wasm_x86_test && npm install
+	cd tfhe/tests/zk_wasm_x86_test && npm ci
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe --test zk_wasm_x86_test --features=integer,zk-pok
 
@@ -1610,7 +1610,7 @@ test_transciphering_wasm_x86_compat_ci: check_nvm_installed
 
 .PHONY: test_transciphering_wasm_x86_compat # Check compatibility between wasm and x86_64 one-time-pad transciphering
 test_transciphering_wasm_x86_compat: build_node_js_api
-	cd tfhe/tests/transciphering_wasm_x86_test && npm install
+	cd tfhe/tests/transciphering_wasm_x86_test && npm ci
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		-p tfhe --test transciphering_wasm_x86_test --features=integer
 
@@ -1785,7 +1785,7 @@ test_rust_wasm_api:
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api: build_node_js_api
-	cd tfhe/js_on_wasm_tests && npm install && npm run test
+	cd tfhe/js_on_wasm_tests && npm ci && npm run test
 
 .PHONY: test_nodejs_wasm_api_ci # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api_ci: build_node_js_api
@@ -1804,7 +1804,7 @@ build_wasm_par_mq_tests: install_wasm_pack
 
 # This is an internal target, not meant to be called on its own.
 run_wasm_par_mq_tests: build_wasm_par_mq_tests setup_venv
-	cd $(WASM_PAR_MQ_TEST_DIR) && npm install && npm run build
+	cd $(WASM_PAR_MQ_TEST_DIR) && npm ci && npm run build
 	source venv/bin/activate && \
 	python ci/webdriver.py \
 	--browser-path $(browser_path) \
