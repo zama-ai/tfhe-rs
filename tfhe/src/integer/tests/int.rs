@@ -104,6 +104,19 @@ impl Int {
         self.overflowing_scalar_sub(other)
     }
 
+    pub(crate) fn wrapping_neg(self) -> Self {
+        Self::new(self.value.wrapping_neg(), self.bits)
+    }
+
+    /// Negation, which overflows only for the minimum value, whose opposite is one past the
+    /// maximum of the width.
+    pub(crate) fn overflowing_neg(self) -> (Self, bool) {
+        (
+            self.wrapping_neg(),
+            self.value == Self::min_value(self.bits),
+        )
+    }
+
     /// `self + scalar` where `scalar` may have any width: the result is on `self`'s width,
     /// the overflow is that of the exact sum, like the FHE `overflowing_scalar_add`.
     pub(crate) fn overflowing_scalar_add(self, scalar: Self) -> (Self, bool) {
@@ -232,8 +245,15 @@ mod tests {
     #[test]
     fn arithmetic_matches_i8_at_8_bits() {
         for a in i8::MIN..=i8::MAX {
+            let ia = Int::new(a.into(), 8);
+            assert_eq!(ia.wrapping_neg().value(), i128::from(a.wrapping_neg()));
+            let (neg, overflowed) = ia.overflowing_neg();
+            let (expected_neg, expected_overflow) = a.overflowing_neg();
+            assert_eq!(neg.value(), i128::from(expected_neg), "-{a}");
+            assert_eq!(overflowed, expected_overflow, "-{a}");
+
             for b in i8::MIN..=i8::MAX {
-                let (ia, ib) = (Int::new(a.into(), 8), Int::new(b.into(), 8));
+                let ib = Int::new(b.into(), 8);
                 assert_eq!(ia.wrapping_add(ib).value(), i128::from(a.wrapping_add(b)));
                 assert_eq!(ia.wrapping_sub(ib).value(), i128::from(a.wrapping_sub(b)));
                 let (diff, overflowed) = ia.overflowing_sub(ib);
@@ -257,6 +277,11 @@ mod tests {
             Int::min(128).overflowing_sub(Int::one(128)),
             (Int::max(128), true)
         );
+        // Only the negation of the minimum overflows, it is its own opposite
+        assert_eq!(Int::min(6).overflowing_neg(), (Int::min(6), true));
+        assert_eq!(Int::max(6).overflowing_neg(), (Int::new(-31, 6), false));
+        assert_eq!(Int::zero(6).overflowing_neg(), (Int::zero(6), false));
+        assert_eq!(Int::min(128).overflowing_neg(), (Int::min(128), true));
     }
 
     #[test]

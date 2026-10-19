@@ -1201,6 +1201,18 @@ impl<T: ScalarType> TestScalar<T> {
     }
 }
 
+/// Fixed cases for an operation taking a single radix of `radix_bits` bits: its edge values
+/// (see [`ClearInteger`]).
+pub(crate) fn radix_edges_fixed_cases<C: ClearInteger>(
+    size_requirements: SizeRequirements,
+    ctx: &TestContext,
+) -> Vec<(C,)> {
+    C::radix_edges(ctx.radix_bits(size_requirements.n_blocks))
+        .into_iter()
+        .map(|value| (value,))
+        .collect()
+}
+
 /// Fixed cases for an operation between a radix of `radix_bits` bits and a scalar of type
 /// `T`: the radix edges against the scalar edge values (see [`ClearInteger`]).
 pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(

@@ -351,9 +351,9 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if !ct.block_carries_are_empty() {
-            self.full_propagate_parallelized(ct);
-        }
+        // The per block bitnot is an LWE negation plus a plaintext addition, neither of which
+        // lowers the noise, so a noisy input would come out noisy: clean on noise too.
+        self.clean_inplace_for_default_op(ct);
 
         ct.blocks_mut()
             .iter_mut()

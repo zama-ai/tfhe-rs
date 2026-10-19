@@ -2,7 +2,8 @@
 //!
 //! FIXME(gpu): the CPU tests for these operations moved to
 //! `radix_parallel::test_harness` (see `radix_parallel::tests_unsigned::test_add`,
-//! `test_scalar_add`, `test_scalar_shift`, `test_scalar_rotate` and `test_sum`), which also
+//! `test_scalar_add`, `test_scalar_shift`, `test_scalar_rotate`, `test_sum` and `test_neg`),
+//! which also
 //! exercises inputs at the maximum degree and noise level.
 //! The GPU full propagation cannot take blocks at the maximum degree yet.
 //! Once it is aligned with the CPU one point the GPU wrappers at the harness
@@ -601,5 +602,145 @@ where
             let ct_res_2 = executor.execute(&ctxts).unwrap();
             assert_eq!(ct_res, ct_res_2, "Failed determinism check");
         }
+    }
+}
+
+pub(crate) fn legacy_default_neg_test<P, T>(param: P, mut neg: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks.clone());
+
+    let mut rng = rand::thread_rng();
+
+    neg.setup(&cks, sks.clone());
+
+    let cks: crate::integer::ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
+
+        for _ in 0..nb_tests_smaller {
+            let mut clear = rng.gen_range(0..modulus);
+            let mut ctxt = cks.encrypt_radix(clear, num_blocks);
+
+            let ct_res = neg.execute(&ctxt);
+            panic_if_any_block_is_not_clean(&ct_res, &cks);
+
+            let dec_ct: u64 = cks.decrypt_radix(&ct_res);
+            let expected = clear.wrapping_neg() % modulus;
+            assert_eq!(
+                dec_ct, expected,
+                "Invalid result for neg({clear}),\n\
+                Expected {expected}, got {dec_ct}\n\
+                num_blocks: {num_blocks}, modulus: {modulus}"
+            );
+
+            let ct_res2 = neg.execute(&ctxt);
+            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+
+            // Test with non clean carries
+            let random_non_zero = random_non_zero_value(&mut rng, modulus);
+            sks.unchecked_scalar_add_assign(&mut ctxt, random_non_zero);
+            clear = clear.wrapping_add(random_non_zero) % modulus;
+
+            let ct_res = neg.execute(&ctxt);
+            panic_if_any_block_is_not_clean(&ct_res, &cks);
+
+            let dec_ct: u64 = cks.decrypt_radix(&ct_res);
+            let expected = clear.wrapping_neg() % modulus;
+            assert_eq!(
+                dec_ct, expected,
+                "Invalid result for neg({clear}),\n\
+                Expected {expected}, got {dec_ct}\n\
+                num_blocks: {num_blocks}, modulus: {modulus}"
+            );
+            let ct_res2 = neg.execute(&ctxt);
+            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+        }
+    }
+}
+
+pub(crate) fn legacy_default_overflowing_neg_test<P, T>(param: P, mut overflowing_neg: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<&'a RadixCiphertext, (RadixCiphertext, BooleanBlock)>,
+{
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    overflowing_neg.setup(&cks, sks);
+
+    let cks: crate::integer::ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
+
+        for _ in 0..nb_tests_smaller {
+            let clear = rng.gen_range(1..modulus);
+            let ctxt = cks.encrypt_radix(clear, num_blocks);
+
+            let (ct_res, flag) = overflowing_neg.execute(&ctxt);
+
+            panic_if_any_block_is_not_clean(&ct_res, &cks);
+            assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
+            assert_eq!(flag.0.degree.get(), 1);
+
+            let dec_flag = cks.decrypt_bool(&flag);
+            assert!(
+                dec_flag,
+                "Invalid value for overflowing_neg flag, expected true, got false"
+            );
+
+            let dec_ct: u64 = cks.decrypt_radix(&ct_res);
+            let expected = clear.wrapping_neg() % modulus;
+            assert_eq!(
+                dec_ct, expected,
+                "Invalid result for overflowing_neg({clear}),\n\
+                Expected {expected}, got {dec_ct}\n\
+                num_blocks: {num_blocks}, modulus: {modulus}"
+            );
+
+            let (ct_res2, flag2) = overflowing_neg.execute(&ctxt);
+            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(flag, flag2, "Failed determinism check");
+        }
+
+        // The only case where unsigned neg does not overflows
+        let ctxt = cks.encrypt_radix(0u32, num_blocks);
+
+        let (ct_res, flag) = overflowing_neg.execute(&ctxt);
+
+        panic_if_any_block_is_not_clean(&ct_res, &cks);
+        assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
+        assert_eq!(flag.0.degree.get(), 1);
+
+        let dec_flag = cks.decrypt_bool(&flag);
+        assert!(
+            !dec_flag,
+            "Invalid value for overflowing_neg flag, expected false, got true"
+        );
+
+        let dec_ct: u64 = cks.decrypt_radix(&ct_res);
+        assert_eq!(
+            dec_ct, 0,
+            "Invalid result for overflowing_neg(0),\n\
+                Expected 0, got {dec_ct}\n\
+                num_blocks: {num_blocks}, modulus: {modulus}"
+        );
     }
 }

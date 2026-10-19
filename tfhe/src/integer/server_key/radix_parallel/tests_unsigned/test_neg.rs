@@ -1,13 +1,16 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix::neg::NegatedDegreeIter;
+use crate::integer::server_key::radix_parallel::test_harness::{
+    radix_edges_fixed_cases, ExecuteOn, TestBuilder, TestContext,
+};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params,
-    panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
-    panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
-    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT,
+    nb_tests_for_params, panic_if_any_block_info_exceeds_max_degree_or_noise,
+    panic_if_any_block_values_exceeds_its_degree, unsigned_modulus, CpuFunctionExecutor,
+    ExpectedDegrees, ExpectedNoiseLevels,
 };
 use crate::integer::tests::create_parameterized_test;
+use crate::integer::tests::uint::Uint;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
@@ -25,16 +28,20 @@ fn integer_default_neg<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::neg_parallelized);
-    default_neg_test(param, executor);
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::neg_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    default_neg_test(&ctx, executor);
 }
 
 fn integer_default_overflowing_neg<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::overflowing_neg_parallelized);
-    default_overflowing_neg_test(param, executor);
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::overflowing_neg_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    default_overflowing_neg_test(&ctx, executor);
 }
 
 impl ExpectedDegrees {
@@ -112,144 +119,24 @@ where
 // Default Tests
 //=============================================================================
 
-pub(crate) fn default_neg_test<P, T>(param: P, mut neg: T)
+pub(crate) fn default_neg_test<E>(ctx: &TestContext, executor: E)
 where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
+    E: ExecuteOn<(RadixCiphertext,), RadixCiphertext>,
 {
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks.clone());
-
-    let mut rng = rand::thread_rng();
-
-    neg.setup(&cks, sks.clone());
-
-    let cks: crate::integer::ClientKey = cks.into();
-
-    for num_blocks in 1..MAX_NB_CTXT {
-        let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
-
-        for _ in 0..nb_tests_smaller {
-            let mut clear = rng.gen_range(0..modulus);
-            let mut ctxt = cks.encrypt_radix(clear, num_blocks);
-
-            let ct_res = neg.execute(&ctxt);
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
-
-            let dec_ct: u64 = cks.decrypt_radix(&ct_res);
-            let expected = clear.wrapping_neg() % modulus;
-            assert_eq!(
-                dec_ct, expected,
-                "Invalid result for neg({clear}),\n\
-                Expected {expected}, got {dec_ct}\n\
-                num_blocks: {num_blocks}, modulus: {modulus}"
-            );
-
-            let ct_res2 = neg.execute(&ctxt);
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
-
-            // Test with non clean carries
-            let random_non_zero = random_non_zero_value(&mut rng, modulus);
-            sks.unchecked_scalar_add_assign(&mut ctxt, random_non_zero);
-            clear = clear.wrapping_add(random_non_zero) % modulus;
-
-            let ct_res = neg.execute(&ctxt);
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
-
-            let dec_ct: u64 = cks.decrypt_radix(&ct_res);
-            let expected = clear.wrapping_neg() % modulus;
-            assert_eq!(
-                dec_ct, expected,
-                "Invalid result for neg({clear}),\n\
-                Expected {expected}, got {dec_ct}\n\
-                num_blocks: {num_blocks}, modulus: {modulus}"
-            );
-            let ct_res2 = neg.execute(&ctxt);
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
-        }
-    }
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(radix_edges_fixed_cases::<Uint>)
+        .execute(executor, |(value,): (Uint,)| value.wrapping_neg());
 }
 
-pub(crate) fn default_overflowing_neg_test<P, T>(param: P, mut overflowing_neg: T)
+pub(crate) fn default_overflowing_neg_test<E>(ctx: &TestContext, executor: E)
 where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<&'a RadixCiphertext, (RadixCiphertext, BooleanBlock)>,
+    E: ExecuteOn<(RadixCiphertext,), (RadixCiphertext, BooleanBlock)>,
 {
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    overflowing_neg.setup(&cks, sks);
-
-    let cks: crate::integer::ClientKey = cks.into();
-
-    for num_blocks in 1..MAX_NB_CTXT {
-        let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
-
-        for _ in 0..nb_tests_smaller {
-            let clear = rng.gen_range(1..modulus);
-            let ctxt = cks.encrypt_radix(clear, num_blocks);
-
-            let (ct_res, flag) = overflowing_neg.execute(&ctxt);
-
-            panic_if_any_block_is_not_clean(&ct_res, &cks);
-            assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
-            assert_eq!(flag.0.degree.get(), 1);
-
-            let dec_flag = cks.decrypt_bool(&flag);
-            assert!(
-                dec_flag,
-                "Invalid value for overflowing_neg flag, expected true, got false"
-            );
-
-            let dec_ct: u64 = cks.decrypt_radix(&ct_res);
-            let expected = clear.wrapping_neg() % modulus;
-            assert_eq!(
-                dec_ct, expected,
-                "Invalid result for overflowing_neg({clear}),\n\
-                Expected {expected}, got {dec_ct}\n\
-                num_blocks: {num_blocks}, modulus: {modulus}"
-            );
-
-            let (ct_res2, flag2) = overflowing_neg.execute(&ctxt);
-            assert_eq!(ct_res, ct_res2, "Failed determinism check");
-            assert_eq!(flag, flag2, "Failed determinism check");
-        }
-
-        // The only case where unsigned neg does not overflows
-        let ctxt = cks.encrypt_radix(0u32, num_blocks);
-
-        let (ct_res, flag) = overflowing_neg.execute(&ctxt);
-
-        panic_if_any_block_is_not_clean(&ct_res, &cks);
-        assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
-        assert_eq!(flag.0.degree.get(), 1);
-
-        let dec_flag = cks.decrypt_bool(&flag);
-        assert!(
-            !dec_flag,
-            "Invalid value for overflowing_neg flag, expected false, got true"
-        );
-
-        let dec_ct: u64 = cks.decrypt_radix(&ct_res);
-        assert_eq!(
-            dec_ct, 0,
-            "Invalid result for overflowing_neg(0),\n\
-                Expected 0, got {dec_ct}\n\
-                num_blocks: {num_blocks}, modulus: {modulus}"
-        );
-    }
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(radix_edges_fixed_cases::<Uint>)
+        .execute(executor, |(value,): (Uint,)| value.overflowing_neg());
 }
 
 //=============================================================================
@@ -328,8 +215,8 @@ where
         panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
     }
 
-    // `neg_parallelized` uses `is_neg_possible` to avoid pre-cleaning if possible,
-    // which mean is_neg_possible must be correct.
+    // `neg_parallelized` cleans its input, so it must return the right value even for block
+    // degrees the unchecked negation cannot handle, i.e. the ones `is_neg_possible` rejects.
     //
     // neg_parallelized should not return an output that has its padding bit set
     {
@@ -343,7 +230,7 @@ where
         let ctxt = radix_with_degrees_and_values(&cks, &degrees, &values);
         assert!(
             !ctxt.block_carries_are_empty(),
-            "the input must have carries, else neg_parallelized does not consult is_neg_possible"
+            "the input must have carries, so that it goes through the cleaning preamble"
         );
 
         assert!(
