@@ -129,7 +129,7 @@ install_firefox_web_driver: install_web_resource
 
 # This is an internal target, not meant to be called on its own.
 run_web_js_api_parallel: build_web_js_api_parallel build_benchmark_spec_js setup_venv
-	cd $(WEB_SERVER_DIR) && npm install && npm run build
+	cd $(WEB_SERVER_DIR) && npm ci && npm run build
 	source venv/bin/activate && \
 	python ci/webdriver.py \
 	--browser-path $(browser_path) \
@@ -142,7 +142,7 @@ run_web_js_api_parallel: build_web_js_api_parallel build_benchmark_spec_js setup
 
 # This is an internal target, not meant to be called on its own.
 run_web_js_api_cross_origin: build_web_js_api build_benchmark_spec_js setup_venv
-	cd $(WEB_SERVER_DIR) && npm install && npm run build
+	cd $(WEB_SERVER_DIR) && npm ci && npm run build
 	source venv/bin/activate && \
 	python ci/webdriver.py \
 	--browser-path $(browser_path) \
