@@ -248,14 +248,14 @@ jobs:
           HARDWARE_NAME: ${{ inputs.hardware_name }}
 
       - name: Upload parsed results artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Upload protocol results table
         if: ${{ contains(matrix.command, 'protocol') }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ github.sha }}_protocol_table_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.params_type }}
           path: ${{ env.PROTOCOL_TABLE_CSV }}
