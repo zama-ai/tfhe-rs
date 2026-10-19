@@ -73,6 +73,14 @@ impl Uint {
         self.assert_same_width(other);
         Self::new(self.value.wrapping_sub(other.value), self.bits)
     }
+    pub(crate) fn wrapping_neg(self) -> Self {
+        Self::new(self.value.wrapping_neg(), self.bits)
+    }
+    /// Negation, which overflows for every value but zero: `-x` is representable on an
+    /// unsigned width only when `x` is zero.
+    pub(crate) fn overflowing_neg(self) -> (Self, bool) {
+        (self.wrapping_neg(), self.value != 0)
+    }
     pub(crate) fn overflowing_add(self, other: Self) -> (Self, bool) {
         self.assert_same_width(other);
         let overflowed = self
@@ -194,8 +202,15 @@ mod tests {
     fn arithmetic_matches_u8_at_8_bits() {
         let values: [u8; 7] = [0, 1, 2, 127, 128, 254, 255];
         for &a in &values {
+            let ua = Uint::new(a.into(), 8);
+            assert_eq!(ua.wrapping_neg().value(), u128::from(a.wrapping_neg()));
+            let (neg, overflowed) = ua.overflowing_neg();
+            let (expected_neg, expected_overflow) = a.overflowing_neg();
+            assert_eq!(neg.value(), u128::from(expected_neg), "-{a}");
+            assert_eq!(overflowed, expected_overflow, "-{a}");
+
             for &b in &values {
-                let (ua, ub) = (Uint::new(a.into(), 8), Uint::new(b.into(), 8));
+                let ub = Uint::new(b.into(), 8);
                 assert_eq!(ua.wrapping_add(ub).value(), u128::from(a.wrapping_add(b)));
                 assert_eq!(ua.wrapping_sub(ub).value(), u128::from(a.wrapping_sub(b)));
                 let (sum, overflowed) = ua.overflowing_add(ub);
@@ -223,6 +238,11 @@ mod tests {
             Uint::max(128).overflowing_add(Uint::one(128)),
             (Uint::zero(128), true)
         );
+        // Only the negation of zero does not overflow
+        assert_eq!(Uint::zero(6).overflowing_neg(), (Uint::zero(6), false));
+        assert_eq!(one.overflowing_neg(), (max, true));
+        assert_eq!(max.overflowing_neg(), (one, true));
+        assert_eq!(Uint::max(128).overflowing_neg(), (Uint::one(128), true));
     }
 
     #[test]

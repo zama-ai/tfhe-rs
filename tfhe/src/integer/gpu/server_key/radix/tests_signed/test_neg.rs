@@ -1,10 +1,11 @@
+use super::legacy_default_tests::{
+    legacy_signed_default_neg_test, legacy_signed_default_overflowing_neg_test,
+};
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::server_key::radix_parallel::tests_signed::test_neg::{
-    default_overflowing_neg_test, signed_default_neg_test, signed_unchecked_neg_test,
-};
+use crate::integer::server_key::radix_parallel::tests_signed::test_neg::signed_unchecked_neg_test;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
@@ -25,10 +26,10 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::neg);
-    signed_default_neg_test(param, executor);
+    legacy_signed_default_neg_test(param, executor);
 }
 
 fn integer_overflowing_neg(param: impl Into<TestParameters>) {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::overflowing_neg);
-    default_overflowing_neg_test(param, executor);
+    legacy_signed_default_overflowing_neg_test(param, executor);
 }

@@ -2,7 +2,7 @@
 //!
 //! FIXME(gpu): the CPU tests for these operations moved to `radix_parallel::test_harness`
 //! (see `radix_parallel::tests_signed::test_scalar_shift`, `test_scalar_rotate`,
-//! `test_scalar_add` and `test_scalar_sub`), which also exercises inputs at the maximum
+//! `test_scalar_add`, `test_scalar_sub` and `test_neg`), which also exercises inputs at the maximum
 //! degree and noise level. The GPU full propagation cannot take blocks at the maximum degree
 //! yet. The overflowing scalar tests also cover scalars that fit the radix blocks but not
 //! the signed range, for which the GPU implementations return the opposite overflow flag:
@@ -13,8 +13,9 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
     random_non_zero_value, rotate_left_helper, rotate_right_helper, signed_add_under_modulus,
-    signed_left_shift_under_modulus, signed_overflowing_add_under_modulus,
-    signed_overflowing_sub_under_modulus, signed_right_shift_under_modulus,
+    signed_left_shift_under_modulus, signed_neg_under_modulus,
+    signed_overflowing_add_under_modulus, signed_overflowing_sub_under_modulus,
+    signed_right_shift_under_modulus,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, MAX_NB_CTXT, NB_CTXT,
@@ -652,5 +653,153 @@ where
             assert_eq!(encrypted_overflow.0.degree.get(), 1);
             assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
         }
+    }
+}
+
+pub(crate) fn legacy_signed_default_neg_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    sks.set_deterministic_pbs_execution(true);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    executor.setup(&cks, sks);
+
+    // -modulus is a special case, its negation cannot be
+    // represented. rust by default returns -modulus
+    // (which is what two complement result in)
+    {
+        let clear = -modulus;
+        let ctxt = cks.encrypt_signed(clear);
+
+        let ct_res = executor.execute(&ctxt);
+        let tmp = executor.execute(&ctxt);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+
+        let dec: i64 = cks.decrypt_signed(&ct_res);
+        let clear_result = signed_neg_under_modulus(clear, modulus);
+
+        assert_eq!(clear_result, dec);
+    }
+
+    for _ in 0..nb_tests_smaller {
+        let clear = rng.gen::<i64>() % modulus;
+
+        let ctxt = cks.encrypt_signed(clear);
+
+        let ct_res = executor.execute(&ctxt);
+        let tmp = executor.execute(&ctxt);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp);
+
+        let dec: i64 = cks.decrypt_signed(&ct_res);
+        let clear_result = signed_neg_under_modulus(clear, modulus);
+
+        assert_eq!(clear_result, dec);
+    }
+}
+
+pub(crate) fn legacy_signed_default_overflowing_neg_test<P, T>(param: P, mut overflowing_neg: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, (SignedRadixCiphertext, BooleanBlock)>,
+{
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((
+        cks,
+        crate::integer::server_key::radix_parallel::tests_cases_unsigned::NB_CTXT,
+    ));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    overflowing_neg.setup(&cks, sks);
+
+    let cks: crate::integer::ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
+
+        if modulus <= 1 {
+            continue;
+        }
+
+        for _ in 0..nb_tests_smaller {
+            let clear = rng.gen_range(-modulus + 1..modulus);
+            let ctxt = cks.encrypt_signed_radix(clear, num_blocks);
+
+            let (ct_res, flag) = overflowing_neg.execute(&ctxt);
+
+            assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
+            assert_eq!(flag.0.degree.get(), 1);
+
+            let dec_flag = cks.decrypt_bool(&flag);
+            assert!(
+                !dec_flag,
+                "Invalid flag result for overflowing_neg({clear}),\n\
+                Expected false, got true\n\
+                num_blocks: {num_blocks}, modulus: {:?}",
+                -modulus..modulus
+            );
+
+            let dec_ct: i64 = cks.decrypt_signed_radix(&ct_res);
+            let expected = clear.wrapping_neg() % modulus;
+            assert_eq!(
+                dec_ct,
+                expected,
+                "Invalid result for overflowing_neg({clear}),\n\
+                Expected {expected}, got {dec_ct}\n\
+                num_blocks: {num_blocks}, modulus: {:?}",
+                -modulus..modulus
+            );
+
+            let (ct_res2, flag2) = overflowing_neg.execute(&ctxt);
+            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+            assert_eq!(flag, flag2, "Failed determinism check");
+        }
+
+        // The only case where signed neg does overflows
+        let ctxt = cks.encrypt_signed_radix(-modulus, num_blocks);
+
+        let (ct_res, flag) = overflowing_neg.execute(&ctxt);
+
+        assert_eq!(flag.0.noise_level(), NoiseLevel::NOMINAL);
+        assert_eq!(flag.0.degree.get(), 1);
+
+        let dec_flag = cks.decrypt_bool(&flag);
+        assert!(
+            dec_flag,
+            "Invalid flag result for overflowing_neg({}),\n\
+            Expected true, got false\n\
+            num_blocks: {num_blocks}, modulus: {:?}",
+            -modulus,
+            -modulus..modulus
+        );
+
+        let dec_ct: i64 = cks.decrypt_signed_radix(&ct_res);
+        assert_eq!(
+            dec_ct,
+            -modulus,
+            "Invalid result for overflowing_neg({}),\n\
+            Expected {}, got {dec_ct}\n\
+            num_blocks: {num_blocks}, modulus: {:?}",
+            -modulus,
+            -modulus,
+            -modulus..modulus
+        );
     }
 }
