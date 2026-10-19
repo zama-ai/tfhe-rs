@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    default_scalar_fixed_cases, ExecuteOn, TestBuilder, TestContext, TestScalar,
+    default_scalar_fixed_cases, ExecuteOn, SizeRequirements, TestBuilder, TestContext, TestScalar,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_scalar_sub_test, FunctionExecutor,
@@ -93,7 +93,11 @@ where
 {
     let scalar_width = u8::BITS.div_ceil(ctx.bits_per_block());
     TestBuilder::new(ctx)
-        .block_counts(vec![1, scalar_width, scalar_width + 1, 2 * scalar_width])
+        .size_requirements(
+            [1, scalar_width, scalar_width + 1, 2 * scalar_width]
+                .map(SizeRequirements::new_scalar)
+                .to_vec(),
+        )
         .n_random(0)
         .fixed_cases(narrow_scalar_cases)
         .execute(executor, |(lhs, rhs): (Uint, TestScalar<u8>)| {
