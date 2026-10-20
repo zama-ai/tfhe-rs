@@ -1,6 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    shift_amount_fixed_cases, ExecuteOn, TestBuilder, TestContext, TestScalar,
+    scalar_shift_amount_fixed_cases, ExecuteOn, ShiftAmount, ShiftAmountOperand, TestBuilder,
+    TestContext,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
@@ -44,13 +45,13 @@ where
 
 pub(crate) fn signed_default_scalar_left_shift_test<E>(ctx: &TestContext, executor: E)
 where
-    E: ExecuteOn<(SignedRadixCiphertext, u128), SignedRadixCiphertext>,
+    E: ExecuteOn<(SignedRadixCiphertext, ShiftAmountOperand<u128>), SignedRadixCiphertext>,
 {
     TestBuilder::new(ctx)
         .n_random(4)
-        .fixed_cases(shift_amount_fixed_cases::<Int>)
-        .execute(executor, |(lhs, amount): (Int, TestScalar<u128>)| {
-            lhs.shl(amount.clear().value())
+        .fixed_cases(scalar_shift_amount_fixed_cases::<Int, u128>)
+        .execute(executor, |(lhs, amount): (Int, ShiftAmount<u128>)| {
+            lhs.shl(amount.value())
         });
 }
 
@@ -74,13 +75,13 @@ where
 
 pub(crate) fn signed_default_scalar_right_shift_test<E>(ctx: &TestContext, executor: E)
 where
-    E: ExecuteOn<(SignedRadixCiphertext, u128), SignedRadixCiphertext>,
+    E: ExecuteOn<(SignedRadixCiphertext, ShiftAmountOperand<u128>), SignedRadixCiphertext>,
 {
     TestBuilder::new(ctx)
         .n_random(4)
-        .fixed_cases(shift_amount_fixed_cases::<Int>)
-        .execute(executor, |(lhs, amount): (Int, TestScalar<u128>)| {
-            lhs.shr(amount.clear().value())
+        .fixed_cases(scalar_shift_amount_fixed_cases::<Int, u128>)
+        .execute(executor, |(lhs, amount): (Int, ShiftAmount<u128>)| {
+            lhs.shr(amount.value())
         });
 }
 pub(crate) fn signed_unchecked_scalar_left_shift_test<P, T>(param: P, mut executor: T)

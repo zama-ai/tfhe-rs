@@ -2,8 +2,9 @@
 //!
 //! FIXME(gpu): the CPU tests for these operations moved to
 //! `radix_parallel::test_harness` (see `radix_parallel::tests_unsigned::test_add`,
-//! `test_scalar_add`, `test_scalar_shift`, `test_scalar_rotate`, `test_sum`, `test_neg` and
-//! `test_comparison`), which also exercises inputs at the maximum degree and noise level.
+//! `test_scalar_add`, `test_scalar_shift`, `test_scalar_rotate`, `test_shift`, `test_rotate`,
+//! `test_sum`, `test_neg` and `test_comparison`), which also exercises inputs at the maximum
+//! degree and noise level.
 //! The GPU full propagation cannot take blocks at the maximum degree yet.
 //! Once it is aligned with the CPU one point the GPU wrappers at the harness
 //! tests and delete this file.
@@ -14,10 +15,11 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, overflowing_add_under_modulus,
-    panic_if_any_block_is_not_clean, random_non_zero_value, rotate_left_helper,
-    rotate_right_helper, unsigned_modulus, MAX_NB_CTXT, NB_CTXT,
+    panic_if_any_block_is_not_clean, panic_if_any_block_is_not_clean_or_trivial,
+    random_non_zero_value, rotate_left_helper, rotate_right_helper, unsigned_modulus, MAX_NB_CTXT,
+    NB_CTXT,
 };
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey};
+use crate::integer::{BooleanBlock, ClientKey, IntegerKeyKind, RadixCiphertext, RadixClientKey};
 use crate::shortint::parameters::*;
 use rand::distributions::Standard;
 use rand::prelude::*;
@@ -918,5 +920,236 @@ pub(crate) fn legacy_default_minmax_test<P, T, ClearF, Scalar>(
 
         let expected_result = clear_fn(clear_0, clear_1);
         assert_eq!(decrypted_result, expected_result);
+    }
+}
+
+pub(crate) fn legacy_default_left_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_smaller_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let cks: ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
+        assert!(modulus.is_power_of_two());
+        let nb_bits = modulus.ilog2();
+        for _ in 0..nb_tests {
+            let clear = rng.gen::<u64>() % modulus;
+            let clear_shift = rng.gen::<u32>();
+
+            let ct = cks.encrypt_radix(clear, num_blocks);
+
+            // case when 0 <= shift < nb_bits
+            {
+                let clear_shift = clear_shift % nb_bits;
+                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
+
+                let encrypted_result = executor.execute((&ct, &shift));
+                for (i, b) in encrypted_result.blocks.iter().enumerate() {
+                    if b.noise_level() > NoiseLevel::NOMINAL {
+                        println!("{i}: {:?}", b.noise_level());
+                    }
+                }
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+                assert_eq!((clear << clear_shift) % modulus, decrypted_result);
+            }
+
+            // case when shift >= nb_bits
+            {
+                let clear_shift = rng.gen_range(nb_bits..modulus as u32);
+                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
+
+                let encrypted_result = executor.execute((&ct, &shift));
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+                // A shift >= nb_bits is an overshift and must return 0
+                assert_eq!(0, decrypted_result);
+            }
+        }
+    }
+}
+
+pub(crate) fn legacy_default_right_shift_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_smaller_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let cks: ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
+        assert!(modulus.is_power_of_two());
+        let nb_bits = modulus.ilog2();
+        for _ in 0..nb_tests {
+            let clear = rng.gen::<u64>() % modulus;
+            let clear_shift = rng.gen::<u32>();
+
+            let ct = cks.encrypt_radix(clear, num_blocks);
+
+            // case when 0 <= shift < nb_bits
+            {
+                let clear_shift = clear_shift % nb_bits;
+                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
+                let encrypted_result = executor.execute((&ct, &shift));
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+                assert_eq!((clear >> clear_shift) % modulus, decrypted_result);
+            }
+
+            // case when shift >= nb_bits
+            {
+                let clear_shift = rng.gen_range(nb_bits..modulus as u32);
+                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
+                let encrypted_result = executor.execute((&ct, &shift));
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+                // A shift >= nb_bits is an overshift and must return 0
+                assert_eq!(0, decrypted_result, "Invalid result for {clear} << {clear_shift}, expected 0, got {decrypted_result}");
+            }
+        }
+    }
+}
+
+pub(crate) fn legacy_default_rotate_left_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_smaller_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let cks: ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
+        assert!(modulus.is_power_of_two());
+        let nb_bits = modulus.ilog2();
+        for _ in 0..nb_tests {
+            let clear = rng.gen::<u64>() % modulus;
+            let clear_shift = rng.gen::<u32>();
+
+            let ct = cks.encrypt_radix(clear, num_blocks);
+
+            // case when 0 <= rotate < nb_bits
+            {
+                let clear_shift = clear_shift % nb_bits;
+                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
+                let encrypted_result = executor.execute((&ct, &shift));
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+                let expected = rotate_left_helper(clear, clear_shift, nb_bits);
+                assert_eq!(expected, decrypted_result);
+            }
+
+            // case when shift >= nb_bits
+            {
+                let clear_shift = rng.gen_range(nb_bits..modulus as u32);
+                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
+                let encrypted_result = executor.execute((&ct, &shift));
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+                // When nb_bits is not a power of two
+                // then the behaviour is not the same
+                let true_nb_bits = nb_bits;
+                let mut nb_bits = nb_bits;
+                if !nb_bits.is_power_of_two() {
+                    nb_bits = nb_bits.next_power_of_two();
+                }
+                let expected = rotate_left_helper(clear, clear_shift % nb_bits, true_nb_bits);
+                assert_eq!(expected, decrypted_result);
+            }
+        }
+    }
+}
+
+pub(crate) fn legacy_default_rotate_right_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_smaller_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let cks: ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
+        assert!(modulus.is_power_of_two());
+        let nb_bits = modulus.ilog2();
+        for _ in 0..nb_tests {
+            let clear = rng.gen::<u64>() % modulus;
+            let clear_shift = rng.gen::<u32>();
+
+            let ct = cks.encrypt_radix(clear, num_blocks);
+
+            // case when 0 <= rotate < nb_bits
+            {
+                let clear_shift = clear_shift % nb_bits;
+                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
+                let encrypted_result = executor.execute((&ct, &shift));
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+                let expected = rotate_right_helper(clear, clear_shift, nb_bits);
+                assert_eq!(expected, decrypted_result);
+            }
+
+            // case when shift >= nb_bits
+            {
+                let clear_shift = rng.gen_range(nb_bits..modulus as u32);
+                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
+                let encrypted_result = executor.execute((&ct, &shift));
+                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
+                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
+                // When nb_bits is not a power of two
+                // then the behaviour is not the same
+                let true_nb_bits = nb_bits;
+                let mut nb_bits = nb_bits;
+                if !nb_bits.is_power_of_two() {
+                    nb_bits = nb_bits.next_power_of_two();
+                }
+                let expected = rotate_right_helper(clear, clear_shift % nb_bits, true_nb_bits);
+                assert_eq!(expected, decrypted_result);
+            }
+        }
     }
 }
