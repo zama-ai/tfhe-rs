@@ -224,11 +224,8 @@ impl ServerKey {
 
         let num_bits = ct.blocks().len() * message_bits_per_block as usize;
         let mut max_num_bits_that_tell_shift = num_bits.ilog2() as u64;
-        // This effectively means, that if the block parameters
-        // give a total_nb_bits that is not a power of two,
-        // then the behaviour of shifting won't be the same
-        // if shift >= total_nb_bits compared to when total_nb_bits
-        // is a power of two, as will 'capture' more bits in `shift_bits`
+        // ⌈log₂(num_bits)⌉: the bits of the amount the shifter reads. Shifts decide overshifts
+        // on the whole amount, rotations reduce the amount modulo `num_bits` beforehand
         if !num_bits.is_power_of_two() {
             max_num_bits_that_tell_shift += 1;
         }
@@ -1005,11 +1002,8 @@ impl ServerKey {
             },
             || {
                 let mut max_num_bits_that_tell_shift = total_nb_bits.ilog2() as u64;
-                // This effectively means, that if the block parameters
-                // give a total_nb_bits that is not a power of two,
-                // then the behaviour of shifting won't be the same
-                // if shift >= total_nb_bits compared to when total_nb_bits
-                // is a power of two, as will 'capture' more bits in `shift_bits`
+                // ⌈log₂(total_nb_bits)⌉: the bits of the amount the shifter reads, see
+                // `unchecked_shift_rotate_bits_assign`
                 if !total_nb_bits.is_power_of_two() {
                     max_num_bits_that_tell_shift += 1;
                 }
