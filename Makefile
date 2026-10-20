@@ -378,6 +378,11 @@ check_documentation_up_to_date_gpu:
 	python3 -m venv venv
 	@source venv/bin/activate && python ci/check_doxygen_gpu.py
 
+.PHONY: gpu_workflows_report_pdf # Generate a PDF table of GPU CI workflows from workflow YAML files
+gpu_workflows_report_pdf:
+	python3 ci/gpu_workflows_table.py | python3 ci/csv_to_ods.py workflows_auto.ods
+	libreoffice --headless --convert-to pdf workflows_auto.ods
+
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
@@ -418,7 +423,7 @@ check_fmt_toml: install_taplo
 
 .PHONY: check_typos # Check for typos in codebase
 check_typos: install_typos_checker
-	@git ls-files ":!*.png" ":!*.cbor" ":!*.bcode" ":!*.ico" ":!*/twiddles.cu" ":!*/fft16x4x16_twiddles.cuh" ":!*/test_cpu_gpu_fft16x4x16.cpp" ":!*/test_cpu_gpu_ifft16x4x16.cpp" ":!*.hpu" ":!*/pbs128_golden_data/*.rs" | typos --file-list - && echo "No typos found"
+	@git ls-files ":!*.png" ":!*.cbor" ":!*.bcode" ":!*.ico" ":!*/twiddles.cu" ":!*/fft16x4x16_twiddles.cuh" ":!*/test_cpu_gpu_fft16x4x16.cpp" ":!*/test_cpu_gpu_ifft16x4x16.cpp" ":!*.hpu" ":!*/pbs128_golden_data/*.rs" ":!ci/csv_to_ods.py" | typos --file-list - && echo "No typos found"
 
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
