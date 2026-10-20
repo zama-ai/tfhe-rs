@@ -1,6 +1,5 @@
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::LweCiphertextCount;
 use crate::error::error;
 use crate::integer::ciphertext::{
@@ -51,29 +50,8 @@ impl CudaCompressedSquashedNoiseCiphertextList {
         };
 
         // Extract the packed list
-        let vec_packed_integers = self.packed_list.to_vec_packed_integers(streams)?;
+        let glwe_ciphertext_list = self.packed_list.to_compressed_glwe_list(streams)?;
         let lwe_per_glwe = gpu_meta.lwe_per_glwe;
-        let total_num_lwes = gpu_meta.total_lwe_bodies_count;
-
-        let glwe_ciphertext_list = vec_packed_integers
-            .into_iter()
-            .enumerate()
-            .map(|(pack_index, packed_integers)| {
-                // Calculate number of LWEs for this GLWE
-                let num_lwes = std::cmp::min(
-                    lwe_per_glwe.get(),
-                    total_num_lwes - pack_index * lwe_per_glwe.get(),
-                );
-
-                CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
-                    packed_integers,
-                    gpu_meta.glwe_dimension,
-                    gpu_meta.polynomial_size,
-                    LweCiphertextCount(num_lwes),
-                    gpu_meta.ciphertext_modulus,
-                )
-            })
-            .collect_vec();
 
         // Extract the metadata
         let meta = Some(CompressedSquashedNoiseCiphertextListMeta {
@@ -454,8 +432,12 @@ impl CudaCompressedSquashedNoiseCiphertextList {
 
 #[cfg(test)]
 mod test {
+    use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::gpu::CudaStreams;
-    use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
+    use crate::integer::ciphertext::{
+        CompressedSquashedNoiseCiphertextList, NoiseSquashingCompressionPrivateKey,
+        SquashedNoiseRadixCiphertext,
+    };
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use crate::integer::gpu::ciphertext::squashed_noise::{
         CudaSquashedNoiseBooleanBlock, CudaSquashedNoiseRadixCiphertext,
@@ -468,12 +450,13 @@ mod test {
     use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
     use crate::integer::gpu::{gen_keys_radix_gpu, CudaServerKey};
     use crate::integer::noise_squashing::NoiseSquashingPrivateKey;
-    use crate::integer::{ClientKey, CompressedServerKey};
+    use crate::integer::{ClientKey, CompressedServerKey, RadixClientKey};
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    use crate::shortint::parameters::CompressedSquashedNoiseCiphertextListConformanceParams;
     use crate::shortint::ShortintParameterSet;
     use itertools::Itertools;
     use rand::Rng;
@@ -593,6 +576,192 @@ mod test {
         assert_eq!(clear_c, d_clear_c);
         assert_eq!(clear_d, d_clear_d);
         assert_eq!(clear_e, d_clear_e);
+    }
+
+    #[test]
+    fn test_cpu_to_gpu_compressed_squashed_noise_ciphertext_list() {
+        const NUM_BLOCKS: usize = 32;
+        let streams = CudaStreams::new_multi_gpu();
+
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let noise_squashing_params =
+            TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let comp_params =
+            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let cks = ClientKey::new(params);
+        let compressed_sks = CompressedServerKey::new_radix_compressed_server_key(&cks);
+        let sks = compressed_sks.decompress();
+        let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_sks, &streams);
+
+        let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_params);
+        let compressed_noise_squashing_key =
+            cks.new_compressed_noise_squashing_key(&noise_squashing_private_key);
+        let cpu_noise_squashing_key = compressed_noise_squashing_key.decompress();
+        let cuda_noise_squashing_key = compressed_noise_squashing_key.decompress_to_cuda(&streams);
+
+        let private_compression_key = NoiseSquashingCompressionPrivateKey::new(comp_params);
+        let cpu_compression_key = noise_squashing_private_key
+            .new_noise_squashing_compression_key(&private_compression_key);
+        let cuda_compression_key =
+            CudaNoiseSquashingCompressionKey::from_noise_squashing_compression_key(
+                &cpu_compression_key,
+                &streams,
+            );
+        let decryption_key = private_compression_key.private_key_view();
+
+        let radix_cks = RadixClientKey::from((cks, NUM_BLOCKS));
+
+        // How many uints of NUM_BLOCKS we have to push in the list to ensure it
+        // internally has more than one packed GLWE
+        let max_nb_messages: usize = 1 + 2 * comp_params.lwe_per_glwe.0 / NUM_BLOCKS;
+
+        let mut rng = rand::thread_rng();
+        let message_modulus: u128 = radix_cks.parameters().message_modulus().0 as u128;
+        let modulus = message_modulus.pow(NUM_BLOCKS as u32);
+        let messages = (0..max_nb_messages)
+            .map(|_| rng.gen::<u128>() % modulus)
+            .collect::<Vec<_>>();
+
+        let cpu_cts = messages
+            .iter()
+            .map(|message| radix_cks.encrypt(*message))
+            .collect_vec();
+
+        let cuda_cts = cpu_cts
+            .iter()
+            .map(|ct| CudaUnsignedRadixCiphertext::from_radix_ciphertext(ct, &streams))
+            .collect_vec();
+
+        let cpu_compressed_list = {
+            let mut builder = CompressedSquashedNoiseCiphertextList::builder();
+            for ct in cpu_cts {
+                let ns_ct = cpu_noise_squashing_key
+                    .squash_radix_ciphertext_noise(&sks, &ct)
+                    .unwrap();
+                builder.push(ns_ct);
+            }
+            builder.build(&cpu_compression_key)
+        };
+
+        let cuda_compressed_list = {
+            let mut builder = CudaCompressedSquashedNoiseCiphertextList::builder();
+            for d_ct in cuda_cts {
+                let d_ns_ct = cuda_noise_squashing_key
+                    .squash_radix_ciphertext_noise(&cuda_sks, &d_ct.ciphertext, &streams)
+                    .unwrap();
+                builder.push(d_ns_ct, &streams);
+            }
+            builder.build(&cuda_compression_key, &streams)
+        };
+
+        // Test Decompression on Gpu
+        {
+            // Roundtrip Gpu->Cpu->Gpu
+            let cuda_compressed_list =
+                CudaCompressedSquashedNoiseCiphertextList::from_compressed_squashed_noise_ciphertext_list(
+                    &cuda_compressed_list
+                        .to_compressed_squashed_noise_ciphertext_list(&streams)
+                        .unwrap(),
+                    &streams,
+                )
+                .unwrap();
+
+            let cuda_compressed_list_2 =
+                CudaCompressedSquashedNoiseCiphertextList::from_compressed_squashed_noise_ciphertext_list(
+                    &cpu_compressed_list,
+                    &streams,
+                )
+                .unwrap();
+
+            for (i, message) in messages.iter().enumerate() {
+                let d_decompressed: CudaSquashedNoiseRadixCiphertext =
+                    cuda_compressed_list.get(i, &streams).unwrap().unwrap();
+                let decompressed = d_decompressed.to_squashed_noise_radix_ciphertext(&streams);
+                let decrypted: u128 = decryption_key.decrypt_radix(&decompressed).unwrap();
+                assert_eq!(
+                    decrypted, *message,
+                    "Invalid decompression for cuda list that roundtripped Cuda->Cpu->Cuda"
+                );
+
+                let d_decompressed: CudaSquashedNoiseRadixCiphertext =
+                    cuda_compressed_list_2.get(i, &streams).unwrap().unwrap();
+                let decompressed = d_decompressed.to_squashed_noise_radix_ciphertext(&streams);
+                let decrypted: u128 = decryption_key.decrypt_radix(&decompressed).unwrap();
+                assert_eq!(
+                    decrypted, *message,
+                    "Invalid decompression for cuda list that originated from Cpu"
+                );
+            }
+        }
+
+        // Test Decompression on CPU (to test conversions)
+        {
+            let expected_flat_len = cpu_compressed_list.list.flat_len();
+            let conformance_params =
+                CompressedSquashedNoiseCiphertextListConformanceParams::from_params(
+                    noise_squashing_params,
+                    comp_params,
+                );
+
+            // Roundtrip Cpu->Gpu->Cpu
+            let cpu_compressed_list_roundtrip =
+                CudaCompressedSquashedNoiseCiphertextList::from_compressed_squashed_noise_ciphertext_list(
+                    &cpu_compressed_list,
+                    &streams,
+                )
+                .unwrap()
+                .to_compressed_squashed_noise_ciphertext_list(&streams)
+                .unwrap();
+            assert_eq!(
+                cpu_compressed_list_roundtrip.list.flat_len(),
+                expected_flat_len,
+                "Invalid flat len after Cpu->Gpu->Cpu"
+            );
+            assert_eq!(
+                cpu_compressed_list_roundtrip.list, cpu_compressed_list.list,
+                "Invalid packed list after Cpu->Gpu->Cpu"
+            );
+            assert_eq!(
+                cpu_compressed_list_roundtrip.info, cpu_compressed_list.info,
+                "Invalid info after Cpu->Gpu->Cpu"
+            );
+            assert!(
+                cpu_compressed_list_roundtrip.is_conformant(&conformance_params),
+                "Non conformant list after Cpu->Gpu->Cpu"
+            );
+
+            let cpu_compressed_list_2 = cuda_compressed_list
+                .to_compressed_squashed_noise_ciphertext_list(&streams)
+                .unwrap();
+            assert_eq!(
+                cpu_compressed_list_2.list.flat_len(),
+                expected_flat_len,
+                "Invalid flat len after Gpu->Cpu"
+            );
+            assert!(
+                cpu_compressed_list_2.is_conformant(&conformance_params),
+                "Non conformant list after Gpu->Cpu"
+            );
+
+            for (i, message) in messages.iter().enumerate() {
+                let decompressed: SquashedNoiseRadixCiphertext =
+                    cpu_compressed_list_roundtrip.get(i).unwrap().unwrap();
+                let decrypted: u128 = decryption_key.decrypt_radix(&decompressed).unwrap();
+                assert_eq!(
+                    decrypted, *message,
+                    "Invalid decompression for cpu list that roundtripped Cpu->Gpu->Cpu"
+                );
+
+                let decompressed: SquashedNoiseRadixCiphertext =
+                    cpu_compressed_list_2.get(i).unwrap().unwrap();
+                let decrypted: u128 = decryption_key.decrypt_radix(&decompressed).unwrap();
+                assert_eq!(
+                    decrypted, *message,
+                    "Invalid decompression for cpu list that originated from Gpu"
+                );
+            }
+        }
     }
 
     const NB_TESTS: usize = 5;
