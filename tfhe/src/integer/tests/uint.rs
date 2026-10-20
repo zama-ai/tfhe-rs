@@ -10,8 +10,8 @@ use rand::{Rng, RngCore};
 /// widths at runtime.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub(crate) struct Uint {
-    bits: u32,
     value: u128,
+    bits: u32,
 }
 
 impl Uint {

@@ -56,33 +56,8 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (
-            ct.block_carries_are_empty(),
-            shift.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct, shift),
-            (true, false) => {
-                tmp_rhs = shift.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct);
-                (ct, shift)
-            }
-            (false, false) => {
-                tmp_rhs = shift.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_right_shift_assign_parallelized(lhs, rhs);
+        let shift = self.clean_for_default_binary_assign_op(ct, shift);
+        self.unchecked_right_shift_assign_parallelized(ct, &shift);
     }
 
     /// Computes homomorphically a right shift by an encrypted amount
@@ -178,33 +153,8 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (
-            ct.block_carries_are_empty(),
-            shift.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct, shift),
-            (true, false) => {
-                tmp_rhs = shift.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct);
-                (ct, shift)
-            }
-            (false, false) => {
-                tmp_rhs = shift.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_left_shift_assign_parallelized(lhs, rhs);
+        let shift = self.clean_for_default_binary_assign_op(ct, shift);
+        self.unchecked_left_shift_assign_parallelized(ct, &shift);
     }
 
     /// Computes homomorphically a left shift by an encrypted amount.
@@ -914,9 +864,6 @@ impl ServerKey {
                 });
             });
 
-            // When there are rounds left, the extractor must hold at least one bit for them.
-            assert!(remaining_shift_rounds == 0 || shift_bit_extractor.current_buffer_len() >= 1);
-
             match operation {
                 BarrelShifterOperation::LeftShift | BarrelShifterOperation::LeftRotate => {
                     messages_for_next_blocks.rotate_right(1);
@@ -943,6 +890,9 @@ impl ServerKey {
 
             let num_bit_that_tells_shift_within_blocks = message_bits_per_block.ilog2();
             let num_bits_already_done = num_bit_that_tells_shift_within_blocks + 1;
+
+            // If we processed all the rounds required, the barrel shift will not shift,
+            // but it has a cleaning step that we must use
             self.block_barrel_shifter_impl(
                 &radix,
                 &mut shift_bit_extractor,
