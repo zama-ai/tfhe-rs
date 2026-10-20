@@ -2,14 +2,9 @@ name: integer_long_run_tests
 
 env:
   CARGO_TERM_COLOR: always
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -55,7 +50,10 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
-        env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "CPU long run tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+        uses: ./.github/actions/slack_notify
+        with:
+          status: ${{ job.status }}
+          message: "CPU long run tests finished with status: ${{ job.status }}."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}
