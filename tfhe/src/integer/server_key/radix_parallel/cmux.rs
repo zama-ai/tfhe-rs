@@ -2,6 +2,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::parameters::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
@@ -723,6 +724,23 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         F: Fn(u64) -> bool + Send + Sync + Copy,
     {
+        if do_clean_message && condition_block.degree.get() == 0 {
+            // The condition is known to be 0, so the result is trivially known
+            // We potentially still need to clean the output
+            // We shortcut zero_out_if calls as calling it would add a few
+            // unnecessary PBSes making this particular case slower
+            let mut result = if predicate(0) {
+                true_ct.clone()
+            } else {
+                false_ct.clone()
+            };
+            result
+                .blocks_mut()
+                .par_iter_mut()
+                .for_each(|block| self.key.message_extract_assign(block));
+            return result;
+        }
+
         let inverted_predicate = |x| !predicate(x);
 
         // Although our mul algorithm has special path for when rhs or lhs is a boolean value,
@@ -800,6 +818,7 @@ impl ServerKey {
         self.zero_out_if(ct, condition_block, |x| x == value);
     }
 
+    // Outputs always have <= NOMINAL noise level
     pub(crate) fn zero_out_if<T, F>(
         &self,
         ct: &mut T,
@@ -815,8 +834,19 @@ impl ServerKey {
             // The block 'encrypts'  0, and only 0
             if predicate(0u64) {
                 self.create_trivial_zero_assign_radix(ct);
+            } else {
+                // The blocks keep their value, but come out with a nominal noise level, as they
+                // would from the lookup table of the encrypted condition below
+                let identity = self.key.generate_lookup_table(|x| x);
+                ct.blocks_mut()
+                    .par_iter_mut()
+                    .filter(|block| block.noise_level() > NoiseLevel::NOMINAL)
+                    .for_each(|block| {
+                        let saved_degree = block.degree;
+                        self.key.apply_lookup_table_assign(block, &identity);
+                        block.degree = saved_degree;
+                    });
             }
-            // else, condition is false, don't do anything
             return;
         }
 

@@ -349,13 +349,14 @@ impl ServerKey {
     /// a `Cow` (owned only if it had to be cleaned).
     ///
     /// Both cleanings run in parallel.
-    pub(crate) fn clean_for_default_binary_op<'a, T>(
+    pub(crate) fn clean_for_default_binary_op<'a, Lhs, Rhs>(
         &self,
-        lhs: &'a T,
-        rhs: &'a T,
-    ) -> (Cow<'a, T>, Cow<'a, T>)
+        lhs: &'a Lhs,
+        rhs: &'a Rhs,
+    ) -> (Cow<'a, Lhs>, Cow<'a, Rhs>)
     where
-        T: IntegerRadixCiphertext,
+        Lhs: IntegerRadixCiphertext,
+        Rhs: IntegerRadixCiphertext,
     {
         rayon::join(
             || self.clean_for_default_op(lhs),
@@ -367,13 +368,14 @@ impl ServerKey {
     /// `lhs` inplace, `rhs` into a `Cow` (owned only if it had to be cleaned).
     ///
     /// Both cleanings run in parallel.
-    pub(crate) fn clean_for_default_binary_assign_op<'a, T>(
+    pub(crate) fn clean_for_default_binary_assign_op<'a, Lhs, Rhs>(
         &self,
-        lhs: &mut T,
-        rhs: &'a T,
-    ) -> Cow<'a, T>
+        lhs: &mut Lhs,
+        rhs: &'a Rhs,
+    ) -> Cow<'a, Rhs>
     where
-        T: IntegerRadixCiphertext,
+        Lhs: IntegerRadixCiphertext,
+        Rhs: IntegerRadixCiphertext,
     {
         let ((), rhs) = rayon::join(
             || self.clean_inplace_for_default_op(lhs),

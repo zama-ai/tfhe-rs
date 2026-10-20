@@ -1,14 +1,17 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::test_harness::{
+    encrypted_shift_amount_fixed_cases, ExecuteOn, ShiftAmount, ShiftAmountOperand, TestBuilder,
+    TestContext,
+};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
-    random_non_zero_value, signed_add_under_modulus, signed_left_shift_under_modulus,
-    signed_right_shift_under_modulus, NB_CTXT,
+    signed_left_shift_under_modulus, signed_right_shift_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial,
-    CpuFunctionExecutor,
+    nb_tests_for_params, panic_if_any_block_is_not_clean_or_trivial, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
+use crate::integer::tests::int::Int;
 use crate::integer::{
     IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
@@ -22,181 +25,8 @@ use std::sync::Arc;
 create_parameterized_test!(integer_signed_unchecked_left_shift);
 
 create_parameterized_test!(integer_signed_unchecked_right_shift);
-create_parameterized_test!(integer_signed_left_shift);
-create_parameterized_test!(integer_signed_right_shift);
-
-pub(crate) fn signed_default_left_shift_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a SignedRadixCiphertext, &'a RadixCiphertext),
-        SignedRadixCiphertext,
-    >,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks.clone());
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    assert!(modulus > 0);
-    assert!((modulus as u64).is_power_of_two());
-    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
-
-    for _ in 0..nb_tests_smaller {
-        let mut clear = rng.gen::<i64>() % modulus;
-
-        let offset = random_non_zero_value(&mut rng, modulus);
-
-        let mut ct = cks.encrypt_signed(clear);
-        sks.unchecked_scalar_add_assign(&mut ct, offset);
-        clear = signed_add_under_modulus(clear, offset, modulus);
-
-        // case when 0 <= shift < nb_bits
-        {
-            // Here we create a encrypted shift value in range O..nb_bits
-            // in a way that the shift ciphertext is seen as having non empty carries
-            let clear_shift = rng.gen::<u32>() % nb_bits;
-            let tmp = cks.encrypt(clear_shift);
-            let mut shift = cks.encrypt(0u32);
-            sks.unchecked_add_assign(&mut shift, &tmp);
-            assert!(!shift.block_carries_are_empty());
-
-            let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            let clear_res = signed_left_shift_under_modulus(clear, clear_shift, modulus);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid left shift result, for '{clear} << {clear_shift}', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = executor.execute((&ct, &shift));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
-        }
-
-        // case when shift >= nb_bits
-        {
-            // Here we create a encrypted shift value >= nb_bits
-            // in a way that the shift ciphertext is seen as having non empty carries
-            let mut clear_shift = rng.gen::<u32>() % nb_bits;
-            let tmp = cks.encrypt(clear_shift);
-            let mut shift = cks.encrypt(nb_bits);
-            sks.unchecked_add_assign(&mut shift, &tmp);
-            clear_shift += nb_bits;
-            assert!(!shift.block_carries_are_empty());
-
-            let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // A shift >= nb_bits is an overshift; a left shift must return 0
-            let clear_res = 0i64;
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid left shift result, for '{clear} << {clear_shift}', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = executor.execute((&ct, &shift));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
-        }
-    }
-}
-
-pub(crate) fn signed_default_right_shift_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<
-        (&'a SignedRadixCiphertext, &'a RadixCiphertext),
-        SignedRadixCiphertext,
-    >,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks.clone());
-
-    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
-
-    assert!(modulus > 0);
-    assert!((modulus as u64).is_power_of_two());
-    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
-
-    for _ in 0..nb_tests_smaller {
-        let mut clear = rng.gen::<i64>() % modulus;
-
-        let offset = random_non_zero_value(&mut rng, modulus);
-
-        let mut ct = cks.encrypt_signed(clear);
-        sks.unchecked_scalar_add_assign(&mut ct, offset);
-        clear = signed_add_under_modulus(clear, offset, modulus);
-
-        // case when 0 <= shift < nb_bits
-        {
-            // Here we create a encrypted shift value in range O..nb_bits
-            // in a way that the shift ciphertext is seen as having non empty carries
-            let clear_shift = rng.gen::<u32>() % nb_bits;
-            let tmp = cks.encrypt(clear_shift);
-            let mut shift = cks.encrypt(0u32);
-            sks.unchecked_add_assign(&mut shift, &tmp);
-            assert!(!shift.block_carries_are_empty());
-
-            let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            let clear_res = signed_right_shift_under_modulus(clear, clear_shift, modulus);
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid right shift result, for '{clear} >> {clear_shift}', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = executor.execute((&ct, &shift));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
-        }
-
-        // case when shift >= nb_bits
-        {
-            // Here we create a encrypted shift value >= nb_bits
-            // in a way that the shift ciphertext is seen as having non empty carries
-            let mut clear_shift = rng.gen::<u32>() % nb_bits;
-            let tmp = cks.encrypt(clear_shift);
-            let mut shift = cks.encrypt(nb_bits);
-            sks.unchecked_add_assign(&mut shift, &tmp);
-            clear_shift += nb_bits;
-            assert!(!shift.block_carries_are_empty());
-
-            let ct_res = executor.execute((&ct, &shift));
-            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
-            let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // A shift >= nb_bits is an overshift; an arithmetic right shift
-            // saturates to the sign bit: -1 if negative, 0 otherwise
-            let clear_res = if clear < 0 { -1i64 } else { 0i64 };
-            assert_eq!(
-                clear_res, dec_res,
-                "Invalid right shift result, for '{clear} >> {clear_shift}', \
-                expected:  {clear_res}, got: {dec_res}"
-            );
-
-            let ct_res2 = executor.execute((&ct, &shift));
-            assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
-        }
-    }
-}
+create_parameterized_test!(integer_signed_default_left_shift);
+create_parameterized_test!(integer_signed_default_right_shift);
 
 pub(crate) fn signed_unchecked_left_shift_test<P, T>(param: P, mut executor: T)
 where
@@ -317,12 +147,30 @@ where
     signed_unchecked_right_shift_test(param, executor);
 }
 
-fn integer_signed_right_shift<P>(param: P)
+fn integer_signed_default_right_shift<P>(param: P)
 where
-    P: Into<TestParameters> + Copy,
+    P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
-    signed_default_right_shift_test(param, executor);
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    signed_default_right_shift_test(&ctx, executor);
+}
+
+pub(crate) fn signed_default_right_shift_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<
+        (SignedRadixCiphertext, ShiftAmountOperand<RadixCiphertext>),
+        SignedRadixCiphertext,
+    >,
+{
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(encrypted_shift_amount_fixed_cases::<Int>)
+        .execute(
+            executor,
+            |(lhs, amount): (Int, ShiftAmount<RadixCiphertext>)| lhs.shr(amount.value()),
+        );
 }
 
 fn integer_signed_unchecked_left_shift<P>(param: P)
@@ -333,10 +181,28 @@ where
     signed_unchecked_left_shift_test(param, executor);
 }
 
-fn integer_signed_left_shift<P>(param: P)
+fn integer_signed_default_left_shift<P>(param: P)
 where
-    P: Into<TestParameters> + Copy,
+    P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
-    signed_default_left_shift_test(param, executor);
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    signed_default_left_shift_test(&ctx, executor);
+}
+
+pub(crate) fn signed_default_left_shift_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<
+        (SignedRadixCiphertext, ShiftAmountOperand<RadixCiphertext>),
+        SignedRadixCiphertext,
+    >,
+{
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(encrypted_shift_amount_fixed_cases::<Int>)
+        .execute(
+            executor,
+            |(lhs, amount): (Int, ShiftAmount<RadixCiphertext>)| lhs.shl(amount.value()),
+        );
 }
