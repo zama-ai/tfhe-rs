@@ -68,6 +68,10 @@ mul_ggsw_glwe_in_fourier_domain(double2 *fft, double2 *join_buffer,
   // The first product is used to initialize level_join_buffer
   auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
 
+  // Other levels may still be reading the join buffer slice that the first
+  // product below overwrites: wait for them (global memory or DSM alike).
+  group.sync();
+
   // Continues multiplying fft by every polynomial in that particular bsk level
   // Each y-block accumulates in a different polynomial at each iteration
   auto bsk_slice = get_ith_mask_kth_block(
@@ -122,6 +126,10 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_128(
 
   // The first product is used to initialize level_join_buffer
   auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
+
+  // Other levels may still be reading the join buffer slice that the first
+  // product below overwrites: wait for them.
+  group.sync();
 
   // Continues multiplying fft by every polynomial in that particular bsk level
   // Each y-block accumulates in a different polynomial at each iteration
