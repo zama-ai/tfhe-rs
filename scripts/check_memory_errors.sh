@@ -5,6 +5,8 @@ set -euo pipefail
 RUN_VALGRIND=0
 RUN_MEMCHECK=0
 RUN_RACECHECK=0
+RUN_INITCHECK=0
+RUN_SYNCCHECK=0
 
 while [ -n "${1:-}" ]; do
    case "$1" in
@@ -25,6 +27,14 @@ while [ -n "${1:-}" ]; do
             RUN_RACECHECK=1
             ;;
 
+        "--initcheck" )
+            RUN_INITCHECK=1
+            ;;
+
+        "--synccheck" )
+            RUN_SYNCCHECK=1
+            ;;
+
         *)
             echo "Unknown param : $1"
             exit 1
@@ -33,8 +43,9 @@ while [ -n "${1:-}" ]; do
    shift
 done
 
-if [[ "${RUN_VALGRIND}" == "0" && "${RUN_MEMCHECK}" == "0" && "${RUN_RACECHECK}" == "0" ]]; then
-  echo "Usage: check_memory_errors.sh [--gpu] [--memcheck] [--racecheck] [--cpu]"
+if [[ "${RUN_VALGRIND}" == "0" && "${RUN_MEMCHECK}" == "0" && "${RUN_RACECHECK}" == "0" \
+      && "${RUN_INITCHECK}" == "0" && "${RUN_SYNCCHECK}" == "0" ]]; then
+  echo "Usage: check_memory_errors.sh [--gpu] [--memcheck] [--racecheck] [--initcheck] [--synccheck] [--cpu]"
   exit 1
 fi
 
@@ -49,6 +60,11 @@ SANITIZER_TEST_EXCLUDES_GPU="${SANITIZER_TEST_EXCLUDES_GPU:-array|modulus_switch
 # Racecheck runs only the two u128 PBS tests — they use is_sanitizer_run() to limit to 2 iterations
 SANITIZER_TEST_FILTER_GPU_RACECHECK="${SANITIZER_TEST_FILTER_GPU_RACECHECK:-test_bootstrap_u128_with_squashing|test_multibit_bootstrap_u128_with_squashing|test_compressed_ct_list_gpu_many_sizes}"
 SANITIZER_TEST_EXCLUDES_GPU_RACECHECK="${SANITIZER_TEST_EXCLUDES_GPU_RACECHECK:-}"
+# Initcheck and synccheck default to the same narrow test set as racecheck
+SANITIZER_TEST_FILTER_GPU_INITCHECK="${SANITIZER_TEST_FILTER_GPU_INITCHECK:-${SANITIZER_TEST_FILTER_GPU_RACECHECK}}"
+SANITIZER_TEST_EXCLUDES_GPU_INITCHECK="${SANITIZER_TEST_EXCLUDES_GPU_INITCHECK:-${SANITIZER_TEST_EXCLUDES_GPU_RACECHECK}}"
+SANITIZER_TEST_FILTER_GPU_SYNCCHECK="${SANITIZER_TEST_FILTER_GPU_SYNCCHECK:-${SANITIZER_TEST_FILTER_GPU_RACECHECK}}"
+SANITIZER_TEST_EXCLUDES_GPU_SYNCCHECK="${SANITIZER_TEST_EXCLUDES_GPU_SYNCCHECK:-${SANITIZER_TEST_EXCLUDES_GPU_RACECHECK}}"
 SANITIZER_TEST_EXE_GLOB="${SANITIZER_TEST_EXE_GLOB:-tfhe-*}"
 SANITIZER_TEST_TIMEOUT="${SANITIZER_TEST_TIMEOUT:-1800}"
 SANITIZER_LAUNCH_TIMEOUT="${SANITIZER_LAUNCH_TIMEOUT:-600}"
@@ -115,19 +131,33 @@ run_compute_sanitizer_tool() {
   local CS_TOOL="$1"
   export TFHE_RS_COMPUTE_SANITIZER=1
 
-  # Select the right filter: racecheck uses a narrower set (only u128 PBS tests)
+  # Select the right filter: racecheck, initcheck and synccheck use a narrower set (only u128 PBS tests)
   local TEST_FILTER="${SANITIZER_TEST_FILTER_GPU}"
   local TEST_EXCLUDES="${SANITIZER_TEST_EXCLUDES_GPU}"
-  if [[ "${CS_TOOL}" == "racecheck" ]]; then
-    TEST_FILTER="${SANITIZER_TEST_FILTER_GPU_RACECHECK}"
-    TEST_EXCLUDES="${SANITIZER_TEST_EXCLUDES_GPU_RACECHECK}"
-  fi
+  case "${CS_TOOL}" in
+    racecheck)
+      TEST_FILTER="${SANITIZER_TEST_FILTER_GPU_RACECHECK}"
+      TEST_EXCLUDES="${SANITIZER_TEST_EXCLUDES_GPU_RACECHECK}"
+      ;;
+    initcheck)
+      TEST_FILTER="${SANITIZER_TEST_FILTER_GPU_INITCHECK}"
+      TEST_EXCLUDES="${SANITIZER_TEST_EXCLUDES_GPU_INITCHECK}"
+      ;;
+    synccheck)
+      TEST_FILTER="${SANITIZER_TEST_FILTER_GPU_SYNCCHECK}"
+      TEST_EXCLUDES="${SANITIZER_TEST_EXCLUDES_GPU_SYNCCHECK}"
+      ;;
+  esac
+
+  # Per-tool temporary files so that sanitizer runs launched in parallel don't clobber each other
+  local TEST_LIST="/tmp/test_list_${CS_TOOL}.txt"
+  local SANITIZER_LOG="/tmp/sanitizer_output_${CS_TOOL}.log"
 
   # List the tests into a temporary file using the GPU feature set
   RUSTFLAGS="$RUSTFLAGS" cargo nextest list --cargo-profile "${CARGO_PROFILE}" \
-            --features="${SANITIZER_CARGO_FEATURES_GPU}" -p "${SANITIZER_CARGO_PACKAGE}" &> /tmp/test_list.txt
+            --features="${SANITIZER_CARGO_FEATURES_GPU}" -p "${SANITIZER_CARGO_PACKAGE}" &> "${TEST_LIST}"
 
-  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < /tmp/test_list.txt \
+  TESTS_TO_RUN=$(sed -e $'s/\x1b\[[0-9;]*m//g' < "${TEST_LIST}" \
       | grep -E "${TEST_FILTER}" \
       | { if [[ -n "${TEST_EXCLUDES}" ]]; then grep -vE "${TEST_EXCLUDES}"; else cat; fi; } \
       | grep -o '[^ ]\+$')
@@ -149,7 +179,7 @@ run_compute_sanitizer_tool() {
         echo "Running compute-sanitizer (${CS_TOOL}) on [${IDX}/${TOTAL}] $(date '+%Y-%m-%d %H:%M:%S'): $t"
         CS_EXIT=0
 
-        # memcheck supports --leak-check; racecheck does not
+        # memcheck supports --leak-check; the other tools do not
         CS_EXTRA_ARGS=""
         if [[ "${CS_TOOL}" == "memcheck" ]]; then
           CS_EXTRA_ARGS="--leak-check=full"
@@ -160,8 +190,8 @@ run_compute_sanitizer_tool() {
             compute-sanitizer --tool "${CS_TOOL}" ${CS_EXTRA_ARGS} \
             --error-exitcode=1 --launch-timeout "${SANITIZER_LAUNCH_TIMEOUT}" \
             --target-processes=all \
-            "$EXECUTABLE" --exact "$t" > /tmp/sanitizer_output.log 2>&1 || CS_EXIT=$?
-        cat /tmp/sanitizer_output.log
+            "$EXECUTABLE" --exact "$t" > "${SANITIZER_LOG}" 2>&1 || CS_EXIT=$?
+        cat "${SANITIZER_LOG}"
         if [[ $CS_EXIT -ne 0 ]]; then
             ERROR_MESSAGES+=("Compute-sanitizer (${CS_TOOL}) detected error for test: $t")
             RESULT=1
@@ -181,6 +211,8 @@ run_compute_sanitizer_gtest() {
     echo "[gtest] ${SANITIZER_GTEST_EXE} is not executable — skipping GTest ${CS_TOOL} run"
     return
   fi
+
+  local SANITIZER_LOG="/tmp/sanitizer_output_gtest_${CS_TOOL}.log"
 
   # List individual GTest cases so we can run each under its own sanitizer invocation
   # (prevents a failing test from hiding subsequent ones)
@@ -203,8 +235,8 @@ run_compute_sanitizer_gtest() {
         compute-sanitizer --tool "${CS_TOOL}" \
         --error-exitcode=1 --launch-timeout "${SANITIZER_LAUNCH_TIMEOUT}" \
         --target-processes=all \
-        "${SANITIZER_GTEST_EXE}" "--gtest_filter=${t}" > /tmp/sanitizer_output.log 2>&1 || CS_EXIT=$?
-    cat /tmp/sanitizer_output.log
+        "${SANITIZER_GTEST_EXE}" "--gtest_filter=${t}" > "${SANITIZER_LOG}" 2>&1 || CS_EXIT=$?
+    cat "${SANITIZER_LOG}"
     if [[ $CS_EXIT -ne 0 ]]; then
       ERROR_MESSAGES+=("Compute-sanitizer (${CS_TOOL}) detected error in GTest: $t")
       RESULT=1
@@ -219,6 +251,16 @@ fi
 if [[ "${RUN_RACECHECK}" == "1" ]]; then
   run_compute_sanitizer_tool racecheck
   run_compute_sanitizer_gtest racecheck
+fi
+
+if [[ "${RUN_INITCHECK}" == "1" ]]; then
+  run_compute_sanitizer_tool initcheck
+  run_compute_sanitizer_gtest initcheck
+fi
+
+if [[ "${RUN_SYNCCHECK}" == "1" ]]; then
+  run_compute_sanitizer_tool synccheck
+  run_compute_sanitizer_gtest synccheck
 fi
 
 # Print summary of errors if any were encountered
