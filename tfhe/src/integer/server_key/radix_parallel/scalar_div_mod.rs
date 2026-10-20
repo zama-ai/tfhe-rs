@@ -862,6 +862,11 @@ impl ServerKey {
     where
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
+        if self.divisor_exceeds_numerator(numerator, divisor) {
+            let quotient = self.create_trivial_zero_radix(numerator.blocks.len());
+            return (quotient, numerator.clone());
+        }
+
         let quotient = self.unchecked_scalar_div_parallelized(numerator, divisor);
         let remainder = if MiniUnsignedInteger::is_power_of_two(divisor) {
             // unchecked_scalar_div would have panicked if divisor was zero
@@ -883,6 +888,10 @@ impl ServerKey {
     where
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
+        if self.divisor_exceeds_numerator(numerator, divisor) {
+            return numerator.clone();
+        }
+
         if MiniUnsignedInteger::is_power_of_two(divisor) {
             // The remainder is simply the bits that would get 'shifted out'
             return self.scalar_bitand_parallelized(numerator, divisor - T::ONE);
@@ -890,6 +899,20 @@ impl ServerKey {
 
         let (_quotient, remainder) = self.unchecked_scalar_div_rem_parallelized(numerator, divisor);
         remainder
+    }
+
+    /// Whether `divisor` is greater than any value `numerator` can hold, in which case the
+    /// division has nothing to reduce: the quotient is 0 and the remainder the numerator.
+    ///
+    /// Works whatever the width of `T` compared to the numerator's.
+    fn divisor_exceeds_numerator<T>(&self, numerator: &RadixCiphertext, divisor: T) -> bool
+    where
+        T: Reciprocable,
+    {
+        let numerator_bits = self.key.message_modulus.0.ilog2() as usize * numerator.blocks.len();
+        // If the divisor type has more bits than the numerator, and that it's bigger than
+        // the max value the numerator can encrypt
+        T::BITS > numerator_bits && divisor > (T::ONE << numerator_bits) - T::ONE
     }
 
     pub fn scalar_div_assign_parallelized<T>(&self, numerator: &mut RadixCiphertext, divisor: T)
@@ -907,10 +930,7 @@ impl ServerKey {
     where
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
-        if !numerator.block_carries_are_empty() {
-            self.full_propagate_parallelized(numerator);
-        }
-
+        self.clean_inplace_for_default_op(numerator);
         *numerator = self.unchecked_scalar_rem_parallelized(numerator, divisor);
     }
 
@@ -1041,13 +1061,8 @@ impl ServerKey {
     where
         T: Reciprocable + ScalarMultiplier + DecomposableInto<u8>,
     {
-        if numerator.block_carries_are_empty() {
-            self.unchecked_scalar_div_rem_parallelized(numerator, divisor)
-        } else {
-            let mut cloned_numerator = numerator.clone();
-            self.full_propagate_parallelized(&mut cloned_numerator);
-            self.unchecked_scalar_div_rem_parallelized(&cloned_numerator, divisor)
-        }
+        let numerator = self.clean_for_default_op(numerator);
+        self.unchecked_scalar_div_rem_parallelized(&numerator, divisor)
     }
 }
 

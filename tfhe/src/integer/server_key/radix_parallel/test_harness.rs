@@ -1657,17 +1657,6 @@ impl ShiftAmount<RadixCiphertext> {
             .div_ceil(bits_per_block)
             .max(1)
     }
-
-    /// The amount a rotation of a radix of `radix_bits` bits by this encrypted amount
-    /// actually rotates by, before the reduction modulo `radix_bits`.
-    ///
-    /// The implementation only reads the low ⌈log₂(radix_bits)⌉ bits of the amount, i.e. the
-    /// amount modulo the power of two at or above `radix_bits`. When `radix_bits` is not a
-    /// power of two, amounts past that power of two do not rotate as a reduction modulo the
-    /// width would: rotating 6 bits by 8 is a rotation by 0, not by 2.
-    pub(crate) fn rotation_amount(self, radix_bits: u32) -> u128 {
-        self.value() % u128::from(radix_bits.next_power_of_two())
-    }
 }
 
 impl TestClearInput for ShiftAmount<RadixCiphertext> {
@@ -1779,12 +1768,41 @@ pub(crate) fn encrypted_shift_amount_fixed_cases<C: ClearInteger>(
         .zip(encrypted_shift_amount_edge_values(
             radix_bits,
             ctx.bits_per_block(),
+            true,
+        ))
+        .collect()
+}
+
+/// Fixed cases for a rotation of a radix of `radix_bits` bits by an encrypted amount: as
+/// [`encrypted_shift_amount_fixed_cases`], but with each amount on the fewest blocks holding it
+/// only.
+///
+/// The rotation amount is always reduced modulo `radix_bits`, i.e. in
+/// `FheUintX(value).rotate_left(FheUintY(amount))` (where X and Y are numbers of bits) the
+/// amount is reduced via `amount % X`. When `X` is not a power of two, this modulo is very
+/// costly, and its cost increases with the number of bits of `FheUintY`.
+///
+/// So to keep the test time reasonable, each amount is encrypted on a `FheUintY` that has just
+/// enough bits to represent its value. Full width amounts are still covered by the random cases.
+pub(crate) fn encrypted_rotation_amount_fixed_cases<C: ClearInteger>(
+    input_size: RadixInputSize,
+    ctx: &TestContext,
+) -> Vec<(C, ShiftAmount<RadixCiphertext>)> {
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
+    C::radix_edges(radix_bits)
+        .into_iter()
+        .cycle()
+        .zip(encrypted_shift_amount_edge_values(
+            radix_bits,
+            ctx.bits_per_block(),
+            false,
         ))
         .collect()
 }
 
 /// Encrypted shift and rotation amounts worth testing against a radix of `radix_bits` bits,
-/// each on a radix of `radix_bits` bits and on the fewest blocks holding it.
+/// each on the fewest blocks holding it, and also on a radix of `radix_bits` bits when
+/// `with_full_width` is set.
 ///
 /// On top of the edges around the width, the implementation splits the amount: its low
 /// ⌈log₂(radix_bits)⌉ bits drive the shifter, the overshift is decided on the whole amount.
@@ -1794,6 +1812,7 @@ pub(crate) fn encrypted_shift_amount_fixed_cases<C: ClearInteger>(
 fn encrypted_shift_amount_edge_values(
     radix_bits: u32,
     bits_per_block: u32,
+    with_full_width: bool,
 ) -> Vec<ShiftAmount<RadixCiphertext>> {
     let bits = u128::from(radix_bits);
     let shifter_range = u128::from(radix_bits.next_power_of_two());
@@ -1823,7 +1842,8 @@ fn encrypted_shift_amount_edge_values(
             let fewest_bits = ShiftAmount::<RadixCiphertext>::fewest_blocks(value, bits_per_block)
                 * bits_per_block;
             let narrower = (fewest_bits < radix_bits).then_some(fewest_bits);
-            std::iter::once(radix_bits)
+            let full = (with_full_width || narrower.is_none()).then_some(radix_bits);
+            full.into_iter()
                 .chain(narrower)
                 .map(move |bits| ShiftAmount::new(Uint::new(value, bits)))
         })

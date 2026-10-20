@@ -7,8 +7,15 @@
 //! full propagation cannot take blocks at the maximum degree yet. The overflowing scalar tests also
 //! cover scalars that fit the radix blocks but not the signed range, for which the GPU
 //! implementations return the opposite overflow flag: the CPU fix is `ScalarOverflowFlagSource` in
-//! `radix_parallel::scalar_add`, which the GPU can reuse. Once both are addressed point the
-//! GPU wrappers at the harness tests and delete this file.
+//! `radix_parallel::scalar_add`, which the GPU can reuse.
+//!
+//! The rotations by an encrypted amount also differ: the CPU reduces the amount modulo the
+//! number of bits (see `unchecked_rotate_bits_assign` in `radix_parallel::rotate`), the GPU
+//! only reads its low ⌈log₂(num_bits)⌉ bits, i.e. reduces it modulo the next power of two,
+//! which the rotate tests of this file (unchecked ones included) still model.
+//!
+//! Once all are addressed point the GPU wrappers at the harness tests and the CPU unchecked
+//! tests, and delete this file.
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 use crate::integer::keycache::KEY_CACHE;
@@ -20,7 +27,8 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
     signed_right_shift_under_modulus,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial, MAX_NB_CTXT, NB_CTXT,
+    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial,
+    MAX_NB_CTXT, NB_CTXT,
 };
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, SignedRadixCiphertext,
@@ -1346,6 +1354,126 @@ where
 
             let ct_res2 = executor.execute((&ct, &shift));
             assert_eq!(ct_res, ct_res2, "Failed determinism check, \n\n\n msg0: {clear}, msg1: {clear_shift}, \n\n\nct0: {ct:?}, \n\n\nct1: {shift:?}\n\n\n");
+        }
+    }
+}
+
+pub(crate) fn legacy_signed_unchecked_rotate_left_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a RadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    assert!(modulus > 0);
+    assert!((modulus as u64).is_power_of_two());
+    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
+
+    for _ in 0..nb_tests {
+        let clear = rng.gen::<i64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt_signed(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = executor.execute((&ct, &shift));
+            let dec_res: i64 = cks.decrypt_signed(&ct_res);
+            let expected = rotate_left_helper(clear, clear_shift, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = executor.execute((&ct, &shift));
+            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
+            let dec_res: i64 = cks.decrypt_signed(&ct_res);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_left_helper(clear, clear_shift % nb_bits, true_nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+    }
+}
+
+pub(crate) fn legacy_signed_unchecked_rotate_right_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a RadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    assert!(modulus > 0);
+    assert!((modulus as u64).is_power_of_two());
+    let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
+
+    for _ in 0..nb_tests {
+        let clear = rng.gen::<i64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt_signed(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_shift = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = executor.execute((&ct, &shift));
+            let dec_res: i64 = cks.decrypt_signed(&ct_res);
+            let expected = rotate_right_helper(clear, clear_shift, nb_bits);
+            assert_eq!(expected, dec_res);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_shift = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_shift as u64);
+            let ct_res = executor.execute((&ct, &shift));
+            panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
+            let dec_res: i64 = cks.decrypt_signed(&ct_res);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_right_helper(clear, clear_shift % nb_bits, true_nb_bits);
+            assert_eq!(expected, dec_res);
         }
     }
 }

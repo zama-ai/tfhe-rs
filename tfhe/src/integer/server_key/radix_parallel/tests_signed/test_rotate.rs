@@ -1,6 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    encrypted_shift_amount_fixed_cases, ExecuteOn, ShiftAmount, ShiftAmountOperand, TestBuilder,
+    encrypted_rotation_amount_fixed_cases, ExecuteOn, ShiftAmount, ShiftAmountOperand, TestBuilder,
     TestContext,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
@@ -77,14 +77,10 @@ where
             let ct_res = executor.execute((&ct, &shift));
             panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // When nb_bits is not a power of two
-            // then the behaviour is not the same
-            let true_nb_bits = nb_bits;
-            let mut nb_bits = nb_bits;
-            if !nb_bits.is_power_of_two() {
-                nb_bits = nb_bits.next_power_of_two();
-            }
-            let expected = rotate_left_helper(clear, clear_shift % nb_bits, true_nb_bits);
+            // The amount is encrypted on the radix, i.e. reduced modulo 2^nb_bits, and the
+            // rotation then reduces it modulo nb_bits
+            let encrypted_amount = (u64::from(clear_shift) % (1u64 << nb_bits)) as u32;
+            let expected = rotate_left_helper(clear, encrypted_amount, nb_bits);
             assert_eq!(expected, dec_res);
         }
     }
@@ -137,14 +133,10 @@ where
             let ct_res = executor.execute((&ct, &shift));
             panic_if_any_block_is_not_clean_or_trivial(&ct_res, &cks);
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
-            // When nb_bits is not a power of two
-            // then the behaviour is not the same
-            let true_nb_bits = nb_bits;
-            let mut nb_bits = nb_bits;
-            if !nb_bits.is_power_of_two() {
-                nb_bits = nb_bits.next_power_of_two();
-            }
-            let expected = rotate_right_helper(clear, clear_shift % nb_bits, true_nb_bits);
+            // The amount is encrypted on the radix, i.e. reduced modulo 2^nb_bits, and the
+            // rotation then reduces it modulo nb_bits
+            let encrypted_amount = (u64::from(clear_shift) % (1u64 << nb_bits)) as u32;
+            let expected = rotate_right_helper(clear, encrypted_amount, nb_bits);
             assert_eq!(expected, dec_res);
         }
     }
@@ -176,12 +168,10 @@ where
     >,
 {
     TestBuilder::new(ctx)
-        .fixed_cases(encrypted_shift_amount_fixed_cases::<Int>)
+        .fixed_cases(encrypted_rotation_amount_fixed_cases::<Int>)
         .execute(
             executor,
-            |(lhs, amount): (Int, ShiftAmount<RadixCiphertext>)| {
-                lhs.rotate_right(amount.rotation_amount(lhs.bits()))
-            },
+            |(lhs, amount): (Int, ShiftAmount<RadixCiphertext>)| lhs.rotate_right(amount.value()),
         );
 }
 
@@ -211,11 +201,9 @@ where
     >,
 {
     TestBuilder::new(ctx)
-        .fixed_cases(encrypted_shift_amount_fixed_cases::<Int>)
+        .fixed_cases(encrypted_rotation_amount_fixed_cases::<Int>)
         .execute(
             executor,
-            |(lhs, amount): (Int, ShiftAmount<RadixCiphertext>)| {
-                lhs.rotate_left(amount.rotation_amount(lhs.bits()))
-            },
+            |(lhs, amount): (Int, ShiftAmount<RadixCiphertext>)| lhs.rotate_left(amount.value()),
         );
 }

@@ -1,6 +1,7 @@
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
+use crate::shortint::ciphertext::NoiseLevel;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -26,12 +27,24 @@ impl ServerKey {
             .iter_as::<u8>()
             .collect::<Vec<_>>();
 
+        let all_ones = (message_modulus - 1) as u8;
         lhs.blocks_mut()
             .par_iter_mut()
             .zip(clear_blocks.par_iter().copied())
             .for_each(|(lhs_block, clear_block)| {
-                self.key
-                    .unchecked_scalar_bitand_assign(lhs_block, clear_block);
+                if clear_block == 0 {
+                    self.key.create_trivial_assign(lhs_block, 0);
+                } else if clear_block == all_ones
+                    && lhs_block.carry_is_empty()
+                    && lhs_block.noise_level() <= NoiseLevel::NOMINAL
+                {
+                    // The block is clean (no carry, nominal noise)
+                    // and the corresponding scalar block is a mask on all message bits
+                    // so we can safely skip a PBS here
+                } else {
+                    self.key
+                        .unchecked_scalar_bitand_assign(lhs_block, clear_block);
+                }
             });
 
         let num_clear_blocks = clear_blocks.len();
