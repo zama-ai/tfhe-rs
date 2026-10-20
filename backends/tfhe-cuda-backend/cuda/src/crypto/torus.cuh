@@ -46,8 +46,8 @@ __device__ inline void typecast_double_round_to_torus(double x, T &r) {
   constexpr double mx = get_two_pow_torus_bits<T>();
   // floor must be used here because round has an issue with rounding .5,
   // as it rounds away from zero.
-  double frac = x - floor(x);
-  frac *= mx;
+  double frac = __dsub_rn(x, floor(x));
+  frac = __dmul_rn(frac, mx);
   typecast_double_to_torus(round(frac), r);
 }
 

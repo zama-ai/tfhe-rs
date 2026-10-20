@@ -27,11 +27,16 @@ uint64_t scratch_cuda_integer_decompress_radix_ciphertext_64_async(
     uint32_t message_modulus, uint32_t carry_modulus,
     bool allocate_gpu_memory) {
 
-  // Decompression doesn't keyswitch, so big and small dimensions are the same
+  // Decompression doesn't keyswitch: the PBS bootstraps straight from the
+  // LWEs extracted out of the packing GLWE, so its input dimension is the
+  // compression key's k * N. The PBS buffer variant is chosen from
+  // small_lwe_dimension at scratch time, so it must be the real PBS input
+  // dimension or the variant can disagree with the bootstrapping key layout.
   auto pbs = pbs_type_params_from_ffi(bsk_params);
   int_radix_params encryption_params(
       pbs, encryption_glwe_dimension, encryption_polynomial_size,
-      bsk_params.big_lwe_dimension, bsk_params.big_lwe_dimension, 0, 0,
+      bsk_params.big_lwe_dimension,
+      compression_glwe_dimension * compression_polynomial_size, 0, 0,
       bsk_params.level_count, bsk_params.base_log, message_modulus,
       carry_modulus);
 

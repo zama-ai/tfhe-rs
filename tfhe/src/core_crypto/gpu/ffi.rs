@@ -1011,30 +1011,51 @@ pub unsafe fn fourier_transform_backward_as_torus_f128_async<T: UnsignedInteger>
     );
 }
 
-/// forward pass of the throughput-oriented FFT16x4x16 (test/debug helper)
+/// Forward negacyclic FFT through the paired FFT16x16x4 transform of the
+/// specialized 2_2_params PBS (test-only). Input and output are interleaved
+/// `(re, im)` f64 pairs, `polynomial_size / 2` per polynomial; the output is in
+/// natural frequency order. Two polynomials are transformed per block, so
+/// `total_polynomials` must be even.
 ///
-/// Runs the forward negacyclic transform of the throughput-oriented FFT16x4x16
-/// core (the FFT used by the specialized 2_2 throughput PBS) on a batch of
-/// `total_polynomials` inputs. Each input/output holds `polynomial_size / 2`
-/// complex coefficients stored interleaved as `[re, im, re, im, ...]` f64
-/// values (so `polynomial_size` f64 per sample). The output spectrum is in
-/// natural frequency order.
-///
-/// Specialized for `polynomial_size == 2048` and requires compute capability
-/// 9.x (H100 or newer).
+/// Specialized for `polynomial_size == 2048`; runs on compute capability 8.x
+/// and newer.
 ///
 /// # Safety
 ///
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
-pub unsafe fn forward_fft16x4x16_async(
+pub unsafe fn forward_fft16x16x4_async(
     streams: &CudaStreams,
     input: &CudaVec<f64>,
     output: &mut CudaVec<f64>,
     polynomial_size: u32,
     total_polynomials: u32,
 ) {
-    cuda_forward_fft16x4x16_async(
+    cuda_forward_fft16x16x4_async(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        input.as_c_ptr(0),
+        output.as_mut_c_ptr(0),
+        polynomial_size,
+        total_polynomials,
+    );
+}
+
+/// Test-only inverse of [`forward_fft16x16x4_async`]: natural time order out,
+/// no 1/N. Same layout and restrictions.
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+pub unsafe fn backward_fft16x16x4_async(
+    streams: &CudaStreams,
+    input: &CudaVec<f64>,
+    output: &mut CudaVec<f64>,
+    polynomial_size: u32,
+    total_polynomials: u32,
+) {
+    cuda_backward_fft16x16x4_async(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         input.as_c_ptr(0),
