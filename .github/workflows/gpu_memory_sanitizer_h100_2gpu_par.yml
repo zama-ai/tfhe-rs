@@ -1,4 +1,4 @@
-# Run compute-sanitizer memcheck and racecheck in parallel on a 2xH100 machine
+# Run compute-sanitizer memcheck in parallel with racecheck, initcheck and synccheck on a 2xH100 machine
 name: gpu_memory_sanitizer_h100_2gpu_par
 
 env:
@@ -53,6 +53,7 @@ jobs:
               - tfhe/Cargo.toml
               - tfhe/build.rs
               - backends/tfhe-cuda-backend/**
+              - scripts/check_memory_errors.sh
               - tfhe/src/core_crypto/gpu/**
               - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
@@ -145,7 +146,9 @@ jobs:
       - name: Install cargo-nextest
         run: make install_cargo_nextest
 
-      - name: Run memcheck and racecheck in parallel
+      # memcheck runs alone on GPU0. racecheck, initcheck and synccheck share the same
+      # narrow test set and GTest binary, so they run one after the other on GPU1.
+      - name: Run memcheck in parallel with racecheck, initcheck and synccheck
         run: |
           run_memcheck() {
             local rc=0
@@ -158,15 +161,30 @@ jobs:
             CUDA_VISIBLE_DEVICES=${GPU1} make test_gpu_racecheck_relaxed_pbs128 || rc=$?
             echo "${rc}" > /tmp/racecheck.rc
           }
+          run_initcheck() {
+            local rc=0
+            CUDA_VISIBLE_DEVICES=${GPU1} make test_gpu_initcheck || rc=$?
+            echo "${rc}" > /tmp/initcheck.rc
+          }
+          run_synccheck() {
+            local rc=0
+            CUDA_VISIBLE_DEVICES=${GPU1} make test_gpu_synccheck || rc=$?
+            echo "${rc}" > /tmp/synccheck.rc
+          }
+          run_gpu1_lane() {
+            run_racecheck 2>&1 | sed -u 's/^/[racecheck] /'
+            run_initcheck 2>&1 | sed -u 's/^/[initcheck] /'
+            run_synccheck 2>&1 | sed -u 's/^/[synccheck] /'
+          }
           run_memcheck 2>&1 | sed -u 's/^/[memcheck]  /' &
           PID0=$!
-          run_racecheck 2>&1 | sed -u 's/^/[racecheck] /' &
+          run_gpu1_lane &
           PID1=$!
           wait "${PID0}" || true
           wait "${PID1}" || true
 
           STATUS=0
-          for lane in memcheck racecheck; do
+          for lane in memcheck racecheck initcheck synccheck; do
             rc="$(cat "/tmp/${lane}.rc" 2>/dev/null || true)"
             rc="${rc:-1}"
             if [ "${rc}" -eq 0 ]; then
@@ -198,7 +216,7 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "GPU Memory Sanitizer (memcheck + racecheck parallel) finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "GPU Memory Sanitizer (memcheck + racecheck/initcheck/synccheck parallel) finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
     name: gpu_memory_sanitizer_h100_2gpu_par/teardown-instance

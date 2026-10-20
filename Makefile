@@ -1056,16 +1056,33 @@ test_high_level_api_gpu_memcheck: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && scripts/check_memory_errors.sh --memcheck
 
-.PHONY: test_gpu_racecheck # Run compute-sanitizer racecheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
-test_gpu_racecheck: install_cargo_nextest
+.PHONY: build_gpu_sanitizer_gtest # Build the CUDA backend GTest binary used by the compute-sanitizer targets
+build_gpu_sanitizer_gtest:
 	mkdir -p "$(TFHECUDA_BUILD)" && \
 		cd "$(TFHECUDA_BUILD)" && \
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
 		"$(MAKE)" -j "$(CPU_COUNT)" test_tfhe_cuda_backend
+
+.PHONY: test_gpu_racecheck # Run compute-sanitizer racecheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
+test_gpu_racecheck: install_cargo_nextest build_gpu_sanitizer_gtest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
 	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
 		scripts/check_memory_errors.sh --racecheck
+
+.PHONY: test_gpu_initcheck # Run compute-sanitizer initcheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
+test_gpu_initcheck: install_cargo_nextest build_gpu_sanitizer_gtest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
+		scripts/check_memory_errors.sh --initcheck
+
+.PHONY: test_gpu_synccheck # Run compute-sanitizer synccheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
+test_gpu_synccheck: install_cargo_nextest build_gpu_sanitizer_gtest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
+		scripts/check_memory_errors.sh --synccheck
 
 # The relaxed flavor is opted into process-wide, and the 128-bit PBS panics on any
 # shape other than the noise-squashing one, so the filter is narrowed to the single
