@@ -56,33 +56,8 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (
-            ct.block_carries_are_empty(),
-            rotate.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct, rotate),
-            (true, false) => {
-                tmp_rhs = rotate.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct);
-                (ct, rotate)
-            }
-            (false, false) => {
-                tmp_rhs = rotate.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_rotate_right_assign_parallelized(lhs, rhs);
+        let rotate = self.clean_for_default_binary_assign_op(ct, rotate);
+        self.unchecked_rotate_right_assign_parallelized(ct, &rotate);
     }
 
     pub fn rotate_right_parallelized<T>(&self, ct: &T, rotate: &RadixCiphertext) -> T
@@ -118,33 +93,8 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (
-            ct.block_carries_are_empty(),
-            rotate.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct, rotate),
-            (true, false) => {
-                tmp_rhs = rotate.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct);
-                (ct, rotate)
-            }
-            (false, false) => {
-                tmp_rhs = rotate.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_rotate_left_assign_parallelized(lhs, rhs);
+        let rotate = self.clean_for_default_binary_assign_op(ct, rotate);
+        self.unchecked_rotate_left_assign_parallelized(ct, &rotate);
     }
 
     /// Computes homomorphically a rotation of bits.

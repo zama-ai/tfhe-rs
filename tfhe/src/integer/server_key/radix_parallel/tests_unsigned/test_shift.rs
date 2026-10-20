@@ -1,11 +1,15 @@
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::test_harness::{
+    encrypted_shift_amount_fixed_cases, ExecuteOn, ShiftAmount, ShiftAmountOperand, TestBuilder,
+    TestContext,
+};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial,
-    CpuFunctionExecutor, MAX_NB_CTXT,
+    nb_tests_for_params, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{ClientKey, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::tests::uint::Uint;
+use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -15,8 +19,8 @@ use std::sync::Arc;
 
 create_parameterized_test!(integer_unchecked_left_shift);
 create_parameterized_test!(integer_unchecked_right_shift);
-create_parameterized_test!(integer_left_shift);
-create_parameterized_test!(integer_right_shift);
+create_parameterized_test!(integer_default_left_shift);
+create_parameterized_test!(integer_default_right_shift);
 
 fn integer_unchecked_left_shift<P>(param: P)
 where
@@ -34,20 +38,50 @@ where
     unchecked_right_shift_test(param, executor);
 }
 
-fn integer_right_shift<P>(param: P)
+fn integer_default_right_shift<P>(param: P)
 where
-    P: Into<TestParameters> + Copy,
+    P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
-    default_right_shift_test(param, executor);
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    default_right_shift_test(&ctx, executor);
 }
 
-fn integer_left_shift<P>(param: P)
+pub(crate) fn default_right_shift_test<E>(ctx: &TestContext, executor: E)
 where
-    P: Into<TestParameters> + Copy,
+    E: ExecuteOn<(RadixCiphertext, ShiftAmountOperand<RadixCiphertext>), RadixCiphertext>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
-    default_left_shift_test(param, executor);
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(encrypted_shift_amount_fixed_cases::<Uint>)
+        .execute(
+            executor,
+            |(lhs, amount): (Uint, ShiftAmount<RadixCiphertext>)| lhs.shr(amount.value()),
+        );
+}
+
+fn integer_default_left_shift<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    default_left_shift_test(&ctx, executor);
+}
+
+pub(crate) fn default_left_shift_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<(RadixCiphertext, ShiftAmountOperand<RadixCiphertext>), RadixCiphertext>,
+{
+    TestBuilder::new(ctx)
+        .n_random(4)
+        .fixed_cases(encrypted_shift_amount_fixed_cases::<Uint>)
+        .execute(
+            executor,
+            |(lhs, amount): (Uint, ShiftAmount<RadixCiphertext>)| lhs.shl(amount.value()),
+        );
 }
 
 pub(crate) fn unchecked_left_shift_test<P, T>(param: P, mut executor: T)
@@ -144,117 +178,6 @@ where
             let encrypted_result = executor.execute((&ct, &shift));
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
             assert_eq!(0, decrypted_result);
-        }
-    }
-}
-
-pub(crate) fn default_left_shift_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks);
-
-    let cks: ClientKey = cks.into();
-
-    for num_blocks in 1..MAX_NB_CTXT {
-        // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
-        assert!(modulus.is_power_of_two());
-        let nb_bits = modulus.ilog2();
-        for _ in 0..nb_tests {
-            let clear = rng.gen::<u64>() % modulus;
-            let clear_shift = rng.gen::<u32>();
-
-            let ct = cks.encrypt_radix(clear, num_blocks);
-
-            // case when 0 <= shift < nb_bits
-            {
-                let clear_shift = clear_shift % nb_bits;
-                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
-
-                let encrypted_result = executor.execute((&ct, &shift));
-                for (i, b) in encrypted_result.blocks.iter().enumerate() {
-                    if b.noise_level() > NoiseLevel::NOMINAL {
-                        println!("{i}: {:?}", b.noise_level());
-                    }
-                }
-                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
-                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
-                assert_eq!((clear << clear_shift) % modulus, decrypted_result);
-            }
-
-            // case when shift >= nb_bits
-            {
-                let clear_shift = rng.gen_range(nb_bits..modulus as u32);
-                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
-
-                let encrypted_result = executor.execute((&ct, &shift));
-                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
-                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
-                // A shift >= nb_bits is an overshift and must return 0
-                assert_eq!(0, decrypted_result);
-            }
-        }
-    }
-}
-
-pub(crate) fn default_right_shift_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks);
-
-    let cks: ClientKey = cks.into();
-
-    for num_blocks in 1..MAX_NB_CTXT {
-        // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
-        assert!(modulus.is_power_of_two());
-        let nb_bits = modulus.ilog2();
-        for _ in 0..nb_tests {
-            let clear = rng.gen::<u64>() % modulus;
-            let clear_shift = rng.gen::<u32>();
-
-            let ct = cks.encrypt_radix(clear, num_blocks);
-
-            // case when 0 <= shift < nb_bits
-            {
-                let clear_shift = clear_shift % nb_bits;
-                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
-                let encrypted_result = executor.execute((&ct, &shift));
-                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
-                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
-                assert_eq!((clear >> clear_shift) % modulus, decrypted_result);
-            }
-
-            // case when shift >= nb_bits
-            {
-                let clear_shift = rng.gen_range(nb_bits..modulus as u32);
-                let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
-                let encrypted_result = executor.execute((&ct, &shift));
-                panic_if_any_block_is_not_clean_or_trivial(&encrypted_result, &cks);
-                let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
-                // A shift >= nb_bits is an overshift and must return 0
-                assert_eq!(0, decrypted_result, "Invalid result for {clear} << {clear_shift}, expected 0, got {decrypted_result}");
-            }
         }
     }
 }

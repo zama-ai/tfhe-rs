@@ -143,12 +143,8 @@ impl TestContext {
     /// Context seeded from [`SEED_ENV_VAR`] when set, randomly otherwise, and failing fast
     /// when [`FAIL_FAST_ENV_VAR`] is set.
     pub(crate) fn from_env(params: impl Into<TestParameters>) -> Self {
-        let mut ctx = Self::new(params.into(), seed_from_env_or_random());
-        ctx.fail_fast = fail_fast_from_env();
-        ctx
-    }
-
-    pub(crate) fn new(params: TestParameters, seed: u128) -> Self {
+        let params = params.into();
+        let seed = seed_from_env_or_random();
         println!("{SEED_ENV_VAR}={seed:#x}");
 
         let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
@@ -160,7 +156,7 @@ impl TestContext {
             cks,
             cpu_sks: Arc::new(sks),
             seed,
-            fail_fast: false,
+            fail_fast: fail_fast_from_env(),
         }
     }
 
@@ -1296,27 +1292,208 @@ pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(
     .collect()
 }
 
-/// Fixed cases for a shift or a rotation of a radix of `radix_bits` bits by a `u128` amount:
-/// the radix edges (see [`ClearInteger`]) against the amount edge values (see
-/// [`shift_amount_edge_values`]).
-pub(crate) fn shift_amount_fixed_cases<C: ClearInteger>(
+/// Clear model of a shift or rotation amount
+///
+/// We use this type to have better control over the randomness
+/// and other properties of values meant to be shift/rotation amounts
+/// in the tests, for instance:
+/// 'valid' shifts values are much smaller than other inputs.
+/// e.g: on an 8 bit radix, shift values should be in range 0..=7, so in order to not always draw
+/// random values that never exercise the valid range, we have this special wrapper type
+/// that increase the draw of good shift amounts.
+///
+///
+/// `A` is the type the operation takes it as:
+/// [`RadixCiphertext`] for an encrypted amount
+/// an unsigned scalar type for a clear one (e.g.: u128)
+pub(crate) struct ShiftAmount<A> {
+    value: Uint,
+    _marker: std::marker::PhantomData<A>,
+}
+
+// Manual impl to skip the `_marker` which makes reports noisier
+impl<A> std::fmt::Debug for ShiftAmount<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ShiftAmount")
+            .field("value", &self.value)
+            .finish_non_exhaustive()
+    }
+}
+
+// Not derived, as derives would require `A` itself to be `Copy`
+impl<A> Clone for ShiftAmount<A> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<A> Copy for ShiftAmount<A> {}
+
+impl<A> ShiftAmount<A> {
+    fn new(value: Uint) -> Self {
+        Self {
+            value,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub(crate) fn value(self) -> u128 {
+        self.value.value()
+    }
+}
+
+/// Random amount of at most `amount_bits` bits against a radix of `radix_bits` bits: half of
+/// the draws shift by less than the width, the other half overshift.
+fn random_shift_amount(rng: &mut dyn RngCore, radix_bits: u32, amount_bits: u32) -> u128 {
+    assert!(
+        radix_bits.ilog2() < amount_bits,
+        "amounts of {amount_bits} bits cannot overshift a radix of {radix_bits} bits"
+    );
+    let width = u128::from(radix_bits);
+    if rng.gen_bool(0.5) {
+        rng.gen_range(0..width)
+    } else {
+        // As in `ClearInteger::random_scalar`, the bit length is drawn first so that amounts
+        // just past the width are as likely as huge ones
+        let bit_length = rng.gen_range(radix_bits.ilog2() + 1..=amount_bits);
+        let low = (1u128 << (bit_length - 1)).max(width);
+        rng.gen_range(low..=Uint::max(bit_length).value())
+    }
+}
+
+impl<T: ScalarType<Clear = Uint>> TestClearInput for ShiftAmount<T> {
+    type Input = ShiftAmountOperand<T>;
+
+    fn generate_random(
+        rng: &mut dyn RngCore,
+        size_requirements: SizeRequirements,
+        ctx: &TestContext,
+    ) -> Self {
+        let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+        let value = random_shift_amount(rng, radix_bits, T::BITS);
+        Self::new(Uint::new(value, T::BITS))
+    }
+}
+
+/// A [`ShiftAmount`] as the operation receives it: the encrypted radix, or the scalar.
+///
+/// We also need this wrapper type in order to be able to exercise other properties
+/// of the shift/rot APIs
+pub(crate) struct ShiftAmountOperand<A>(A);
+
+impl<T: ScalarType<Clear = Uint>> TestInput for ShiftAmountOperand<T> {
+    type Clear = ShiftAmount<T>;
+
+    type Ref<'a> = T;
+
+    // Scalars have no state
+    type State = ();
+
+    fn prepare(
+        clear: Self::Clear,
+        _state: Self::State,
+        _rng: &mut dyn RngCore,
+        _ctx: &TestContext,
+    ) -> (Self, Self::Clear) {
+        (Self(T::from_clear(clear.value)), clear)
+    }
+
+    fn as_ref(&self) -> Self::Ref<'_> {
+        self.0
+    }
+}
+
+/// The APIs working with encrypted shift/rot amount allow the amount radix
+/// to be encrypted on a number of block different that the radix being modified
+/// (i.e we allow shift(radix_16_bits, amount_radix_6_bits)), this type serves
+/// radixes of a different width
+impl ShiftAmount<RadixCiphertext> {
+    /// The fewest blocks of `bits_per_block` bits holding `value`, at least one.
+    fn fewest_blocks(value: u128, bits_per_block: u32) -> u32 {
+        (u128::BITS - value.leading_zeros())
+            .div_ceil(bits_per_block)
+            .max(1)
+    }
+
+    /// The amount a rotation of a radix of `radix_bits` bits by this encrypted amount
+    /// actually rotates by, before the reduction modulo `radix_bits`.
+    ///
+    /// The implementation only reads the low ⌈log₂(radix_bits)⌉ bits of the amount, i.e. the
+    /// amount modulo the power of two at or above `radix_bits`. When `radix_bits` is not a
+    /// power of two, amounts past that power of two do not rotate as a reduction modulo the
+    /// width would: rotating 6 bits by 8 is a rotation by 0, not by 2.
+    pub(crate) fn rotation_amount(self, radix_bits: u32) -> u128 {
+        self.value() % u128::from(radix_bits.next_power_of_two())
+    }
+}
+
+impl TestClearInput for ShiftAmount<RadixCiphertext> {
+    type Input = ShiftAmountOperand<RadixCiphertext>;
+
+    fn generate_random(
+        rng: &mut dyn RngCore,
+        size_requirements: SizeRequirements,
+        ctx: &TestContext,
+    ) -> Self {
+        let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+        let value = random_shift_amount(rng, radix_bits, radix_bits);
+        let n_blocks = if rng.gen_bool(0.5) {
+            size_requirements.n_blocks
+        } else {
+            let fewest_blocks = Self::fewest_blocks(value, ctx.bits_per_block());
+            rng.gen_range(fewest_blocks..=size_requirements.n_blocks)
+        };
+        Self::new(Uint::new(value, ctx.radix_bits(n_blocks)))
+    }
+}
+
+impl TestInput for ShiftAmountOperand<RadixCiphertext> {
+    type Clear = ShiftAmount<RadixCiphertext>;
+
+    type Ref<'a> = &'a RadixCiphertext;
+
+    type State = RadixState;
+
+    fn prepare(
+        clear: Self::Clear,
+        state: Self::State,
+        rng: &mut dyn RngCore,
+        ctx: &TestContext,
+    ) -> (Self, Self::Clear) {
+        let (encrypted, value) = RadixCiphertext::prepare(clear.value, state, rng, ctx);
+        (Self(encrypted), ShiftAmount::new(value))
+    }
+
+    fn as_ref(&self) -> Self::Ref<'_> {
+        &self.0
+    }
+}
+
+/// Fixed cases for a shift or a rotation of a radix of `radix_bits` bits by a scalar amount of
+/// type `T`: the radix edges (see [`ClearInteger`]) against the amount edge values (see
+/// [`scalar_shift_amount_edge_values`]).
+pub(crate) fn scalar_shift_amount_fixed_cases<C: ClearInteger, T: ScalarType<Clear = Uint>>(
     size_requirements: SizeRequirements,
     ctx: &TestContext,
-) -> Vec<(C, TestScalar<u128>)> {
+) -> Vec<(C, ShiftAmount<T>)> {
     let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
     iproduct!(
         C::radix_edges(radix_bits),
-        shift_amount_edge_values(radix_bits)
+        scalar_shift_amount_edge_values::<T>(radix_bits)
     )
     .collect()
 }
 
-/// Shift and rotation amounts worth testing against a radix of `radix_bits` bits.
+/// Scalar shift and rotation amounts of type `T` worth testing against a radix of `radix_bits`
+/// bits.
 ///
 /// Tests amounts too wide for u32/u64 as we had a bug due to casting being used
 /// truncating the values incorrectly
-fn shift_amount_edge_values(radix_bits: u32) -> Vec<TestScalar<u128>> {
+fn scalar_shift_amount_edge_values<T: ScalarType<Clear = Uint>>(
+    radix_bits: u32,
+) -> Vec<ShiftAmount<T>> {
     let bits = u128::from(radix_bits);
+    let amount_max = Uint::max(T::BITS).value();
     let mut values = vec![
         0,
         1,
@@ -1327,17 +1504,86 @@ fn shift_amount_edge_values(radix_bits: u32) -> Vec<TestScalar<u128>> {
         bits,
         bits + 1,
         2 * bits - 1,
-        u128::MAX,
+        amount_max,
     ];
     for low_bits in [u32::BITS, u64::BITS] {
         let wide = 1u128 << low_bits;
         values.extend([wide - 1, wide, wide + 1, wide + bits - 1]);
     }
+    values.retain(|value| *value <= amount_max);
     values.sort_unstable();
     values.dedup();
     values
         .into_iter()
-        .map(|value| TestScalar::new(Uint::new(value, u128::BITS)))
+        .map(|value| ShiftAmount::new(Uint::new(value, T::BITS)))
+        .collect()
+}
+
+/// Fixed cases for a shift or a rotation of a radix of `radix_bits` bits by an encrypted
+/// amount: each amount edge value (see [`encrypted_shift_amount_edge_values`]) paired with one
+/// radix edge (see [`ClearInteger`]), cycling through them.
+///
+/// Encrypted shifts are too costly to run the product of both sets at every block count. The
+/// amount is what drives the implementation's paths, random cases diversify the values.
+pub(crate) fn encrypted_shift_amount_fixed_cases<C: ClearInteger>(
+    size_requirements: SizeRequirements,
+    ctx: &TestContext,
+) -> Vec<(C, ShiftAmount<RadixCiphertext>)> {
+    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+    C::radix_edges(radix_bits)
+        .into_iter()
+        .cycle()
+        .zip(encrypted_shift_amount_edge_values(
+            radix_bits,
+            ctx.bits_per_block(),
+        ))
+        .collect()
+}
+
+/// Encrypted shift and rotation amounts worth testing against a radix of `radix_bits` bits,
+/// each on a radix of `radix_bits` bits and on the fewest blocks holding it.
+///
+/// On top of the edges around the width, the implementation splits the amount: its low
+/// ⌈log₂(radix_bits)⌉ bits drive the shifter, the overshift is decided on the whole amount.
+/// So the amounts include the first ones the shifter cannot see, and the top bit alone,
+/// which overshifts with low bits all zero. On the fewest blocks, small amounts have fewer
+/// bits than the shifter reads.
+fn encrypted_shift_amount_edge_values(
+    radix_bits: u32,
+    bits_per_block: u32,
+) -> Vec<ShiftAmount<RadixCiphertext>> {
+    let bits = u128::from(radix_bits);
+    let shifter_range = u128::from(radix_bits.next_power_of_two());
+    let amount_max = Uint::max(radix_bits).value();
+    let mut values = vec![
+        0,
+        1,
+        2,
+        3,
+        bits / 2,
+        bits - 1,
+        bits,
+        bits + 1,
+        2 * bits - 1,
+        shifter_range - 1,
+        shifter_range,
+        shifter_range + 1,
+        1 << (radix_bits - 1),
+        amount_max,
+    ];
+    values.retain(|value| *value <= amount_max);
+    values.sort_unstable();
+    values.dedup();
+    values
+        .into_iter()
+        .flat_map(|value| {
+            let fewest_bits = ShiftAmount::<RadixCiphertext>::fewest_blocks(value, bits_per_block)
+                * bits_per_block;
+            let narrower = (fewest_bits < radix_bits).then_some(fewest_bits);
+            std::iter::once(radix_bits)
+                .chain(narrower)
+                .map(move |bits| ShiftAmount::new(Uint::new(value, bits)))
+        })
         .collect()
 }
 
