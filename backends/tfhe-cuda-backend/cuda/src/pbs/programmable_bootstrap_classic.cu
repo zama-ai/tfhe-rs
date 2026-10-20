@@ -139,6 +139,9 @@ uint64_t scratch_cuda_programmable_bootstrap_64_async(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
 
+  // The specialized 2_2 gate behind the variant choice reads the compute
+  // capability of the current device.
+  cuda_set_device(gpu_index);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 #if (CUDA_ARCH >= 900)
   if (has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
