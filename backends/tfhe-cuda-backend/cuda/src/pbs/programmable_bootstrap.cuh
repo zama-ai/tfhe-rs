@@ -408,46 +408,134 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc(
   // the buffer in registers to avoid synchronizations and shared memory usage
 }
 
-// We need a different version for the default specialized 2_2 params because
-// in that case we don't need to use dsm and then no cluster sync
-// We want to have the sync outside the function, so the product can leverage
-// the complex ops to overlap the bsk loads. This is an empirical observation
-// after trying both options.
-// This kernel assumes that both glwe reside on the same SM, the cuda block
-// dimensions are (64, glwe_dimension + 1, 1), so threadIdx.y is used to
-// selectthe glwe_id.
-template <class params, uint32_t polynomial_size, uint32_t glwe_dimension,
+// Key quartets of the next iteration loaded right after the product so they
+// land during the transforms: 4 fits sm_90, 2 is spill-free on sm_89, 1 else.
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 900
+#define SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS 4
+#elif __CUDA_ARCH__ >= 890
+#define SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS 2
+#else
+#define SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS 1
+#endif
+static_assert(SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS >= 0 &&
+                  SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS <= 8,
+              "between 0 and 8 quartets can be prefetched");
+
+// The four bsk polynomials of one iteration's 2x2 GGSW product, owner-relative:
+// k00/k10 feed this group's output component, k01/k11 the other group's.
+template <uint32_t polynomial_size, uint32_t glwe_dimension,
           uint32_t level_count>
 __device__ __forceinline__ void
-mul_ggsw_glwe_in_fourier_domain_2_2_params_fused_no_tbc(
-    double2 *fft, double2 *fft_regs, double2 *buffer_regs, double2 *other_fft,
-    const double2 *__restrict__ bootstrapping_key, int iteration) {
-  // Continues multiplying fft by every polynomial in that particular bsk level
-  // Each y-block accumulates in a different polynomial at each iteration
-  // We accumulate in registers to free shared memory
-  // In 2_2 params we only have one level
+get_ggsw_2_2_params_paired_slices(const double2 *__restrict__ bootstrapping_key,
+                                  int iteration, const double2 *&k00,
+                                  const double2 *&k01, const double2 *&k10,
+                                  const double2 *&k11) {
   constexpr uint32_t LEVEL_ID = 0;
-  auto self_bsk_slice =
+  constexpr uint32_t half_degree = polynomial_size / 2;
+  const uint32_t own_col = threadIdx.y ? half_degree : 0u;
+  const uint32_t other_col = half_degree - own_col;
+  const double2 *row0 =
       get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
                                         glwe_dimension, level_count, LEVEL_ID>(
-          bootstrapping_key, iteration, threadIdx.y);
-  auto self_bsk_poly = self_bsk_slice + threadIdx.y * polynomial_size / 2;
-
-  constexpr uint32_t GLWE_ID = 1;
-  int idx = (GLWE_ID + threadIdx.y) % (glwe_dimension + 1);
-  auto other_bsk_slice =
+          bootstrapping_key, iteration, 0);
+  const double2 *row1 =
       get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
                                         glwe_dimension, level_count, LEVEL_ID>(
-          bootstrapping_key, iteration, idx);
-  auto other_bsk_poly = other_bsk_slice + threadIdx.y * polynomial_size / 2;
-  // other_fft points directly at the other GLWE component's FFT communication
-  // buffer; the caller is responsible for placing the right pointer here.
-  polynomial_product_accumulate_in_fourier_domain_2_2_params_fused<params>(
-      buffer_regs, fft_regs, other_fft, self_bsk_poly, other_bsk_poly);
+          bootstrapping_key, iteration, 1);
+  k00 = row0 + own_col;
+  k01 = row0 + other_col;
+  k10 = row1 + own_col;
+  k11 = row1 + other_col;
+}
 
-  // We don't need to synchronize here, cause we are going to use a buffer
-  // different than the input In 2_2 params, level_count=1 so we can just return
-  // the buffer in registers to avoid synchronizations and shared memory usage
+// Loads the first PREFETCH quartets (K00, K10, K11, K01 per slot) of this
+// thread's key slice for `iteration` into registers, without synchronisation.
+template <uint32_t polynomial_size, uint32_t glwe_dimension,
+          uint32_t level_count>
+__device__ __forceinline__ void
+prefetch_ggsw_2_2_params_paired(double2 *key_pre,
+                                const double2 *__restrict__ bootstrapping_key,
+                                int iteration) {
+  if constexpr (SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS > 0) {
+    const double2 *k00, *k01, *k10, *k11;
+    get_ggsw_2_2_params_paired_slices<polynomial_size, glwe_dimension,
+                                      level_count>(bootstrapping_key, iteration,
+                                                   k00, k01, k10, k11);
+    int slot = threadIdx.x + 64 * 8 * threadIdx.y;
+#pragma unroll
+    for (int j = 0; j < SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS; j++) {
+      key_pre[4 * j + 0] = k00[slot];
+      key_pre[4 * j + 1] = k10[slot];
+      key_pre[4 * j + 2] = k11[slot];
+      key_pre[4 * j + 3] = k01[slot];
+      slot += 64;
+    }
+  }
+}
+
+// Paired GGSW product of the specialized 2_2 kernel. After the paired forward
+// transform each thread holds the same eight frequencies of both GLWE
+// components (fft_regs[0..7] mask, fft_regs[8..15] body), so both external
+// product outputs are formed in registers: no spectrum exchange through
+// shared memory and no block-wide barrier between the transform and the
+// product.
+//
+//   out_mask = mask * K[0][0] + body * K[1][0]
+//   out_body = body * K[1][1] + mask * K[0][1]
+//
+// buffer_regs[0..7] receives this group's own output component and
+// buffer_regs[8..15] the other group's (see get_ggsw_2_2_params_paired_slices).
+// The frequency this thread holds in register j (j = 4h + v) sits at physical
+// slot tid + 64*(j + 8*threadIdx.y) of each 1024-slot polynomial (see
+// fft16x16x4.cuh). The first quartets come from key_pre, loaded during the
+// previous iteration.
+template <uint32_t polynomial_size, uint32_t glwe_dimension,
+          uint32_t level_count>
+__device__ __forceinline__ void
+mul_ggsw_glwe_in_fourier_domain_2_2_params_paired(
+    const double2 *fft_regs, double2 *buffer_regs, const double2 *key_pre,
+    const double2 *__restrict__ bootstrapping_key, int iteration) {
+  const double2 *k00, *k01, *k10, *k11;
+  get_ggsw_2_2_params_paired_slices<polynomial_size, glwe_dimension,
+                                    level_count>(bootstrapping_key, iteration,
+                                                 k00, k01, k10, k11);
+
+  int slot = threadIdx.x + 64 * 8 * threadIdx.y;
+#pragma unroll
+  for (int j = 0; j < 8; j++) {
+    const double2 x = fft_regs[j];     // mask spectrum
+    const double2 y = fft_regs[j + 8]; // body spectrum
+    double2 a, b, c, d;
+    if (j < SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS) {
+      a = key_pre[4 * j + 0];
+      b = key_pre[4 * j + 1];
+      c = key_pre[4 * j + 2];
+      d = key_pre[4 * j + 3];
+    } else {
+      a = k00[slot];
+      b = k10[slot];
+      c = k11[slot];
+      d = k01[slot];
+    }
+
+    double real = __fma_rn(x.x, a.x, -__dmul_rn(x.y, a.y));
+    double imag = __fma_rn(x.x, a.y, __dmul_rn(x.y, a.x));
+    real = __fma_rn(y.x, b.x, real);
+    real = __fma_rn(-y.y, b.y, real);
+    imag = __fma_rn(y.x, b.y, imag);
+    imag = __fma_rn(y.y, b.x, imag);
+    buffer_regs[j] = make_double2(real, imag);
+
+    real = __fma_rn(y.x, c.x, -__dmul_rn(y.y, c.y));
+    imag = __fma_rn(y.x, c.y, __dmul_rn(y.y, c.x));
+    real = __fma_rn(x.x, d.x, real);
+    real = __fma_rn(-x.y, d.y, real);
+    imag = __fma_rn(x.x, d.y, imag);
+    imag = __fma_rn(x.y, d.x, imag);
+    buffer_regs[j + 8] = make_double2(real, imag);
+
+    slot += 64;
+  }
 }
 
 template <typename InputTorus, typename OutputTorus>
