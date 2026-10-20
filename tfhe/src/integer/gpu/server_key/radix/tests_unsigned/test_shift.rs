@@ -1,10 +1,12 @@
+use super::legacy_default_tests::{
+    legacy_default_left_shift_test, legacy_default_right_shift_test,
+};
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_shift::{
-    default_left_shift_test, default_right_shift_test, unchecked_left_shift_test,
-    unchecked_right_shift_test,
+    unchecked_left_shift_test, unchecked_right_shift_test,
 };
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
@@ -21,12 +23,12 @@ create_gpu_parameterized_test!(integer_unchecked_right_shift {
     TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
-create_gpu_parameterized_test!(integer_left_shift {
+create_gpu_parameterized_test!(integer_default_left_shift {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
-create_gpu_parameterized_test!(integer_right_shift {
+create_gpu_parameterized_test!(integer_default_right_shift {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -40,12 +42,12 @@ where
     unchecked_right_shift_test(param, executor);
 }
 
-fn integer_right_shift<P>(param: P)
+fn integer_default_right_shift<P>(param: P)
 where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::right_shift);
-    default_right_shift_test(param, executor);
+    legacy_default_right_shift_test(param, executor);
 }
 
 fn integer_unchecked_left_shift<P>(param: P)
@@ -56,10 +58,10 @@ where
     unchecked_left_shift_test(param, executor);
 }
 
-fn integer_left_shift<P>(param: P)
+fn integer_default_left_shift<P>(param: P)
 where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::left_shift);
-    default_left_shift_test(param, executor);
+    legacy_default_left_shift_test(param, executor);
 }

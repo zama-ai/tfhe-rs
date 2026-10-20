@@ -2,6 +2,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::parameters::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
@@ -800,6 +801,7 @@ impl ServerKey {
         self.zero_out_if(ct, condition_block, |x| x == value);
     }
 
+    // Outputs always have <= NOMINAL noise level
     pub(crate) fn zero_out_if<T, F>(
         &self,
         ct: &mut T,
@@ -815,6 +817,20 @@ impl ServerKey {
             // The block 'encrypts'  0, and only 0
             if predicate(0u64) {
                 self.create_trivial_zero_assign_radix(ct);
+            } else {
+                // The blocks keep their value, but come out with a nominal noise level, as they
+                // would from the lookup table of the encrypted condition below
+                let identity = self.key.generate_lookup_table(|x| x);
+                ct.blocks_mut()
+                    .par_iter_mut()
+                    .filter(|block| {
+                        block.degree.get() != 0 && block.noise_level() > NoiseLevel::NOMINAL
+                    })
+                    .for_each(|block| {
+                        let saved_degree = block.degree;
+                        self.key.apply_lookup_table_assign(block, &identity);
+                        block.degree = saved_degree;
+                    });
             }
             // else, condition is false, don't do anything
             return;

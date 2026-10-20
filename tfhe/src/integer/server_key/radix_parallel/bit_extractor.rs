@@ -115,6 +115,16 @@ impl<'a> BitExtractor<'a> {
         }
     }
 
+    pub(crate) fn is_empty(&mut self) -> bool {
+        let maybe_block = self.next();
+        if let Some(b) = maybe_block {
+            self.buffer.push_front(b);
+            false
+        } else {
+            true
+        }
+    }
+
     /// Extract the remaining `n` bits in parallel from the current source blocks
     /// and place them into the internal buffer
     ///
