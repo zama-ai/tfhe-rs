@@ -378,6 +378,11 @@ check_documentation_up_to_date_gpu:
 	python3 -m venv venv
 	@source venv/bin/activate && python ci/check_doxygen_gpu.py
 
+.PHONY: gpu_workflows_report_pdf # Generate a PDF table of GPU CI workflows from workflow YAML files
+gpu_workflows_report_pdf:
+	python3 ci/gpu_workflows_table.py | python3 ci/csv_to_ods.py workflows_auto.ods
+	libreoffice --headless --convert-to pdf workflows_auto.ods
+
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
