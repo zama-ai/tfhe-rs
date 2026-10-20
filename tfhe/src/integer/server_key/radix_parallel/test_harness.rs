@@ -111,6 +111,17 @@ fn seed_from_env_or_random() -> u128 {
     )
 }
 
+/// Environment variable stopping a run at its first failing case, when set to anything but
+/// `0` or the empty string.
+///
+/// By default every case runs and the failures are reported together at the end,
+/// which shows the whole picture but makes debugging a single failure slow.
+const FAIL_FAST_ENV_VAR: &str = "TFHE_RADIX_TEST_FAIL_FAST";
+
+fn fail_fast_from_env() -> bool {
+    std::env::var(FAIL_FAST_ENV_VAR).is_ok_and(|s| !s.is_empty() && s != "0")
+}
+
 /// Things shared by every case of a test run.
 ///
 /// The clear values, input states and dirtying amounts derive from a single seed (through
@@ -124,12 +135,17 @@ pub(crate) struct TestContext {
     /// The harness prepares inputs with it (carries, noise) and CPU executors run with it
     cpu_sks: Arc<ServerKey>,
     seed: u128,
+    /// Stop at the first failing case instead of collecting them all.
+    fail_fast: bool,
 }
 
 impl TestContext {
-    /// Context seeded from [`SEED_ENV_VAR`] when set, randomly otherwise.
+    /// Context seeded from [`SEED_ENV_VAR`] when set, randomly otherwise, and failing fast
+    /// when [`FAIL_FAST_ENV_VAR`] is set.
     pub(crate) fn from_env(params: impl Into<TestParameters>) -> Self {
-        Self::new(params.into(), seed_from_env_or_random())
+        let mut ctx = Self::new(params.into(), seed_from_env_or_random());
+        ctx.fail_fast = fail_fast_from_env();
+        ctx
     }
 
     pub(crate) fn new(params: TestParameters, seed: u128) -> Self {
@@ -144,6 +160,7 @@ impl TestContext {
             cks,
             cpu_sks: Arc::new(sks),
             seed,
+            fail_fast: false,
         }
     }
 
@@ -362,7 +379,27 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
         let (encrypted_inputs, clear_inputs) =
             C::Input::prepare(clear_inputs, states, rng, self.ctx);
 
-        let outputs = self.executor.execute_on(&encrypted_inputs);
+        // A panic is recorded as a failure of the case, so that one run still shows every
+        // failing case. The panic hook has already printed the message and the backtrace.
+        let executor = &mut self.executor;
+        let outputs = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            executor.execute_on(&encrypted_inputs)
+        })) {
+            Ok(outputs) => outputs,
+            Err(payload) => {
+                let message = payload
+                    .downcast_ref::<String>()
+                    .cloned()
+                    .or_else(|| payload.downcast_ref::<&str>().map(|s| (*s).to_string()))
+                    .unwrap_or_default();
+                let failures = vec![Failure {
+                    output_index: 0,
+                    kind: FailureKind::Panicked(message),
+                }];
+                self.record(size_req, &states, &clear_inputs, failures);
+                return;
+            }
+        };
 
         let mut failures = FailureSink::default();
         if states == <C::Input as TestInput>::State::clean()
@@ -375,16 +412,30 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
             self.ctx,
             &mut failures,
         );
+        self.record(size_req, &states, &clear_inputs, failures.failures);
+    }
 
+    /// Counts a case that ran, and adds it to the report if it failed.
+    ///
+    /// Panics with the report on the first failure when failing fast.
+    fn record(
+        &mut self,
+        size_req: SizeRequirements,
+        states: &impl std::fmt::Debug,
+        clear_inputs: &impl std::fmt::Debug,
+        failures: Vec<Failure>,
+    ) {
         self.report.cases_run += 1;
-        if !failures.is_empty() {
-            self.report.failing_cases.push(CaseFailure {
-                size_req,
-                states: format!("{states:?}"),
-                inputs: format!("{clear_inputs:?}"),
-                failures: failures.failures,
-            });
+        if failures.is_empty() {
+            return;
         }
+        self.report.failing_cases.push(CaseFailure {
+            size_req,
+            states: format!("{states:?}"),
+            inputs: format!("{clear_inputs:?}"),
+            failures,
+        });
+        assert!(!self.ctx.fail_fast, "{}", self.report);
     }
 
     /// Panics with the report if any case failed.
@@ -405,6 +456,8 @@ pub(crate) enum FailureKind {
     /// Executing the operation twice on the same inputs gave different results.
     /// In the bitwise equality sense, not decrypted result sense.
     NonDeterministic,
+    /// The operation panicked, the message is the panic payload.
+    Panicked(String),
 }
 
 impl FailureKind {
@@ -414,6 +467,7 @@ impl FailureKind {
             Self::BlockCountMismatch { .. } => "block count mismatch",
             Self::NotClean { .. } => "result not clean",
             Self::NonDeterministic => "non deterministic",
+            Self::Panicked(_) => "panicked",
         }
     }
 }
@@ -429,6 +483,7 @@ impl std::fmt::Display for FailureKind {
             }
             Self::NotClean { block, reason } => write!(f, "block {block} not clean: {reason}"),
             Self::NonDeterministic => write!(f, "two executions gave different results"),
+            Self::Panicked(message) => write!(f, "panicked: {message}"),
         }
     }
 }
@@ -471,10 +526,6 @@ impl FailureSink {
     /// Moves on to the next output of a multi-output operation.
     fn next_output(&mut self) {
         self.output_index += 1;
-    }
-
-    fn is_empty(&self) -> bool {
-        self.failures.is_empty()
     }
 }
 
