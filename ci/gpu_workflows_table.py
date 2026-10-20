@@ -236,6 +236,8 @@ TEST_TARGETS = [
     "test_signed_integer_fake_multi_gpu",
     "test_high_level_api_noise_squash_relaxed_pbs128_gpu",
     "test_gpu_racecheck_relaxed_pbs128",
+    "test_gpu_initcheck_relaxed_pbs128",
+    "test_gpu_synccheck_relaxed_pbs128",
 ]
 
 
