@@ -220,6 +220,15 @@ impl CompressedSquashedNoiseCiphertextList {
         self.len() == 0
     }
 
+    /// Returns how many u128 are needed to store the packed elements
+    #[cfg(all(test, feature = "gpu"))]
+    pub(crate) fn flat_len(&self) -> usize {
+        self.glwe_ciphertext_list
+            .iter()
+            .map(|glwe| glwe.packed_integers().packed_coeffs().len())
+            .sum()
+    }
+
     /// Unpack a single ciphertext from the list.
     ///
     /// Return an error if the index is greater than the size of the list.
