@@ -36,6 +36,46 @@ WORKFLOWS = [
 ]
 
 
+_DOW_NAMES = {
+    "0": "Sun", "1": "Mon", "2": "Tue", "3": "Wed", "4": "Thu", "5": "Fri", "6": "Sat",
+    "SUN": "Sun", "MON": "Mon", "TUE": "Tue", "WED": "Wed", "THU": "Thu", "FRI": "Fri", "SAT": "Sat",
+}
+
+def _fmt_dow(dow: str) -> str:
+    """Convert a DOW field to a short readable label."""
+    if dow == "*":
+        return "daily"
+    if "-" in dow:
+        parts = dow.split("-")
+        return f"{_DOW_NAMES.get(parts[0].upper(), parts[0])}–{_DOW_NAMES.get(parts[1].upper(), parts[1])}"
+    return _DOW_NAMES.get(dow.upper(), dow)
+
+def humanize_cron(expr: str) -> str:
+    """Convert a simple cron expression to a human-readable string."""
+    parts = expr.strip().split()
+    if len(parts) != 5:
+        return expr
+    minute, hour, dom, month, dow = parts
+
+    try:
+        time_str = f"{int(hour):02d}:{int(minute):02d}"
+    except ValueError:
+        time_str = f"{hour}:{minute}"
+
+    # DOM step pattern: */N
+    if dom.startswith("*/") and dow == "*":
+        step = dom[2:]
+        return f"Every {step} days at {time_str}"
+
+    if dow == "*" and dom == "*":
+        return f"Daily at {time_str}"
+
+    dow_label = _fmt_dow(dow)
+    if dow_label == "daily":
+        return f"Daily at {time_str}"
+    return f"{dow_label} at {time_str}"
+
+
 def load_slab(path: Path) -> dict:
     """Load slab.toml and return a flat dict of profile_name -> {instance_type, fallbacks}."""
     with open(path, "rb") as f:
@@ -113,7 +153,7 @@ def parse_workflow(path: Path, slab: dict) -> dict:
         for entry in schedule:
             if isinstance(entry, dict) and "cron" in entry:
                 crons.append(str(entry["cron"]).strip())
-    cron = "; ".join(crons)
+    cron = "; ".join(humanize_cron(c) for c in crons)
 
     has_any_auto = pr_regular or pr_approved or cron or has_push
     manual_only = has_dispatch and not has_any_auto
