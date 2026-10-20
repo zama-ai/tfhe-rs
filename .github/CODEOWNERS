@@ -29,8 +29,18 @@
 
 /Makefile                               @IceTDrinker @nsarlin-zama
 
+# GitHub related configurations, workflows and codeowners
+# and more
 /.github/                               @tmontaigu @SouchonTheo
+/.github/CODEOWNERS                     @IceTDrinker @nsarlin-zama
+
 /ci/                                    @nsarlin-zama @SouchonTheo
 /scripts/                               @nsarlin-zama @SouchonTheo
 
-/CODEOWNERS                             @IceTDrinker @nsarlin-zama
+# Protect manifests
+**/Cargo.toml                           @mayeul-zama @tmontaigu
+**/package.json                         @IceTDrinker @tmontaigu
+
+# Various configurations
+/.cargo/audit.toml                      @nsarlin-zama @IceTDrinker
+/.cargo/deny.toml                       @nsarlin-zama @IceTDrinker
