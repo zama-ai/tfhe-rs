@@ -3,6 +3,7 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::packed_integers::PackedIntegers;
 use crate::core_crypto::prelude::{
     glwe_mask_size, CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount,
@@ -68,6 +69,19 @@ pub struct CudaPackedGlweCiphertextListMeta<T: UnsignedInteger> {
     // Number of elements (u64) the uncompressed GLWE list had
     // keep in mind the last GLWE may not be full
     pub initial_len: usize,
+}
+
+impl<T: UnsignedInteger> CudaPackedGlweCiphertextListMeta<T> {
+    /// Number of elements of a GLWE of this list holding `bodies_count` bodies, without padding,
+    /// or None if it overflows
+    fn packed_glwe_len(&self, bodies_count: usize) -> Option<usize> {
+        self.glwe_dimension
+            .0
+            .checked_mul(self.polynomial_size.0)
+            .and_then(|mask_size| mask_size.checked_add(bodies_count))
+            .and_then(|glwe_len| glwe_len.checked_mul(self.storage_log_modulus.0))
+            .map(|glwe_bits| glwe_bits.div_ceil(T::BITS))
+    }
 }
 
 pub struct CudaPackedGlweCiphertextList<T: UnsignedInteger> {
@@ -173,26 +187,24 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
         Ok(Self { data, meta })
     }
 
-    // Split PackedIntegers considering their GLWE representation.
+    // Split the list into its compressed GLWEs.
     //
-    // GPU stores packed data with uniform stride per GLWE:
+    // Every GLWE but the last one holds `lwe_per_glwe` bodies and is packed into
     //   per_glwe_packed = ceil((k*N + lwe_per_glwe) * log_modulus / Scalar::BITS)
-    // The last GLWE may have fewer meaningful body elements (zero-padded to
-    // lwe_per_glwe on the GPU side), so its PackedIntegers is truncated to match
-    // the actual body count.
-    pub(crate) fn to_vec_packed_integers(
+    // elements. The last GLWE may hold fewer bodies, and may or may not be padded to
+    // `per_glwe_packed` elements depending on how the list was built. Both layouts are accepted,
+    // and the returned GLWEs never include the padding.
+    pub(crate) fn to_compressed_glwe_list(
         &self,
         streams: &CudaStreams,
-    ) -> crate::Result<Vec<PackedIntegers<T>>> {
+    ) -> crate::Result<Vec<CompressedModulusSwitchedGlweCiphertext<T>>> {
         let Some(meta) = self.meta else {
             // If there is no metadata, the list stores no ciphertext
             return Ok(Vec::new());
         };
 
-        let glwe_mask_size = glwe_mask_size(meta.glwe_dimension, meta.polynomial_size);
         let lwe_per_glwe = meta.lwe_per_glwe.get();
         let log_modulus = meta.storage_log_modulus;
-        let total_bodies = meta.total_lwe_bodies_count;
 
         if log_modulus.0 == 0
             || log_modulus.0 > CiphertextModulusLog::from(meta.ciphertext_modulus).0
@@ -204,25 +216,53 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
             ));
         }
 
-        let invalid_len = || {
-            error!(
-                "Invalid CudaPackedGlweCiphertextList: its metadata do not describe the {} \
-                elements it holds",
-                self.data.len()
-            )
-        };
-        let num_glwes = total_bodies.div_ceil(lwe_per_glwe);
-        let per_glwe_packed = meta
+        let size_overflow =
+            || error!("Invalid CudaPackedGlweCiphertextList metadata: size overflows");
+        let glwe_mask_size = meta
             .glwe_dimension
             .0
             .checked_mul(meta.polynomial_size.0)
-            .and_then(|mask_size| mask_size.checked_add(lwe_per_glwe))
-            .and_then(|per_glwe_uncompressed| per_glwe_uncompressed.checked_mul(log_modulus.0))
-            .ok_or_else(invalid_len)?
-            .div_ceil(T::BITS);
+            .ok_or_else(size_overflow)?;
 
-        if per_glwe_packed.checked_mul(num_glwes) != Some(self.data.len()) {
-            return Err(invalid_len());
+        // Only accept the two layouts described above: the last GLWE padded to the size of a full
+        // one, or not padded at all
+        let num_glwes = meta.total_lwe_bodies_count.div_ceil(lwe_per_glwe);
+        let (padded_len, unpadded_len) = match num_glwes.checked_sub(1) {
+            None => (0, 0),
+            Some(num_full_glwes) => {
+                let per_glwe_packed = meta
+                    .packed_glwe_len(lwe_per_glwe)
+                    .ok_or_else(size_overflow)?;
+                let last_glwe_bodies = num_full_glwes
+                    .checked_mul(lwe_per_glwe)
+                    .and_then(|full_glwes_bodies| {
+                        meta.total_lwe_bodies_count.checked_sub(full_glwes_bodies)
+                    })
+                    .ok_or_else(size_overflow)?;
+                let full_glwes_len = per_glwe_packed
+                    .checked_mul(num_full_glwes)
+                    .ok_or_else(size_overflow)?;
+
+                (
+                    full_glwes_len
+                        .checked_add(per_glwe_packed)
+                        .ok_or_else(size_overflow)?,
+                    full_glwes_len
+                        .checked_add(
+                            meta.packed_glwe_len(last_glwe_bodies)
+                                .ok_or_else(size_overflow)?,
+                        )
+                        .ok_or_else(size_overflow)?,
+                )
+            }
+        };
+
+        if self.data.len() != padded_len && self.data.len() != unpadded_len {
+            return Err(error!(
+                "Invalid CudaPackedGlweCiphertextList: it holds {} elements, whereas its \
+                metadata describes {unpadded_len} elements, or {padded_len} with padding",
+                self.data.len()
+            ));
         }
 
         let mut packed_coeffs: Vec<T> = vec![T::ZERO; self.data.len()];
@@ -233,29 +273,43 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
         }
         streams.synchronize();
 
-        packed_coeffs
-            .chunks(per_glwe_packed)
-            .enumerate()
-            .map(|(i, chunk)| {
-                let body_count = if i == num_glwes - 1 {
-                    let remainder = total_bodies % lwe_per_glwe;
-                    if remainder == 0 {
-                        lwe_per_glwe
-                    } else {
-                        remainder
-                    }
-                } else {
-                    lwe_per_glwe
-                };
-                let initial_len = glwe_mask_size + body_count;
-                let expected_packed = (initial_len * log_modulus.0).div_ceil(T::BITS);
-                PackedIntegers::from_raw_parts(
-                    chunk[..expected_packed].to_vec(),
-                    log_modulus,
-                    initial_len,
-                )
-            })
-            .collect()
+        let mut glwe_list = Vec::new();
+        let mut num_bodies_left = meta.total_lwe_bodies_count;
+        let mut chunk_start = 0usize;
+        while num_bodies_left != 0 {
+            let bodies_count = num_bodies_left.min(lwe_per_glwe);
+            let initial_len = glwe_mask_size
+                .checked_add(bodies_count)
+                .ok_or_else(size_overflow)?;
+            let len = meta
+                .packed_glwe_len(bodies_count)
+                .ok_or_else(size_overflow)?;
+            let chunk = chunk_start
+                .checked_add(len)
+                .and_then(|chunk_end| packed_coeffs.get(chunk_start..chunk_end))
+                .ok_or_else(|| {
+                    error!(
+                        "Invalid CudaPackedGlweCiphertextList: its metadata describes more data \
+                        than the {} elements it holds",
+                        packed_coeffs.len()
+                    )
+                })?;
+
+            let packed_integers =
+                PackedIntegers::from_raw_parts(chunk.to_vec(), log_modulus, initial_len)?;
+
+            glwe_list.push(CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
+                packed_integers,
+                meta.glwe_dimension,
+                meta.polynomial_size,
+                LweCiphertextCount(bodies_count),
+                meta.ciphertext_modulus,
+            ));
+            num_bodies_left -= bodies_count;
+            chunk_start += len;
+        }
+
+        Ok(glwe_list)
     }
 
     /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
