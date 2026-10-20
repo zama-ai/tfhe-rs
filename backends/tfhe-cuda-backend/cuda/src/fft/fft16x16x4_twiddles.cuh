@@ -1,5 +1,5 @@
 #pragma once
-// Precalculated twiddle factors for FFT16x4x16 (1024-point complex FFT).
+// Precalculated twiddle factors for FFT16x16x4 (1024-point complex FFT).
 // Ported from test_correctness/twiddle_tables.h; operators and helpers are
 // provided by types/complex/operations.cuh — not duplicated here.
 //
@@ -11,14 +11,14 @@
 //   - The header is included by many translation units. To avoid nvlink
 //     "multiple definition" errors and to keep total constant-memory usage
 //     within the 64 KB per-program limit, the data is defined in exactly one
-//     translation unit (fft16x4x16_twiddles.cu) which #defines
-//     FFT16X4X16_TWIDDLES_INSTANTIATE before including this header. Every
+//     translation unit (fft16x16x4_twiddles.cu) which #defines
+//     FFT16X16X4_TWIDDLES_INSTANTIATE before including this header. Every
 //     other TU sees only the `extern __device__ __constant__` declarations.
 
 #include <cuda_runtime.h>
 #include <device.h>
 
-#ifdef FFT16X4X16_TWIDDLES_INSTANTIATE
+#ifdef FFT16X16X4_TWIDDLES_INSTANTIATE
 __device__ __constant__ double2 tw_1024[15][64] = {
     // k = 1  (row 0)
     {
@@ -1059,7 +1059,7 @@ static inline void init_twiddle_tables() {
 //
 //  512 entries x 16 bytes = 8192 bytes
 // ============================================================================
-#ifdef FFT16X4X16_TWIDDLES_INSTANTIATE
+#ifdef FFT16X16X4_TWIDDLES_INSTANTIATE
 __device__ __constant__ double2 twisting_twiddles[513] = {
     {0x1.0000000000000p+0, -0x0.0p+0},
     {0x1.ffffd88586ee6p-1, -0x1.921faaee6472dp-10},
