@@ -8,13 +8,11 @@
 #include <cstdio>
 
 template <typename Torus>
-bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
-                                                   uint32_t polynomial_size,
-                                                   uint32_t level_count,
-                                                   uint32_t num_samples,
-                                                   uint32_t max_shared_memory) {
+bool has_support_to_cuda_programmable_bootstrap_cg(
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t lwe_dimension, uint32_t num_samples, uint32_t max_shared_memory) {
   return supports_cooperative_groups_on_programmable_bootstrap<Torus>(
-      glwe_dimension, polynomial_size, level_count, num_samples,
+      glwe_dimension, polynomial_size, level_count, lwe_dimension, num_samples,
       max_shared_memory);
 }
 
@@ -139,6 +137,9 @@ uint64_t scratch_cuda_programmable_bootstrap_64_async(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
 
+  // The specialized 2_2 gate behind the variant choice reads the compute
+  // capability of the current device.
+  cuda_set_device(gpu_index);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 #if (CUDA_ARCH >= 900)
   if (has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
@@ -151,7 +152,7 @@ uint64_t scratch_cuda_programmable_bootstrap_64_async(
   else
 #endif
       if (has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
-              glwe_dimension, polynomial_size, level_count,
+              glwe_dimension, polynomial_size, level_count, lwe_dimension,
               input_lwe_ciphertext_count, max_shared_memory))
     return scratch_cuda_programmable_bootstrap_cg<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
@@ -403,6 +404,25 @@ void cuda_programmable_bootstrap_64_async(
 
   check_cuda_error(cudaGetLastError());
 
+  // The bootstrapping key layout follows supports_specialized_2_2_params for
+  // the launch's lwe_dimension, while the kernel follows the variant stored in
+  // the buffer at scratch time. A scratch that decided with a different
+  // lwe_dimension than the launch gets a CG buffer whose kernel reads the
+  // specialized-layout key as if it were vanilla and silently returns wrong
+  // results; fail loudly instead.
+  if (pbs_buf->pbs_variant == PBS_VARIANT::CG) {
+    cuda_set_device(gpu_index);
+    PANIC_IF_FALSE(
+        !supports_specialized_2_2_params<uint64_t>(
+            polynomial_size, glwe_dimension, level_count, lwe_dimension,
+            cuda_get_max_shared_memory(gpu_index)),
+        "Cuda error (classical PBS): the pbs buffer was allocated for the CG "
+        "variant, but the bootstrapping key for lwe_dimension=%u uses the "
+        "specialized 2_2 layout: the scratch was given a different "
+        "lwe_dimension than the launch.",
+        lwe_dimension);
+  }
+
   switch (pbs_buf->pbs_variant) {
   case PBS_VARIANT::TBC:
 #if (CUDA_ARCH >= 900)
@@ -590,7 +610,7 @@ void cleanup_cuda_programmable_bootstrap_64(void *stream, uint32_t gpu_index,
 
 template bool has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples, uint32_t max_shared_memory);
+    uint32_t lwe_dimension, uint32_t num_samples, uint32_t max_shared_memory);
 
 template bool specialized_2_2_params_checker<uint64_t>(
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,

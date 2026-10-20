@@ -19,7 +19,7 @@
 #include "crypto/torus.cuh"
 #include "device.h"
 #include "fft/bnsmfft.cuh"
-#include "fft/fft16x4x16.cuh"
+#include "fft/fft16x16x4.cuh"
 #include "fft/twiddles.cuh"
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.cuh"
@@ -32,7 +32,7 @@
 #ifdef __CUDACC_DEBUG__
 #define SPECIALIZED_2_2_PARAMS_THROUGHPUT_LAUNCH_BOUNDS
 #else
-// Each FFT16x4x16 instance uses 64 threads, and we have 2 y-groups (mask/body)
+// Each FFT16x16x4 group uses 64 threads, and we have 2 y-groups (mask/body)
 // per block. So we need a total of 128 threads per block, and we can to impose
 // that two blocks can be resident on the same SM, so we set the max blocks per
 // SM to 2.
@@ -48,32 +48,48 @@ uint64_t get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SMEM layout for the FFT16x4x16-based mixprecision specialized kernel
+// SMEM layout for the FFT16x16x4-based mixprecision specialized kernel
 //
-//   [0 .. TW_SMEM_DOUBLES-1]                       tw_1024 (1920 doubles)
-//   [FFT16x4x16_DUAL_COMPACT_TW_OFFSET ..]          compact_twiddles (102)
-//   [FFT16x4x16_DUAL_XPOSE0_OFFSET ..]              xpose0 / comm0 / final_acc0
-//   [FFT16x4x16_DUAL_XPOSE1_OFFSET ..]              xpose1 / comm1 / final_acc1
-//   [FFT16x4x16_DUAL_TWIST_OFFSET ..]               twist half-table
-//   (1026) [SMEM_ACC_OFFSET_DOUBLES ..]                    Torus (uint64)
-//   running acc
-//                                                    storage (2 × 2048 u64 →
-//                                                    4096 doubles)
+//   [0 .. TW_SMEM_DOUBLES-1]                twist-folded tw_1024 (1920 doubles)
+//   [SMEM_XPOSE0_OFFSET_DOUBLES ..]          xpose0 / final_acc0
+//   [SMEM_XPOSE1_OFFSET_DOUBLES ..]          xpose1 / final_acc1
+//   [SMEM_XPOSE0_PONG_OFFSET_DOUBLES ..]     xpose0_pong
+//   [SMEM_XPOSE1_PONG_OFFSET_DOUBLES ..]     xpose1_pong
+//   [SMEM_ACC_OFFSET_DOUBLES ..]             uint32 running acc (2 × 2048 →
+//                                            2048 doubles)
+//   [SMEM_PRECALC_OFFSET_DOUBLES ..]         sign table (12 doubles)
+//   [SMEM_AHAT_OFFSET_DOUBLES ..]            uint16 a_hat table
 //
-// The xpose region per y-group serves three roles in sequence:
-//   1. transpose scratch during forward FFT;
-//   2. cross-y communication buffer for the GGSW pointwise multiply
-//      (other_fft_ptr in the GGSW helper);
-//   3. final uint64 accumulator on the last loop iteration, read by
-//      sample_extract_mask / sample_extract_body.
-// All three uses are sequenced by __syncthreads / sync_coupled_warps in the
-// kernel; they never overlap in time.
+// The twiddle table and the four transpose regions are the FFT16x16x4 dual
+// layout (fft16x16x4.cuh). Per iteration, group y writes xpose_y
+// and xpose_pong_y in the forward transform (the pong region is then read by
+// both groups); in the inverse transform both groups scatter into xpose_0 and
+// xpose_1, each reads its own back and finishes in xpose_pong_y. The barriers
+// inside the transforms plus the top-of-loop group barrier order every reuse,
+// so no ping/pong role swap is needed between iterations. On the last
+// iteration xpose_y also hosts the final uint64 accumulator (2048 × 8 bytes,
+// exactly one region), read by sample_extract_{mask,body}.
+//
+// Only what the loop reads lives in shared memory: the negacyclic twist is
+// folded into the twiddle rows, and its row 0 and the W64 roots are read from
+// constant memory into registers at startup. This is what brings the kernel
+// under the 100 KB of the sm_86/sm_89 parts (see SMEM_LIMIT_BYTES below).
 // ─────────────────────────────────────────────────────────────────────────────
 static constexpr int
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE0_OFFSET_DOUBLES =
+        FFT16x16x4_DUAL_XPOSE0_OFFSET;
+static constexpr int
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE1_OFFSET_DOUBLES =
+        FFT16x16x4_DUAL_XPOSE1_OFFSET;
+static constexpr int
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE0_PONG_OFFSET_DOUBLES =
+        FFT16x16x4_DUAL_XPOSE0_PONG_OFFSET;
+static constexpr int
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE1_PONG_OFFSET_DOUBLES =
+        FFT16x16x4_DUAL_XPOSE1_PONG_OFFSET;
+static constexpr int
     SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_OFFSET_DOUBLES =
-        FFT16x4x16_DUAL_TWIST_OFFSET +
-        // ×2 because each complex coefficient stores a real and an img parts.
-        2 * FFT16x4x16_TWIST_HALF_TABLE_SIZE;
+        FFT16x16x4_DUAL_SMEM_DOUBLES;
 // 2 y-groups × 2048 uint32 elements = 2048 doubles.
 static constexpr int SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_DOUBLES =
     2048;
@@ -89,9 +105,9 @@ static constexpr int
         SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_DOUBLES;
 static constexpr int SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_PRECALC_DOUBLES =
     12;
-// Precomputed modswitched a_hat table (uint32 per LWE coefficient). The actual
-// size depends on lwe_dimension and is appended at the end of the smem
-// allocation; the offset is fixed at compile time.
+// Precomputed modswitched a_hat table (uint16 per LWE coefficient: the switch
+// to 2N = 4096 fits). The actual size depends on lwe_dimension and is appended
+// at the end of the smem allocation; the offset is fixed at compile time.
 static constexpr int
     SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_OFFSET_DOUBLES =
         SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_PRECALC_OFFSET_DOUBLES +
@@ -103,13 +119,17 @@ static constexpr size_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_FIXED_BYTES =
     sizeof(double);
 
 // Largest LWE dimension the mixprecision kernel accepts. The 2_2 parameter set
-// it is specialized for uses 918, with some margin left for parameter updates.
-// Bootstraps above it take the generic paths: the a_hat region below is sized
-// from this bound.
+// it is specialized for uses 918, and decompression with the classic 2_2
+// compression parameters bootstraps from the packing key, 4 x 256 = 1024. 1312
+// is the largest value that keeps the kernel within SMEM_LIMIT_BYTES below: the
+// a_hat region is sized from this bound. Bootstraps above it fall back to the
+// full-precision specialized kernel on the X.0 parts; on the 100 KB parts the
+// gate (supports_specialized_2_2_params) rejects them, so the generic
+// CG/default kernels run instead.
 static constexpr uint32_t
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION = 1024;
+    SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION = 1312;
 
-// a_hat table: one uint32 per LWE coefficient, padded to 8 bytes to keep the
+// a_hat table: one uint16 per LWE coefficient, padded to 8 bytes to keep the
 // region double-aligned. Sized from the maximum dimension and not from the one
 // in use, so this kernel's dynamic shared memory is a compile-time constant:
 // the opt-in is per-function state shared by every thread of the context, so a
@@ -119,7 +139,7 @@ static constexpr uint32_t
 static constexpr uint64_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_BYTES =
     (static_cast<uint64_t>(
          SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION) *
-         sizeof(uint32_t) +
+         sizeof(uint16_t) +
      7ull) &
     ~static_cast<uint64_t>(7);
 
@@ -128,16 +148,19 @@ static constexpr uint64_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES =
     SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_FIXED_BYTES +
     SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_BYTES;
 
-// The launch bounds ask for 2 blocks/SM and the driver reserves 1 KiB per
-// block, so a block gets at most (228 - 2) / 2 KiB on Hopper. Measured on an
-// H100: 115712 B still gives 2 blocks/SM, 115968 B drops to 1.
-static constexpr uint64_t
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_RESIDENCY_LIMIT_BYTES = 115712ull;
-static_assert(
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES <=
-        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_RESIDENCY_LIMIT_BYTES,
-    "the mixprecision specialized kernel would drop to 1 block/SM: "
-    "lower SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION");
+// Fits the 100 KB parts (sm_86, sm_89) at one block per SM and keeps two
+// blocks per SM on Hopper: 2 x (SMEM_BYTES + 1 KiB reserved) within 228 KiB.
+static constexpr uint64_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_LIMIT_BYTES =
+    100000ull;
+static_assert(SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES <=
+                  SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_LIMIT_BYTES,
+              "the mixprecision specialized kernel would not fit one block/SM "
+              "on 100 KB parts: lower "
+              "SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION");
+static_assert(2 * (SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES + 1024) <=
+                  228u * 1024u,
+              "the mixprecision specialized kernel would drop to 1 block/SM "
+              "on Hopper");
 
 // Reports which step of the mixprecision launch failed and with what
 // configuration. check_cuda_error cannot: every call of the launch macro
@@ -162,7 +185,7 @@ __host__ inline void check_specialized_2_2_mixprecision_error(
   }
 }
 
-// True if the FFT16x4x16 mixprecision specialized kernel is applicable for the
+// True if the FFT16x16x4 mixprecision specialized kernel is applicable for the
 // given parameters. The LWE dimension bound keeps the a_hat region large
 // enough. The launch paths and the bootstrapping key conversion both decide
 // through here, so the key layout and the kernel reading it always agree.
@@ -191,18 +214,42 @@ __host__ bool specialized_2_2_params_checker(uint32_t polynomial_size,
          max_shared_memory >= required_shared_memory;
 }
 
-// This condition is more restrictive to enable the specialized only on high-end
-// GPUs, which are the ones that can really benefit from it due to its high
-// double precision pressure.
+// Compute capability of the current device, which the callers select with
+// cuda_set_device(gpu_index) before deciding. Two attribute queries: cheap,
+// unlike filling a cudaDeviceProp on every launch.
+__host__ inline void specialized_2_2_compute_capability(int &major,
+                                                        int &minor) {
+  int device = 0;
+  check_cuda_error(cudaGetDevice(&device));
+  check_cuda_error(cudaDeviceGetAttribute(
+      &major, cudaDevAttrComputeCapabilityMajor, device));
+  check_cuda_error(cudaDeviceGetAttribute(
+      &minor, cudaDevAttrComputeCapabilityMinor, device));
+}
+
+// This condition is more restrictive to enable the specialized kernels only on
+// high-end GPUs, which are the ones that can really benefit from them due to
+// their high double precision pressure. The mixprecision kernel is the
+// exception: it fits one block per SM on any part with 100 KB of shared memory
+// (sm_86, sm_89), so those are admitted only when the mixprecision kernel can
+// run: its shared memory fits and the LWE dimension stays within its a_hat
+// bound. Otherwise those parts take the generic CG/default path. The key
+// conversion and every launch path decide through this gate, so the key layout
+// and the kernel reading it always agree.
 template <typename Torus>
 __host__ bool supports_specialized_2_2_params(uint32_t polynomial_size,
                                               uint32_t glwe_dimension,
                                               uint32_t level_count,
+                                              uint32_t lwe_dimension,
                                               uint32_t max_shared_memory) {
-  cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, 0);
-  check_cuda_error(cudaGetLastError());
-  if (deviceProp.minor != 0 || deviceProp.major < 7) {
+  int major = 0, minor = 0;
+  specialized_2_2_compute_capability(major, minor);
+  if (major < 7) {
+    return false;
+  }
+  if (minor != 0 &&
+      (SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES > max_shared_memory ||
+       lwe_dimension > SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION)) {
     return false;
   }
   return specialized_2_2_params_checker<Torus>(polynomial_size, glwe_dimension,
@@ -367,21 +414,31 @@ device_programmable_bootstrap_specialized_2_2_params(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  FFT16x4x16-based of the specialized 2_2_params kernel that aims at improving
-//  throughput
+//  FFT16x16x4-based flavor of the specialized 2_2_params kernel that aims at
+//  improving throughput
 //
 //  Block: (64, 2, 1) — threadIdx.y selects mask (0) / body (1). Each y-group
-//  runs an independent 64-thread 1024-point FFT16x4x16. The running PBS
+//  feeds its component through the paired 1024-point FFT16x16x4
+//  (fft16x16x4.cuh): the forward transform ends with every thread holding the
+//  same eight frequencies of both components, so the 2x2 GGSW product is done
+//  in registers with no spectrum exchange through shared memory, and the
+//  inverse transform hands each group its own component back. The running PBS
 //  accumulator is kept in uint32 (registers + shared) and only upcast to
 //  uint64 on the very last loop iteration, when the result is consumed by
 //  sample_extract_{mask,body}.
 //
 //  Layout assumption: this kernel REQUIRES the bsk to have been produced by
-//  batch_FFT16x4x16_classical_specialized so that bsk[tid + i*64] holds the
-//  bit-reversed frequency Â_bsk[d_rev16(i)*64 + tid] — matching the
-//  accumulator's FFT16x4x16 output.
-//  It is tuned for H100 executed exploiting at maximum shared memory of
-//  registers of that architecture.
+//  batch_FFT16x16x4_classical_specialized so that bsk[tid + i*64] holds the
+//  bit-reversed frequency Â_bsk[bitreversal16(i)*64 + tid], which is the
+//  frequency the paired transform leaves in register i - 8*threadIdx.y of
+//  thread tid.
+//
+//  Per iteration the block synchronises three times on 64-thread named
+//  barriers (top of loop, one transpose in each transform), once with
+//  __syncthreads() (the forward transpose that pairs the components) and once
+//  on a split-phase 128-thread named barrier (the inverse transpose that
+//  un-pairs them). It runs one block per SM on parts with 100 KB of shared
+//  memory and on the A100, two on Hopper.
 // ─────────────────────────────────────────────────────────────────────────────
 template <typename Torus, class params, uint32_t base_log>
 __global__ SPECIALIZED_2_2_PARAMS_THROUGHPUT_LAUNCH_BOUNDS void
@@ -403,41 +460,31 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   extern __shared__ int8_t sharedmem[];
   double *smem = reinterpret_cast<double *>(sharedmem);
 
-  // FFT pointer base & per-y scratch
+  // Twist-folded twiddle table, shared by both groups.
   const double2 *tw_shared = reinterpret_cast<const double2 *>(smem);
-  const double *compact_twiddles = smem + FFT16x4x16_DUAL_COMPACT_TW_OFFSET;
-  double *smem_xpose = smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE0_OFFSET
-                                           : FFT16x4x16_DUAL_XPOSE1_OFFSET);
-  // PONG buffer for the fwd-FFT ping-pong path (eliminates 2 group syncs per
-  // fwd call). PING is `smem_xpose` above; PONG is the symmetric extra slot.
-  double *smem_xpose_pong =
-      smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE0_PONG_OFFSET
-                          : FFT16x4x16_DUAL_XPOSE1_PONG_OFFSET);
-  // Swapped pair for the IFFT path: y=0 uses XPOSE1+pong, y=1 uses XPOSE0+pong.
-  // The swap makes the IFFT writes disjoint from the OTHER y-group's GGSW
-  // reads of `other_fft_ptr`, which lets us drop the pre-IFFT block-wide
-  // __syncthreads. `smem_xpose_inv` aliases the bytes of `other_fft_ptr` but
-  // typed as double* for the inverse-core helper signature.
-  double *smem_xpose_inv = smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE1_OFFSET
-                                               : FFT16x4x16_DUAL_XPOSE0_OFFSET);
-  double *smem_xpose_inv_pong =
-      smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE1_PONG_OFFSET
-                          : FFT16x4x16_DUAL_XPOSE0_PONG_OFFSET);
-  double2 *smem_comm = reinterpret_cast<double2 *>(smem_xpose);
-  double2 *other_fft_ptr = reinterpret_cast<double2 *>(
-      smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE1_OFFSET
-                          : FFT16x4x16_DUAL_XPOSE0_OFFSET));
 
-  // Fixed home for the final uint64 accumulator, independent of the per-iter
-  // fwd/inv buffer swap below. After the last iteration's __syncthreads all
-  // xpose buffers are free, so the result deterministically lands in
-  // xpose0/xpose1 and sample_extract reads it back from the same place.
-  Torus *final_accumulator = reinterpret_cast<Torus *>(
-      smem + (fft_id == 0 ? FFT16x4x16_DUAL_XPOSE0_OFFSET
-                          : FFT16x4x16_DUAL_XPOSE1_OFFSET));
+  // The four transpose regions. The paired transforms address both groups'
+  // regions, so all four are named: xpose_y is group y's first-transpose
+  // region and xpose_pong_y its second-transpose region.
+  double *smem_xpose0 =
+      smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE0_OFFSET_DOUBLES;
+  double *smem_xpose1 =
+      smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE1_OFFSET_DOUBLES;
+  double *smem_xpose0_pong =
+      smem +
+      SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE0_PONG_OFFSET_DOUBLES;
+  double *smem_xpose1_pong =
+      smem +
+      SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE1_PONG_OFFSET_DOUBLES;
+  double *smem_xpose = (fft_id == 0) ? smem_xpose0 : smem_xpose1;
+  double *smem_xpose_other = (fft_id == 0) ? smem_xpose1 : smem_xpose0;
+  double *smem_xpose_pong = (fft_id == 0) ? smem_xpose0_pong : smem_xpose1_pong;
 
-  double2 *smem_twist =
-      reinterpret_cast<double2 *>(smem + FFT16x4x16_DUAL_TWIST_OFFSET);
+  // Fixed home for the final uint64 accumulator: this group's first-transpose
+  // region, free once the last inverse transform has read it back, so the
+  // result deterministically lands in xpose0/xpose1 and sample_extract reads
+  // it back from the same place.
+  Torus *final_accumulator = reinterpret_cast<Torus *>(smem_xpose);
 
   // Per-y uint32 accumulator slice (2048 elements per y-group)
   uint32_t *shared_accumulator_all = reinterpret_cast<uint32_t *>(
@@ -456,39 +503,26 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   int8_t *precalc_coefs = reinterpret_cast<int8_t *>(
       smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_PRECALC_OFFSET_DOUBLES);
 
-  // Precomputed modswitched a_hat table — one uint32 per LWE coefficient.
+  // Precomputed modswitched a_hat table — one uint16 per LWE coefficient.
   // Filled cooperatively below; read once per PBS iteration as a broadcast
   // load. Replaces the per-iter warp-aligned conditional modswitch + shfl_sync
   // pattern of the legacy classic kernel, freeing the compiler from the
   // per-iter dependency on temp_a_hat.
-  uint32_t *a_hat_table = reinterpret_cast<uint32_t *>(
+  static_assert(params::log2_degree + 1 <= 16,
+                "the a_hat table stores the modulus switch to 2N in 16 bits");
+  uint16_t *a_hat_table = reinterpret_cast<uint16_t *>(
       smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_OFFSET_DOUBLES);
 
-  // Cooperative twiddle / compact_twiddles load (128-thread loader).
-  fft16x4x16_load_shared_twiddles_128t(smem);
+  // Cooperative twiddle load (128-thread loader).
+  fft16x16x4_load_shared_twiddles_folded_128t(smem);
   // Block-wide startup sync (all 4 warps). Per-group FFT syncs use named ids
   // 1/2 (see sync_coupled_warps), which need no initialization.
   __syncthreads();
 
-  // Preload the 3 compact 4×4 twiddles into per-thread registers (one-time
-  // load from smem `compact_twiddles`). Lets the FFT cores use the
-  // _compact_regs variants below, which skip the per-iter smem fetch +
-  // warp-shuffle + lane<16 branch inside `mul_twiddles_4x4`.
-  const int lo4 = threadIdx.x & 15;
-  double2 compact_w1 =
-      make_double2(compact_twiddles[lo4], compact_twiddles[3 * 17 + lo4]);
-  double2 compact_w2 = make_double2(compact_twiddles[17 + lo4],
-                                    compact_twiddles[3 * 17 + 17 + lo4]);
-  double2 compact_w3 = make_double2(compact_twiddles[34 + lo4],
-                                    compact_twiddles[3 * 17 + 34 + lo4]);
-
-  // Negacyclic twist half-table (513 entries → 1026 doubles).
-  const int linear_tid = threadIdx.x + threadIdx.y * 64;
-  for (int idx = linear_tid; idx < 512; idx += 128)
-    smem_twist[idx] = twisting_twiddles[idx];
-  if (linear_tid == 0)
-    smem_twist[512] = twisting_twiddles[512];
-  __syncthreads();
+  // The six W64 roots of the paired radix-4 stage, read once from constant
+  // memory into per-thread registers.
+  double2 small_w[6];
+  fft16x16x4_load_small_twiddles(small_w);
 
   // Per-block input & LUT slices
   const Torus *block_lwe_array_in =
@@ -540,7 +574,7 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
          idx += 128) {
       Torus a_hat_full = 0;
       modulus_switch(block_lwe_array_in[idx], a_hat_full, log_modulus);
-      a_hat_table[idx] = static_cast<uint32_t>(a_hat_full);
+      a_hat_table[idx] = static_cast<uint16_t>(a_hat_full);
     }
     // 96-byte sign table: lanes < 32 of the block write one byte per band.
     if (linear_tid < 32) {
@@ -554,18 +588,30 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   __syncthreads();
 
   // We preload some of the twiddles to registers to squeeze all possible
-  // performance on the fft Experimentally 4 registers was the best balance to
+  // performance on the fft. Experimentally 4 rows was the best balance to
   // avoid the register growth affects the optimizations in other regions.
+  // Row 0 of the folded table is conj(psi^tid), the pre-twist the transform
+  // folds into it; it replaces the twist table and lives in a register too.
+  const double2 tw_cache_r0 = conjugate(twisting_twiddles[threadIdx.x]);
   const double2 tw_cache_r7 = tw_shared[7 * 64 + threadIdx.x];
   const double2 tw_cache_r3 = tw_shared[3 * 64 + threadIdx.x];
   const double2 tw_cache_r11 = tw_shared[11 * 64 + threadIdx.x];
   const double2 tw_cache_r1 = tw_shared[1 * 64 + threadIdx.x];
 
+  // Key prefetch registers: first quartets of the current iteration's slice,
+  // loaded one iteration ahead (SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS).
+  double2 key_pre[4 * (SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS > 0
+                           ? SPECIALIZED_2_2_PARAMS_KEY_PREFETCH_QUARTETS
+                           : 1)];
+  prefetch_ggsw_2_2_params_paired<polynomial_size, glwe_dimension, level_count>(
+      key_pre, bootstrapping_key, 0);
+
   // ── Main PBS loop ──────────────────────────────────────────────────────────
   for (int i = 0; i < lwe_dimension; i++) {
-    // Syncs only the warps participating on each fft
-    // Effectively means that only syncs threads with the same threadIdx.y
-    // that only takes values 0 or 1. So it syncs groups of 64 threads.
+    // Syncs only the warps participating on each fft (threads with the same
+    // threadIdx.y, so groups of 64 threads): protects this group's shared
+    // accumulator and the regions its own threads read at the end of the
+    // previous iteration.
     sync_coupled_warps();
     // Broadcast load: all 128 threads read the same slot of the precomputed
     // table — single smem transaction, no warp shuffle, no conditional.
@@ -596,54 +642,45 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
     double2 fft_out_regs[params::opt / 2];
     decompose_balanced_simplified<params>(fft_out_regs, reg_rotated);
 
-    FFT16x4x16_fwd_optimized_for_pbs(fft_out_regs, tw_shared, smem_twist,
-                                     smem_xpose, smem_xpose_pong, compact_w1,
-                                     compact_w2, compact_w3, tw_cache_r7,
-                                     tw_cache_r3, tw_cache_r11, tw_cache_r1);
+    // Forward: ends with the paired layout (both components per thread).
+    FFT16x16x4_fwd_paired_for_pbs(fft_out_regs, tw_shared, tw_cache_r0,
+                                  smem_xpose, smem_xpose_pong, smem_xpose0_pong,
+                                  smem_xpose1_pong, small_w, tw_cache_r7,
+                                  tw_cache_r3, tw_cache_r11, tw_cache_r1);
 
-    // Copy fft from regs to shared memory to be used in the external product
-    // We don't need to sync here because we are using a ping pong strategy in
-    // shared memory and we know it is safe to write at this point.
-#pragma unroll
-    for (int j = 0; j < params::opt / 2; j++)
-      smem_comm[threadIdx.x + j * 64] = fft_out_regs[j];
-
-    // Only full synchronization needed per iteration, mirrors the cluster sync
-    // we had in the tbc.
-    __syncthreads();
-
+    // Both GGSW outputs in registers: no exchange, no block barrier here.
     double2 buffer_regs[params::opt / 2];
-    mul_ggsw_glwe_in_fourier_domain_2_2_params_fused_no_tbc<
-        params, polynomial_size, glwe_dimension, level_count>(
-        nullptr, fft_out_regs, buffer_regs, other_fft_ptr, bootstrapping_key,
-        i);
+    mul_ggsw_glwe_in_fourier_domain_2_2_params_paired<
+        polynomial_size, glwe_dimension, level_count>(
+        fft_out_regs, buffer_regs, key_pre, bootstrapping_key, i);
 
-    // The inverse FFT expects natural-order input → unscramble once here.
-    // This is resolved at compilation time so it is free
-    double2 buffer_natural[params::opt / 2];
-#pragma unroll
-    for (int j = 0; j < params::opt / 2; j++)
-      buffer_natural[j] = buffer_regs[bitreversal16(j)];
+    // Issue the next iteration's key loads now; the index is clamped so the
+    // last iteration re-reads its own slice instead of running past the key.
+    prefetch_ggsw_2_2_params_paired<polynomial_size, glwe_dimension,
+                                    level_count>(
+        key_pre, bootstrapping_key,
+        min(i + 1, static_cast<int>(lwe_dimension) - 1));
 
-    FFT16x4x16_inv_optimized_for_pbs(
-        buffer_natural, tw_shared, smem_twist, smem_xpose_inv_pong,
-        smem_xpose_inv, compact_w1, compact_w2, compact_w3, tw_cache_r7,
-        tw_cache_r3, tw_cache_r11, tw_cache_r1);
+    // Inverse: returns this group's component in the time register
+    // convention (register j holds position bitreversal16(j)*64 + tid).
+    FFT16x16x4_inv_paired_for_pbs(buffer_regs, tw_shared, tw_cache_r0,
+                                  smem_xpose, smem_xpose_other, smem_xpose_pong,
+                                  small_w, tw_cache_r7, tw_cache_r3,
+                                  tw_cache_r11, tw_cache_r1);
 
     // Last iteration requires the final accumulation in 64-bit precision.
     bool is_last_iter = (i + 1 >= lwe_dimension);
 
     if (is_last_iter) {
-      // We store the output accumulation into shared memory, we are reusing
-      // regions so we must sync to make sure no thread is reading from it
-      // anymore.
+      // final_accumulator aliases this group's first-transpose region, last
+      // read by both groups' inverse transforms: wait for all of them.
       __syncthreads();
       constexpr int upshift = sizeof(Torus) * 8 - 32;
 #pragma unroll
       for (int j = 0; j < params::opt / 2; j++) {
         Torus torus_real = 0, torus_imag = 0;
-        typecast_double_round_to_torus<Torus>(buffer_natural[j].x, torus_real);
-        typecast_double_round_to_torus<Torus>(buffer_natural[j].y, torus_imag);
+        typecast_double_round_to_torus<Torus>(buffer_regs[j].x, torus_real);
+        typecast_double_round_to_torus<Torus>(buffer_regs[j].y, torus_imag);
         int k = bitreversal16(j);
         Torus prev_real_high = static_cast<Torus>(reg_acc_running[k])
                                << upshift;
@@ -661,10 +698,8 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
 #pragma unroll
       for (int j = 0; j < params::opt / 2; j++) {
         uint32_t torus_real = 0, torus_imag = 0;
-        typecast_double_round_to_torus<uint32_t>(buffer_natural[j].x,
-                                                 torus_real);
-        typecast_double_round_to_torus<uint32_t>(buffer_natural[j].y,
-                                                 torus_imag);
+        typecast_double_round_to_torus<uint32_t>(buffer_regs[j].x, torus_real);
+        typecast_double_round_to_torus<uint32_t>(buffer_regs[j].y, torus_imag);
         int k = bitreversal16(j);
         reg_acc_running[k] += torus_real;
         reg_acc_running[k + params::opt / 2] += torus_imag;
@@ -674,21 +709,6 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
         shared_accumulator[threadIdx.x + k * (params::degree / params::opt)] =
             reg_acc_running[k];
       }
-
-      // Only swap buffers when another iteration follows: the last iteration
-      // never reads these pointers again, so doing the swap here (inside the
-      // non-last branch) avoids the dead ping pong update.
-      // Swap fwd <-> inv buffer roles for the next iteration so its forward FFT
-      // writes the set THIS y-group's inverse FFT just wrote (within-y WAW),
-      // which keeps the top-of-loop barrier a 64-thread named sync.
-      double *tmp_xpose = smem_xpose;
-      smem_xpose = smem_xpose_inv;
-      smem_xpose_inv = tmp_xpose;
-      double *tmp_pong = smem_xpose_pong;
-      smem_xpose_pong = smem_xpose_inv_pong;
-      smem_xpose_inv_pong = tmp_pong;
-      smem_comm = reinterpret_cast<double2 *>(smem_xpose);
-      other_fft_ptr = reinterpret_cast<double2 *>(smem_xpose_inv);
     }
   }
 
@@ -1282,7 +1302,8 @@ __host__ void host_programmable_bootstrap_with_mode(
   } else {
     // In auto mode we also check the compute capability.
     use_specialized = supports_specialized_2_2_params<Torus>(
-        polynomial_size, glwe_dimension, level_count, max_shared_memory);
+        polynomial_size, glwe_dimension, level_count, lwe_dimension,
+        max_shared_memory);
   }
 
   if (use_specialized) {

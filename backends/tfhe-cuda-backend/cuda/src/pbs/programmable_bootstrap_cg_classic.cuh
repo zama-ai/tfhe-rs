@@ -383,12 +383,13 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
 // Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus>
 __host__ bool supports_cooperative_groups_on_programmable_bootstrap(
-    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
-    uint32_t max_shared_memory) {
+    int glwe_dimension, int polynomial_size, int level_count,
+    uint32_t lwe_dimension, int num_samples, uint32_t max_shared_memory) {
   // If specialized 2_2_params conditions are met, don't use CG (use classic
   // with specialized kernel, less restrictive and better performance)
   bool use_specialized_2_2_params = supports_specialized_2_2_params<Torus>(
-      polynomial_size, glwe_dimension, level_count, max_shared_memory);
+      polynomial_size, glwe_dimension, level_count, lwe_dimension,
+      max_shared_memory);
   if (use_specialized_2_2_params) {
     return false;
   }

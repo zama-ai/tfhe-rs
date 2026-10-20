@@ -3030,7 +3030,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_fourier_polynomial_mul_fft16x4x16_async(
+    pub fn cuda_fourier_polynomial_mul_fft16x16x4_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         input1: *const ffi::c_void,
@@ -3051,7 +3051,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_forward_fft16x4x16_async(
+    pub fn cuda_forward_fft16x16x4_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         input: *const ffi::c_void,
@@ -3061,7 +3061,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_backward_fft16x4x16_async(
+    pub fn cuda_backward_fft16x16x4_async(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         input: *const ffi::c_void,
@@ -3071,7 +3071,13 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_fft16x4x16_is_supported_async(gpu_index: u32) -> bool;
+    pub fn cuda_pbs128_golden_is_supported_async(gpu_index: u32) -> bool;
+}
+unsafe extern "C" {
+    pub fn cuda_pbs_golden_is_supported_async(gpu_index: u32) -> bool;
+}
+unsafe extern "C" {
+    pub fn cuda_fft16x16x4_is_supported_async(gpu_index: u32) -> bool;
 }
 unsafe extern "C" {
     pub fn cuda_convert_lwe_programmable_bootstrap_key_32_async(

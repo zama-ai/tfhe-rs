@@ -20,7 +20,7 @@ use crate::shortint::parameters::{
 use pbs128_golden_data::pbs128_golden_v1::*;
 use rand::Rng;
 use std::fmt::Write;
-use tfhe_cuda_backend::bindings::cuda_fft16x4x16_is_supported_async;
+use tfhe_cuda_backend::bindings::cuda_pbs128_golden_is_supported_async;
 use tfhe_cuda_backend::cuda_bind::cuda_synchronize_device;
 
 // ============================================================================
@@ -147,11 +147,11 @@ const MAX_PARALLEL_BATCH_SIZE: usize = 8;
 /// bit-reproducible within a GPU generation, so these tests only run on Hopper
 /// (compute capability 9.x) and newer.
 ///
-/// NOTE: this reuses the FFT16x4x16 capability probe, which is implemented in
-/// the CUDA backend as a pure `prop.major >= 9` (Hopper / H100+) device query.
+/// The probe is a pure `prop.major >= 9` (Hopper / H100+) device query in the
+/// CUDA backend.
 fn hopper_or_newer_is_supported() -> bool {
     // Safe: a pure runtime device-capability query with no aliasing concerns.
-    unsafe { cuda_fft16x4x16_is_supported_async(0) }
+    unsafe { cuda_pbs128_golden_is_supported_async(0) }
 }
 
 /// Builds the deterministic secret- and encryption-random generators used to
