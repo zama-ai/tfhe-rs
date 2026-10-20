@@ -425,13 +425,17 @@ mod test {
         let ct = |log_modulus: CiphertextModulusLog, bodies_count: LweCiphertextCount| {
             let initial_len = glwe_dimension.0 * polynomial_size.0 + bodies_count.0;
 
-            CompressedModulusSwitchedGlweCiphertext {
-                packed_integers: PackedIntegers::from_raw_parts(
+            // Deserialized, as `PackedIntegers::from_raw_parts` rejects some of these states
+            let packed_integers: PackedIntegers<u64> = serde_json::from_value(serde_json::json!({
+                "packed_coeffs":
                     vec![0u64; (initial_len * log_modulus.0).div_ceil(u64::BITS as usize)],
-                    log_modulus,
-                    initial_len,
-                )
-                .unwrap(),
+                "log_modulus": log_modulus.0,
+                "initial_len": initial_len,
+            }))
+            .unwrap();
+
+            CompressedModulusSwitchedGlweCiphertext {
+                packed_integers,
                 glwe_dimension,
                 polynomial_size,
                 bodies_count,
