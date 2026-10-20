@@ -121,12 +121,10 @@ jobs:
           GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
           echo "Found ${GPU_COUNT} GPU(s)"
           if [ "${GPU_COUNT}" -ge 2 ]; then
-            echo "GPU0=0" >> "${GITHUB_ENV}"
-            echo "GPU1=1" >> "${GITHUB_ENV}"
+            { echo "GPU0=0"; echo "GPU1=1"; echo "BIG_TESTS_INSTANCE=TRUE"; } >> "${GITHUB_ENV}"
           else
             echo "Only 1 GPU available, both lanes will share GPU 0 via MPS"
-            echo "GPU0=0" >> "${GITHUB_ENV}"
-            echo "GPU1=0" >> "${GITHUB_ENV}"
+            { echo "GPU0=0"; echo "GPU1=0"; echo "BIG_TESTS_INSTANCE=FALSE"; } >> "${GITHUB_ENV}"
           fi
 
       - name: Enable nvidia multi-process service
@@ -140,12 +138,12 @@ jobs:
         run: |
           run_signed() {
             local rc=0
-            CUDA_VISIBLE_DEVICES=${GPU0} BIG_TESTS_INSTANCE=TRUE make test_signed_integer_gpu_ci || rc=$?
+            CUDA_VISIBLE_DEVICES=${GPU0} make test_signed_integer_gpu_ci || rc=$?
             echo "${rc}" > /tmp/signed.rc
           }
           run_unsigned() {
             local rc=0
-            CUDA_VISIBLE_DEVICES=${GPU1} BIG_TESTS_INSTANCE=TRUE make test_unsigned_integer_gpu_ci || rc=$?
+            CUDA_VISIBLE_DEVICES=${GPU1} make test_unsigned_integer_gpu_ci || rc=$?
             echo "${rc}" > /tmp/unsigned.rc
           }
           run_signed 2>&1 | sed -u 's/^/[signed]   /' &
