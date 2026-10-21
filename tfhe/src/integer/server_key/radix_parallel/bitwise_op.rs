@@ -71,37 +71,13 @@ impl ServerKey {
         ct_res
     }
 
-    pub fn bitand_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    pub fn bitand_assign_parallelized<T>(&self, lhs: &mut T, rhs: &T)
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs;
+        let rhs = self.clean_for_default_binary_assign_op(lhs, rhs);
 
-        let (lhs, rhs) = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct_left, ct_right),
-            (true, false) => {
-                tmp_rhs = ct_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct_left, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct_left);
-                (ct_left, ct_right)
-            }
-            (false, false) => {
-                tmp_rhs = ct_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct_left),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct_left, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_bitand_assign_parallelized(lhs, rhs);
+        self.unchecked_bitand_assign_parallelized(lhs, &rhs);
     }
 
     pub fn unchecked_bitor_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
@@ -172,37 +148,12 @@ impl ServerKey {
         ct_res
     }
 
-    pub fn bitor_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    pub fn bitor_assign_parallelized<T>(&self, lhs: &mut T, rhs: &T)
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct_left, ct_right),
-            (true, false) => {
-                tmp_rhs = ct_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct_left, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct_left);
-                (ct_left, ct_right)
-            }
-            (false, false) => {
-                tmp_rhs = ct_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct_left),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct_left, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_bitor_assign_parallelized(lhs, rhs);
+        let rhs = self.clean_for_default_binary_assign_op(lhs, rhs);
+        self.unchecked_bitor_assign_parallelized(lhs, &rhs);
     }
 
     pub fn unchecked_bitxor_parallelized<T>(&self, ct_left: &T, ct_right: &T) -> T
@@ -273,37 +224,12 @@ impl ServerKey {
         ct_res
     }
 
-    pub fn bitxor_assign_parallelized<T>(&self, ct_left: &mut T, ct_right: &T)
+    pub fn bitxor_assign_parallelized<T>(&self, lhs: &mut T, rhs: &T)
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ct_left, ct_right),
-            (true, false) => {
-                tmp_rhs = ct_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ct_left, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ct_left);
-                (ct_left, ct_right)
-            }
-            (false, false) => {
-                tmp_rhs = ct_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ct_left),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ct_left, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_bitxor_assign_parallelized(lhs, rhs);
+        let rhs = self.clean_for_default_binary_assign_op(lhs, rhs);
+        self.unchecked_bitxor_assign_parallelized(lhs, &rhs);
     }
 
     /// Computes homomorphically a bitnot on a ciphertext encrypting integer values.

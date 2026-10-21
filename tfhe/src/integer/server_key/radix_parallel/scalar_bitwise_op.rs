@@ -1,7 +1,6 @@
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
-use crate::shortint::ciphertext::NoiseLevel;
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -23,9 +22,14 @@ impl ServerKey {
         let message_modulus = self.key.message_modulus.0;
         assert!(message_modulus.is_power_of_two());
 
-        let clear_blocks = BlockDecomposer::with_early_stop_at_zero(rhs, message_modulus.ilog2())
-            .iter_as::<u8>()
-            .collect::<Vec<_>>();
+        // Sign extended (or zero extended) to the radix width when the scalar is narrower
+        let clear_blocks = BlockDecomposer::with_block_count(
+            rhs,
+            self.message_modulus().0.ilog2(),
+            lhs.blocks().len(),
+        )
+        .iter_as::<u8>()
+        .collect::<Vec<_>>();
 
         let all_ones = (message_modulus - 1) as u8;
         lhs.blocks_mut()
@@ -34,10 +38,7 @@ impl ServerKey {
             .for_each(|(lhs_block, clear_block)| {
                 if clear_block == 0 {
                     self.key.create_trivial_assign(lhs_block, 0);
-                } else if clear_block == all_ones
-                    && lhs_block.carry_is_empty()
-                    && lhs_block.noise_level() <= NoiseLevel::NOMINAL
-                {
+                } else if clear_block == all_ones && lhs_block.is_clean() {
                     // The block is clean (no carry, nominal noise)
                     // and the corresponding scalar block is a mask on all message bits
                     // so we can safely skip a PBS here
@@ -46,15 +47,6 @@ impl ServerKey {
                         .unchecked_scalar_bitand_assign(lhs_block, clear_block);
                 }
             });
-
-        let num_clear_blocks = clear_blocks.len();
-        if num_clear_blocks < lhs.blocks().len() {
-            // Blocks beyond clear_blocks.len() should be 'bitanded'
-            // with '0', however, no matter the block value the result will be 0
-            for block in &mut lhs.blocks_mut()[num_clear_blocks..] {
-                self.key.create_trivial_assign(block, 0);
-            }
-        }
     }
 
     /// Computes homomorphically a bitand between a ciphertexts and a clear value
@@ -118,9 +110,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u8>,
     {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
+        self.clean_inplace_for_default_op(lhs);
         self.unchecked_scalar_bitand_assign_parallelized(lhs, rhs);
     }
 
@@ -142,20 +132,31 @@ impl ServerKey {
         let message_modulus = self.key.message_modulus.0;
         assert!(message_modulus.is_power_of_two());
 
-        let clear_blocks = BlockDecomposer::with_early_stop_at_zero(rhs, message_modulus.ilog2())
-            .iter_as::<u8>()
-            .collect::<Vec<_>>();
+        // Sign extended (or zero extended) to the radix width when the scalar is narrower
+        let clear_blocks = BlockDecomposer::with_block_count(
+            rhs,
+            self.message_modulus().0.ilog2(),
+            lhs.blocks().len(),
+        )
+        .iter_as::<u8>()
+        .collect::<Vec<_>>();
 
+        let all_ones = (message_modulus - 1) as u8;
         lhs.blocks_mut()
             .par_iter_mut()
             .zip(clear_blocks.par_iter().copied())
             .for_each(|(lhs_block, clear_block)| {
-                self.key
-                    .unchecked_scalar_bitor_assign(lhs_block, clear_block);
+                if clear_block == 0 && lhs_block.is_clean() {
+                    // Or-ing with 0 keeps a clean block as is
+                } else if clear_block == all_ones {
+                    // Or-ing with all ones sets every message bit, whatever the block holds
+                    self.key
+                        .create_trivial_assign(lhs_block, u64::from(all_ones));
+                } else {
+                    self.key
+                        .unchecked_scalar_bitor_assign(lhs_block, clear_block);
+                }
             });
-
-        // Blocks beyond clear_blocks.len() should be 'ored'
-        // with '0', which means they keep their value
     }
 
     /// Computes homomorphically a bitor between a ciphertexts and a clear value
@@ -219,9 +220,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u8>,
     {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
+        self.clean_inplace_for_default_op(lhs);
         self.unchecked_scalar_bitor_assign_parallelized(lhs, rhs);
     }
 
@@ -243,20 +242,31 @@ impl ServerKey {
         let message_modulus = self.key.message_modulus.0;
         assert!(message_modulus.is_power_of_two());
 
-        let clear_blocks = BlockDecomposer::with_early_stop_at_zero(rhs, message_modulus.ilog2())
-            .iter_as::<u8>()
-            .collect::<Vec<_>>();
+        // Sign extended (or zero extended) to the radix width when the scalar is narrower
+        let clear_blocks = BlockDecomposer::with_block_count(
+            rhs,
+            self.message_modulus().0.ilog2(),
+            lhs.blocks().len(),
+        )
+        .iter_as::<u8>()
+        .collect::<Vec<_>>();
 
+        let all_ones = (message_modulus - 1) as u8;
         lhs.blocks_mut()
             .par_iter_mut()
             .zip(clear_blocks.par_iter().copied())
             .for_each(|(lhs_block, clear_block)| {
-                self.key
-                    .unchecked_scalar_bitxor_assign(lhs_block, clear_block);
+                if clear_block == 0 && lhs_block.is_clean() {
+                    // Xor-ing with 0 keeps a clean block as is
+                } else if clear_block == all_ones && lhs_block.is_clean() {
+                    // Xor-ing with all ones flips every message bit, which the block bitnot
+                    // does without a lookup table, keeping the block clean
+                    self.key.bitnot_assign(lhs_block);
+                } else {
+                    self.key
+                        .unchecked_scalar_bitxor_assign(lhs_block, clear_block);
+                }
             });
-
-        // Blocks beyond clear_blocks.len() should be 'xored'
-        // with '0', which means they keep their value
     }
 
     /// Computes homomorphically a bitxor between a ciphertexts and a clear value
@@ -320,9 +330,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
         Scalar: DecomposableInto<u8>,
     {
-        if !lhs.block_carries_are_empty() {
-            self.full_propagate_parallelized(lhs);
-        }
+        self.clean_inplace_for_default_op(lhs);
         self.unchecked_scalar_bitxor_assign_parallelized(lhs, rhs);
     }
 }

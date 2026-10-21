@@ -108,6 +108,27 @@ impl Int {
         Self::new(self.value.wrapping_neg(), self.bits)
     }
 
+    // Bitwise operations on the sign extended values give sign extended values, they are
+    // the operations on the two's complement bit patterns.
+    pub(crate) fn bitand(self, other: Self) -> Self {
+        self.assert_same_width(other);
+        Self::new(self.value & other.value, self.bits)
+    }
+
+    pub(crate) fn bitor(self, other: Self) -> Self {
+        self.assert_same_width(other);
+        Self::new(self.value | other.value, self.bits)
+    }
+
+    pub(crate) fn bitxor(self, other: Self) -> Self {
+        self.assert_same_width(other);
+        Self::new(self.value ^ other.value, self.bits)
+    }
+
+    pub(crate) fn bitnot(self) -> Self {
+        Self::new(!self.value, self.bits)
+    }
+
     /// Negation, which overflows only for the minimum value, whose opposite is one past the
     /// maximum of the width.
     pub(crate) fn overflowing_neg(self) -> (Self, bool) {
@@ -365,6 +386,24 @@ mod tests {
         assert_eq!(x.cast(16), Int::new(100, 16));
         assert_eq!(Int::new(-100, 8).cast(16), Int::new(-100, 16));
         assert_eq!(x.cast(8), x);
+    }
+
+    /// At 8 bits the model must agree with `i8`.
+    #[test]
+    fn bitwise_ops_match_i8_at_8_bits() {
+        for a in i8::MIN..=i8::MAX {
+            let ia = Int::new(a.into(), 8);
+            assert_eq!(ia.bitnot().value(), i128::from(!a));
+            for b in i8::MIN..=i8::MAX {
+                let ib = Int::new(b.into(), 8);
+                assert_eq!(ia.bitand(ib).value(), i128::from(a & b));
+                assert_eq!(ia.bitor(ib).value(), i128::from(a | b));
+                assert_eq!(ia.bitxor(ib).value(), i128::from(a ^ b));
+            }
+        }
+        // Widths without a Rust primitive keep their own width
+        assert_eq!(Int::zero(6).bitnot(), Int::new(-1, 6));
+        assert_eq!(Int::max(6).bitnot(), Int::min(6));
     }
 
     /// At 8 bits the model must agree with `i8`, for amounts past the width too.
