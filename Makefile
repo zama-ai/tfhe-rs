@@ -375,8 +375,7 @@ semver_check_cuda_common:
 
 .PHONY: check_documentation_up_to_date_gpu # Check that new code is documented with doxygen style-comments
 check_documentation_up_to_date_gpu:
-	python3 -m venv venv
-	@source venv/bin/activate && python ci/check_doxygen_gpu.py
+	python3 ci/check_doxygen_gpu.py
 
 .PHONY: fmt_gpu # Format rust and cuda code
 fmt_gpu: install_rs_check_toolchain
