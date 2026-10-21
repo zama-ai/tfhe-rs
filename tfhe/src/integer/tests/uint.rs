@@ -76,6 +76,21 @@ impl Uint {
     pub(crate) fn wrapping_neg(self) -> Self {
         Self::new(self.value.wrapping_neg(), self.bits)
     }
+    pub(crate) fn bitand(self, other: Self) -> Self {
+        self.assert_same_width(other);
+        Self::new(self.value & other.value, self.bits)
+    }
+    pub(crate) fn bitor(self, other: Self) -> Self {
+        self.assert_same_width(other);
+        Self::new(self.value | other.value, self.bits)
+    }
+    pub(crate) fn bitxor(self, other: Self) -> Self {
+        self.assert_same_width(other);
+        Self::new(self.value ^ other.value, self.bits)
+    }
+    pub(crate) fn bitnot(self) -> Self {
+        Self::new(!self.value, self.bits)
+    }
     /// Negation, which overflows for every value but zero: `-x` is representable on an
     /// unsigned width only when `x` is zero.
     pub(crate) fn overflowing_neg(self) -> (Self, bool) {
@@ -317,6 +332,23 @@ mod tests {
         assert_eq!(x.cast(4), Uint::new(11, 4));
         assert_eq!(x.cast(16), Uint::new(171, 16));
         assert_eq!(x.cast(8), x);
+    }
+
+    /// At 8 bits the model must agree with `u8`.
+    #[test]
+    fn bitwise_ops_match_u8_at_8_bits() {
+        for a in u8::MIN..=u8::MAX {
+            let ua = Uint::new(a.into(), 8);
+            assert_eq!(ua.bitnot().value(), u128::from(!a));
+            for b in u8::MIN..=u8::MAX {
+                let ub = Uint::new(b.into(), 8);
+                assert_eq!(ua.bitand(ub).value(), u128::from(a & b));
+                assert_eq!(ua.bitor(ub).value(), u128::from(a | b));
+                assert_eq!(ua.bitxor(ub).value(), u128::from(a ^ b));
+            }
+        }
+        // Widths without a Rust primitive keep their own width
+        assert_eq!(Uint::zero(6).bitnot(), Uint::max(6));
     }
 
     /// At 8 bits the model must agree with `u8`, for amounts past the width too.
