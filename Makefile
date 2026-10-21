@@ -505,24 +505,30 @@ clippy_boolean: install_rs_check_toolchain
 clippy_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=shortint \
+		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=shortint,experimental \
+		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=zk-pok,shortint \
+		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_integer # Run clippy lints enabling the integer features
 clippy_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=integer \
+		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=integer,experimental \
+		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=integer,experimental,extended-types \
+		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
