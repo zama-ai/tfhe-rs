@@ -1,18 +1,227 @@
 # Placeholder workflow file allowing running it without having to merge to main first
+# TEMPORARY: copy of gpu_noise_pfail_tests.yml for testing on this branch, restore from main before merging.
 name: placeholder_workflow
+
+run-name: ${{ inputs.run_all_production && 'all production tests' || format('{0} / {1} / {2}', inputs.pattern, inputs.test_kind, inputs.params) }} (${{ inputs.platform }})
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 on:
   workflow_dispatch:
+    inputs:
+      pattern:
+        description: "Atomic pattern (test module), or all of them"
+        required: true
+        type: choice
+        options:
+          - br_dp_ks_ms
+          - br_dp_packingks_ms
+          - br_rerand_dp_ks_ms
+          - cpk_ks_ms
+          - dp_ks_ms
+          - dp_ks_pbs_128_packingks
+          - all
+      test_kind:
+        description: "Tests to run"
+        required: true
+        type: choice
+        default: both
+        options:
+          - noise
+          - pfail
+          - both
+      params:
+        description: "Parameters set, must exist for the selected pattern and tests (see `python3 ci/gpu_noise_tests.py list`)"
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128
+          - TEST_META_PARAM_CPU_2_2_KS_PBS_GAUSSIAN_2M128
+          - TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128
+          - TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128
+      platform:
+        description: "GPU platform"
+        required: true
+        type: choice
+        default: 1xH100
+        options:
+          - 1xH100
+      run_all_production:
+        description: "Run all production tests: every noise test then every pfail test with TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128 (the selections above are ignored)"
+        required: false
+        type: boolean
+        default: false
 
-permissions: {}
+permissions:
+  contents: read
 
-# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow, each run gets its own instance
 
 jobs:
-  placeholder:
-    name: placeholder_workflow/placeholder
+  parse-inputs:
+    name: placeholder_workflow/parse-inputs
     runs-on: ubuntu-latest
-
+    outputs:
+      selection: ${{ steps.resolve.outputs.selection }}
+      noise_tests: ${{ steps.resolve.outputs.noise_tests }}
+      pfail_tests: ${{ steps.resolve.outputs.pfail_tests }}
+      backend: ${{ steps.resolve.outputs.backend }}
+      profile: ${{ steps.resolve.outputs.profile }}
     steps:
-      - run: |
-          echo "Hello this is a Placeholder Workflow"
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Check workflow options are in sync with the sources
+        run: |
+          python3 ci/gpu_noise_tests.py check-workflow
+
+      - name: Resolve selected tests and platform
+        id: resolve
+        env:
+          INPUTS_PATTERN: ${{ inputs.pattern }}
+          INPUTS_TEST_KIND: ${{ inputs.test_kind }}
+          INPUTS_PARAMS: ${{ inputs.params }}
+          INPUTS_PLATFORM: ${{ inputs.platform }}
+          INPUTS_RUN_ALL_PRODUCTION: ${{ inputs.run_all_production }}
+        run: |
+          python3 ci/gpu_noise_tests.py resolve \
+            --pattern "${INPUTS_PATTERN}" \
+            --test-kind "${INPUTS_TEST_KIND}" \
+            --params "${INPUTS_PARAMS}" \
+            --platform "${INPUTS_PLATFORM}" \
+            --run-all-production "${INPUTS_RUN_ALL_PRODUCTION}" \
+            --output "${GITHUB_OUTPUT}"
+
+  setup-instance:
+    name: placeholder_workflow/setup-instance
+    needs: parse-inputs
+    uses: ./.github/workflows/slab_setup.yml
+    with:
+      backend: ${{ needs.parse-inputs.outputs.backend }}
+      profile: ${{ needs.parse-inputs.outputs.profile }}
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+
+  noise-pfail-tests:
+    name: placeholder_workflow/noise-pfail-tests
+    needs: [parse-inputs, setup-instance]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 4320 # 72 hours, the pfail tests are long and a production run chains several of them
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.8 12.2"
+            gcc: 12
+    env:
+      NOISE_TESTS: ${{ needs.parse-inputs.outputs.noise_tests }}
+      PFAIL_TESTS: ${{ needs.parse-inputs.outputs.pfail_tests }}
+      # The tests sample on one CUDA stream per thread; raise the hardware work queues per
+      # device from the default 8 to the maximum so those streams actually run concurrently.
+      CUDA_DEVICE_MAX_CONNECTIONS: "32"
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Setup cloud GPU machine dependencies
+        uses: ./.github/actions/gpu_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Enable nvidia multi-process service
+        run: |
+          nvidia-cuda-mps-control -d
+
+      - name: Build GPU tests
+        run: |
+          cargo test --profile release --features=boolean,shortint,integer,gpu -p tfhe --lib --no-run
+
+      # Noise tests first as they are faster; a failure stops the run so pfail tests are skipped.
+      - name: Run noise tests
+        if: ${{ env.NOISE_TESTS != '' }}
+        run: |
+          python3 ci/gpu_noise_tests.py run --kind noise --tests "${NOISE_TESTS}" --summary "${GITHUB_STEP_SUMMARY}"
+
+      - name: Run pfail tests
+        if: ${{ env.PFAIL_TESTS != '' }}
+        run: |
+          python3 ci/gpu_noise_tests.py run --kind pfail --tests "${PFAIL_TESTS}" --summary "${GITHUB_STEP_SUMMARY}"
+
+      - name: Prepare tests results for upload
+        if: ${{ !cancelled() }}
+        run: |
+          # The tests name their JSON files after the test path, which contains "::",
+          # a character actions/upload-artifact rejects.
+          mkdir -p tests_results_upload
+          shopt -s nullglob
+          for file in tfhe/tests_results/*.json; do
+            cp "${file}" "tests_results_upload/$(basename "${file}" | sed 's/::/__/g')"
+          done
+          ls -l tests_results_upload
+
+      - name: Upload tests results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: tests_results_${{ needs.parse-inputs.outputs.selection }}
+          path: tests_results_upload/
+          if-no-files-found: warn
+
+  slack-notify:
+    name: placeholder_workflow/slack-notify
+    needs: [parse-inputs, setup-instance, noise-pfail-tests]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.noise-pfail-tests.result != 'skipped' && failure() }}
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        env:
+          SLACK_COLOR: ${{ needs.noise-pfail-tests.result }}
+          SLACK_MESSAGE: "GPU noise/pfail tests (${{ needs.parse-inputs.outputs.selection }}, ${{ inputs.platform }}) finished with status: ${{ needs.noise-pfail-tests.result }}. ([action run](${{ env.ACTION_RUN_URL }}))"
+
+  teardown-instance:
+    name: placeholder_workflow/teardown-instance
+    if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
+    needs: [setup-instance, noise-pfail-tests]
+    uses: ./.github/workflows/slab_teardown.yml
+    with:
+      runner-name: ${{ needs.setup-instance.outputs.runner-name }}
+      notification-context: gpu-noise-pfail-tests
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

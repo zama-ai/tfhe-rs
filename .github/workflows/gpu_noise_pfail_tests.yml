@@ -1,5 +1,8 @@
-# Run the GPU integer noise and pfail tests on demand, for one atomic pattern, one kind of
-# test (noise, pfail or both) and one parameters set (or all of them) on a single H100.
+# Run the GPU integer noise and pfail tests on demand, for one atomic pattern (or all of them),
+# one kind of test (noise, pfail or both) and one parameters set (or all of them) on a single H100.
+# Ticking the run_all_production checkbox ignores those selections and runs the production tests
+# instead: every noise test, then every pfail test, with the production parameters set.
+# Tests run one at a time, noise first, and the first failure stops the run.
 # The tests live in tfhe/src/integer/gpu/server_key/radix/tests_noise_distribution; the
 # sanity checks declared next to them are deliberately not run here.
 # The available combinations are derived from the sources by ci/gpu_noise_tests.py
@@ -7,7 +10,7 @@
 # is started, and each test gets its own green/red line in the job summary.
 name: gpu_noise_pfail_tests
 
-run-name: ${{ inputs.pattern }} / ${{ inputs.test_kind }} / ${{ inputs.params }} (${{ inputs.platform }})
+run-name: ${{ inputs.run_all_production && 'all production tests' || format('{0} / {1} / {2}', inputs.pattern, inputs.test_kind, inputs.params) }} (${{ inputs.platform }})
 
 env:
   CARGO_TERM_COLOR: always
@@ -26,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       pattern:
-        description: "Atomic pattern (test module)"
+        description: "Atomic pattern (test module), or all of them"
         required: true
         type: choice
         options:
@@ -36,6 +39,7 @@ on:
           - cpk_ks_ms
           - dp_ks_ms
           - dp_ks_pbs_128_packingks
+          - all
       test_kind:
         description: "Tests to run"
         required: true
@@ -63,6 +67,11 @@ on:
         default: 1xH100
         options:
           - 1xH100
+      run_all_production:
+        description: "Run all production tests: every noise test then every pfail test with TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128 (the selections above are ignored)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -74,6 +83,7 @@ jobs:
     name: gpu_noise_pfail_tests/parse-inputs
     runs-on: ubuntu-latest
     outputs:
+      selection: ${{ steps.resolve.outputs.selection }}
       noise_tests: ${{ steps.resolve.outputs.noise_tests }}
       pfail_tests: ${{ steps.resolve.outputs.pfail_tests }}
       backend: ${{ steps.resolve.outputs.backend }}
@@ -96,12 +106,14 @@ jobs:
           INPUTS_TEST_KIND: ${{ inputs.test_kind }}
           INPUTS_PARAMS: ${{ inputs.params }}
           INPUTS_PLATFORM: ${{ inputs.platform }}
+          INPUTS_RUN_ALL_PRODUCTION: ${{ inputs.run_all_production }}
         run: |
           python3 ci/gpu_noise_tests.py resolve \
             --pattern "${INPUTS_PATTERN}" \
             --test-kind "${INPUTS_TEST_KIND}" \
             --params "${INPUTS_PARAMS}" \
             --platform "${INPUTS_PLATFORM}" \
+            --run-all-production "${INPUTS_RUN_ALL_PRODUCTION}" \
             --output "${GITHUB_OUTPUT}"
 
   setup-instance:
@@ -120,7 +132,7 @@ jobs:
     name: gpu_noise_pfail_tests/noise-pfail-tests
     needs: [parse-inputs, setup-instance]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    timeout-minutes: 1440 # 24 hours, the pfail tests are long
+    timeout-minutes: 4320 # 72 hours, the pfail tests are long and a production run chains several of them
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
@@ -132,6 +144,9 @@ jobs:
     env:
       NOISE_TESTS: ${{ needs.parse-inputs.outputs.noise_tests }}
       PFAIL_TESTS: ${{ needs.parse-inputs.outputs.pfail_tests }}
+      # The tests sample on one CUDA stream per thread; raise the hardware work queues per
+      # device from the default 8 to the maximum so those streams actually run concurrently.
+      CUDA_DEVICE_MAX_CONNECTIONS: "32"
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -159,27 +174,40 @@ jobs:
         run: |
           cargo test --profile release --features=boolean,shortint,integer,gpu -p tfhe --lib --no-run
 
+      # Noise tests first as they are faster; a failure stops the run so pfail tests are skipped.
       - name: Run noise tests
-        if: ${{ !cancelled() && env.NOISE_TESTS != '' }}
+        if: ${{ env.NOISE_TESTS != '' }}
         run: |
           python3 ci/gpu_noise_tests.py run --kind noise --tests "${NOISE_TESTS}" --summary "${GITHUB_STEP_SUMMARY}"
 
       - name: Run pfail tests
-        if: ${{ !cancelled() && env.PFAIL_TESTS != '' }}
+        if: ${{ env.PFAIL_TESTS != '' }}
         run: |
           python3 ci/gpu_noise_tests.py run --kind pfail --tests "${PFAIL_TESTS}" --summary "${GITHUB_STEP_SUMMARY}"
+
+      - name: Prepare tests results for upload
+        if: ${{ !cancelled() }}
+        run: |
+          # The tests name their JSON files after the test path, which contains "::",
+          # a character actions/upload-artifact rejects.
+          mkdir -p tests_results_upload
+          shopt -s nullglob
+          for file in tfhe/tests_results/*.json; do
+            cp "${file}" "tests_results_upload/$(basename "${file}" | sed 's/::/__/g')"
+          done
+          ls -l tests_results_upload
 
       - name: Upload tests results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: tests_results_${{ inputs.pattern }}_${{ inputs.test_kind }}_${{ inputs.params }}
-          path: tfhe/tests_results/
+          name: tests_results_${{ needs.parse-inputs.outputs.selection }}
+          path: tests_results_upload/
           if-no-files-found: warn
 
   slack-notify:
     name: gpu_noise_pfail_tests/slack-notify
-    needs: [setup-instance, noise-pfail-tests]
+    needs: [parse-inputs, setup-instance, noise-pfail-tests]
     runs-on: ubuntu-latest
     if: ${{ always() && needs.noise-pfail-tests.result != 'skipped' && failure() }}
     continue-on-error: true
@@ -188,7 +216,7 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ needs.noise-pfail-tests.result }}
-          SLACK_MESSAGE: "GPU noise/pfail tests (${{ inputs.pattern }}, ${{ inputs.test_kind }}, ${{ inputs.params }}, ${{ inputs.platform }}) finished with status: ${{ needs.noise-pfail-tests.result }}. ([action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "GPU noise/pfail tests (${{ needs.parse-inputs.outputs.selection }}, ${{ inputs.platform }}) finished with status: ${{ needs.noise-pfail-tests.result }}. ([action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
     name: gpu_noise_pfail_tests/teardown-instance

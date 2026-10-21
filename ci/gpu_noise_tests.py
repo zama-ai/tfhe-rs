@@ -17,8 +17,11 @@ The sanity checks declared in the same files are listed as such and never select
 
 Sub-commands:
   list            Print every available (pattern, kind, parameters) combination.
-  resolve         Validate the workflow inputs and write the selected tests to $GITHUB_OUTPUT.
-  run             Run the given tests on the GPU runner and append the results to a summary.
+  resolve         Validate the workflow inputs and write the selected tests to $GITHUB_OUTPUT
+                  (or the production tests of every pattern when the run_all_production
+                  checkbox is ticked).
+  run             Run the given tests on the GPU runner, stopping at the first failure, and
+                  append the results to a summary.
   check-workflow  Verify the workflow drop-down options match the sources.
 """
 
@@ -40,6 +43,10 @@ CARGO_FEATURES = "boolean,shortint,integer,gpu"
 TEST_KINDS = ("noise", "pfail")
 TEST_KIND_CHOICES = TEST_KINDS + ("both",)
 ALL_PARAMS = "all"
+ALL_PATTERNS = "all"
+
+# Parameters set of the "run all production tests" checkbox of the workflow.
+PRODUCTION_PARAMS = "TEST_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128"
 
 # Workflow platform choice -> Slab backend and profile (see ci/slab.toml).
 PLATFORMS = {
@@ -136,8 +143,11 @@ def select_tests(tests, pattern, test_kind, param):
     """Return {kind: [Test]} for the requested combination, or exit with an explanation."""
     tests = selectable_tests(tests)
     available_patterns = patterns(tests)
-    if pattern not in available_patterns:
-        fail(f"unknown pattern '{pattern}', available patterns: {', '.join(available_patterns)}")
+    if pattern != ALL_PATTERNS and pattern not in available_patterns:
+        fail(
+            f"unknown pattern '{pattern}', available patterns: "
+            f"{', '.join([ALL_PATTERNS] + available_patterns)}"
+        )
     if test_kind not in TEST_KIND_CHOICES:
         fail(f"unknown test kind '{test_kind}', expected one of: {', '.join(TEST_KIND_CHOICES)}")
     if param != ALL_PARAMS and param not in params(tests):
@@ -146,15 +156,18 @@ def select_tests(tests, pattern, test_kind, param):
     kinds = TEST_KINDS if test_kind == "both" else (test_kind,)
     selected = {}
     for kind in kinds:
-        candidates = [t for t in tests if t.pattern == pattern and t.kind == kind]
+        candidates = [
+            t for t in tests if pattern in (ALL_PATTERNS, t.pattern) and t.kind == kind
+        ]
         matching = [t for t in candidates if param in (ALL_PARAMS, t.param)]
         if matching:
             selected[kind] = matching
             continue
-        available = ", ".join(t.param for t in candidates) or "none"
+        available = ", ".join(sorted({t.param for t in candidates})) or "none"
+        where = "any pattern" if pattern == ALL_PATTERNS else f"pattern '{pattern}'"
         message = (
-            f"no {kind} test for pattern '{pattern}' with parameters '{param}' "
-            f"(available parameters for this pattern and kind: {available})"
+            f"no {kind} test for {where} with parameters '{param}' "
+            f"(available parameters for this kind: {available})"
         )
         if test_kind != "both":
             fail(message)
@@ -162,6 +175,15 @@ def select_tests(tests, pattern, test_kind, param):
     if not selected:
         fail(f"no noise or pfail test matches pattern '{pattern}' with parameters '{param}'")
     return selected
+
+
+def select_production_tests(tests):
+    """Return {kind: [Test]} with the noise and pfail tests of every pattern for the
+    production parameters."""
+    tests = [t for t in selectable_tests(tests) if t.param == PRODUCTION_PARAMS]
+    if not tests:
+        fail(f"no noise or pfail test uses the production parameters {PRODUCTION_PARAMS}")
+    return {kind: [t for t in tests if t.kind == kind] for kind in TEST_KINDS}
 
 
 def resolve_platform(platform):
@@ -182,10 +204,21 @@ def resolve_platform(platform):
 
 
 def cmd_resolve(args):
-    selected = select_tests(collect_tests(), args.pattern, args.test_kind, args.params)
+    tests = collect_tests()
+    if args.run_all_production == "true":
+        print(
+            "::notice::run_all_production is set, the pattern, tests and parameters selections "
+            f"are ignored: running every noise then every pfail test with {PRODUCTION_PARAMS}"
+        )
+        selected = select_production_tests(tests)
+        selection = "production"
+    else:
+        selected = select_tests(tests, args.pattern, args.test_kind, args.params)
+        selection = f"{args.pattern}_{args.test_kind}_{args.params}"
     platform = resolve_platform(args.platform)
 
     outputs = {kind: " ".join(t.path for t in selected.get(kind, [])) for kind in TEST_KINDS}
+    print(f"selection: {selection}")
     for kind in TEST_KINDS:
         tests = selected.get(kind, [])
         print(f"{kind} tests ({len(tests)}):")
@@ -194,6 +227,7 @@ def cmd_resolve(args):
     print(f"platform: {args.platform} -> {platform['backend']}/{platform['profile']}")
 
     with open(args.output, "a") as f:
+        f.write(f"selection={selection}\n")
         for kind in TEST_KINDS:
             f.write(f"{kind}_tests={outputs[kind]}\n")
         f.write(f"backend={platform['backend']}\n")
@@ -264,21 +298,29 @@ def cmd_run(args):
         results.append((test, passed, duration))
         if not passed:
             print(f"::error::{args.kind} test failed: {test}", flush=True)
+            break
+    not_run = tests[len(results) :]
 
-    failed = [r for r in results if not r[1]]
+    failed = any(not passed for _, passed, _ in results)
+    if not failed:
+        status = "🟢 passed"
+    elif not_run:
+        status = f"🔴 failed, {len(not_run)} remaining test(s) not run"
+    else:
+        status = "🔴 failed"
     lines = [
-        f"## {args.kind.capitalize()} tests: "
-        + ("🟢 passed" if not failed else f"🔴 {len(failed)} of {len(results)} failed"),
+        f"## {args.kind.capitalize()} tests: {status}",
         "",
         "| Test | Result | Duration |",
         "| --- | --- | --- |",
     ]
     for test, passed, duration in results:
-        short_name = test.rsplit("::", 2)[-2:]
         lines.append(
-            f"| `{'::'.join(short_name)}` | {'🟢 passed' if passed else '🔴 failed'} "
+            f"| `{short_test_name(test)}` | {'🟢 passed' if passed else '🔴 failed'} "
             f"| {format_duration(duration)} |"
         )
+    for test in not_run:
+        lines.append(f"| `{short_test_name(test)}` | ⚪ not run | - |")
     summary = "\n".join(lines) + "\n\n"
     print(summary)
     if args.summary:
@@ -287,6 +329,11 @@ def cmd_run(args):
 
     if failed:
         sys.exit(1)
+
+
+def short_test_name(test):
+    """`<module>::<test>` without the common module path prefix."""
+    return "::".join(test.rsplit("::", 2)[-2:])
 
 
 def workflow_options(workflow_file):
@@ -331,7 +378,7 @@ def workflow_options_without_yaml(text):
 def cmd_check_workflow(args):
     tests = collect_tests()
     expected = {
-        "pattern": patterns(tests),
+        "pattern": [ALL_PATTERNS] + patterns(tests),
         "test_kind": list(TEST_KIND_CHOICES),
         "params": [ALL_PARAMS] + params(tests),
         "platform": list(PLATFORMS),
@@ -378,12 +425,21 @@ def main():
     resolve = subparsers.add_parser(
         "resolve", help="validate the workflow inputs and output the selected tests"
     )
-    resolve.add_argument("--pattern", required=True, help="atomic pattern, i.e. test module name")
+    resolve.add_argument(
+        "--pattern", required=True, help=f"atomic pattern (test module name), or '{ALL_PATTERNS}'"
+    )
     resolve.add_argument("--test-kind", required=True, choices=TEST_KIND_CHOICES)
     resolve.add_argument(
         "--params", required=True, help=f"parameters set name, or '{ALL_PARAMS}'"
     )
     resolve.add_argument("--platform", required=True, help=f"one of: {', '.join(PLATFORMS)}")
+    resolve.add_argument(
+        "--run-all-production",
+        choices=("true", "false"),
+        default="false",
+        help="'true' selects the noise and pfail tests of every pattern for the production "
+        "parameters and ignores --pattern/--test-kind/--params",
+    )
     resolve.add_argument(
         "--output", required=True, help="file to append key=value pairs to (e.g. $GITHUB_OUTPUT)"
     )
