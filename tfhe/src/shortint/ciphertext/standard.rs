@@ -136,6 +136,12 @@ impl Ciphertext {
         self.degree.get() < self.message_modulus.0
     }
 
+    /// Returns whether the block is clean: its carries are empty **and** its noise is at most
+    /// nominal, as the output of a lookup table is.
+    pub fn is_clean(&self) -> bool {
+        self.carry_is_empty() && self.noise_level() <= NoiseLevel::NOMINAL
+    }
+
     pub fn is_trivial(&self) -> bool {
         self.noise_level() == NoiseLevel::ZERO
             && self.ct.get_mask().as_ref().iter().all(|&x| x == 0u64)

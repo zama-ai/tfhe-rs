@@ -24,7 +24,7 @@ use std::sync::Arc;
 create_parameterized_test!(integer_signed_unchecked_scalar_add);
 create_parameterized_test!(integer_signed_default_scalar_add);
 create_parameterized_test!(integer_signed_default_overflowing_scalar_add);
-create_parameterized_test!(integer_signed_default_overflowing_scalar_add_i8);
+create_parameterized_test!(integer_signed_default_overflowing_scalar_add_narrow_i8);
 
 fn integer_signed_unchecked_scalar_add<P>(param: P)
 where
@@ -53,7 +53,7 @@ where
     default_overflowing_scalar_add_test(&ctx, executor);
 }
 
-fn integer_signed_default_overflowing_scalar_add_i8<P>(param: P)
+fn integer_signed_default_overflowing_scalar_add_narrow_i8<P>(param: P)
 where
     P: Into<TestParameters>,
 {

@@ -636,12 +636,12 @@ pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: i64) -> i64 {
     }
 }
 
-/// Cases for the signed overflowing scalar operations with a scalar narrower than the radix:
-/// the radix bounds, zero and minus one against the `i8` bounds, one and minus one.
+/// Cases for the signed scalar operations with a scalar narrower than the radix: the radix
+/// bounds, zero and minus one against the `i8` bounds, one and minus one.
 ///
 /// A negative scalar has to be sign extended to the radix width, a zero extension turns
-/// `-1i8` into `255` on any radix wider than 8 bits. The overflowing scalar tests with an
-/// `i64` scalar never see this, the radix is at most as wide as the scalar there.
+/// `-1i8` into `255` on any radix wider than 8 bits. The scalar tests with an `i64` scalar
+/// never see this, the radix is at most as wide as the scalar there.
 pub(crate) fn narrow_scalar_cases(
     input_size: RadixInputSize,
     ctx: &TestContext,
