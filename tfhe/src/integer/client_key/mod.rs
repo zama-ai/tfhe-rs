@@ -703,4 +703,127 @@ impl ClientKey {
             DecompressionKey { key: decomp_key },
         )
     }
+
+    /// Encrypts `message` into a batched-trivial radix ciphertext.
+    ///
+    /// In addition to the primary value, each LWE mask slot carries an
+    /// independent test vector drawn uniformly from the full integer range
+    /// `[0, message_modulus^num_blocks)`.  Running every GPU kernel against
+    /// `lwe_dimension + 1` independent inputs simultaneously amplifies the
+    /// coverage of a single test execution.
+    ///
+    /// Returns `(ciphertext, test_vectors)` where `test_vectors[j]` is the full
+    /// integer whose radix decomposition fills mask slot `j` across all blocks.
+    #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
+    pub fn encrypt_radix_batched_trivial(
+        &self,
+        value: u64,
+        num_blocks: usize,
+        rng: &mut impl rand_core::RngCore,
+    ) -> (RadixCiphertext, Vec<u64>) {
+        use crate::core_crypto::entities::LweCiphertext;
+        use crate::shortint::ciphertext::NoiseLevel;
+        use crate::shortint::parameters::AtomicPatternKind;
+        use crate::shortint::PBSOrder;
+        use crate::shortint::Ciphertext as ShortintCiphertext;
+
+        let params = self.key.parameters();
+        let p = params.message_modulus().0 as u64;
+        let lwe_dimension = params.encryption_lwe_dimension().0;
+        let ciphertext_modulus = params.ciphertext_modulus();
+        let max_value: u64 = p.pow(num_blocks as u32);
+
+        // Draw lwe_dimension independent test vectors from [0, max_value).
+        let test_vectors: Vec<u64> =
+            (0..lwe_dimension).map(|_| rng.next_u64() % max_value).collect();
+
+        let blocks: Vec<ShortintCiphertext> = (0..num_blocks)
+            .map(|i| {
+                let mut data = vec![0u64; lwe_dimension + 1];
+                // Mask slots: block i of each test vector.
+                for (j, &tv) in test_vectors.iter().enumerate() {
+                    data[j] = (tv / p.pow(i as u32)) % p;
+                }
+                // Body: block i of the primary value.
+                data[lwe_dimension] = (value / p.pow(i as u32)) % p;
+
+                let ct = LweCiphertext::from_container(data, ciphertext_modulus);
+                // Degree is set to message_modulus - 1 (maximum) regardless of
+                // the actual value so that degree-based pruning in compound
+                // algorithms (e.g. multiplication) does not skip blocks whose
+                // mask slots may carry non-zero values.
+                ShortintCiphertext::new(
+                    ct,
+                    Degree::new(p - 1),
+                    NoiseLevel::ZERO,
+                    params.message_modulus(),
+                    params.carry_modulus(),
+                    AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
+                )
+            })
+            .collect();
+
+        (RadixCiphertext::from(blocks), test_vectors)
+    }
+
+    /// Decrypts a batched-trivial radix ciphertext and checks all mask slots.
+    ///
+    /// The body of each block is read directly (no key material needed).
+    /// Every mask slot is also verified against the corresponding `expected_slots`
+    /// entry — this is the primary correctness gate for the batched-trivial mode.
+    #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
+    pub fn decrypt_and_check_radix_batched_trivial(
+        &self,
+        ct: &RadixCiphertext,
+        expected_body: u64,
+        expected_slots: &[u64],
+    ) {
+        let p = self.key.parameters().message_modulus().0 as u64;
+        let num_blocks = ct.blocks.len();
+
+        for i in 0..num_blocks {
+            let container = ct.blocks[i].ct.as_ref();
+            let lwe_dimension = container.len() - 1;
+            assert_eq!(
+                expected_slots.len(),
+                lwe_dimension,
+                "expected_slots length must equal lwe_dimension"
+            );
+
+            // Body: coefficient lwe_dimension holds block i of the primary result.
+            let body_got = container[lwe_dimension] % p;
+            let body_exp = (expected_body / p.pow(i as u32)) % p;
+            assert_eq!(
+                body_got, body_exp,
+                "block {i} body mismatch: got {body_got}, expected {body_exp}"
+            );
+
+            // Mask slots: coefficient j holds block i of test_vectors[j] result.
+            for (j, &exp_slot) in expected_slots.iter().enumerate() {
+                let slot_got = container[j] % p;
+                let slot_exp = (exp_slot / p.pow(i as u32)) % p;
+                assert_eq!(
+                    slot_got, slot_exp,
+                    "block {i} slot {j} mismatch: got {slot_got}, expected {slot_exp}"
+                );
+            }
+        }
+    }
+
+    /// Decrypts a batched-trivial radix ciphertext (body only, no slot check).
+    #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
+    pub fn decrypt_radix_batched_trivial<T>(&self, ct: &RadixCiphertext) -> T
+    where
+        T: crate::integer::block_decomposition::RecomposableFrom<u64>
+            + crate::core_crypto::prelude::UnsignedNumeric,
+    {
+        let p = self.key.parameters().message_modulus().0 as u64;
+        let bits_in_block = p.ilog2();
+        let decrypted_blocks = ct.blocks.iter().map(|block| {
+            let container = block.ct.as_ref();
+            // Body is the last coefficient.
+            container[container.len() - 1] % p
+        });
+        BlockRecomposer::recompose_unsigned(decrypted_blocks, bits_in_block)
+    }
 }

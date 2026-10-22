@@ -117,3 +117,57 @@ where
         legacy_default_overflowing_add_test(param, executor);
     }
 }
+
+/// Batched-trivial tests: verify `add` correctness on cleartext data packed into
+/// all LWE coefficients (body + every mask slot), without any cryptographic key
+/// material being exercised. Carry propagation, LUT sequencing, and block
+/// indexing are all checked simultaneously across `lwe_dimension` independent
+/// test vectors per operation.
+#[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
+mod batched_trivial {
+    use crate::core_crypto::gpu::CudaStreams;
+    use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+    use crate::integer::gpu::CudaServerKey;
+    use crate::integer::keycache::KEY_CACHE;
+    use crate::integer::IntegerKeyKind;
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use rand::Rng;
+
+    #[test]
+    fn test_gpu_integer_add_batched_trivial() {
+        let (cks, _) = KEY_CACHE
+            .get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, IntegerKeyKind::Radix);
+
+        let streams = CudaStreams::new_multi_gpu();
+        let sks = CudaServerKey::new(&cks, &streams);
+        streams.synchronize();
+
+        let mut rng = rand::thread_rng();
+        let num_blocks = 4usize;
+        let p = cks.parameters().message_modulus().0 as u64;
+        let modulus = p.pow(num_blocks as u32);
+
+        for _ in 0..5 {
+            let clear_0 = rng.gen::<u64>() % modulus;
+            let clear_1 = rng.gen::<u64>() % modulus;
+
+            let (ct0, tv0) = cks.encrypt_radix_batched_trivial(clear_0, num_blocks, &mut rng);
+            let (ct1, tv1) = cks.encrypt_radix_batched_trivial(clear_1, num_blocks, &mut rng);
+
+            let d_ct0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct0, &streams);
+            let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+
+            let d_result = sks.add(&d_ct0, &d_ct1, &streams);
+            let result = d_result.to_radix_ciphertext(&streams);
+
+            let expected_body = clear_0.wrapping_add(clear_1) % modulus;
+            let expected_slots: Vec<u64> = tv0
+                .iter()
+                .zip(tv1.iter())
+                .map(|(&a, &b)| a.wrapping_add(b) % modulus)
+                .collect();
+
+            cks.decrypt_and_check_radix_batched_trivial(&result, expected_body, &expected_slots);
+        }
+    }
+}

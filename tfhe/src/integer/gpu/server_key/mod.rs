@@ -188,13 +188,33 @@ impl CudaServerKey {
     where
         C: AsRef<ClientKey>,
     {
-        // It should remain just enough space to add a carry
         let client_key = cks.as_ref();
+        #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
+        return Self::new_trivial(client_key, streams);
+        // It should remain just enough space to add a carry
+        #[cfg(not(feature = "gpu-nofhe-testing-batched-trivial"))]
+        {
+            let max_degree = MaxDegree::integer_radix_server_key(
+                client_key.key.parameters().message_modulus(),
+                client_key.key.parameters().carry_modulus(),
+            );
+            Self::new_server_key_with_max_degree(client_key, max_degree, streams)
+        }
+    }
+
+    #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
+    pub(crate) fn new_trivial(cks: &ClientKey, streams: &CudaStreams) -> Self {
+        // In batched-trivial mode no bootstrap or keyswitch key is generated.
+        // The C++ early-return guard in apply_*_lookup_table fires before any
+        // dereference of bsks/ksks, so real keys are never needed.
+        // We still generate them here so the CudaServerKey struct fields are
+        // valid — a future optimisation can skip this if key generation time
+        // becomes a bottleneck for testing.
         let max_degree = MaxDegree::integer_radix_server_key(
-            client_key.key.parameters().message_modulus(),
-            client_key.key.parameters().carry_modulus(),
+            cks.key.parameters().message_modulus(),
+            cks.key.parameters().carry_modulus(),
         );
-        Self::new_server_key_with_max_degree(client_key, max_degree, streams)
+        Self::new_server_key_with_max_degree(cks, max_degree, streams)
     }
 
     pub(crate) fn new_server_key_with_max_degree(

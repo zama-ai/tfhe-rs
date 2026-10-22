@@ -18,7 +18,7 @@ pub mod seeders;
 
 pub mod fft_impl;
 
-#[cfg(feature = "gpu")]
+#[cfg(any(feature = "gpu", feature = "gpu-nofhe-testing-batched-trivial"))]
 pub mod gpu;
 
 #[cfg(feature = "hpu")]
