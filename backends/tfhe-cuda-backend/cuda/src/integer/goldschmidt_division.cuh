@@ -14,6 +14,198 @@
 #include "integer/vector_find.cuh"
 #include "radix_ciphertext.cuh"
 
+// ---------------------------------------------------------------------------
+// Golden trace (test builds only: cargo feature `gpu-goldschmidt-trace`)
+// ---------------------------------------------------------------------------
+//
+// Appends the fixed-point iterates of every division whose inputs are trivial
+// ciphertexts to GOLDSCHMIDT_TRACE_PATH, in the CSV format the Lean proof's
+// check_trace.lean reads and the golden test compares against:
+//
+//     n,d,step,D,N,F0      D = d * 2^68, N = n * 2^4, F0 = (1 + x0) * 2^10
+//
+//     step  0    after normalisation      lut  after the table lookup (F0)
+//           1    after the seed multiply  2..4 after rounds 0..2 (no D at 4)
+//
+// A trivial ciphertext has an all-zero mask and body = delta * m, and the
+// classic PBS keeps it so: with a zero mask every CMux difference is exactly 0.
+// The values are therefore read from the block bodies without the secret key.
+// A traced intermediate that is not exactly trivial aborts, since body / delta
+// of a real ciphertext would look plausible and be meaningless; the multi-bit
+// PBS, for one, does not preserve triviality.
+#ifdef GOLDSCHMIDT_TRACE
+#include <cstdio>
+#include <mutex>
+#include <string>
+#include <vector>
+
+#define GOLDSCHMIDT_TRACE_PATH "goldschmidt_gpu_trace.csv"
+
+/// @brief Decimal rendering of a 128-bit value; the registers are 68 bits.
+inline std::string goldschmidt_trace_decimal(__uint128_t value) {
+  std::string digits;
+  do {
+    digits.insert(digits.begin(), static_cast<char>('0' + (int)(value % 10)));
+    value /= 10;
+  } while (value != 0);
+  return digits;
+}
+
+/// @brief Reads a radix ciphertext's value from its block bodies.
+/// @param value Set to sum(m_b * message_modulus^b), m_b = body_b / delta.
+/// @return false if the ciphertext is not exactly trivial: a block has a
+/// non-zero mask coefficient or a body that is not a multiple of delta.
+template <typename Torus>
+bool goldschmidt_trace_read(CudaStreams streams,
+                            const CudaRadixCiphertextFFI *ct,
+                            int_radix_params params, __uint128_t &value) {
+  size_t lwe_size = (size_t)ct->lwe_dimension + 1;
+  std::vector<Torus> h_ct((size_t)ct->num_radix_blocks * lwe_size);
+  cuda_memcpy_async_to_cpu(h_ct.data(), ct->ptr,
+                           safe_mul_sizeof<Torus>(h_ct.size()),
+                           streams.stream(0), streams.gpu_index(0));
+  cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+
+  Torus delta = ((Torus)1 << (sizeof(Torus) * 8 - 1)) /
+                (params.message_modulus * params.carry_modulus);
+  value = 0;
+  for (int b = (int)ct->num_radix_blocks - 1; b >= 0; b--) {
+    const Torus *block = &h_ct[(size_t)b * lwe_size];
+    for (size_t i = 0; i + 1 < lwe_size; i++)
+      if (block[i] != 0)
+        return false;
+    Torus body = block[lwe_size - 1];
+    if (body % delta != 0)
+      return false;
+    value = value * params.message_modulus + body / delta;
+  }
+  return true;
+}
+
+/// @brief Appends one row. The first row of the process truncates the file
+/// and writes the header, as the CPU trace does.
+inline void goldschmidt_trace_write(uint64_t n, uint64_t d, const char *step,
+                                    const std::string &big_d,
+                                    const std::string &big_n,
+                                    const std::string &f0) {
+  static std::mutex lock;
+  static bool initialized = false;
+  std::lock_guard<std::mutex> guard(lock);
+  FILE *file = std::fopen(GOLDSCHMIDT_TRACE_PATH, initialized ? "a" : "w");
+  PANIC_IF_FALSE(file != nullptr,
+                 "Cuda error (goldschmidt trace): cannot open %s",
+                 GOLDSCHMIDT_TRACE_PATH);
+  if (!initialized)
+    std::fprintf(file, "n,d,step,D,N,F0\n");
+  initialized = true;
+  std::fprintf(file, "%llu,%llu,%s,%s,%s,%s\n", (unsigned long long)n,
+               (unsigned long long)d, step, big_d.c_str(), big_n.c_str(),
+               f0.c_str());
+  std::fclose(file);
+}
+
+/// @brief Reads a traced register, aborting if it is not trivial.
+template <typename Torus>
+std::string goldschmidt_trace_cell(CudaStreams streams,
+                                   const CudaRadixCiphertextFFI *ct,
+                                   int_radix_params params) {
+  __uint128_t value;
+  bool trivial = goldschmidt_trace_read<Torus>(streams, ct, params, value);
+  PANIC_IF_FALSE(trivial,
+                 "Cuda error (goldschmidt trace): an intermediate ciphertext "
+                 "is not trivial although the inputs were; the trace needs "
+                 "the classic PBS");
+  return goldschmidt_trace_decimal(value);
+}
+
+/// @brief Decides whether this division is traced: only when both inputs are
+/// trivial and the denominator is non-zero, which the Lean model requires.
+template <typename Torus>
+void goldschmidt_trace_begin(CudaStreams streams,
+                             int_goldschmidt_division_buffer<Torus> *mem,
+                             const CudaRadixCiphertextFFI *numerator,
+                             const CudaRadixCiphertextFFI *denominator) {
+  CudaRadixCiphertextFFI n_view, d_view;
+  as_radix_ciphertext_slice<Torus>(&n_view, numerator, 0, mem->num_blocks);
+  as_radix_ciphertext_slice<Torus>(&d_view, denominator, 0, mem->num_blocks);
+  __uint128_t n, d;
+  mem->trace_active =
+      goldschmidt_trace_read<Torus>(streams, &n_view, mem->params, n) &&
+      goldschmidt_trace_read<Torus>(streams, &d_view, mem->params, d) && d != 0;
+  mem->trace_n = mem->trace_active ? (uint64_t)n : 0;
+  mem->trace_d = mem->trace_active ? (uint64_t)d : 0;
+}
+
+/// @brief Row `0`: the normalised operands.
+template <typename Torus>
+void goldschmidt_trace_normalized(CudaStreams streams,
+                                  int_goldschmidt_division_buffer<Torus> *mem) {
+  if (!mem->trace_active)
+    return;
+  goldschmidt_trace_write(
+      mem->trace_n, mem->trace_d, "0",
+      goldschmidt_trace_cell<Torus>(streams, &mem->current_d, mem->params),
+      goldschmidt_trace_cell<Torus>(streams, &mem->current_n, mem->params), "");
+}
+
+/// @brief Rows `lut` and `1`: the table output, with its implicit leading
+/// one added back, and the operands after the seed multiply.
+template <typename Torus>
+void goldschmidt_trace_seed(CudaStreams streams,
+                            int_goldschmidt_division_buffer<Torus> *mem) {
+  if (!mem->trace_active)
+    return;
+  __uint128_t x0;
+  bool trivial = goldschmidt_trace_read<Torus>(streams, &mem->seed_factor,
+                                               mem->params, x0);
+  PANIC_IF_FALSE(trivial, "Cuda error (goldschmidt trace): the seed factor is "
+                          "not trivial although the inputs were");
+  uint32_t x0_bits = log2_int(mem->params.message_modulus) * mem->x0_blocks;
+  goldschmidt_trace_write(
+      mem->trace_n, mem->trace_d, "lut", "", "",
+      goldschmidt_trace_decimal(x0 + ((__uint128_t)1 << x0_bits)));
+  goldschmidt_trace_write(
+      mem->trace_n, mem->trace_d, "1",
+      goldschmidt_trace_cell<Torus>(streams, &mem->current_d, mem->params),
+      goldschmidt_trace_cell<Torus>(streams, &mem->current_n, mem->params), "");
+}
+
+/// @brief Row `round + 2`. The last round does not update d, so its row has
+/// no D cell.
+template <typename Torus>
+void goldschmidt_trace_round(CudaStreams streams,
+                             int_goldschmidt_division_buffer<Torus> *mem,
+                             uint32_t round, uint32_t iterations) {
+  if (!mem->trace_active)
+    return;
+  std::string step = std::to_string(round + 2);
+  std::string big_d =
+      round + 1 < iterations
+          ? goldschmidt_trace_cell<Torus>(streams, &mem->current_d, mem->params)
+          : "";
+  goldschmidt_trace_write(
+      mem->trace_n, mem->trace_d, step.c_str(), big_d,
+      goldschmidt_trace_cell<Torus>(streams, &mem->current_n, mem->params), "");
+}
+#else
+template <typename Torus>
+inline void goldschmidt_trace_begin(CudaStreams,
+                                    int_goldschmidt_division_buffer<Torus> *,
+                                    const CudaRadixCiphertextFFI *,
+                                    const CudaRadixCiphertextFFI *) {}
+template <typename Torus>
+inline void
+goldschmidt_trace_normalized(CudaStreams,
+                             int_goldschmidt_division_buffer<Torus> *) {}
+template <typename Torus>
+inline void goldschmidt_trace_seed(CudaStreams,
+                                   int_goldschmidt_division_buffer<Torus> *) {}
+template <typename Torus>
+inline void goldschmidt_trace_round(CudaStreams,
+                                    int_goldschmidt_division_buffer<Torus> *,
+                                    uint32_t, uint32_t) {}
+#endif
+
 /// @brief Copies `input` into `output` scaled by beta^shift, i.e. shifted
 /// left by `shift` blocks for a positive shift and right for a negative one.
 /// Blocks that fall outside `output` are dropped and the rest is zero filled;
@@ -188,6 +380,7 @@ __host__ void goldschmidt_iterations(
       std::swap(mem->current_d, mem->next_d);
     }
     std::swap(mem->current_n, mem->next_n);
+    goldschmidt_trace_round<Torus>(streams, mem, i, iterations);
   }
   POP_RANGE()
 }
@@ -375,9 +568,12 @@ __host__ void host_goldschmidt_division(
                  "Cuda error (goldschmidt division): outputs are narrower "
                  "than the operands");
 
+  goldschmidt_trace_begin<Torus>(streams, mem, numerator, denominator);
   goldschmidt_normalize<Torus, uint64_t>(streams, numerator, denominator, mem,
                                          bsks, ksks);
+  goldschmidt_trace_normalized<Torus>(streams, mem);
   goldschmidt_seed<Torus>(streams, mem, bsks, ksks);
+  goldschmidt_trace_seed<Torus>(streams, mem);
   goldschmidt_iterations<Torus>(streams, mem, iterations, bsks, ksks);
   goldschmidt_finalize<Torus, uint64_t>(streams, quotient, remainder, numerator,
                                         denominator, mem, bsks, ksks);

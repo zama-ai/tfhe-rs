@@ -182,6 +182,16 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
   /// @brief Cmux over [q | r] pairs, shared by both final selections.
   int_cmux_buffer<Torus> *cmux_mem;
 
+#ifdef GOLDSCHMIDT_TRACE
+  /// @brief Set while tracing the current division, i.e. when both inputs
+  /// are trivial ciphertexts; see the golden trace section of the .cuh.
+  bool trace_active = false;
+  /// @brief Clear numerator of the traced division, the key of its rows.
+  uint64_t trace_n = 0;
+  /// @brief Clear denominator of the traced division.
+  uint64_t trace_d = 0;
+#endif
+
   int_goldschmidt_division_buffer(CudaStreams streams, int_radix_params params,
                                   uint32_t num_blocks, uint32_t iterations,
                                   uint32_t lut_precision,

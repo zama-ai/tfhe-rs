@@ -281,4 +281,109 @@ mod tests {
             assert_eq!((gpu_q, gpu_r), (cpu_q, cpu_r), "disagreement on {n} / {d}");
         }
     }
+
+    /// Pins the division to the model its correctness proof is about.
+    ///
+    /// `goldschmidt_golden.txt` holds, for 100 selected inputs, every
+    /// fixed-point value the proved model computes (the operands after
+    /// normalisation, the table output, and the operands after each multiply),
+    /// generated from the Lean proof in tfhe-rs-internal. The result tests
+    /// above cannot see a deviation from it: the `+1` correction absorbs a
+    /// one-ulp error in the final numerator and the quotient stays right. This
+    /// test compares every intermediate value exactly.
+    ///
+    /// With the `gpu-goldschmidt-trace` feature the backend writes the trace of
+    /// every division whose inputs are trivial ciphertexts to
+    /// `goldschmidt_gpu_trace.csv` in the working directory, in the golden
+    /// file's format, so the inputs here are trivial.
+    #[cfg(feature = "gpu-goldschmidt-trace")]
+    #[test]
+    fn test_goldschmidt_division_golden_trace() {
+        const TRACE_PATH: &str = "goldschmidt_gpu_trace.csv";
+        const ROWS_PER_CASE: usize = 6;
+
+        // `# case <i>: <label>` precedes the six rows of each case.
+        let golden = include_str!("goldschmidt_golden.txt");
+        let mut header = None;
+        let mut labels = Vec::new();
+        let mut rows = Vec::new();
+        for line in golden.lines().map(str::trim).filter(|l| !l.is_empty()) {
+            if let Some(label) = line.strip_prefix("# case ") {
+                labels.push(label);
+            } else if line.starts_with("n,") {
+                header = Some(line);
+            } else if !line.starts_with('#') {
+                rows.push(line);
+            }
+        }
+        assert_eq!(
+            rows.len(),
+            ROWS_PER_CASE * labels.len(),
+            "malformed golden file"
+        );
+
+        let streams = CudaStreams::new_multi_gpu();
+        let (cks, sks) = keys(&streams);
+
+        // A trace left by an earlier run must not be what gets compared.
+        let _ = std::fs::remove_file(TRACE_PATH);
+        for case in rows.chunks(ROWS_PER_CASE) {
+            let mut fields = case[0].split(',');
+            let n: u64 = fields.next().unwrap().parse().unwrap();
+            let d: u64 = fields.next().unwrap().parse().unwrap();
+            let d_n: CudaUnsignedRadixCiphertext =
+                sks.create_trivial_radix(n, NUM_BLOCKS, &streams);
+            let d_d: CudaUnsignedRadixCiphertext =
+                sks.create_trivial_radix(d, NUM_BLOCKS, &streams);
+            let (d_q, d_r) = sks.goldschmidt_division(&d_n, &d_d, &streams);
+            let q: u64 = cks.decrypt_radix(&d_q.to_radix_ciphertext(&streams));
+            let r: u64 = cks.decrypt_radix(&d_r.to_radix_ciphertext(&streams));
+            assert_eq!((q, r), (n / d, n % d), "{n} / {d}");
+        }
+
+        let trace = std::fs::read_to_string(TRACE_PATH)
+            .expect("no trace written: is the backend built with gpu-goldschmidt-trace?");
+        let mut traced = trace.lines();
+        assert_eq!(traced.next(), header, "trace header");
+        let traced: Vec<&str> = traced.collect();
+        for (i, expected) in rows.iter().enumerate() {
+            let got = traced.get(i).copied().unwrap_or("<missing>");
+            assert!(
+                got == *expected,
+                "case {}: {}",
+                labels[i / ROWS_PER_CASE],
+                describe_trace_mismatch(expected, got)
+            );
+        }
+        assert_eq!(
+            traced.len(),
+            rows.len(),
+            "the trace has rows beyond the golden ones"
+        );
+    }
+
+    /// Names the cells of a trace row that differ from the golden row, with
+    /// the signed difference for numeric cells.
+    #[cfg(feature = "gpu-goldschmidt-trace")]
+    fn describe_trace_mismatch(expected: &str, got: &str) -> String {
+        const COLUMNS: [&str; 6] = ["n", "d", "step", "D", "N", "F0"];
+        let expected_cells: Vec<&str> = expected.split(',').collect();
+        let got_cells: Vec<&str> = got.split(',').collect();
+        let differing: Vec<String> = COLUMNS
+            .iter()
+            .enumerate()
+            .filter_map(|(c, name)| {
+                let (e, g) = (expected_cells.get(c)?, got_cells.get(c).unwrap_or(&""));
+                if e == g {
+                    return None;
+                }
+                let diff = match (e.parse::<i128>(), g.parse::<i128>()) {
+                    (Ok(e), Ok(g)) => format!(" (got - expected = {})", g - e),
+                    _ => String::new(),
+                };
+                Some(format!("{name}: expected '{e}', got '{g}'{diff}"))
+            })
+            .collect();
+        format!("row '{expected}' vs '{got}': {}", differing.join("; "))
+    }
 }
