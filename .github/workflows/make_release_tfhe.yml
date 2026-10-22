@@ -86,9 +86,10 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-      - name: Install Safe-chain
+      - name: Node setup
         run: |
           make install_aikido_safe_chain_ci
+          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
 
       - name: Create NPM version tag
         env:
@@ -113,7 +114,9 @@ jobs:
       - name: Authenticate on NPM
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24"
+          node-version: ${{ env.NODE_VERSION }}
+          # Fetch the most recent release instead of settling for the one pre-installed on the runner
+          check-latest: true
           registry-url: "https://registry.npmjs.org"
 
       - name: Publish web package

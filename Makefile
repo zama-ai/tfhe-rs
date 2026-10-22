@@ -26,7 +26,12 @@ BENCH_PARAM_TYPE?=classical
 BENCH_PARAMS_SET?=default
 BENCH_CUSTOM_COMMAND:=
 BENCH_TARGET?=invalid
-NODE_VERSION=26
+# Node major (or any more specific version prefix) to install. CI resolves it to the most recent
+# matching release with `make node_latest_version` and exports the result as NODE_VERSION so that
+# the Node cache key and every make recipe of a job pin that exact release.
+NODE_VERSION?=26
+# Mirror used by nvm and by `node_latest_version`, see https://github.com/nvm-sh/nvm#use-a-mirror-of-node-binaries
+export NVM_NODEJS_ORG_MIRROR?=https://nodejs.org/dist
 # CI=true is standard across code hosting providers like github/gitlab
 # it makes it easier to cache data for later retrieval, where home directories are unstable
 # depending on runner configuration
@@ -194,6 +199,14 @@ install_node_impl:
 .PHONY: node_version # Return Node version that will be installed
 node_version:
 	@echo "$(NODE_VERSION)"
+
+.PHONY: node_latest_version # Resolve NODE_VERSION to the most recent matching Node release (requires network access)
+node_latest_version:
+	@curl -fsSL "$(NVM_NODEJS_ORG_MIRROR)/index.tab" | \
+	awk -F'\t' -v wanted="$(NODE_VERSION)" \
+		'NR > 1 && ($$1 == "v" wanted || index($$1, "v" wanted ".") == 1) { print substr($$1, 2) }' | \
+	sort -t '.' -k 1,1n -k 2,2n -k 3,3n | tail -n 1 | grep . || \
+	( echo "Unable to resolve the latest Node $(NODE_VERSION) release from $(NVM_NODEJS_ORG_MIRROR)" >&2 && exit 1 )
 
 .PHONY: install_dieharder # Install dieharder for apt distributions or macOS
 install_dieharder:
