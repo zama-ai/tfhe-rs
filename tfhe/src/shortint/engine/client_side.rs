@@ -9,10 +9,9 @@ use crate::shortint::client_key::atomic_pattern::{
     AtomicPatternClientKey, EncryptionAtomicPattern, StandardAtomicPatternClientKey,
 };
 use crate::shortint::client_key::GenericClientKey;
-use crate::shortint::parameters::{CarryModulus, MessageModulus, ModulusSwitchType};
+use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
-    Ciphertext, ClassicPBSParameters, ClientKey, CompressedCiphertext, MaxNoiseLevel, PaddingBit,
-    ShortintEncoding, ShortintParameterSet,
+    Ciphertext, ClientKey, CompressedCiphertext, PaddingBit, ShortintEncoding, ShortintParameterSet,
 };
 
 impl ShortintEngine {
@@ -26,32 +25,9 @@ impl ShortintEngine {
         let atomic_pattern = if let Some(wopbs_params) = shortint_params.wopbs_parameters() {
             // TODO
             // Manually manage the wopbs only case as a workaround pending wopbs rework
-            // WOPBS used for PBS have no known failure probability at the moment, putting 1.0 for
-            // now
-            let pbs_params = shortint_params.pbs_parameters().unwrap_or_else(|| {
-                ClassicPBSParameters {
-                    lwe_dimension: wopbs_params.lwe_dimension,
-                    glwe_dimension: wopbs_params.glwe_dimension,
-                    polynomial_size: wopbs_params.polynomial_size,
-                    lwe_noise_distribution: wopbs_params.lwe_noise_distribution,
-                    glwe_noise_distribution: wopbs_params.glwe_noise_distribution,
-                    pbs_base_log: wopbs_params.pbs_base_log,
-                    pbs_level: wopbs_params.pbs_level,
-                    ks_base_log: wopbs_params.ks_base_log,
-                    ks_level: wopbs_params.ks_level,
-                    message_modulus: wopbs_params.message_modulus,
-                    carry_modulus: wopbs_params.carry_modulus,
-                    max_noise_level: MaxNoiseLevel::from_msg_carry_modulus(
-                        wopbs_params.message_modulus,
-                        wopbs_params.carry_modulus,
-                    ),
-                    log2_p_fail: 1.0,
-                    ciphertext_modulus: wopbs_params.ciphertext_modulus,
-                    encryption_key_choice: wopbs_params.encryption_key_choice,
-                    modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
-                }
-                .into()
-            });
+            let pbs_params = shortint_params
+                .pbs_parameters()
+                .unwrap_or_else(|| wopbs_params.to_pbs_parameters().into());
 
             let std_ck = StandardAtomicPatternClientKey::new_with_engine(pbs_params, self);
             AtomicPatternClientKey::Standard(std_ck)
