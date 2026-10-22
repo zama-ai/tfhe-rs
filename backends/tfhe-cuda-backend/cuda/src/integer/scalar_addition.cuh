@@ -24,6 +24,23 @@ device_scalar_addition_inplace(Torus *lwe_array, Torus const *scalar_input,
   }
 }
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+// Batched-trivial variant: no delta, scalar added to all D+1 positions.
+template <typename Torus>
+__global__ void
+device_scalar_addition_inplace_batched_trivial(Torus *lwe_array,
+                                               Torus const *scalar_input,
+                                               int32_t num_blocks,
+                                               uint32_t lwe_dimension) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < num_blocks) {
+    for (uint32_t j = 0; j <= lwe_dimension; j++) {
+      lwe_array[tid * (lwe_dimension + 1) + j] += scalar_input[tid];
+    }
+  }
+}
+#endif
+
 template <typename Torus>
 __host__ void host_scalar_addition_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
@@ -46,9 +63,16 @@ __host__ void host_scalar_addition_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  device_scalar_addition_inplace_batched_trivial<Torus>
+      <<<grid, thds, 0, streams.stream(0)>>>(
+          (Torus *)lwe_array->ptr, scalar_input, num_scalars,
+          lwe_array->lwe_dimension);
+#else
   device_scalar_addition_inplace<Torus><<<grid, thds, 0, streams.stream(0)>>>(
       (Torus *)lwe_array->ptr, scalar_input, num_scalars,
       lwe_array->lwe_dimension, delta);
+#endif
   check_cuda_error(cudaGetLastError());
   for (uint i = 0; i < num_scalars; i++) {
     lwe_array->degrees[i] = lwe_array->degrees[i] + h_scalar_input[i];
@@ -66,6 +90,22 @@ device_add_scalar_one_inplace(Torus *lwe_array, int32_t num_blocks,
     *body += delta;
   }
 }
+
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+// Batched-trivial variant: no delta, 1 added to all D+1 positions.
+template <typename Torus>
+__global__ void
+device_add_scalar_one_inplace_batched_trivial(Torus *lwe_array,
+                                              int32_t num_blocks,
+                                              uint32_t lwe_dimension) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < num_blocks) {
+    for (uint32_t j = 0; j <= lwe_dimension; j++) {
+      lwe_array[tid * (lwe_dimension + 1) + j] += (Torus)1;
+    }
+  }
+}
+#endif
 
 template <typename Torus>
 __host__ void host_add_scalar_one_inplace(CudaStreams streams,
@@ -86,9 +126,16 @@ __host__ void host_add_scalar_one_inplace(CudaStreams streams,
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  device_add_scalar_one_inplace_batched_trivial<Torus>
+      <<<grid, thds, 0, streams.stream(0)>>>(
+          (Torus *)lwe_array->ptr, lwe_array->num_radix_blocks,
+          lwe_array->lwe_dimension);
+#else
   device_add_scalar_one_inplace<Torus><<<grid, thds, 0, streams.stream(0)>>>(
       (Torus *)lwe_array->ptr, lwe_array->num_radix_blocks,
       lwe_array->lwe_dimension, delta);
+#endif
   check_cuda_error(cudaGetLastError());
   for (uint i = 0; i < lwe_array->num_radix_blocks; i++) {
     lwe_array->degrees[i] = lwe_array->degrees[i] + 1;
@@ -110,6 +157,24 @@ device_scalar_subtraction_inplace(Torus *lwe_array, Torus *scalar_input,
   }
 }
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+// Batched-trivial variant: no delta, scalar subtracted from all D+1 positions.
+template <typename Torus>
+__global__ void
+device_scalar_subtraction_inplace_batched_trivial(Torus *lwe_array,
+                                                  Torus *scalar_input,
+                                                  int32_t num_blocks,
+                                                  uint32_t lwe_dimension) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < num_blocks) {
+    Torus scalar = scalar_input[tid];
+    for (uint32_t j = 0; j <= lwe_dimension; j++) {
+      lwe_array[tid * (lwe_dimension + 1) + j] -= scalar;
+    }
+  }
+}
+#endif
+
 template <typename Torus>
 __host__ void host_scalar_subtraction_inplace(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array, Torus *scalar_input,
@@ -129,10 +194,17 @@ __host__ void host_scalar_subtraction_inplace(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  device_scalar_subtraction_inplace_batched_trivial<Torus>
+      <<<grid, thds, 0, streams.stream(0)>>>(
+          (Torus *)lwe_array->ptr, scalar_input, input_lwe_ciphertext_count,
+          lwe_dimension);
+#else
   device_scalar_subtraction_inplace<Torus>
       <<<grid, thds, 0, streams.stream(0)>>>(
           (Torus *)lwe_array->ptr, scalar_input, input_lwe_ciphertext_count,
           lwe_dimension, delta);
+#endif
   check_cuda_error(cudaGetLastError());
 }
 #endif

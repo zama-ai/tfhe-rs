@@ -533,6 +533,13 @@ struct int_radix_lut_custom_input_output {
 
   bool gpu_memory_allocated;
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  // Compact GPU lookup table extracted at scratch time: [num_many_lut * num_values].
+  // nullptr in normal mode; set by scratch_cuda_apply_*_lut in batched-trivial mode.
+  OutputTorus *d_lut_values = nullptr;
+  uint32_t lut_num_values = 0;
+#endif
+
   CudaStreamsBarrier multi_gpu_scatter_barrier, multi_gpu_broadcast_barrier;
   CudaStreamsBarrier multi_gpu_gather_barrier;
   CudaEventPool event_pool;
@@ -1290,6 +1297,14 @@ public:
     degrees = nullptr;
     free(max_degrees);
     max_degrees = nullptr;
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+    if (d_lut_values != nullptr) {
+      cuda_drop_with_size_tracking_async(d_lut_values, active_streams.stream(0),
+                                         active_streams.gpu_index(0),
+                                         gpu_memory_allocated);
+      d_lut_values = nullptr;
+    }
+#endif
   }
 };
 
