@@ -1,13 +1,13 @@
 use super::TranscipherSession;
 use crate::high_level_api::backward_compatibility::transciphering::KreyviumFheKeyVersions;
 use crate::high_level_api::errors::UninitializedServerKey;
-use crate::high_level_api::global_state::try_with_internal_keys;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
+use crate::high_level_api::global_state::cuda_clone;
+use crate::high_level_api::global_state::try_with_internal_keys;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 #[cfg(feature = "gpu")]
 use crate::integer::RadixCiphertext;
 use crate::named::Named;
@@ -45,11 +45,7 @@ impl Clone for InnerKreyviumFheKey {
         match self {
             Self::Cpu(k) => Self::Cpu(k.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(k) => {
-                with_thread_local_cuda_streams_for_gpu_indexes(k.gpu_indexes(), |streams| {
-                    Self::Cuda(k.duplicate(streams))
-                })
-            }
+            Self::Cuda(k) => Self::Cuda(cuda_clone(k)),
         }
     }
 }
