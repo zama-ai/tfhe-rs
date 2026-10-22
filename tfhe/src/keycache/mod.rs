@@ -219,7 +219,7 @@ pub mod utils {
 
     impl<P, K, S> KeyCache<P, K, S>
     where
-        P: Copy + PartialEq + NamedParam,
+        P: Copy + PartialEq,
         S: PersistentStorage<P, K>,
         K: From<P>,
     {
@@ -230,7 +230,7 @@ pub mod utils {
 
     impl<P, K, S> KeyCache<P, K, S>
     where
-        P: Copy + PartialEq + NamedParam,
+        P: Copy + PartialEq,
         S: PersistentStorage<P, K>,
     {
         pub fn get_with_closure<C: FnMut(P) -> K>(
