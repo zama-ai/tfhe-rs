@@ -399,7 +399,7 @@ mod experimental {
         /// let nb_block = 3;
         /// let param = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// //Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys_radix(param, nb_block);
+        /// let (cks, sks) = gen_keys_radix(param.to_pbs_parameters(), nb_block);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         /// let mut moduli = 1_u64;
         /// for _ in 0..nb_block {
@@ -491,7 +491,7 @@ mod experimental {
         ///
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
         /// //Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys_crt(param, basis);
+        /// let (cks, sks) = gen_keys_crt(param.to_pbs_parameters(), basis);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         ///
         /// let clear = 42 % msg_space; // Encrypt the integers
@@ -703,7 +703,7 @@ mod experimental {
         ///
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
         /// //Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys_crt(param, basis);
+        /// let (cks, sks) = gen_keys_crt(param.to_pbs_parameters(), basis);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         ///
         /// let clear = 42 % msg_space; // Encrypt the integers
@@ -1015,7 +1015,7 @@ mod experimental {
         ///
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
         /// //Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys_crt(param, basis);
+        /// let (cks, sks) = gen_keys_crt(param.to_pbs_parameters(), basis);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         ///
         /// let clear1 = 42 % msg_space;
@@ -1086,7 +1086,7 @@ mod experimental {
         ///
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS;
         /// //Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys_crt(param, basis);
+        /// let (cks, sks) = gen_keys_crt(param.to_pbs_parameters(), basis);
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, &sks, &param);
         ///
         /// let clear1 = 42 % msg_space;

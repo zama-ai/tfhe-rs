@@ -798,12 +798,6 @@ where
     }
 }
 
-impl From<WopbsParameters> for ShortintParameterSet {
-    fn from(value: WopbsParameters) -> Self {
-        Self::new_wopbs_param_set(value)
-    }
-}
-
 impl<P> TryFrom<(P, WopbsParameters)> for ShortintParameterSet
 where
     P: Into<PBSParameters>,
