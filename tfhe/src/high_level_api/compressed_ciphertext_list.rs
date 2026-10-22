@@ -1,3 +1,5 @@
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_streams_for_clone;
 use std::num::NonZero;
 use tfhe_safe_serialize::ParameterSetConformant;
 use tfhe_versionable::Versionize;
@@ -364,11 +366,9 @@ impl Clone for InnerCompressedCiphertextList {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => {
-                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
-                    Self::Cuda(inner.duplicate(streams))
-                })
-            }
+            Self::Cuda(inner) => with_cuda_streams_for_clone(inner.gpu_indexes(), |streams| {
+                Self::Cuda(inner.duplicate(streams))
+            }),
         }
     }
 }
@@ -410,7 +410,7 @@ impl InnerCompressedCiphertextList {
             if let Self::Cuda(cuda_ct) = self {
                 with_cuda_internal_keys(|keys| {
                     let streams = &keys.streams;
-                    if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                    if !streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                         *cuda_ct = cuda_ct.duplicate(streams);
                     }
                 })
@@ -489,7 +489,7 @@ impl InnerCompressedCiphertextList {
                 MaybeCloned::Cloned(cuda_ct)
             }
             Self::Cuda(cuda_ct) => {
-                if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
+                if streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                     MaybeCloned::Borrowed(cuda_ct)
                 } else {
                     MaybeCloned::Cloned(cuda_ct.duplicate(streams))

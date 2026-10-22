@@ -172,6 +172,20 @@ where
     })
 }
 
+/// Calls `func` with the Cuda server key set for the current thread
+///
+/// This is the function to use for GPU work (computations, GPU to GPU copies and
+/// CPU to GPU copies if the Cuda server key is set): its streams are the ones of the server key,
+/// so the results are on the GPU of the server key.
+///
+/// The exceptions are:
+/// - copying data from the GPU to the CPU, which must use
+///   [with_thread_local_cuda_streams_for_gpu_indexes], as no Cuda server key may be set then
+/// - `Clone` implementations, which cannot fail, and must use [with_cuda_streams_for_clone]
+///
+/// # Panics
+///
+/// Panics if no server key is set, or if it is not a Cuda server key
 #[inline]
 #[cfg(feature = "gpu")]
 pub(crate) fn with_cuda_internal_keys<T, F>(func: F) -> T
@@ -192,6 +206,28 @@ where
             )
         };
         func(cuda_key)
+    })
+}
+
+/// Calls `func` with the streams to use to clone GPU data located on `gpu_indexes`
+///
+/// This must **only** be used in `Clone` implementations, which cannot fail:
+///
+/// - if a Cuda server key is set, its streams are used, so the clone is on the GPU of the server
+///   key, as with [with_cuda_internal_keys]
+/// - otherwise (no server key, or a CPU one), thread-local streams on `gpu_indexes` are used, so
+///   the clone stays on the GPU of the cloned data
+#[cfg(feature = "gpu")]
+pub(in crate::high_level_api) fn with_cuda_streams_for_clone<R, F>(
+    gpu_indexes: &[GpuIndex],
+    func: F,
+) -> R
+where
+    F: FnOnce(&CudaStreams) -> R,
+{
+    try_with_internal_keys(|server_key| match server_key {
+        Some(InternalServerKey::Cuda(cuda_key)) => func(&cuda_key.streams),
+        _ => with_thread_local_cuda_streams_for_gpu_indexes(gpu_indexes, func),
     })
 }
 
@@ -249,6 +285,17 @@ mod gpu {
         static POOL: RefCell<CudaStreamPool> = RefCell::new(CudaStreamPool::new());
     }
 
+    /// Calls `func` with thread-local streams on the GPUs given by `gpu_indexes`
+    ///
+    /// This function must **only** be used to copy data from the GPU to the CPU
+    /// (e.g. decryption, moving a ciphertext to the CPU), as no Cuda server key may be set
+    /// at that time. `gpu_indexes` must be the GPUs where the data lives.
+    ///
+    /// For anything else (computations, GPU to GPU copies, CPU to GPU copies...),
+    /// [with_cuda_internal_keys](super::with_cuda_internal_keys) must be used, so that the
+    /// streams of the server key are used and the results are on its GPU. `Clone`
+    /// implementations, which cannot fail, must use
+    /// [with_cuda_streams_for_clone](super::with_cuda_streams_for_clone) instead.
     pub(in crate::high_level_api) fn with_thread_local_cuda_streams_for_gpu_indexes<
         R,
         F: for<'a> FnOnce(&'a CudaStreams) -> R,

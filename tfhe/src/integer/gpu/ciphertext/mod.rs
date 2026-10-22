@@ -33,7 +33,7 @@ pub trait CudaIntegerRadixCiphertext: Sized + Send {
     ///
     /// no-op if self is already on the correct gpu
     fn move_to_stream(self, streams: &CudaStreams) -> Self {
-        if self.gpu_indexes() == streams.gpu_indexes() {
+        if streams.is_on_first_gpu(self.gpu_indexes()) {
             self
         } else {
             self.duplicate(streams)

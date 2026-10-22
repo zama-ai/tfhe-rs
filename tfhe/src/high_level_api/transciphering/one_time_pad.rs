@@ -3,7 +3,7 @@ use crate::high_level_api::backward_compatibility::transciphering::OneTimePadFhe
 use crate::high_level_api::errors::UninitializedServerKey;
 use crate::high_level_api::global_state::try_with_internal_keys;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
+use crate::high_level_api::global_state::with_cuda_streams_for_clone;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
 #[cfg(feature = "gpu")]
@@ -46,11 +46,9 @@ impl Clone for InnerOneTimePadFheSecretMask {
         match self {
             Self::Cpu(k) => Self::Cpu(k.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(k) => {
-                with_thread_local_cuda_streams_for_gpu_indexes(k.gpu_indexes(), |streams| {
-                    Self::Cuda(k.duplicate(streams))
-                })
-            }
+            Self::Cuda(k) => with_cuda_streams_for_clone(k.gpu_indexes(), |streams| {
+                Self::Cuda(k.duplicate(streams))
+            }),
         }
     }
 }

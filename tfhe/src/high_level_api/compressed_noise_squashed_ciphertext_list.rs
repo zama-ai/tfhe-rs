@@ -4,6 +4,8 @@ use crate::high_level_api::booleans::InnerSquashedNoiseBoolean;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state::try_with_internal_keys;
 #[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_streams_for_clone;
+#[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::{
     with_cuda_internal_keys, with_thread_local_cuda_streams_for_gpu_indexes,
 };
@@ -56,11 +58,9 @@ impl Clone for InnerCompressedSquashedNoiseCiphertextList {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => {
-                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
-                    Self::Cuda(inner.duplicate(streams))
-                })
-            }
+            Self::Cuda(inner) => with_cuda_streams_for_clone(inner.gpu_indexes(), |streams| {
+                Self::Cuda(inner.duplicate(streams))
+            }),
         }
     }
 }
@@ -134,7 +134,7 @@ impl InnerCompressedSquashedNoiseCiphertextList {
             if let Self::Cuda(cuda_ct) = self {
                 with_cuda_internal_keys(|keys| {
                     let streams = &keys.streams;
-                    if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                    if !streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                         *cuda_ct = cuda_ct.duplicate(streams);
                     }
                 })
@@ -311,8 +311,17 @@ impl CompressedSquashedNoiseCiphertextList {
         let mut r = match &self.inner {
             InnerCompressedSquashedNoiseCiphertextList::Cpu(inner) => inner.get::<T>(index),
             #[cfg(feature = "gpu")]
+            // Extracting is GPU work, it must be done with the streams of the server key,
+            // so the extracted ciphertext is on its GPU
             InnerCompressedSquashedNoiseCiphertextList::Cuda(cuda_ct) => {
-                with_thread_local_cuda_streams_for_gpu_indexes(cuda_ct.gpu_indexes(), |streams| {
+                with_cuda_internal_keys(|key| {
+                    let streams = &key.streams;
+                    // The list may be on another GPU than the key, e.g. if the key changed
+                    let cuda_ct = if streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
+                        MaybeCloned::Borrowed(cuda_ct)
+                    } else {
+                        MaybeCloned::Cloned(cuda_ct.duplicate(streams))
+                    };
                     cuda_ct.get::<T>(index, streams)
                 })
             }

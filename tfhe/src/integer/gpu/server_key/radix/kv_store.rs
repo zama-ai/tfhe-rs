@@ -111,6 +111,8 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
     ///
     /// Panics if the number of blocks of the value is not the same as all other
     /// values stored
+    ///
+    /// Panics if the value is not on the same GPU as the values stored
     pub fn insert(&mut self, key: Key, value: Ct) -> Option<Ct>
     where
         Key: Ord,
@@ -130,6 +132,13 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
             n_blocks,
             "All ciphertexts must have the same number of blocks"
         );
+        if let Some(first_value) = self.data.values().next() {
+            assert_eq!(
+                first_value.gpu_indexes(),
+                value.gpu_indexes(),
+                "All ciphertexts must be on the same GPU"
+            );
+        }
         self.data.insert(key, value)
     }
 
@@ -180,6 +189,20 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
             data,
             block_count: self.block_count,
         }
+    }
+
+    /// Returns `true` if the values are on the GPU where `streams` allocate ciphertexts
+    ///
+    /// All the values of a store reside on the same GPU, so only the first one is checked.
+    /// An empty store is considered to be on any GPU.
+    pub(crate) fn is_on_first_gpu_of(&self, streams: &CudaStreams) -> bool
+    where
+        Ct: CudaIntegerRadixCiphertext,
+    {
+        self.data
+            .values()
+            .next()
+            .is_none_or(|value| streams.is_on_first_gpu(value.gpu_indexes()))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&Key, &Ct)>

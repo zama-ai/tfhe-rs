@@ -1,10 +1,12 @@
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_streams_for_clone;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 use crate::backward_compatibility::kv_store::CompressedKVStoreVersions;
-use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_cuda_internal_keys;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntegerType;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
@@ -17,6 +19,8 @@ use crate::integer::server_key::{
     CompressedKVStore as CompressedIntegerKVStore, KVStore as IntegerCpuKVStore,
 };
 use crate::prelude::CastInto;
+#[cfg(feature = "gpu")]
+use crate::GpuIndex;
 use crate::{FheBool, IntegerId, ReRandomizationMetadata, Tag};
 use std::fmt::Display;
 
@@ -39,10 +43,17 @@ where
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => with_cuda_internal_keys(|key| {
-                let streams = &key.streams;
-                Self::Cuda(inner.duplicate(streams))
-            }),
+            Self::Cuda(inner) => {
+                // An empty store has no GPU, any streams can be used to clone it
+                let any_gpu = [GpuIndex::new(0)];
+                let gpu_indexes = inner
+                    .iter()
+                    .next()
+                    .map_or(&any_gpu[..], |(_, value)| value.gpu_indexes());
+                with_cuda_streams_for_clone(gpu_indexes, |streams| {
+                    Self::Cuda(inner.duplicate(streams))
+                })
+            }
         }
     }
 }
@@ -105,6 +116,22 @@ where
     }
 }
 
+/// Panics if the values of the store are not on the GPU where `streams` allocate ciphertexts
+///
+/// Mutating operations would otherwise mix GPUs within the store, and read-only operations
+/// would have to copy the whole store at each call
+#[cfg(feature = "gpu")]
+fn assert_kv_store_on_gpu<Key, Ct>(store: &IntegerGpuKVStore<Key, Ct>, streams: &CudaStreams)
+where
+    Ct: CudaIntegerRadixCiphertext,
+{
+    assert!(
+        store.is_on_first_gpu_of(streams),
+        "The KVStore is not on the GPU of the current server key, \
+         call move_to_current_device first"
+    );
+}
+
 // Only used by the experimental graph API (KVStore graph inputs/outputs).
 #[cfg(feature = "experimental-graph")]
 impl<Key, T> KVStore<Key, T>
@@ -113,8 +140,8 @@ where
 {
     /// Extract the inner store to CPU.
     ///
-    /// A GPU store is copied back to the CPU using the streams of the currently set
-    /// cuda server key
+    /// A GPU store is copied back to the CPU using thread-local streams on the GPUs
+    /// the store lives on
     pub(in crate::high_level_api) fn into_cpu_inner(
         self,
     ) -> IntegerCpuKVStore<Key, <T::Id as IntegerId>::InnerCpu>
@@ -124,9 +151,14 @@ where
         match self.inner {
             InnerKVStore::Cpu(inner) => inner,
             #[cfg(feature = "gpu")]
-            InnerKVStore::Cuda(inner) => {
-                with_cuda_internal_keys(|key| inner.to_kv_store(&key.streams))
-            }
+            InnerKVStore::Cuda(inner) => match inner.iter().next() {
+                // An empty store has no GPU to copy from
+                None => IntegerCpuKVStore::new(),
+                Some((_, value)) => global_state::with_thread_local_cuda_streams_for_gpu_indexes(
+                    value.gpu_indexes(),
+                    |streams| inner.to_kv_store(streams),
+                ),
+            },
         }
     }
 
@@ -180,9 +212,55 @@ where
         }
     }
 
+    /// Moves (in-place) the store to the device of the current thread-local server key
+    ///
+    /// With a Cuda server key, the values are moved to its GPU, whether they are
+    /// on the CPU or on another GPU. With a CPU server key, they are moved to the CPU.
+    ///
+    /// Does nothing if the values already are on that device or if no server key is set
+    ///
+    /// Operations on a store that is on another GPU than the server key panic:
+    /// call this after changing the server key.
+    pub fn move_to_current_device(&mut self)
+    where
+        Key: Clone + Ord,
+    {
+        #[cfg(feature = "gpu")]
+        global_state::try_with_internal_keys(|server_key| match (server_key, &mut self.inner) {
+            (Some(InternalServerKey::Cuda(cuda_key)), InnerKVStore::Cuda(inner_store)) => {
+                if !inner_store.is_on_first_gpu_of(&cuda_key.streams) {
+                    *inner_store = inner_store.duplicate(&cuda_key.streams);
+                }
+            }
+            (Some(InternalServerKey::Cuda(cuda_key)), InnerKVStore::Cpu(inner_store)) => {
+                let gpu_store = IntegerGpuKVStore::from_kv_store(inner_store, &cuda_key.streams);
+                self.inner = InnerKVStore::Cuda(gpu_store);
+            }
+            (Some(InternalServerKey::Cpu(_)), InnerKVStore::Cuda(inner_store)) => {
+                let cpu_store = match inner_store.iter().next() {
+                    // An empty store has no GPU to copy from
+                    None => IntegerCpuKVStore::new(),
+                    Some((_, value)) => {
+                        global_state::with_thread_local_cuda_streams_for_gpu_indexes(
+                            value.gpu_indexes(),
+                            |streams| inner_store.to_kv_store(streams),
+                        )
+                    }
+                };
+                self.inner = InnerKVStore::Cpu(cpu_store);
+            }
+            _ => {}
+        });
+    }
+
     /// Inserts a key-value pair.
     ///
     /// Returns the old value if there was any
+    ///
+    /// # Panics
+    ///
+    /// Panics if the store is on another GPU than the current server key,
+    /// see [Self::move_to_current_device]
     pub fn insert_with_clear_key(&mut self, key: Key, value: T) -> Option<T>
     where
         Key: Ord,
@@ -209,6 +287,7 @@ where
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
                 let streams = &cuda_key.streams;
+                assert_kv_store_on_gpu(inner_store, streams);
                 let inner = inner_store.insert(key, value.into_gpu(streams))?;
                 Some(T::from_gpu(
                     inner,
@@ -236,6 +315,11 @@ where
     ///
     /// Contraty to [Self::insert_with_clear_key], this does not insert the key,value pair
     /// if its not present
+    ///
+    /// # Panics
+    ///
+    /// Panics if the store is on another GPU than the current server key,
+    /// see [Self::move_to_current_device]
     pub fn update_with_clear_key(&mut self, key: &Key, value: T) -> Option<T>
     where
         Key: Ord,
@@ -272,6 +356,7 @@ where
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
                 let streams = &cuda_key.streams;
+                assert_kv_store_on_gpu(inner_store, streams);
                 inner_store.get_mut(key).map_or_else(
                     || None,
                     |old_value_ref| {
@@ -429,6 +514,11 @@ where
     /// thus the value is meaningful.
     ///
     /// If your key is clear see [Self::get_with_clear_key]
+    ///
+    /// # Panics
+    ///
+    /// Panics if the store is on another GPU than the current server key,
+    /// see [Self::move_to_current_device]
     pub fn get<EK>(&self, encrypted_key: &EK) -> (T, FheBool)
     where
         EK: FheIntegerType,
@@ -463,6 +553,7 @@ where
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
                 let streams = &cuda_key.streams;
+                assert_kv_store_on_gpu(inner_store, streams);
                 let (inner_ct, inner_bool) = cuda_key.pbs_key().kv_store_get(
                     inner_store,
                     &*encrypted_key.on_gpu(streams),
@@ -494,6 +585,11 @@ where
     /// Returns an encrypted boolean that encrypts true if the key was found.
     ///
     /// If your key is clear see [Self::contains_clear_key]
+    ///
+    /// # Panics
+    ///
+    /// Panics if the store is on another GPU than the current server key,
+    /// see [Self::move_to_current_device]
     pub fn contains_key<EK>(&self, encrypted_key: &EK) -> FheBool
     where
         EK: FheIntegerType,
@@ -521,6 +617,7 @@ where
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
                 let streams = &cuda_key.streams;
+                assert_kv_store_on_gpu(inner_store, streams);
                 let inner = cuda_key.pbs_key().kv_store_contains_key(
                     inner_store,
                     &*encrypted_key.on_gpu(streams),
@@ -543,6 +640,11 @@ where
     /// Checks if the store contains the given encrypted value.
     ///
     /// Returns an encrypted boolean that encrypts true if the value was found.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the store is on another GPU than the current server key,
+    /// see [Self::move_to_current_device]
     pub fn contains_value(&self, encrypted_value: &T) -> FheBool {
         #[allow(unreachable_patterns)]
         global_state::with_internal_keys(|key| match (key, &self.inner) {
@@ -563,6 +665,7 @@ where
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
                 let streams = &cuda_key.streams;
+                assert_kv_store_on_gpu(inner_store, streams);
                 let inner = cuda_key.pbs_key().kv_store_contains_value(
                     inner_store,
                     &*encrypted_value.on_gpu(streams),
@@ -585,6 +688,11 @@ where
     /// Checks if the store contains the given clear value.
     ///
     /// Returns an encrypted boolean that encrypts true if the value was found.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the store is on another GPU than the current server key,
+    /// see [Self::move_to_current_device]
     pub fn contains_clear_value<Clear>(&self, clear_value: Clear) -> FheBool
     where
         Clear: DecomposableInto<u64>,
@@ -608,6 +716,7 @@ where
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
                 let streams = &cuda_key.streams;
+                assert_kv_store_on_gpu(inner_store, streams);
                 let inner = cuda_key.pbs_key().kv_store_contains_clear_value(
                     inner_store,
                     clear_value,
@@ -635,6 +744,11 @@ where
     /// thus the value is was replaced.
     ///
     /// If your key is clear see [Self::update_with_clear_key]
+    ///
+    /// # Panics
+    ///
+    /// Panics if the store is on another GPU than the current server key,
+    /// see [Self::move_to_current_device]
     pub fn update<EK>(&mut self, encrypted_key: &EK, new_value: &T) -> FheBool
     where
         EK: FheIntegerType,
@@ -664,6 +778,7 @@ where
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
                 let streams = &cuda_key.streams;
+                assert_kv_store_on_gpu(inner_store, streams);
                 let inner = cuda_key.pbs_key().kv_store_update(
                     inner_store,
                     &*encrypted_key.on_gpu(streams),
@@ -693,6 +808,11 @@ where
     ///
     /// The `check` boolean is an encryption of true if the key was present,
     /// thus the value is was replaced.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the store is on another GPU than the current server key,
+    /// see [Self::move_to_current_device]
     pub fn map<EK, F>(&mut self, encrypted_key: &EK, func: F) -> (T, T, FheBool)
     where
         EK: FheIntegerType,
@@ -740,6 +860,7 @@ where
             #[cfg(feature = "gpu")]
             (InternalServerKey::Cuda(cuda_key), InnerKVStore::Cuda(inner_store)) => {
                 let streams = &cuda_key.streams;
+                assert_kv_store_on_gpu(inner_store, streams);
                 let (inner_old, inner_new, inner_bool) = cuda_key.pbs_key().kv_store_map(
                     inner_store,
                     &*encrypted_key.on_gpu(streams),
@@ -808,8 +929,9 @@ where
                     .compression_key
                     .as_ref()
                     .ok_or(crate::high_level_api::errors::UninitializedCompressionKey)?;
-                let streams = &cuda_key.streams;
-                let compressed_inner = inner_store.compress(comp_key, streams);
+                // Values are duplicated onto the GPU of `streams` while compressing,
+                // so the store does not need to be copied there first
+                let compressed_inner = inner_store.compress(comp_key, &cuda_key.streams);
                 Ok(CompressedKVStore {
                     inner: compressed_inner,
                     tag: cuda_key.tag.clone(),
@@ -1438,6 +1560,52 @@ mod test {
 
                 kv_store_serialization_test_case(&ck);
             }
+        }
+
+        /// move_to_current_device must move the store between the CPU and the GPU,
+        /// following the device of the server key
+        #[test]
+        fn test_kv_store_move_to_current_device() {
+            let config = ConfigBuilder::with_custom_parameters(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+            .build();
+            let ck = ClientKey::generate(config);
+            let csks = crate::CompressedServerKey::new(&ck);
+            let cpu_key = csks.decompress();
+            let gpu_key = csks.decompress_to_gpu();
+
+            let check_get = |kv_store: &KVStore<u8, FheUint32>, clear_store: &BTreeMap<u8, u32>| {
+                for (k, expected_value) in clear_store {
+                    let (e_v, e_is_some) = kv_store.get(&FheUint8::encrypt(*k, &ck));
+                    assert!(e_is_some.decrypt(&ck));
+                    let v: u32 = e_v.decrypt(&ck);
+                    assert_eq!(v, *expected_value);
+                }
+            };
+
+            set_server_key(cpu_key.clone());
+            let (mut kv_store, clear_store) = create_kv_store::<u8, u32, FheUint32>(4, &ck);
+            assert!(matches!(
+                kv_store.inner,
+                crate::high_level_api::kv_store::InnerKVStore::Cpu(_)
+            ));
+
+            set_server_key(gpu_key);
+            kv_store.move_to_current_device();
+            assert!(matches!(
+                kv_store.inner,
+                crate::high_level_api::kv_store::InnerKVStore::Cuda(_)
+            ));
+            check_get(&kv_store, &clear_store);
+
+            set_server_key(cpu_key);
+            kv_store.move_to_current_device();
+            assert!(matches!(
+                kv_store.inner,
+                crate::high_level_api::kv_store::InnerKVStore::Cpu(_)
+            ));
+            check_get(&kv_store, &clear_store);
         }
     }
 }
