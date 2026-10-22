@@ -227,10 +227,16 @@ jobs:
         run: make init_db
         working-directory: fhevm/coprocessor/fhevm-engine/tfhe-worker
 
+      - name: Node setup
+        run: |
+          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
+
       - name: Use Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20.x
+          node-version: ${{ env.NODE_VERSION }}
+          # Fetch the most recent release instead of settling for the one pre-installed on the runner
+          check-latest: true
 
       - name: Build contracts
         env:

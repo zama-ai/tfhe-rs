@@ -126,7 +126,10 @@ jobs:
         if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
         run: |
           make install_aikido_safe_chain_ci
-          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
+          # Resolve the Node major pinned in the Makefile to its most recent release: the cache key
+          # below and all the make recipes of this job then use that exact release, so a new Node
+          # release invalidates the cache instead of being shadowed by a cached older one.
+          echo "NODE_VERSION=$(make node_latest_version)" >> "${GITHUB_ENV}"
 
       - name: Node cache restoration
         if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
@@ -136,7 +139,7 @@ jobs:
           path: |
             .nvm
             .npm
-          key: node-${{ env.NODE_VERSION }}
+          key: node-${{ runner.os }}-${{ runner.arch }}-${{ env.NODE_VERSION }}
 
       - name: Install Node
         if: inputs.run-pcc-cpu-batch == 'pcc_batch_2' && steps.node-cache.outputs.cache-hit != 'true'
@@ -150,7 +153,7 @@ jobs:
           path: |
             .nvm
             .npm
-          key: node-${{ env.NODE_VERSION }}
+          key: node-${{ runner.os }}-${{ runner.arch }}-${{ env.NODE_VERSION }}
 
       - name: Run pcc checks batch
         if: inputs.run-pcc-cpu-batch
