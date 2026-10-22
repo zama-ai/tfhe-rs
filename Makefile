@@ -36,6 +36,29 @@ export NVM_NODEJS_ORG_MIRROR?=https://nodejs.org/dist
 # it makes it easier to cache data for later retrieval, where home directories are unstable
 # depending on runner configuration
 export NVM_DIR?=$(shell [ "$$CI" = "true" ] && echo "$$PWD/.nvm" || echo "$$HOME/.nvm")
+# Aikido Safe-Chain wraps the package managers (npm, npx, ...) to block malicious packages.
+# The pinned version, its installation script and the script checksum are constants: `override`
+# makes sure they cannot be changed from the environment or the command line, only by editing them
+# here (update the checksum along with the version).
+override SAFE_CHAIN_VERSION:=1.5.6
+override SAFE_CHAIN_INSTALL_SCRIPT_URL:=https://github.com/AikidoSec/safe-chain/releases/download/$(SAFE_CHAIN_VERSION)/install-safe-chain.sh
+override SAFE_CHAIN_INSTALL_SCRIPT_SHA256:=cba28f8ae8bccc8f1e8bab18982cff8dbe2e812a9f04be756618a6c252482673
+SAFE_CHAIN_DIR?=$(HOME)/.safe-chain
+# Safe-Chain has a dedicated setup mode for CI pipelines (executable shims on the PATH instead of
+# aliases in the shell startup files), select it when running in CI
+SAFE_CHAIN_INSTALL_FLAGS:=$(if $(filter true,$(CI)),--ci,)
+# Shell snippet starting the recipes that need Node: it activates NODE_VERSION through nvm, then
+# makes sure Aikido Safe-Chain is installed and that its shims wrap the package managers for the
+# rest of the recipe, sub-makes included. Safe-Chain is set up after `nvm use` on purpose: nvm puts
+# the real npm/npx first on the PATH, in front of Safe-Chain shims that may already be there.
+define activate_node
+source "$(NVM_DIR)"/nvm.sh && \
+nvm install $(NODE_VERSION) && \
+nvm use $(NODE_VERSION) && \
+( [ -x "$(SAFE_CHAIN_DIR)"/bin/safe-chain ] || $(MAKE) install_aikido_safe_chain ) && \
+( [ -d "$(SAFE_CHAIN_DIR)"/shims ] || "$(SAFE_CHAIN_DIR)"/bin/safe-chain setup-ci ) && \
+export PATH="$(SAFE_CHAIN_DIR)/shims:$(SAFE_CHAIN_DIR)/bin:$$PATH"
+endef
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
 CORRUPTED_INPUTS_TEST=tests/corrupted_inputs_deserialization
@@ -280,18 +303,12 @@ install_linelint_ci:
 
 .PHONY: fetch_aikido_safe_chain # Fetch Aikido Safe-Chain installation script for Linux
 fetch_aikido_safe_chain:
-	curl -fsSL -o safe_chain_install.sh https://github.com/AikidoSec/safe-chain/releases/download/1.5.6/install-safe-chain.sh
-	@echo "cba28f8ae8bccc8f1e8bab18982cff8dbe2e812a9f04be756618a6c252482673 safe_chain_install.sh" > safe_chain_checksum && \
-	sha256sum -c safe_chain_checksum && \
-	rm safe_chain_checksum
+	curl -fsSL -o safe_chain_install.sh "$(SAFE_CHAIN_INSTALL_SCRIPT_URL)"
+	echo "$(SAFE_CHAIN_INSTALL_SCRIPT_SHA256)  safe_chain_install.sh" | sha256sum -c -
 
-.PHONY: install_aikido_safe_chain # Install Aikido Safe-Chain to protect against NPM supply-chain attacks
+.PHONY: install_aikido_safe_chain # Install Aikido Safe-Chain to protect against NPM supply-chain attacks, uses the CI setup mode when CI=true
 install_aikido_safe_chain: fetch_aikido_safe_chain
-	sh safe_chain_install.sh
-
-.PHONY: install_aikido_safe_chain_ci # Install Aikido Safe-Chain to protect against NPM supply-chain attacks in CI
-install_aikido_safe_chain_ci: fetch_aikido_safe_chain
-	sh safe_chain_install.sh --ci
+	sh safe_chain_install.sh $(SAFE_CHAIN_INSTALL_FLAGS)
 
 .PHONY: install_hpu_sim # Install Hpu simulation binary
 install_hpu_sim: install_rs_check_toolchain
@@ -351,9 +368,7 @@ fmt_internal: install_rs_check_toolchain
 
 .PHONY: fmt_js # Format javascript code
 fmt_js: check_nvm_installed
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests fmt && \
 	$(MAKE) -C tfhe/js_on_wasm_tests fmt && \
 	$(MAKE) -C utils/wasm-par-mq fmt
@@ -422,9 +437,7 @@ check_fmt_gpu: install_rs_check_toolchain
 
 .PHONY: check_fmt_js # Check javascript code format
 check_fmt_js: check_nvm_installed
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) -C tfhe/web_wasm_parallel_tests check_fmt && \
 	$(MAKE) -C tfhe/js_on_wasm_tests check_fmt && \
 	$(MAKE) -C utils/wasm-par-mq check_fmt
@@ -1614,9 +1627,7 @@ test_zk_cuda: test_zk_cuda_backend test_zk_pok_experimental_gpu test_integer_zk_
 
 .PHONY: test_zk_wasm_x86_compat_ci
 test_zk_wasm_x86_compat_ci: check_nvm_installed
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_zk_wasm_x86_compat
 
 .PHONY: test_zk_wasm_x86_compat # Check compatibility between wasm and x86_64 proofs
@@ -1627,9 +1638,7 @@ test_zk_wasm_x86_compat: build_node_js_api_client
 
 .PHONY: test_transciphering_wasm_x86_compat_ci
 test_transciphering_wasm_x86_compat_ci: check_nvm_installed
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_transciphering_wasm_x86_compat
 
 .PHONY: test_transciphering_wasm_x86_compat # Check compatibility between wasm and x86_64 one-time-pad transciphering
@@ -1813,9 +1822,7 @@ test_nodejs_wasm_api: build_node_js_api
 
 .PHONY: test_nodejs_wasm_api_ci # Run tests for the nodejs on wasm API
 test_nodejs_wasm_api_ci: build_node_js_api
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_nodejs_wasm_api
 
 WASM_PAR_MQ_TEST_DIR=utils/wasm-par-mq/web_tests
@@ -1848,9 +1855,7 @@ test_wasm_par_mq_chrome: run_wasm_par_mq_tests
 
 .PHONY: test_wasm_par_mq_chrome_ci # Run wasm-par-mq tests on Chrome in CI
 test_wasm_par_mq_chrome_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_wasm_par_mq_chrome
 
 test_wasm_par_mq_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
@@ -1862,9 +1867,7 @@ test_wasm_par_mq_firefox: run_wasm_par_mq_tests
 
 .PHONY: test_wasm_par_mq_firefox_ci # Run wasm-par-mq tests on Firefox in CI
 test_wasm_par_mq_firefox_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_wasm_par_mq_firefox
 
 .PHONY: no_tfhe_typo # Check we did not invert the h and f in tfhe
@@ -2806,9 +2809,7 @@ test_fft_node_js: install_build_wasm32_target install_wasm_bindgen_cli
 
 .PHONY: test_fft_node_js_ci
 test_fft_node_js_ci: check_nvm_installed
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	"$(MAKE)" test_fft_node_js
 
 .PHONY: test_fft_all

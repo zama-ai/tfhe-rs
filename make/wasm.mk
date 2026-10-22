@@ -163,9 +163,7 @@ test_web_js_api_parallel_chrome: run_web_js_api_parallel
 
 .PHONY: test_web_js_api_parallel_chrome_ci # Run tests for the web wasm api on Chrome
 test_web_js_api_parallel_chrome_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_web_js_api_parallel_chrome
 
 test_web_js_api_parallel_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
@@ -179,9 +177,7 @@ test_web_js_api_parallel_firefox: run_web_js_api_parallel
 
 .PHONY: test_web_js_api_parallel_firefox_ci # Run tests for the web wasm api on Firefox
 test_web_js_api_parallel_firefox_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_web_js_api_parallel_firefox
 
 # Cross-origin runs only cover the zk cases.
@@ -196,9 +192,7 @@ test_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
 
 .PHONY: test_web_js_api_cross_origin_chrome_ci # Run tests for the web wasm api in cross-origin mode on Chrome
 test_web_js_api_cross_origin_chrome_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_web_js_api_cross_origin_chrome
 
 test_web_js_api_cross_origin_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
@@ -212,9 +206,7 @@ test_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
 
 .PHONY: test_web_js_api_cross_origin_firefox_ci # Run tests for the web wasm api in cross-origin mode on Firefox
 test_web_js_api_cross_origin_firefox_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) test_web_js_api_cross_origin_firefox
 
 bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
@@ -228,9 +220,7 @@ bench_web_js_api_parallel_chrome: run_web_js_api_parallel
 
 .PHONY: bench_web_js_api_parallel_chrome_ci # Run benchmarks for the web wasm api
 bench_web_js_api_parallel_chrome_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) bench_web_js_api_parallel_chrome
 
 bench_web_js_api_parallel_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
@@ -244,9 +234,7 @@ bench_web_js_api_parallel_firefox: run_web_js_api_parallel
 
 .PHONY: bench_web_js_api_parallel_firefox_ci # Run benchmarks for the web wasm api
 bench_web_js_api_parallel_firefox_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) bench_web_js_api_parallel_firefox
 
 # Cross-origin runs only cover the zk cases.
@@ -261,9 +249,7 @@ bench_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_chrome_ci # Run benchmarks for the web wasm api without cross-origin isolation
 bench_web_js_api_cross_origin_chrome_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) bench_web_js_api_cross_origin_chrome
 
 bench_web_js_api_cross_origin_firefox: browser_path = "$(WEB_RUNNER_DIR)/firefox/firefox/firefox"
@@ -277,9 +263,7 @@ bench_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_firefox_ci # Run benchmarks for the web wasm api without cross-origin isolation
 bench_web_js_api_cross_origin_firefox_ci: setup_venv
-	source "$(NVM_DIR)"/nvm.sh && \
-	nvm install $(NODE_VERSION) && \
-	nvm use $(NODE_VERSION) && \
+	$(activate_node) && \
 	$(MAKE) bench_web_js_api_cross_origin_firefox
 
 .PHONY: parse_wasm_benchmarks # Parse benchmarks performed with WASM web client into a CSV file

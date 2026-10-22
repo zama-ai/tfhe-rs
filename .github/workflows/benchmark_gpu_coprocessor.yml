@@ -176,11 +176,6 @@ jobs:
         with:
           toolchain: nightly
 
-      - name: Install Safe-chain
-        run: |
-          make install_aikido_safe_chain_ci
-        working-directory: fhevm/coprocessor/tfhe-rs
-
       - name: Install cargo dependencies
         run: |
           sudo apt-get install -y protobuf-compiler pkg-config libssl-dev \
@@ -237,6 +232,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           # Fetch the most recent release instead of settling for the one pre-installed on the runner
           check-latest: true
+
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+        working-directory: fhevm/coprocessor/tfhe-rs
 
       - name: Build contracts
         env:
