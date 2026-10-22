@@ -6,12 +6,16 @@ This document details the dot product operations supported by **TFHE-rs**.
 | name          | symbol         | type   |
 |---------------|----------------| ------ |
 | Dot Product   | `dot_product`  | Binary |
+| Parallel Dot Product | `dot_product_parallel` | Binary |
 
 
-Currently, the dot product supports the following case:
-- One operand is a slice of `FheBool`
-- The other operand is a slice of clear values (e.g., `u64`)
-- Both slices must be of the same length
+Currently, the dot product supports the following cases:
+- A slice of `FheBool` and a slice of clear values (e.g., `u64`)
+- A slice of encrypted unsigned integers and a slice of clear unsigned integers
+
+Both slices must be non-empty and have the same length.
+
+For encrypted unsigned integers, `dot_product_parallel` executes the scalar multiplications concurrently on CUDA worker streams before reducing the products. On other backends it falls back to `dot_product`.
 
 The following example shows how to perform dot product:
 
