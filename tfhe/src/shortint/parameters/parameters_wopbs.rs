@@ -4,9 +4,9 @@ pub use super::parameters_wopbs_message_carry::*;
 pub use super::parameters_wopbs_only::*;
 use super::WopbsParametersVersions;
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
-    DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension, MessageModulus,
-    PolynomialSize,
+    CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
+    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension,
+    MaxNoiseLevel, MessageModulus, ModulusSwitchType, PolynomialSize,
 };
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -34,6 +34,39 @@ pub struct WopbsParameters {
     pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CiphertextModulus,
     pub encryption_key_choice: EncryptionKeyChoice,
+}
+
+impl WopbsParameters {
+    /// PBS parameters used to generate the client and server keys a [`WopbsKey`] is built from,
+    /// when only a wopbs is used.
+    ///
+    /// The failure probability of the PBS with these parameters is not known, `log2_p_fail` is
+    /// set to 1.0.
+    ///
+    /// [`WopbsKey`]: crate::shortint::wopbs::WopbsKey
+    pub const fn to_pbs_parameters(self) -> ClassicPBSParameters {
+        ClassicPBSParameters {
+            lwe_dimension: self.lwe_dimension,
+            glwe_dimension: self.glwe_dimension,
+            polynomial_size: self.polynomial_size,
+            lwe_noise_distribution: self.lwe_noise_distribution,
+            glwe_noise_distribution: self.glwe_noise_distribution,
+            pbs_base_log: self.pbs_base_log,
+            pbs_level: self.pbs_level,
+            ks_base_log: self.ks_base_log,
+            ks_level: self.ks_level,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            max_noise_level: MaxNoiseLevel::from_msg_carry_modulus(
+                self.message_modulus,
+                self.carry_modulus,
+            ),
+            log2_p_fail: 1.0,
+            ciphertext_modulus: self.ciphertext_modulus,
+            encryption_key_choice: self.encryption_key_choice,
+            modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
+        }
+    }
 }
 
 pub const ALL_PARAMETER_VEC_WOPBS: [WopbsParameters; 72] = [
