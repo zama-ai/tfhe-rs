@@ -3,7 +3,7 @@ from scipy.special import erfcinv, erfc
 import math
 
 # utilities
-t = 1 / (2 ** (4 + 2))  # noise bound
+t = 1 / (2 ** (56 + 2))  # noise bound
 standard_score = lambda p_fail: math.sqrt(2) * erfcinv(p_fail)  # standard score
 
 pfail = lambda z: erfc(z / math.sqrt(2))
@@ -25,6 +25,10 @@ measured_variance = 1.4150031500067098e-6
 measured_std_dev = math.sqrt(measured_variance)
 
 measured_std_score = t / measured_std_dev
+
+exp_std_dev = t / 13.135
+
+print(f"{exp_std_dev=}")
 
 estimated_pfail = pfail(measured_std_score)
 

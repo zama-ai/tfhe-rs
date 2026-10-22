@@ -898,7 +898,7 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_pfail(
         // affect the noise of the blind rotation. The moduli of the compression parameters are
         // used neither by the key generation nor by the packing keyswitch, so the computation is
         // the same as in the noise test.
-        let pfail_precision = 59;
+        let pfail_precision = 61;
         let pfail_carry_modulus = carry_modulus_for_precision(pfail_precision);
 
         let new_expected_pfail_and_precision = original_pfail_and_precision
@@ -952,37 +952,47 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_pfail(
     // Each run packs lwe_per_glwe ciphertexts and each of them is a sample
     let total_samples = pfail_test_meta.total_runs_for_expected_fails();
     let total_runs = total_samples.div_ceil(lwe_per_glwe);
+    let total_runs: usize = total_runs.try_into().unwrap();
 
     println!("Actual runs with {lwe_per_glwe} samples per run: {total_runs}");
 
-    let measured_fails: f64 = (0..total_runs)
-        .into_par_iter()
-        .map(|run_idx| {
-            // The last run may produce more samples than needed to reach the total, ignore the
-            // extra ones so that the measured pfail is computed on the exact number of samples
-            let samples_for_run: usize = (total_samples - run_idx * lwe_per_glwe)
-                .min(lwe_per_glwe)
-                .try_into()
-                .unwrap();
-            let after_packing_decryption_results =
-                encrypt_dp_ks_standard_pbs128_packing_ks_pfail_helper(
-                    params,
-                    noise_squashing_params,
-                    noise_squashing_compression_params,
-                    &cks,
-                    &sks,
-                    &noise_squashing_private_key,
-                    &noise_squashing_key,
-                    &noise_squashing_compression_private_key,
-                    &noise_squashing_compression_key,
-                    0,
-                    max_scalar_mul,
-                );
-            after_packing_decryption_results
-                .iter()
-                .take(samples_for_run)
-                .map(|x| x.failure_as_f64())
-                .sum::<f64>()
+    // Simple and stupid
+    let run_indices: Vec<u32> = (0..total_runs as u32).collect();
+    let tasks = total_runs.div_ceil(rayon::current_num_threads());
+
+    let measured_fails: f64 = run_indices
+        .par_chunks(tasks)
+        .map(|task_indices| {
+            let mut curr_task_fails = 0.0;
+            for run_idx in task_indices {
+                // The last run may produce more samples than needed to reach the total, ignore the
+                // extra ones so that the measured pfail is computed on the exact number of samples
+                let samples_for_run: usize = (total_samples - run_idx * lwe_per_glwe)
+                    .min(lwe_per_glwe)
+                    .try_into()
+                    .unwrap();
+                let after_packing_decryption_results =
+                    encrypt_dp_ks_standard_pbs128_packing_ks_pfail_helper(
+                        params,
+                        noise_squashing_params,
+                        noise_squashing_compression_params,
+                        &cks,
+                        &sks,
+                        &noise_squashing_private_key,
+                        &noise_squashing_key,
+                        &noise_squashing_compression_private_key,
+                        &noise_squashing_compression_key,
+                        0,
+                        max_scalar_mul,
+                    );
+                curr_task_fails += after_packing_decryption_results
+                    .iter()
+                    .take(samples_for_run)
+                    .map(|x| x.failure_as_f64())
+                    .sum::<f64>();
+            }
+
+            curr_task_fails
         })
         .sum();
 
