@@ -288,7 +288,7 @@ jobs:
 
       - name: Download protocol results table of the other bench type
         if: ${{ contains(matrix.command, 'protocol') }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: ${{ github.sha }}_protocol_table_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ inputs.profile }}_${{ matrix.params_type }}
           merge-multiple: true
