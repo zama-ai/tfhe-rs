@@ -125,7 +125,6 @@ jobs:
       - name: Node setup
         if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
         run: |
-          make install_aikido_safe_chain_ci
           # Resolve the Node major pinned in the Makefile to its most recent release: the cache key
           # below and all the make recipes of this job then use that exact release, so a new Node
           # release invalidates the cache instead of being shadowed by a cached older one.
@@ -154,6 +153,11 @@ jobs:
             .nvm
             .npm
           key: node-${{ runner.os }}-${{ runner.arch }}-${{ env.NODE_VERSION }}
+
+      - name: Install Safe-Chain
+        if: inputs.run-pcc-cpu-batch == 'pcc_batch_2'
+        run: |
+          make install_aikido_safe_chain
 
       - name: Run pcc checks batch
         if: inputs.run-pcc-cpu-batch

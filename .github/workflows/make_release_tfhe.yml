@@ -88,7 +88,6 @@ jobs:
 
       - name: Node setup
         run: |
-          make install_aikido_safe_chain_ci
           echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
 
       - name: Create NPM version tag
@@ -118,6 +117,10 @@ jobs:
           # Fetch the most recent release instead of settling for the one pre-installed on the runner
           check-latest: true
           registry-url: "https://registry.npmjs.org"
+
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
 
       - name: Publish web package
         if: ${{ inputs.push_web_package }}
