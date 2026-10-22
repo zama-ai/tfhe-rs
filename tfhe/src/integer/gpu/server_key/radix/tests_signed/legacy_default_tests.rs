@@ -2,13 +2,15 @@
 //!
 //! FIXME(gpu): the CPU tests for these operations moved to `radix_parallel::test_harness`
 //! (see `radix_parallel::tests_signed::test_scalar_shift`, `test_scalar_rotate`,
-//! `test_scalar_add`, `test_scalar_sub` and `test_neg`), which also exercises inputs at the maximum
-//! degree and noise level. The GPU full propagation cannot take blocks at the maximum degree
-//! yet. The overflowing scalar tests also cover scalars that fit the radix blocks but not
-//! the signed range, for which the GPU implementations return the opposite overflow flag:
-//! the CPU fix is `ScalarOverflowFlagSource` in `radix_parallel::scalar_add`, which the GPU
-//! can reuse. Once both are addressed point the GPU wrappers at the harness tests and delete
-//! this file.
+//! `test_scalar_add`, `test_scalar_sub`, `test_neg` and `test_comparison`), which also
+//! exercises inputs at the maximum degree and noise level. The GPU full propagation cannot
+//! take blocks at the maximum degree yet. The overflowing scalar tests also cover scalars
+//! that fit the radix blocks but not the signed range, for which the GPU implementations
+//! return the opposite overflow flag: the CPU fix is `ScalarOverflowFlagSource` in
+//! `radix_parallel::scalar_add`, which the GPU can reuse. Once both are addressed point the
+//! GPU wrappers at the harness tests and delete this file.
+use crate::core_crypto::prelude::SignedNumeric;
+use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
@@ -22,7 +24,9 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, SignedRadixCiphertext};
 use crate::shortint::parameters::*;
-use rand::Rng;
+use rand::distributions::Standard;
+use rand::prelude::*;
+use rand_distr::num_traits::WrappingAdd;
 use std::sync::Arc;
 
 pub(crate) fn legacy_signed_default_scalar_left_shift_test<P, T>(param: P, mut executor: T)
@@ -801,5 +805,182 @@ where
             -modulus,
             -modulus..modulus
         );
+    }
+}
+
+/// Function to test a "default" comparison server_key function for signed inputs.
+///
+/// This calls the `server_key_method` with non-fresh ciphertexts,
+/// that is ciphertexts that have non-zero carries, and compares that the result is
+/// the same as the one of`clear_fn`.
+pub(crate) fn legacy_signed_default_comparison_test<P, T, ClearF, Scalar>(
+    param: P,
+    num_test: usize,
+    mut executor: T,
+    clear_fn: ClearF,
+) where
+    P: Into<TestParameters>,
+    Scalar: SignedNumeric
+        + RecomposableSignedInteger
+        + DecomposableInto<u64>
+        + WrappingAdd
+        + From<bool>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        BooleanBlock,
+    >,
+    ClearF: Fn(Scalar, Scalar) -> Scalar,
+    Standard: Distribution<Scalar>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
+    assert_eq!(
+        Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
+        0,
+        "bit width must be a multiple of number of bit in a block"
+    );
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, num_block));
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..num_test {
+        let mut clear_0 = rng.gen::<Scalar>();
+        let mut clear_1 = rng.gen::<Scalar>();
+        let mut ct_0 = cks.encrypt_signed(clear_0);
+        let mut ct_1 = cks.encrypt_signed(clear_1);
+
+        // Raise the degree, so as to ensure worst case path in operations
+        while ct_0.block_carries_are_empty() {
+            let clear_2 = rng.gen::<Scalar>();
+            let ct_2 = cks.encrypt_signed(clear_2);
+            sks.unchecked_add_assign(&mut ct_0, &ct_2);
+            clear_0 = clear_0.wrapping_add(&clear_2);
+        }
+
+        while ct_1.block_carries_are_empty() {
+            let clear_2 = rng.gen::<Scalar>();
+            let ct_2 = cks.encrypt_signed(clear_2);
+            sks.unchecked_add_assign(&mut ct_1, &ct_2);
+            clear_1 = clear_1.wrapping_add(&clear_2);
+        }
+
+        // Sanity decryption checks
+        {
+            let a: Scalar = cks.decrypt_signed(&ct_0);
+            assert_eq!(a, clear_0);
+
+            let b: Scalar = cks.decrypt_signed(&ct_1);
+            assert_eq!(b, clear_1);
+        }
+
+        assert!(!ct_0.block_carries_are_empty());
+        assert!(!ct_1.block_carries_are_empty());
+        let encrypted_result = executor.execute((&ct_0, &ct_1));
+
+        // Sanity decryption checks
+        {
+            let a: Scalar = cks.decrypt_signed(&ct_0);
+            assert_eq!(a, clear_0);
+
+            let b: Scalar = cks.decrypt_signed(&ct_1);
+            assert_eq!(b, clear_1);
+        }
+
+        let decrypted_result: Scalar = cks.decrypt_bool(&encrypted_result).into();
+
+        let expected_result = clear_fn(clear_0, clear_1);
+        assert_eq!(decrypted_result, expected_result);
+    }
+}
+
+/// Function to test a "default" `min`/`max` server_key function for signed inputs.
+///
+/// This calls the `server_key_method` with non-fresh ciphertexts,
+/// that is ciphertexts that have non-zero carries, and compares that the result is
+/// the same as the one of`clear_fn`.
+pub(crate) fn legacy_signed_default_minmax_test<P, T, ClearF, Scalar>(
+    param: P,
+    num_test: usize,
+    mut executor: T,
+    clear_fn: ClearF,
+) where
+    P: Into<TestParameters>,
+    Scalar: SignedNumeric
+        + RecomposableSignedInteger
+        + DecomposableInto<u64>
+        + WrappingAdd
+        + From<bool>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+    ClearF: Fn(Scalar, Scalar) -> Scalar,
+    Standard: Distribution<Scalar>,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
+    assert_eq!(
+        Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
+        0,
+        "bit width must be a multiple of number of bit in a block"
+    );
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, num_block));
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks.clone());
+
+    for _ in 0..num_test {
+        let mut clear_0 = rng.gen::<Scalar>();
+        let mut clear_1 = rng.gen::<Scalar>();
+        let mut ct_0 = cks.encrypt_signed(clear_0);
+        let mut ct_1 = cks.encrypt_signed(clear_1);
+
+        // Raise the degree, so as to ensure worst case path in operations
+        while ct_0.block_carries_are_empty() {
+            let clear_2 = rng.gen::<Scalar>();
+            let ct_2 = cks.encrypt_signed(clear_2);
+            sks.unchecked_add_assign(&mut ct_0, &ct_2);
+            clear_0 = clear_0.wrapping_add(&clear_2);
+        }
+
+        while ct_1.block_carries_are_empty() {
+            let clear_2 = rng.gen::<Scalar>();
+            let ct_2 = cks.encrypt_signed(clear_2);
+            sks.unchecked_add_assign(&mut ct_1, &ct_2);
+            clear_1 = clear_1.wrapping_add(&clear_2);
+        }
+
+        // Sanity decryption checks
+        {
+            let a: Scalar = cks.decrypt_signed(&ct_0);
+            assert_eq!(a, clear_0);
+
+            let b: Scalar = cks.decrypt_signed(&ct_1);
+            assert_eq!(b, clear_1);
+        }
+
+        assert!(!ct_0.block_carries_are_empty());
+        assert!(!ct_1.block_carries_are_empty());
+        let encrypted_result = executor.execute((&ct_0, &ct_1));
+        assert!(encrypted_result.block_carries_are_empty());
+
+        // Sanity decryption checks
+        {
+            let a: Scalar = cks.decrypt_signed(&ct_0);
+            assert_eq!(a, clear_0);
+
+            let b: Scalar = cks.decrypt_signed(&ct_1);
+            assert_eq!(b, clear_1);
+        }
+
+        let decrypted_result: Scalar = cks.decrypt_signed(&encrypted_result);
+
+        let expected_result = clear_fn(clear_0, clear_1);
+        assert_eq!(decrypted_result, expected_result);
     }
 }

@@ -6,7 +6,7 @@ use super::{
 };
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    ExecuteOn, TestBuilder, TestContext,
+    radix_pair_fixed_cases, ExecuteOn, TestBuilder, TestContext,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::OutputFlag;
@@ -353,6 +353,7 @@ where
 {
     TestBuilder::new(ctx)
         .n_random(4)
+        .fixed_cases(radix_pair_fixed_cases::<Uint>)
         .execute(executor, |(lhs, rhs): (Uint, Uint)| lhs.wrapping_add(rhs));
 }
 
@@ -362,6 +363,7 @@ where
 {
     TestBuilder::new(ctx)
         .n_random(4)
+        .fixed_cases(radix_pair_fixed_cases::<Uint>)
         .execute(executor, |(lhs, rhs): (Uint, Uint)| {
             lhs.overflowing_add(rhs)
         });
