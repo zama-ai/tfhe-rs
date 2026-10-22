@@ -26,7 +26,7 @@ BENCH_PARAM_TYPE?=classical
 BENCH_PARAMS_SET?=default
 BENCH_CUSTOM_COMMAND:=
 BENCH_TARGET?=invalid
-NODE_VERSION=24.12
+NODE_VERSION=26
 # CI=true is standard across code hosting providers like github/gitlab
 # it makes it easier to cache data for later retrieval, where home directories are unstable
 # depending on runner configuration
