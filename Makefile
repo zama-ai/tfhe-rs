@@ -2594,6 +2594,7 @@ pcc: pcc_batch_1 pcc_batch_2 pcc_batch_3 pcc_batch_4 pcc_batch_5 pcc_batch_6 pcc
 pcc_batch_1:
 	$(call run_recipe_with_details,no_tfhe_typo)
 	$(call run_recipe_with_details,no_dbg_log)
+	$(call run_recipe_with_details,check_licenses)
 	$(call run_recipe_with_details,check_parameter_export_ok)
 	$(call run_recipe_with_details,check_fmt)
 	$(call run_recipe_with_details,check_fmt_toml)
@@ -2692,6 +2693,7 @@ pcc_hpu:
 fpcc:
 	$(call run_recipe_with_details,no_tfhe_typo)
 	$(call run_recipe_with_details,no_dbg_log)
+	$(call run_recipe_with_details,check_licenses)
 	$(call run_recipe_with_details,check_parameter_export_ok)
 	$(call run_recipe_with_details,check_fmt)
 	$(call run_recipe_with_details,check_fmt_toml)
