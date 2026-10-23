@@ -452,7 +452,7 @@ impl CudaCompressedSquashedNoiseCiphertextList {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 mod test {
     use crate::core_crypto::gpu::CudaStreams;
     use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;

@@ -32,7 +32,7 @@ pub use radix::{
     CudaOprfServerKeyView, GenericCudaOprfServerKey,
 };
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 pub(crate) use radix::tests_unsigned;
 
 pub(crate) mod radix;
