@@ -2,6 +2,8 @@ use crate::backward_compatibility::compact_list::CompactCiphertextListVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_streams_for_clone;
 use crate::high_level_api::keys::InternalServerKeyRef;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::block_decomposition::DecomposableInto;
@@ -29,6 +31,8 @@ use crate::{CompactPublicKey, Tag};
 #[cfg(feature = "strings")]
 use super::ClearString;
 
+#[cfg(feature = "gpu")]
+use crate::high_level_api::details::MaybeCloned;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCiphertextList;
 
@@ -173,11 +177,9 @@ impl Clone for InnerCompactCiphertextList {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => {
-                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
-                    Self::Cuda(inner.duplicate(streams))
-                })
-            }
+            Self::Cuda(inner) => with_cuda_streams_for_clone(inner.gpu_indexes(), |streams| {
+                Self::Cuda(inner.duplicate(streams))
+            }),
         }
     }
 }
@@ -235,7 +237,7 @@ impl InnerCompactCiphertextList {
             #[cfg(feature = "gpu")]
             (Self::Cuda(cuda_ct), crate::Device::CudaGpu) => with_cuda_internal_keys(|keys| {
                 let streams = &keys.streams;
-                if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
+                if streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                     None
                 } else {
                     Some(Self::Cuda(cuda_ct.duplicate(streams)))
@@ -415,6 +417,12 @@ impl CompactCiphertextList {
 
                 let ksk = cuda_key.cpk_key_switching_key();
                 let streams = &cuda_key.streams;
+                // The list may be on another GPU than the key, e.g. if the key changed
+                let gpu_inner = if streams.is_on_first_gpu(gpu_inner.gpu_indexes()) {
+                    MaybeCloned::Borrowed(gpu_inner)
+                } else {
+                    MaybeCloned::Cloned(gpu_inner.duplicate(streams))
+                };
                 let expander =
                     gpu_inner.expand(&ksk, crate::integer::gpu::ZKType::Casting, streams)?;
 
@@ -519,11 +527,9 @@ pub(crate) mod zk {
             match self {
                 Self::Cpu(inner) => Self::Cpu(inner.clone()),
                 #[cfg(feature = "gpu")]
-                Self::Cuda(inner) => {
-                    with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
-                        Self::Cuda(inner.duplicate(streams))
-                    })
-                }
+                Self::Cuda(inner) => with_cuda_streams_for_clone(inner.gpu_indexes(), |streams| {
+                    Self::Cuda(inner.duplicate(streams))
+                }),
             }
         }
     }
@@ -571,7 +577,7 @@ pub(crate) mod zk {
                 #[cfg(feature = "gpu")]
                 (Self::Cuda(cuda_ct), crate::Device::CudaGpu) => with_cuda_internal_keys(|keys| {
                     let streams = &keys.streams;
-                    if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
+                    if streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                         None
                     } else {
                         Some(Self::Cuda(cuda_ct.duplicate(streams)))
@@ -825,12 +831,20 @@ pub(crate) mod zk {
 
                     let streams = &gpu_key.streams;
                     let proven_ct = match &self.inner {
-                        InnerProvenCompactCiphertextList::Cpu(inner) => {
-                            &CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+                        InnerProvenCompactCiphertextList::Cpu(inner) => MaybeCloned::Cloned(
+                            CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                 inner, streams,
-                            )?
+                            )?,
+                        ),
+                        InnerProvenCompactCiphertextList::Cuda(inner)
+                            if streams.is_on_first_gpu(inner.gpu_indexes()) =>
+                        {
+                            MaybeCloned::Borrowed(inner)
                         }
-                        InnerProvenCompactCiphertextList::Cuda(inner) => inner,
+                        // The list may be on another GPU than the key, e.g. if the key changed
+                        InnerProvenCompactCiphertextList::Cuda(inner) => {
+                            MaybeCloned::Cloned(inner.duplicate(streams))
+                        }
                     };
 
                     let ksk = gpu_key.cpk_key_switching_key();

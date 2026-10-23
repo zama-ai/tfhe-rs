@@ -6,6 +6,8 @@ use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_cuda_internal_keys;
 #[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_streams_for_clone;
+#[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
@@ -62,12 +64,10 @@ impl Clone for SignedRadixCiphertext {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => {
-                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
-                    let inner = inner.duplicate(streams);
-                    Self::Cuda(inner)
-                })
-            }
+            Self::Cuda(inner) => with_cuda_streams_for_clone(inner.gpu_indexes(), |streams| {
+                let inner = inner.duplicate(streams);
+                Self::Cuda(inner)
+            }),
         }
     }
 }
@@ -118,7 +118,7 @@ impl SignedRadixCiphertext {
             }
             #[cfg(feature = "gpu")]
             Self::Cuda(ct) => {
-                if ct.gpu_indexes() == streams.gpu_indexes() {
+                if streams.is_on_first_gpu(ct.gpu_indexes()) {
                     MaybeCloned::Borrowed(ct)
                 } else {
                     MaybeCloned::Cloned(ct.duplicate(streams))
@@ -151,7 +151,7 @@ impl SignedRadixCiphertext {
                 cuda_ct
             }
             Self::Cuda(cuda_ct) => {
-                if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                if !streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                     *cuda_ct = cuda_ct.duplicate(streams);
                 }
                 cuda_ct
@@ -193,7 +193,7 @@ impl SignedRadixCiphertext {
                 // We are on a GPU, but it may not be the correct one
                 let new = with_cuda_internal_keys(|key| {
                     let streams = &key.streams;
-                    if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
+                    if streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                         None
                     } else {
                         Some(cuda_ct.duplicate(streams))
@@ -213,10 +213,10 @@ impl SignedRadixCiphertext {
             }
             #[cfg(feature = "gpu")]
             (Self::Cuda(ct), Device::Cpu) => {
-                let new_inner = with_cuda_internal_keys(|key| {
-                    let streams = &key.streams;
-                    ct.to_signed_radix_ciphertext(streams)
-                });
+                let new_inner =
+                    with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
+                        ct.to_signed_radix_ciphertext(streams)
+                    });
                 *self = Self::Cpu(new_inner);
             }
             #[cfg(feature = "hpu")]

@@ -4,6 +4,8 @@ use crate::core_crypto::commons::numeric::UnsignedNumeric;
 use crate::high_level_api::backward_compatibility::integers::SerializableInnerSquashedNoiseRadixCiphertextVersions;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedNoiseSquashing;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_streams_for_clone;
 use crate::high_level_api::global_state::{self, with_internal_keys};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::{
@@ -65,11 +67,9 @@ impl Clone for InnerSquashedNoiseRadixCiphertext {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => {
-                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
-                    Self::Cuda(inner.duplicate(streams))
-                })
-            }
+            Self::Cuda(inner) => with_cuda_streams_for_clone(inner.gpu_indexes(), |streams| {
+                Self::Cuda(inner.duplicate(streams))
+            }),
         }
     }
 }
@@ -121,7 +121,7 @@ impl InnerSquashedNoiseRadixCiphertext {
             if let Self::Cuda(cuda_ct) = self {
                 with_cuda_internal_keys(|keys| {
                     let streams = &keys.streams;
-                    if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                    if !streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                         *cuda_ct = cuda_ct.duplicate(streams);
                     }
                 })

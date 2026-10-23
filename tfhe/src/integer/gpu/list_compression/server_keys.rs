@@ -923,7 +923,14 @@ impl CudaNoiseSquashingCompressionKey {
         let message_modulus = first_ct_info.message_modulus;
         let carry_modulus = first_ct_info.carry_modulus;
 
-        let lwe_dimension = first_ct.packed_d_blocks.lwe_dimension();
+        let lwe_dimension = lwe_pksk.input_key_lwe_dimension();
+        for ct in ciphertexts {
+            assert_eq!(
+                lwe_dimension,
+                ct.packed_d_blocks.lwe_dimension(),
+                "All ciphertexts do not have the same lwe dimension as the packing keyswitch key"
+            );
+        }
 
         let mut glwe_array_out = CudaPackedGlweCiphertextList {
             data: packed_glwe_list,
