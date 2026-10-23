@@ -17,6 +17,7 @@
 //! use tfhe::shortint::parameters::current_params::V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 //! use tfhe::transciphering::{
 //!     KreyviumFheState, KreyviumPlainKey, KreyviumPlainState, StreamCipher, Transcipherer,
+//!     TranscipheringOutputLayout,
 //! };
 //!
 //! let (client_key, server_key) =
@@ -37,7 +38,10 @@
 //!
 //! // Server: warm up the FHE-side Kreyvium stream and transcipher.
 //! let mut fhe_stream = KreyviumFheState::new(enc_key, iv_bits, &server_key);
-//! let blocks = fhe_stream.transcipher(&server_key, &sym_cipher).unwrap();
+//! let layout = TranscipheringOutputLayout::radix(sym_cipher.n_bits(), server_key.message_modulus);
+//! let blocks = fhe_stream
+//!     .transcipher(&server_key, &sym_cipher, &layout)
+//!     .unwrap();
 //!
 //! // Client: decrypt to recover `input`.
 //! let recovered: u64 = blocks
@@ -51,11 +55,17 @@
 pub mod backward_compatibility;
 pub mod ciphers;
 mod keys;
+mod keystream_application;
 
+use std::num::NonZeroU8;
+
+use itertools::Itertools;
 pub use keys::{
     CompressedTranscipheringServerKey, ExpandedTranscipheringServerKey, TranscipheringPrivateKey,
     TranscipheringServerKey,
 };
+
+pub use keystream_application::apply_keystream;
 
 pub use ciphers::aes::{
     AesFheKey, AesFheRoundKeys, AesFheState, AesIv, AesPlainKey, AesPlainState,
@@ -70,12 +80,12 @@ pub use ciphers::one_time_pad::{
     OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
 };
 
-use rayon::prelude::*;
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::utils::ZipChecked;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::{CarryModulus, Ciphertext, MessageModulus, ServerKey};
 use crate::transciphering::backward_compatibility::{
     StreamCipherKindVersions, StreamCiphertextVersions,
 };
@@ -130,6 +140,30 @@ impl StreamCiphertext {
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
     }
+
+    /// Extracts the bits in `range` (LSB-first), with bit `range.start` at position 0.
+    ///
+    /// The range must be contained in a single byte. Returns `None` if the range is reversed, out
+    /// of bounds or spans more than one byte.
+    pub fn get_bit_range(&self, range: std::ops::Range<usize>) -> Option<u64> {
+        #[allow(clippy::suspicious_operation_groupings, reason = "That's what we want")]
+        if range.start > range.end || range.end > self.n_bits {
+            return None;
+        }
+
+        if range.is_empty() {
+            return Some(0);
+        }
+
+        let byte_idx = range.start / 8;
+        if (range.end - 1) / 8 != byte_idx {
+            return None;
+        }
+
+        let byte = u64::from(*self.bytes.get(byte_idx)?);
+        // range.len() <= 8, so the shift does not overflow
+        Some((byte >> (range.start % 8)) & ((1 << range.len()) - 1))
+    }
 }
 
 /// Parameters used to check [`StreamCiphertext`] conformance: the expected
@@ -168,8 +202,15 @@ pub enum TranscipherError {
         session_counter: u64,
         ciphertext_counter: u64,
     },
-
-    InsufficientKeystream,
+    /// The provided output layout is not correct
+    InvalidOutputLayout,
+    /// The [`Transcipherer`] failed to produce keystream
+    KeystreamProductionError(FheKeyStreamError),
+    /// The keystream produced by the [`Transcipherer`] is not valid
+    InvalidKeystream,
+    /// The input stream ciphertext is invalid, for example the buffer size does not match the
+    /// advertised number of bits
+    InvalidStreamCiphertext,
 }
 
 impl std::fmt::Display for TranscipherError {
@@ -194,7 +235,18 @@ impl std::fmt::Display for TranscipherError {
                     Call `seek({ciphertext_counter})` to align",
                 )
             }
-            Self::InsufficientKeystream => InsufficientKeystream.fmt(f),
+            Self::InvalidOutputLayout => write!(
+                f,
+                "Provided output layout and input stream cipher do not match"
+            ),
+            Self::KeystreamProductionError(e) => e.fmt(f),
+            Self::InvalidKeystream => write!(
+                f,
+                "The Keystream provided by the transcipherer is not correct"
+            ),
+            Self::InvalidStreamCiphertext => {
+                write!(f, "The user provided stream ciphertext is invalid")
+            }
         }
     }
 }
@@ -209,7 +261,7 @@ impl std::fmt::Display for InsufficientKeystream {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Cannot generate enoug keystream from the current cipher state. \
+            "Cannot generate enough keystream from the current cipher state. \
             A new fresh state should be generated"
         )
     }
@@ -218,8 +270,53 @@ impl std::fmt::Display for InsufficientKeystream {
 impl std::error::Error for InsufficientKeystream {}
 
 impl From<InsufficientKeystream> for TranscipherError {
-    fn from(_value: InsufficientKeystream) -> Self {
-        Self::InsufficientKeystream
+    fn from(value: InsufficientKeystream) -> Self {
+        Self::KeystreamProductionError(FheKeyStreamError::Insufficient(value))
+    }
+}
+
+/// Errors raised when generating an FHE keystream with [`Transcipherer::next_keystream_bits`]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FheKeyStreamError {
+    /// Not enough keystream left to produce the requested bits
+    Insufficient(InsufficientKeystream),
+    /// The keystream produced an invalid ciphertext: its unused bits may not be 0, or its
+    /// noise is not nominal
+    InvalidCiphertext {
+        index: usize,
+        degree: Degree,
+        noise_level: NoiseLevel,
+    },
+}
+
+impl std::fmt::Display for FheKeyStreamError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Insufficient(err) => err.fmt(f),
+            Self::InvalidCiphertext {
+                index,
+                degree,
+                noise_level,
+            } => write!(
+                f,
+                "keystream ciphertext {index} breaks the keystream contract: \
+                degree {degree:?}, noise level {noise_level:?}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for FheKeyStreamError {}
+
+impl From<InsufficientKeystream> for FheKeyStreamError {
+    fn from(value: InsufficientKeystream) -> Self {
+        Self::Insufficient(value)
+    }
+}
+
+impl From<FheKeyStreamError> for TranscipherError {
+    fn from(value: FheKeyStreamError) -> Self {
+        Self::KeystreamProductionError(value)
     }
 }
 
@@ -317,25 +414,36 @@ pub trait Transcipherer {
     fn kind(&self) -> StreamCipherKind;
 
     /// Produce the next `n_bits` of FHE-encrypted keystream and advance the
-    /// internal counter. One `shortint::Ciphertext` per bit, each a clean
-    /// single-bit ciphertext (degree 1, value in {0, 1}).
+    /// internal counter. Implementors are free to choose the number of bits they want to set per
+    /// ciphertext (for performance or algorithmic reasons) and should set the [`KeyStreamLayout`]
+    /// of the returned [`FheKeyStream`] accordingly.
     fn next_keystream_bits(
         &mut self,
         sks: &ServerKey,
         n_bits: usize,
-    ) -> Result<FheKeyStream, InsufficientKeystream>;
+    ) -> Result<FheKeyStream, FheKeyStreamError>;
 
     /// Transcipher `input` against `input.n_bits()` bits of keystream from
     /// this session, advancing the internal counter.
+    ///
+    /// This will produce a list of ciphertexts, according to the provided
+    /// `output_layout`.
     fn transcipher(
         &mut self,
         sks: &ServerKey,
         input: &StreamCiphertext,
+        output_layout: &TranscipheringOutputLayout,
     ) -> Result<Vec<Ciphertext>, TranscipherError> {
-        check_transcipher_input(self, input)?;
+        check_transcipher_input(
+            self.kind(),
+            self.current_counter(),
+            input,
+            output_layout,
+            sks.message_modulus,
+        )?;
 
         let keystream = self.next_keystream_bits(sks, input.n_bits)?;
-        Ok(apply_keystream(sks, &keystream, input))
+        apply_keystream(sks, &keystream, input, output_layout)
     }
 
     /// Set the keystream bit position to `target_counter`. Backward-seek is supported
@@ -369,7 +477,7 @@ impl Transcipherer for TranscipherSession {
         &mut self,
         sks: &ServerKey,
         n_bits: usize,
-    ) -> Result<FheKeyStream, InsufficientKeystream> {
+    ) -> Result<FheKeyStream, FheKeyStreamError> {
         match self {
             Self::Dynamic(t) => t.next_keystream_bits(sks, n_bits),
             Self::Kreyvium(t) => t.next_keystream_bits(sks, n_bits),
@@ -382,12 +490,13 @@ impl Transcipherer for TranscipherSession {
         &mut self,
         sks: &ServerKey,
         input: &StreamCiphertext,
+        output_layout: &TranscipheringOutputLayout,
     ) -> Result<Vec<Ciphertext>, TranscipherError> {
         match self {
-            Self::Dynamic(t) => t.transcipher(sks, input),
-            Self::Kreyvium(t) => t.transcipher(sks, input),
-            Self::Aes(t) => t.transcipher(sks, input),
-            Self::OneTimePad(t) => t.transcipher(sks, input),
+            Self::Dynamic(t) => t.transcipher(sks, input, output_layout),
+            Self::Kreyvium(t) => t.transcipher(sks, input, output_layout),
+            Self::Aes(t) => t.transcipher(sks, input, output_layout),
+            Self::OneTimePad(t) => t.transcipher(sks, input, output_layout),
         }
     }
 
@@ -411,19 +520,56 @@ impl Transcipherer for TranscipherSession {
 }
 
 /// An FHE encrypted keystream that can be xored with an input encrypted with a [`StreamCipher`].
-pub struct FheKeyStream(Vec<Ciphertext>);
+pub struct FheKeyStream {
+    /// The ciphertexts
+    stream: Vec<Ciphertext>,
+    /// Layout used for this stream
+    layout: KeyStreamLayout,
+}
 
 impl FheKeyStream {
-    pub fn from_raw_parts(bits: Vec<Ciphertext>) -> Self {
-        Self(bits)
+    /// Builds a keystream from its ciphertexts, laid out following `layout`.
+    pub fn try_new(
+        stream: Vec<Ciphertext>,
+        layout: KeyStreamLayout,
+    ) -> Result<Self, FheKeyStreamError> {
+        let bits_per_ct = u32::from(layout.bits_per_ct.get());
+
+        for (index, ct) in stream.iter().enumerate() {
+            // degree >= 2^bits_per_ct, without overflowing the shift if bits_per_ct >= 64
+            let unused_bits_set = ct.degree.get().checked_shr(bits_per_ct).unwrap_or(0) != 0;
+            if unused_bits_set || ct.noise_level() != NoiseLevel::NOMINAL {
+                return Err(FheKeyStreamError::InvalidCiphertext {
+                    index,
+                    degree: ct.degree,
+                    noise_level: ct.noise_level(),
+                });
+            }
+        }
+
+        Ok(Self { stream, layout })
     }
 
-    pub fn into_raw_parts(self) -> Vec<Ciphertext> {
-        self.0
+    pub fn into_raw_parts(self) -> (Vec<Ciphertext>, KeyStreamLayout) {
+        let Self { stream, layout } = self;
+
+        (stream, layout)
+    }
+
+    pub fn layout(&self) -> &KeyStreamLayout {
+        &self.layout
     }
 
     pub fn iter(&self) -> std::slice::Iter<'_, Ciphertext> {
-        self.0.iter()
+        self.stream.iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.stream.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -435,183 +581,210 @@ impl<'a> IntoIterator for &'a FheKeyStream {
     }
 }
 
-/// LSB-first bit `i` of `bytes` (i.e. `bytes[i / 8] >> (i % 8) & 1`).
-fn bit_at(bytes: &[u8], i: usize) -> u8 {
-    (bytes[i / 8] >> (i % 8)) & 1
+/// Indicates, in a list of ciphertexts, which bits are used in each ciphertext.
+///
+/// Every ciphertext holds the same number of keystream bits, including the last one. If fewer
+/// bits are needed, the high bits of the last ciphertext are ignored.
+///
+/// The number of bits per ciphertext must divide 8, so that the bits of a keystream ciphertext
+/// never span two bytes of the input.
+#[derive(Clone)]
+pub struct KeyStreamLayout {
+    // For simplicity, only "continuous" layouts, where all bits up to a point are used, are
+    // supported.
+    // In the future, this type could be extended to support more complex layouts if needed for
+    // more efficient algo (for example, a periodic layout alternating used bit at pos 0 and 1).
+    bits_per_ct: NonZeroU8,
 }
 
-fn check_transcipher_input<T: Transcipherer + ?Sized>(
-    transcipherer: &T,
+impl KeyStreamLayout {
+    /// A layout where the `bits_per_ct` least significant bits of each ct are used.
+    ///
+    /// Returns `None` if `bits_per_ct` does not divide 8.
+    pub fn new(bits_per_ct: NonZeroU8) -> Option<Self> {
+        (8 % bits_per_ct == 0).then_some(Self { bits_per_ct })
+    }
+
+    /// A layout where only the least significant bit of each ct is used
+    pub fn single_bit() -> Self {
+        Self {
+            bits_per_ct: NonZeroU8::new(1).unwrap(),
+        }
+    }
+
+    /// A layout where all the available plaintext space is used.
+    ///
+    /// Returns `None` if the number of bits of the plaintext space does not divide 8.
+    pub fn full_space(msg_mod: MessageModulus, carry_mod: CarryModulus) -> Option<Self> {
+        assert!(msg_mod.0 > 1);
+        assert!(carry_mod.0 != 0);
+
+        let bits_per_ct = u8::try_from(msg_mod.0.ilog2() + carry_mod.0.ilog2())
+            .expect("the sum of two log2 of u64 fits in a u8");
+
+        Self::new(NonZeroU8::new(bits_per_ct).expect("Cannot be 0 if msg_mod > 1"))
+    }
+
+    /// Number of keystream bits held by `ct_count` ciphertexts
+    pub fn bit_length(&self, ct_count: usize) -> usize {
+        ct_count * usize::from(self.bits_per_ct.get())
+    }
+
+    pub fn bits_per_ct(&self) -> NonZeroU8 {
+        self.bits_per_ct
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum TranscipheringOutputLayoutBits {
+    /// Take n bits of keystream to produce one ciphertext block of output
+    Block(NonZeroU8),
+    /// Skip n bits of keystream and produce no output blocks
+    Skip(NonZeroU8),
+}
+
+impl TranscipheringOutputLayoutBits {
+    pub fn len(self) -> usize {
+        match self {
+            Self::Block(n) | Self::Skip(n) => usize::from(n.get()),
+        }
+    }
+
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// How the bits from the keystream should be used to produce the output ciphertexts
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TranscipheringOutputLayout {
+    // For example, if input is a list of [u8, bool, i4], aligned on 8 bits, this will be:
+    // [Block(2), Block(2), Block(2), Block(2), Block(1), Skip(7), Block(2), Block(2), Skip(4)]
+    layout: Vec<TranscipheringOutputLayoutBits>,
+}
+
+impl TranscipheringOutputLayout {
+    /// An empty layout, that can be extended with [`Self::push_aligned`]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The entries of this layout, in stream order
+    pub fn entries(&self) -> &[TranscipheringOutputLayoutBits] {
+        &self.layout
+    }
+
+    /// The layout of a single boolean
+    pub fn boolean() -> Self {
+        Self {
+            layout: vec![TranscipheringOutputLayoutBits::Block(
+                NonZeroU8::new(1).unwrap(),
+            )],
+        }
+    }
+
+    /// The layout of a single radix ciphertext of `n_bits`, under `message_modulus`
+    pub fn radix(n_bits: usize, message_modulus: MessageModulus) -> Self {
+        use TranscipheringOutputLayoutBits::Block;
+
+        let bits_per_block = u8::try_from(message_modulus.0.ilog2())
+            .expect("log2 of a u64 is at most 63, so it fits in a u8");
+        let bits_per_block = NonZeroU8::new(bits_per_block).expect("message_modulus must be > 1");
+
+        let full_blocks = n_bits / usize::from(bits_per_block.get());
+        let rem = n_bits % usize::from(bits_per_block.get());
+
+        let mut layout = std::iter::repeat_n(Block(bits_per_block), full_blocks).collect_vec();
+        if let Some(rem) = NonZeroU8::new(rem as u8) {
+            layout.push(Block(rem))
+        }
+
+        Self { layout }
+    }
+
+    /// Appends `part` to this layout, then skips bits until the total length is a multiple of
+    /// `alignment`.
+    pub fn push_aligned(&mut self, part: Self, alignment: NonZeroU8) -> &mut Self {
+        self.layout.extend(part.layout);
+
+        let n_bits = self.bit_length();
+        let pad = n_bits.next_multiple_of(usize::from(alignment.get())) - n_bits;
+        // pad < alignment, so it fits in a u8
+        if let Some(pad) = NonZeroU8::new(pad as u8) {
+            self.layout.push(TranscipheringOutputLayoutBits::Skip(pad));
+        }
+
+        self
+    }
+
+    /// Total number of stream bits covered by this layout, including the skipped ones
+    ///
+    /// # Panics
+    ///
+    /// Panics if the length overflows a `usize`.
+    pub fn bit_length(&self) -> usize {
+        self.checked_bit_length()
+            .expect("output layout length overflows usize")
+    }
+
+    /// Same as [`Self::bit_length`], but returns `None` on overflow
+    fn checked_bit_length(&self) -> Option<usize> {
+        self.layout
+            .iter()
+            .try_fold(0usize, |acc, entry| acc.checked_add(entry.len()))
+    }
+
+    /// Checks that this layout can be used to transcipher an input of `n_bits`, with a server key
+    /// of `message_modulus`: it covers the input, and its blocks fit in the message space
+    pub fn validate(
+        &self,
+        n_bits: usize,
+        message_modulus: MessageModulus,
+    ) -> Result<(), TranscipherError> {
+        if self.checked_bit_length() != Some(n_bits) {
+            return Err(TranscipherError::InvalidOutputLayout);
+        }
+
+        // The output blocks must fit in the message space
+        let max_block_bits = message_modulus.0.ilog2();
+        if !self.entries().iter().all(|entry| match entry {
+            TranscipheringOutputLayoutBits::Block(bits) => u32::from(bits.get()) <= max_block_bits,
+            TranscipheringOutputLayoutBits::Skip(_) => true,
+        }) {
+            return Err(TranscipherError::InvalidOutputLayout);
+        }
+
+        Ok(())
+    }
+}
+
+/// Checks that `input` can be transciphered by a session of `session_kind` at `session_counter`,
+/// into `output_layout`. Done before generating the keystream, so a rejected input does not
+/// advance the counter.
+pub(crate) fn check_transcipher_input(
+    session_kind: StreamCipherKind,
+    session_counter: u64,
     input: &StreamCiphertext,
+    output_layout: &TranscipheringOutputLayout,
+    message_modulus: MessageModulus,
 ) -> Result<(), TranscipherError> {
-    if input.kind != transcipherer.kind() {
+    if input.kind != session_kind {
         return Err(TranscipherError::KindMismatch {
-            session_kind: transcipherer.kind(),
+            session_kind,
             ciphertext_kind: input.kind,
         });
     }
-    if input.encryption_counter != transcipherer.current_counter() {
+    if input.encryption_counter != session_counter {
         return Err(TranscipherError::CounterMismatch {
-            session_counter: transcipherer.current_counter(),
+            session_counter,
             ciphertext_counter: input.encryption_counter,
         });
     }
-
-    Ok(())
-}
-
-/// Xor an FHE keystream with a clear [`StreamCiphertext`].
-///
-/// The number of keystream bits consumed is `input.n_bits()`.
-pub fn apply_keystream(
-    sks: &ServerKey,
-    keystream: &FheKeyStream,
-    input: &StreamCiphertext,
-) -> Vec<Ciphertext> {
-    assert_eq!(
-        keystream.0.len(),
-        input.n_bits,
-        "keystream length ({}) must equal input.n_bits ({})",
-        keystream.0.len(),
-        input.n_bits,
-    );
-    if sks.message_modulus.0 == 4 && sks.carry_modulus.0 == 4 {
-        apply_keystream_2_2(sks, &keystream.0, &input.bytes)
-    } else {
-        apply_keystream_naive(sks, &keystream.0, &input.bytes)
+    if input.bytes.len() != input.n_bits.div_ceil(8) {
+        return Err(TranscipherError::InvalidStreamCiphertext);
     }
-}
 
-/// Xor an FHE keystream with a clear symmetric ciphertext under
-/// MESSAGE_2_CARRY_2.
-///
-/// `keystream` is what [`Transcipherer::next_keystream_bits`] returns: one
-/// clean single-bit `Ciphertext` per bit. `input_stream` is the clear
-/// symmetric-cipher output from the user.
-///
-/// Cost: one 0.5 PBS per bit.
-/// Xoring and packing a pair of 2 bits of keystream + 2 bits of input is done in a
-/// single PBS.
-///
-/// `input_stream.len()` must equal `keystream.len().div_ceil(8)`: the
-/// minimum number of bytes that contain `keystream.len()` bits. When
-/// `keystream.len()` is not a multiple of 8, the trailing bits of the last
-/// input byte are ignored.
-fn apply_keystream_2_2(
-    sks: &ServerKey,
-    keystream: &[Ciphertext],
-    input_stream: &[u8],
-) -> Vec<Ciphertext> {
-    assert_eq!(
-        input_stream.len(),
-        keystream.len().div_ceil(8),
-        "input must have exactly ceil(keystream_len / 8) = {} bytes (got {})",
-        keystream.len().div_ceil(8),
-        input_stream.len()
-    );
-
-    // For each possible 2-bit clear input value `i` (i_hi | i_lo), build a LUT
-    // that performs keystream xor and packing in a single pbs
-    let luts: [_; 4] = std::array::from_fn(|i| {
-        let i_lo = (i & 1) as u64;
-        let i_hi = ((i >> 1) & 1) as u64;
-        sks.generate_lookup_table_bivariate(move |k0, k1| {
-            ((k0 & 1) ^ i_lo) | (((k1 & 1) ^ i_hi) << 1)
-        })
-    });
-
-    let pairs = keystream.par_chunks_exact(2);
-    // 0 or 1 trailing keystream ct when `keystream.len()` is odd.
-    let trailing = pairs.remainder();
-
-    // Pair `i` consumes input bits 2i and 2i+1 (LSB-first across bytes), and
-    // produces one 2-bit XOR'd ciphertext via a single bivariate PBS.
-    // Example:
-    // keystream (2 lwe 2_2 encoded): 0000a 0000b
-    // user input bits (plaintext)  :     x     y
-    // output (1 lwe 2_2 encoded)   : 000(b^y)(a^x)
-    let pairs_iter = pairs.enumerate().map(|(i, keystream)| {
-        let lo_idx = 2 * i;
-        let hi_idx = 2 * i + 1;
-        let i_lo = bit_at(input_stream, lo_idx);
-        let i_hi = bit_at(input_stream, hi_idx);
-        let s = (i_lo | (i_hi << 1)) as usize;
-        sks.unchecked_apply_lookup_table_bivariate(&keystream[0], &keystream[1], &luts[s])
-    });
-
-    // Odd keystream length: one PBS for the trailing bit
-    let trailing_iter = trailing.par_iter().map(|last_keystream| {
-        let last_idx = keystream.len() - 1;
-        let s = bit_at(input_stream, last_idx) as u64;
-        let trailing_lut = sks.generate_lookup_table(move |t| (t & 1) ^ s);
-        let mut last = last_keystream.clone();
-        sks.apply_lookup_table_assign(&mut last, &trailing_lut);
-        last
-    });
-
-    pairs_iter.chain(trailing_iter).collect()
-}
-
-/// Generic param-agnostic transcipher, usable as a fallback for any
-/// param set.
-///
-/// Cost: two PBS per output bit.
-/// One for the xor, followed by a per-block linear combination that packs `m`
-/// bits into one output ciphertext, followed by a second PBS to restore the noise.
-///
-/// `input_stream.len()` must equal `keystream.len().div_ceil(8)`: i.e. the
-/// minimum number of bytes that contain `keystream.len()` bits. When
-/// `keystream.len()` is not a multiple of 8, the trailing bits of the last
-/// input byte are ignored.
-fn apply_keystream_naive(
-    sks: &ServerKey,
-    keystream: &[Ciphertext],
-    input_stream: &[u8],
-) -> Vec<Ciphertext> {
-    assert_eq!(
-        input_stream.len(),
-        keystream.len().div_ceil(8),
-        "input must have exactly ceil(keystream_len / 8) = {} bytes (got {})",
-        keystream.len().div_ceil(8),
-        input_stream.len()
-    );
-
-    let m = sks.message_modulus.0.ilog2() as usize;
-
-    // Per-bit XOR LUT, indexed by the clear sym bit
-    let luts: [_; 2] =
-        std::array::from_fn(|i| sks.generate_lookup_table(move |t| (t & 1) ^ (i as u64)));
-
-    // One PBS per output bit, in parallel: cleans the keystream low bit and
-    // XORs the clear input bit (LSB-first across bytes). Each result is a 1-bit
-    // ciphertext.
-    let cleaned: Vec<Ciphertext> = keystream
-        .par_iter()
-        .enumerate()
-        .map(|(i, k)| {
-            let s = bit_at(input_stream, i) as usize;
-            let mut c = k.clone();
-            sks.apply_lookup_table_assign(&mut c, &luts[s]);
-            c
-        })
-        .collect();
-
-    // Pack up to m cleaned bits per output ciphertext via linear combination,
-    // in parallel. The final chunk may be partial when `keystream.len()` is
-    // not a multiple of `m`. Then a final pbs is done to restore the noise
-    // to a nominal level when the linear combination grew it.
-    cleaned
-        .par_chunks(m)
-        .map(|chunk| {
-            let mut out = chunk[0].clone();
-            for (j, c) in chunk.iter().enumerate().skip(1) {
-                let shifted = sks.unchecked_scalar_mul(c, 1u8 << j);
-                sks.unchecked_add_assign(&mut out, &shifted);
-            }
-            if chunk.len() >= 2 {
-                sks.message_extract_assign(&mut out);
-            }
-            out
-        })
-        .collect()
+    // Also checked when applying the keystream, but checking it here avoids generating a
+    // keystream (and advancing the counter) for an input that will be rejected
+    output_layout.validate(input.n_bits, message_modulus)
 }

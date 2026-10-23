@@ -12,7 +12,8 @@ use crate::transciphering::ciphers::kreyvium::{
 use crate::transciphering::ciphers::pack_bits_lsb_first;
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
 use crate::transciphering::{
-    apply_keystream, FheKeyStream, InsufficientKeystream, StreamCipher, Transcipherer,
+    apply_keystream, FheKeyStream, FheKeyStreamError, InsufficientKeystream, StreamCipher,
+    Transcipherer, TranscipheringOutputLayout,
 };
 
 fn get_hexadecimal_string_from_bytes(bytes: &[u8]) -> String {
@@ -162,6 +163,8 @@ fn kreyvium_test_round_trip() {
     let (client_key, server_key) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
     const N_ITER: usize = 2;
+    let layout = TranscipheringOutputLayout::radix(64, server_key.message_modulus);
+
     for iter in 0..N_ITER {
         // Random Kreyvium key and IV (already in unpacked-bit form), plus a
         // random 64-bit input.
@@ -180,7 +183,7 @@ fn kreyvium_test_round_trip() {
         let mut fhe_stream = KreyviumFheState::new(cipher_key, iv_bits, &server_key);
         let keystream = fhe_stream.next_keystream_bits(&server_key, 64).unwrap();
 
-        let chunks = apply_keystream(&server_key, &keystream, &sym_cipher);
+        let chunks = apply_keystream(&server_key, &keystream, &sym_cipher, &layout).unwrap();
 
         // Decrypt each clean 2-bit chunk back into bits 2i and 2i+1 of u64.
         let result: u64 = chunks
@@ -302,13 +305,14 @@ fn state_at_counter<T: Clone>(filler: &T, counter: u64) -> KreyviumState<T> {
 
 #[test]
 fn kreyvium_exhaustion_at_counter_range_end() {
-    let (_client_key, server_key) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let (client_key, server_key) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
     let n_bits: usize = 8;
     let start = u64::MAX - n_bits as u64;
 
     let mut plain_stream: KreyviumPlainState = state_at_counter(&false, start);
-    let mut fhe_stream: KreyviumFheState = state_at_counter(&server_key.create_trivial(0), start);
+    // A real encryption, as keystreams made of trivial ciphertexts are rejected
+    let mut fhe_stream: KreyviumFheState = state_at_counter(&client_key.encrypt(0), start);
 
     // One bit too many: refused before any round runs, counter untouched.
     assert!(matches!(
@@ -318,7 +322,7 @@ fn kreyvium_exhaustion_at_counter_range_end() {
     assert_eq!(plain_stream.current_counter(), start);
     assert!(matches!(
         fhe_stream.next_keystream_bits(&server_key, n_bits + 1),
-        Err(InsufficientKeystream)
+        Err(FheKeyStreamError::Insufficient(_))
     ));
     assert_eq!(fhe_stream.current_counter(), start);
 
