@@ -1,6 +1,6 @@
 # Weekly AFL++ GPU fuzzing campaign for harness-cuda-compute.
 # Runs on the internal mirror only, the public repo skips every job.
-name: gpu-fuzzing
+name: gpu_fuzzing
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +19,7 @@ env:
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
   EXTERNAL_CONTRIBUTION_RUNNER: "gpu_ubuntu-22.04"
+  INSTANCE_TYPE_SCHEDULED: "terraform::generic-4-l4orl40-tests (nebius-L40)"
 
 on:
   workflow_dispatch:
@@ -28,6 +29,20 @@ on:
         description: "Campaign duration in seconds"
         default: "1200" # 20 min
         required: false
+      instance-type:
+        description: "Instance type"
+        type: choice
+        default: "terraform::generic-4-l4orl40-tests (nebius-L40)"
+        options:
+          - "terraform::generic-4-l4orl40-tests (nebius-L40)"
+          - "terraform::scaleway-1-l4 (L4-1-24G)"
+          - "terraform::scaleway-4-l4 (L4-4-24G)"
+          - "terraform::scaleway-4-l40-tests (L40S-4-48G)"
+          - "terraform::scaleway-single-h100 (H100-1-80G)"
+          - "terraform::nebius-single-h100 (nebius-H100-SXM-1-80G)"
+          - "hyperstack::l40 (n3-L40x1)"
+          - "hyperstack::4-l40 (n3-L40x4)"
+          - "hyperstack::single-h100 (n3-H100x1)"
   schedule:
     # Saturday 05:00 UTC (day after the CPU campaign).
     - cron: "0 5 * * 6"
@@ -40,14 +55,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  setup-instance:
-    name: gpu-fuzzing/setup-instance
+  parse-inputs:
+    name: gpu-fuzzing/parse-inputs
     # Skip on the public repo so fuzz logs are not exposed publicly.
     if: github.repository != 'zama-ai/tfhe-rs'
     runs-on: ubuntu-latest
     outputs:
+      backend: ${{ steps.parse.outputs.backend }}
+      profile: ${{ steps.parse.outputs.profile }}
+      cloud-provider: ${{ steps.parse.outputs.cloud_provider }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Parse instance type
+        id: parse
+        env:
+          INSTANCE_TYPE: ${{ inputs['instance-type'] || env.INSTANCE_TYPE_SCHEDULED }}
+        run: python3 ci/parse_benchmark_profile.py "$INSTANCE_TYPE" "$GITHUB_OUTPUT"
+
+  setup-instance:
+    name: gpu-fuzzing/setup-instance
+    needs: parse-inputs
+    runs-on: ubuntu-latest
+    outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
-      cloud-provider: ${{ steps.start-instance.outputs.cloud-provider }}
     steps:
       - name: Start instance
         id: start-instance
@@ -57,16 +92,15 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: terraform
-          profile: scaleway-1-l4
+          backend: ${{ needs.parse-inputs.outputs.backend }}
+          profile: ${{ needs.parse-inputs.outputs.profile }}
 
   fuzz:
     name: gpu-fuzzing/run-campaign
-    needs: setup-instance
+    needs: [parse-inputs, setup-instance]
     if: needs.setup-instance.result == 'success'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
-    # 2h: covers a 20min campaign + CUDA build (~90m) + pre/post with headroom.
-    timeout-minutes: 120
+    timeout-minutes: 1640
     env:
       FUZZ_DURATION_SECONDS: ${{ inputs['duration-seconds'] }}
     steps:
@@ -81,12 +115,15 @@ jobs:
         with:
           cuda-version: "12.8 12.2"
           gcc-version: 12
-          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
+          cloud-provider: ${{ needs.parse-inputs.outputs.cloud-provider }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
+      - name: Install clang-14 and OpenMP for AFL C++ instrumentation
+        run: sudo apt-get install -y clang-14 libomp-14-dev
 
       - name: Install cargo-afl
         run: make install_cargo_afl
@@ -101,6 +138,7 @@ jobs:
         run: make fuzz_gpu_run
 
       - name: Run postcampaign processing
+        if: always()
         run: make fuzz_gpu_postcampaign
 
       - name: Upload artifacts
@@ -139,7 +177,7 @@ jobs:
   teardown-instance:
     name: gpu-fuzzing/teardown-instance
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
-    needs: [setup-instance, fuzz]
+    needs: [parse-inputs, setup-instance, fuzz]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
