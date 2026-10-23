@@ -181,11 +181,9 @@ jobs:
           --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
-          --walk-subdirs \
-          --bench-type "${BENCH_TYPE}"
+          --walk-subdirs
         env:
           REF_NAME: ${{ github.ref_name }}
-          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
