@@ -110,6 +110,11 @@ if(${FAKE_MULTI_GPU})
   add_definitions(-DDEBUG_FAKE_MULTI_GPU)
 endif()
 
+if(BATCHED_TRIVIAL)
+  message(STATUS "Batched trivial (no-FHE) testing mode is enabled")
+  add_definitions(-DTFHE_GPU_BATCHED_TRIVIAL)
+endif()
+
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging to use
 # nvtx when profiling -lnvToolsExt
 set(CMAKE_CUDA_FLAGS

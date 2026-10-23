@@ -48,6 +48,32 @@ __global__ void device_negation(Torus *output, Torus const *input,
   }
 }
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+// Batched-trivial variant: no delta, z applied to all lwe_size positions.
+// Every coefficient (mask + body) receives the same correcting term.
+template <typename Torus>
+__global__ void device_negation_batched_trivial(Torus *output,
+                                                Torus const *input,
+                                                int32_t num_blocks,
+                                                uint64_t lwe_dimension,
+                                                uint64_t message_modulus) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < lwe_dimension + 1) {
+    uint64_t z = (2 * message_modulus - 1) / message_modulus;
+    z *= message_modulus;
+
+    output[tid] = (Torus)z - input[tid];
+
+    for (int radix_block_id = 1; radix_block_id < num_blocks;
+         radix_block_id++) {
+      tid += (lwe_dimension + 1);
+      uint64_t zb = z / message_modulus;
+      output[tid] = (Torus)z - (input[tid] + (Torus)zb);
+    }
+  }
+}
+#endif
+
 /** @brief Negates the first num_radix_blocks blocks of a radix-ciphertext using
  * wrapping LWE negation. Noise levels are propagated unchanged, degrees are set
  * to the worst case. This is a fully levelled negation and no PBS is performed.
@@ -127,12 +153,19 @@ __host__ void host_negation_with_correcting_term(
   // Value of the shift we multiply our messages by
   // If message_modulus and carry_modulus are always powers of 2 we can simplify
   // this
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  device_negation_batched_trivial<Torus><<<grid, thds, 0, streams.stream(0)>>>(
+      static_cast<Torus *>(lwe_array_out->ptr),
+      static_cast<Torus *>(lwe_array_in->ptr), num_radix_blocks, lwe_dimension,
+      message_modulus);
+#else
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
   device_negation<Torus><<<grid, thds, 0, streams.stream(0)>>>(
       static_cast<Torus *>(lwe_array_out->ptr),
       static_cast<Torus *>(lwe_array_in->ptr), num_radix_blocks, lwe_dimension,
       message_modulus, delta);
+#endif
   check_cuda_error(cudaGetLastError());
 
   uint8_t zb = 0;

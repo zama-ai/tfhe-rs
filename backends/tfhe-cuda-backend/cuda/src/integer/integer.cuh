@@ -10,6 +10,7 @@
 #include "integer/integer_utilities.h"
 #include "integer/negation.cuh"
 #include "integer/scalar_addition.cuh"
+#include "integer/trivial_lut.cuh"
 #include "linearalgebra/addition.cuh"
 #include "linearalgebra/multiplication.cuh"
 
@@ -146,9 +147,15 @@ __host__ void host_unchecked_sub_with_correcting_term(
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  unchecked_sub_with_correcting_term_batched_trivial<T><<<grid, thds, 0, stream>>>(
+      (T *)output->ptr, (T *)input_1->ptr, (T *)input_2->ptr, num_entries,
+      lwe_size, message_modulus, carry_modulus, message_modulus - 1);
+#else
   unchecked_sub_with_correcting_term<T><<<grid, thds, 0, stream>>>(
       (T *)output->ptr, (T *)input_1->ptr, (T *)input_2->ptr, num_entries,
       lwe_size, message_modulus, carry_modulus, message_modulus - 1);
+#endif
   check_cuda_error(cudaGetLastError());
   uint8_t zb = 0;
   for (uint i = 0; i < num_radix_blocks; i++) {
@@ -913,6 +920,19 @@ __host__ void integer_radix_apply_univariate_lookup_table(
     }
   }
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  if (lut->d_lut_values != nullptr) {
+    execute_trivial_lut_batched<Torus>(streams, lwe_array_out, lwe_array_in,
+                                       lut, num_radix_blocks, /*num_many_lut=*/1);
+    for (uint i = 0; i < num_radix_blocks; i++) {
+      lwe_array_out->degrees[i] = lut->degrees[lut->h_lut_indexes[i]];
+      lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
+    }
+    POP_RANGE()
+    return;
+  }
+#endif
+
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
@@ -1044,6 +1064,20 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     CHECK_NOISE_LEVEL(lwe_array_in->noise_levels[idx], params.message_modulus,
                       params.carry_modulus);
   }
+
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  if (lut->d_lut_values != nullptr) {
+    execute_trivial_lut_batched<Torus>(streams, lwe_array_out, lwe_array_in,
+                                       lut, num_radix_blocks, num_many_lut);
+    for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+      auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
+      lwe_array_out->degrees[i] = lut->degrees[degrees_index];
+      lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
+    }
+    POP_RANGE()
+    return;
+  }
+#endif
 
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
@@ -2243,6 +2277,35 @@ uint64_t scratch_cuda_apply_univariate_lut(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                       allocate_gpu_memory, size_tracker);
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  {
+    // Extract a compact integer lookup table from the LUT polynomial.
+    // The polynomial encodes f(msg) as delta*f(msg) at position msg*step.
+    // Since delta = 2^63/(p*q) is a power of 2, extraction is an exact
+    // right-shift.
+    uint32_t num_values = params.message_modulus * params.carry_modulus;
+    uint32_t step = params.polynomial_size / num_values;
+    uint32_t log2_delta = 63 - __builtin_ctz(num_values);
+    Torus const *body_poly =
+        input_lut + (size_t)params.glwe_dimension * params.polynomial_size;
+
+    std::vector<Torus> h_values(num_values);
+    for (uint32_t msg = 0; msg < num_values; msg++)
+      h_values[msg] = body_poly[msg * step] >> log2_delta;
+
+    (*mem_ptr)->d_lut_values = static_cast<Torus *>(
+        cuda_malloc_async(num_values * sizeof(Torus), streams.stream(0),
+                          streams.gpu_index(0)));
+    cuda_memcpy_async_to_gpu((*mem_ptr)->d_lut_values, h_values.data(),
+                             num_values * sizeof(Torus), streams.stream(0),
+                             streams.gpu_index(0));
+    (*mem_ptr)->lut_num_values = num_values;
+    *(*mem_ptr)->get_degree(0) = lut_degree;
+    (*mem_ptr)->h_lut_indexes[0] = 0;
+    POP_RANGE()
+    return size_tracker;
+  }
+#endif
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
   cuda_memcpy_with_size_tracking_async_to_gpu(
@@ -2279,6 +2342,38 @@ uint64_t scratch_cuda_apply_many_univariate_lut(
   *mem_ptr =
       new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
                                num_many_lut, allocate_gpu_memory, size_tracker);
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  {
+    uint32_t num_values = params.message_modulus * params.carry_modulus;
+    uint32_t step = params.polynomial_size / num_values;
+    uint32_t log2_delta = 63 - __builtin_ctz(num_values);
+    uint32_t actual_num_lut = (num_many_lut > 0) ? num_many_lut : 1;
+    size_t poly_size = params.polynomial_size;
+    size_t glwe_offset = (size_t)params.glwe_dimension * poly_size;
+
+    size_t table_size = (size_t)actual_num_lut * num_values;
+    std::vector<Torus> h_values(table_size);
+    size_t glwe_ct_size = (size_t)(params.glwe_dimension + 1) * poly_size;
+    for (uint32_t k = 0; k < actual_num_lut; k++) {
+      Torus const *poly_k =
+          input_lut + (size_t)k * glwe_ct_size + glwe_offset;
+      for (uint32_t msg = 0; msg < num_values; msg++)
+        h_values[k * num_values + msg] = poly_k[msg * step] >> log2_delta;
+    }
+
+    (*mem_ptr)->d_lut_values = static_cast<Torus *>(
+        cuda_malloc_async(table_size * sizeof(Torus), streams.stream(0),
+                          streams.gpu_index(0)));
+    cuda_memcpy_async_to_gpu((*mem_ptr)->d_lut_values, h_values.data(),
+                             table_size * sizeof(Torus), streams.stream(0),
+                             streams.gpu_index(0));
+    (*mem_ptr)->lut_num_values = num_values;
+    *(*mem_ptr)->get_degree(0) = lut_degree;
+    (*mem_ptr)->h_lut_indexes[0] = 0;
+    POP_RANGE()
+    return size_tracker;
+  }
+#endif
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
   cuda_memcpy_with_size_tracking_async_to_gpu(
