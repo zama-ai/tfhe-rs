@@ -6023,6 +6023,102 @@ pub(crate) unsafe fn cuda_backend_count_of_consecutive_bits<T: UnsignedInteger, 
 /// # Safety
 ///
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data, violating this may lead to
+///   undefined behavior.
+pub(crate) unsafe fn cuda_backend_count_bits<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output_ct: &mut CudaRadixCiphertext,
+    input_ct: &CudaRadixCiphertext,
+    counter_num_blocks: u32,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    bsk: &impl CudaBskParams,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bit_value: BitValue,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
+) {
+    let bsk_params = bsk.params_ffi();
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output_ct.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: stream and output ct are on different GPUs"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input_ct.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: stream and input ct are on different GPUs"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: stream and bootstrapping_key are on different GPUs"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: stream and keyswitch_key are on different GPUs"
+    );
+
+    let num_blocks = u32::try_from(input_ct.d_blocks.lwe_ciphertext_count().0).unwrap();
+
+    let noise_reduction_type = resolve_ms_noise_reduction_config(ms_noise_reduction_configuration);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut output_degrees = output_ct.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_output_ct =
+        prepare_cuda_radix_ffi(output_ct, &mut output_degrees, &mut output_noise_levels);
+
+    let mut input_degrees = input_ct.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = input_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_input_ct =
+        prepare_cuda_radix_ffi(input_ct, &mut input_degrees, &mut input_noise_levels);
+
+    scratch_cuda_integer_count_bits_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        bsk_params,
+        ksk_params,
+        num_blocks,
+        counter_num_blocks,
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        bit_value,
+        true,
+        noise_reduction_type as u32,
+    );
+
+    cuda_integer_count_bits_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_output_ct,
+        &raw const cuda_ffi_input_ct,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_integer_count_bits_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+
+    update_noise_degree(output_ct, &cuda_ffi_output_ct);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_ilog2<T: UnsignedInteger, B: Numeric>(
