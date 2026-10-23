@@ -3,9 +3,11 @@
 //! Client keys are the keys used to encrypt an decrypt data.
 //! These are private and **MUST NOT** be shared.
 
+#[cfg(feature = "experimental")]
 mod crt;
 mod radix;
 pub(crate) mod secret_encryption_key;
+#[cfg(feature = "experimental")]
 pub(crate) mod utils;
 
 use super::backward_compatibility::client_key::ClientKeyVersions;
@@ -18,15 +20,14 @@ use crate::integer::block_decomposition::{
     BlockRecomposer, DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
 };
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
-use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
-use crate::integer::client_key::utils::i_crt;
 use crate::integer::compression_keys::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
+use crate::integer::encryption::encrypt_words_radix_impl;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::parameters::{CompressionParameters, MessageModulus};
+use crate::shortint::parameters::CompressionParameters;
 use crate::shortint::{
     Ciphertext, ClientKey as ShortintClientKey, ShortintParameterSet as ShortintParameters,
 };
+#[cfg(feature = "experimental")]
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 use secret_encryption_key::SecretEncryptionKeyView;
@@ -35,11 +36,10 @@ use tfhe_versionable::Versionize;
 
 /// A structure containing the client key, which must be kept secret.
 ///
-/// This key can be used to encrypt both in Radix and CRT
-/// decompositions.
+/// This key encrypts integers in radix decomposition, each block
+/// using the same crypto parameters.
 ///
-/// Using this key, for both decompositions, each block will
-/// use the same crypto parameters.
+/// To encrypt in CRT decomposition, see `CrtClientKey` (requires the `experimental` feature).
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Versionize)]
 #[versionize(ClientKeyVersions)]
 pub struct ClientKey {
@@ -88,7 +88,7 @@ impl ClientKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key, that can encrypt in
-    /// // radix and crt decomposition, where each block of the decomposition
+    /// // radix decomposition, where each block of the decomposition
     /// // have over 2 bits of message modulus.
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     /// ```
@@ -111,7 +111,7 @@ impl ClientKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key, that can encrypt in
-    /// // radix and crt decomposition, where each block of the decomposition
+    /// // radix decomposition, where each block of the decomposition
     /// // have over 2 bits of message modulus.
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
@@ -130,7 +130,7 @@ impl ClientKey {
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key, that can encrypt in
-    /// // radix and crt decomposition, where each block of the decomposition
+    /// // radix decomposition, where each block of the decomposition
     /// // have over 2 bits of message modulus.
     /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
@@ -508,177 +508,6 @@ impl ClientKey {
     /// ```
     pub fn decrypt_bool(&self, ct: &BooleanBlock) -> bool {
         self.decrypt_one_block(&ct.0) != 0
-    }
-
-    /// Encrypts an integer using crt representation
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-    ///
-    /// let msg = 13_u64;
-    ///
-    /// // Encryption:
-    /// let basis: Vec<u64> = vec![2, 3, 5];
-    /// let ct = cks.encrypt_crt(msg, basis);
-    ///
-    /// // Decryption:
-    /// let dec = cks.decrypt_crt(&ct);
-    /// assert_eq!(msg, dec);
-    /// ```
-    pub fn encrypt_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
-        self.encrypt_crt_impl(
-            message,
-            base_vec,
-            crate::shortint::ClientKey::encrypt_with_message_modulus,
-        )
-    }
-
-    pub fn encrypt_crt_compressed(
-        &self,
-        message: u64,
-        base_vec: Vec<u64>,
-    ) -> CompressedCrtCiphertext {
-        self.encrypt_crt_impl(
-            message,
-            base_vec,
-            crate::shortint::ClientKey::encrypt_with_message_modulus_compressed,
-        )
-    }
-
-    /// Decrypts an integer in crt decomposition
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// // Generate the client key and the server key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-    ///
-    /// let msg = 27_u64;
-    /// let basis: Vec<u64> = vec![2, 3, 5];
-    ///
-    /// // Encryption:
-    /// let ct = cks.encrypt_crt(msg, basis);
-    ///
-    /// // Decryption:
-    /// let dec = cks.decrypt_crt(&ct);
-    /// assert_eq!(msg, dec);
-    /// ```
-    pub fn decrypt_crt(&self, ctxt: &CrtCiphertext) -> u64 {
-        let mut val: Vec<u64> = Vec::with_capacity(ctxt.blocks.len());
-
-        // Decrypting each block individually
-        for (c_i, b_i) in ctxt.blocks.iter().zip(ctxt.moduli.iter()) {
-            // decrypt the component i of the integer and multiply it by the radix product
-            val.push(self.key.decrypt_message_and_carry(c_i) % b_i);
-        }
-
-        // Computing the inverse CRT to recompose the message
-        let result = i_crt(&ctxt.moduli, &val);
-
-        let whole_modulus: u64 = ctxt.moduli.iter().copied().product();
-
-        result % whole_modulus
-    }
-
-    /// Encrypts a small integer message using the client key and some moduli without padding bit.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128);
-    ///
-    /// let msg = 13_u64;
-    ///
-    /// // Encryption of one message:
-    /// let basis: Vec<u64> = vec![2, 3, 5];
-    /// let ct = cks.encrypt_native_crt(msg, basis);
-    ///
-    /// // Decryption:
-    /// let dec = cks.decrypt_native_crt(&ct);
-    /// assert_eq!(msg, dec);
-    /// ```
-    pub fn encrypt_native_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
-        self.encrypt_crt_impl(
-            message,
-            base_vec,
-            crate::shortint::ClientKey::encrypt_native_crt,
-        )
-    }
-
-    pub fn encrypt_native_crt_compressed(
-        &self,
-        message: u64,
-        base_vec: Vec<u64>,
-    ) -> CompressedCrtCiphertext {
-        self.encrypt_crt_impl(
-            message,
-            base_vec,
-            crate::shortint::ClientKey::encrypt_native_crt_compressed,
-        )
-    }
-
-    /// Decrypts a ciphertext encrypting an integer message with some moduli basis without
-    /// padding bit.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
-    ///
-    /// let cks = ClientKey::new(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128);
-    ///
-    /// let msg = 27_u64;
-    /// let basis: Vec<u64> = vec![2, 3, 5];
-    /// // Encryption of one message:
-    /// let ct = cks.encrypt_native_crt(msg, basis);
-    ///
-    /// // Decryption:
-    /// let dec = cks.decrypt_native_crt(&ct);
-    /// assert_eq!(msg, dec);
-    /// ```
-    pub fn decrypt_native_crt(&self, ct: &CrtCiphertext) -> u64 {
-        let mut val: Vec<u64> = vec![];
-
-        //Decrypting each block individually
-        for (c_i, b_i) in ct.blocks.iter().zip(ct.moduli.iter()) {
-            //decrypt the component i of the integer and multiply it by the radix product
-            val.push(
-                self.key
-                    .decrypt_message_native_crt(c_i, MessageModulus(*b_i)),
-            );
-        }
-
-        //Computing the inverse CRT to recompose the message
-        let result = i_crt(&ct.moduli, &val);
-
-        let whole_modulus: u64 = ct.moduli.iter().copied().product();
-
-        result % whole_modulus
-    }
-
-    fn encrypt_crt_impl<Block, CrtCiphertextType, F>(
-        &self,
-        message: u64,
-        base_vec: Vec<u64>,
-        encrypt_block: F,
-    ) -> CrtCiphertextType
-    where
-        F: Fn(&crate::shortint::ClientKey, u64, MessageModulus) -> Block,
-        CrtCiphertextType: From<(Vec<Block>, Vec<u64>)>,
-    {
-        encrypt_crt(&self.key, message, base_vec, encrypt_block)
     }
 
     pub fn new_compression_private_key(

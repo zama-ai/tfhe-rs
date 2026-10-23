@@ -3,6 +3,8 @@ use super::backward_compatibility::key_switching_key::{
     KeySwitchingKeyMaterialVersions, KeySwitchingKeyVersions,
 };
 use super::{ClientKey, CompressedServerKey, ServerKey};
+#[cfg(feature = "experimental")]
+use super::{CrtClientKey, CrtServerKey};
 use crate::conformance::ParameterSetConformant;
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::integer::IntegerCiphertext;
@@ -110,14 +112,43 @@ impl KeySwitchingKey {
         InputEncryptionKey: Into<SecretEncryptionKeyView<'input_key>>,
         ClientKeyType: AsRef<ClientKey>,
     {
+        Self::new_from_shortint_keys(
+            (input_key_pair.0, input_key_pair.1.map(AsRef::as_ref)),
+            (output_key_pair.0.as_ref(), output_key_pair.1.as_ref()),
+            params,
+        )
+    }
+
+    /// Same as [`Self::new`], for keys used with [`CrtCiphertext`](crate::integer::CrtCiphertext)
+    #[cfg(feature = "experimental")]
+    pub fn new_crt<'input_key, InputEncryptionKey>(
+        input_key_pair: (InputEncryptionKey, Option<&CrtServerKey>),
+        output_key_pair: (&CrtClientKey, &CrtServerKey),
+        params: ShortintKeySwitchingParameters,
+    ) -> Self
+    where
+        InputEncryptionKey: Into<SecretEncryptionKeyView<'input_key>>,
+    {
+        Self::new_from_shortint_keys(
+            (input_key_pair.0, input_key_pair.1.map(AsRef::as_ref)),
+            (output_key_pair.0.as_ref(), output_key_pair.1.as_ref()),
+            params,
+        )
+    }
+
+    fn new_from_shortint_keys<'input_key, InputEncryptionKey>(
+        input_key_pair: (InputEncryptionKey, Option<&crate::shortint::ServerKey>),
+        output_key_pair: (&ClientKey, &crate::shortint::ServerKey),
+        params: ShortintKeySwitchingParameters,
+    ) -> Self
+    where
+        InputEncryptionKey: Into<SecretEncryptionKeyView<'input_key>>,
+    {
         let input_secret_encryption_key: SecretEncryptionKeyView<'_> = input_key_pair.0.into();
         let ret = Self {
             key: crate::shortint::KeySwitchingKey::new(
-                (
-                    input_secret_encryption_key.key,
-                    input_key_pair.1.map(|k| &k.key),
-                ),
-                (&output_key_pair.0.as_ref().key, &output_key_pair.1.key),
+                (input_secret_encryption_key.key, input_key_pair.1),
+                (&output_key_pair.0.key, output_key_pair.1),
                 params,
             ),
         };
@@ -148,7 +179,10 @@ impl KeySwitchingKey {
                 .map(|b| {
                     let mut ret = self.key.cast(b);
 
-                    // These next 2 lines are to handle Crt ciphertexts
+                    // The shortint cast labels the output with the destination key's moduli. The
+                    // cast keeps the plaintext encoding (the key requires cast_rshift == 0), so
+                    // keep the input block's own moduli, as integer ciphertexts may have per-block
+                    // moduli that differ from the key's.
                     ret.message_modulus = b.message_modulus;
                     ret.carry_modulus = b.carry_modulus;
 
