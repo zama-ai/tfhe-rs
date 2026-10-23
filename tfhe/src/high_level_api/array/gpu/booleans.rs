@@ -206,7 +206,7 @@ impl BitwiseArrayBackend for GpuFheBoolArrayBackend {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
             let streams = &cuda_key.streams;
             lhs.par_iter()
-                .map(|lhs| CudaBooleanBlock(cuda_key.pbs_key().bitnot(&lhs.0, streams)))
+                .map(|lhs| cuda_key.pbs_key().boolean_bitnot(lhs, streams))
                 .collect::<Vec<_>>()
         }))
     }
