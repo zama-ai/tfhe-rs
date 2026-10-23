@@ -6,6 +6,7 @@ use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
 };
+use crate::shortint::parameters::TranscipheringParameters;
 use crate::shortint::prelude::*;
 use crate::transciphering::ciphers::kreyvium::KreyviumPlainState;
 use crate::transciphering::ciphers::one_time_pad::fhe::{
@@ -16,6 +17,7 @@ use crate::transciphering::ciphers::one_time_pad::{
 };
 use crate::transciphering::{
     InsufficientKeystream, StreamCipher, StreamCipherKind, TranscipherError, Transcipherer,
+    TranscipheringPrivateKey, TranscipheringServerKey,
 };
 
 /// Reference implementation: LSB-first bit `first_bit + i` of `mask` becomes LSB-first bit
@@ -588,6 +590,33 @@ fn one_time_pad_fhe_mask_encrypt_decrypt_round_trip() {
             );
         }
     }
+}
+
+/// Check that masks generated with the same seed but different size share the same prefix
+#[test]
+fn one_time_pad_fhe_new_random_prefix() {
+    let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let private_key = TranscipheringPrivateKey::new(&cks, TranscipheringParameters::SameAsCompute);
+    let transciphering_key = TranscipheringServerKey::new(&private_key, &cks).unwrap();
+
+    let seed: [u8; 32] = rand::thread_rng().gen();
+    println!("one_time_pad_fhe_new_random_prefix seed={seed:02x?}");
+
+    let decrypted_mask = |n_bits| -> Vec<u64> {
+        OneTimePadFheSecretMask::new_random(seed.as_slice(), &transciphering_key, &sks, n_bits)
+            .unwrap()
+            .ciphertexts()
+            .iter()
+            .map(|ct| cks.decrypt(ct))
+            .collect()
+    };
+
+    let short = decrypted_mask(16);
+    let long = decrypted_mask(40);
+
+    assert_eq!(short.len(), 16);
+    assert_eq!(long.len(), 40);
+    assert_eq!(short, long[..16], "seed={seed:02x?}");
 }
 
 #[test]

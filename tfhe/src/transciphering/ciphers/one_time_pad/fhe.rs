@@ -1,3 +1,4 @@
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -11,6 +12,17 @@ use crate::transciphering::ciphers::pack_bits_lsb_first;
 use crate::transciphering::{
     FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer, TranscipheringServerKey,
 };
+
+#[derive(Debug)]
+pub struct InvalidMaskSize;
+
+impl std::fmt::Display for InvalidMaskSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "The requested mask size is invalid")
+    }
+}
+
+impl std::error::Error for InvalidMaskSize {}
 
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(OneTimePadFheSecretMaskVersions)]
@@ -45,17 +57,43 @@ impl OneTimePadFheSecretMask {
         Self::try_new(secret_mask).unwrap()
     }
 
+    /// Generate a mask of `n_bits` encrypted random bits with the OPRF of `transciphering_key`.
+    ///
+    /// The mask is generated in counter mode: the ciphertext at index `i` is generated
+    /// independently, from `seed ‖ i`, with `i` as a little-endian `u32`. As a result, the mask
+    /// generated for a given seed with some number of bits is a prefix of all the masks generated
+    /// with the same seed and more bits. This allows a mask to be decrypted and regenerated with
+    /// different lengths, as long as the regenerated length is shorter.
+    ///
+    /// The same seed should never be used to encrypt different data, since the generated masks
+    /// would share their bits.
     pub fn new_random(
         seed: impl OprfSeed,
         transciphering_key: &TranscipheringServerKey,
         sks: &ServerKey,
-        n_bits: u64,
-    ) -> Self {
-        let encrypted_bits = transciphering_key
-            .oprf_key()
-            .generate_random_boolean_sequence(seed, n_bits, sks);
+        n_bits: u32,
+    ) -> Result<Self, InvalidMaskSize> {
+        let seed = seed.into_vec();
 
-        Self::new(encrypted_bits)
+        let oprf_key = transciphering_key.oprf_key();
+
+        // Generate mask bits following RFC030:
+        // Each call to the prf generates only 1 ciphertext, and the seed is suffixed
+        // by the ciphertext index stored on 32bits.
+        let n_blocks = u32::try_from(n_bits).map_err(|_| InvalidMaskSize)?;
+        let secret_mask = (0..n_blocks)
+            .into_par_iter()
+            .map(|i| {
+                let mut block_seed = seed.clone();
+                block_seed.extend_from_slice(&(i).to_le_bytes());
+                oprf_key
+                    .generate_random_boolean_sequence(block_seed, 1, sks)
+                    .pop()
+                    .unwrap()
+            })
+            .collect();
+
+        Ok(Self::new(secret_mask))
     }
 
     /// Single bit per [`Ciphertext`].
