@@ -19,10 +19,10 @@ env:
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
 
 on:
-  # Allows you to run this workflow manually from the Actions tab as an alternative.
-  pull_request:
-    types: [labeled]
   workflow_dispatch:
+  schedule:
+    # Every Sunday at 1a.m. Paris time (winter time, 2a.m. in summer time)
+    - cron: "0 0 * * 0"
 
 permissions:
   contents: read
