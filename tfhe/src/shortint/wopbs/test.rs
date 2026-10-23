@@ -134,7 +134,7 @@ fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
 
 #[cfg(not(tarpaulin))]
 fn generate_lut_wop_only(params: WopbsParameters) {
-    let (cks, sks) = gen_keys(params);
+    let (cks, sks) = gen_keys(params.to_pbs_parameters());
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(
         cks.as_view().try_into().unwrap(),
         sks.as_view().try_into().unwrap(),
@@ -188,7 +188,7 @@ fn generate_lut_modulus(params: (ClassicPBSParameters, WopbsParameters)) {
 // Keycache cannot be applied without turning the test into a flaky one.
 #[cfg(not(tarpaulin))]
 fn generate_lut_modulus_not_power_of_two(params: WopbsParameters) {
-    let (cks, sks) = gen_keys(params);
+    let (cks, sks) = gen_keys(params.to_pbs_parameters());
     let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(
         cks.as_view().try_into().unwrap(),
         sks.as_view().try_into().unwrap(),
