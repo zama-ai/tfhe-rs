@@ -69,6 +69,7 @@ pub fn encrypt_lwe_multi_bit_ggsw_group<Scalar, NoiseDistribution, OutputKeyCont
 
         encrypt_constant_ggsw_ciphertext(
             output_glwe_secret_key,
+            output_glwe_secret_key,
             &mut ggsw,
             Cleartext(key_bits_plaintext),
             noise_distribution,
@@ -139,6 +140,7 @@ pub fn par_encrypt_lwe_multi_bit_ggsw_group<
                 let key_bits_plaintext = combine_key_bits(bit_inversion_idx, input_key_elements);
 
                 par_encrypt_constant_ggsw_ciphertext(
+                    output_glwe_secret_key,
                     output_glwe_secret_key,
                     &mut ggsw,
                     Cleartext(key_bits_plaintext.cast_into()),

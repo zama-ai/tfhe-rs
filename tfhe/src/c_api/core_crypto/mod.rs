@@ -246,6 +246,7 @@ pub unsafe extern "C" fn core_crypto_ggsw_encrypt(
 
         encrypt_constant_ggsw_ciphertext(
             &glwe_sk,
+            &glwe_sk,
             &mut ct,
             cleartext,
             glwe_noise_distribution,
