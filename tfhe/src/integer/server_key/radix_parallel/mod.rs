@@ -345,6 +345,24 @@ impl ServerKey {
         }
     }
 
+    /// Cleans both inputs of a default binary op so that they are ready to be used, each into
+    /// a `Cow` (owned only if it had to be cleaned).
+    ///
+    /// Both cleanings run in parallel.
+    pub(crate) fn clean_for_default_binary_op<'a, T>(
+        &self,
+        lhs: &'a T,
+        rhs: &'a T,
+    ) -> (Cow<'a, T>, Cow<'a, T>)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        rayon::join(
+            || self.clean_for_default_op(lhs),
+            || self.clean_for_default_op(rhs),
+        )
+    }
+
     /// Cleans both inputs of a default binary assign op so that they are ready to be used:
     /// `lhs` inplace, `rhs` into a `Cow` (owned only if it had to be cleaned).
     ///
