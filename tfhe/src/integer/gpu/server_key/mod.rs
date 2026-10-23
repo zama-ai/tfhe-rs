@@ -35,7 +35,7 @@ pub use radix::{
 use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 pub(crate) use radix::tests_unsigned;
 
 pub(crate) mod radix;
