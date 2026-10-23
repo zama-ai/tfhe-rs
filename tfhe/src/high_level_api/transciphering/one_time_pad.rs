@@ -92,6 +92,13 @@ impl OneTimePadFheSecretMask {
 
     /// Generate a fresh FHE-encrypted pad of `n_bits` bits server-side using
     /// OPRF machinery.
+    ///
+    /// Pads are generated in counter mode, so the pad generated for a seed is a prefix of all
+    /// the pads generated with the same seed and more bits. See
+    /// [`TranscipheringOneTimePadFheSecretMask::new_random`] for details.
+    ///
+    /// The same seed should never be used to encrypt different data, since the generated masks
+    /// would share their bits.
     pub fn new_random(seed: impl OprfSeed, n_bits: u64) -> crate::Result<Self> {
         try_with_internal_keys(|keys| match keys {
             Some(InternalServerKey::Cpu(cpu_key)) => {
@@ -103,7 +110,8 @@ impl OneTimePadFheSecretMask {
                         transciphering_key,
                         shortint_sks,
                         n_bits,
-                    ),
+                    )
+                    .map_err(|e| format!("{e}"))?,
                     cpu_key.tag.clone(),
                 ))
             }
