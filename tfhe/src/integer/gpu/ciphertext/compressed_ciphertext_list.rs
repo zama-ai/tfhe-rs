@@ -1,8 +1,5 @@
-use crate::core_crypto::entities::packed_integers::PackedIntegers;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
-use crate::core_crypto::prelude::{CiphertextModulusLog, LweCiphertextCount};
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
@@ -261,89 +258,9 @@ impl CudaCompressedCiphertextList {
         let message_modulus = gpu_meta.message_modulus;
         let carry_modulus = gpu_meta.carry_modulus;
         let lwe_per_glwe = gpu_meta.lwe_per_glwe;
-        let storage_log_modulus = gpu_meta.storage_log_modulus;
-        let glwe_dimension = gpu_meta.glwe_dimension;
-        let polynomial_size = gpu_meta.polynomial_size;
 
-        if storage_log_modulus.0 == 0
-            || storage_log_modulus.0 > CiphertextModulusLog::from(ciphertext_modulus).0
-        {
-            return Err(crate::error!(
-                "Invalid CudaCompressedCiphertextList metadata: storage log modulus {} is not in \
-                [1, log2({ciphertext_modulus})]",
-                storage_log_modulus.0
-            ));
-        }
-
-        let size_overflow =
-            || crate::error!("Invalid CudaCompressedCiphertextList metadata: size overflows");
-        let glwe_mask_size = glwe_dimension
-            .0
-            .checked_mul(polynomial_size.0)
-            .ok_or_else(size_overflow)?;
-
-        // Reject a buffer holding more data than its metadata describes. The bound is `num_glwes`
-        // full GLWEs, because lists compressed on the GPU pad the last GLWE to the size of a full
-        // one. A buffer that is too short is rejected when slicing each GLWE below.
-        let num_glwes = gpu_meta.total_lwe_bodies_count.div_ceil(lwe_per_glwe.get());
-        let max_len = glwe_mask_size
-            .checked_add(lwe_per_glwe.get())
-            .and_then(|full_glwe_len| full_glwe_len.checked_mul(storage_log_modulus.0))
-            .map(|full_glwe_bits| full_glwe_bits.div_ceil(u64::BITS as usize))
-            .and_then(|full_glwe_packed_len| full_glwe_packed_len.checked_mul(num_glwes));
-
-        if max_len.is_none_or(|max_len| self.packed_list.data.len() > max_len) {
-            return Err(crate::error!(
-                "Invalid CudaCompressedCiphertextList: it holds {} elements, more than its \
-                metadata describes",
-                self.packed_list.data.len()
-            ));
-        }
-
-        let flat_cpu_data = unsafe {
-            let mut v = vec![0u64; self.packed_list.data.len()];
-            self.packed_list.data.copy_to_cpu_async(&mut v, streams, 0);
-            streams.synchronize();
-            v
-        };
-
-        let mut modulus_switched_glwe_ciphertext_list = Vec::new();
-        let mut num_bodies_left = gpu_meta.total_lwe_bodies_count;
-        let mut chunk_start = 0usize;
-        while num_bodies_left != 0 {
-            let bodies_count = LweCiphertextCount(num_bodies_left.min(lwe_per_glwe.get()));
-            let initial_len = glwe_mask_size
-                .checked_add(bodies_count.0)
-                .ok_or_else(size_overflow)?;
-            let len = initial_len
-                .checked_mul(storage_log_modulus.0)
-                .ok_or_else(size_overflow)?
-                .div_ceil(u64::BITS as usize);
-            let chunk = chunk_start
-                .checked_add(len)
-                .and_then(|chunk_end| flat_cpu_data.get(chunk_start..chunk_end))
-                .ok_or_else(|| {
-                    crate::error!(
-                        "Invalid CudaCompressedCiphertextList: its metadata describes more data \
-                        than the {} elements it holds",
-                        flat_cpu_data.len()
-                    )
-                })?;
-            let packed_integers =
-                PackedIntegers::from_raw_parts(chunk.to_vec(), storage_log_modulus, initial_len)?;
-
-            modulus_switched_glwe_ciphertext_list.push(
-                CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
-                    packed_integers,
-                    glwe_dimension,
-                    polynomial_size,
-                    bodies_count,
-                    ciphertext_modulus,
-                ),
-            );
-            num_bodies_left -= bodies_count.0;
-            chunk_start += len;
-        }
+        let modulus_switched_glwe_ciphertext_list =
+            self.packed_list.to_compressed_glwe_list(streams)?;
 
         let atomic_pattern = AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap);
         let meta = Some(CompressedCiphertextListMeta {
@@ -601,6 +518,7 @@ impl CudaCompressedCiphertextListBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::conformance::ParameterSetConformant;
     use crate::integer::ciphertext::CompressedCiphertextListBuilder;
     use crate::integer::gpu::gen_keys_radix_gpu;
     use crate::integer::{ClientKey, RadixCiphertext, RadixClientKey};
@@ -714,16 +632,30 @@ mod tests {
         // Test Decompression on CPU (to test conversions)
         {
             let expected_flat_len = cpu_compressed_list.packed_list.flat_len();
+            let conformance_params =
+                CompressedCiphertextListConformanceParams::from_params(params.into(), comp_params);
 
             // Roundtrip Cpu->Gpu->Cpu
-            let cpu_compressed_list = cpu_compressed_list
+            let cpu_compressed_list_roundtrip = cpu_compressed_list
                 .to_cuda_compressed_ciphertext_list(&streams)
                 .to_compressed_ciphertext_list(&streams)
                 .unwrap();
             assert_eq!(
-                cpu_compressed_list.packed_list.flat_len(),
+                cpu_compressed_list_roundtrip.packed_list.flat_len(),
                 expected_flat_len,
                 "Invalid flat len after Cpu->Gpu->Cpu"
+            );
+            assert_eq!(
+                cpu_compressed_list_roundtrip.packed_list, cpu_compressed_list.packed_list,
+                "Invalid packed list after Cpu->Gpu->Cpu"
+            );
+            assert_eq!(
+                cpu_compressed_list_roundtrip.info, cpu_compressed_list.info,
+                "Invalid info after Cpu->Gpu->Cpu"
+            );
+            assert!(
+                cpu_compressed_list_roundtrip.is_conformant(&conformance_params),
+                "Non conformant list after Cpu->Gpu->Cpu"
             );
 
             let cpu_compressed_list_2 = cuda_compressed_list
@@ -734,9 +666,13 @@ mod tests {
                 expected_flat_len,
                 "Invalid flat len after Gpu->Cpu"
             );
+            assert!(
+                cpu_compressed_list_2.is_conformant(&conformance_params),
+                "Non conformant list after Gpu->Cpu"
+            );
 
             for (i, message) in messages.iter().enumerate() {
-                let decompressed: RadixCiphertext = cpu_compressed_list
+                let decompressed: RadixCiphertext = cpu_compressed_list_roundtrip
                     .get(i, &cpu_decompression_key)
                     .unwrap()
                     .unwrap();
