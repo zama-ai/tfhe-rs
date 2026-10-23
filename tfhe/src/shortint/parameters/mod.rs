@@ -468,7 +468,6 @@ impl PBSParameters {
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum ShortintParameterSetInner {
     PBSOnly(PBSParameters),
-    WopbsOnly(WopbsParameters),
     PBSAndWopbs(PBSParameters, WopbsParameters),
     KS32PBS(KeySwitch32PBSParameters),
 }
@@ -476,10 +475,6 @@ pub(crate) enum ShortintParameterSetInner {
 impl ShortintParameterSetInner {
     pub const fn is_pbs_only(&self) -> bool {
         matches!(self, Self::PBSOnly(_))
-    }
-
-    pub const fn is_wopbs_only(&self) -> bool {
-        matches!(self, Self::WopbsOnly(_))
     }
 
     pub const fn is_pbs_and_wopbs(&self) -> bool {
@@ -497,12 +492,6 @@ impl ShortintParameterSet {
     pub const fn new_pbs_param_set(params: PBSParameters) -> Self {
         Self {
             inner: ShortintParameterSetInner::PBSOnly(params),
-        }
-    }
-
-    pub const fn new_wopbs_param_set(params: WopbsParameters) -> Self {
-        Self {
-            inner: ShortintParameterSetInner::WopbsOnly(params),
         }
     }
 
@@ -551,7 +540,6 @@ impl ShortintParameterSet {
             ShortintParameterSetInner::PBSOnly(params) => {
                 Some(AtomicPatternParameters::Standard(params))
             }
-            ShortintParameterSetInner::WopbsOnly(_) => None,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => {
                 Some(AtomicPatternParameters::Standard(params))
             }
@@ -564,7 +552,6 @@ impl ShortintParameterSet {
     pub const fn pbs_parameters(&self) -> Option<PBSParameters> {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => Some(params),
-            ShortintParameterSetInner::WopbsOnly(_) => None,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => Some(params),
             ShortintParameterSetInner::KS32PBS(_) => None,
         }
@@ -573,25 +560,14 @@ impl ShortintParameterSet {
     pub const fn ks32_parameters(&self) -> Option<KeySwitch32PBSParameters> {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(_) => None,
-            ShortintParameterSetInner::WopbsOnly(_) => None,
             ShortintParameterSetInner::PBSAndWopbs(_, _) => None,
             ShortintParameterSetInner::KS32PBS(params) => Some(params),
-        }
-    }
-
-    pub const fn wopbs_parameters(&self) -> Option<WopbsParameters> {
-        match self.inner {
-            ShortintParameterSetInner::PBSOnly(_) => None,
-            ShortintParameterSetInner::WopbsOnly(params) => Some(params),
-            ShortintParameterSetInner::PBSAndWopbs(_, params) => Some(params),
-            ShortintParameterSetInner::KS32PBS(_) => None,
         }
     }
 
     pub const fn lwe_dimension(&self) -> LweDimension {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.lwe_dimension(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.lwe_dimension,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.lwe_dimension(),
             ShortintParameterSetInner::KS32PBS(params) => params.lwe_dimension(),
         }
@@ -600,7 +576,6 @@ impl ShortintParameterSet {
     pub const fn glwe_dimension(&self) -> GlweDimension {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.glwe_dimension(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.glwe_dimension,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.glwe_dimension(),
             ShortintParameterSetInner::KS32PBS(params) => params.glwe_dimension(),
         }
@@ -609,7 +584,6 @@ impl ShortintParameterSet {
     pub const fn polynomial_size(&self) -> PolynomialSize {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.polynomial_size(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.polynomial_size,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.polynomial_size(),
             ShortintParameterSetInner::KS32PBS(params) => params.polynomial_size(),
         }
@@ -618,7 +592,6 @@ impl ShortintParameterSet {
     pub const fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.lwe_noise_distribution(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.lwe_noise_distribution,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.lwe_noise_distribution(),
             ShortintParameterSetInner::KS32PBS(params) => {
                 params.lwe_noise_distribution().to_u64_distribution()
@@ -629,7 +602,6 @@ impl ShortintParameterSet {
     pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.glwe_noise_distribution(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.glwe_noise_distribution,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.glwe_noise_distribution(),
             ShortintParameterSetInner::KS32PBS(params) => params.glwe_noise_distribution(),
         }
@@ -638,7 +610,6 @@ impl ShortintParameterSet {
     pub const fn pbs_base_log(&self) -> DecompositionBaseLog {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.pbs_base_log(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.pbs_base_log,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.pbs_base_log(),
             ShortintParameterSetInner::KS32PBS(params) => params.pbs_base_log(),
         }
@@ -647,7 +618,6 @@ impl ShortintParameterSet {
     pub const fn pbs_level(&self) -> DecompositionLevelCount {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.pbs_level(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.pbs_level,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.pbs_level(),
             ShortintParameterSetInner::KS32PBS(params) => params.pbs_level(),
         }
@@ -656,7 +626,6 @@ impl ShortintParameterSet {
     pub const fn ks_base_log(&self) -> DecompositionBaseLog {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.ks_base_log(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.ks_base_log,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ks_base_log(),
             ShortintParameterSetInner::KS32PBS(params) => params.ks_base_log(),
         }
@@ -665,7 +634,6 @@ impl ShortintParameterSet {
     pub const fn ks_level(&self) -> DecompositionLevelCount {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.ks_level(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.ks_level,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ks_level(),
             ShortintParameterSetInner::KS32PBS(params) => params.ks_level(),
         }
@@ -674,7 +642,6 @@ impl ShortintParameterSet {
     pub const fn message_modulus(&self) -> MessageModulus {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.message_modulus(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.message_modulus,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.message_modulus(),
             ShortintParameterSetInner::KS32PBS(params) => params.message_modulus(),
         }
@@ -683,7 +650,6 @@ impl ShortintParameterSet {
     pub const fn carry_modulus(&self) -> CarryModulus {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.carry_modulus(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.carry_modulus,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.carry_modulus(),
             ShortintParameterSetInner::KS32PBS(params) => params.carry_modulus(),
         }
@@ -692,9 +658,6 @@ impl ShortintParameterSet {
     pub const fn max_noise_level(&self) -> MaxNoiseLevel {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.max_noise_level(),
-            ShortintParameterSetInner::WopbsOnly(_) => {
-                panic!("WopbsOnly parameters do not have a MaxNoiseLevel information")
-            }
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.max_noise_level(),
             ShortintParameterSetInner::KS32PBS(params) => params.max_noise_level(),
         }
@@ -703,7 +666,6 @@ impl ShortintParameterSet {
     pub const fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.ciphertext_modulus(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.ciphertext_modulus,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ciphertext_modulus(),
             ShortintParameterSetInner::KS32PBS(params) => params.ciphertext_modulus(),
         }
@@ -712,9 +674,6 @@ impl ShortintParameterSet {
     pub const fn atomic_pattern(&self) -> AtomicPatternKind {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.atomic_pattern(),
-            ShortintParameterSetInner::WopbsOnly(_params) => {
-                panic!("WopbsOnly parameters do not support Atomic Patterns")
-            }
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.atomic_pattern(),
             ShortintParameterSetInner::KS32PBS(_params) => AtomicPatternKind::KeySwitch32,
         }
@@ -723,7 +682,6 @@ impl ShortintParameterSet {
     pub const fn encryption_key_choice(&self) -> EncryptionKeyChoice {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => params.encryption_key_choice(),
-            ShortintParameterSetInner::WopbsOnly(params) => params.encryption_key_choice,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.encryption_key_choice(),
             ShortintParameterSetInner::KS32PBS(params) => params.encryption_key_choice(),
         }
@@ -755,7 +713,6 @@ impl ShortintParameterSet {
     pub const fn log2_p_fail(&self) -> Option<f64> {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => Some(params.log2_p_fail()),
-            ShortintParameterSetInner::WopbsOnly(_) => None,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => Some(params.log2_p_fail()),
             ShortintParameterSetInner::KS32PBS(params) => Some(params.log2_p_fail()),
         }
@@ -763,10 +720,6 @@ impl ShortintParameterSet {
 
     pub const fn pbs_only(&self) -> bool {
         self.inner.is_pbs_only()
-    }
-
-    pub const fn wopbs_only(&self) -> bool {
-        self.inner.is_wopbs_only()
     }
 
     pub const fn pbs_and_wopbs(&self) -> bool {

@@ -119,30 +119,20 @@ where
     let shortint_parameters_set: crate::shortint::parameters::ShortintParameterSet =
         parameters_set.try_into().unwrap();
 
-    let gen_keys_inner = |parameters_set| {
-        let cks = ClientKey::new(parameters_set);
+    #[cfg(any(test, feature = "internal-keycache"))]
+    {
+        keycache::KEY_CACHE
+            .get_from_params(shortint_parameters_set.ap_parameters().unwrap(), key_kind)
+    }
+    #[cfg(all(not(test), not(feature = "internal-keycache")))]
+    {
+        let cks = ClientKey::new(shortint_parameters_set);
         let sks = match key_kind {
             IntegerKeyKind::Radix => ServerKey::new_radix_server_key(&cks),
             IntegerKeyKind::CRT => ServerKey::new_crt_server_key(&cks),
         };
 
         (cks, sks)
-    };
-
-    #[cfg(any(test, feature = "internal-keycache"))]
-    {
-        if shortint_parameters_set.wopbs_only() {
-            // TODO
-            // Keycache is broken for the wopbs only case, so generate keys instead
-            gen_keys_inner(shortint_parameters_set)
-        } else {
-            keycache::KEY_CACHE
-                .get_from_params(shortint_parameters_set.ap_parameters().unwrap(), key_kind)
-        }
-    }
-    #[cfg(all(not(test), not(feature = "internal-keycache")))]
-    {
-        gen_keys_inner(shortint_parameters_set)
     }
 }
 

@@ -165,10 +165,38 @@ pub enum PBSParametersVersions {
     V0(PBSParameters),
 }
 
+#[derive(Version)]
+#[allow(clippy::large_enum_variant)]
+pub(crate) enum ShortintParameterSetInnerV0 {
+    PBSOnly(PBSParameters),
+    WopbsOnly(WopbsParameters),
+    PBSAndWopbs(PBSParameters, WopbsParameters),
+    KS32PBS(KeySwitch32PBSParameters),
+}
+
+impl Upgrade<ShortintParameterSetInner> for ShortintParameterSetInnerV0 {
+    type Error = crate::Error;
+
+    fn upgrade(self) -> Result<ShortintParameterSetInner, Self::Error> {
+        match self {
+            Self::PBSOnly(params) => Ok(ShortintParameterSetInner::PBSOnly(params)),
+            Self::PBSAndWopbs(pbs_params, wopbs_params) => Ok(
+                ShortintParameterSetInner::PBSAndWopbs(pbs_params, wopbs_params),
+            ),
+            Self::KS32PBS(params) => Ok(ShortintParameterSetInner::KS32PBS(params)),
+            Self::WopbsOnly(_) => Err(crate::Error::new(
+                "ShortintParameterSet with Wopbs only parameters is not supported anymore"
+                    .to_string(),
+            )),
+        }
+    }
+}
+
 #[derive(VersionsDispatch)]
 #[allow(unused)]
 pub(crate) enum ShortintParameterSetInnerVersions {
-    V0(ShortintParameterSetInner),
+    V0(ShortintParameterSetInnerV0),
+    V1(ShortintParameterSetInner),
 }
 
 #[derive(VersionsDispatch)]

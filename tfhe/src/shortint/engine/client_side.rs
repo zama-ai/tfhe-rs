@@ -6,7 +6,7 @@ use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::client_key::atomic_pattern::{
-    AtomicPatternClientKey, EncryptionAtomicPattern, StandardAtomicPatternClientKey,
+    AtomicPatternClientKey, EncryptionAtomicPattern,
 };
 use crate::shortint::client_key::GenericClientKey;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
@@ -22,20 +22,10 @@ impl ShortintEngine {
     {
         let shortint_params: ShortintParameterSet = parameters.try_into().unwrap();
 
-        let atomic_pattern = if let Some(wopbs_params) = shortint_params.wopbs_parameters() {
-            // TODO
-            // Manually manage the wopbs only case as a workaround pending wopbs rework
-            let pbs_params = shortint_params
-                .pbs_parameters()
-                .unwrap_or_else(|| wopbs_params.to_pbs_parameters().into());
-
-            let std_ck = StandardAtomicPatternClientKey::new_with_engine(pbs_params, self);
-            AtomicPatternClientKey::Standard(std_ck)
-        } else if let Some(ap_params) = shortint_params.ap_parameters() {
-            AtomicPatternClientKey::new_with_engine(ap_params, self)
-        } else {
-            panic!("Invalid parameters, missing Atomic Pattern or WOPBS params")
-        };
+        let ap_params = shortint_params
+            .ap_parameters()
+            .expect("Invalid parameters, missing Atomic Pattern params");
+        let atomic_pattern = AtomicPatternClientKey::new_with_engine(ap_params, self);
 
         ClientKey { atomic_pattern }
     }
