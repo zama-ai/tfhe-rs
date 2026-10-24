@@ -21,7 +21,7 @@ use tfhe::integer::key_switching_key::KeySwitchingKeyMaterial;
 use tfhe::integer::noise_squashing::NoiseSquashingKey;
 use tfhe::integer::oprf::OprfServerKey;
 use tfhe::integer::ServerKey;
-use tfhe::xof_key_set::CompressedXofKeySet;
+use tfhe::xof_key_set::{CompressedXofKeySet, XofDerivationMode};
 use tfhe::{CompactPublicKey, ConfigBuilder, ReRandomizationKey, Tag};
 
 fn xof_keyset_decompress(c: &mut Criterion) {
@@ -43,6 +43,7 @@ fn xof_keyset_decompress(c: &mut Criterion) {
     let (_client_key, key_set) = CompressedXofKeySet::generate(
         config,
         vec![0u8; 32],
+        XofDerivationMode::Aes256,
         128,
         NormalizedHammingWeightBound::new(0.8).unwrap(),
         Tag::default(),
