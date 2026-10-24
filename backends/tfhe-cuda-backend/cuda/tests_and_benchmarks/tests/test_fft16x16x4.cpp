@@ -12,24 +12,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// Test for the throughput-oriented FFT16x4x16 used by the specialized
-// 2_2_params PBS. It mirrors test_fft.cpp (negacyclic polynomial
-// multiplication checked against a schoolbook reference) but routes the
-// transform through cuda_fourier_polynomial_mul_fft16x4x16_async, which uses
-// the FFT16x4x16_{fwd,inv}_optimized_for_pbs cores.
+// Test for the paired FFT16x16x4 used by the specialized 2_2_params PBS. It
+// mirrors test_fft.cpp (negacyclic polynomial multiplication checked against a
+// schoolbook reference) but routes the transform through
+// cuda_fourier_polynomial_mul_fft16x16x4_async, which uses the
+// FFT16x16x4_{fwd,inv}_paired_for_pbs cores.
 //
-// The FFT16x4x16 path is specialized for N = 2048 and needs the named-barrier /
-// mbarrier primitives introduced with sm_90, so it runs on compute capability
-// 9.x and above (H100, Blackwell, ...). Both constraints are enforced below
+// The FFT16x16x4 path is specialized for N = 2048, transforms two polynomials
+// per block (so the sample count must be even) and runs on compute capability
+// 8.x and above (A100, L40, H100, ...). All constraints are enforced below
 // (single param set + runtime device-capability skip).
 
 typedef struct {
   size_t polynomial_size;
   int samples;
-} FourierTransform16x4x16TestParams;
+} FourierTransform16x16x4TestParams;
 
-class FourierTransform16x4x16TestPrimitives_u64
-    : public ::testing::TestWithParam<FourierTransform16x4x16TestParams> {
+class FourierTransform16x16x4TestPrimitives_u64
+    : public ::testing::TestWithParam<FourierTransform16x16x4TestParams> {
 protected:
   size_t polynomial_size;
   int samples;
@@ -46,15 +46,14 @@ protected:
 
 public:
   void SetUp() {
-    // The FFT16x4x16 cores need the mbarrier / named-barrier primitives
-    // introduced with sm_90 (H100), so they run on compute capability 9.x and
-    // above (Hopper, Blackwell, ...). Skip on anything older so the suite stays
+    // The FFT16x16x4 cores are validated on compute capability 8.x and above
+    // (Ampere, Ada, Hopper, ...). Skip on anything older so the suite stays
     // green on other GPUs in CI.
     cudaDeviceProp prop;
     cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
-    if (err != cudaSuccess || prop.major < 9) {
-      GTEST_SKIP() << "FFT16x4x16 requires compute capability 9.x or above "
-                   << "(H100 or newer); detected "
+    if (err != cudaSuccess || prop.major < 8) {
+      GTEST_SKIP() << "FFT16x16x4 requires compute capability 8.x or above "
+                   << "(Ampere or newer); detected "
                    << (err == cudaSuccess ? prop.major : -1) << "."
                    << (err == cudaSuccess ? prop.minor : -1);
     }
@@ -103,7 +102,7 @@ public:
   }
 };
 
-TEST_P(FourierTransform16x4x16TestPrimitives_u64, cuda_fft16x4x16_mult) {
+TEST_P(FourierTransform16x16x4TestPrimitives_u64, cuda_fft16x16x4_mult) {
 
   int r = 0;
   auto cur_input1 = &d_cpoly1[r * polynomial_size / 2 * samples];
@@ -112,7 +111,7 @@ TEST_P(FourierTransform16x4x16TestPrimitives_u64, cuda_fft16x4x16_mult) {
   auto cur_poly2 = &poly2[r * polynomial_size * samples];
   auto cur_expected = &poly_exp_result[r * polynomial_size * 2 * samples];
 
-  cuda_fourier_polynomial_mul_fft16x4x16_async(stream, gpu_index, cur_input1,
+  cuda_fourier_polynomial_mul_fft16x16x4_async(stream, gpu_index, cur_input1,
                                                cur_input2, cur_input2,
                                                polynomial_size, samples);
 
@@ -139,19 +138,19 @@ TEST_P(FourierTransform16x4x16TestPrimitives_u64, cuda_fft16x4x16_mult) {
   }
 }
 
-// FFT16x4x16 is specialized for N = 2048 only.
-::testing::internal::ParamGenerator<FourierTransform16x4x16TestParams>
-    fft16x4x16_params_u64 =
-        ::testing::Values((FourierTransform16x4x16TestParams){2048, 10000});
+// FFT16x16x4 is specialized for N = 2048 only and needs an even sample count.
+::testing::internal::ParamGenerator<FourierTransform16x16x4TestParams>
+    fft16x16x4_params_u64 =
+        ::testing::Values((FourierTransform16x16x4TestParams){2048, 10000});
 
-std::string printParamName16x4x16(
-    ::testing::TestParamInfo<FourierTransform16x4x16TestParams> p) {
-  FourierTransform16x4x16TestParams params = p.param;
+std::string printParamName16x16x4(
+    ::testing::TestParamInfo<FourierTransform16x16x4TestParams> p) {
+  FourierTransform16x16x4TestParams params = p.param;
 
   return "N_" + std::to_string(params.polynomial_size) + "_samples_" +
          std::to_string(params.samples);
 }
 
-INSTANTIATE_TEST_CASE_P(fft16x4x16Instantiation,
-                        FourierTransform16x4x16TestPrimitives_u64,
-                        fft16x4x16_params_u64, printParamName16x4x16);
+INSTANTIATE_TEST_CASE_P(fft16x16x4Instantiation,
+                        FourierTransform16x16x4TestPrimitives_u64,
+                        fft16x16x4_params_u64, printParamName16x16x4);

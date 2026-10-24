@@ -22,7 +22,7 @@ use crate::shortint::parameters::{
 use pbs_golden_data::pbs_golden_v1::*;
 use rand::Rng;
 use std::fmt::Write;
-use tfhe_cuda_backend::bindings::cuda_fft16x4x16_is_supported_async;
+use tfhe_cuda_backend::bindings::cuda_pbs_golden_is_supported_async;
 use tfhe_cuda_backend::cuda_bind::cuda_synchronize_device;
 
 // ============================================================================
@@ -30,7 +30,7 @@ use tfhe_cuda_backend::cuda_bind::cuda_synchronize_device;
 // bootstrap, for both the classical and the multi-bit PBS, under a *saturating*
 // batch.
 //
-// Mirrors the FFT16x4x16 golden test in `super::fft`, but adapted to stress the
+// Mirrors the FFT16x16x4 golden test in `super::fft`, but adapted to stress the
 // throughput (batched) PBS path: a deterministically encrypted input is
 // replicated across a batch and bootstrapped in one batched call, so the GPU
 // runs many bootstraps concurrently. Every lane of the batch must reproduce, bit
@@ -65,9 +65,10 @@ use tfhe_cuda_backend::cuda_bind::cuda_synchronize_device;
 // function; run it on an H100 (sm_90) to refresh the file, then commit the
 // result.
 //
-// The GPU FFT is only bit-reproducible within a given GPU generation, so this
-// only runs on compute capability 9.x (H100) or newer, exactly like the
-// FFT16x4x16 golden test.
+// The kernels under test do their floating-point arithmetic with rounding-pinned
+// intrinsics, and the golden data captured on an H100 is reproduced bit for bit
+// on A100 and L40 as well, so this runs on compute capability 8.x (Ampere) or
+// newer.
 //
 // NOTE ON THE GOLDEN VALUES: the standard 64-bit GPU PBS uses an f64 (single
 // `double`) FFT, whose ~52-bit mantissa leaves only roughly the top 32 bits of
@@ -115,15 +116,14 @@ const NUM_PARALLEL_STREAMS: usize = 16;
 /// is excluded.
 const MAX_PARALLEL_BATCH_SIZE: usize = 66;
 
-/// The golden data was captured on an H100 and the GPU FFT is only guaranteed
-/// bit-reproducible within a GPU generation, so these tests only run on Hopper
-/// (compute capability 9.x) and newer.
+/// The golden data was captured on an H100 and checked bit for bit on A100 and
+/// L40, so these tests run on compute capability 8.x (Ampere) and newer.
 ///
-/// NOTE: this reuses the FFT16x4x16 capability probe, which is implemented in
-/// the CUDA backend as a pure `prop.major >= 9` (Hopper / H100+) device query.
-fn hopper_or_newer_is_supported() -> bool {
+/// NOTE: the probe is implemented in the CUDA backend as a pure
+/// `prop.major >= 8` device query.
+fn ampere_or_newer_is_supported() -> bool {
     // Safe: a pure runtime device-capability query with no aliasing concerns.
-    unsafe { cuda_fft16x4x16_is_supported_async(0) }
+    unsafe { cuda_pbs_golden_is_supported_async(0) }
 }
 
 /// Builds the deterministic secret- and encryption-random generators used to
@@ -478,10 +478,10 @@ fn assert_all_messages_match(batches: &[Vec<Vec<u64>>], expected: &[&[u64]], lab
 
 #[test]
 fn test_regression_classical_pbs_golden() {
-    if !hopper_or_newer_is_supported() {
+    if !ampere_or_newer_is_supported() {
         println!(
             "skipping test_regression_classical_pbs_golden: the PBS golden data \
-             requires compute capability 9.x (H100) or newer"
+             requires compute capability 8.x (Ampere) or newer"
         );
         return;
     }
@@ -503,10 +503,10 @@ fn test_regression_classical_pbs_golden() {
 
 #[test]
 fn test_regression_multi_bit_group_4_pbs_golden() {
-    if !hopper_or_newer_is_supported() {
+    if !ampere_or_newer_is_supported() {
         println!(
             "skipping test_regression_multi_bit_group_4_pbs_golden: the PBS golden \
-             data requires compute capability 9.x (H100) or newer"
+             data requires compute capability 8.x (Ampere) or newer"
         );
         return;
     }
@@ -893,10 +893,10 @@ fn run_multi_bit_pbs_parallel_stress(
 
 #[test]
 fn test_parallel_streams_classical_pbs_golden() {
-    if !hopper_or_newer_is_supported() {
+    if !ampere_or_newer_is_supported() {
         println!(
             "skipping test_parallel_streams_classical_pbs_golden: the PBS golden \
-             data requires compute capability 9.x (H100) or newer"
+             data requires compute capability 8.x (Ampere) or newer"
         );
         return;
     }
@@ -913,10 +913,10 @@ fn test_parallel_streams_classical_pbs_golden() {
 
 #[test]
 fn test_parallel_streams_multi_bit_group_4_pbs_golden() {
-    if !hopper_or_newer_is_supported() {
+    if !ampere_or_newer_is_supported() {
         println!(
             "skipping test_parallel_streams_multi_bit_group_4_pbs_golden: the PBS \
-             golden data requires compute capability 9.x (H100) or newer"
+             golden data requires compute capability 8.x (Ampere) or newer"
         );
         return;
     }
@@ -968,10 +968,10 @@ fn golden_from_batches(batches: &[Vec<Vec<u64>>], label: &str) -> Vec<Vec<u64>> 
 /// remove the annotations again.
 #[allow(dead_code)]
 fn generate_pbs_golden() {
-    if !hopper_or_newer_is_supported() {
+    if !ampere_or_newer_is_supported() {
         println!(
             "skipping generate_pbs_golden: the PBS golden data requires compute \
-             capability 9.x (H100) or newer"
+             capability 8.x (Ampere) or newer"
         );
         return;
     }
