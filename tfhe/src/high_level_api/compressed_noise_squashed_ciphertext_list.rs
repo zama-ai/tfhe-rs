@@ -721,12 +721,29 @@ mod tests {
 
     #[test]
     fn test_compressed_squashed_noise_ciphertext_list() {
+        compressed_squashed_noise_ciphertext_list_round_trip(
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        );
+    }
+
+    #[test]
+    fn test_compressed_squashed_noise_ciphertext_list_crosses_glwe_boundaries() {
+        let mut noise_squashing_compression_params =
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        // The Uint256 starts at sample 17 and spans 64 samples, crossing two boundaries.
+        noise_squashing_compression_params.lwe_per_glwe =
+            crate::core_crypto::prelude::LweCiphertextCount(32);
+
+        compressed_squashed_noise_ciphertext_list_round_trip(noise_squashing_compression_params);
+    }
+
+    fn compressed_squashed_noise_ciphertext_list_round_trip(
+        noise_squashing_compression_params: crate::shortint::parameters::NoiseSquashingCompressionParameters,
+    ) {
         let params = V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_params =
             V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let noise_squashing_compression_params =
-            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
         let config = ConfigBuilder::with_custom_parameters(params)
             .enable_noise_squashing(noise_squashing_params)
             .enable_noise_squashing_compression(noise_squashing_compression_params)
@@ -739,10 +756,12 @@ mod tests {
         let clear_a = rng.gen::<i32>();
         let clear_b = rng.gen::<u32>();
         let clear_c = rng.gen_bool(0.5);
+        let clear_d: crate::integer::U256 = rng.gen();
 
         let a = FheInt32::encrypt(clear_a, &cks);
         let b = FheUint32::encrypt(clear_b, &cks);
         let c = FheBool::encrypt(clear_c, &cks);
+        let d = crate::FheUint256::encrypt(clear_d, &cks);
 
         let conformance_params_from_key =
             CompressedSquashedNoiseCiphertextListConformanceParams::try_from(&sks).unwrap();
@@ -758,11 +777,13 @@ mod tests {
         let ns_a = a.squash_noise().unwrap();
         let ns_b = b.squash_noise().unwrap();
         let ns_c = c.squash_noise().unwrap();
+        let ns_d = d.squash_noise().unwrap();
 
         let list = CompressedSquashedNoiseCiphertextList::builder()
             .push(ns_a)
             .push(ns_b)
             .push(ns_c)
+            .push(ns_d)
             .build()
             .unwrap();
 
@@ -776,6 +797,7 @@ mod tests {
         let ns_a: SquashedNoiseFheInt = list.get(0).unwrap().unwrap();
         let ns_b: SquashedNoiseFheUint = list.get(1).unwrap().unwrap();
         let ns_c: SquashedNoiseFheBool = list.get(2).unwrap().unwrap();
+        let ns_d: SquashedNoiseFheUint = list.get(3).unwrap().unwrap();
 
         let decrypted: i32 = ns_a.decrypt(&cks);
         assert_eq!(decrypted, clear_a);
@@ -785,6 +807,9 @@ mod tests {
 
         let decrypted: bool = ns_c.decrypt(&cks);
         assert_eq!(decrypted, clear_c);
+
+        let decrypted: crate::integer::U256 = ns_d.decrypt(&cks);
+        assert_eq!(decrypted, clear_d);
     }
 
     #[test]
