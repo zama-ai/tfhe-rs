@@ -430,7 +430,7 @@ impl CudaCompressedSquashedNoiseCiphertextList {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 mod test {
     use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::gpu::CudaStreams;

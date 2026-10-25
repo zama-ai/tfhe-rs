@@ -515,7 +515,7 @@ impl CudaCompressedCiphertextListBuilder {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 mod tests {
     use super::*;
     use crate::conformance::ParameterSetConformant;

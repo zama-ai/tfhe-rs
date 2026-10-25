@@ -70,7 +70,7 @@ pub mod server_key;
 #[cfg(feature = "experimental")]
 pub mod wopbs;
 
-#[cfg(feature = "gpu")]
+#[cfg(any(feature = "gpu", feature = "gpu-nofhe-testing-batched-trivial"))]
 pub mod gpu;
 
 #[cfg(feature = "hpu")]
