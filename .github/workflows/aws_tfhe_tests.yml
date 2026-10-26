@@ -213,6 +213,16 @@ jobs:
         run: |
           BIG_TESTS_INSTANCE=TRUE make test_shortint_ci
 
+      - name: Gen multi-bit keys if required
+        if: needs.should-run.outputs.shortint_test == 'true'
+        run: |
+          make GEN_KEY_CACHE_MULTI_BIT_ONLY=TRUE gen_key_cache
+
+      - name: Run shortint multi-bit tests
+        if: needs.should-run.outputs.shortint_test == 'true'
+        run: |
+          make test_shortint_multi_bit_ci
+
       - name: Run transciphering tests
         if: needs.should-run.outputs.transciphering_test == 'true'
         run: |

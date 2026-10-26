@@ -1,0 +1,83 @@
+# CPU integer tests of the parameter tiers that are not run on pull requests.
+# Tier 0 (prod params) runs in aws_tfhe_integer_tests, on approval and on each merge to main.
+name: aws_tfhe_integer_tests_scheduled
+
+on:
+  # Run any tiers on any branch, e.g. tier 2 before merging a change to multi-bit
+  workflow_dispatch:
+    inputs:
+      tiers:
+        description: "Comma separated parameter tiers to test, e.g. 2 or 1,3"
+        type: string
+        required: true
+  schedule:
+    # Tier 1, nightly after each work day
+    - cron: "0 2 * * MON-FRI"
+    # Tier 2, every other day
+    - cron: "0 3 * * MON,WED,FRI"
+    # Tier 3, weekly
+    - cron: "0 4 * * SAT"
+
+permissions:
+  contents: read
+
+jobs:
+  tier-1:
+    name: aws_tfhe_integer_tests_scheduled/tier-1
+    if: github.event.schedule == '0 2 * * MON-FRI' && github.repository == 'zama-ai/tfhe-rs'
+    concurrency:
+      group: ${{ github.workflow_ref }}_tier-1
+      cancel-in-progress: false
+    uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
+    with:
+      tiers: "1"
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  tier-2:
+    name: aws_tfhe_integer_tests_scheduled/tier-2
+    if: github.event.schedule == '0 3 * * MON,WED,FRI' && github.repository == 'zama-ai/tfhe-rs'
+    concurrency:
+      group: ${{ github.workflow_ref }}_tier-2
+      cancel-in-progress: false
+    uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
+    with:
+      tiers: "2"
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  tier-3:
+    name: aws_tfhe_integer_tests_scheduled/tier-3
+    if: github.event.schedule == '0 4 * * SAT' && github.repository == 'zama-ai/tfhe-rs'
+    concurrency:
+      group: ${{ github.workflow_ref }}_tier-3
+      cancel-in-progress: false
+    uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
+    with:
+      tiers: "3"
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  manual:
+    name: aws_tfhe_integer_tests_scheduled/manual
+    if: github.event_name == 'workflow_dispatch'
+    concurrency:
+      group: ${{ github.workflow_ref }}_manual_tiers_${{ inputs.tiers }}
+      cancel-in-progress: true
+    uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
+    with:
+      tiers: ${{ inputs.tiers }}
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
