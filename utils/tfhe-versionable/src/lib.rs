@@ -263,14 +263,26 @@ impl_scalar_versionize!(i16);
 impl_scalar_versionize!(i32);
 impl_scalar_versionize!(i64);
 impl_scalar_versionize!(i128);
+impl_scalar_versionize!(isize);
 
 impl_scalar_versionize!(f32);
 impl_scalar_versionize!(f64);
 
 impl_scalar_versionize!(char);
 
+impl_scalar_versionize!(NonZero<u8>);
+impl_scalar_versionize!(NonZero<u16>);
 impl_scalar_versionize!(NonZero<u32>);
+impl_scalar_versionize!(NonZero<u64>);
+impl_scalar_versionize!(NonZero<u128>);
 impl_scalar_versionize!(NonZero<usize>);
+
+impl_scalar_versionize!(NonZero<i8>);
+impl_scalar_versionize!(NonZero<i16>);
+impl_scalar_versionize!(NonZero<i32>);
+impl_scalar_versionize!(NonZero<i64>);
+impl_scalar_versionize!(NonZero<i128>);
+impl_scalar_versionize!(NonZero<isize>);
 
 impl_scalar_versionize!(std::time::SystemTime);
 
