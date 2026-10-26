@@ -32,7 +32,7 @@
 # GitHub related configurations, workflows and codeowners
 # and more
 /.github/                               @tmontaigu @SouchonTheo
-/.github/CODEOWNERS                     @IceTDrinker @nsarlin-zama
+/CODEOWNERS                             @IceTDrinker @nsarlin-zama
 
 /ci/                                    @nsarlin-zama @SouchonTheo
 /scripts/                               @nsarlin-zama @SouchonTheo
