@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-versionable-derive"
-version = "0.8.1"
+version = "0.8.2"
 edition = "2024"
 keywords = ["versioning", "serialization", "encoding", "proc-macro", "derive"]
 homepage = "https://zama.org/"
