@@ -55,7 +55,7 @@ SANITIZER_LAUNCH_TIMEOUT="${SANITIZER_LAUNCH_TIMEOUT:-600}"
 # GTest binary built from tfhe-cuda-backend; if unset, the GTest section is skipped
 SANITIZER_GTEST_EXE="${SANITIZER_GTEST_EXE:-}"
 # classical PBS + multi-bit PBS + keyswitch; concurrent PBS excluded (too many iterations)
-SANITIZER_GTEST_FILTER="${SANITIZER_GTEST_FILTER:-ClassicalProgrammableBootstrapInstantiation*:MultiBitProgrammableBootstrapInstantiation*:KeyswitchInstantiation*}"
+SANITIZER_GTEST_FILTER="${SANITIZER_GTEST_FILTER:-ClassicalProgrammableBootstrapInstantiation*:MultiBitProgrammableBootstrapInstantiation*:KeyswitchInstantiation*:PackingKeyswitchInstantiation*}"
 
 # Array to collect error messages for final summary
 ERROR_MESSAGES=()
