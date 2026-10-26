@@ -20,6 +20,9 @@ PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 BIT_SIZES_SET?=ALL
 NIGHTLY_TESTS?=FALSE
+# Comma separated parameter tiers of the CPU integer tests to run, e.g. 0 or 1,2.
+# When empty, the FAST_TESTS and NIGHTLY_TESTS selection applies
+TIERS?=
 BENCH_OP_FLAVOR?=DEFAULT
 BENCH_TYPE?=latency
 BENCH_PARAM_TYPE?=classical
@@ -1331,6 +1334,7 @@ test_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
+	TIERS="$(TIERS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "tfhe"
@@ -1340,6 +1344,7 @@ test_unsigned_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
+	TIERS="$(TIERS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--unsigned-only --tfhe-package "tfhe"
@@ -1349,6 +1354,7 @@ test_signed_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
+	TIERS="$(TIERS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "tfhe"
