@@ -29,13 +29,16 @@
 //! Two shapes are tested: one transaction at a time, over every parameter set, and several
 //! transactions at a time on the classical parameters, to put the device under load.
 
+use super::protocol_workflow_common::gpu::{
+    install_server_key, num_concurrent_transactions, transaction_pool,
+};
+use super::protocol_workflow_common::{
+    generate_protocol_keys, install_seeded_engine, node_re_randomization_context, num_transactions,
+    random_bytes, re_randomize_operand, run_seed, ProtocolKeys, METADATA_LEN,
+};
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::high_level_api::prelude::*;
-use crate::integer::server_key::radix_parallel::tests_long_run::{
-    get_long_test_iterations, get_user_defined_seed,
-};
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::test_params::{
     TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
@@ -44,10 +47,8 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::parameters::MetaParameters;
 use crate::{
-    clear_gpu_thread_locals, set_server_key, ClientKey, CompactPublicKey,
-    CompressedCiphertextListBuilder, CompressedServerKey,
-    CompressedSquashedNoiseCiphertextListBuilder, Config, FheBool, FheUint64, GpuIndex,
-    ReRandomizationContext, ReRandomizationSeedGen, SquashedNoiseFheUint,
+    ClientKey, CompactPublicKey, CompressedCiphertextListBuilder,
+    CompressedSquashedNoiseCiphertextListBuilder, Config, FheBool, FheUint64, SquashedNoiseFheUint,
 };
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::ParallelSlice;
@@ -55,45 +56,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
 
-/// Domain separator fed to the re-randomization seed generator.
-const RERAND_DOMAIN_SEPARATOR: [u8; 8] = *b"TFHE_Rrd";
-/// Domain separator used to generate the compact public key encryptions of zero.
-const CPK_ENCRYPTION_DOMAIN_SEPARATOR: [u8; 8] = *b"TFHE_Enc";
-/// Size of the metadata attached to an input ciphertext, simulating the 256 bits hash that ties
-/// an input to its origin.
-const METADATA_LEN: usize = 256 / 8;
-
-/// How many transactions a test runs.
-///
-/// Defaults to the shared long run count, which the `TFHE_RS_TEST_LONG_TESTS_MINIMAL` environment
-/// variable already shortens. The dedicated stress target overrides it to size a run to a wall
-/// clock budget of its own.
-fn num_transactions() -> usize {
-    std::env::var("TFHE_RS_PROTOCOL_TRANSACTIONS")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .filter(|v| *v > 0)
-        .unwrap_or_else(get_long_test_iterations)
-}
-
-/// The GPU every test runs on.
-///
-/// Pinned to a single device on purpose: `decompress_to_gpu` would spread the server key over every
-/// visible GPU, which would make the run time and the memory profile depend on the machine that
-/// picked up the job. On a multi GPU runner the other devices are simply left idle.
-const TEST_GPU: u32 = 0;
-
-/// How many transactions the concurrent test keeps in flight, overridable to tune the load to the
-/// device at hand.
+/// How many transactions the concurrent test keeps in flight by default, see
+/// [`num_concurrent_transactions`].
 const NUM_CONCURRENT_TRANSACTIONS: usize = 4;
-
-fn num_concurrent_transactions() -> usize {
-    std::env::var("TFHE_RS_PROTOCOL_CONCURRENT_TRANSACTIONS")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .filter(|v| *v > 0)
-        .unwrap_or(NUM_CONCURRENT_TRANSACTIONS)
-}
 
 /// Opcode of a node of the transfer graph. The protocol mixes only this opcode, as big endian
 /// bytes, into the re-randomization context of a node. The values below stand in for the
@@ -105,39 +70,6 @@ const OPCODE_GE: NodeOpcode = 1;
 const OPCODE_IF_THEN_ELSE: NodeOpcode = 2;
 const OPCODE_ADD: NodeOpcode = 3;
 const OPCODE_SUB: NodeOpcode = 4;
-
-/// Opens the re-randomization context of a single graph node.
-///
-/// The seeds of a node only depend on the node opcode and on the node operands, so two
-/// coprocessors evaluating the same node of the same transaction derive the same seeds.
-fn node_re_randomization_context(opcode: NodeOpcode) -> ReRandomizationContext {
-    ReRandomizationContext::new(
-        RERAND_DOMAIN_SEPARATOR,
-        [opcode.to_be_bytes().as_slice()],
-        CPK_ENCRYPTION_DOMAIN_SEPARATOR,
-    )
-}
-
-/// Installs a re-seeded encryption engine on the calling thread.
-///
-/// Key generation and encryption both draw from this thread local engine, so seeding it is what
-/// makes a failure reproducible: with `TFHE_RS_LONGRUN_TESTS_SEED` set, a run replays the same
-/// keys and the same ciphertexts, not merely the same clear inputs. Re-randomization then follows,
-/// since its seeds are derived from the ciphertext bytes.
-fn install_seeded_engine(seed: Seed) {
-    let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-    let engine = ShortintEngine::new_from_seeder(&mut seeder);
-    ShortintEngine::with_thread_local_mut(|local_engine| {
-        let _ = std::mem::replace(local_engine, engine);
-    });
-}
-
-/// Draws `N` deterministic bytes, used for the input metadata.
-fn random_bytes<const N: usize>(datagen: &mut RandomGenerator<DefaultRandomGenerator>) -> [u8; N] {
-    let mut out = [0u8; N];
-    datagen.fill_slice_with_random_uniform(&mut out);
-    out
-}
 
 /// Draws the transfer amount.
 ///
@@ -204,18 +136,6 @@ impl Transaction {
             self.to_amount.wrapping_add(amount_to_transfer),
         )
     }
-}
-
-/// Re-randomizes one operand of a graph node, with its own seed taken from the node seed stream.
-fn re_randomize_operand<T: ReRandomize>(
-    ct: &mut T,
-    cpk: &CompactPublicKey,
-    seed_gen: &mut ReRandomizationSeedGen,
-) {
-    // Handing over the compact public key covers both re-randomization modes: a server key built
-    // on the legacy dedicated CPK uses it along its keyswitching key, a server key holding a CPK
-    // derived from the compute key ignores it in favor of the derived one.
-    ct.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
 }
 
 /// The ERC-7984 whitepaper transfer, as a graph of four nodes:
@@ -493,61 +413,44 @@ fn setup(
     meta_params: MetaParameters,
     test_name: &str,
 ) -> (
-    ClientKey,
-    CompressedServerKey,
-    CompactPublicKey,
+    ProtocolKeys,
     Vec<Transaction>,
     DeterministicSeeder<DefaultRandomGenerator>,
 ) {
-    let seed = get_user_defined_seed().unwrap_or_else(|| {
-        let mut seeder = crate::core_crypto::prelude::new_seeder();
-        seeder.seed()
-    });
-    println!("{test_name}::seed = {}", seed.0);
-    println!(
-        "{test_name}: replay with TFHE_RS_LONGRUN_TESTS_SEED={}",
-        seed.0
-    );
-
     // Everything a run consumes hangs off this one seed: the keys, the encryption noise, the
     // transactions, and the seeds the concurrent workers install on their own threads.
-    let mut root = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
+    let mut root = DeterministicSeeder::<DefaultRandomGenerator>::new(run_seed(test_name));
     let key_seed = root.seed();
     let encryption_seed = root.seed();
     let data_seed = root.seed();
 
-    let config = Config::from(meta_params);
-
-    // `generate_with_seed` restores the previous engine when it returns, so the engine is seeded
-    // afterwards to cover the server key, the compact public key and every later encryption.
-    let cks = ClientKey::generate_with_seed(config, key_seed);
-    install_seeded_engine(encryption_seed);
-
-    let compressed_sks = CompressedServerKey::new(&cks);
-    let cpk = CompactPublicKey::new(&cks);
+    // The engine seeded with `encryption_seed` stays installed: it covers the server key, the
+    // compact public key and every later encryption of the sequential test.
+    let keys = generate_protocol_keys(Config::from(meta_params), key_seed, encryption_seed);
 
     let mut datagen = RandomGenerator::<DefaultRandomGenerator>::new(data_seed);
     let transactions = (0..num_transactions())
         .map(|index| Transaction::draw(index, &mut datagen))
         .collect();
 
-    (cks, compressed_sks, cpk, transactions, root)
+    (keys, transactions, root)
 }
 
 /// One transaction at a time.
 fn protocol_transfer_workflow_test(meta_params: MetaParameters) {
-    let (cks, compressed_sks, cpk, transactions, _root) =
-        setup(meta_params, "protocol_transfer_workflow_test");
+    let (
+        ProtocolKeys {
+            cks,
+            compressed_sks,
+            cpk,
+        },
+        transactions,
+        _root,
+    ) = setup(meta_params, "protocol_transfer_workflow_test");
 
     // The transfer graph evaluates its two independent nodes with `rayon::join`, so the workers of
-    // the global pool need a server key too. Cloning shares the key material, which sits behind an
-    // `Arc`, and hands the worker fresh CUDA streams.
-    //
-    // This installs a key on the workers of the global rayon pool, so the tests here have to run
-    // one at a time, which is what the `test_protocol_*_run_gpu` make targets ask for.
-    let gpu_sks = compressed_sks.decompress_to_specific_gpu(GpuIndex::new(TEST_GPU));
-    rayon::broadcast(|_| set_server_key(gpu_sks.clone()));
-    set_server_key(gpu_sks);
+    // the global pool need a server key too.
+    install_server_key(&compressed_sks);
 
     let num_transactions = transactions.len();
     for (index, transaction) in transactions.iter().enumerate() {
@@ -567,25 +470,22 @@ fn protocol_transfer_workflow_test(meta_params: MetaParameters) {
 /// onto another thread, hence onto another stream. Losing that alignment is the point: it is what
 /// puts the compression, re-randomization and noise squashing stages under concurrent streams.
 fn protocol_concurrent_transfer_workflow_test(meta_params: MetaParameters) {
-    let (cks, compressed_sks, cpk, transactions, mut root) =
-        setup(meta_params, "protocol_concurrent_transfer_workflow_test");
+    let (
+        ProtocolKeys {
+            cks,
+            compressed_sks,
+            cpk,
+        },
+        transactions,
+        mut root,
+    ) = setup(meta_params, "protocol_concurrent_transfer_workflow_test");
 
-    let gpu_sks = compressed_sks.decompress_to_specific_gpu(GpuIndex::new(TEST_GPU));
-
-    let concurrency = num_concurrent_transactions();
+    let concurrency = num_concurrent_transactions(NUM_CONCURRENT_TRANSACTIONS);
     println!("protocol_concurrent_transfer_workflow_test: {concurrency} transactions in flight");
 
     // Two threads per in flight transaction: one runs the transaction, the other is there to pick
     // up the second branch of its `rayon::join`.
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(2 * concurrency)
-        // Dropping a pool whose threads hold GPU thread locals needs this, rayon does not wait for
-        // thread destruction and the CUDA driver is sensitive to the ordering.
-        .exit_handler(|_| clear_gpu_thread_locals())
-        .build()
-        .unwrap();
-
-    pool.broadcast(|_| set_server_key(gpu_sks.clone()));
+    let pool = transaction_pool(concurrency, &compressed_sks);
 
     let num_transactions = transactions.len();
     // One chunk per in flight transaction, each chunk is walked sequentially by its worker.
