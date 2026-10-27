@@ -1513,14 +1513,20 @@ test_high_level_api_fake_multi_gpu: install_cargo_nextest
 		--test-threads=4 --features=integer,internal-keycache,gpu-debug-fake-multi-gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/) and not test(/multi_?bit/)"
 
+# Hardware work queues of the protocol tests that keep several transactions in flight: the CUDA
+# default of 8 serializes their streams and halves the throughput with 8 transactions in flight
+PROTOCOL_CUDA_DEVICE_MAX_CONNECTIONS?=32
+
 .PHONY: test_protocol_long_run_gpu # Run the long run protocol workflow test on the gpu backend
 test_protocol_long_run_gpu:
+	CUDA_DEVICE_MAX_CONNECTIONS=$(PROTOCOL_CUDA_DEVICE_MAX_CONNECTIONS) \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- \
 		high_level_api::tests::gpu_protocol_long_run --test-threads=1 --nocapture
 
 .PHONY: test_protocol_short_run_gpu # Run the protocol workflow test on the gpu backend, fewer iterations
 test_protocol_short_run_gpu:
+	CUDA_DEVICE_MAX_CONNECTIONS=$(PROTOCOL_CUDA_DEVICE_MAX_CONNECTIONS) \
 	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- \
@@ -1531,11 +1537,69 @@ PROTOCOL_STRESS_TRANSACTIONS?=10000
 
 .PHONY: test_protocol_stress_gpu # Stress the gpu with concurrent protocol transactions, classical params
 test_protocol_stress_gpu:
+	CUDA_DEVICE_MAX_CONNECTIONS=$(PROTOCOL_CUDA_DEVICE_MAX_CONNECTIONS) \
 	TFHE_RS_PROTOCOL_TRANSACTIONS=$(PROTOCOL_STRESS_TRANSACTIONS) \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- \
 		high_level_api::tests::gpu_protocol_long_run::test_gpu_protocol_erc7984_concurrent_transfer_workflow_classical \
 		--test-threads=1 --nocapture
+
+.PHONY: test_protocol_random_ops_long_run_gpu # Run the long run random operations protocol test on the gpu backend
+test_protocol_random_ops_long_run_gpu:
+	CUDA_DEVICE_MAX_CONNECTIONS=$(PROTOCOL_CUDA_DEVICE_MAX_CONNECTIONS) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_random_ops_long_run --test-threads=1 --nocapture
+
+.PHONY: test_protocol_random_ops_short_run_gpu # Run the random operations protocol test on the gpu backend, fewer iterations
+test_protocol_random_ops_short_run_gpu:
+	CUDA_DEVICE_MAX_CONNECTIONS=$(PROTOCOL_CUDA_DEVICE_MAX_CONNECTIONS) \
+	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_random_ops_long_run --test-threads=1 --nocapture
+
+# Wall clock budget of the random operations soak run, 24 hours by default
+PROTOCOL_RANDOM_OPS_DURATION_SECS?=86400
+
+.PHONY: test_protocol_random_ops_soak_gpu # Soak the gpu with random operation transactions for PROTOCOL_RANDOM_OPS_DURATION_SECS
+test_protocol_random_ops_soak_gpu:
+	TFHE_RS_PROTOCOL_DURATION_SECS=$(PROTOCOL_RANDOM_OPS_DURATION_SECS) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_random_ops_long_run::test_gpu_protocol_random_ops_classical \
+		--exact --test-threads=1 --nocapture
+
+.PHONY: test_protocol_random_ops_concurrent_gpu # Soak the gpu with concurrent random operation transactions for PROTOCOL_RANDOM_OPS_DURATION_SECS
+test_protocol_random_ops_concurrent_gpu:
+	CUDA_DEVICE_MAX_CONNECTIONS=$(PROTOCOL_CUDA_DEVICE_MAX_CONNECTIONS) \
+	TFHE_RS_PROTOCOL_DURATION_SECS=$(PROTOCOL_RANDOM_OPS_DURATION_SECS) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_random_ops_long_run::test_gpu_protocol_random_ops_concurrent_classical \
+		--exact --test-threads=1 --nocapture
+
+.PHONY: test_protocol_random_ops_coverage_gpu # Run the deterministic forced coverage pass of the random operations protocol test on the gpu backend
+test_protocol_random_ops_coverage_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_random_ops_long_run::test_gpu_protocol_random_ops_forced_coverage \
+		--exact --test-threads=1 --nocapture
+
+# cargo test runs the test binary from tfhe/, so REPLAY is resolved to an absolute path first
+.PHONY: test_protocol_random_ops_replay_gpu # Replay a failing transaction: make test_protocol_random_ops_replay_gpu REPLAY=<report.json>
+test_protocol_random_ops_replay_gpu:
+	@if [ -z "$(REPLAY)" ]; then \
+		echo "usage: make test_protocol_random_ops_replay_gpu REPLAY=<report.json>"; exit 1; \
+	fi
+	@if [ ! -f "$(REPLAY)" ]; then \
+		echo "no failure report at $(REPLAY)"; exit 1; \
+	fi
+	TFHE_RS_PROTOCOL_REPLAY="$$(realpath "$(REPLAY)")" \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p tfhe -- \
+		high_level_api::tests::gpu_protocol_random_ops_long_run::test_gpu_protocol_random_ops_replay \
+		--exact --test-threads=1 --nocapture
 
 test_list_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest list --cargo-profile $(CARGO_PROFILE) \

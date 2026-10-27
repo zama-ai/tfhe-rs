@@ -3,8 +3,12 @@ mod cpk_re_randomization;
 mod gpu;
 #[cfg(feature = "gpu")]
 mod gpu_protocol_long_run;
+#[cfg(feature = "gpu")]
+mod gpu_protocol_random_ops_long_run;
 mod noise_distribution;
 mod noise_squashing;
+mod protocol_random_ops;
+mod protocol_workflow_common;
 mod tags_on_entities;
 
 use crate::high_level_api::prelude::*;
