@@ -1,10 +1,11 @@
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::core_crypto::prelude::{GlweSecretKeyOwned, LweSecretKeyOwned};
+use crate::shortint::backward_compatibility::parameters::WopbsParameters;
 use crate::shortint::client_key::atomic_pattern::{
     AtomicPatternClientKey, KS32AtomicPatternClientKey, StandardAtomicPatternClientKey,
 };
-use crate::shortint::{PBSParameters, WopbsParameters};
+use crate::shortint::PBSParameters;
 use crate::Error;
 
 #[derive(VersionsDispatch)]

@@ -83,7 +83,6 @@ parser.add_argument(
 
 # block PBS are too slow for high params
 # mul_crt_4_4 is extremely flaky (~80% failure)
-# test_wopbs_bivariate_crt_wopbs_param_message generate tables that are too big at the moment
 # test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs_gaussian_2m64 is too slow
 # skip default_div, default_rem which are covered by default_div_rem
 EXCLUDED_INTEGER_TESTS = [
@@ -91,7 +90,6 @@ EXCLUDED_INTEGER_TESTS = [
     "/.*integer_default_rem_param/",
     "/.*_block_pbs(_base)?_param_message_[34]_carry_[34]_ks_pbs_gaussian_2m64$/",
     "~mul_crt_param_message_4_carry_4_ks_pbs_gaussian_2m64",
-    "/.*test_wopbs_bivariate_crt_wopbs_param_message_[34]_carry_[34]_ks_pbs_gaussian_2m64$/",
     "/.*test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
     "/.*::tests_long_run::.*/",
 ]
