@@ -70,7 +70,7 @@ pub use oprf::OprfSeed;
 pub use parameters::{
     AtomicPatternKind, AtomicPatternParameters, CarryModulus, CiphertextModulus,
     ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,
-    MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
+    MultiBitPBSParameters, PBSParameters,
 };
 pub use public_key::{
     CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,

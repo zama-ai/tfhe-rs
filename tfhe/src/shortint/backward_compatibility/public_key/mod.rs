@@ -6,9 +6,10 @@ use crate::core_crypto::prelude::{
     Container, LweCompactPublicKeyOwned, LwePublicKeyOwned, SeededLweCompactPublicKeyOwned,
     SeededLwePublicKeyOwned,
 };
+use crate::shortint::backward_compatibility::parameters::ShortintParameterSet;
 use crate::shortint::{
     AtomicPatternKind, CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey,
-    CompressedPublicKey, PBSOrder, PublicKey, ShortintParameterSet,
+    CompressedPublicKey, PBSOrder, PublicKey,
 };
 
 #[derive(Version)]
