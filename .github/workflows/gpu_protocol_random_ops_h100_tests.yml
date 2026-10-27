@@ -1,0 +1,159 @@
+# Soak an H100 with the random operations protocol test: concurrent random transactions for a
+# wall clock budget.
+name: gpu_protocol_random_ops_h100_tests
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  # Wall clock budget of the concurrent run, 10 hours unless the manual run asks otherwise.
+  PROTOCOL_RANDOM_OPS_DURATION_SECS: ${{ inputs.duration_secs || '36000' }}
+  # Traces of the recent transactions and failure reports, uploaded when the run fails.
+  TFHE_RS_PROTOCOL_FAILURE_DIR: ${{ github.workspace }}/protocol_failures
+  # Secrets will be available only to zama-ai organization members
+  SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_secs:
+        description: "Wall clock budget of the concurrent run, in seconds"
+        type: string
+        default: "36000"
+      seed:
+        description: "TFHE_RS_LONGRUN_TESTS_SEED to replay a run, a fresh seed is drawn when empty"
+        type: string
+        default: ""
+  schedule:
+    # Every Saturday at 5a.m. Paris time (winter time, 6a.m. in summer time)
+    - cron: "0 4 * * 6"
+
+permissions:
+  contents: read
+
+# zizmor: ignore[concurrency-limits] each run gets its own instance, manual runs must be able to overlap
+
+jobs:
+  setup-instance:
+    name: gpu_protocol_random_ops_h100_tests/setup-instance
+    uses: ./.github/workflows/slab_setup.yml
+    with:
+      backend: terraform
+      profile: generic-1or2-h100
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+
+  cuda-tests:
+    name: gpu_protocol_random_ops_h100_tests/cuda-tests
+    needs: [setup-instance]
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      fail-fast: false
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.8 12.2"
+            gcc: 12
+    timeout-minutes: 780 # 13 hours, sized for the default 10 hours budget
+    outputs:
+      seed: ${{ steps.seed.outputs.seed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Setup cloud GPU machine dependencies
+        uses: ./.github/actions/gpu_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Enable nvidia multi-process service
+        run: |
+          nvidia-cuda-mps-control -d
+
+      # The seed is fixed here rather than drawn by the test, so the failure notification has it.
+      - name: Set the run seed
+        id: seed
+        env:
+          INPUT_SEED: ${{ inputs.seed }}
+        run: |
+          SEED="${INPUT_SEED:-$(od -An -N8 -tu8 /dev/urandom | tr -d ' ')}"
+          echo "seed=${SEED}" >> "${GITHUB_OUTPUT}"
+          echo "TFHE_RS_LONGRUN_TESTS_SEED=${SEED}" >> "${GITHUB_ENV}"
+
+      - name: Run concurrent random operations test
+        run: |
+          make test_protocol_random_ops_concurrent_gpu
+
+      - name: Upload failure reports and traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: protocol_random_ops_failures
+          path: ${{ env.TFHE_RS_PROTOCOL_FAILURE_DIR }}
+          if-no-files-found: ignore
+
+  slack-notify:
+    name: gpu_protocol_random_ops_h100_tests/slack-notify
+    needs: [setup-instance, cuda-tests]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.cuda-tests.result != 'skipped' && failure() }}
+    continue-on-error: true
+    steps:
+      - name: Checkout notification action
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ env.CHECKOUT_TOKEN }}
+          sparse-checkout: .github/actions/slack_notify
+
+      - name: Send message
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: ./.github/actions/slack_notify
+        with:
+          status: ${{ needs.cuda-tests.result }}
+          message: "Protocol random operations test on H100 finished with status: ${{ needs.cuda-tests.result }}, TFHE_RS_LONGRUN_TESTS_SEED=${{ needs.cuda-tests.outputs.seed }}."
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+          slack-channel: ${{ secrets.SLACK_CHANNEL }}
+          slack-username: ${{ secrets.BOT_USERNAME }}
+
+  teardown-instance:
+    name: gpu_protocol_random_ops_h100_tests/teardown-instance
+    if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
+    needs: [setup-instance, cuda-tests]
+    uses: ./.github/workflows/slab_teardown.yml
+    with:
+      runner-name: ${{ needs.setup-instance.outputs.runner-name }}
+      notification-context: gpu-protocol-random-ops-h100-tests
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
