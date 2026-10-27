@@ -92,8 +92,7 @@ impl ClientKey {
     /// ```
     pub fn new<P>(parameter_set: P) -> Self
     where
-        P: TryInto<AtomicPatternParameters>,
-        <P as TryInto<AtomicPatternParameters>>::Error: std::fmt::Debug,
+        P: Into<AtomicPatternParameters>,
     {
         Self {
             key: ShortintClientKey::new(parameter_set),

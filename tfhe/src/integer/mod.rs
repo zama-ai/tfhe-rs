@@ -109,11 +109,10 @@ pub enum IntegerKeyKind {
 ///   be published (the client sends it to the server).
 pub(crate) fn gen_keys<P>(parameters_set: P, key_kind: IntegerKeyKind) -> (ClientKey, ServerKey)
 where
-    P: TryInto<crate::shortint::parameters::AtomicPatternParameters>,
-    <P as TryInto<crate::shortint::parameters::AtomicPatternParameters>>::Error: std::fmt::Debug,
+    P: Into<crate::shortint::parameters::AtomicPatternParameters>,
 {
     let shortint_parameters_set: crate::shortint::parameters::AtomicPatternParameters =
-        parameters_set.try_into().unwrap();
+        parameters_set.into();
 
     #[cfg(any(test, feature = "internal-keycache"))]
     {
@@ -146,8 +145,7 @@ where
 /// ```
 pub fn gen_keys_radix<P>(parameters_set: P, num_blocks: usize) -> (RadixClientKey, ServerKey)
 where
-    P: TryInto<crate::shortint::parameters::AtomicPatternParameters>,
-    <P as TryInto<crate::shortint::parameters::AtomicPatternParameters>>::Error: std::fmt::Debug,
+    P: Into<crate::shortint::parameters::AtomicPatternParameters>,
 {
     let (cks, sks) = gen_keys(parameters_set, IntegerKeyKind::Radix);
 
@@ -169,8 +167,7 @@ where
 /// ```
 pub fn gen_keys_crt<P>(parameters_set: P, basis: Vec<u64>) -> (CrtClientKey, ServerKey)
 where
-    P: TryInto<crate::shortint::parameters::AtomicPatternParameters>,
-    <P as TryInto<crate::shortint::parameters::AtomicPatternParameters>>::Error: std::fmt::Debug,
+    P: Into<crate::shortint::parameters::AtomicPatternParameters>,
 {
     let (cks, sks) = gen_keys(parameters_set, IntegerKeyKind::CRT);
 
