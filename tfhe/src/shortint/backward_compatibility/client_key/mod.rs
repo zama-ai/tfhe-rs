@@ -5,11 +5,11 @@ use std::any::{Any, TypeId};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::core_crypto::prelude::{GlweSecretKeyOwned, LweSecretKeyOwned};
+use crate::shortint::backward_compatibility::parameters::ShortintParameterSet;
 use crate::shortint::client_key::atomic_pattern::{
     AtomicPatternClientKey, StandardAtomicPatternClientKey,
 };
 use crate::shortint::client_key::GenericClientKey;
-use crate::shortint::ShortintParameterSet;
 use crate::Error;
 
 #[derive(Version)]

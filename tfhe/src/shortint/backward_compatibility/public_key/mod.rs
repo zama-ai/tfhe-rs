@@ -3,9 +3,8 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 use crate::core_crypto::prelude::{
     Container, LweCompactPublicKeyOwned, SeededLweCompactPublicKeyOwned,
 };
-use crate::shortint::{
-    CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, PBSOrder, ShortintParameterSet,
-};
+use crate::shortint::backward_compatibility::parameters::ShortintParameterSet;
+use crate::shortint::{CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, PBSOrder};
 
 #[derive(Version)]
 pub struct CompactPublicKeyV0 {
