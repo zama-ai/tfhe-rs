@@ -1,6 +1,5 @@
+use crate::core_crypto::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::prelude::{GlweCiphertext, LweCiphertextList};
-use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
@@ -46,7 +45,6 @@ use crate::shortint::PaddingBit;
 use rayon::prelude::*;
 
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
 use crate::integer::gpu::key_switching_key::{CudaKeySwitchingKey, CudaKeySwitchingKeyMaterial};
 use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaSideResources;
 use crate::integer::gpu::CudaServerKey;
@@ -55,7 +53,11 @@ use crate::integer::{CompactPrivateKey, CompactPublicKey, CompressedServerKey, R
 use crate::shortint::ShortintParameterSet;
 use crate::GpuIndex;
 
-use crate::integer::ciphertext::DataKind;
+use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
+use crate::shortint::atomic_pattern::AtomicPattern;
+use crate::shortint::ciphertext::{
+    CompressedCiphertextList as ShortintCompressedCiphertextList, CompressedCiphertextListMeta,
+};
 use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noise_simulation::CudaDynLwe;
 use crate::integer::gpu::unchecked_small_scalar_mul_integer;
 use std::num::NonZeroUsize;
@@ -67,7 +69,6 @@ use crate::integer::gpu::{cuda_backend_rerand_assign, cuda_backend_rerand_withou
 
 use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
 use crate::core_crypto::prelude::LweCiphertext;
-use crate::integer::gpu::server_key::radix::{CudaRadixCiphertext, CudaRadixCiphertextInfo};
 use crate::integer::ClientKey;
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
     TestJsonGuard, TestResult,
@@ -982,8 +983,9 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs_gpu(
         .map(|mat| CudaKeySwitchingKey::from_cuda_key_switching_key_material(mat, &cuda_sks));
 
     let comp_private_key = cks.new_compression_private_key(compression_params);
-    let (cuda_compression_key, cuda_decompression_key) =
+    let (_cuda_compression_key, cuda_decompression_key) =
         radix_cks.new_cuda_compression_decompression_keys(&comp_private_key, &streams);
+    let storage_modulus = comp_private_key.key.params.storage_log_modulus();
 
     let modulus_switch_config = cuda_sks.noise_simulation_modulus_switch_config();
     let compute_br_input_modulus_log = sks.key.br_input_modulus_log();
@@ -1022,63 +1024,60 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs_gpu(
         // Manually build as the seed is made non Clone to protect user normally
         let noise_simulation_rerand_seed = ReRandomizationSeed(rerand_xof_seed);
 
-        let sample_input = ShortintEngine::with_thread_local_mut(|engine| {
+        // Easier to start with a GLWE and get the LWE for noise simulation + shortint
+        // rather than trying to have an LWE be inserted back in a GLWE
+        let sample_input_as_glwe = ShortintEngine::with_thread_local_mut(|engine| {
             comp_private_key
                 .key
-                .encrypt_noiseless_decompression_input_dyn_lwe(&cks.key, 0, engine)
+                .encrypt_noiseless_glwe(&cks.key, 0, engine)
         });
-        let sample_lwe_dimension = sample_input.lwe_dimension();
 
-        let sample_input_lwe_ciphertext = sample_input.as_lwe_64();
-        let h_ct_list = LweCiphertextList::from_container(
-            sample_input_lwe_ciphertext.into_container(),
-            sample_input_lwe_ciphertext.lwe_size(),
-            sample_input_lwe_ciphertext.ciphertext_modulus(),
-        );
-        let d_blocks = CudaLweCiphertextList::from_lwe_ciphertext_list(
-            &h_ct_list,
-            &cuda_side_resources.streams,
+        let glwe_for_shortint_list = CompressedModulusSwitchedGlweCiphertext::compress(
+            &sample_input_as_glwe,
+            storage_modulus,
+            LweCiphertextCount(1),
         );
 
-        let gpu_sample_ct = CudaUnsignedRadixCiphertext {
-            ciphertext: CudaRadixCiphertext {
-                d_blocks,
-                info: CudaRadixCiphertextInfo {
-                    blocks: [cuda_side_resources.block_info].to_vec(),
-                },
-            },
+        let sample_input = {
+            let mut tmp = LweCiphertextOwned::new(
+                0u64,
+                sample_input_as_glwe
+                    .glwe_size()
+                    .to_glwe_dimension()
+                    .to_equivalent_lwe_dimension(sample_input_as_glwe.polynomial_size())
+                    .to_lwe_size(),
+                sample_input_as_glwe.ciphertext_modulus(),
+            );
+
+            extract_lwe_sample_from_glwe_ciphertext(
+                &sample_input_as_glwe,
+                &mut tmp,
+                MonomialDegree(0),
+            );
+
+            tmp
         };
 
-        let mut builder = CudaCompressedCiphertextListBuilder::new();
-        builder.push(gpu_sample_ct, &cuda_side_resources.streams);
-        let cuda_compressed_list =
-            builder.build(&cuda_compression_key, &cuda_side_resources.streams);
-
-        let cuda_extracted_glwe = cuda_compressed_list
-            .packed_list
-            .extract_glwe(0, &cuda_side_resources.streams);
-
-        let cpu_extracted_glwe =
-            cuda_extracted_glwe.to_glwe_ciphertext_list(&cuda_side_resources.streams);
-        let mut tmp = LweCiphertextOwned::new(
-            0u64,
-            sample_lwe_dimension.to_lwe_size(),
-            cpu_extracted_glwe.ciphertext_modulus(),
-        );
-
-        let glwe_ct = GlweCiphertext::from_container(
-            cpu_extracted_glwe.clone().into_container(),
-            cpu_extracted_glwe.polynomial_size(),
-            cpu_extracted_glwe.ciphertext_modulus(),
-        );
-        extract_lwe_sample_from_glwe_ciphertext(&glwe_ct, &mut tmp, MonomialDegree(0));
-
-        let new_cuda_sample_lwe_list = CudaLweCiphertextList::from_lwe_ciphertext(
-            &tmp.as_view(),
+        let new_sample_pattern = CudaDynLwe::U64(CudaLweCiphertextList::from_lwe_ciphertext(
+            &sample_input,
             &cuda_side_resources.streams,
-        );
+        ));
 
-        let new_sample_pattern = CudaDynLwe::U64(new_cuda_sample_lwe_list);
+        let shortint_compressed_list = ShortintCompressedCiphertextList {
+            modulus_switched_glwe_ciphertext_list: vec![glwe_for_shortint_list],
+            meta: Some(CompressedCiphertextListMeta {
+                ciphertext_modulus: compute_params.ciphertext_modulus(),
+                message_modulus: compute_params.message_modulus(),
+                carry_modulus: compute_params.carry_modulus(),
+                atomic_pattern: sks.key.atomic_pattern.kind(),
+                lwe_per_glwe: compression_params.lwe_per_glwe().try_into().unwrap(),
+            }),
+        };
+        let cuda_compressed_list = CompressedCiphertextList {
+            packed_list: shortint_compressed_list,
+            info: vec![DataKind::Unsigned(NonZeroUsize::new(num_blocks).unwrap())],
+        }
+        .to_cuda_compressed_ciphertext_list(&cuda_side_resources.streams);
 
         let recovered = cuda_decompression_key
             .unpack(

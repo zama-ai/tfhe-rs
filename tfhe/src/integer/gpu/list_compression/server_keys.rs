@@ -364,6 +364,56 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
     }
 }
 
+/// Concatenates the given LWE lists into a single contiguous list on GPU 0.
+///
+/// All lists must have `lwe_dimension` as their LWE dimension, callers are
+/// responsible for checking this. The iterator must not be empty.
+fn flatten_lwe_lists<'a, T, I>(
+    lwe_lists: I,
+    lwe_dimension: LweDimension,
+    streams: &CudaStreams,
+) -> CudaLweCiphertextList<T>
+where
+    T: UnsignedInteger,
+    I: IntoIterator<Item = &'a CudaLweCiphertextList<T>>,
+    I::IntoIter: Clone,
+{
+    let lwe_lists = lwe_lists.into_iter();
+    let ciphertext_modulus = lwe_lists.clone().next().unwrap().ciphertext_modulus();
+
+    // Compute total number of lwe ciphertexts we will be handling
+    let total_num_blocks: usize = lwe_lists.clone().map(|x| x.lwe_ciphertext_count().0).sum();
+
+    let lwe_ciphertext_count = LweCiphertextCount(total_num_blocks);
+
+    let mut d_vec = unsafe {
+        CudaVec::new_async(
+            lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+            streams,
+            0,
+        )
+    };
+    let mut offset: usize = 0;
+    for lwe_list in lwe_lists {
+        let dest_ptr = unsafe { d_vec.as_mut_c_ptr(0).add(offset * std::mem::size_of::<T>()) };
+        let size = lwe_list.0.d_vec.len * std::mem::size_of::<T>();
+        unsafe {
+            cuda_memcpy_async_gpu_to_gpu(
+                dest_ptr,
+                lwe_list.0.d_vec.as_c_ptr(0),
+                size as u64,
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+            );
+        }
+        streams.synchronize();
+
+        offset += lwe_list.0.d_vec.len;
+    }
+
+    CudaLweCiphertextList::from_cuda_vec(d_vec, lwe_ciphertext_count, ciphertext_modulus)
+}
+
 impl CudaCompressionKey {
     pub fn from_compression_key(compression_key: &CompressionKey, streams: &CudaStreams) -> Self {
         Self {
@@ -374,56 +424,6 @@ impl CudaCompressionKey {
             lwe_per_glwe: compression_key.key.lwe_per_glwe,
             storage_log_modulus: compression_key.key.storage_log_modulus,
         }
-    }
-
-    fn flatten(
-        ciphertexts_slice: &[CudaRadixCiphertext],
-        streams: &CudaStreams,
-    ) -> CudaLweCiphertextList<u64> {
-        let first_ct = &ciphertexts_slice.first().unwrap().d_blocks;
-
-        // We assume all ciphertexts will have the same lwe dimension
-        let lwe_dimension = first_ct.lwe_dimension();
-        let ciphertext_modulus = first_ct.ciphertext_modulus();
-
-        // Compute total number of lwe ciphertexts we will be handling
-        let total_num_blocks: usize = ciphertexts_slice
-            .iter()
-            .map(|x| x.d_blocks.lwe_ciphertext_count().0)
-            .sum();
-
-        let lwe_ciphertext_count = LweCiphertextCount(total_num_blocks);
-
-        let mut d_vec = unsafe {
-            CudaVec::new_async(
-                lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
-                streams,
-                0,
-            )
-        };
-        let mut offset: usize = 0;
-        for ciphertext in ciphertexts_slice {
-            let dest_ptr = unsafe {
-                d_vec
-                    .as_mut_c_ptr(0)
-                    .add(offset * std::mem::size_of::<u64>())
-            };
-            let size = ciphertext.d_blocks.0.d_vec.len * std::mem::size_of::<u64>();
-            unsafe {
-                cuda_memcpy_async_gpu_to_gpu(
-                    dest_ptr,
-                    ciphertext.d_blocks.0.d_vec.as_c_ptr(0),
-                    size as u64,
-                    streams.ptr[0],
-                    streams.gpu_indexes[0].get(),
-                );
-            }
-            streams.synchronize();
-
-            offset += ciphertext.d_blocks.0.d_vec.len;
-        }
-
-        CudaLweCiphertextList::from_cuda_vec(d_vec, lwe_ciphertext_count, ciphertext_modulus)
     }
 
     pub fn compress_ciphertexts_into_list(
@@ -469,7 +469,38 @@ impl CudaCompressionKey {
         let first_ct_info = first_ct.info.blocks.first().unwrap();
         let message_modulus = first_ct_info.message_modulus;
         let carry_modulus = first_ct_info.carry_modulus;
-        let lwe_dimension = first_ct.d_blocks.lwe_dimension();
+        let input_ciphertext_modulus = first_ct.d_blocks.ciphertext_modulus();
+
+        assert!(
+            self.lwe_per_glwe.0 <= compressed_polynomial_size.0,
+            "Cannot pack more than polynomial_size(={}) elements per glwe, {} requested",
+            compressed_polynomial_size.0,
+            self.lwe_per_glwe.0,
+        );
+
+        let lwe_dimension = lwe_pksk.input_key_lwe_dimension();
+        for ct in ciphertexts {
+            assert_eq!(
+                lwe_dimension,
+                ct.d_blocks.lwe_dimension(),
+                "All ciphertexts do not have the same lwe dimension as the packing keyswitch key"
+            );
+            assert_eq!(
+                input_ciphertext_modulus,
+                ct.d_blocks.ciphertext_modulus(),
+                "All ciphertexts do not have the same ciphertext modulus"
+            );
+            for block in &ct.info.blocks {
+                assert_eq!(
+                    message_modulus, block.message_modulus,
+                    "All ciphertexts do not have the same message modulus"
+                );
+                assert_eq!(
+                    carry_modulus, block.carry_modulus,
+                    "All ciphertexts do not have the same carry modulus"
+                );
+            }
+        }
 
         let mut glwe_array_out = CudaPackedGlweCiphertextList {
             data: packed_glwe_list,
@@ -487,7 +518,11 @@ impl CudaCompressionKey {
             }),
         };
 
-        let input_lwes = Self::flatten(ciphertexts, streams);
+        let input_lwes = flatten_lwe_lists(
+            ciphertexts.iter().map(|ct| &ct.d_blocks),
+            lwe_dimension,
+            streams,
+        );
         unsafe {
             cuda_backend_compress(
                 streams,
@@ -767,55 +802,6 @@ impl CudaNoiseSquashingCompressionKey {
         }
     }
 
-    fn flatten(
-        ciphertexts_slice: &[CudaSquashedNoiseRadixCiphertext],
-        streams: &CudaStreams,
-    ) -> CudaLweCiphertextList<u128> {
-        let first_ct = &ciphertexts_slice.first().unwrap().packed_d_blocks;
-
-        // We assume all ciphertexts will have the same lwe dimension
-        let lwe_dimension = first_ct.lwe_dimension();
-        let ciphertext_modulus = first_ct.ciphertext_modulus();
-
-        // Compute total number of lwe ciphertexts we will be handling
-        let total_num_blocks: usize = ciphertexts_slice
-            .iter()
-            .map(|x| x.packed_d_blocks.lwe_ciphertext_count().0)
-            .sum();
-
-        let lwe_ciphertext_count = LweCiphertextCount(total_num_blocks);
-
-        let mut d_vec = unsafe {
-            CudaVec::new_async(
-                lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
-                streams,
-                0,
-            )
-        };
-        let mut offset: usize = 0;
-        for ciphertext in ciphertexts_slice {
-            let dest_ptr = unsafe {
-                d_vec
-                    .as_mut_c_ptr(0)
-                    .add(offset * std::mem::size_of::<u128>())
-            };
-            let size = ciphertext.packed_d_blocks.0.d_vec.len * std::mem::size_of::<u128>();
-            unsafe {
-                cuda_memcpy_async_gpu_to_gpu(
-                    dest_ptr,
-                    ciphertext.packed_d_blocks.0.d_vec.as_c_ptr(0),
-                    size as u64,
-                    streams.ptr[0],
-                    streams.gpu_indexes[0].get(),
-                );
-            }
-            streams.synchronize();
-            offset += ciphertext.packed_d_blocks.0.d_vec.len;
-        }
-
-        CudaLweCiphertextList::from_cuda_vec(d_vec, lwe_ciphertext_count, ciphertext_modulus)
-    }
-
     pub fn compress_noise_squashed_ciphertexts_into_list(
         &self,
         ciphertexts: &[CudaSquashedNoiseRadixCiphertext],
@@ -823,6 +809,14 @@ impl CudaNoiseSquashingCompressionKey {
     ) -> CudaPackedGlweCiphertextList<u128> {
         let lwe_pksk = &self.packing_key_switching_key;
 
+        if ciphertexts.is_empty() {
+            return CudaPackedGlweCiphertextList {
+                data: CudaVec::new(0, streams, 0),
+                meta: None,
+            };
+        }
+
+        // Ok to unwrap because list is not empty
         let first_ct = ciphertexts.first().unwrap();
         let ciphertext_modulus = first_ct.packed_d_blocks.ciphertext_modulus();
         let compressed_polynomial_size = lwe_pksk.output_polynomial_size();
@@ -852,19 +846,44 @@ impl CudaNoiseSquashingCompressionKey {
         let uncompressed_len = num_glwes * glwe_mask_size + num_lwes;
         let packed_glwe_list = CudaVec::new(compressed_len, streams, 0);
 
-        if ciphertexts.is_empty() {
-            return CudaPackedGlweCiphertextList {
-                data: packed_glwe_list,
-                meta: None,
-            };
-        }
-
-        // Ok to unwrap because list is not empty
         let first_ct_info = first_ct.info.blocks.first().unwrap();
         let message_modulus = first_ct_info.message_modulus;
         let carry_modulus = first_ct_info.carry_modulus;
 
-        let lwe_dimension = first_ct.packed_d_blocks.lwe_dimension();
+        assert!(
+            ciphertext_modulus.is_power_of_two(),
+            "Squashed noise ciphertext modulus should be a power of 2 for compression, got {ciphertext_modulus:?}"
+        );
+        assert!(
+            self.lwe_per_glwe.0 <= compressed_polynomial_size.0,
+            "Cannot pack more than polynomial_size(={}) elements per glwe, {} requested",
+            compressed_polynomial_size.0,
+            self.lwe_per_glwe.0,
+        );
+
+        let lwe_dimension = lwe_pksk.input_key_lwe_dimension();
+        for ct in ciphertexts {
+            assert_eq!(
+                lwe_dimension,
+                ct.packed_d_blocks.lwe_dimension(),
+                "All ciphertexts do not have the same lwe dimension as the packing keyswitch key"
+            );
+            assert_eq!(
+                ciphertext_modulus,
+                ct.packed_d_blocks.ciphertext_modulus(),
+                "All ciphertexts do not have the same ciphertext modulus"
+            );
+            for block in &ct.info.blocks {
+                assert_eq!(
+                    message_modulus, block.message_modulus,
+                    "All ciphertexts do not have the same message modulus"
+                );
+                assert_eq!(
+                    carry_modulus, block.carry_modulus,
+                    "All ciphertexts do not have the same carry modulus"
+                );
+            }
+        }
 
         let mut glwe_array_out = CudaPackedGlweCiphertextList {
             data: packed_glwe_list,
@@ -882,7 +901,11 @@ impl CudaNoiseSquashingCompressionKey {
             }),
         };
 
-        let input_lwes = Self::flatten(ciphertexts, streams);
+        let input_lwes = flatten_lwe_lists(
+            ciphertexts.iter().map(|ct| &ct.packed_d_blocks),
+            lwe_dimension,
+            streams,
+        );
         unsafe {
             cuda_backend_compress(
                 streams,
