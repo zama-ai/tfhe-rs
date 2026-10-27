@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 use crate::error::SpecParseError;
 use crate::segment::next_segment;
+use crate::zk::ZkLayer;
 use crate::{Backend, BenchPath, BenchmarkMetric, BenchmarkSpec, OperandType};
 
 /// Parses a full benchmark id back into a [`BenchmarkSpec`], following the
@@ -36,9 +37,9 @@ impl FromStr for BenchmarkSpec {
 
         let metric = next_segment(&mut it).unwrap_or(BenchmarkMetric::Latency);
 
-        // `zk` benches carry no parameter set: `Display` skips the segment
+        // `zk::msm` carries no parameter set: `Display` skips the segment
         // altogether, so there is nothing to consume here.
-        let param_name = if matches!(bench_path, BenchPath::Zk(_)) {
+        let param_name = if matches!(bench_path, BenchPath::Zk(ZkLayer::Msm(_))) {
             String::new()
         } else {
             it.next()
@@ -94,7 +95,7 @@ fn split_bench_path(s: &str) -> Option<(BenchPath, &str)> {
 mod tests {
     use super::*;
 
-    /// `zk` ids carry no parameter set, so the id is built from the spec rather
+    /// `zk::msm` ids carry no parameter set, so the id is built from the spec rather
     /// than spelled out.
     #[test]
     fn roundtrip_zk_id() {
@@ -124,7 +125,14 @@ mod tests {
             // Multi-segment type names: everything between the param and the
             // trailing `_elements` marker belongs to the type name.
             "tfhe::hlapi::kv_store::get::PARAM_MESSAGE_2_CARRY_2::key_FheUint32::value_FheUint64",
-            "tfhe::core_crypto::keyswitch::cuda::PARAM_MESSAGE_2_CARRY_2::64b::gemm::trivial_indices",
+            "tfhe::core_crypto::keyswitch::gemm::trivial_indices::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits",
+            "tfhe::core_crypto::keyswitch::PARAM_MESSAGE_2_CARRY_2::64_bits",
+            // Variants in the path: the longest-prefix split must stop right
+            // before the backend, not swallow it.
+            "tfhe::integer::zk::verify::v2::compute_load_proof::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits_packed::2048_bits_crs",
+            "tfhe::integer::zk::crs::v1::key_size::PARAM_MESSAGE_2_CARRY_2::2048_bits_crs",
+            "zk::pke::proof::v1::compute_load_proof::PKEV1_TEST_PARAMS::4096_bits_packed::4096_bits_crs",
+            "zk::pke::verify::v2::two_steps::ghl::compute_load_verify::cuda::PKEV2_TEST_PARAMS::4096_bits_packed::4096_bits_crs",
             "tfhe::shortint::oprf::PARAM_MESSAGE_2_CARRY_2_KS_PBS",
             // Two stream ciphers sharing one flavour enum: the longest-prefix
             // split must not read `fast_kreyvium` as `kreyvium`.
@@ -310,10 +318,11 @@ mod tests {
             " tfhe::shortint::ops::add::PARAM_MESSAGE_2_CARRY_2",
             "tfhe::shortint::ops::add ::PARAM_MESSAGE_2_CARRY_2",
             // A bench path on its own is not an id: the parameter set is
-            // mandatory for everything but `zk`, and the id stops too early.
+            // mandatory for everything but `zk::msm`, and the id stops too early.
             "tfhe::shortint::ops::add",
             "tfhe::hlapi::ops::mul::cuda",
             "tfhe::hlapi::ops::add::hpu::throughput",
+            "zk::pke::proof::v1::compute_load_proof",
         ];
         for id in ids {
             assert!(

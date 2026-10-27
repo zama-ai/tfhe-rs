@@ -156,14 +156,15 @@ jobs:
   # -----------------------------------------------------------
   # ZK benchmarks tables
   # -----------------------------------------------------------
+  # All three use the Rust extractor: the Python one cannot parse spec ids.
 
   cpu-zk-server-latency-table:
     name: generate_documentation_svgs/cpu-zk-server-latency-table
-    uses: ./.github/workflows/generate_svg_common.yml
+    uses: ./.github/workflows/generate_svg_rust_common.yml
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
-      hardware_name: hpc7a.96xlarge
+      hardware_name: hpc8a.96xlarge
       layer: integer
       bench_subset: zk
       pbs_kind: classical
@@ -177,11 +178,11 @@ jobs:
 
   cpu-zk-server-throughput-table:
     name: generate_documentation_svgs/cpu-zk-server-throughput-table
-    uses: ./.github/workflows/generate_svg_common.yml
+    uses: ./.github/workflows/generate_svg_rust_common.yml
     if: inputs.generate-cpu-svgs
     with:
       backend: cpu
-      hardware_name: hpc7a.96xlarge
+      hardware_name: hpc8a.96xlarge
       layer: integer
       bench_subset: zk
       pbs_kind: classical
@@ -193,7 +194,6 @@ jobs:
       DATA_EXTRACTOR_DATABASE_HOST: ${{ secrets.DATA_EXTRACTOR_DATABASE_HOST }}
       DATA_EXTRACTOR_DATABASE_PASSWORD: ${{ secrets.DATA_EXTRACTOR_DATABASE_PASSWORD }}
 
-  # Uses the Rust extractor: the Python one cannot parse spec ids.
   cpu-zk-client-latency-table:
     name: generate_documentation_svgs/cpu-zk-client-latency-table
     uses: ./.github/workflows/generate_svg_rust_common.yml
