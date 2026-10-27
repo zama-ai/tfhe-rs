@@ -148,6 +148,24 @@ impl Uint {
     }
 }
 
+/// Ordering of two values of the same width.
+///
+/// Like the arithmetic operations, comparing different widths is a test bug: the derived
+/// `Eq` already tells values of different widths apart, so an ordering across widths could
+/// not agree with it.
+impl Ord for Uint {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.assert_same_width(*other);
+        self.value.cmp(&other.value)
+    }
+}
+
+impl PartialOrd for Uint {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /// The value alone, for reports.
 impl std::fmt::Display for Uint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -211,6 +229,10 @@ mod tests {
 
             for &b in &values {
                 let ub = Uint::new(b.into(), 8);
+                assert_eq!(ua.cmp(&ub), a.cmp(&b), "{a} cmp {b}");
+                assert_eq!(ua == ub, a == b, "{a} == {b}");
+                assert_eq!(ua < ub, a < b, "{a} < {b}");
+                assert_eq!(ua <= ub, a <= b, "{a} <= {b}");
                 assert_eq!(ua.wrapping_add(ub).value(), u128::from(a.wrapping_add(b)));
                 assert_eq!(ua.wrapping_sub(ub).value(), u128::from(a.wrapping_sub(b)));
                 let (sum, overflowed) = ua.overflowing_add(ub);
@@ -243,6 +265,24 @@ mod tests {
         assert_eq!(one.overflowing_neg(), (max, true));
         assert_eq!(max.overflowing_neg(), (one, true));
         assert_eq!(Uint::max(128).overflowing_neg(), (Uint::one(128), true));
+    }
+
+    /// Ordering is by value within a width, and comparing widths is rejected.
+    #[test]
+    fn ordering_at_odd_widths() {
+        assert!(Uint::zero(6) < Uint::one(6));
+        assert!(Uint::one(6) < Uint::max(6));
+        assert!(Uint::max(6) > Uint::new(62, 6));
+        assert_eq!(Uint::max(6), Uint::new(63, 6));
+        // The top bit does not make the value negative, unlike `Int`
+        assert!(Uint::new(1 << 127, 128) > Uint::max(127).cast(128));
+        assert!(Uint::max(128) > Uint::zero(128));
+    }
+
+    #[test]
+    #[should_panic(expected = "mismatched widths")]
+    fn ordering_on_mismatched_widths_panics() {
+        let _ = Uint::one(4) < Uint::one(8);
     }
 
     #[test]

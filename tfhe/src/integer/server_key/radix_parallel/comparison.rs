@@ -692,257 +692,63 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_eq_parallelized(lhs, rhs)
+        let (lhs, rhs) = self.clean_for_default_binary_op(lhs, rhs);
+        self.unchecked_eq_parallelized(&*lhs, &*rhs)
     }
 
     pub fn ne_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_ne_parallelized(lhs, rhs)
+        let (lhs, rhs) = self.clean_for_default_binary_op(lhs, rhs);
+        self.unchecked_ne_parallelized(&*lhs, &*rhs)
     }
 
     pub fn gt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_gt_parallelized(lhs, rhs)
+        let (lhs, rhs) = self.clean_for_default_binary_op(lhs, rhs);
+        self.unchecked_gt_parallelized(&*lhs, &*rhs)
     }
 
     pub fn ge_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_ge_parallelized(lhs, rhs)
+        let (lhs, rhs) = self.clean_for_default_binary_op(lhs, rhs);
+        self.unchecked_ge_parallelized(&*lhs, &*rhs)
     }
 
     pub fn lt_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_lt_parallelized(lhs, rhs)
+        let (lhs, rhs) = self.clean_for_default_binary_op(lhs, rhs);
+        self.unchecked_lt_parallelized(&*lhs, &*rhs)
     }
 
     pub fn le_parallelized<T>(&self, lhs: &T, rhs: &T) -> BooleanBlock
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_le_parallelized(lhs, rhs)
+        let (lhs, rhs) = self.clean_for_default_binary_op(lhs, rhs);
+        self.unchecked_le_parallelized(&*lhs, &*rhs)
     }
 
     pub fn max_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_max_parallelized(lhs, rhs)
+        let (lhs, rhs) = self.clean_for_default_binary_op(lhs, rhs);
+        self.unchecked_max_parallelized(&*lhs, &*rhs)
     }
 
     pub fn min_parallelized<T>(&self, lhs: &T, rhs: &T) -> T
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
-
-        let (lhs, rhs) = match (lhs.block_carries_are_empty(), rhs.block_carries_are_empty()) {
-            (true, true) => (lhs, rhs),
-            (true, false) => {
-                tmp_rhs = rhs.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (lhs, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = lhs.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, rhs)
-            }
-            (false, false) => {
-                tmp_lhs = lhs.clone();
-                tmp_rhs = rhs.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_min_parallelized(lhs, rhs)
+        let (lhs, rhs) = self.clean_for_default_binary_op(lhs, rhs);
+        self.unchecked_min_parallelized(&*lhs, &*rhs)
     }
 }

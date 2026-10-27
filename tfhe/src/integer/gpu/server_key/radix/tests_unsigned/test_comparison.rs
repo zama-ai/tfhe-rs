@@ -1,3 +1,4 @@
+use super::legacy_default_tests::{legacy_default_comparison_test, legacy_default_minmax_test};
 use crate::core_crypto::gpu::get_number_of_gpus;
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
@@ -5,7 +6,7 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_comparison::{
-    test_default_function, test_default_minmax, test_unchecked_function, test_unchecked_minmax,
+    test_unchecked_function, test_unchecked_minmax,
 };
 use crate::integer::U256;
 use crate::shortint::parameters::test_params::*;
@@ -35,7 +36,7 @@ macro_rules! define_gpu_comparison_test_functions {
             fn [<integer_default_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<$comparison_name>]);
-                test_default_function(
+                legacy_default_comparison_test(
                     param,
                     num_tests,
                     executor,
@@ -48,7 +49,7 @@ macro_rules! define_gpu_comparison_test_functions {
                 let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::[<$comparison_name>]);
                 let num_gpus = get_number_of_gpus();
                 if num_gpus > 1 {
-                    test_default_function(
+                    legacy_default_comparison_test(
                         param,
                         num_tests,
                         executor,
@@ -94,7 +95,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::min);
-    test_default_minmax(params, 2, executor, std::cmp::min::<U256>);
+    legacy_default_minmax_test(params, 2, executor, std::cmp::min::<U256>);
 }
 
 fn integer_max_u256<P>(params: P)
@@ -102,7 +103,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::max);
-    test_default_minmax(params, 2, executor, std::cmp::max::<U256>);
+    legacy_default_minmax_test(params, 2, executor, std::cmp::max::<U256>);
 }
 
 create_gpu_parameterized_test!(integer_unchecked_min_u256 {

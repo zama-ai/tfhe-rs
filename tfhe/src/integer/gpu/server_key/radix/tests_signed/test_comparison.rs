@@ -1,10 +1,12 @@
+use super::legacy_default_tests::{
+    legacy_signed_default_comparison_test, legacy_signed_default_minmax_test,
+};
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_comparison::{
-    test_signed_default_function, test_signed_default_minmax, test_signed_unchecked_function,
-    test_signed_unchecked_minmax,
+    test_signed_unchecked_function, test_signed_unchecked_minmax,
 };
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
@@ -34,7 +36,7 @@ macro_rules! define_gpu_signed_comparison_test_functions {
             fn [<integer_signed_default_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<$comparison_name>]);
-                test_signed_default_function(
+                legacy_signed_default_comparison_test(
                     param,
                     num_tests,
                     executor,
@@ -77,7 +79,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::min);
-    test_signed_default_minmax(params, 2, executor, std::cmp::min::<i128>);
+    legacy_signed_default_minmax_test(params, 2, executor, std::cmp::min::<i128>);
 }
 
 fn integer_signed_max_128_bits<P>(params: P)
@@ -85,7 +87,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::max);
-    test_signed_default_minmax(params, 2, executor, std::cmp::max::<i128>);
+    legacy_signed_default_minmax_test(params, 2, executor, std::cmp::max::<i128>);
 }
 
 create_gpu_parameterized_test!(integer_signed_unchecked_max_128_bits {

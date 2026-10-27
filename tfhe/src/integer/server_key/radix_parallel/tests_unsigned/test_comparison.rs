@@ -2,9 +2,13 @@ use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
+use crate::integer::server_key::radix_parallel::test_harness::{
+    radix_pair_fixed_cases, ExecuteOn, TestBuilder, TestContext,
+};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
 use crate::integer::tests::create_parameterized_test;
+use crate::integer::tests::uint::Uint;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -75,102 +79,13 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
     }
 }
 
-/// Function to test a "default" server_key function.
+/// This macro generates the `unchecked` tests for a given comparison fn
 ///
-/// This calls the `server_key_method` with non-fresh ciphertexts,
-/// that is ciphertexts that have non-zero carries, and compares that the result is
-/// the same as the one of`clear_fn`.
-pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
-    param: P,
-    num_test: usize,
-    mut executor: T,
-    clear_fn: ClearF,
-) where
-    P: Into<TestParameters>,
-    Scalar: UnsignedNumeric
-        + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
-        + From<bool>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
-    ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
-{
-    let mut rng = rand::thread_rng();
-
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
-    let cks = RadixClientKey::from((cks, num_block));
-
-    executor.setup(&cks, sks.clone());
-
-    assert_eq!(
-        Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
-        0,
-        "bit width must be a multiple of number of bit in a block"
-    );
-
-    for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
-        let mut ct_0 = cks.encrypt(clear_0);
-        let mut ct_1 = cks.encrypt(clear_1);
-
-        // Raise the degree, so as to ensure worst case path in operations
-        while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
-            let ct_2 = cks.encrypt(clear_2);
-            sks.unchecked_add_assign(&mut ct_0, &ct_2);
-            clear_0 += clear_2;
-        }
-
-        while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
-            let ct_2 = cks.encrypt(clear_2);
-            sks.unchecked_add_assign(&mut ct_1, &ct_2);
-            clear_1 += clear_2;
-        }
-
-        // Sanity decryption checks
-        {
-            let a: Scalar = cks.decrypt(&ct_0);
-            assert_eq!(a, clear_0);
-
-            let b: Scalar = cks.decrypt(&ct_1);
-            assert_eq!(b, clear_1);
-        }
-
-        assert!(!ct_0.block_carries_are_empty());
-        assert!(!ct_1.block_carries_are_empty());
-        let encrypted_result = executor.execute((&ct_0, &ct_1));
-
-        // Sanity decryption checks
-        {
-            let a: Scalar = cks.decrypt(&ct_0);
-            assert_eq!(a, clear_0);
-
-            let b: Scalar = cks.decrypt(&ct_1);
-            assert_eq!(b, clear_1);
-        }
-
-        let decrypted_result: Scalar = cks.decrypt_bool(&encrypted_result).into();
-
-        let expected_result = clear_fn(clear_0, clear_1);
-        assert_eq!(decrypted_result, expected_result);
-    }
-}
-
-/// This macro generates the tests for a given comparison fn
-///
-/// All our comparison function have 3 variants:
-/// - unchecked_$comparison_name
-/// - unchecked_$comparison_name_parallelized
-/// - $comparison_name_parallelized
-///
-/// So, for example, for the `gt` comparison fn, this macro will generate the tests for
-/// the 3 variants described above
-macro_rules! define_comparison_test_functions {
+/// Comparisons only keep one unchecked variant, `unchecked_$comparison_name_parallelized`,
+/// so this macro generates a single test per comparison.
+/// The `default` variant is tested through the harness, see
+/// [`define_default_comparison_tests`].
+macro_rules! define_unchecked_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
 
@@ -178,17 +93,6 @@ macro_rules! define_comparison_test_functions {
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<unchecked_ $comparison_name _parallelized>]);
                 test_unchecked_function(
-                    param,
-                    num_tests,
-                    executor,
-                    |lhs, rhs| $clear_type::from(<$clear_type>::$comparison_name(&lhs, &rhs)),
-                )
-            }
-
-            fn [<integer_default_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters> {
-                let num_tests = 1;
-                let executor = CpuFunctionExecutor::new(&ServerKey::[<$comparison_name _parallelized>]);
-                test_default_function(
                     param,
                     num_tests,
                     executor,
@@ -209,25 +113,93 @@ macro_rules! define_comparison_test_functions {
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
-
-            create_parameterized_test!([<integer_default_ $comparison_name _parallelized_ $clear_type:lower>]
-            {
-                TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                // as default test might overflow values
-                // and when using 3_3 to represent 256 we actually have more than 256 bits
-                // of message so the overflow behaviour is not the same, leading to false negatives
-
-                // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-                TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-                #[cfg(tarpaulin)]
-                COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
-            });
         }
     };
 }
+
+//=============================================================================
+// Default Tests
+//=============================================================================
+
+/// Generates, for each comparison, the harness based test of its `default` variant and the
+/// `integer_default_*` entry point driving it.
+///
+/// `$comparison_name` names both the server key method (`<name>_parallelized`) and the clear
+/// model's [`PartialEq`] / [`PartialOrd`] method.
+macro_rules! define_default_comparison_tests {
+    // default: generate all
+    () => {
+        define_default_comparison_tests!(eq, ne, lt, le, gt, ge);
+    };
+    ($($comparison_name:ident),+ $(,)?) => {
+        ::paste::paste! {
+            $(
+                pub(crate) fn [<default_ $comparison_name _test>]<E>(ctx: &TestContext, executor: E)
+                where
+                    E: ExecuteOn<(RadixCiphertext, RadixCiphertext), BooleanBlock>,
+                {
+                    TestBuilder::new(ctx)
+                        .n_random(4)
+                        .fixed_cases(radix_pair_fixed_cases::<Uint>)
+                        .execute(executor, |(lhs, rhs): (Uint, Uint)| lhs.$comparison_name(&rhs));
+                }
+
+                fn [<integer_default_ $comparison_name>]<P>(param: P)
+                where
+                    P: Into<TestParameters>,
+                {
+                    let ctx = TestContext::from_env(param);
+                    let mut executor =
+                        CpuFunctionExecutor::new(&ServerKey::[<$comparison_name _parallelized>]);
+                    executor.setup_with_server_key(ctx.server_key());
+                    [<default_ $comparison_name _test>](&ctx, executor);
+                }
+
+                create_parameterized_test!([<integer_default_ $comparison_name>]);
+            )+
+        }
+    };
+}
+
+define_default_comparison_tests!();
+
+/// Generates, for `min` and `max`, the harness based test of its `default` variant and the
+/// `integer_default_*` entry point driving it.
+///
+/// Unlike the comparisons these return a radix, and their clear model is [`Ord::min`] /
+/// [`Ord::max`] on the clear model.
+macro_rules! define_default_minmax_tests {
+    ($($name:ident),+ $(,)?) => {
+        ::paste::paste! {
+            $(
+                pub(crate) fn [<default_ $name _test>]<E>(ctx: &TestContext, executor: E)
+                where
+                    E: ExecuteOn<(RadixCiphertext, RadixCiphertext), RadixCiphertext>,
+                {
+                    TestBuilder::new(ctx)
+                        .n_random(4)
+                        .fixed_cases(radix_pair_fixed_cases::<Uint>)
+                        .execute(executor, |(lhs, rhs): (Uint, Uint)| lhs.$name(rhs));
+                }
+
+                fn [<integer_default_ $name>]<P>(param: P)
+                where
+                    P: Into<TestParameters>,
+                {
+                    let ctx = TestContext::from_env(param);
+                    let mut executor =
+                        CpuFunctionExecutor::new(&ServerKey::[<$name _parallelized>]);
+                    executor.setup_with_server_key(ctx.server_key());
+                    [<default_ $name _test>](&ctx, executor);
+                }
+
+                create_parameterized_test!([<integer_default_ $name>]);
+            )+
+        }
+    };
+}
+
+define_default_minmax_tests!(min, max);
 
 /// Function to test an "unchecked" server key function.
 ///
@@ -289,93 +261,6 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
     }
 }
 
-/// Function to test a "default" server_key function.
-///
-/// This calls the `server_key_method` with non-fresh ciphertexts,
-/// that is ciphertexts that have non-zero carries, and compares that the result is
-/// the same as the one of`clear_fn`.
-pub(crate) fn test_default_minmax<P, T, ClearF, Scalar>(
-    param: P,
-    num_test: usize,
-    mut executor: T,
-    clear_fn: ClearF,
-) where
-    P: Into<TestParameters>,
-    Scalar: UnsignedNumeric
-        + AddAssign<Scalar>
-        + DecomposableInto<u64>
-        + RecomposableFrom<u64>
-        + From<bool>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
-    ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
-{
-    let mut rng = rand::thread_rng();
-
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let sks = Arc::new(sks);
-    let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
-    let cks = RadixClientKey::from((cks, num_block));
-
-    executor.setup(&cks, sks.clone());
-
-    assert_eq!(
-        Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
-        0,
-        "bit width must be a multiple of number of bit in a block"
-    );
-
-    for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
-        let mut ct_0 = cks.encrypt(clear_0);
-        let mut ct_1 = cks.encrypt(clear_1);
-
-        // Raise the degree, so as to ensure worst case path in operations
-        while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
-            let ct_2 = cks.encrypt(clear_2);
-            sks.unchecked_add_assign(&mut ct_0, &ct_2);
-            clear_0 += clear_2;
-        }
-
-        while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
-            let ct_2 = cks.encrypt(clear_2);
-            sks.unchecked_add_assign(&mut ct_1, &ct_2);
-            clear_1 += clear_2;
-        }
-
-        // Sanity decryption checks
-        {
-            let a: Scalar = cks.decrypt(&ct_0);
-            assert_eq!(a, clear_0);
-
-            let b: Scalar = cks.decrypt(&ct_1);
-            assert_eq!(b, clear_1);
-        }
-
-        assert!(!ct_0.block_carries_are_empty());
-        assert!(!ct_1.block_carries_are_empty());
-        let encrypted_result = executor.execute((&ct_0, &ct_1));
-        assert!(encrypted_result.block_carries_are_empty());
-
-        // Sanity decryption checks
-        {
-            let a: Scalar = cks.decrypt(&ct_0);
-            assert_eq!(a, clear_0);
-
-            let b: Scalar = cks.decrypt(&ct_1);
-            assert_eq!(b, clear_1);
-        }
-
-        let decrypted_result: Scalar = cks.decrypt(&encrypted_result);
-
-        let expected_result = clear_fn(clear_0, clear_1);
-        assert_eq!(decrypted_result, expected_result);
-    }
-}
-
 #[cfg(not(tarpaulin))]
 mod no_coverage {
     use super::*;
@@ -390,39 +275,15 @@ mod no_coverage {
         test_unchecked_minmax(params, 2, executor, std::cmp::max::<U256>);
     }
 
-    fn integer_min_parallelized_u256(params: impl Into<TestParameters>) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
-        test_default_minmax(params, 2, executor, std::cmp::min::<U256>);
-    }
-
-    fn integer_max_parallelized_u256(params: impl Into<TestParameters>) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::max_parallelized);
-        test_default_minmax(params, 2, executor, std::cmp::max::<U256>);
-    }
-
     create_parameterized_test!(integer_unchecked_min_parallelized_u256);
     create_parameterized_test!(integer_unchecked_max_parallelized_u256);
-    create_parameterized_test!(integer_min_parallelized_u256 {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        // No test for 3_3, see define_comparison_test_functions macro
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-    create_parameterized_test!(integer_max_parallelized_u256 {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        // No test for 3_3, see define_comparison_test_functions macro
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
 
-    define_comparison_test_functions!(eq, U256);
-    define_comparison_test_functions!(ne, U256);
-    define_comparison_test_functions!(lt, U256);
-    define_comparison_test_functions!(le, U256);
-    define_comparison_test_functions!(gt, U256);
-    define_comparison_test_functions!(ge, U256);
+    define_unchecked_comparison_test_functions!(eq, U256);
+    define_unchecked_comparison_test_functions!(ne, U256);
+    define_unchecked_comparison_test_functions!(lt, U256);
+    define_unchecked_comparison_test_functions!(le, U256);
+    define_unchecked_comparison_test_functions!(gt, U256);
+    define_unchecked_comparison_test_functions!(ge, U256);
 }
 
 // Smaller integers are used in coverage to speed-up execution.
@@ -445,27 +306,15 @@ mod coverage {
         test_unchecked_minmax(params, 1, executor, std::cmp::max::<u8>);
     }
 
-    fn integer_min_parallelized_u8(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
-        test_default_minmax(params, 1, executor, std::cmp::min::<u8>);
-    }
-
-    fn integer_max_parallelized_u8(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::max_parallelized);
-        test_default_minmax(params, 1, executor, std::cmp::max::<u8>);
-    }
-
     create_parameterized_test_classical_params!(integer_unchecked_min_parallelized_u8);
     create_parameterized_test_classical_params!(integer_unchecked_max_parallelized_u8);
-    create_parameterized_test_classical_params!(integer_min_parallelized_u8);
-    create_parameterized_test_classical_params!(integer_max_parallelized_u8);
 
-    define_comparison_test_functions!(eq, u8);
-    define_comparison_test_functions!(ne, u8);
-    define_comparison_test_functions!(lt, u8);
-    define_comparison_test_functions!(le, u8);
-    define_comparison_test_functions!(gt, u8);
-    define_comparison_test_functions!(ge, u8);
+    define_unchecked_comparison_test_functions!(eq, u8);
+    define_unchecked_comparison_test_functions!(ne, u8);
+    define_unchecked_comparison_test_functions!(lt, u8);
+    define_unchecked_comparison_test_functions!(le, u8);
+    define_unchecked_comparison_test_functions!(gt, u8);
+    define_unchecked_comparison_test_functions!(ge, u8);
 }
 
 create_parameterized_test!(integer_extensive_trivial_default_comparisons);

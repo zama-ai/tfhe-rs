@@ -204,6 +204,24 @@ impl Int {
     }
 }
 
+/// Ordering of two values of the same width, signed, as `value` is sign extended.
+///
+/// Like the arithmetic operations, comparing different widths is a test bug: the derived
+/// `Eq` already tells values of different widths apart, so an ordering across widths could
+/// not agree with it.
+impl Ord for Int {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.assert_same_width(*other);
+        self.value.cmp(&other.value)
+    }
+}
+
+impl PartialOrd for Int {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /// The value alone, for reports.
 impl std::fmt::Display for Int {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -254,6 +272,10 @@ mod tests {
 
             for b in i8::MIN..=i8::MAX {
                 let ib = Int::new(b.into(), 8);
+                assert_eq!(ia.cmp(&ib), a.cmp(&b), "{a} cmp {b}");
+                assert_eq!(ia == ib, a == b, "{a} == {b}");
+                assert_eq!(ia < ib, a < b, "{a} < {b}");
+                assert_eq!(ia <= ib, a <= b, "{a} <= {b}");
                 assert_eq!(ia.wrapping_add(ib).value(), i128::from(a.wrapping_add(b)));
                 assert_eq!(ia.wrapping_sub(ib).value(), i128::from(a.wrapping_sub(b)));
                 let (diff, overflowed) = ia.overflowing_sub(ib);
@@ -282,6 +304,26 @@ mod tests {
         assert_eq!(Int::max(6).overflowing_neg(), (Int::new(-31, 6), false));
         assert_eq!(Int::zero(6).overflowing_neg(), (Int::zero(6), false));
         assert_eq!(Int::min(128).overflowing_neg(), (Int::min(128), true));
+    }
+
+    /// Ordering is signed within a width, and comparing widths is rejected.
+    #[test]
+    fn ordering_at_odd_widths() {
+        assert!(Int::min(6) < Int::new(-1, 6));
+        assert!(Int::new(-1, 6) < Int::zero(6));
+        assert!(Int::zero(6) < Int::one(6));
+        assert!(Int::one(6) < Int::max(6));
+        // The top bit makes the value negative, unlike `Uint`
+        assert!(Int::min(6) < Int::max(6));
+        assert!(Int::min(128) < Int::max(128));
+        // The same bit pattern read on a wider width is a positive value
+        assert!(Int::min(6).cast(7) > Int::min(7));
+    }
+
+    #[test]
+    #[should_panic(expected = "mismatched widths")]
+    fn ordering_on_mismatched_widths_panics() {
+        let _ = Int::one(4) < Int::one(8);
     }
 
     #[test]
