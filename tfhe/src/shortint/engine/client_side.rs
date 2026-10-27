@@ -18,12 +18,9 @@ use crate::shortint::{
 impl ShortintEngine {
     pub fn new_client_key<P>(&mut self, parameters: P) -> ClientKey
     where
-        P: TryInto<AtomicPatternParameters>,
-        <P as TryInto<AtomicPatternParameters>>::Error: std::fmt::Debug,
+        P: Into<AtomicPatternParameters>,
     {
-        let ap_params: AtomicPatternParameters = parameters.try_into().unwrap();
-
-        let atomic_pattern = AtomicPatternClientKey::new_with_engine(ap_params, self);
+        let atomic_pattern = AtomicPatternClientKey::new_with_engine(parameters.into(), self);
 
         ClientKey { atomic_pattern }
     }
