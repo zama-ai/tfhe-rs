@@ -174,8 +174,8 @@ def check_entity(name, kind, memberdef, param_elems):
     if tpl is not None:
         declared_tparams = []
         for tp in tpl.findall("param"):
-            # type is e.g. "typename Torus" or "class KSTorus"
-            tname = tp.findtext("type", "").replace("typename", "").replace("class", "").strip()
+            # type is e.g. "typename Torus" or "class KSTorus"; non-type params carry the name in declname
+            tname = (tp.findtext("declname") or "").strip() or tp.findtext("type", "").replace("typename", "").replace("class", "").strip()
             if tname and tname not in SKIP_TPARAMS:
                 declared_tparams.append(tname)
 
@@ -237,7 +237,7 @@ def parse_xml_issues(xml_dir, added, root):
             if tpl is not None:
                 declared_tparams = []
                 for tp in tpl.findall("param"):
-                    tname = tp.findtext("type", "").replace("typename", "").replace("class", "").strip()
+                    tname = (tp.findtext("declname") or "").strip() or tp.findtext("type", "").replace("typename", "").replace("class", "").strip()
                     if tname and tname not in SKIP_TPARAMS:
                         declared_tparams.append(tname)
                 documented_tparams = set()

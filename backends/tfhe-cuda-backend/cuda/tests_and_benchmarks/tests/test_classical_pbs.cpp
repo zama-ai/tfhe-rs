@@ -349,6 +349,103 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64,
   cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &pbs_buffer);
 }
 
+class ClassicalPbsBufferReuseTest_u64
+    : public ClassicalProgrammableBootstrapTestPrimitives_u64 {
+protected:
+  pbs_buffer<uint64_t, CLASSICAL> *scratch(uint32_t num_inputs) {
+    int8_t *buffer = nullptr;
+    scratch_cuda_programmable_bootstrap_64_async(
+        stream, gpu_index, &buffer, lwe_dimension, glwe_dimension,
+        polynomial_size, pbs_level, num_inputs, true,
+        PBS_MS_REDUCTION_T::NO_REDUCTION);
+    return reinterpret_cast<pbs_buffer<uint64_t, CLASSICAL> *>(buffer);
+  }
+
+  std::vector<uint64_t> run_pbs(pbs_buffer<uint64_t, CLASSICAL> *buffer,
+                                uint32_t num_inputs) {
+    size_t output_size =
+        (size_t)(glwe_dimension * polynomial_size + 1) * num_inputs;
+    cuda_memset_async(d_lwe_ct_out_array, 0, output_size * sizeof(uint64_t),
+                      stream, gpu_index);
+    cuda_programmable_bootstrap_64_async(
+        stream, gpu_index, (void *)d_lwe_ct_out_array,
+        (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
+        (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in_array,
+        (void *)d_lwe_input_indexes, (void *)d_fourier_bsk_array,
+        reinterpret_cast<int8_t *>(buffer), lwe_dimension, glwe_dimension,
+        polynomial_size, pbs_base_log, pbs_level, num_inputs, 1, 0);
+    std::vector<uint64_t> output(output_size);
+    cuda_memcpy_async_to_cpu(output.data(), d_lwe_ct_out_array,
+                             output_size * sizeof(uint64_t), stream, gpu_index);
+    cuda_synchronize_stream(stream, gpu_index);
+    return output;
+  }
+
+  void release(pbs_buffer<uint64_t, CLASSICAL> *buffer) {
+    buffer->release(stream, gpu_index);
+    delete buffer;
+  }
+};
+
+TEST_P(ClassicalPbsBufferReuseTest_u64, borrowed_buffer_matches_own_buffer) {
+  auto *owner = scratch(number_of_inputs);
+  std::vector<pbs_buffer<uint64_t, CLASSICAL> *> borrowers;
+
+  // Calls of different sizes, one after the other, on the same owner
+  const uint32_t n = number_of_inputs;
+  for (uint32_t num_inputs : {n, n / 10, n / 2, n}) {
+    auto *own = scratch(num_inputs);
+    bool same_variant = own->pbs_variant == owner->pbs_variant;
+    auto *borrower = owner->try_borrow(num_inputs);
+    EXPECT_EQ(borrower != nullptr, same_variant)
+        << "num_inputs: " << num_inputs;
+    if (borrower == nullptr) {
+      release(own);
+      continue;
+    }
+    auto expected = run_pbs(own, num_inputs);
+    release(own);
+
+    EXPECT_EQ(borrower->d_mem, owner->d_mem);
+    EXPECT_EQ(borrower->global_join_buffer, owner->global_join_buffer);
+    EXPECT_EQ(expected, run_pbs(borrower, num_inputs))
+        << "num_inputs: " << num_inputs;
+    borrowers.push_back(borrower);
+  }
+
+  EXPECT_EQ(owner->try_borrow(n + 1), nullptr);
+  ASSERT_FALSE(borrowers.empty());
+  EXPECT_EQ(borrowers[0]->try_borrow(1), nullptr);
+
+  release(owner);
+  for (auto *borrower : borrowers) {
+    EXPECT_EQ(borrower->owner, nullptr);
+    EXPECT_EQ(borrower->global_join_buffer, nullptr);
+    release(borrower);
+  }
+}
+
+TEST_P(ClassicalPbsBufferReuseTest_u64, borrower_can_be_released_before_owner) {
+  auto *owner = scratch(number_of_inputs);
+  auto *borrower0 = owner->try_borrow(number_of_inputs);
+  auto *borrower1 = owner->try_borrow(number_of_inputs);
+  ASSERT_NE(borrower0, nullptr);
+  ASSERT_NE(borrower1, nullptr);
+
+  borrower0->release(stream, gpu_index);
+  EXPECT_EQ(owner->borrowers.size(), 1u);
+  EXPECT_EQ(borrower0->global_join_buffer, nullptr);
+
+  owner->release(stream, gpu_index);
+  EXPECT_EQ(borrower1->global_join_buffer, nullptr);
+  EXPECT_EQ(borrower1->owner, nullptr);
+
+  borrower1->release(stream, gpu_index);
+  delete borrower0;
+  delete borrower1;
+  delete owner;
+}
+
 // Defines for which parameters set the PBS will be tested.
 // It executes each src for all pairs on phis X qs (Cartesian product)
 ::testing::internal::ParamGenerator<ClassicalProgrammableBootstrapTestParams>
@@ -384,3 +481,14 @@ std::string printParamName(
 INSTANTIATE_TEST_CASE_P(ClassicalProgrammableBootstrapInstantiation,
                         ClassicalProgrammableBootstrapTestPrimitives_u64,
                         pbs_params_u64, printParamName);
+
+::testing::internal::ParamGenerator<ClassicalProgrammableBootstrapTestParams>
+    pbs_reuse_params_u64 = ::testing::Values(
+        // V1_4_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+        (ClassicalProgrammableBootstrapTestParams){
+            918, 1, 2048, new_t_uniform(45), new_t_uniform(17), 23, 1, 4, 4, 10,
+            1, 1});
+
+INSTANTIATE_TEST_CASE_P(ClassicalPbsBufferReuseInstantiation,
+                        ClassicalPbsBufferReuseTest_u64, pbs_reuse_params_u64,
+                        printParamName);

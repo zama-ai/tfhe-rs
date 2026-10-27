@@ -7,6 +7,21 @@
 #include <functional>
 #include <vector>
 
+/// @brief Creates the PBS buffer that the large LUTs of one vector_find
+/// operation borrow. It is sized for the largest of them. A LUT that does not
+/// fit allocates its own PBS buffer.
+/// @param capacity Number of inputs the buffer must serve.
+template <typename Torus>
+int_shared_pbs_buffer<Torus> *
+create_vector_find_shared_pbs(CudaStreams streams, int_radix_params params,
+                              uint64_t capacity, bool allocate_gpu_memory,
+                              uint64_t &size_tracker) {
+  PANIC_IF_FALSE(capacity <= UINT32_MAX,
+                 "Shared PBS buffer capacity must fit in uint32_t");
+  return new int_shared_pbs_buffer<Torus>(streams, params, (uint32_t)capacity,
+                                          allocate_gpu_memory, size_tracker);
+}
+
 /**
  * @brief Generates the one-hot equality mask of an encrypted value against a
  * set of clear values.
@@ -46,12 +61,13 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
   /// Per-degree LUTs that AND a packed sum of block-matches.
   std::vector<int_radix_lut<Torus> *> luts_eq;
 
-  int_eq_selectors_ct_vs_clears_buffer(CudaStreams streams,
-                                       int_radix_params params,
-                                       uint32_t num_possible_values,
-                                       uint32_t num_blocks,
-                                       bool allocate_gpu_memory,
-                                       uint64_t &size_tracker) {
+  /// shared_pbs: when not null, the LUTs sized by num_possible_values
+  /// borrow their PBS buffer from it (see int_shared_pbs_buffer).
+  int_eq_selectors_ct_vs_clears_buffer(
+      CudaStreams streams, int_radix_params params,
+      uint32_t num_possible_values, uint32_t num_blocks,
+      bool allocate_gpu_memory, uint64_t &size_tracker,
+      int_shared_pbs_buffer<Torus> *shared_pbs = nullptr) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_possible_values = num_possible_values;
@@ -99,9 +115,9 @@ template <typename Torus> struct int_eq_selectors_ct_vs_clears_buffer {
     this->luts_eq.assign(this->num_luts_needed + 1, nullptr);
     for (uint32_t k = 2; k <= this->num_luts_needed; k++) {
       auto f_eq_k = [k](Torus x) -> Torus { return (x == k) ? 1 : 0; };
-      this->luts_eq[k] =
-          new int_radix_lut<Torus>(streams, params, 1, num_possible_values,
-                                   allocate_gpu_memory, size_tracker);
+      this->luts_eq[k] = new int_radix_lut<Torus>(
+          streams, params, 1, num_possible_values, allocate_gpu_memory,
+          size_tracker, shared_pbs);
       this->luts_eq[k]->generate_and_broadcast_lut(
           streams.active_gpu_subset(num_possible_values, params.pbs_type()),
           {0}, {f_eq_k}, LUT_0_FOR_ALL_BLOCKS);
@@ -182,11 +198,28 @@ template <typename Torus> struct int_eq_selectors_cts_vs_ct_buffer {
   /// Device copy of the per-input pointers the packing kernel reads.
   Torus **d_input_ptrs;
 
-  int_eq_selectors_cts_vs_ct_buffer(CudaStreams streams,
-                                    int_radix_params params,
-                                    uint32_t num_inputs, uint32_t num_blocks,
-                                    bool allocate_gpu_memory,
-                                    uint64_t &size_tracker) {
+  /// @brief The largest number of inputs one of its LUTs applies to.
+  /// @param num_inputs Number of encrypted inputs.
+  /// @param num_blocks Number of blocks per input.
+  static uint32_t get_max_lut_inputs(uint32_t num_inputs, uint32_t num_blocks) {
+    return get_chunk_size(num_inputs, num_blocks) * num_blocks;
+  }
+
+  /// @brief Number of inputs processed together in one chunk.
+  /// @param num_inputs Number of encrypted inputs.
+  /// @param num_blocks Number of blocks per input.
+  static uint32_t get_chunk_size(uint32_t num_inputs, uint32_t num_blocks) {
+    constexpr uint32_t TARGET_PBS_BATCH = 2048;
+    uint32_t target_chunk = std::max(1u, TARGET_PBS_BATCH / num_blocks);
+    return std::max(1u, std::min(num_inputs, target_chunk));
+  }
+
+  /// shared_pbs: when not null, the LUTs borrow their PBS buffer from it (see
+  /// int_shared_pbs_buffer).
+  int_eq_selectors_cts_vs_ct_buffer(
+      CudaStreams streams, int_radix_params params, uint32_t num_inputs,
+      uint32_t num_blocks, bool allocate_gpu_memory, uint64_t &size_tracker,
+      int_shared_pbs_buffer<Torus> *shared_pbs = nullptr) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_inputs = num_inputs;
@@ -194,17 +227,16 @@ template <typename Torus> struct int_eq_selectors_cts_vs_ct_buffer {
 
     this->max_degree = params.max_degree();
 
-    constexpr uint32_t TARGET_PBS_BATCH = 2048;
-    uint32_t target_chunk = std::max(1u, TARGET_PBS_BATCH / num_blocks);
-    this->chunk_size = std::max(1u, std::min(num_inputs, target_chunk));
+    this->chunk_size = get_chunk_size(num_inputs, num_blocks);
 
     uint32_t biv_batch = this->chunk_size * num_blocks;
     uint32_t red_batch = this->chunk_size;
 
     auto eq_fn = [](Torus x, Torus y) -> Torus { return (x == y) ? 1 : 0; };
 
-    this->equality_lut = new int_radix_lut<Torus>(
-        streams, params, 1, biv_batch, allocate_gpu_memory, size_tracker);
+    this->equality_lut =
+        new int_radix_lut<Torus>(streams, params, 1, biv_batch,
+                                 allocate_gpu_memory, size_tracker, shared_pbs);
     this->equality_lut->generate_and_broadcast_bivariate_lut(
         streams.active_gpu_subset(biv_batch, params.pbs_type()), {0}, {eq_fn},
         LUT_0_FOR_ALL_BLOCKS);
@@ -225,8 +257,9 @@ template <typename Torus> struct int_eq_selectors_cts_vs_ct_buffer {
     this->luts_eq.assign(this->num_luts_needed + 1, nullptr);
     for (uint32_t k = 2; k <= this->num_luts_needed; k++) {
       auto f_eq_k = [k](Torus x) -> Torus { return (x == k) ? 1 : 0; };
-      this->luts_eq[k] = new int_radix_lut<Torus>(
-          streams, params, 1, red_batch, allocate_gpu_memory, size_tracker);
+      this->luts_eq[k] = new int_radix_lut<Torus>(streams, params, 1, red_batch,
+                                                  allocate_gpu_memory,
+                                                  size_tracker, shared_pbs);
       this->luts_eq[k]->generate_and_broadcast_lut(
           streams.active_gpu_subset(red_batch, params.pbs_type()), {0},
           {f_eq_k}, LUT_0_FOR_ALL_BLOCKS);
@@ -309,10 +342,27 @@ template <typename Torus> struct int_possible_results_buffer {
   /// Host-built source indices selecting each value's correct LUT output.
   uint32_t *h_src_idx;
 
-  int_possible_results_buffer(CudaStreams streams, int_radix_params params,
-                              uint32_t num_blocks, uint32_t num_possible_values,
-                              bool allocate_gpu_memory,
-                              uint64_t &size_tracker) {
+  /// @brief How many candidate-value LUTs one many-LUT PBS evaluates at once
+  /// for these parameters.
+  static uint32_t get_max_luts_per_call(int_radix_params params) {
+    uint32_t ciphertext_modulus = params.message_modulus * params.carry_modulus;
+    return std::max(ciphertext_modulus / 2, 1u);
+  }
+
+  /// @brief How many many-LUT passes cover the whole value range for these
+  /// parameters.
+  static uint32_t get_num_lut_accumulators(int_radix_params params) {
+    return CEIL_DIV(params.message_modulus * params.message_modulus,
+                    get_max_luts_per_call(params));
+  }
+
+  /// shared_pbs: when not null, the LUT borrows its PBS buffer from it (see
+  /// int_shared_pbs_buffer).
+  int_possible_results_buffer(
+      CudaStreams streams, int_radix_params params, uint32_t num_blocks,
+      uint32_t num_possible_values, bool allocate_gpu_memory,
+      uint64_t &size_tracker,
+      int_shared_pbs_buffer<Torus> *shared_pbs = nullptr) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_possible_values = num_possible_values;
@@ -324,14 +374,11 @@ template <typename Torus> struct int_possible_results_buffer {
     uint32_t ciphertext_modulus = params.message_modulus * params.carry_modulus;
     uint32_t box_size = params.polynomial_size / ciphertext_modulus;
 
-    this->max_luts_per_call = (ciphertext_modulus) / 2;
-    if (this->max_luts_per_call == 0) {
-      this->max_luts_per_call = 1;
-    }
+    this->max_luts_per_call = get_max_luts_per_call(params);
 
     this->lut_stride =
         (ciphertext_modulus / this->max_luts_per_call) * box_size;
-    this->num_lut_accumulators = CEIL_DIV(total_luts_needed, max_luts_per_call);
+    this->num_lut_accumulators = get_num_lut_accumulators(params);
 
     uint64_t total_lut_blocks_u64 =
         (uint64_t)num_lut_accumulators * num_possible_values;
@@ -342,7 +389,7 @@ template <typename Torus> struct int_possible_results_buffer {
 
     this->batched_accumulators_lut = new int_radix_lut<Torus>(
         streams, params, num_lut_accumulators, total_lut_blocks,
-        max_luts_per_call, allocate_gpu_memory, size_tracker);
+        max_luts_per_call, allocate_gpu_memory, size_tracker, shared_pbs);
 
     std::vector<std::vector<std::function<Torus(Torus)>>> all_fns;
     std::vector<uint32_t> lut_generation_indices(num_lut_accumulators);
@@ -463,10 +510,12 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
   /// Largest candidate count the pointer arrays were sized for.
   uint32_t num_input_ciphertexts_capacity;
 
-  int_aggregate_one_hot_buffer(CudaStreams streams, int_radix_params params,
-                               uint32_t num_blocks, uint32_t num_matches,
-                               bool allocate_gpu_memory,
-                               uint64_t &size_tracker) {
+  /// shared_pbs: when not null, the LUT sized by num_matches borrows its
+  /// PBS buffer from it (see int_shared_pbs_buffer).
+  int_aggregate_one_hot_buffer(
+      CudaStreams streams, int_radix_params params, uint32_t num_blocks,
+      uint32_t num_matches, bool allocate_gpu_memory, uint64_t &size_tracker,
+      int_shared_pbs_buffer<Torus> *shared_pbs = nullptr) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_input_ciphertexts_capacity = num_matches;
@@ -486,8 +535,9 @@ template <typename Torus> struct int_aggregate_one_hot_buffer {
                    "num_matches * num_blocks must fit in uint32_t");
     uint32_t batched_blocks = (uint32_t)batched_blocks_u64;
 
-    this->batched_identity_lut = new int_radix_lut<Torus>(
-        streams, params, 1, batched_blocks, allocate_gpu_memory, size_tracker);
+    this->batched_identity_lut =
+        new int_radix_lut<Torus>(streams, params, 1, batched_blocks,
+                                 allocate_gpu_memory, size_tracker, shared_pbs);
     this->batched_identity_lut->generate_and_broadcast_lut(
         streams.active_gpu_subset(batched_blocks, params.pbs_type()), {0},
         {id_fn}, LUT_0_FOR_ALL_BLOCKS);
@@ -593,6 +643,10 @@ template <typename Torus> struct int_unchecked_match_buffer {
   /// OR-reduces the mask to tell whether any case matched.
   int_comparison_buffer<Torus> *at_least_one_true_buffer;
 
+  /// @brief PBS buffers that the large LUTs of the four buffers above borrow,
+  /// instead of one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   /// The one-hot mask, one boolean per case packed together.
   CudaRadixCiphertextFFI packed_selectors_ct;
   /// Each case's output value, masked, awaiting the aggregation sum.
@@ -610,23 +664,37 @@ template <typename Torus> struct int_unchecked_match_buffer {
     this->num_output_packed_blocks = num_output_packed_blocks;
     this->max_output_is_zero = max_output_is_zero;
 
+    // Sized for the largest LUT of the operation. A LUT that does not fit
+    // allocates its own PBS buffer.
+    uint32_t num_lut_accumulators =
+        int_possible_results_buffer<Torus>::get_num_lut_accumulators(params);
+    uint64_t capacity = num_matches;
+    if (!max_output_is_zero) {
+      capacity = std::max<uint64_t>(capacity, (uint64_t)num_lut_accumulators *
+                                                  num_matches);
+      capacity = std::max<uint64_t>(capacity, (uint64_t)num_matches *
+                                                  num_output_packed_blocks);
+    }
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params, capacity, allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buffer = new int_eq_selectors_ct_vs_clears_buffer<Torus>(
         streams, params, num_matches, num_input_blocks, allocate_gpu_memory,
-        size_tracker);
-
-    this->possible_results_buffer = new int_possible_results_buffer<Torus>(
-        streams, params, num_output_packed_blocks, num_matches,
-        allocate_gpu_memory, size_tracker);
+        size_tracker, this->shared_pbs);
 
     if (!max_output_is_zero) {
+      this->possible_results_buffer = new int_possible_results_buffer<Torus>(
+          streams, params, num_output_packed_blocks, num_matches,
+          allocate_gpu_memory, size_tracker, this->shared_pbs);
+
       this->aggregate_buffer = new int_aggregate_one_hot_buffer<Torus>(
           streams, params, num_output_packed_blocks, num_matches,
-          allocate_gpu_memory, size_tracker);
+          allocate_gpu_memory, size_tracker, this->shared_pbs);
     }
 
     this->at_least_one_true_buffer = new int_comparison_buffer<Torus>(
         streams, EQ, params, num_matches, false, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, false, this->shared_pbs, true);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors_ct,
@@ -645,13 +713,17 @@ template <typename Torus> struct int_unchecked_match_buffer {
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buffer->release(streams);
     delete this->eq_selectors_buffer;
 
-    this->possible_results_buffer->release(streams);
-    delete this->possible_results_buffer;
-
     if (!max_output_is_zero) {
+      this->possible_results_buffer->release(streams);
+      delete this->possible_results_buffer;
+
       this->aggregate_buffer->release(streams);
       delete this->aggregate_buffer;
     }
@@ -786,6 +858,10 @@ template <typename Torus> struct int_unchecked_contains_buffer {
   /// OR-reduces the mask to tell whether anything matched.
   int_comparison_buffer<Torus> *reduction_buffer;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   /// The one-hot mask, one boolean per list element packed together.
   CudaRadixCiphertextFFI packed_selectors;
   /// Per-element single-block views into the packed mask.
@@ -799,13 +875,21 @@ template <typename Torus> struct int_unchecked_contains_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_inputs = num_inputs;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params,
+        std::max<uint64_t>(
+            num_inputs,
+            int_eq_selectors_cts_vs_ct_buffer<Torus>::get_max_lut_inputs(
+                num_inputs, num_blocks)),
+        allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buf = new int_eq_selectors_cts_vs_ct_buffer<Torus>(
         streams, params, num_inputs, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
-    this->reduction_buffer =
-        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
-                                         allocate_gpu_memory, size_tracker);
+    this->reduction_buffer = new int_comparison_buffer<Torus>(
+        streams, EQ, params, num_inputs, false, allocate_gpu_memory,
+        size_tracker, false, this->shared_pbs, true);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
@@ -820,6 +904,10 @@ template <typename Torus> struct int_unchecked_contains_buffer {
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buf->release(streams);
     delete this->eq_selectors_buf;
 
@@ -849,6 +937,10 @@ template <typename Torus> struct int_unchecked_contains_clear_buffer {
   /// OR-reduces the mask to tell whether anything matched.
   int_comparison_buffer<Torus> *reduction_buffer;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   /// The one-hot mask, one boolean per list element packed together.
   CudaRadixCiphertextFFI packed_selectors;
   /// Per-element single-block views into the packed mask.
@@ -867,13 +959,21 @@ template <typename Torus> struct int_unchecked_contains_clear_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_inputs = num_inputs;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params,
+        std::max<uint64_t>(
+            num_inputs,
+            int_eq_selectors_cts_vs_ct_buffer<Torus>::get_max_lut_inputs(
+                num_inputs, num_blocks)),
+        allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buf = new int_eq_selectors_cts_vs_ct_buffer<Torus>(
         streams, params, num_inputs, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
-    this->reduction_buffer =
-        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
-                                         allocate_gpu_memory, size_tracker);
+    this->reduction_buffer = new int_comparison_buffer<Torus>(
+        streams, EQ, params, num_inputs, false, allocate_gpu_memory,
+        size_tracker, false, this->shared_pbs, true);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
@@ -897,6 +997,10 @@ template <typename Torus> struct int_unchecked_contains_clear_buffer {
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buf->release(streams);
     delete this->eq_selectors_buf;
 
@@ -931,6 +1035,10 @@ template <typename Torus> struct int_unchecked_is_in_clears_buffer {
   /// OR-reduces the mask to tell whether anything matched.
   int_comparison_buffer<Torus> *reduction_buffer;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   /// The one-hot mask, one boolean per clear value packed together.
   CudaRadixCiphertextFFI packed_selectors;
 
@@ -943,13 +1051,16 @@ template <typename Torus> struct int_unchecked_is_in_clears_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_clears = num_clears;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params, num_clears, allocate_gpu_memory, size_tracker);
+
     this->eq_buffer = new int_eq_selectors_ct_vs_clears_buffer<Torus>(
         streams, params, num_clears, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
-    this->reduction_buffer =
-        new int_comparison_buffer<Torus>(streams, EQ, params, num_clears, false,
-                                         allocate_gpu_memory, size_tracker);
+    this->reduction_buffer = new int_comparison_buffer<Torus>(
+        streams, EQ, params, num_clears, false, allocate_gpu_memory,
+        size_tracker, false, this->shared_pbs, true);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
@@ -958,6 +1069,10 @@ template <typename Torus> struct int_unchecked_is_in_clears_buffer {
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_buffer->release(streams);
     delete this->eq_buffer;
 
@@ -999,12 +1114,29 @@ template <typename Torus> struct int_final_index_from_selectors_buffer {
   /// Clear index per slot, multiplied in so a match becomes a position.
   uint64_t *h_indices;
 
-  int_final_index_from_selectors_buffer(CudaStreams streams,
-                                        int_radix_params params,
-                                        uint32_t num_inputs,
-                                        uint32_t num_blocks_index,
-                                        bool allocate_gpu_memory,
-                                        uint64_t &size_tracker) {
+  /// @brief The largest number of inputs one of its LUTs applies to.
+  /// @param num_inputs Number of selector slots.
+  /// @param num_blocks_index Number of blocks of the encrypted index.
+  static uint32_t get_max_lut_inputs(int_radix_params params,
+                                     uint32_t num_inputs,
+                                     uint32_t num_blocks_index) {
+    uint64_t packed_len = (num_blocks_index + 1) / 2;
+    uint64_t num_lut_accumulators =
+        int_possible_results_buffer<Torus>::get_num_lut_accumulators(params);
+    uint64_t max_inputs = std::max<uint64_t>(
+        num_inputs, std::max(num_lut_accumulators, packed_len) * num_inputs);
+    PANIC_IF_FALSE(max_inputs <= UINT32_MAX,
+                   "Shared PBS buffer capacity must fit in uint32_t");
+    return (uint32_t)max_inputs;
+  }
+
+  /// shared_pbs: when not null, the LUTs borrow their PBS buffer from it (see
+  /// int_shared_pbs_buffer).
+  int_final_index_from_selectors_buffer(
+      CudaStreams streams, int_radix_params params, uint32_t num_inputs,
+      uint32_t num_blocks_index, bool allocate_gpu_memory,
+      uint64_t &size_tracker,
+      int_shared_pbs_buffer<Torus> *shared_pbs = nullptr) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_inputs = num_inputs;
@@ -1013,15 +1145,15 @@ template <typename Torus> struct int_final_index_from_selectors_buffer {
 
     this->possible_results_buf = new int_possible_results_buffer<Torus>(
         streams, params, packed_len, num_inputs, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, shared_pbs);
 
     this->aggregate_buf = new int_aggregate_one_hot_buffer<Torus>(
         streams, params, packed_len, num_inputs, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, shared_pbs);
 
-    this->reduction_buf =
-        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
-                                         allocate_gpu_memory, size_tracker);
+    this->reduction_buf = new int_comparison_buffer<Torus>(
+        streams, EQ, params, num_inputs, false, allocate_gpu_memory,
+        size_tracker, false, shared_pbs, true);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
@@ -1097,6 +1229,10 @@ template <typename Torus> struct int_unchecked_index_in_clears_buffer {
   /// Turns the one-hot mask into the encrypted position of the match.
   int_final_index_from_selectors_buffer<Torus> *final_index_buf;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   int_unchecked_index_in_clears_buffer(CudaStreams streams,
                                        int_radix_params params,
                                        uint32_t num_clears, uint32_t num_blocks,
@@ -1107,16 +1243,26 @@ template <typename Torus> struct int_unchecked_index_in_clears_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_clears = num_clears;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params,
+        int_final_index_from_selectors_buffer<Torus>::get_max_lut_inputs(
+            params, num_clears, num_blocks_index),
+        allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buf = new int_eq_selectors_ct_vs_clears_buffer<Torus>(
         streams, params, num_clears, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     this->final_index_buf = new int_final_index_from_selectors_buffer<Torus>(
         streams, params, num_clears, num_blocks_index, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buf->release(streams);
     delete this->eq_selectors_buf;
 
@@ -1145,6 +1291,10 @@ template <typename Torus> struct int_unchecked_first_index_in_clears_buffer {
   /// OR-reduces the mask to tell whether anything matched.
   int_comparison_buffer<Torus> *reduction_buf;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   /// The one-hot mask, one boolean per clear value packed together.
   CudaRadixCiphertextFFI packed_selectors;
   /// One materialized index per value, masked, before the aggregation.
@@ -1158,22 +1308,28 @@ template <typename Torus> struct int_unchecked_first_index_in_clears_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_unique = num_unique;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params,
+        int_final_index_from_selectors_buffer<Torus>::get_max_lut_inputs(
+            params, num_unique, num_blocks_index),
+        allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buf = new int_eq_selectors_ct_vs_clears_buffer<Torus>(
         streams, params, num_unique, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     uint32_t packed_len = (num_blocks_index + 1) / 2;
     this->possible_results_buf = new int_possible_results_buffer<Torus>(
         streams, params, packed_len, num_unique, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     this->aggregate_buf = new int_aggregate_one_hot_buffer<Torus>(
         streams, params, packed_len, num_unique, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
-    this->reduction_buf =
-        new int_comparison_buffer<Torus>(streams, EQ, params, num_unique, false,
-                                         allocate_gpu_memory, size_tracker);
+    this->reduction_buf = new int_comparison_buffer<Torus>(
+        streams, EQ, params, num_unique, false, allocate_gpu_memory,
+        size_tracker, false, this->shared_pbs, true);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
@@ -1190,6 +1346,10 @@ template <typename Torus> struct int_unchecked_first_index_in_clears_buffer {
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buf->release(streams);
     delete this->eq_selectors_buf;
 
@@ -1235,6 +1395,10 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
   /// OR-reduces the mask to tell whether anything matched.
   int_comparison_buffer<Torus> *reduction_buf;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   /// The one-hot mask, later trimmed to keep only the first match.
   CudaRadixCiphertextFFI packed_selectors;
   /// Per-element single-block views into the packed mask.
@@ -1261,23 +1425,32 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_inputs = num_inputs;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params,
+        std::max<uint64_t>(
+            int_eq_selectors_cts_vs_ct_buffer<Torus>::get_max_lut_inputs(
+                num_inputs, num_blocks),
+            int_final_index_from_selectors_buffer<Torus>::get_max_lut_inputs(
+                params, num_inputs, num_blocks_index)),
+        allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buf = new int_eq_selectors_cts_vs_ct_buffer<Torus>(
         streams, params, num_inputs, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     uint32_t packed_len = (num_blocks_index + 1) / 2;
 
     this->possible_results_buf = new int_possible_results_buffer<Torus>(
         streams, params, packed_len, num_inputs, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     this->aggregate_buf = new int_aggregate_one_hot_buffer<Torus>(
         streams, params, packed_len, num_inputs, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
-    this->reduction_buf =
-        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
-                                         allocate_gpu_memory, size_tracker);
+    this->reduction_buf = new int_comparison_buffer<Torus>(
+        streams, EQ, params, num_inputs, false, allocate_gpu_memory,
+        size_tracker, false, this->shared_pbs, true);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
@@ -1333,7 +1506,8 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
       return current;
     };
     this->prefix_sum_lut = new int_radix_lut<Torus>(
-        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
+        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker,
+        this->shared_pbs);
 
     this->prefix_sum_lut->generate_and_broadcast_bivariate_lut(
         streams.active_gpu_subset(num_inputs, params.pbs_type()), {0},
@@ -1346,13 +1520,18 @@ template <typename Torus> struct int_unchecked_first_index_of_clear_buffer {
       return val;
     };
     this->cleanup_lut = new int_radix_lut<Torus>(
-        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
+        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker,
+        this->shared_pbs);
     this->cleanup_lut->generate_and_broadcast_lut(
         streams.active_gpu_subset(num_inputs, params.pbs_type()), {0},
         {cleanup_fn}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buf->release(streams);
     delete this->eq_selectors_buf;
 
@@ -1410,6 +1589,10 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
   /// OR-reduces the mask to tell whether anything matched.
   int_comparison_buffer<Torus> *reduction_buf;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   /// The one-hot mask, later trimmed to keep only the first match.
   CudaRadixCiphertextFFI packed_selectors;
   /// Per-element single-block views into the packed mask.
@@ -1434,23 +1617,32 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_inputs = num_inputs;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params,
+        std::max<uint64_t>(
+            int_eq_selectors_cts_vs_ct_buffer<Torus>::get_max_lut_inputs(
+                num_inputs, num_blocks),
+            int_final_index_from_selectors_buffer<Torus>::get_max_lut_inputs(
+                params, num_inputs, num_blocks_index)),
+        allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buf = new int_eq_selectors_cts_vs_ct_buffer<Torus>(
         streams, params, num_inputs, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     uint32_t packed_len = (num_blocks_index + 1) / 2;
 
     this->possible_results_buf = new int_possible_results_buffer<Torus>(
         streams, params, packed_len, num_inputs, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     this->aggregate_buf = new int_aggregate_one_hot_buffer<Torus>(
         streams, params, packed_len, num_inputs, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
-    this->reduction_buf =
-        new int_comparison_buffer<Torus>(streams, EQ, params, num_inputs, false,
-                                         allocate_gpu_memory, size_tracker);
+    this->reduction_buf = new int_comparison_buffer<Torus>(
+        streams, EQ, params, num_inputs, false, allocate_gpu_memory,
+        size_tracker, false, this->shared_pbs, true);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->packed_selectors,
@@ -1497,7 +1689,8 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
       return current;
     };
     this->prefix_sum_lut = new int_radix_lut<Torus>(
-        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
+        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker,
+        this->shared_pbs);
 
     this->prefix_sum_lut->generate_and_broadcast_bivariate_lut(
         streams.active_gpu_subset(num_inputs, params.pbs_type()), {0},
@@ -1510,13 +1703,18 @@ template <typename Torus> struct int_unchecked_first_index_of_buffer {
       return val;
     };
     this->cleanup_lut = new int_radix_lut<Torus>(
-        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker);
+        streams, params, 1, num_inputs, allocate_gpu_memory, size_tracker,
+        this->shared_pbs);
     this->cleanup_lut->generate_and_broadcast_lut(
         streams.active_gpu_subset(num_inputs, params.pbs_type()), {0},
         {cleanup_fn}, LUT_0_FOR_ALL_BLOCKS);
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buf->release(streams);
     delete this->eq_selectors_buf;
 
@@ -1566,6 +1764,10 @@ template <typename Torus> struct int_unchecked_index_of_buffer {
   /// Turns the one-hot mask into the encrypted position of the match.
   int_final_index_from_selectors_buffer<Torus> *final_index_buf;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   int_unchecked_index_of_buffer(CudaStreams streams, int_radix_params params,
                                 uint32_t num_inputs, uint32_t num_blocks,
                                 uint32_t num_blocks_index,
@@ -1575,16 +1777,29 @@ template <typename Torus> struct int_unchecked_index_of_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_inputs = num_inputs;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params,
+        std::max<uint64_t>(
+            int_eq_selectors_cts_vs_ct_buffer<Torus>::get_max_lut_inputs(
+                num_inputs, num_blocks),
+            int_final_index_from_selectors_buffer<Torus>::get_max_lut_inputs(
+                params, num_inputs, num_blocks_index)),
+        allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buf = new int_eq_selectors_cts_vs_ct_buffer<Torus>(
         streams, params, num_inputs, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     this->final_index_buf = new int_final_index_from_selectors_buffer<Torus>(
         streams, params, num_inputs, num_blocks_index, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buf->release(streams);
     delete this->eq_selectors_buf;
 
@@ -1610,6 +1825,10 @@ template <typename Torus> struct int_unchecked_index_of_clear_buffer {
   /// Turns the one-hot mask into the encrypted position of the match.
   int_final_index_from_selectors_buffer<Torus> *final_index_buf;
 
+  /// @brief PBS buffer that the large LUTs of this operation borrow, instead of
+  /// one PBS buffer per LUT.
+  int_shared_pbs_buffer<Torus> *shared_pbs;
+
   /// The clear needle re-encrypted trivially so it can feed the PBS.
   CudaRadixCiphertextFFI tmp_clear_val;
   /// Device copy of the clear needle digits before trivial encryption.
@@ -1625,13 +1844,22 @@ template <typename Torus> struct int_unchecked_index_of_clear_buffer {
     this->allocate_gpu_memory = allocate_gpu_memory;
     this->num_inputs = num_inputs;
 
+    this->shared_pbs = create_vector_find_shared_pbs<Torus>(
+        streams, params,
+        std::max<uint64_t>(
+            int_eq_selectors_cts_vs_ct_buffer<Torus>::get_max_lut_inputs(
+                num_inputs, num_blocks),
+            int_final_index_from_selectors_buffer<Torus>::get_max_lut_inputs(
+                params, num_inputs, num_blocks_index)),
+        allocate_gpu_memory, size_tracker);
+
     this->eq_selectors_buf = new int_eq_selectors_cts_vs_ct_buffer<Torus>(
         streams, params, num_inputs, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     this->final_index_buf = new int_final_index_from_selectors_buffer<Torus>(
         streams, params, num_inputs, num_blocks_index, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, this->shared_pbs);
 
     create_zero_radix_ciphertext_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &this->tmp_clear_val,
@@ -1644,6 +1872,10 @@ template <typename Torus> struct int_unchecked_index_of_clear_buffer {
   }
 
   void release(CudaStreams streams) {
+    this->shared_pbs->release();
+    delete this->shared_pbs;
+    this->shared_pbs = nullptr;
+
     this->eq_selectors_buf->release(streams);
     delete this->eq_selectors_buf;
 

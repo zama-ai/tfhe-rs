@@ -5,8 +5,10 @@
 #include "device.h"
 #include "pbs_enums.h"
 #include "vector_types.h"
+#include <algorithm>
 #include <stdint.h>
 #include <variant>
+#include <vector>
 
 struct classical_pbs_params {
   PBS_MS_REDUCTION_T noise_reduction_type;
@@ -130,9 +132,61 @@ bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
     uint32_t polynomial_size, uint32_t max_shared_memory);
 
 struct pbs_buffer_base {
+  // Ownership of the device arrays when a buffer is borrowed (see try_borrow
+  // in the specializations). A borrower uses the arrays of its owner.
+  std::vector<pbs_buffer_base *> borrowers;
+  bool is_borrower = false;
+  pbs_buffer_base *owner = nullptr;
+
   virtual void release(cudaStream_t stream, uint32_t gpu_index) = 0;
   virtual ~pbs_buffer_base() = default;
+
+protected:
+  void attach_to(pbs_buffer_base *new_owner) {
+    is_borrower = true;
+    owner = new_owner;
+    new_owner->borrowers.push_back(this);
+  }
+
+  // Returns true when this buffer is a borrower. It is then detached from its
+  // owner and its device pointers are nulled, and release must not drop them.
+  bool release_if_borrower() {
+    if (!is_borrower)
+      return false;
+    if (owner != nullptr) {
+      auto &siblings = owner->borrowers;
+      siblings.erase(std::remove(siblings.begin(), siblings.end(), this),
+                     siblings.end());
+      owner = nullptr;
+    }
+    clear_device_pointers();
+    return true;
+  }
+
+  // Called by an owner after it dropped its arrays.
+  void release_borrowers() {
+    for (auto *borrower : borrowers) {
+      borrower->owner = nullptr;
+      borrower->clear_device_pointers();
+    }
+    borrowers.clear();
+    clear_device_pointers();
+  }
+
+  virtual void clear_device_pointers() = 0;
 };
+
+// The variant the classical scratch selects for num_samples inputs.
+template <typename Torus>
+PBS_VARIANT
+get_classical_pbs_variant(uint32_t gpu_index, uint32_t glwe_dimension,
+                          uint32_t polynomial_size, uint32_t level_count,
+                          uint32_t num_samples);
+template <>
+PBS_VARIANT
+get_classical_pbs_variant<uint64_t>(uint32_t gpu_index, uint32_t glwe_dimension,
+                                    uint32_t polynomial_size,
+                                    uint32_t level_count, uint32_t num_samples);
 
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer;
 
@@ -154,6 +208,7 @@ struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> : public pbs_buffer_base {
   uint32_t level_count;
   uint32_t input_lwe_ciphertext_count;
   uint32_t max_shared_memory;
+  uint32_t gpu_index;
 
 private:
   // Variant-free part. Every public constructor delegates here first, then
@@ -166,7 +221,8 @@ private:
         gpu_memory_allocated(allocate_gpu_memory),
         glwe_dimension(glwe_dimension), polynomial_size(polynomial_size),
         level_count(level_count),
-        input_lwe_ciphertext_count(input_lwe_ciphertext_count) {
+        input_lwe_ciphertext_count(input_lwe_ciphertext_count),
+        gpu_index(gpu_index) {
     cuda_set_device(gpu_index);
     max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   }
@@ -338,7 +394,44 @@ public:
   }
 #endif
 
+private:
+  // Borrows the device arrays of owner instead of allocating new ones. Only
+  // try_borrow builds it.
+  pbs_buffer(pbs_buffer *owner, uint32_t input_lwe_ciphertext_count)
+      : d_mem(owner->d_mem), global_accumulator(owner->global_accumulator),
+        global_join_buffer(owner->global_join_buffer),
+        pbs_variant(owner->pbs_variant),
+        noise_reduction_type(owner->noise_reduction_type),
+        gpu_memory_allocated(owner->gpu_memory_allocated),
+        glwe_dimension(owner->glwe_dimension),
+        polynomial_size(owner->polynomial_size),
+        level_count(owner->level_count),
+        input_lwe_ciphertext_count(input_lwe_ciphertext_count),
+        max_shared_memory(owner->max_shared_memory),
+        gpu_index(owner->gpu_index) {
+    attach_to(owner);
+  }
+
+public:
+  // Returns a buffer that borrows the device arrays of this one for num_inputs
+  // inputs, or nullptr when this buffer cannot serve them. A buffer can be
+  // borrowed for num_inputs only if a buffer of its own would select the same
+  // variant, so that every launch is the same. The borrower runs with the
+  // variant of this buffer, and must only be used on the same stream as this
+  // buffer and its other borrowers, one PBS after the other.
+  pbs_buffer *try_borrow(uint32_t num_inputs) {
+    if (is_borrower || num_inputs > input_lwe_ciphertext_count)
+      return nullptr;
+    if (get_classical_pbs_variant<Torus>(gpu_index, glwe_dimension,
+                                         polynomial_size, level_count,
+                                         num_inputs) != pbs_variant)
+      return nullptr;
+    return new pbs_buffer(this, num_inputs);
+  }
+
   void release(cudaStream_t stream, uint32_t gpu_index) override {
+    if (release_if_borrower())
+      return;
     cuda_drop_with_size_tracking_async(d_mem, stream, gpu_index,
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
@@ -346,6 +439,14 @@ public:
     cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                        gpu_memory_allocated);
     cuda_synchronize_stream(stream, gpu_index);
+    release_borrowers();
+  }
+
+protected:
+  void clear_device_pointers() override {
+    d_mem = nullptr;
+    global_accumulator = nullptr;
+    global_join_buffer = nullptr;
   }
 };
 

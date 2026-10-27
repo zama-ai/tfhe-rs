@@ -13,6 +13,28 @@ bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t max_shared_memory);
 
+// The variant the multi-bit scratch selects for num_samples inputs.
+template <typename Torus>
+PBS_VARIANT
+get_multi_bit_pbs_variant(uint32_t gpu_index, uint32_t glwe_dimension,
+                          uint32_t polynomial_size, uint32_t level_count,
+                          uint32_t num_samples);
+template <>
+PBS_VARIANT
+get_multi_bit_pbs_variant<uint64_t>(uint32_t gpu_index, uint32_t glwe_dimension,
+                                    uint32_t polynomial_size,
+                                    uint32_t level_count, uint32_t num_samples);
+
+// The chunk size a multi-bit buffer for num_inputs inputs selects, without the
+// cap that depends on the free GPU memory.
+template <typename Torus>
+uint64_t get_multi_bit_lwe_chunk_size(uint32_t gpu_index, uint32_t num_inputs,
+                                      uint32_t polynomial_size);
+template <>
+uint64_t get_multi_bit_lwe_chunk_size<uint64_t>(uint32_t gpu_index,
+                                                uint32_t num_inputs,
+                                                uint32_t polynomial_size);
+
 #if CUDA_ARCH >= 900
 template <typename Torus>
 uint64_t scratch_cuda_tbc_multi_bit_programmable_bootstrap(
@@ -95,6 +117,10 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
     uint32_t polynomial_size);
 
 template <typename Torus, class params>
+uint64_t get_lwe_chunk_size_uncapped(uint32_t gpu_index, uint32_t max_num_pbs,
+                                     uint32_t polynomial_size,
+                                     uint64_t full_sm_keybundle);
+template <typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size, uint32_t glwe_dimension,
                             uint32_t level_count, uint64_t full_sm_keybundle);
@@ -125,6 +151,7 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
   uint32_t level_count;
   uint32_t input_lwe_ciphertext_count;
   uint32_t max_shared_memory;
+  uint32_t gpu_index;
 
 private:
   // Variant-free part: shared fields plus the buffers every multi-bit variant
@@ -137,7 +164,8 @@ private:
         gpu_memory_allocated(allocate_gpu_memory),
         glwe_dimension(glwe_dimension), polynomial_size(polynomial_size),
         level_count(level_count),
-        input_lwe_ciphertext_count(input_lwe_ciphertext_count) {
+        input_lwe_ciphertext_count(input_lwe_ciphertext_count),
+        gpu_index(gpu_index) {
     cuda_set_device(gpu_index);
     max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
@@ -292,7 +320,55 @@ public:
   }
 #endif
 
+private:
+  // Borrows the device arrays of owner instead of allocating new ones. Only
+  // try_borrow builds it.
+  pbs_buffer(pbs_buffer *owner, uint32_t input_lwe_ciphertext_count,
+             uint64_t lwe_chunk_size)
+      : d_mem_keybundle(owner->d_mem_keybundle),
+        d_mem_acc_step_one(owner->d_mem_acc_step_one),
+        d_mem_acc_step_two(owner->d_mem_acc_step_two),
+        d_mem_acc_cg(owner->d_mem_acc_cg), d_mem_acc_tbc(owner->d_mem_acc_tbc),
+        lwe_chunk_size(lwe_chunk_size), keybundle_fft(owner->keybundle_fft),
+        global_accumulator(owner->global_accumulator),
+        global_join_buffer(owner->global_join_buffer),
+        pbs_variant(owner->pbs_variant),
+        gpu_memory_allocated(owner->gpu_memory_allocated),
+        glwe_dimension(owner->glwe_dimension),
+        polynomial_size(owner->polynomial_size),
+        level_count(owner->level_count),
+        input_lwe_ciphertext_count(input_lwe_ciphertext_count),
+        max_shared_memory(owner->max_shared_memory),
+        gpu_index(owner->gpu_index) {
+    attach_to(owner);
+  }
+
+public:
+  // Returns a buffer that borrows the device arrays of this one for num_inputs
+  // inputs, or nullptr when this buffer cannot serve them. A buffer can be
+  // borrowed for num_inputs only if a buffer of its own would select the same
+  // variant, and the keybundle arrays of a buffer of its own fit in this one's.
+  // The borrower runs with the variant of this buffer and the chunk size a
+  // buffer of its own would select, and must only be used on the same stream as
+  // this buffer and its other borrowers, one PBS after the other.
+  pbs_buffer *try_borrow(uint32_t num_inputs) {
+    if (is_borrower || num_inputs > input_lwe_ciphertext_count)
+      return nullptr;
+    if (get_multi_bit_pbs_variant<Torus>(gpu_index, glwe_dimension,
+                                         polynomial_size, level_count,
+                                         num_inputs) != pbs_variant)
+      return nullptr;
+    uint64_t borrower_chunk_size = get_multi_bit_lwe_chunk_size<Torus>(
+        gpu_index, num_inputs, polynomial_size);
+    if ((uint64_t)num_inputs * borrower_chunk_size >
+        (uint64_t)input_lwe_ciphertext_count * lwe_chunk_size)
+      return nullptr;
+    return new pbs_buffer(this, num_inputs, borrower_chunk_size);
+  }
+
   void release(cudaStream_t stream, uint32_t gpu_index) override {
+    if (release_if_borrower())
+      return;
     cuda_drop_with_size_tracking_async(d_mem_keybundle, stream, gpu_index,
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(d_mem_acc_step_one, stream, gpu_index,
@@ -310,6 +386,19 @@ public:
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
                                        gpu_memory_allocated);
     cuda_synchronize_stream(stream, gpu_index);
+    release_borrowers();
+  }
+
+protected:
+  void clear_device_pointers() override {
+    d_mem_keybundle = nullptr;
+    d_mem_acc_step_one = nullptr;
+    d_mem_acc_step_two = nullptr;
+    d_mem_acc_cg = nullptr;
+    d_mem_acc_tbc = nullptr;
+    keybundle_fft = nullptr;
+    global_accumulator = nullptr;
+    global_join_buffer = nullptr;
   }
 };
 

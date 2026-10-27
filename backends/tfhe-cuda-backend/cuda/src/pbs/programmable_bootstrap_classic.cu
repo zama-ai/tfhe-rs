@@ -128,6 +128,26 @@ uint64_t scratch_cuda_programmable_bootstrap(
                          allocate_gpu_memory, noise_reduction_type));
 }
 
+template <>
+PBS_VARIANT get_classical_pbs_variant<uint64_t>(uint32_t gpu_index,
+                                                uint32_t glwe_dimension,
+                                                uint32_t polynomial_size,
+                                                uint32_t level_count,
+                                                uint32_t num_samples) {
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+#if (CUDA_ARCH >= 900)
+  if (has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
+          num_samples, glwe_dimension, polynomial_size, level_count,
+          max_shared_memory))
+    return PBS_VARIANT::TBC;
+#endif
+  if (has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
+          glwe_dimension, polynomial_size, level_count, num_samples,
+          max_shared_memory))
+    return PBS_VARIANT::CG;
+  return PBS_VARIANT::DEFAULT;
+}
+
 /*
  * This scratch function allocates the necessary amount of data on the GPU for
  * the PBS on 64 bits inputs, into `buffer`. It also configures SM options on
@@ -139,29 +159,27 @@ uint64_t scratch_cuda_programmable_bootstrap_64_async(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type) {
 
-  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  switch (get_classical_pbs_variant<uint64_t>(gpu_index, glwe_dimension,
+                                              polynomial_size, level_count,
+                                              input_lwe_ciphertext_count)) {
 #if (CUDA_ARCH >= 900)
-  if (has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
-          input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          level_count, max_shared_memory))
+  case PBS_VARIANT::TBC:
     return scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
-  else
 #endif
-      if (has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
-              glwe_dimension, polynomial_size, level_count,
-              input_lwe_ciphertext_count, max_shared_memory))
+  case PBS_VARIANT::CG:
     return scratch_cuda_programmable_bootstrap_cg<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
-  else
+  default:
     return scratch_cuda_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+  }
 }
 
 uint64_t scratch_cuda_programmable_bootstrap_tbc_generic_64_async(

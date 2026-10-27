@@ -17,11 +17,13 @@ template <typename Torus> struct int_are_all_block_true_buffer {
   Torus *preallocated_h_lut;
   bool gpu_memory_allocated;
 
-  int_are_all_block_true_buffer(CudaStreams streams, COMPARISON_TYPE op,
-                                int_radix_params params,
-                                uint32_t num_radix_blocks,
-                                bool allocate_gpu_memory,
-                                uint64_t &size_tracker) {
+  // shared_pbs: when not null, the lookup table borrows its PBS
+  // buffer from it (see int_shared_pbs_buffer)
+  int_are_all_block_true_buffer(
+      CudaStreams streams, COMPARISON_TYPE op, int_radix_params params,
+      uint32_t num_radix_blocks, bool allocate_gpu_memory,
+      uint64_t &size_tracker,
+      int_shared_pbs_buffer<Torus> *shared_pbs = nullptr) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
@@ -43,8 +45,9 @@ template <typename Torus> struct int_are_all_block_true_buffer {
     preallocated_h_lut = (Torus *)malloc(safe_mul_sizeof<Torus>(
         params.glwe_dimension + 1, params.polynomial_size));
 
-    is_max_value = new int_radix_lut<Torus>(streams, params, 2, max_chunks,
-                                            allocate_gpu_memory, size_tracker);
+    is_max_value =
+        new int_radix_lut<Torus>(streams, params, 2, max_chunks,
+                                 allocate_gpu_memory, size_tracker, shared_pbs);
 
     auto active_streams =
         streams.active_gpu_subset(max_chunks, params.pbs_type());
@@ -81,18 +84,29 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
   int_are_all_block_true_buffer<Torus> *are_all_block_true_buffer;
   bool gpu_memory_allocated;
+  /// @brief When true, the lookup tables that only the scalar and vector
+  /// comparisons apply are not built.
+  bool block_reduction_only;
 
+  // shared_pbs: when not null, is_non_zero_lut and the is_max_value lookup
+  // table of are_all_block_true_buffer borrow their PBS buffer from it (see
+  // int_shared_pbs_buffer)
+  // block_reduction_only: when true, the lookup tables that only the scalar and
+  // vector comparisons apply are not built
   int_comparison_eq_buffer(CudaStreams streams, COMPARISON_TYPE op,
                            int_radix_params params, uint32_t num_radix_blocks,
-                           bool allocate_gpu_memory, uint64_t &size_tracker) {
+                           bool allocate_gpu_memory, uint64_t &size_tracker,
+                           int_shared_pbs_buffer<Torus> *shared_pbs = nullptr,
+                           bool block_reduction_only = false) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
+    this->block_reduction_only = block_reduction_only;
     Torus total_modulus = params.message_modulus * params.carry_modulus;
 
     are_all_block_true_buffer = new int_are_all_block_true_buffer<Torus>(
         streams, op, params, num_radix_blocks, allocate_gpu_memory,
-        size_tracker);
+        size_tracker, shared_pbs);
 
     // This LUT determines if the input which is the result of a subtraction
     // is <0, ==0, or >0. It relies on the negacyclic behavior of the PBS
@@ -104,12 +118,17 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
     is_non_zero_lut =
         new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                 allocate_gpu_memory, size_tracker);
+                                 allocate_gpu_memory, size_tracker, shared_pbs);
 
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
     is_non_zero_lut->generate_and_broadcast_lut(
         active_streams, {0}, {is_non_zero_lut_f}, LUT_0_FOR_ALL_BLOCKS);
+
+    scalar_comparison_luts = nullptr;
+    operator_lut = nullptr;
+    if (block_reduction_only)
+      return;
 
     // Scalar may have up to num_radix_blocks blocks
     scalar_comparison_luts = new int_radix_lut<Torus>(
@@ -148,15 +167,15 @@ template <typename Torus> struct int_comparison_eq_buffer {
 
       operator_lut->generate_and_broadcast_bivariate_lut(
           active_streams, {0}, {operator_f}, LUT_0_FOR_ALL_BLOCKS);
-    } else {
-      operator_lut = nullptr;
     }
   }
 
   void release(CudaStreams streams) {
-    if (op == COMPARISON_TYPE::EQ || op == COMPARISON_TYPE::NE) {
+    if ((op == COMPARISON_TYPE::EQ || op == COMPARISON_TYPE::NE) &&
+        !block_reduction_only)
       PANIC_IF_FALSE(operator_lut != nullptr,
                      "Cuda error: no operator lut was created");
+    if (operator_lut != nullptr) {
       operator_lut->release(streams);
       delete operator_lut;
       operator_lut = nullptr;
@@ -167,9 +186,11 @@ template <typename Torus> struct int_comparison_eq_buffer {
     are_all_block_true_buffer->release(streams);
     delete are_all_block_true_buffer;
     are_all_block_true_buffer = nullptr;
-    scalar_comparison_luts->release(streams);
-    delete scalar_comparison_luts;
-    scalar_comparison_luts = nullptr;
+    if (scalar_comparison_luts != nullptr) {
+      scalar_comparison_luts->release(streams);
+      delete scalar_comparison_luts;
+      scalar_comparison_luts = nullptr;
+    }
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
@@ -376,6 +397,9 @@ template <typename Torus> struct int_comparison_buffer {
   // Signed LUT
   int_radix_lut<Torus> *signed_lut;
   bool is_signed;
+  /// @brief When true, only the reduction of comparison blocks is used, so the
+  /// lookup tables that the other comparisons apply are not built.
+  bool block_reduction_only;
 
   // Used for scalar comparisons
   int_radix_lut<Torus> *signed_msb_lut;
@@ -386,15 +410,33 @@ template <typename Torus> struct int_comparison_buffer {
   // The comparison buffer allows a fast path for unsigned GT/GE/LT/LE when the
   // parameters are 2_2, by using an optimized version of the overflowing sub in
   // the same way that is done in the cpu.
+  // shared_pbs: when not null, the lookup tables of the block-reduction-only EQ
+  // and NE path borrow their PBS buffer from it (see int_shared_pbs_buffer). It
+  // requires block_reduction_only, because the other paths apply lookup tables
+  // on lsb_streams and msb_streams at the same time, so they must not share a
+  // PBS buffer. block_reduction_only: when true, the buffer is used only by
+  // is_at_least_one_comparisons_block_true and are_all_comparisons_block_true,
+  // so the lookup tables that the other comparisons apply are not built.
   int_comparison_buffer(CudaStreams streams, COMPARISON_TYPE op,
                         int_radix_params params, uint32_t num_radix_blocks,
                         bool is_signed, bool allocate_gpu_memory,
                         uint64_t &size_tracker,
-                        bool allow_borrow_fast_path = false) {
+                        bool allow_borrow_fast_path = false,
+                        int_shared_pbs_buffer<Torus> *shared_pbs = nullptr,
+                        bool block_reduction_only = false) {
+    PANIC_IF_FALSE(!block_reduction_only || ((op == COMPARISON_TYPE::EQ ||
+                                              op == COMPARISON_TYPE::NE) &&
+                                             !is_signed),
+                   "Cuda error: block_reduction_only is only supported for "
+                   "unsigned EQ and NE comparisons");
+    PANIC_IF_FALSE(shared_pbs == nullptr || block_reduction_only,
+                   "Cuda error: a shared PBS buffer is only supported for "
+                   "block-reduction-only comparisons");
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
     this->is_signed = is_signed;
+    this->block_reduction_only = block_reduction_only;
     diff_borrow_mem = nullptr;
     lut_borrow_flag_cmp = nullptr;
     // When we are in the fast path we can avoid calculating the luts for the
@@ -411,23 +453,26 @@ template <typename Torus> struct int_comparison_buffer {
     is_zero_lut = nullptr;
     tmp_lwe_array_out = nullptr;
     tmp_packed_input = nullptr;
+    tmp_block_comparisons = nullptr;
 
     auto active_streams =
         streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
 
     identity_lut_f = [](Torus x) -> Torus { return x; };
 
-    lsb_streams.create_on_same_gpus(active_streams);
-    msb_streams.create_on_same_gpus(active_streams);
+    if (!block_reduction_only) {
+      lsb_streams.create_on_same_gpus(active_streams);
+      msb_streams.create_on_same_gpus(active_streams);
 
-    // Block comparisons buffer. Allocated for both paths: the sign-tree path
-    // stores the per-block comparison results here, the borrow-propagation fast
-    // path stores the subtraction blocks here.
-    tmp_block_comparisons = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_block_comparisons,
-        num_radix_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
+      // Block comparisons buffer. Allocated for both paths: the sign-tree path
+      // stores the per-block comparison results here, the
+      // borrow-propagation fast path stores the subtraction blocks here.
+      tmp_block_comparisons = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), tmp_block_comparisons,
+          num_radix_blocks, params.big_lwe_dimension, size_tracker,
+          allocate_gpu_memory);
+    }
 
     // We use the tree reduction old algorithm.
     if (!use_borrow_fast_path) {
@@ -438,31 +483,33 @@ template <typename Torus> struct int_comparison_buffer {
           num_radix_blocks + 1, params.big_lwe_dimension, size_tracker,
           allocate_gpu_memory);
 
-      tmp_packed_input = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams.stream(0), streams.gpu_index(0), tmp_packed_input,
-          2 * num_radix_blocks, params.big_lwe_dimension, size_tracker,
-          allocate_gpu_memory);
+      if (!block_reduction_only) {
+        tmp_packed_input = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(
+            streams.stream(0), streams.gpu_index(0), tmp_packed_input,
+            2 * num_radix_blocks, params.big_lwe_dimension, size_tracker,
+            allocate_gpu_memory);
 
-      // Cleaning LUT
-      identity_lut =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+        // Cleaning LUT
+        identity_lut =
+            new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
+                                     allocate_gpu_memory, size_tracker);
 
-      identity_lut->generate_and_broadcast_lut(
-          active_streams, {0}, {identity_lut_f}, LUT_0_FOR_ALL_BLOCKS);
+        identity_lut->generate_and_broadcast_lut(
+            active_streams, {0}, {identity_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
-      uint32_t total_modulus = params.message_modulus * params.carry_modulus;
-      auto is_zero_f = [total_modulus](Torus x) -> Torus {
-        return (x % total_modulus) == 0;
-      };
+        uint32_t total_modulus = params.message_modulus * params.carry_modulus;
+        auto is_zero_f = [total_modulus](Torus x) -> Torus {
+          return (x % total_modulus) == 0;
+        };
 
-      is_zero_lut =
-          new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                   allocate_gpu_memory, size_tracker);
+        is_zero_lut =
+            new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
+                                     allocate_gpu_memory, size_tracker);
 
-      is_zero_lut->generate_and_broadcast_lut(active_streams, {0}, {is_zero_f},
-                                              LUT_0_FOR_ALL_BLOCKS);
+        is_zero_lut->generate_and_broadcast_lut(
+            active_streams, {0}, {is_zero_f}, LUT_0_FOR_ALL_BLOCKS);
+      }
 
       switch (op) {
       case COMPARISON_TYPE::MAX:
@@ -487,7 +534,7 @@ template <typename Torus> struct int_comparison_buffer {
       case COMPARISON_TYPE::NE:
         eq_buffer = new int_comparison_eq_buffer<Torus>(
             streams, op, params, num_radix_blocks, allocate_gpu_memory,
-            size_tracker);
+            size_tracker, shared_pbs, block_reduction_only);
         break;
       default:
         PANIC("Unsupported comparison operation.")
@@ -658,18 +705,27 @@ template <typename Torus> struct int_comparison_buffer {
       }
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      tmp_lwe_array_out, gpu_memory_allocated);
-      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     tmp_packed_input, gpu_memory_allocated);
-      identity_lut->release(streams);
-      delete identity_lut;
-      is_zero_lut->release(streams);
-      delete is_zero_lut;
+      if (tmp_packed_input != nullptr) {
+        release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                       tmp_packed_input, gpu_memory_allocated);
+        delete tmp_packed_input;
+      }
+      if (identity_lut != nullptr) {
+        identity_lut->release(streams);
+        delete identity_lut;
+      }
+      if (is_zero_lut != nullptr) {
+        is_zero_lut->release(streams);
+        delete is_zero_lut;
+      }
       delete tmp_lwe_array_out;
-      delete tmp_packed_input;
     }
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   tmp_block_comparisons, gpu_memory_allocated);
-    delete tmp_block_comparisons;
+    if (tmp_block_comparisons != nullptr) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     tmp_block_comparisons,
+                                     gpu_memory_allocated);
+      delete tmp_block_comparisons;
+    }
 
     if (is_signed) {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
@@ -690,8 +746,10 @@ template <typename Torus> struct int_comparison_buffer {
       lut_borrow_flag_cmp = nullptr;
     }
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    lsb_streams.release();
-    msb_streams.release();
+    if (!block_reduction_only) {
+      lsb_streams.release();
+      msb_streams.release();
+    }
     free(preallocated_h_lut);
   }
 };
