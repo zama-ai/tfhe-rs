@@ -249,7 +249,7 @@ mod experimental {
         ///
         /// let param = LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(param);
+        /// let (cks, sks) = gen_keys(param.to_pbs_parameters());
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(),
         ///                                                        sks.as_view().try_into().unwrap(),
         ///                                                        &param);
@@ -408,7 +408,7 @@ mod experimental {
         ///
         /// let param = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(param);
+        /// let (cks, sks) = gen_keys(param.to_pbs_parameters());
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(), std_sks, &param);
         /// let message_modulus = param.message_modulus.0;
@@ -452,7 +452,7 @@ mod experimental {
         ///
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(param);
+        /// let (cks, sks) = gen_keys(param.to_pbs_parameters());
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(cks.as_view().try_into().unwrap(),
         ///                                                        sks.as_view().try_into().unwrap(),
         ///                                                        &param);
@@ -538,7 +538,7 @@ mod experimental {
         ///
         /// let param = LEGACY_WOPBS_ONLY_4_BLOCKS_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
         /// // Generate the client key and the server key:
-        /// let (cks, sks) = gen_keys(param);
+        /// let (cks, sks) = gen_keys(param.to_pbs_parameters());
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &param);
@@ -582,7 +582,7 @@ mod experimental {
         ///
         /// let mut msg_1_carry_0_params = LEGACY_WOPBS_ONLY_8_BLOCKS_PARAM_MESSAGE_1_CARRY_1_KS_PBS;
         /// msg_1_carry_0_params.carry_modulus = CarryModulus(1);
-        /// let (cks, sks) = gen_keys(msg_1_carry_0_params);
+        /// let (cks, sks) = gen_keys(msg_1_carry_0_params.to_pbs_parameters());
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &msg_1_carry_0_params);
@@ -629,7 +629,7 @@ mod experimental {
         /// use tfhe::shortint::wopbs::*;
         ///
         /// let param = LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS;
-        /// let (cks, sks) = gen_keys(param);
+        /// let (cks, sks) = gen_keys(param.to_pbs_parameters());
         /// let std_sks = sks.as_view().try_into().unwrap();
         /// let std_cks = cks.as_view().try_into().unwrap();
         /// let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(std_cks, std_sks, &param);
