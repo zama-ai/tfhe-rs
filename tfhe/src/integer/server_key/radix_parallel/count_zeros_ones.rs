@@ -23,7 +23,7 @@ impl BitCountKind {
 impl ServerKey {
     /// Returns the number of ones in the binary representation of `ct`
     ///
-    /// * ct must not have any carries
+    /// * ct must not have any carries, and its blocks must have a nominal noise level
     /// * The returned result has enough blocks to encrypt 32bits (e.g. 1_1 parameters -> 32 blocks,
     ///   3_3 parameters -> 11 blocks == 33 bits)
     pub fn unchecked_count_ones_parallelized<T>(&self, ct: &T) -> RadixCiphertext
@@ -35,7 +35,7 @@ impl ServerKey {
 
     /// Returns the number of zeros in the binary representation of `ct`
     ///
-    /// * ct must not have any carries
+    /// * ct must not have any carries, and its blocks must have a nominal noise level
     /// * The returned result has enough blocks to encrypt 32bits (e.g. 1_1 parameters -> 32 blocks,
     ///   3_3 parameters -> 11 blocks == 33 bits)
     pub fn unchecked_count_zeros_parallelized<T>(&self, ct: &T) -> RadixCiphertext
@@ -83,7 +83,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let mut tmp_ct;
-        let ct = if ct.block_carries_are_empty() {
+        let ct = if ct.is_clean() {
             ct
         } else {
             tmp_ct = ct.clone();
@@ -97,7 +97,7 @@ impl ServerKey {
     /// 'Naive' implementation of count zeros/ones
     ///
     /// * It will work for all parameters
-    /// * ct must not have any carries
+    /// * ct must not have any carries, and its blocks must have a nominal noise level
     /// * The returned result has enough blocks to encrypt 32bits (e.g. 1_1 parameters -> 32 blocks,
     ///   3_3 parameters -> 11 blocks == 33 bits)
     fn count_bits_naive<T>(&self, ct: &T, count_kind: BitCountKind) -> RadixCiphertext
@@ -259,7 +259,7 @@ impl ServerKey {
     /// More complex implementation of count zeros/ones meant for 2_2 parameters
     ///
     /// * It will only work for 2_2 parameters
-    /// * ct must not have any carries
+    /// * ct must not have any carries, and its blocks must have a nominal noise level
     /// * The returned result has enough blocks to encrypt 32bits (e.g. 1_1 parameters -> 32 blocks,
     ///   3_3 parameters -> 11 blocks == 33 bits)
     fn count_bits_2_2<T>(&self, ct: &T, count_kind: BitCountKind) -> RadixCiphertext
