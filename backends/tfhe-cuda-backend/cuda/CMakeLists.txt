@@ -131,6 +131,11 @@ if(${FAKE_MULTI_GPU})
   add_definitions(-DDEBUG_FAKE_MULTI_GPU)
 endif()
 
+if(GOLDSCHMIDT_TRACE)
+  message(STATUS "Goldschmidt division trace is enabled")
+  add_definitions(-DGOLDSCHMIDT_TRACE)
+endif()
+
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging to use
 # nvtx when profiling -lnvToolsExt
 string(FIND "${CMAKE_CUDA_FLAGS}" "-ccbin" _cuda_has_ccbin)

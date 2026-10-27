@@ -24,3 +24,6 @@ experimental-multi-arch = []
 profile = ["tfhe-cuda-common/profile"]
 debug = ["tfhe-cuda-common/debug"]
 debug-fake-multi-gpu = []
+# Test-only: Goldschmidt division writes its fixed-point iterates to a CSV
+# (trivial ciphertexts only), for the golden trace test.
+goldschmidt-trace = []
