@@ -534,7 +534,7 @@ mod tests {
         TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
-    use crate::shortint::ShortintParameterSet;
+    use crate::shortint::AtomicPatternParameters;
 
     fn assert_store_unsigned_matches(
         clear_store: &BTreeMap<u32, u64>,
@@ -564,7 +564,7 @@ mod tests {
     fn test_compression_serialization_unsigned() {
         let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
 
-        let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
         let private_compression_key = cks
             .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
@@ -631,7 +631,7 @@ mod tests {
     fn test_compression_serialization_signed() {
         let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
 
-        let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
         let private_compression_key = cks
             .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);

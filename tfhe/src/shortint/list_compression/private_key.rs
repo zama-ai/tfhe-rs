@@ -20,7 +20,7 @@ use crate::shortint::server_key::{
     CompressedModulusSwitchConfiguration, ModulusSwitchConfiguration, ShortintBootstrappingKey,
     ShortintCompressedBootstrappingKey,
 };
-use crate::shortint::{EncryptionKeyChoice, ShortintParameterSet};
+use crate::shortint::{AtomicPatternParameters, EncryptionKeyChoice};
 use std::fmt::Debug;
 
 use super::{
@@ -38,7 +38,7 @@ impl CompressionPrivateKeys {
     pub(crate) fn new_compression_key(
         &self,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
-        pbs_params: ShortintParameterSet,
+        pbs_params: AtomicPatternParameters,
     ) -> CompressionKey {
         ShortintEngine::with_thread_local_mut(|engine| {
             self.new_compression_key_with_engine(glwe_secret_key, pbs_params, engine)
@@ -48,7 +48,7 @@ impl CompressionPrivateKeys {
     pub(crate) fn new_compression_key_with_engine(
         &self,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
-        pbs_params: ShortintParameterSet,
+        pbs_params: AtomicPatternParameters,
         engine: &mut ShortintEngine,
     ) -> CompressionKey {
         assert_eq!(
@@ -88,7 +88,7 @@ impl CompressionPrivateKeys {
     pub(crate) fn new_compressed_compression_key(
         &self,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
-        pbs_params: ShortintParameterSet,
+        pbs_params: AtomicPatternParameters,
     ) -> CompressedCompressionKey {
         assert_eq!(
             pbs_params.encryption_key_choice(),
@@ -120,7 +120,7 @@ impl CompressionPrivateKeys {
     pub(crate) fn new_decompression_key(
         &self,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
-        pbs_params: ShortintParameterSet,
+        pbs_params: AtomicPatternParameters,
     ) -> DecompressionKey {
         self.new_decompression_key_with_params(glwe_secret_key, pbs_params, self.params)
     }
@@ -131,7 +131,7 @@ impl CompressionPrivateKeys {
     pub(crate) fn new_decompression_key_with_params(
         &self,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
-        pbs_params: ShortintParameterSet,
+        pbs_params: AtomicPatternParameters,
         compression_params: CompressionParameters,
     ) -> DecompressionKey {
         ShortintEngine::with_thread_local_mut(|engine| {
@@ -147,7 +147,7 @@ impl CompressionPrivateKeys {
     pub(crate) fn new_decompression_key_with_params_and_engine(
         &self,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
-        pbs_params: ShortintParameterSet,
+        pbs_params: AtomicPatternParameters,
         compression_params: CompressionParameters,
         engine: &mut ShortintEngine,
     ) -> DecompressionKey {
@@ -211,7 +211,7 @@ impl CompressionPrivateKeys {
     pub(crate) fn new_compressed_decompression_key(
         &self,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
-        pbs_params: ShortintParameterSet,
+        pbs_params: AtomicPatternParameters,
     ) -> CompressedDecompressionKey {
         assert_eq!(
             pbs_params.encryption_key_choice(),

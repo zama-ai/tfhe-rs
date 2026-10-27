@@ -2,7 +2,7 @@ use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::entities::{Cleartext, Plaintext};
 use crate::core_crypto::prelude::{CastFrom, CastInto, CiphertextModulusKind, UnsignedInteger};
 use crate::shortint::parameters::CoreCiphertextModulus;
-use crate::shortint::{CarryModulus, MessageModulus, ShortintParameterSet};
+use crate::shortint::{AtomicPatternParameters, CarryModulus, MessageModulus};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PaddingBit {
@@ -97,7 +97,7 @@ impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
 
 impl ShortintEncoding<u64> {
     pub(crate) fn from_parameters(
-        params: impl Into<ShortintParameterSet>,
+        params: impl Into<AtomicPatternParameters>,
         padding_bit: PaddingBit,
     ) -> Self {
         let params = params.into();

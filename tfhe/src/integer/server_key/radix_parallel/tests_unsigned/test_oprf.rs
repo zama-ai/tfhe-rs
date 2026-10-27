@@ -370,7 +370,7 @@ pub(crate) fn oprf_compare_plain_test<P, E, T>(
 {
     let (cks, oprf_priv_key) = setup_oprf_test(param, &mut executor);
     let shortint_oprf_ck = oprf_priv_key.into_raw_parts();
-    let params: ShortintParameterSet = cks.parameters().into();
+    let params = cks.parameters();
     let message_bits: u64 = params.message_modulus().0.ilog2().into();
     // includes padding bit (same as shortint oprf_compare_plain_from_seed)
     let output_modulus = 2 * params.message_modulus().0 * params.carry_modulus().0;
