@@ -15,7 +15,7 @@ use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
 use crate::shortint::backward_compatibility::client_key::GenericClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{DynamicDistribution, MessageModulus, ShortintParameterSet};
+use crate::shortint::parameters::{DynamicDistribution, MessageModulus};
 use crate::shortint::CarryModulus;
 use secret_encryption_key::SecretEncryptionKeyView;
 use serde::{Deserialize, Serialize};
@@ -84,8 +84,8 @@ impl ClientKey {
     /// ```
     pub fn new<P>(parameters: P) -> Self
     where
-        P: TryInto<ShortintParameterSet>,
-        <P as TryInto<ShortintParameterSet>>::Error: Debug,
+        P: TryInto<AtomicPatternParameters>,
+        <P as TryInto<AtomicPatternParameters>>::Error: Debug,
     {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_client_key(parameters))
     }
@@ -110,7 +110,7 @@ impl ClientKey {
 }
 
 impl<AP: EncryptionAtomicPattern> GenericClientKey<AP> {
-    pub fn parameters(&self) -> ShortintParameterSet {
+    pub fn parameters(&self) -> AtomicPatternParameters {
         self.atomic_pattern.parameters()
     }
 

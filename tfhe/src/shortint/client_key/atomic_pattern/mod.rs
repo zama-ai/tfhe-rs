@@ -14,7 +14,7 @@ use crate::shortint::list_compression::{
 use crate::shortint::parameters::{
     CompressionParameters, DynamicDistribution, ShortintKeySwitchingParameters,
 };
-use crate::shortint::{AtomicPatternKind, AtomicPatternParameters, ShortintParameterSet};
+use crate::shortint::{AtomicPatternKind, AtomicPatternParameters};
 
 use super::secret_encryption_key::SecretEncryptionKeyView;
 use super::{LweSecretKeyOwned, LweSecretKeyView};
@@ -29,7 +29,7 @@ pub use standard::*;
 /// evaluation.
 pub trait EncryptionAtomicPattern {
     /// The parameters associated with this client key
-    fn parameters(&self) -> ShortintParameterSet;
+    fn parameters(&self) -> AtomicPatternParameters;
 
     /// The secret key used for encryption
     fn encryption_key(&self) -> LweSecretKeyView<'_, u64>;
@@ -49,7 +49,7 @@ pub trait EncryptionAtomicPattern {
 // This blancket impl is used to allow "views" of client keys, without having to re-implement the
 // trait
 impl<T: EncryptionAtomicPattern> EncryptionAtomicPattern for &T {
-    fn parameters(&self) -> ShortintParameterSet {
+    fn parameters(&self) -> AtomicPatternParameters {
         (*self).parameters()
     }
 
@@ -228,7 +228,7 @@ impl AtomicPatternClientKey {
 }
 
 impl EncryptionAtomicPattern for AtomicPatternClientKey {
-    fn parameters(&self) -> ShortintParameterSet {
+    fn parameters(&self) -> AtomicPatternParameters {
         match self {
             Self::Standard(ap) => ap.parameters.into(),
             Self::KeySwitch32(ap) => ap.parameters.into(),

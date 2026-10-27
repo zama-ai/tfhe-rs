@@ -502,13 +502,11 @@ impl ShortintParameterSet {
         }
     }
 
-    pub const fn ap_parameters(&self) -> Option<AtomicPatternParameters> {
+    pub const fn ap_parameters(&self) -> AtomicPatternParameters {
         match self.inner {
-            ShortintParameterSetInner::PBSOnly(params) => {
-                Some(AtomicPatternParameters::Standard(params))
-            }
+            ShortintParameterSetInner::PBSOnly(params) => AtomicPatternParameters::Standard(params),
             ShortintParameterSetInner::KS32PBS(params) => {
-                Some(AtomicPatternParameters::KeySwitch32(params))
+                AtomicPatternParameters::KeySwitch32(params)
             }
         }
     }
@@ -670,11 +668,8 @@ impl ShortintParameterSet {
 
     /// Check if dedicated oprf parameters and compute parameters are compatible
     pub const fn is_compatible_with_oprf_params(&self, oprf_params: OprfParameters) -> bool {
-        if let Some(params) = self.ap_parameters() {
-            params.is_compatible_with_oprf_params(oprf_params)
-        } else {
-            false
-        }
+        self.ap_parameters()
+            .is_compatible_with_oprf_params(oprf_params)
     }
 }
 
