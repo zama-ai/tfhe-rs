@@ -305,62 +305,6 @@ fn bench_unchecked_with_keys_cpu_inner(
     group.finish();
 }
 
-#[cfg(feature = "gpu")]
-fn bench_unchecked_with_keys_gpu_inner(
-    c: &mut Criterion,
-    bench_name: &str,
-    cpu_cks: &tfhe::integer::ClientKey,
-) {
-    use tfhe::core_crypto::gpu::CudaStreams;
-    use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    use tfhe::integer::gpu::CudaServerKey;
-
-    let bits_per_block = cpu_cks.parameters().message_modulus().0.ilog2() as usize;
-    let data_num_blocks = (DATA_BITS as usize).div_ceil(bits_per_block);
-    let key_num_blocks = (SHUFFLE_KEY_NUM_BITS as usize).div_ceil(bits_per_block);
-
-    let streams = CudaStreams::new_multi_gpu();
-    let sks = CudaServerKey::new(cpu_cks, &streams);
-
-    let data_cks = tfhe::integer::RadixClientKey::from((cpu_cks.clone(), data_num_blocks));
-    let key_cks = tfhe::integer::RadixClientKey::from((cpu_cks.clone(), key_num_blocks));
-
-    let mut group = c.benchmark_group(bench_name);
-    group
-        .sample_size(10)
-        .measurement_time(std::time::Duration::from_secs(60));
-
-    let mut rng = rand::thread_rng();
-    for &num_elements in power_of_two_scenarios().iter() {
-        let bench_id = format!("{DATA_BITS}_bits::{num_elements}_elements");
-        group.bench_function(&bench_id, |b| {
-            b.iter_batched(
-                || {
-                    let data: Vec<_> = (0..num_elements)
-                        .map(|_| {
-                            let ct = data_cks.encrypt(rng.gen::<u64>());
-                            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams)
-                        })
-                        .collect();
-                    let keys: Vec<_> = (0..num_elements)
-                        .map(|_| {
-                            let ct = key_cks.encrypt(rng.gen::<u64>());
-                            CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams)
-                        })
-                        .collect();
-                    (data, keys)
-                },
-                |(data, keys)| {
-                    let res = sks.unchecked_bitonic_shuffle_with_keys(data, keys, &streams);
-                    black_box(res);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
-    }
-    group.finish();
-}
-
 // ============================================================================
 // CPU entry point
 // ============================================================================
@@ -412,13 +356,6 @@ pub fn bitonic_shuffle_gpu(c: &mut Criterion) {
         &cks,
         "hlapi::bitonic_shuffle_gpu::summary",
         Backend::Cuda,
-    );
-
-    let cpu_cks = tfhe::integer::ClientKey::new(param);
-    bench_unchecked_with_keys_gpu_inner(
-        c,
-        "hlapi::unchecked_bitonic_shuffle_with_keys_gpu",
-        &cpu_cks,
     );
 }
 

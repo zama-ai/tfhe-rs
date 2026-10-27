@@ -923,6 +923,7 @@ pub(crate) fn cuda_backend_get_decompression_size_on_gpu(
     size_tracker
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
@@ -6193,226 +6194,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_signed_abs_assign<T: UnsignedInteger
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_is_at_least_one_comparisons_block_true<
-    T: UnsignedInteger,
->(
-    streams: &CudaStreams,
-    radix_lwe_out: &mut CudaRadixCiphertext,
-    radix_lwe_in: &CudaRadixCiphertext,
-    keyswitch_key: &CudaVec<T>,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    bsk: &impl CudaBootstrapKey,
-    ksk_params: CudaLweKeyswitchKeyParamsFFI,
-) {
-    let bsk_params = bsk.params_ffi();
-    assert_eq!(
-        streams.gpu_indexes[0],
-        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        bsk.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        bsk.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        keyswitch_key.gpu_index(0).get(),
-    );
-
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let mut radix_lwe_out_degrees = radix_lwe_out
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_out_noise_levels = radix_lwe_out
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
-    let mut cuda_ffi_radix_lwe_out = prepare_cuda_radix_ffi(
-        radix_lwe_out,
-        &mut radix_lwe_out_degrees,
-        &mut radix_lwe_out_noise_levels,
-    );
-    let mut radix_lwe_in_degrees = radix_lwe_in
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_in_noise_levels = radix_lwe_in
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
-    let cuda_ffi_radix_lwe_in = prepare_cuda_radix_ffi(
-        radix_lwe_in,
-        &mut radix_lwe_in_degrees,
-        &mut radix_lwe_in_noise_levels,
-    );
-    scratch_cuda_integer_is_at_least_one_comparisons_block_true_64_async(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        bsk_params,
-        ksk_params,
-        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
-        u32::try_from(message_modulus.0).unwrap(),
-        u32::try_from(carry_modulus.0).unwrap(),
-        true,
-    );
-
-    cuda_integer_is_at_least_one_comparisons_block_true_64_async(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_out,
-        &raw const cuda_ffi_radix_lwe_in,
-        mem_ptr,
-        bsk.ptrs().as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
-    );
-
-    cleanup_cuda_integer_is_at_least_one_comparisons_block_true_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
-    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - The data must not be moved or dropped while being used by the CUDA kernel.
-/// - This function assumes exclusive access to the passed data; violating this may lead to
-///   undefined behavior.
-pub(crate) unsafe fn cuda_backend_unchecked_are_all_comparisons_block_true<T: UnsignedInteger>(
-    streams: &CudaStreams,
-    radix_lwe_out: &mut CudaRadixCiphertext,
-    radix_lwe_in: &CudaRadixCiphertext,
-    keyswitch_key: &CudaVec<T>,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
-    bsk: &impl CudaBootstrapKey,
-    ksk_params: CudaLweKeyswitchKeyParamsFFI,
-) {
-    let bsk_params = bsk.params_ffi();
-    assert_eq!(
-        streams.gpu_indexes[0],
-        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        bsk.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        bsk.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        keyswitch_key.gpu_index(0).get(),
-    );
-
-    let mut radix_lwe_out_degrees = radix_lwe_out
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_out_noise_levels = radix_lwe_out
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
-    let mut cuda_ffi_radix_lwe_out = prepare_cuda_radix_ffi(
-        radix_lwe_out,
-        &mut radix_lwe_out_degrees,
-        &mut radix_lwe_out_noise_levels,
-    );
-    let mut radix_lwe_in_degrees = radix_lwe_in
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_in_noise_levels = radix_lwe_in
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
-    let cuda_ffi_radix_lwe_in = prepare_cuda_radix_ffi(
-        radix_lwe_in,
-        &mut radix_lwe_in_degrees,
-        &mut radix_lwe_in_noise_levels,
-    );
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_are_all_comparisons_block_true_64_async(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-        bsk_params,
-        ksk_params,
-        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
-        u32::try_from(message_modulus.0).unwrap(),
-        u32::try_from(carry_modulus.0).unwrap(),
-        true,
-    );
-
-    cuda_integer_are_all_comparisons_block_true_64_async(
-        streams.ffi(),
-        &raw mut cuda_ffi_radix_lwe_out,
-        &raw const cuda_ffi_radix_lwe_in,
-        mem_ptr,
-        bsk.ptrs().as_ptr(),
-        keyswitch_key.ptr.as_ptr(),
-        u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
-    );
-
-    cleanup_cuda_integer_are_all_comparisons_block_true_64(
-        streams.ffi(),
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
-    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - The data must not be moved or dropped while being used by the CUDA kernel.
-/// - This function assumes exclusive access to the passed data; violating this may lead to
-///   undefined behavior.
 pub(crate) unsafe fn cuda_backend_unchecked_negate(
     streams: &CudaStreams,
     radix_lwe_out: &mut CudaRadixCiphertext,
@@ -9837,7 +9618,9 @@ pub(crate) unsafe fn cuda_backend_cast_to_signed<T: UnsignedInteger>(
     update_noise_degree(output, &cuda_ffi_output);
 }
 
-pub fn unchecked_small_scalar_mul_integer(
+#[cfg(test)]
+#[allow(clippy::needless_pass_by_ref_mut)]
+pub(crate) fn unchecked_small_scalar_mul_integer(
     streams: &CudaStreams,
     lwe_array: &mut CudaRadixCiphertext,
     small_scalar: u64,

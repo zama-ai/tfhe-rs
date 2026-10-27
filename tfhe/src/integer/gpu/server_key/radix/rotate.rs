@@ -8,7 +8,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    pub fn unchecked_rotate_right_assign<T>(
+    pub(crate) fn unchecked_rotate_right_assign<T>(
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
@@ -48,7 +48,8 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_rotate_right<T>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_rotate_right<T>(
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,
@@ -62,7 +63,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_rotate_left_assign<T>(
+    pub(crate) fn unchecked_rotate_left_assign<T>(
         &self,
         ct: &mut T,
         rotate: &CudaUnsignedRadixCiphertext,
@@ -102,7 +103,8 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_rotate_left<T>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_rotate_left<T>(
         &self,
         ct: &T,
         rotate: &CudaUnsignedRadixCiphertext,

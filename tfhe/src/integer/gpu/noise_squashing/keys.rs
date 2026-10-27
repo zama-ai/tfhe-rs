@@ -60,7 +60,7 @@ impl CudaNoiseSquashingKey {
         Ok(self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key, streams))
     }
 
-    pub fn unchecked_squash_ciphertext_noise(
+    pub(crate) fn unchecked_squash_ciphertext_noise(
         &self,
         ciphertext: &CudaRadixCiphertext,
         src_server_key: &CudaServerKey,
