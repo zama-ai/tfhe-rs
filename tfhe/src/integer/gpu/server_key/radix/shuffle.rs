@@ -375,7 +375,7 @@ impl CudaServerKey {
     /// * `data` and `keys` must have the same length and consistent block counts.
     /// * Data and key blocks must have no carries and noise budget for the bitonic compare-and-swap
     ///   operations.
-    pub fn unchecked_bitonic_shuffle_with_keys<T>(
+    pub(crate) fn unchecked_bitonic_shuffle_with_keys<T>(
         &self,
         mut data: Vec<T>,
         mut keys: Vec<CudaUnsignedRadixCiphertext>,

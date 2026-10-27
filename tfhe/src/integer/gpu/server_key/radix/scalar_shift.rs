@@ -14,43 +14,11 @@ use crate::integer::gpu::{
 use crate::integer::server_key::radix_parallel::scalar_shift::clamp_scalar_shift_amount;
 
 impl CudaServerKey {
+    #[cfg(test)]
     /// Computes homomorphically a left shift by a scalar.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// let size = 4;
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg = 21u64;
-    /// let shift = 2u32;
-    ///
-    /// let ct1 = cks.encrypt(msg);
-    /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    ///
-    /// let d_ct_res = sks.unchecked_scalar_left_shift(&d_ct1, shift, &streams);
-    ///
-    /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg << shift);
-    /// ```
-    pub fn unchecked_scalar_left_shift<Scalar, T>(
+    pub(crate) fn unchecked_scalar_left_shift<Scalar, T>(
         &self,
         ct: &T,
         shift: Scalar,
@@ -66,7 +34,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_scalar_left_shift_assign<Scalar, T>(
+    pub(crate) fn unchecked_scalar_left_shift_assign<Scalar, T>(
         &self,
         ct: &mut T,
         shift: Scalar,
@@ -110,43 +78,11 @@ impl CudaServerKey {
         }
     }
 
+    #[cfg(test)]
     /// Computes homomorphically a right shift by a scalar.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// let size = 4;
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg = 21u64;
-    /// let shift = 2u32;
-    ///
-    /// let ct1 = cks.encrypt(msg);
-    /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    ///
-    /// let d_ct_res = sks.unchecked_scalar_right_shift(&d_ct1, shift, &streams);
-    ///
-    /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg >> shift);
-    /// ```
-    pub fn unchecked_scalar_right_shift<Scalar, T>(
+    pub(crate) fn unchecked_scalar_right_shift<Scalar, T>(
         &self,
         ct: &T,
         shift: Scalar,
@@ -162,7 +98,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_scalar_right_shift_assign<Scalar, T>(
+    pub(crate) fn unchecked_scalar_right_shift_assign<Scalar, T>(
         &self,
         ct: &mut T,
         shift: Scalar,

@@ -13,7 +13,7 @@ impl CudaServerKey {
     /// - If slices do not have the same length, false is returned
     /// - If at least one  pair (`lhs[i]`, `rhs[i]`) do not have the same number of blocks, false is
     ///   returned
-    pub fn unchecked_all_eq_slices<T>(
+    pub(crate) fn unchecked_all_eq_slices<T>(
         &self,
         lhs: &[T],
         rhs: &[T],
@@ -207,7 +207,7 @@ impl CudaServerKey {
     }
 
     /// Returns a boolean ciphertext encrypting `true` if `lhs` contains `rhs`, `false` otherwise
-    pub fn unchecked_contains_sub_slice<T>(
+    pub(crate) fn unchecked_contains_sub_slice<T>(
         &self,
         lhs: &[T],
         rhs: &[T],

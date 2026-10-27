@@ -64,19 +64,19 @@ EXPECTED_CLEANUP_COUNT = 84
 
 # Check 3: Rust call-site scanning
 # Number of functions in ffi.rs files
-EXPECTED_CHECK3_RUST_FNS = 145
+EXPECTED_CHECK3_RUST_FNS = 143
 # Number of functions in ffi.rs files that
-EXPECTED_CHECK3_ASYNC_CUDA_CALLS = 109
+EXPECTED_CHECK3_ASYNC_CUDA_CALLS = 107
 
 # Number of instances of Rust calls to the scratch/cuda/cleanup in a
 # triplet sequence.
-EXPECTED_CHECK3_SCRATCH_CUDA_CLEANUP_TRIPLET_CALLS = 126
+EXPECTED_CHECK3_SCRATCH_CUDA_CLEANUP_TRIPLET_CALLS = 124
 
 # Check 5: Rust async-caller scanning
-EXPECTED_CHECK5_ASYNC_CALLERS = 138
+EXPECTED_CHECK5_ASYNC_CALLERS = 136
 
 # Check 6: Rust cleanup-caller scanning
-EXPECTED_CHECK6_CLEANUP_CALLERS = 124
+EXPECTED_CHECK6_CLEANUP_CALLERS = 122
 
 
 def check_paths_exist():

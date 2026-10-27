@@ -7,11 +7,7 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
-use crate::integer::gpu::{
-    cuda_backend_unchecked_are_all_comparisons_block_true,
-    cuda_backend_unchecked_is_at_least_one_comparisons_block_true,
-    cuda_backend_unchecked_scalar_comparison, ComparisonType,
-};
+use crate::integer::gpu::{cuda_backend_unchecked_scalar_comparison, ComparisonType};
 use crate::shortint::ciphertext::Degree;
 
 impl CudaServerKey {
@@ -102,7 +98,7 @@ impl CudaServerKey {
         None
     }
 
-    pub fn unchecked_signed_and_unsigned_scalar_comparison<Scalar, T>(
+    pub(crate) fn unchecked_signed_and_unsigned_scalar_comparison<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -201,7 +197,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_scalar_comparison<Scalar, T>(
+    pub(crate) fn unchecked_scalar_comparison<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -262,7 +258,7 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_scalar_minmax<Scalar, T>(
+    pub(crate) fn unchecked_scalar_minmax<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -318,85 +314,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_are_all_comparisons_block_true<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaBooleanBlock
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let ct_res: T = self.create_trivial_radix(0, 1, streams);
-        let mut boolean_res = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
-
-        unsafe {
-            assert_eq!(
-                computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
-                self.bootstrapping_key.input_lwe_dimension(),
-                "KS key output LWE dimension mismatch with BSK input LWE dimension"
-            );
-            assert_eq!(
-                computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
-                self.bootstrapping_key.output_lwe_dimension(),
-                "KS key input LWE dimension mismatch with BSK big LWE dimension"
-            );
-            cuda_backend_unchecked_are_all_comparisons_block_true(
-                streams,
-                boolean_res.as_mut().as_mut(),
-                ct.as_ref(),
-                &computing_ks_key.d_vec,
-                self.message_modulus,
-                self.carry_modulus,
-                &self.bootstrapping_key,
-                computing_ks_key.params_ffi(),
-            );
-        }
-        boolean_res
-    }
-
-    pub fn unchecked_is_at_least_one_comparisons_block_true<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaBooleanBlock
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        let ct_res: T = self.create_trivial_radix(0, 1, streams);
-        let mut boolean_res = CudaBooleanBlock::from_cuda_radix_ciphertext(ct_res.into_inner());
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
-
-        unsafe {
-            assert_eq!(
-                computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
-                self.bootstrapping_key.input_lwe_dimension(),
-                "KS key output LWE dimension mismatch with BSK input LWE dimension"
-            );
-            assert_eq!(
-                computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
-                self.bootstrapping_key.output_lwe_dimension(),
-                "KS key input LWE dimension mismatch with BSK big LWE dimension"
-            );
-            cuda_backend_unchecked_is_at_least_one_comparisons_block_true(
-                streams,
-                boolean_res.as_mut().as_mut(),
-                ct.as_ref(),
-                &computing_ks_key.d_vec,
-                self.message_modulus,
-                self.carry_modulus,
-                &self.bootstrapping_key,
-                computing_ks_key.params_ffi(),
-            );
-        }
-        boolean_res
-    }
-
-    pub fn unchecked_scalar_eq<Scalar, T>(
+    pub(crate) fn unchecked_scalar_eq<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -533,7 +451,7 @@ impl CudaServerKey {
         self.unchecked_scalar_ne(lhs, scalar, streams)
     }
 
-    pub fn unchecked_scalar_ne<Scalar, T>(
+    pub(crate) fn unchecked_scalar_ne<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -546,7 +464,7 @@ impl CudaServerKey {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::NE, streams)
     }
 
-    pub fn unchecked_scalar_gt<Scalar, T>(
+    pub(crate) fn unchecked_scalar_gt<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -559,7 +477,7 @@ impl CudaServerKey {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::GT, streams)
     }
 
-    pub fn unchecked_scalar_ge<Scalar, T>(
+    pub(crate) fn unchecked_scalar_ge<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -572,7 +490,7 @@ impl CudaServerKey {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::GE, streams)
     }
 
-    pub fn unchecked_scalar_lt<Scalar, T>(
+    pub(crate) fn unchecked_scalar_lt<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -585,7 +503,7 @@ impl CudaServerKey {
         self.unchecked_scalar_comparison(ct, scalar, ComparisonType::LT, streams)
     }
 
-    pub fn unchecked_scalar_le<Scalar, T>(
+    pub(crate) fn unchecked_scalar_le<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -734,7 +652,7 @@ impl CudaServerKey {
         self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::LE, streams)
     }
 
-    pub fn unchecked_scalar_max<Scalar, T>(
+    pub(crate) fn unchecked_scalar_max<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -747,7 +665,7 @@ impl CudaServerKey {
         self.unchecked_scalar_minmax(ct, scalar, ComparisonType::MAX, streams)
     }
 
-    pub fn unchecked_scalar_min<Scalar, T>(
+    pub(crate) fn unchecked_scalar_min<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,

@@ -62,7 +62,7 @@ impl CudaServerKey {
     /// See [Self::trailing_zeros]
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_trailing_zeros<T>(
+    pub(crate) fn unchecked_trailing_zeros<T>(
         &self,
         ct: &T,
         streams: &CudaStreams,
@@ -76,7 +76,7 @@ impl CudaServerKey {
     /// See [Self::trailing_ones]
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_trailing_ones<T>(
+    pub(crate) fn unchecked_trailing_ones<T>(
         &self,
         ct: &T,
         streams: &CudaStreams,
@@ -90,7 +90,7 @@ impl CudaServerKey {
     /// See [Self::leading_zeros]
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_leading_zeros<T>(
+    pub(crate) fn unchecked_leading_zeros<T>(
         &self,
         ct: &T,
         streams: &CudaStreams,
@@ -104,7 +104,7 @@ impl CudaServerKey {
     /// See [Self::leading_ones]
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_leading_ones<T>(
+    pub(crate) fn unchecked_leading_ones<T>(
         &self,
         ct: &T,
         streams: &CudaStreams,
@@ -120,7 +120,11 @@ impl CudaServerKey {
     /// See [Self::ilog2] for an example
     ///
     /// Expects ct to have clean carries
-    pub fn unchecked_ilog2<T>(&self, ct: &T, streams: &CudaStreams) -> CudaUnsignedRadixCiphertext
+    pub(crate) fn unchecked_ilog2<T>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
     where
         T: CudaIntegerRadixCiphertext,
     {

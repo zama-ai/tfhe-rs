@@ -8,7 +8,7 @@ use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey}
 use crate::integer::gpu::{
     cuda_backend_add_and_propagate_single_carry_assign,
     cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu,
-    cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_unchecked_add_assign,
+    cuda_backend_get_full_propagate_assign_size_on_gpu,
     cuda_backend_unchecked_partial_sum_ciphertexts_assign,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
@@ -161,40 +161,11 @@ impl CudaServerKey {
         actual_full_prop_mem.max(add_assign_mem)
     }
 
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    #[cfg(test)]
+    /// Computes homomorphically an addition between two ciphertexts encrypting integer values.
     ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // Generate the client key and the server key:
-    /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
-    ///
-    /// let msg1 = 10;
-    /// let msg2 = 127;
-    ///
-    /// let ct1 = cks.encrypt(msg1);
-    /// let ct2 = cks.encrypt(msg2);
-    ///
-    /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.unchecked_add(&d_ct1, &d_ct2, &streams);
-    ///
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg1 + msg2);
-    /// ```
-    pub fn unchecked_add<T: CudaIntegerRadixCiphertext>(
+    /// This function does not check that the result does not exceed the ciphertext's capacity.
+    pub(crate) fn unchecked_add<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -205,7 +176,9 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_add_assign<T: CudaIntegerRadixCiphertext>(
+    #[cfg(test)]
+    #[allow(clippy::unused_self)]
+    pub(crate) fn unchecked_add_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -230,11 +203,15 @@ impl CudaServerKey {
         );
 
         unsafe {
-            cuda_backend_unchecked_add_assign(streams, ciphertext_left, ciphertext_right);
+            crate::integer::gpu::cuda_backend_unchecked_add_assign(
+                streams,
+                ciphertext_left,
+                ciphertext_right,
+            );
         }
     }
 
-    pub fn unchecked_partial_sum_ciphertexts_assign<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_partial_sum_ciphertexts_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         result: &mut T,
         ciphertexts: &[T],
@@ -301,7 +278,7 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
         &self,
         ciphertexts: &[T],
         streams: &CudaStreams,
@@ -315,7 +292,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_partial_sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_partial_sum_ciphertexts<T: CudaIntegerRadixCiphertext>(
         &self,
         ciphertexts: &[T],
         reduce_degrees_for_single_carry_propagation: bool,
@@ -435,7 +412,7 @@ impl CudaServerKey {
         self.unchecked_unsigned_overflowing_add(lhs, rhs, stream)
     }
 
-    pub fn unchecked_unsigned_overflowing_add(
+    pub(crate) fn unchecked_unsigned_overflowing_add(
         &self,
         lhs: &CudaUnsignedRadixCiphertext,
         rhs: &CudaUnsignedRadixCiphertext,
@@ -469,7 +446,7 @@ impl CudaServerKey {
         (ct_res, ct_overflowed)
     }
 
-    pub fn unchecked_signed_overflowing_add(
+    pub(crate) fn unchecked_signed_overflowing_add(
         &self,
         lhs: &CudaSignedRadixCiphertext,
         rhs: &CudaSignedRadixCiphertext,
@@ -478,7 +455,7 @@ impl CudaServerKey {
         self.unchecked_signed_overflowing_add_with_input_carry(lhs, rhs, None, stream)
     }
 
-    pub fn unchecked_signed_overflowing_add_with_input_carry(
+    pub(crate) fn unchecked_signed_overflowing_add_with_input_carry(
         &self,
         lhs: &CudaSignedRadixCiphertext,
         rhs: &CudaSignedRadixCiphertext,

@@ -351,8 +351,8 @@ impl CudaServerKey {
     /// let scalar = 3;
     /// let ct = cpu_sks.create_trivial_radix(msg, size);
     /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
-    /// // Compute homomorphically a scalar multiplication:
-    /// let d_ct_res = cuda_sks.unchecked_scalar_add(&d_ct, scalar, &streams);
+    /// // Compute homomorphically a scalar addition:
+    /// let d_ct_res = cuda_sks.scalar_add(&d_ct, scalar, &streams);
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// let ct_res_cpu = cpu_sks.unchecked_scalar_add(&ct, scalar);
     /// let clear: u64 = cks.decrypt_radix(&ct_res);

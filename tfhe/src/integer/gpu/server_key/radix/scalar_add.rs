@@ -17,44 +17,14 @@ use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
+    #[cfg(test)]
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg = 4;
-    /// let scalar = 40;
-    ///
-    /// let ct = cks.encrypt(msg);
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.unchecked_scalar_add(&d_ct, scalar, &streams);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg + scalar, dec);
-    /// ```
-    pub fn unchecked_scalar_add<Scalar, T>(
+    pub(crate) fn unchecked_scalar_add<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -69,7 +39,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_scalar_add_assign<Scalar, T>(
+    pub(crate) fn unchecked_scalar_add_assign<Scalar, T>(
         &self,
         ct: &mut T,
         scalar: Scalar,
@@ -240,23 +210,7 @@ impl CudaServerKey {
         self.unchecked_unsigned_overflowing_scalar_add_assign(ct_left, scalar, stream)
     }
 
-    pub fn unchecked_unsigned_overflowing_scalar_add<Scalar>(
-        &self,
-        ct_left: &CudaUnsignedRadixCiphertext,
-        scalar: Scalar,
-        stream: &CudaStreams,
-    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock)
-    where
-        Scalar: DecomposableInto<u8> + CastInto<u64>,
-    {
-        let mut result;
-        result = ct_left.duplicate(stream);
-        let overflowed =
-            self.unchecked_unsigned_overflowing_scalar_add_assign(&mut result, scalar, stream);
-        (result, overflowed)
-    }
-
-    pub fn unchecked_unsigned_overflowing_scalar_add_assign<Scalar>(
+    pub(crate) fn unchecked_unsigned_overflowing_scalar_add_assign<Scalar>(
         &self,
         ct_left: &mut CudaUnsignedRadixCiphertext,
         scalar: Scalar,

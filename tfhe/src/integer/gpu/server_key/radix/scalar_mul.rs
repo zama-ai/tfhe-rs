@@ -12,43 +12,14 @@ use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use itertools::Itertools;
 
 impl CudaServerKey {
+    #[cfg(test)]
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg = 30;
-    /// let scalar = 3;
-    ///
-    /// let ct = cks.encrypt(msg);
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
-    ///
-    /// // Compute homomorphically a scalar multiplication:
-    /// let d_ct_res = sks.unchecked_scalar_mul(&d_ct, scalar, &streams);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// let clear: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(scalar * msg, clear);
-    /// ```
-    pub fn unchecked_scalar_mul<Scalar, T>(
+    pub(crate) fn unchecked_scalar_mul<Scalar, T>(
         &self,
         ct: &T,
         scalar: Scalar,
@@ -63,7 +34,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_scalar_mul_assign<Scalar, T>(
+    pub(crate) fn unchecked_scalar_mul_assign<Scalar, T>(
         &self,
         ct: &mut T,
         scalar: Scalar,

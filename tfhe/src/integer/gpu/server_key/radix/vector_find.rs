@@ -18,7 +18,7 @@ use crate::prelude::CastInto;
 use std::hash::Hash;
 
 impl CudaServerKey {
-    pub fn unchecked_match_value<Clear>(
+    pub(crate) fn unchecked_match_value<Clear>(
         &self,
         ct: &CudaUnsignedRadixCiphertext,
         matches: &MatchValues<Clear>,
@@ -213,7 +213,7 @@ impl CudaServerKey {
     ///
     /// If none of the input matched the `ct` then, `ct` will encrypt the
     /// value given to `or_value`
-    pub fn unchecked_match_value_or<Clear>(
+    pub(crate) fn unchecked_match_value_or<Clear>(
         &self,
         ct: &CudaUnsignedRadixCiphertext,
         matches: &MatchValues<Clear>,
@@ -390,7 +390,7 @@ impl CudaServerKey {
     }
 
     // /// Returns an encrypted `true` if the encrypted `value` is found in the encrypted slice
-    pub fn unchecked_contains<T>(
+    pub(crate) fn unchecked_contains<T>(
         &self,
         cts: &[T],
         value: &T,
@@ -510,7 +510,7 @@ impl CudaServerKey {
     }
 
     /// Returns an encrypted `true` if the clear `value` is found in the encrypted slice
-    pub fn unchecked_contains_clear<T, Clear>(
+    pub(crate) fn unchecked_contains_clear<T, Clear>(
         &self,
         cts: &[T],
         clear: Clear,
@@ -627,7 +627,7 @@ impl CudaServerKey {
     }
 
     // /// Returns an encrypted `true` if the encrypted `value` is found in the clear slice
-    pub fn unchecked_is_in_clears<T, Clear>(
+    pub(crate) fn unchecked_is_in_clears<T, Clear>(
         &self,
         ct: &T,
         clears: &[Clear],
@@ -742,7 +742,7 @@ impl CudaServerKey {
     ///
     /// - clear values in the slice must be unique (otherwise use
     ///   [Self::unchecked_first_index_in_clears])
-    pub fn unchecked_index_in_clears<T, Clear>(
+    pub(crate) fn unchecked_index_in_clears<T, Clear>(
         &self,
         ct: &T,
         clears: &[Clear],
@@ -882,7 +882,7 @@ impl CudaServerKey {
     /// # Notes
     ///
     /// - If the encrypted value is not in the clear slice, the returned index is 0
-    pub fn unchecked_first_index_in_clears<T, Clear>(
+    pub(crate) fn unchecked_first_index_in_clears<T, Clear>(
         &self,
         ct: &T,
         clears: &[Clear],
@@ -1014,7 +1014,7 @@ impl CudaServerKey {
         self.unchecked_first_index_in_clears(ct, clears, streams)
     }
 
-    pub fn unchecked_index_of<T>(
+    pub(crate) fn unchecked_index_of<T>(
         &self,
         cts: &[T],
         value: &T,
@@ -1166,7 +1166,7 @@ impl CudaServerKey {
     /// - clear values in the slice must be unique (otherwise use
     ///   [Self::unchecked_first_index_of_clear])
     /// - If the clear value is not in the encrypted slice, the returned index is 0
-    pub fn unchecked_index_of_clear<T, Clear>(
+    pub(crate) fn unchecked_index_of_clear<T, Clear>(
         &self,
         cts: &[T],
         clear: Clear,
@@ -1310,7 +1310,7 @@ impl CudaServerKey {
     /// # Notes
     ///
     /// - If the clear value is not in the clear slice, the returned index is 0
-    pub fn unchecked_first_index_of_clear<T, Clear>(
+    pub(crate) fn unchecked_first_index_of_clear<T, Clear>(
         &self,
         cts: &[T],
         clear: Clear,
@@ -1452,7 +1452,7 @@ impl CudaServerKey {
     /// # Notes
     ///
     /// - If the encrypted value is not in the clear slice, the returned index is 0
-    pub fn unchecked_first_index_of<T>(
+    pub(crate) fn unchecked_first_index_of<T>(
         &self,
         cts: &[T],
         value: &T,

@@ -12,7 +12,7 @@ use crate::integer::gpu::{
 use crate::shortint::ciphertext::Degree;
 
 impl CudaServerKey {
-    pub fn unchecked_comparison<T>(
+    pub(crate) fn unchecked_comparison<T>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -78,7 +78,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_eq<T>(
+    pub(crate) fn unchecked_eq<T>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -90,7 +90,7 @@ impl CudaServerKey {
         self.unchecked_comparison(ct_left, ct_right, ComparisonType::EQ, streams)
     }
 
-    pub fn unchecked_ne<T>(
+    pub(crate) fn unchecked_ne<T>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -318,7 +318,7 @@ impl CudaServerKey {
         self.unchecked_ne(lhs, rhs, streams)
     }
 
-    pub fn unchecked_gt<T>(
+    pub(crate) fn unchecked_gt<T>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -330,7 +330,7 @@ impl CudaServerKey {
         self.unchecked_comparison(ct_left, ct_right, ComparisonType::GT, streams)
     }
 
-    pub fn unchecked_ge<T>(
+    pub(crate) fn unchecked_ge<T>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -492,7 +492,7 @@ impl CudaServerKey {
         self.unchecked_ge(lhs, rhs, streams)
     }
 
-    pub fn unchecked_lt<T>(
+    pub(crate) fn unchecked_lt<T>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -580,7 +580,7 @@ impl CudaServerKey {
         self.unchecked_lt(lhs, rhs, streams)
     }
 
-    pub fn unchecked_le<T>(
+    pub(crate) fn unchecked_le<T>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -722,7 +722,7 @@ impl CudaServerKey {
         self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::LE, streams)
     }
 
-    pub fn unchecked_max<T>(&self, ct_left: &T, ct_right: &T, streams: &CudaStreams) -> T
+    pub(crate) fn unchecked_max<T>(&self, ct_left: &T, ct_right: &T, streams: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -769,7 +769,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_min<T>(&self, ct_left: &T, ct_right: &T, streams: &CudaStreams) -> T
+    pub(crate) fn unchecked_min<T>(&self, ct_left: &T, ct_right: &T, streams: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
