@@ -23,6 +23,8 @@ use crate::integer::prelude::*;
 use crate::integer::BooleanBlock;
 use crate::named::Named;
 use crate::prelude::FheWait;
+#[cfg(feature = "gpu")]
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::AtomicPatternParameters;
@@ -478,13 +480,30 @@ impl ScalarIfThenElse<&Self, &Self> for FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
-                let inner = cuda_key.key.key.if_then_else(
+                let mut inner = cuda_key.key.key.if_then_else(
                     &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
                     &*ct_then.ciphertext.on_gpu(streams),
                     &*ct_else.ciphertext.on_gpu(streams),
                     streams,
                 );
-                let boolean_inner = CudaBooleanBlock(inner);
+                // The result encrypts one of the two boolean branches, so its degree
+                // is bounded by the max of the branch degrees. The generic radix
+                // cmux instead sets the worst case of its final message-extraction
+                // LUT (message_modulus - 1), which the boolean wrapper rejects.
+                let branches_max_degree = ct_then.ciphertext.on_gpu(streams).ciphertext.info.blocks
+                    [0]
+                .degree
+                .get()
+                .max(
+                    ct_else.ciphertext.on_gpu(streams).ciphertext.info.blocks[0]
+                        .degree
+                        .get(),
+                );
+                inner.ciphertext.info.blocks[0].degree = Degree::new(branches_max_degree);
+                // Use the checked constructor so an invalid degree on a value
+                // meant to be boolean fails here rather than at a later use.
+                let boolean_inner =
+                    CudaBooleanBlock::from_cuda_radix_ciphertext(inner.into_inner());
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
             }
             #[cfg(feature = "hpu")]
@@ -676,13 +695,30 @@ impl IfThenElse<Self> for FheBool {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
                 let streams = &cuda_key.streams;
-                let inner = cuda_key.key.key.if_then_else(
+                let mut inner = cuda_key.key.key.if_then_else(
                     &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
                     &*ct_then.ciphertext.on_gpu(streams),
                     &*ct_else.ciphertext.on_gpu(streams),
                     streams,
                 );
-                let boolean_inner = CudaBooleanBlock(inner);
+                // The result encrypts one of the two boolean branches, so its degree
+                // is bounded by the max of the branch degrees. The generic radix
+                // cmux instead sets the worst case of its final message-extraction
+                // LUT (message_modulus - 1), which the boolean wrapper rejects.
+                let branches_max_degree = ct_then.ciphertext.on_gpu(streams).ciphertext.info.blocks
+                    [0]
+                .degree
+                .get()
+                .max(
+                    ct_else.ciphertext.on_gpu(streams).ciphertext.info.blocks[0]
+                        .degree
+                        .get(),
+                );
+                inner.ciphertext.info.blocks[0].degree = Degree::new(branches_max_degree);
+                // Use the checked constructor so an invalid degree on a value
+                // meant to be boolean fails here rather than at a later use.
+                let boolean_inner =
+                    CudaBooleanBlock::from_cuda_radix_ciphertext(inner.into_inner());
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
             }
             #[cfg(feature = "hpu")]
