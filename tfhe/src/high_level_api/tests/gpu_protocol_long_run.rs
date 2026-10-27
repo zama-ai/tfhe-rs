@@ -29,13 +29,14 @@
 //! Two shapes are tested: one transaction at a time, over every parameter set, and several
 //! transactions at a time on the classical parameters, to put the device under load.
 
+use super::protocol_workflow_common::{
+    install_seeded_engine, node_re_randomization_context, num_transactions, random_bytes,
+    re_randomize_operand, METADATA_LEN,
+};
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::random::RandomGenerator;
 use crate::high_level_api::prelude::*;
-use crate::integer::server_key::radix_parallel::tests_long_run::{
-    get_long_test_iterations, get_user_defined_seed,
-};
-use crate::shortint::engine::ShortintEngine;
+use crate::integer::server_key::radix_parallel::tests_long_run::get_user_defined_seed;
 use crate::shortint::parameters::test_params::{
     TEST_LEGACY_RERAND_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
     TEST_LEGACY_RERAND_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
@@ -47,34 +48,13 @@ use crate::{
     clear_gpu_thread_locals, set_server_key, ClientKey, CompactPublicKey,
     CompressedCiphertextListBuilder, CompressedServerKey,
     CompressedSquashedNoiseCiphertextListBuilder, Config, FheBool, FheUint64, GpuIndex,
-    ReRandomizationContext, ReRandomizationSeedGen, SquashedNoiseFheUint,
+    SquashedNoiseFheUint,
 };
 use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use rayon::slice::ParallelSlice;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tfhe_csprng::generators::DefaultRandomGenerator;
 use tfhe_csprng::seeders::{Seed, Seeder};
-
-/// Domain separator fed to the re-randomization seed generator.
-const RERAND_DOMAIN_SEPARATOR: [u8; 8] = *b"TFHE_Rrd";
-/// Domain separator used to generate the compact public key encryptions of zero.
-const CPK_ENCRYPTION_DOMAIN_SEPARATOR: [u8; 8] = *b"TFHE_Enc";
-/// Size of the metadata attached to an input ciphertext, simulating the 256 bits hash that ties
-/// an input to its origin.
-const METADATA_LEN: usize = 256 / 8;
-
-/// How many transactions a test runs.
-///
-/// Defaults to the shared long run count, which the `TFHE_RS_TEST_LONG_TESTS_MINIMAL` environment
-/// variable already shortens. The dedicated stress target overrides it to size a run to a wall
-/// clock budget of its own.
-fn num_transactions() -> usize {
-    std::env::var("TFHE_RS_PROTOCOL_TRANSACTIONS")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .filter(|v| *v > 0)
-        .unwrap_or_else(get_long_test_iterations)
-}
 
 /// The GPU every test runs on.
 ///
@@ -105,39 +85,6 @@ const OPCODE_GE: NodeOpcode = 1;
 const OPCODE_IF_THEN_ELSE: NodeOpcode = 2;
 const OPCODE_ADD: NodeOpcode = 3;
 const OPCODE_SUB: NodeOpcode = 4;
-
-/// Opens the re-randomization context of a single graph node.
-///
-/// The seeds of a node only depend on the node opcode and on the node operands, so two
-/// coprocessors evaluating the same node of the same transaction derive the same seeds.
-fn node_re_randomization_context(opcode: NodeOpcode) -> ReRandomizationContext {
-    ReRandomizationContext::new(
-        RERAND_DOMAIN_SEPARATOR,
-        [opcode.to_be_bytes().as_slice()],
-        CPK_ENCRYPTION_DOMAIN_SEPARATOR,
-    )
-}
-
-/// Installs a re-seeded encryption engine on the calling thread.
-///
-/// Key generation and encryption both draw from this thread local engine, so seeding it is what
-/// makes a failure reproducible: with `TFHE_RS_LONGRUN_TESTS_SEED` set, a run replays the same
-/// keys and the same ciphertexts, not merely the same clear inputs. Re-randomization then follows,
-/// since its seeds are derived from the ciphertext bytes.
-fn install_seeded_engine(seed: Seed) {
-    let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-    let engine = ShortintEngine::new_from_seeder(&mut seeder);
-    ShortintEngine::with_thread_local_mut(|local_engine| {
-        let _ = std::mem::replace(local_engine, engine);
-    });
-}
-
-/// Draws `N` deterministic bytes, used for the input metadata.
-fn random_bytes<const N: usize>(datagen: &mut RandomGenerator<DefaultRandomGenerator>) -> [u8; N] {
-    let mut out = [0u8; N];
-    datagen.fill_slice_with_random_uniform(&mut out);
-    out
-}
 
 /// Draws the transfer amount.
 ///
@@ -204,18 +151,6 @@ impl Transaction {
             self.to_amount.wrapping_add(amount_to_transfer),
         )
     }
-}
-
-/// Re-randomizes one operand of a graph node, with its own seed taken from the node seed stream.
-fn re_randomize_operand<T: ReRandomize>(
-    ct: &mut T,
-    cpk: &CompactPublicKey,
-    seed_gen: &mut ReRandomizationSeedGen,
-) {
-    // Handing over the compact public key covers both re-randomization modes: a server key built
-    // on the legacy dedicated CPK uses it along its keyswitching key, a server key holding a CPK
-    // derived from the compute key ignores it in favor of the derived one.
-    ct.re_randomize(cpk, seed_gen.next_seed().unwrap()).unwrap();
 }
 
 /// The ERC-7984 whitepaper transfer, as a graph of four nodes:
