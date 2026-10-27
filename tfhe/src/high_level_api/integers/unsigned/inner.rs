@@ -4,6 +4,8 @@ use crate::high_level_api::backward_compatibility::integers::SerializableRadixCi
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::cuda_clone;
+#[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_cuda_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
@@ -75,10 +77,7 @@ impl Clone for RadixCiphertext {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => with_cuda_internal_keys(|key| {
-                let streams = &key.streams;
-                Self::Cuda(inner.duplicate(streams))
-            }),
+            Self::Cuda(inner) => Self::Cuda(cuda_clone(inner)),
             #[cfg(feature = "hpu")]
             Self::Hpu(inner) => {
                 // NB: Hpu backends flavor behavs differently regarding memory.
@@ -151,7 +150,7 @@ impl RadixCiphertext {
         streams: &CudaStreams,
     ) -> MaybeCloned<'_, CudaUnsignedRadixCiphertext> {
         let cpu_radix = if let Self::Cuda(gpu_radix) = self {
-            if gpu_radix.gpu_indexes() == streams.gpu_indexes() {
+            if streams.is_on_first_gpu(gpu_radix.gpu_indexes()) {
                 return MaybeCloned::Borrowed(gpu_radix);
             }
             return MaybeCloned::Cloned(gpu_radix.duplicate(streams));
@@ -189,7 +188,7 @@ impl RadixCiphertext {
     #[cfg(feature = "gpu")]
     pub(crate) fn as_gpu_mut(&mut self, streams: &CudaStreams) -> &mut CudaUnsignedRadixCiphertext {
         let cpu_radix = if let Self::Cuda(cuda_ct) = self {
-            if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+            if !streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                 *cuda_ct = cuda_ct.duplicate(streams);
             }
             return cuda_ct;
@@ -264,7 +263,7 @@ impl RadixCiphertext {
             if let Self::Cuda(cuda_ct) = self {
                 with_cuda_internal_keys(|key| {
                     let streams = &key.streams;
-                    if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                    if !streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
                         *cuda_ct = cuda_ct.duplicate(streams);
                     }
                 })

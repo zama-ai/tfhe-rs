@@ -127,6 +127,23 @@ impl CudaStreams {
         &self.gpu_indexes
     }
 
+    /// Returns `true` if `data_gpu_indexes` contains only the first GPU index of these streams.
+    ///
+    /// Ciphertexts live on a single GPU, so comparing their indexes with all the indexes of
+    /// multi-GPU streams would never match
+    ///
+    /// # Panics
+    ///
+    /// Panics if `data_gpu_indexes` does not contain exactly one index
+    pub(crate) fn is_on_first_gpu(&self, data_gpu_indexes: &[GpuIndex]) -> bool {
+        assert_eq!(
+            data_gpu_indexes.len(),
+            1,
+            "Data is expected to live on a single GPU"
+        );
+        self.gpu_indexes.get(..1) == Some(data_gpu_indexes)
+    }
+
     /// Returns a pointer the array of GpuIndex as u32
     pub(crate) fn gpu_indexes_ptr(&self) -> *const u32 {
         // The cast here is safe as GpuIndex is repr(transparent)

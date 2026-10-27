@@ -2,10 +2,12 @@
 //! where the values and computations are always done on GPU
 use super::super::helpers::{create_sub_mut_slice_with_bound, create_sub_slice_with_bound};
 use super::super::traits::{ArithmeticArrayBackend, BitwiseArrayBackend, ClearBitwiseArrayBackend};
+use super::on_gpu;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::high_level_api::array::{
     ArrayBackend, FheArrayBase, FheBackendArray, FheBackendArraySlice, FheBackendArraySliceMut,
 };
+use crate::high_level_api::global_state::cuda_clone;
 
 use crate::array::stride::{ParStridedIter, ParStridedIterMut, StridedIter};
 use crate::array::traits::{
@@ -53,10 +55,7 @@ where
     T: CudaIntegerRadixCiphertext,
 {
     fn clone(&self) -> Self {
-        with_cuda_internal_keys(|key| {
-            let streams = &key.streams;
-            Self(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
-        })
+        Self(self.0.iter().map(cuda_clone).collect())
     }
 }
 
@@ -112,7 +111,14 @@ where
         let streams = &cuda_key.streams;
         lhs.par_iter()
             .zip(rhs.par_iter())
-            .map(|(lhs, rhs)| op(cuda_key.pbs_key(), lhs, rhs, streams))
+            .map(|(lhs, rhs)| {
+                op(
+                    cuda_key.pbs_key(),
+                    &*on_gpu(lhs, streams),
+                    &*on_gpu(rhs, streams),
+                    streams,
+                )
+            })
             .collect::<Vec<_>>()
     }))
 }
@@ -173,7 +179,7 @@ where
         let streams = &cuda_key.streams;
         lhs.par_iter()
             .zip(rhs.par_iter())
-            .map(|(lhs, rhs)| op(cuda_key.pbs_key(), lhs, *rhs, streams))
+            .map(|(lhs, rhs)| op(cuda_key.pbs_key(), &*on_gpu(lhs, streams), *rhs, streams))
             .collect::<Vec<_>>()
     }))
 }
@@ -337,7 +343,7 @@ where
         GpuOwned(global_state::with_cuda_internal_keys(|cuda_key| {
             let streams = &cuda_key.streams;
             lhs.par_iter()
-                .map(|lhs| cuda_key.pbs_key().bitnot(lhs, streams))
+                .map(|lhs| cuda_key.pbs_key().bitnot(&*on_gpu(lhs, streams), streams))
                 .collect::<Vec<_>>()
         }))
     }
@@ -572,15 +578,16 @@ where
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
-        with_cuda_internal_keys(|cuda_key| {
-            let streams = &cuda_key.streams;
-            self.as_tensor_slice()
-                .iter()
-                .map(|ct: &CudaUnsignedRadixCiphertext| {
-                    key.key.key.decrypt_radix(&ct.to_radix_ciphertext(streams))
-                })
-                .collect()
-        })
+        self.as_tensor_slice()
+            .iter()
+            .map(|ct: &CudaUnsignedRadixCiphertext| {
+                let cpu_ct = global_state::with_thread_local_cuda_streams_for_gpu_indexes(
+                    ct.gpu_indexes(),
+                    |streams| ct.to_radix_ciphertext(streams),
+                );
+                key.key.key.decrypt_radix(&cpu_ct)
+            })
+            .collect()
     }
 }
 
@@ -638,17 +645,16 @@ where
     Clear: RecomposableSignedInteger,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
-        with_cuda_internal_keys(|cuda_key| {
-            let streams = &cuda_key.streams;
-            self.elems
-                .0
-                .iter()
-                .map(|ct| {
-                    key.key
-                        .key
-                        .decrypt_signed_radix(&ct.to_signed_radix_ciphertext(streams))
-                })
-                .collect()
-        })
+        self.elems
+            .0
+            .iter()
+            .map(|ct| {
+                let cpu_ct = global_state::with_thread_local_cuda_streams_for_gpu_indexes(
+                    ct.gpu_indexes(),
+                    |streams| ct.to_signed_radix_ciphertext(streams),
+                );
+                key.key.key.decrypt_signed_radix(&cpu_ct)
+            })
+            .collect()
     }
 }
