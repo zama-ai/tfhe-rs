@@ -12,7 +12,7 @@ fn test_compressed_list_with_strings() {
     const MAX_STRING_SIZE: u32 = 255;
     const MAX_PADDING_SIZE: u32 = 50;
 
-    let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+    let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
     let private_compression_key =
         cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
@@ -60,7 +60,7 @@ fn test_compressed_list_with_strings() {
 #[test]
 fn test_compressed_list_empty_string() {
     let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-    let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+    let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
     let private_compression_key =
         cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);

@@ -214,10 +214,10 @@ unsafe fn update_noise_degree(
 }
 pub fn gen_keys_gpu<P>(parameters_set: P, streams: &CudaStreams) -> (ClientKey, CudaServerKey)
 where
-    P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
-    <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
+    P: TryInto<crate::shortint::parameters::AtomicPatternParameters>,
+    <P as TryInto<crate::shortint::parameters::AtomicPatternParameters>>::Error: std::fmt::Debug,
 {
-    let shortint_parameters_set: crate::shortint::parameters::ShortintParameterSet =
+    let shortint_parameters_set: crate::shortint::parameters::AtomicPatternParameters =
         parameters_set.try_into().unwrap();
 
     let cks = ClientKey::new(shortint_parameters_set);
@@ -248,8 +248,8 @@ pub fn gen_keys_radix_gpu<P>(
     streams: &CudaStreams,
 ) -> (RadixClientKey, CudaServerKey)
 where
-    P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
-    <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
+    P: TryInto<crate::shortint::parameters::AtomicPatternParameters>,
+    <P as TryInto<crate::shortint::parameters::AtomicPatternParameters>>::Error: std::fmt::Debug,
 {
     let (cks, sks) = gen_keys_gpu(parameters_set, streams);
 

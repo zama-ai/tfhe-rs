@@ -45,7 +45,7 @@ pub struct CompactPublicKeyV0 {
 
 impl Upgrade<CompactPublicKey> for CompactPublicKeyV0 {
     fn upgrade(self) -> Result<CompactPublicKey, Self::Error> {
-        let parameters = self.parameters.try_into()?;
+        let parameters = self.parameters.ap_parameters().try_into()?;
         Ok(CompactPublicKey {
             key: self.key,
             parameters,
@@ -100,7 +100,7 @@ pub struct CompressedCompactPublicKeyV0 {
 
 impl Upgrade<CompressedCompactPublicKey> for CompressedCompactPublicKeyV0 {
     fn upgrade(self) -> Result<CompressedCompactPublicKey, Self::Error> {
-        let parameters = self.parameters.try_into()?;
+        let parameters = self.parameters.ap_parameters().try_into()?;
         Ok(CompressedCompactPublicKey {
             key: self.key,
             parameters,

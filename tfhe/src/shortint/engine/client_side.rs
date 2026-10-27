@@ -11,20 +11,18 @@ use crate::shortint::client_key::atomic_pattern::{
 use crate::shortint::client_key::GenericClientKey;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
-    Ciphertext, ClientKey, CompressedCiphertext, PaddingBit, ShortintEncoding, ShortintParameterSet,
+    AtomicPatternParameters, Ciphertext, ClientKey, CompressedCiphertext, PaddingBit,
+    ShortintEncoding,
 };
 
 impl ShortintEngine {
     pub fn new_client_key<P>(&mut self, parameters: P) -> ClientKey
     where
-        P: TryInto<ShortintParameterSet>,
-        <P as TryInto<ShortintParameterSet>>::Error: std::fmt::Debug,
+        P: TryInto<AtomicPatternParameters>,
+        <P as TryInto<AtomicPatternParameters>>::Error: std::fmt::Debug,
     {
-        let shortint_params: ShortintParameterSet = parameters.try_into().unwrap();
+        let ap_params: AtomicPatternParameters = parameters.try_into().unwrap();
 
-        let ap_params = shortint_params
-            .ap_parameters()
-            .expect("Invalid parameters, missing Atomic Pattern params");
         let atomic_pattern = AtomicPatternClientKey::new_with_engine(ap_params, self);
 
         ClientKey { atomic_pattern }
@@ -67,7 +65,7 @@ impl ShortintEngine {
 
     fn encrypt_inner_ct<KeyCont, NoiseDistribution>(
         &mut self,
-        client_key_parameters: &ShortintParameterSet,
+        client_key_parameters: &AtomicPatternParameters,
         client_lwe_sk: &LweSecretKey<KeyCont>,
         noise_distribution: NoiseDistribution,
         message: u64,

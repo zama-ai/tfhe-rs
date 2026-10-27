@@ -4,7 +4,7 @@ use crate::shortint::backward_compatibility::parameters::compact_public_key_only
 };
 use crate::shortint::parameters::{
     AtomicPatternKind, CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution,
-    LweDimension, MessageModulus, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
+    LweDimension, MessageModulus, MultiBitPBSParameters, PBSParameters,
     SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{PaddingBit, ShortintEncoding};
@@ -97,8 +97,8 @@ impl CompactPublicKeyEncryptionParameters {
         }
     }
 
-    pub const fn from_shortint_parameter_set(
-        parameters: ShortintParameterSet,
+    pub const fn from_atomic_pattern_parameters(
+        parameters: AtomicPatternParameters,
     ) -> Result<Self, &'static str> {
         let encryption_lwe_dimension = parameters.encryption_lwe_dimension();
         let encryption_noise_distribution = parameters.encryption_noise_distribution();
@@ -121,12 +121,12 @@ impl CompactPublicKeyEncryptionParameters {
     }
 }
 
-impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {
+impl TryFrom<AtomicPatternParameters> for CompactPublicKeyEncryptionParameters {
     type Error = Error;
 
     #[track_caller]
-    fn try_from(parameters: ShortintParameterSet) -> Result<Self, Self::Error> {
-        Self::from_shortint_parameter_set(parameters).map_err(|e| crate::error!("{e}"))
+    fn try_from(parameters: AtomicPatternParameters) -> Result<Self, Self::Error> {
+        Self::from_atomic_pattern_parameters(parameters).map_err(|e| crate::error!("{e}"))
     }
 }
 
@@ -152,16 +152,7 @@ impl TryFrom<PBSParameters> for CompactPublicKeyEncryptionParameters {
     type Error = Error;
 
     fn try_from(value: PBSParameters) -> Result<Self, Self::Error> {
-        let params: ShortintParameterSet = value.into();
-        params.try_into()
-    }
-}
-
-impl TryFrom<AtomicPatternParameters> for CompactPublicKeyEncryptionParameters {
-    type Error = Error;
-
-    fn try_from(value: AtomicPatternParameters) -> Result<Self, Self::Error> {
-        let params: ShortintParameterSet = value.into();
+        let params: AtomicPatternParameters = value.into();
         params.try_into()
     }
 }

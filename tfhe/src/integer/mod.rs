@@ -111,16 +111,15 @@ pub enum IntegerKeyKind {
 ///   be published (the client sends it to the server).
 pub(crate) fn gen_keys<P>(parameters_set: P, key_kind: IntegerKeyKind) -> (ClientKey, ServerKey)
 where
-    P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
-    <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
+    P: TryInto<crate::shortint::parameters::AtomicPatternParameters>,
+    <P as TryInto<crate::shortint::parameters::AtomicPatternParameters>>::Error: std::fmt::Debug,
 {
-    let shortint_parameters_set: crate::shortint::parameters::ShortintParameterSet =
+    let shortint_parameters_set: crate::shortint::parameters::AtomicPatternParameters =
         parameters_set.try_into().unwrap();
 
     #[cfg(any(test, feature = "internal-keycache"))]
     {
-        keycache::KEY_CACHE
-            .get_from_params(shortint_parameters_set.ap_parameters().unwrap(), key_kind)
+        keycache::KEY_CACHE.get_from_params(shortint_parameters_set, key_kind)
     }
     #[cfg(all(not(test), not(feature = "internal-keycache")))]
     {
@@ -149,8 +148,8 @@ where
 /// ```
 pub fn gen_keys_radix<P>(parameters_set: P, num_blocks: usize) -> (RadixClientKey, ServerKey)
 where
-    P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
-    <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
+    P: TryInto<crate::shortint::parameters::AtomicPatternParameters>,
+    <P as TryInto<crate::shortint::parameters::AtomicPatternParameters>>::Error: std::fmt::Debug,
 {
     let (cks, sks) = gen_keys(parameters_set, IntegerKeyKind::Radix);
 
@@ -172,8 +171,8 @@ where
 /// ```
 pub fn gen_keys_crt<P>(parameters_set: P, basis: Vec<u64>) -> (CrtClientKey, ServerKey)
 where
-    P: TryInto<crate::shortint::parameters::ShortintParameterSet>,
-    <P as TryInto<crate::shortint::parameters::ShortintParameterSet>>::Error: std::fmt::Debug,
+    P: TryInto<crate::shortint::parameters::AtomicPatternParameters>,
+    <P as TryInto<crate::shortint::parameters::AtomicPatternParameters>>::Error: std::fmt::Debug,
 {
     let (cks, sks) = gen_keys(parameters_set, IntegerKeyKind::CRT);
 

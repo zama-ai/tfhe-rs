@@ -523,7 +523,7 @@ mod tests {
     use crate::integer::gpu::gen_keys_radix_gpu;
     use crate::integer::{ClientKey, RadixCiphertext, RadixClientKey};
     use crate::shortint::parameters::*;
-    use crate::shortint::ShortintParameterSet;
+    use crate::shortint::AtomicPatternParameters;
     use rand::Rng;
 
     const NB_TESTS: usize = 10;
@@ -711,7 +711,7 @@ mod tests {
             ),
         ] {
             let (radix_cks, sks) =
-                gen_keys_radix_gpu::<ShortintParameterSet>(params, NUM_BLOCKS, &streams);
+                gen_keys_radix_gpu::<AtomicPatternParameters>(params, NUM_BLOCKS, &streams);
             let cks = radix_cks.as_ref();
 
             let private_compression_key = cks.new_compression_private_key(comp_params);

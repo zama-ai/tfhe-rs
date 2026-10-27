@@ -92,8 +92,8 @@ pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 /// ```
 pub fn gen_keys<P>(parameters_set: P) -> (ClientKey, ServerKey)
 where
-    P: TryInto<ShortintParameterSet>,
-    <P as TryInto<ShortintParameterSet>>::Error: std::fmt::Debug,
+    P: TryInto<AtomicPatternParameters>,
+    <P as TryInto<AtomicPatternParameters>>::Error: std::fmt::Debug,
 {
     let cks = ClientKey::new(parameters_set);
     let sks = ServerKey::new(&cks);

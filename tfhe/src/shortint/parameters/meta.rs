@@ -146,10 +146,8 @@ impl MetaParameters {
                 }
                 ReRandomizationConfiguration::DerivedCompactPublicKeyWithoutKeySwitch => {
                     let pke_params =
-                        CompactPublicKeyEncryptionParameters::from_shortint_parameter_set(
-                            crate::shortint::ShortintParameterSet::from_atomic_pattern_params(
-                                self.compute_parameters,
-                            ),
+                        CompactPublicKeyEncryptionParameters::from_atomic_pattern_parameters(
+                            self.compute_parameters,
                         );
                     // need to match to be const
                     let derived_params_are_ok = match pke_params {

@@ -40,7 +40,7 @@ impl ShortintEngine {
 
         PublicKey {
             lwe_public_key,
-            parameters: client_key.parameters(),
+            parameters: client_key.parameters().into(),
             atomic_pattern: AtomicPatternKind::Standard(
                 client_key.parameters().encryption_key_choice().into(),
             ),
@@ -70,7 +70,7 @@ impl ShortintEngine {
 
         CompressedPublicKey {
             lwe_public_key: compressed_public_key,
-            parameters: client_key.parameters(),
+            parameters: client_key.parameters().into(),
             atomic_pattern: AtomicPatternKind::Standard(
                 client_key.parameters().encryption_key_choice().into(),
             ),
@@ -127,8 +127,11 @@ impl ShortintEngine {
 
         let m = Cleartext(message % message_modulus.0);
 
-        let plain =
-            ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes).encode(m);
+        let plain = ShortintEncoding::from_parameters(
+            public_key.parameters.ap_parameters(),
+            PaddingBit::Yes,
+        )
+        .encode(m);
 
         // This allocates the required ct
         let mut encrypted_ct = LweCiphertextOwned::new(
@@ -187,8 +190,11 @@ impl ShortintEngine {
             .map(move |message| {
                 let m = message % message_modulus.0;
 
-                ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes)
-                    .encode(Cleartext(m))
+                ShortintEncoding::from_parameters(
+                    public_key.parameters.ap_parameters(),
+                    PaddingBit::Yes,
+                )
+                .encode(Cleartext(m))
             })
             .collect();
 
@@ -242,9 +248,11 @@ impl ShortintEngine {
 
                 let m = message % message_modulus.0;
 
-                let encoded =
-                    ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes)
-                        .encode(Cleartext(m));
+                let encoded = ShortintEncoding::from_parameters(
+                    public_key.parameters.ap_parameters(),
+                    PaddingBit::Yes,
+                )
+                .encode(Cleartext(m));
 
                 (encoded, (message_modulus, carry_modulus))
             })
@@ -288,8 +296,11 @@ impl ShortintEngine {
         public_key: &PublicKey,
         message: u64,
     ) -> Ciphertext {
-        let plain = ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::No)
-            .encode(Cleartext(message));
+        let plain = ShortintEncoding::from_parameters(
+            public_key.parameters.ap_parameters(),
+            PaddingBit::No,
+        )
+        .encode(Cleartext(message));
 
         // This allocates the required ct
         let mut encrypted_ct = LweCiphertextOwned::new(
@@ -336,8 +347,11 @@ impl ShortintEngine {
     ) -> Vec<Ciphertext> {
         let encoded: Vec<_> = messages
             .map(|message| {
-                ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::No)
-                    .encode(Cleartext(message))
+                ShortintEncoding::from_parameters(
+                    public_key.parameters.ap_parameters(),
+                    PaddingBit::No,
+                )
+                .encode(Cleartext(message))
             })
             .collect();
 
@@ -503,8 +517,11 @@ impl ShortintEngine {
         public_key: &PublicKey,
         message: u64,
     ) -> Ciphertext {
-        let plain = ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes)
-            .encode(Cleartext(message));
+        let plain = ShortintEncoding::from_parameters(
+            public_key.parameters.ap_parameters(),
+            PaddingBit::Yes,
+        )
+        .encode(Cleartext(message));
 
         // This allocates the required ct
         let mut encrypted_ct = LweCiphertextOwned::new(
@@ -538,8 +555,11 @@ impl ShortintEngine {
         public_key: &CompressedPublicKey,
         message: u64,
     ) -> Ciphertext {
-        let plain = ShortintEncoding::from_parameters(public_key.parameters, PaddingBit::Yes)
-            .encode(Cleartext(message));
+        let plain = ShortintEncoding::from_parameters(
+            public_key.parameters.ap_parameters(),
+            PaddingBit::Yes,
+        )
+        .encode(Cleartext(message));
 
         // This allocates the required ct
         let mut encrypted_ct = LweCiphertextOwned::new(
