@@ -106,8 +106,8 @@ protected:
 
   bool supports_classical_cg() const {
     return has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
-        glwe_dimension, polynomial_size, pbs_level, number_of_inputs,
-        cuda_get_max_shared_memory(gpu_index));
+        glwe_dimension, polynomial_size, pbs_level, lwe_dimension,
+        number_of_inputs, cuda_get_max_shared_memory(gpu_index));
   }
 
   bool supports_classical_tbc() const {

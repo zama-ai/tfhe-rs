@@ -10,7 +10,7 @@ void cuda_fourier_polynomial_mul_async(void *stream, uint32_t gpu_index,
                                        void *output, uint32_t polynomial_size,
                                        uint32_t total_polynomials);
 
-void cuda_fourier_polynomial_mul_fft16x4x16_async(
+void cuda_fourier_polynomial_mul_fft16x16x4_async(
     void *stream, uint32_t gpu_index, void const *input1, void const *input2,
     void *output, uint32_t polynomial_size, uint32_t total_polynomials);
 
@@ -21,28 +21,37 @@ void cuda_forward_fft_classic_async(void *stream, uint32_t gpu_index,
                                     uint32_t polynomial_size,
                                     uint32_t total_polynomials);
 
-// Test-only: forward-only negacyclic FFT using the throughput-oriented
-// FFT16x4x16 core. Output is in NATURAL frequency order. Hardcoded to
-// polynomial_size == 2048 and requires sm_90 (H100).
-void cuda_forward_fft16x4x16_async(void *stream, uint32_t gpu_index,
+// Test-only: forward-only negacyclic FFT using the paired FFT16x16x4 transform
+// of the specialized 2_2_params PBS. Output is in NATURAL frequency order.
+// Hardcoded to polynomial_size == 2048; two polynomials per block, so
+// total_polynomials must be even. Runs on compute capability 8.x and newer.
+void cuda_forward_fft16x16x4_async(void *stream, uint32_t gpu_index,
                                    void const *input, void *output,
                                    uint32_t polynomial_size,
                                    uint32_t total_polynomials);
 
-// Test-only: inverse-only negacyclic FFT using the throughput-oriented
-// FFT16x4x16 core. The clean inverse of cuda_forward_fft16x4x16_async: input
-// and time-domain output are both in NATURAL order. Hardcoded to
-// polynomial_size == 2048 and requires sm_90 (H100).
-void cuda_backward_fft16x4x16_async(void *stream, uint32_t gpu_index,
+// Test-only: inverse-only negacyclic FFT using the paired FFT16x16x4 transform.
+// The clean inverse of cuda_forward_fft16x16x4_async: natural-order input and
+// natural-order time-domain output, no 1/N. Same restrictions as the forward.
+void cuda_backward_fft16x16x4_async(void *stream, uint32_t gpu_index,
                                     void const *input, void *output,
                                     uint32_t polynomial_size,
                                     uint32_t total_polynomials);
 
-// Returns true iff the given GPU can run the FFT16x4x16 core, i.e. it has
-// compute capability 9.x (Hopper) or newer, the only architectures the core
-// is validated on. Lets callers (e.g. tests) gate the specialized path at
-// runtime instead of failing on older architectures.
-bool cuda_fft16x4x16_is_supported_async(uint32_t gpu_index);
+// Returns true iff the given GPU has compute capability 9.x (Hopper) or newer,
+// the only architecture the 128-bit PBS golden data is validated on. Lets the
+// pbs128 golden tests gate themselves at runtime.
+bool cuda_pbs128_golden_is_supported_async(uint32_t gpu_index);
+
+// True iff the GPU reproduces the committed PBS golden data bit for bit:
+// compute capability 8.x (Ampere) or newer, checked on A100, L40 and H100.
+bool cuda_pbs_golden_is_supported_async(uint32_t gpu_index);
+
+// True iff the GPU runs the FFT16x16x4 transforms and reproduces the committed
+// FFT golden data bit for bit: compute capability 8.x (Ampere) or newer,
+// checked on A100, L40 and H100. A deliberate twin of the PBS golden probe
+// above: the two policies are independent and may diverge.
+bool cuda_fft16x16x4_is_supported_async(uint32_t gpu_index);
 
 void cuda_convert_lwe_programmable_bootstrap_key_32_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,

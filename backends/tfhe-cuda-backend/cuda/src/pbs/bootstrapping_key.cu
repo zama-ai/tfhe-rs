@@ -24,9 +24,11 @@ void cuda_convert_lwe_programmable_bootstrap_key_64_async(
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
+  // The gate reads the compute capability of the current device.
+  cuda_set_device(gpu_index);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool use_specialized = supports_specialized_2_2_params<uint64_t>(
-      polynomial_size, glwe_dim, level_count, max_shared_memory);
+      polynomial_size, glwe_dim, level_count, input_lwe_dim, max_shared_memory);
   bool use_throughput_oriented =
       use_specialized && specialized_2_2_use_throughput_oriented<uint64_t>(
                              polynomial_size, glwe_dim, level_count,
@@ -68,7 +70,7 @@ void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
           polynomial_size, glwe_dim, level_count, input_lwe_dim,
           max_shared_memory);
   // This entry point always targets the specialized 2_2 layout; the throughput
-  // flag only selects between the FFT16x4x16 and the natural-order specialized
+  // flag only selects between the FFT16x16x4 and the natural-order specialized
   // conversion within it.
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
@@ -217,48 +219,63 @@ void cuda_fourier_polynomial_mul_async(void *stream, uint32_t gpu_index,
   cuda_drop_async(buf, s, gpu_index);
 }
 
-// Test-only entry point: negacyclic polynomial multiplication driven by the
-// throughput-oriented FFT16x4x16 cores (the FFT used by the specialized
-// 2_2_params PBS). Hardcoded to polynomial_size == 2048 and requires sm_90
-// (H100); callers must gate accordingly. See batch_polynomial_mul_fft16x4x16.
-void cuda_fourier_polynomial_mul_fft16x4x16_async(
-    void *stream, uint32_t gpu_index, void const *input1, void const *input2,
-    void *output, uint32_t polynomial_size, uint32_t total_polynomials) {
+// Shared launch path of the three FFT16x16x4 test entry points below: same
+// parameter checks, same (total_polynomials / 2) x (64, 2, 1) launch shape and
+// the same shared memory opt-in, so the transforms run exactly as the
+// specialized 2_2_params PBS runs them. Only the kernel and its tensor
+// arguments differ. `entry_point_name` identifies the caller in the PANIC
+// messages, since they all fire from this function's lines.
+template <typename Kernel, typename... Args>
+static void launch_fft16x16x4_pair_kernel(cudaStream_t stream,
+                                          uint32_t gpu_index,
+                                          const char *entry_point_name,
+                                          uint32_t polynomial_size,
+                                          uint32_t total_polynomials,
+                                          Kernel *kernel, Args... args) {
+  PANIC_IF_FALSE(polynomial_size == 2048,
+                 "%s only supports polynomial_size == 2048", entry_point_name);
+  PANIC_IF_FALSE(total_polynomials % 2 == 0,
+                 "%s needs an even number of polynomials (two per block)",
+                 entry_point_name);
 
-  if (polynomial_size != 2048)
-    PANIC("cuda_fourier_polynomial_mul_fft16x4x16_async only supports "
-          "polynomial_size == 2048");
-
-  auto s = static_cast<cudaStream_t>(stream);
   cuda_set_device(gpu_index);
-  auto *in1 = static_cast<const double2 *>(input1);
-  auto *in2 = static_cast<const double2 *>(input2);
-  auto *out = static_cast<double2 *>(output);
 
   using params = AccumulatorDegree<2048>;
-  size_t shared_memory_size = FFT16x4x16_DUAL_SMEM_BYTES;
+  size_t shared_memory_size = FFT16x16x4_DUAL_SMEM_BYTES;
 
-  int gridSize = total_polynomials;
-  int blockSize = polynomial_size / params::opt; // 64
+  dim3 grid(total_polynomials / 2);
+  dim3 block(polynomial_size / params::opt, 2, 1); // (64, 2, 1)
 
   check_cuda_error(cudaFuncSetAttribute(
-      batch_polynomial_mul_fft16x4x16<params>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
-  check_cuda_error(
-      cudaFuncSetAttribute(batch_polynomial_mul_fft16x4x16<params>,
-                           cudaFuncAttributePreferredSharedMemoryCarveout,
-                           cudaSharedmemCarveoutMaxShared));
-  check_cuda_error(cudaFuncSetCacheConfig(
-      batch_polynomial_mul_fft16x4x16<params>, cudaFuncCachePreferShared));
+      kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
+  check_cuda_error(cudaFuncSetAttribute(
+      kernel, cudaFuncAttributePreferredSharedMemoryCarveout,
+      cudaSharedmemCarveoutMaxShared));
+  check_cuda_error(cudaFuncSetCacheConfig(kernel, cudaFuncCachePreferShared));
 
-  batch_polynomial_mul_fft16x4x16<params>
-      <<<gridSize, blockSize, shared_memory_size, s>>>(in1, in2, out);
+  kernel<<<grid, block, shared_memory_size, stream>>>(args...);
   check_cuda_error(cudaGetLastError());
+}
+
+// Test-only entry point: negacyclic polynomial multiplication driven by the
+// paired FFT16x16x4 transforms (the FFTs of the specialized 2_2_params PBS).
+// Hardcoded to polynomial_size == 2048 and two polynomials per block, so
+// total_polynomials must be even. See batch_polynomial_mul_fft16x16x4.
+void cuda_fourier_polynomial_mul_fft16x16x4_async(
+    void *stream, uint32_t gpu_index, void const *input1, void const *input2,
+    void *output, uint32_t polynomial_size, uint32_t total_polynomials) {
+  launch_fft16x16x4_pair_kernel(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      "cuda_fourier_polynomial_mul_fft16x16x4_async", polynomial_size,
+      total_polynomials,
+      batch_polynomial_mul_fft16x16x4<AccumulatorDegree<2048>>,
+      static_cast<const double2 *>(input1),
+      static_cast<const double2 *>(input2), static_cast<double2 *>(output));
 }
 
 // Test-only entry point: forward-only negacyclic FFT using the classic
 // NSMFFT_direct core (the "previous" FFT). Hardcoded to polynomial_size == 2048
-// so it can be compared against the FFT16x4x16 forward transform. The output is
+// so it can be compared against the FFT16x16x4 forward transform. The output is
 // left in NSMFFT_direct's native (bit-reversed) frequency order.
 void cuda_forward_fft_classic_async(void *stream, uint32_t gpu_index,
                                     void const *input, void *output,
@@ -294,93 +311,62 @@ void cuda_forward_fft_classic_async(void *stream, uint32_t gpu_index,
   cuda_drop_async(buf, s, gpu_index);
 }
 
-// Test-only entry point: forward-only negacyclic FFT driven by the
-// throughput-oriented FFT16x4x16 core (the FFT used by the specialized
-// 2_2_params PBS). Hardcoded to polynomial_size == 2048 and requires sm_90
-// (H100); callers must gate accordingly. The spectrum is written in NATURAL
-// frequency order — see batch_forward_fft16x4x16.
-void cuda_forward_fft16x4x16_async(void *stream, uint32_t gpu_index,
+// Test-only entry point: forward-only negacyclic FFT driven by the paired
+// FFT16x16x4 transform (the forward FFT of the specialized 2_2_params PBS).
+// Hardcoded to polynomial_size == 2048 and two polynomials per block, so
+// total_polynomials must be even. The spectra are written in NATURAL frequency
+// order; see batch_forward_fft16x16x4.
+void cuda_forward_fft16x16x4_async(void *stream, uint32_t gpu_index,
                                    void const *input, void *output,
                                    uint32_t polynomial_size,
                                    uint32_t total_polynomials) {
-
-  if (polynomial_size != 2048)
-    PANIC("cuda_forward_fft16x4x16_async only supports polynomial_size == "
-          "2048");
-
-  auto s = static_cast<cudaStream_t>(stream);
-  cuda_set_device(gpu_index);
-  auto *in = (const double2 *)input;
-  auto *out = (double2 *)output;
-
-  using params = AccumulatorDegree<2048>;
-  size_t shared_memory_size = FFT16x4x16_DUAL_SMEM_BYTES;
-
-  int gridSize = total_polynomials;
-  int blockSize = polynomial_size / params::opt; // 64
-
-  check_cuda_error(cudaFuncSetAttribute(
-      batch_forward_fft16x4x16<params>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
-  check_cuda_error(
-      cudaFuncSetAttribute(batch_forward_fft16x4x16<params>,
-                           cudaFuncAttributePreferredSharedMemoryCarveout,
-                           cudaSharedmemCarveoutMaxShared));
-  check_cuda_error(cudaFuncSetCacheConfig(batch_forward_fft16x4x16<params>,
-                                          cudaFuncCachePreferShared));
-
-  batch_forward_fft16x4x16<params>
-      <<<gridSize, blockSize, shared_memory_size, s>>>(in, out);
-  check_cuda_error(cudaGetLastError());
+  launch_fft16x16x4_pair_kernel(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      "cuda_forward_fft16x16x4_async", polynomial_size, total_polynomials,
+      batch_forward_fft16x16x4<AccumulatorDegree<2048>>,
+      static_cast<const double2 *>(input), static_cast<double2 *>(output));
 }
 
-// Test-only entry point: inverse-only negacyclic FFT driven by the
-// throughput-oriented FFT16x4x16 core (the inverse transform used by the
-// specialized 2_2_params PBS). Hardcoded to polynomial_size == 2048 and
-// requires sm_90 (H100); callers must gate accordingly. The clean inverse of
-// cuda_forward_fft16x4x16_async: it consumes natural-order input and writes the
-// time-domain result in NATURAL order — see batch_backward_fft16x4x16.
-void cuda_backward_fft16x4x16_async(void *stream, uint32_t gpu_index,
+// Test-only entry point: inverse-only negacyclic FFT driven by the paired
+// FFT16x16x4 transform (the inverse FFT of the specialized 2_2_params PBS).
+// The clean inverse of cuda_forward_fft16x16x4_async: natural-order spectra
+// in, natural time order out, no 1/N (the PBS folds it into the key). Same
+// restrictions as the forward entry point; see batch_backward_fft16x16x4.
+void cuda_backward_fft16x16x4_async(void *stream, uint32_t gpu_index,
                                     void const *input, void *output,
                                     uint32_t polynomial_size,
                                     uint32_t total_polynomials) {
-
-  if (polynomial_size != 2048)
-    PANIC("cuda_backward_fft16x4x16_async only supports polynomial_size == "
-          "2048");
-
-  auto s = static_cast<cudaStream_t>(stream);
-  cuda_set_device(gpu_index);
-  auto *in = (const double2 *)input;
-  auto *out = (double2 *)output;
-
-  using params = AccumulatorDegree<2048>;
-  size_t shared_memory_size = FFT16x4x16_DUAL_SMEM_BYTES;
-
-  int gridSize = total_polynomials;
-  int blockSize = polynomial_size / params::opt; // 64
-
-  check_cuda_error(cudaFuncSetAttribute(
-      batch_backward_fft16x4x16<params>,
-      cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
-  check_cuda_error(
-      cudaFuncSetAttribute(batch_backward_fft16x4x16<params>,
-                           cudaFuncAttributePreferredSharedMemoryCarveout,
-                           cudaSharedmemCarveoutMaxShared));
-  check_cuda_error(cudaFuncSetCacheConfig(batch_backward_fft16x4x16<params>,
-                                          cudaFuncCachePreferShared));
-
-  batch_backward_fft16x4x16<params>
-      <<<gridSize, blockSize, shared_memory_size, s>>>(in, out);
-  check_cuda_error(cudaGetLastError());
+  launch_fft16x16x4_pair_kernel(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      "cuda_backward_fft16x16x4_async", polynomial_size, total_polynomials,
+      batch_backward_fft16x16x4<AccumulatorDegree<2048>>,
+      static_cast<const double2 *>(input), static_cast<double2 *>(output));
 }
 
-bool cuda_fft16x4x16_is_supported_async(uint32_t gpu_index) {
+bool cuda_pbs128_golden_is_supported_async(uint32_t gpu_index) {
   cudaDeviceProp prop{};
   cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
-  // sm_90 (Hopper) or newer: the FFT16x4x16 core is only validated on
-  // compute capability 9.x and above.
+  // sm_90 (Hopper) or newer: the only architecture the 128-bit PBS golden
+  // data is validated on.
   return err == cudaSuccess && prop.major >= 9;
+}
+
+bool cuda_pbs_golden_is_supported_async(uint32_t gpu_index) {
+  cudaDeviceProp prop{};
+  cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
+  // sm_80 (Ampere) or newer: the committed golden data is reproduced bit for
+  // bit on A100, L40 and H100 (rounding-pinned intrinsics throughout).
+  return err == cudaSuccess && prop.major >= 8;
+}
+
+bool cuda_fft16x16x4_is_supported_async(uint32_t gpu_index) {
+  cudaDeviceProp prop{};
+  cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
+  // sm_80 (Ampere) or newer: the transforms run there and reproduce the H100
+  // golden data bit for bit (checked on A100, L40 and an RTX 4060 Laptop).
+  // Kept separate from the PBS golden probe above so tightening one policy
+  // does not silently drop the other's test coverage.
+  return err == cudaSuccess && prop.major >= 8;
 }
 
 void cuda_convert_lwe_programmable_bootstrap_key_u128_async(

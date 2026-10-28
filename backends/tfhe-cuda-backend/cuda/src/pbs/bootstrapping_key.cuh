@@ -172,28 +172,32 @@ void cuda_convert_lwe_programmable_bootstrap_key(
       shared_memory_size <= max_shared_memory) {
     // Specialized 2048 FFT paths for noise-squashing 2_2 parameters
     if (use_throughput_oriented) {
-      // Throughput oriented path: FFT16x4x16 forward, writes bsk in
-      // bit-reversed frequency order to match the new accumulate kernel.
-      // AccumulatorDegree<2048> -> opt=32 -> 64 threads/block.
-      blockSize = polynomial_size / AccumulatorDegree<2048>::opt;
-      size_t throughput_smem = BATCH_FFT16X4X16_BSK_SMEM_BYTES;
+      // Throughput oriented path: the paired FFT16x16x4 forward of the PBS
+      // kernel, two polynomials per (64, 2, 1) block, bsk stored in the slot
+      // order the kernel reads it back.
+      if (total_polynomials % 2 != 0)
+        PANIC("the specialized 2_2 bootstrapping key needs an even number of "
+              "polynomials");
+      dim3 pair_grid(total_polynomials / 2);
+      dim3 pair_block(polynomial_size / AccumulatorDegree<2048>::opt, 2, 1);
+      size_t throughput_smem = FFT16x16x4_DUAL_SMEM_BYTES;
       check_cuda_error(cudaFuncSetAttribute(
-          batch_FFT16x4x16_classical_specialized<
+          batch_FFT16x16x4_classical_specialized<
               FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
           cudaFuncAttributeMaxDynamicSharedMemorySize,
           static_cast<int>(throughput_smem)));
       check_cuda_error(cudaFuncSetCacheConfig(
-          batch_FFT16x4x16_classical_specialized<
+          batch_FFT16x16x4_classical_specialized<
               FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
           cudaFuncCachePreferShared));
-      batch_FFT16x4x16_classical_specialized<
+      batch_FFT16x16x4_classical_specialized<
           FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>
-          <<<gridSize, blockSize, throughput_smem, stream>>>(d_bsk, dest);
+          <<<pair_grid, pair_block, throughput_smem, stream>>>(d_bsk, dest);
     } else {
       // Specialized natural-order layout consumed by the old
       // device_programmable_bootstrap_specialized_2_2_params kernel (used
       // when the throughput path is unavailable, e.g. GPUs without enough
-      // shared memory for the FFT16x4x16 kernel).
+      // shared memory for the throughput kernel).
       blockSize = polynomial_size / choose_opt(polynomial_size);
       check_cuda_error(cudaFuncSetAttribute(
           batch_NSMFFT_classical_specialized<

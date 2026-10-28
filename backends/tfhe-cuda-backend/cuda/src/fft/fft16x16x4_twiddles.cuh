@@ -1,5 +1,5 @@
 #pragma once
-// Precalculated twiddle factors for FFT16x4x16 (1024-point complex FFT).
+// Precalculated twiddle factors for FFT16x16x4 (1024-point complex FFT).
 // Ported from test_correctness/twiddle_tables.h; operators and helpers are
 // provided by types/complex/operations.cuh — not duplicated here.
 //
@@ -11,14 +11,14 @@
 //   - The header is included by many translation units. To avoid nvlink
 //     "multiple definition" errors and to keep total constant-memory usage
 //     within the 64 KB per-program limit, the data is defined in exactly one
-//     translation unit (fft16x4x16_twiddles.cu) which #defines
-//     FFT16X4X16_TWIDDLES_INSTANTIATE before including this header. Every
+//     translation unit (fft16x16x4_twiddles.cu) which #defines
+//     FFT16X16X4_TWIDDLES_INSTANTIATE before including this header. Every
 //     other TU sees only the `extern __device__ __constant__` declarations.
 
 #include <cuda_runtime.h>
 #include <device.h>
 
-#ifdef FFT16X4X16_TWIDDLES_INSTANTIATE
+#ifdef FFT16X16X4_TWIDDLES_INSTANTIATE
 __device__ __constant__ double2 tw_1024[15][64] = {
     // k = 1  (row 0)
     {
@@ -1047,19 +1047,19 @@ static inline void init_twiddle_tables() {
 // ============================================================================
 //  Twisting twiddles for negacyclic FFT
 //
-//  psi_k = exp(-i*pi*k / 2048),  k = 0..1023
+//  psi_k = exp(-i*pi*k / 2048),  k = 0..512, stored in hex for bit-exact
+//  values. Same negative-exponent sign convention as tw_1024.
 //
-//  First-quadrant half-table: k=0..511, stored in hex for bit-exact values.
-//  Entries k=513..1023 are derived at runtime via:
-//    psi_{1024-k} = (-psi_k.y, -psi_k.x)  (swap + negate both parts)
-//  Entry k=512 = (1/sqrt(2), -1/sqrt(2)) is a compile-time constant in
-//  twist_lookup.
+//  The FFT16x16x4 transforms read entries k = 0..63 only, one per thread:
+//  conj(psi^tid) is folded into the shared first-stage twiddle rows and kept
+//  in a register for row 0 (fft16x16x4_load_shared_twiddles_folded_128t,
+//  fft16x16x4_block_setup and the PBS kernel); the rest of the twist comes
+//  from the W64 literals of fft16x16x4_w64. The CPU reference copies the whole
+//  table but reads the same 64 entries. Entries 64..512 are unused.
 //
-//  Same negative-exponent sign convention as tw_1024.
-//
-//  512 entries x 16 bytes = 8192 bytes
+//  513 entries x 16 bytes = 8208 bytes
 // ============================================================================
-#ifdef FFT16X4X16_TWIDDLES_INSTANTIATE
+#ifdef FFT16X16X4_TWIDDLES_INSTANTIATE
 __device__ __constant__ double2 twisting_twiddles[513] = {
     {0x1.0000000000000p+0, -0x0.0p+0},
     {0x1.ffffd88586ee6p-1, -0x1.921faaee6472dp-10},
