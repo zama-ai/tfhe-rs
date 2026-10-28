@@ -541,46 +541,6 @@ __global__ void batch_NSMFFT(double2 *d_input, double2 *d_output,
   }
 }
 
-/*
- * global batch fft
- * does fft in half size
- * this function must be called with actual degree
- * function takes as input already compressed input
- * this function is optimized for 2_2 params, it uses shared memory for
- * twiddles, and for the fft exchanges between threads. Only 32768 bytes are
- * needed, and we know in the 2_2 params cases we will always have enough shared
- * memory.
- */
-template <class params>
-__global__ void batch_NSMFFT_classical_specialized(double2 *d_input,
-                                                   double2 *d_output) {
-  extern __shared__ double2 sharedMemoryFFT[];
-  // For specialized we will always have enough shared memory
-  double2 *fft = sharedMemoryFFT;
-  int tid = threadIdx.x;
-
-  double2 *shared_twiddles = fft + params::degree / 2;
-
-  double2 fft_regs[params::opt / 2];
-#pragma unroll
-  for (int i = 0; i < params::opt / 2; i++) {
-    shared_twiddles[tid] = negtwiddles[tid];
-    fft_regs[i] = d_input[blockIdx.x * (params::degree / 2) + tid];
-    tid = tid + params::degree / params::opt;
-  }
-  __syncthreads();
-
-  NSMFFT_direct_2_2_params<HalfDegree<params>>(fft, fft_regs, shared_twiddles);
-  __syncthreads();
-
-  tid = threadIdx.x;
-#pragma unroll
-  for (int i = 0; i < params::opt / 2; i++) {
-    d_output[blockIdx.x * (params::degree / 2) + tid] = fft_regs[i];
-    tid = tid + params::degree / params::opt;
-  }
-}
-
 // Block startup shared by the key conversion and the test kernels, as in the
 // PBS kernel: folded twiddles in shared memory, roots and rows in registers.
 struct fft16x16x4_block_context {
@@ -629,8 +589,8 @@ fft16x16x4_block_setup(double *smem, fft16x16x4_block_context &c) {
 // FFT16x16x4_DUAL_SMEM_BYTES of shared memory.
 template <class params>
 __global__ void
-batch_FFT16x16x4_classical_specialized(const double2 *__restrict__ d_input,
-                                       double2 *__restrict__ d_output) {
+batch_FFT16x16x4_classical_2_2_specialized(const double2 *__restrict__ d_input,
+                                           double2 *__restrict__ d_output) {
   extern __shared__ int8_t batch_fft16x16x4_bsk_sharedmem[];
   double *smem = reinterpret_cast<double *>(batch_fft16x16x4_bsk_sharedmem);
   fft16x16x4_block_context c;

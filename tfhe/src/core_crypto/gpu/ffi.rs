@@ -55,6 +55,7 @@ pub unsafe fn programmable_bootstrap<T: UnsignedInteger>(
         u32::try_from(lwe_dimension.0).unwrap(),
         u32::try_from(glwe_dimension.0).unwrap(),
         u32::try_from(polynomial_size.0).unwrap(),
+        u32::try_from(base_log.0).unwrap(),
         u32::try_from(level.0).unwrap(),
         num_samples,
         true,
@@ -87,43 +88,6 @@ pub unsafe fn programmable_bootstrap<T: UnsignedInteger>(
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(pbs_buffer),
     );
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn get_programmable_bootstrap_size_on_gpu(
-    streams: &CudaStreams,
-    lwe_dimension: LweDimension,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    level: DecompositionLevelCount,
-    num_samples: u32,
-    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
-) -> u64 {
-    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    let noise_reduction_type = ms_noise_reduction_type(ms_noise_reduction_configuration);
-    let size_tracker = unsafe {
-        scratch_cuda_programmable_bootstrap_64_async(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-            u32::try_from(lwe_dimension.0).unwrap(),
-            u32::try_from(glwe_dimension.0).unwrap(),
-            u32::try_from(polynomial_size.0).unwrap(),
-            u32::try_from(level.0).unwrap(),
-            num_samples,
-            false,
-            noise_reduction_type as u32,
-        )
-    };
-
-    unsafe {
-        cleanup_cuda_programmable_bootstrap_64(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-        );
-    }
-    size_tracker
 }
 
 /// Programmable bootstrap on a vector of 128 bit LWE ciphertexts
@@ -739,6 +703,7 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
     input_lwe_dim: LweDimension,
     glwe_dim: GlweDimension,
     l_gadget: DecompositionLevelCount,
+    base_log: DecompositionBaseLog,
     polynomial_size: PolynomialSize,
 ) {
     for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
@@ -750,8 +715,8 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
                 src.as_ptr().cast(),
                 u32::try_from(input_lwe_dim.0).unwrap(),
                 u32::try_from(glwe_dim.0).unwrap(),
-                u32::try_from(l_gadget.0).unwrap(),
                 u32::try_from(polynomial_size.0).unwrap(),
+                u32::try_from(l_gadget.0).unwrap(),
             );
         } else if size_of::<T>() == 8 {
             cuda_convert_lwe_programmable_bootstrap_key_64_async(
@@ -761,8 +726,9 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
                 src.as_ptr().cast(),
                 u32::try_from(input_lwe_dim.0).unwrap(),
                 u32::try_from(glwe_dim.0).unwrap(),
-                u32::try_from(l_gadget.0).unwrap(),
                 u32::try_from(polynomial_size.0).unwrap(),
+                u32::try_from(base_log.0).unwrap(),
+                u32::try_from(l_gadget.0).unwrap(),
             );
         } else {
             panic!("Unsupported torus size for bsk conversion")

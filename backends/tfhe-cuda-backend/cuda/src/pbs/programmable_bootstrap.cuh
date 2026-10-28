@@ -175,7 +175,7 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_128_tbc(
   const uint32_t glwe_dimension = gridDim.y - 1;
   const uint32_t level_count = gridDim.z;
 
-  // We apply the same idea than in 64-bit specialized pbs, Each cuda thread
+  // We apply the same idea than in the 64-bit 2_2 specialized pbs, Each cuda
   // block from the cluster calculates its fft, and then is placed in dsm. Here
   // we synchronize the cluster to ensure every block has written its fft. Then
   // each block can perform its accumulation reading others fft without further
@@ -366,48 +366,6 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
   // the buffer in registers to avoid synchronizations and shared memory usage
 }
 
-// We need a different version for the default specialized 2_2 params because
-// in that case we don't need to use dsm and then no cluster sync
-template <class params, uint32_t polynomial_size, uint32_t glwe_dimension,
-          uint32_t level_count>
-__device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc(
-    double2 *fft_regs, double2 *buffer_regs, double2 *base_smem,
-    const double2 *__restrict__ bootstrapping_key, int iteration,
-    int this_block_rank) {
-  // Continues multiplying fft by every polynomial in that particular bsk level
-  // Each y-block accumulates in a different polynomial at each iteration
-  // We accumulate in registers to free shared memory
-  // In 2_2 params we only have one level
-  constexpr uint32_t level_id = 0;
-  // The first product doesn't need using dsm
-  auto bsk_slice =
-      get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
-                                        glwe_dimension, level_count, level_id>(
-          bootstrapping_key, iteration, this_block_rank);
-  auto bsk_poly = bsk_slice + threadIdx.y * polynomial_size / 2;
-  polynomial_product_accumulate_in_fourier_domain_2_2_params<params, double2,
-                                                             true>(
-      buffer_regs, fft_regs, bsk_poly);
-
-  // Synchronize to ensure all blocks have written its fft result
-  __syncthreads();
-  constexpr uint32_t glwe_id = 1;
-  int idx = (glwe_id + this_block_rank) % (glwe_dimension + 1);
-  bsk_slice =
-      get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
-                                        glwe_dimension, level_count, level_id>(
-          bootstrapping_key, iteration, idx);
-  bsk_poly = bsk_slice + threadIdx.y * polynomial_size / 2;
-  auto fft_slice = base_smem + 2 * idx * (polynomial_size / 2);
-  polynomial_product_accumulate_in_fourier_domain_2_2_params<params, double2,
-                                                             false>(
-      buffer_regs, fft_slice, bsk_poly);
-
-  // We don't need to synchronize here, cause we are going to use a buffer
-  // different than the input In 2_2 params, level_count=1 so we can just return
-  // the buffer in registers to avoid synchronizations and shared memory usage
-}
-
 // Key quartets of the next iteration loaded right after the product so they
 // land in the transforms: 4 fits sm_90, 2 is spill-free on sm_86/89, 1 else.
 #if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 900
@@ -552,47 +510,7 @@ void execute_pbs_async(
     uint32_t input_lwe_ciphertext_count, pbs_type_params pbs_params,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
-  if constexpr (std::is_same_v<OutputTorus, uint32_t>) {
-    // 32 bits
-    std::visit(
-        pbs_type_visitor{
-            [&](classical_pbs_params) {
-              for (uint i = 0; i < streams.count(); i++) {
-                int num_inputs_on_gpu = get_num_inputs_on_gpu(
-                    input_lwe_ciphertext_count, i, streams.count());
-
-                int gpu_offset = get_gpu_offset(input_lwe_ciphertext_count, i,
-                                                streams.count());
-                auto d_lut_vector_indexes =
-                    lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
-
-                // Use the macro to get the correct elements for the current
-                // iteration. Handles the case when the input/output are
-                // scattered through different gpus and when it is not
-                auto current_lwe_array_out =
-                    get_variant_element(lwe_array_out, i);
-                auto current_lwe_output_indexes =
-                    get_variant_element(lwe_output_indexes, i);
-                auto current_lwe_array_in =
-                    get_variant_element(lwe_array_in, i);
-                auto current_lwe_input_indexes =
-                    get_variant_element(lwe_input_indexes, i);
-
-                cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
-                    streams.stream(i), streams.gpu_index(i),
-                    current_lwe_array_out, current_lwe_output_indexes,
-                    lut_vec[i], d_lut_vector_indexes, current_lwe_array_in,
-                    current_lwe_input_indexes, bootstrapping_keys[i],
-                    reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
-                    glwe_dimension, polynomial_size, base_log, level_count,
-                    num_inputs_on_gpu, num_many_lut, lut_stride);
-              }
-            },
-            [&](multi_bit_pbs_params) {
-              PANIC("Error: 32-bit multibit PBS is not supported.\n")
-            }},
-        pbs_params);
-  } else if constexpr (std::is_same_v<OutputTorus, uint64_t>) {
+  if constexpr (std::is_same_v<OutputTorus, uint64_t>) {
     // 64 bits
     std::visit(
         pbs_type_visitor{
@@ -732,10 +650,9 @@ void execute_pbs_async(
         pbs_params);
   } else {
     static_assert(
-        std::is_same_v<OutputTorus, uint32_t> ||
-            std::is_same_v<OutputTorus, uint64_t> ||
+        std::is_same_v<OutputTorus, uint64_t> ||
             std::is_same_v<OutputTorus, __uint128_t>,
-        "Cuda error: unsupported modulus size: only 32, 64, or 128-bit integer "
+        "Cuda error: unsupported modulus size: only 64, or 128-bit integer "
         "moduli are supported.");
   }
 }
@@ -744,7 +661,7 @@ template <typename Torus>
 void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          int8_t **pbs_buffer, uint32_t glwe_dimension,
                          uint32_t lwe_dimension, uint32_t polynomial_size,
-                         uint32_t level_count,
+                         uint32_t base_log, uint32_t level_count,
                          uint32_t input_lwe_ciphertext_count,
                          pbs_type_params pbs_params, bool allocate_gpu_memory,
                          uint64_t &size_tracker) {
@@ -759,8 +676,9 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
             [&](classical_pbs_params classical) {
               size_tracker = scratch_cuda_programmable_bootstrap_64_async(
                   stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
-                  polynomial_size, level_count, input_lwe_ciphertext_count,
-                  allocate_gpu_memory, classical.noise_reduction_type);
+                  polynomial_size, base_log, level_count,
+                  input_lwe_ciphertext_count, allocate_gpu_memory,
+                  classical.noise_reduction_type);
             },
             [&](multi_bit_pbs_params multi_bit) {
               if (multi_bit.grouping_factor == 0)

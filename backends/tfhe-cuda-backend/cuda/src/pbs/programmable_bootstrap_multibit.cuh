@@ -14,7 +14,6 @@
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
-#include "programmable_bootstrap_cg_classic.cuh"
 #include "types/complex/operations.cuh"
 #include <vector>
 
