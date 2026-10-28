@@ -24,7 +24,7 @@ mod stream_ciphertext;
 
 pub use aes::AesFheKey;
 pub use kreyvium::KreyviumFheKey;
-pub use one_time_pad::OneTimePadFheSecretMask;
+pub use one_time_pad::{OneTimePadFheSecretMask, OneTimePadFheSecretMaskConformanceParams};
 pub use stream_ciphertext::StreamCiphertext;
 
 /// Types encryptable by [`HlStreamCipher`].
