@@ -1585,6 +1585,7 @@ pub(crate) mod test {
         TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     };
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
     use crate::shortint::{gen_keys, ClientKey, ServerKey, ShortintParameterSet};
     use rand::SeedableRng;
     use statrs::distribution::ContinuousCDF;
@@ -1600,39 +1601,43 @@ pub(crate) mod test {
         expected_output: u64,
     }
 
-    #[test]
-    fn oprf_compare_plain_ci_run_filter() {
-        for params in [
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
-        ] {
-            let (ck, sk) = gen_keys(params);
-            let oprf_ck = OprfPrivateKey::new(&ck);
-            let oprf_sk = OprfServerKey::new(&oprf_ck, &ck).unwrap();
+    create_parameterized_test!(oprf_compare_plain {
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    });
 
-            let results: Vec<_> = (0..1000)
-                .into_par_iter()
-                .map(|seed| oprf_compare_plain_from_seed(Seed(seed), &ck, &oprf_ck, &oprf_sk, &sk))
-                .collect();
+    fn oprf_compare_plain<P>(params: P)
+    where
+        P: Into<ShortintParameterSet>,
+    {
+        let params: ShortintParameterSet = params.into();
 
-            let mut all_ok = true;
-            for res in results {
-                if let Err(PlainPrfResult {
-                    seed,
-                    output,
-                    expected_output,
-                }) = res
-                {
-                    all_ok = false;
+        let (ck, sk) = gen_keys(params);
+        let oprf_ck = OprfPrivateKey::new(&ck);
+        let oprf_sk = OprfServerKey::new(&oprf_ck, &ck).unwrap();
 
-                    println!(
-                        "Error with seed {seed:?}, got output={output}, expected={expected_output}"
-                    );
-                }
+        let results: Vec<_> = (0..1000)
+            .into_par_iter()
+            .map(|seed| oprf_compare_plain_from_seed(Seed(seed), &ck, &oprf_ck, &oprf_sk, &sk))
+            .collect();
+
+        let mut all_ok = true;
+        for res in results {
+            if let Err(PlainPrfResult {
+                seed,
+                output,
+                expected_output,
+            }) = res
+            {
+                all_ok = false;
+
+                println!(
+                    "Error with seed {seed:?}, got output={output}, expected={expected_output}"
+                );
             }
-
-            assert!(all_ok, "Test failed, see above log");
         }
+
+        assert!(all_ok, "Test failed, see above log");
     }
 
     fn oprf_compare_plain_from_seed(
@@ -1678,33 +1683,36 @@ pub(crate) mod test {
         }
     }
 
-    #[test]
-    fn oprf_test_uniformity_ci_run_filter() {
+    create_parameterized_test!(oprf_test_uniformity {
+        TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    });
+
+    fn oprf_test_uniformity<P>(params: P)
+    where
+        P: Into<ShortintParameterSet>,
+    {
         let sample_count: usize = 100_000;
 
         let p_value_limit: f64 = 0.000_01;
 
-        for params in [
-            ShortintParameterSet::from(
-                TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            ),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
-        ] {
-            let (ck, sk) = gen_keys(params);
-            let oprf_ck = OprfPrivateKey::new(&ck);
-            let oprf_sk = OprfServerKey::new(&oprf_ck, &ck).unwrap();
+        let params: ShortintParameterSet = params.into();
 
-            let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
-                test_uniformity(sample_count, p_value_limit, distinct_values, f)
-            };
+        let (ck, sk) = gen_keys(params);
+        let oprf_ck = OprfPrivateKey::new(&ck);
+        let oprf_sk = OprfServerKey::new(&oprf_ck, &ck).unwrap();
 
-            let random_bits_count = 2;
+        let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
+            test_uniformity(sample_count, p_value_limit, distinct_values, f)
+        };
 
+        for random_bits_count in [2, 4] {
             test_uniformity(1 << random_bits_count, &|seed| {
-                let img = oprf_sk.generate_oblivious_pseudo_random_bits_chunks(
+                let img = oprf_sk.inner.generate_pseudo_random_bits_chunks(
                     Seed(seed as u128),
                     &[random_bits_count],
+                    random_bits_count,
                     &sk,
                 );
 
@@ -1780,60 +1788,63 @@ pub(crate) mod test {
         }
     }
 
-    #[test]
-    fn oprf_test_blocks_range_bits_ci_run_filter() {
+    create_parameterized_test!(oprf_test_blocks_range_bits {
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    });
+
+    fn oprf_test_blocks_range_bits<P>(params: P)
+    where
+        P: Into<ShortintParameterSet>,
+    {
         let mut seeder = new_seeder();
         let rng_seed: [u8; 32] = std::array::from_fn(|_| seeder.seed().0 as u8);
         println!("oprf_test_blocks_range_bits rng_seed: {rng_seed:?}");
 
-        for params in [
-            ShortintParameterSet::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
+        let params: ShortintParameterSet = params.into();
+
+        let (ck, sk) = gen_keys(params);
+        let oprf_ck = OprfPrivateKey::new(&ck);
+        let oprf_sk = OprfServerKey::new(&oprf_ck, &ck).unwrap();
+
+        let random_bits_per_block = sk.message_modulus.0.ilog2() as u64;
+
+        for random_bits_count in [
+            1,
+            random_bits_per_block,
+            random_bits_per_block + 1,
+            2 * random_bits_per_block,
+            (2 * random_bits_per_block) + 1,
         ] {
-            let (ck, sk) = gen_keys(params);
-            let oprf_ck = OprfPrivateKey::new(&ck);
-            let oprf_sk = OprfServerKey::new(&oprf_ck, &ck).unwrap();
+            let expected_num_blocks = random_bits_count.div_ceil(random_bits_per_block) as usize;
 
-            let random_bits_per_block = sk.message_modulus.0.ilog2() as u64;
+            let mut rng = rand::rngs::StdRng::from_seed(rng_seed);
 
-            for random_bits_count in [
-                1,
-                random_bits_per_block,
-                random_bits_per_block + 1,
-                2 * random_bits_per_block,
-                (2 * random_bits_per_block) + 1,
-            ] {
-                let expected_num_blocks =
-                    random_bits_count.div_ceil(random_bits_per_block) as usize;
+            for _ in 0..50 {
+                let seed_val: u128 = rand::Rng::gen(&mut rng);
+                let blocks = oprf_sk.generate_oblivious_pseudo_random_bits_chunks(
+                    Seed(seed_val),
+                    &[random_bits_count],
+                    &sk,
+                );
 
-                let mut rng = rand::rngs::StdRng::from_seed(rng_seed);
+                assert_eq!(blocks.len(), 1);
+                let blocks = blocks.into_iter().next().unwrap();
+                assert_eq!(blocks.len(), expected_num_blocks);
 
-                for _ in 0..50 {
-                    let seed_val: u128 = rand::Rng::gen(&mut rng);
-                    let blocks = oprf_sk.generate_oblivious_pseudo_random_bits_chunks(
-                        Seed(seed_val),
-                        &[random_bits_count],
-                        &sk,
+                for (i, block) in blocks.iter().enumerate() {
+                    let decrypted = ck.decrypt_message_and_carry(block);
+                    let block_bits = bits_in_block(
+                        i,
+                        expected_num_blocks,
+                        random_bits_count,
+                        random_bits_per_block,
                     );
-
-                    assert_eq!(blocks.len(), 1);
-                    let blocks = blocks.into_iter().next().unwrap();
-                    assert_eq!(blocks.len(), expected_num_blocks);
-
-                    for (i, block) in blocks.iter().enumerate() {
-                        let decrypted = ck.decrypt_message_and_carry(block);
-                        let block_bits = bits_in_block(
-                            i,
-                            expected_num_blocks,
-                            random_bits_count,
-                            random_bits_per_block,
-                        );
-                        assert!(
-                            decrypted < (1 << block_bits),
-                            "block {i}: decrypted value {decrypted} >= {}",
-                            1u64 << block_bits,
-                        );
-                    }
+                    assert!(
+                        decrypted < (1 << block_bits),
+                        "block {i}: decrypted value {decrypted} >= {}",
+                        1u64 << block_bits,
+                    );
                 }
             }
         }
@@ -1916,156 +1927,155 @@ pub(crate) mod test {
         }
     }
 
-    #[test]
-    fn prf_with_re_randomization_ci_run_filter() {
+    create_parameterized_test!(prf_with_re_randomization {
+        TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    });
+
+    fn prf_with_re_randomization<P>(params: P)
+    where
+        P: Into<ShortintParameterSet>,
+    {
         use crate::shortint::CompactPrivateKey;
         use rand::prelude::*;
 
         let mut rng = rand::thread_rng();
 
-        for params in [
-            ShortintParameterSet::from(
-                TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            ),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
+        let params: ShortintParameterSet = params.into();
+
+        let message_bits: u64 = params.message_modulus().0.ilog2().into();
+
+        let (cks, sks) = gen_keys(params);
+
+        // No KS rerand
+        let privk: CompactPrivateKey<&[u64]> = (&cks).try_into().unwrap();
+        let pubk = CompactPublicKey::new(&privk);
+        // PRF key
+        let oprf_cks = OprfPrivateKey::new(&cks);
+        let oprf_sks = OprfServerKey::new(&oprf_cks, &cks).unwrap();
+
+        let prf_seed: [u8; 256 / 8] = core::array::from_fn(|_| rng.gen());
+        let bit_chunks: Vec<u64> = (0..10).map(|_| rng.gen_range(0..=64)).collect();
+
+        println!("prf_seed={prf_seed:?}");
+        println!("bit_chunks={bit_chunks:?}");
+
+        let prf_not_rerand_chunks = oprf_sks.generate_oblivious_pseudo_random_bits_chunks(
+            prf_seed.as_ref(),
+            &bit_chunks,
+            &sks,
+        );
+
+        // The re-randomized outputs are checked against these ones further down
+        let decrypted: Vec<_> = prf_not_rerand_chunks
+            .iter()
+            .flatten()
+            .map(|ct| cks.decrypt_message_and_carry(ct))
+            .collect();
+
+        assert_eq!(
+            decrypted,
+            expected_prf_output_cleartexts(&oprf_cks, prf_seed.as_ref(), params, &bit_chunks),
+            "PRF output differs from the expected cleartext PRF"
+        );
+
+        for rerand_hash_algo in [
+            ReRandomizationHashAlgo::Blake3,
+            ReRandomizationHashAlgo::Shake256,
         ] {
-            let message_bits: u64 = params.message_modulus().0.ilog2().into();
-
-            let (cks, sks) = gen_keys(params);
-
-            // No KS rerand
-            let privk: CompactPrivateKey<&[u64]> = (&cks).try_into().unwrap();
-            let pubk = CompactPublicKey::new(&privk);
-            // PRF key
-            let oprf_cks = OprfPrivateKey::new(&cks);
-            let oprf_sks = OprfServerKey::new(&oprf_cks, &cks).unwrap();
-
-            let prf_seed: [u8; 256 / 8] = core::array::from_fn(|_| rng.gen());
-            let bit_chunks: Vec<u64> = (0..10).map(|_| rng.gen_range(0..=64)).collect();
-
-            println!("prf_seed={prf_seed:?}");
-            println!("bit_chunks={bit_chunks:?}");
-
-            let prf_not_rerand_chunks = oprf_sks.generate_oblivious_pseudo_random_bits_chunks(
-                prf_seed.as_ref(),
-                &bit_chunks,
-                &sks,
+            let seed_hasher =
+                ReRandomizationSeedHasher::new(rerand_hash_algo, TFHE_PRF_RERAND_DOMAIN_SEPARATOR);
+            let prf_rerand_context = ReRandomizationContext::new_with_hasher(
+                crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
+                seed_hasher,
             );
 
-            // The re-randomized outputs are checked against these ones further down
-            let decrypted: Vec<_> = prf_not_rerand_chunks
+            let prf_rerand_chunks = oprf_sks
+                .generate_oblivious_pseudo_random_bits_chunks_and_re_randomize(
+                    prf_seed.as_ref(),
+                    &bit_chunks,
+                    &sks,
+                    &pubk,
+                    None,
+                    &prf_rerand_context,
+                )
+                .unwrap();
+
+            assert_eq!(prf_not_rerand_chunks.len(), bit_chunks.len());
+            assert_eq!(prf_rerand_chunks.len(), bit_chunks.len());
+
+            for (requested_rand_bits, (prf, prf_rerand)) in bit_chunks
                 .iter()
-                .flatten()
-                .map(|ct| cks.decrypt_message_and_carry(ct))
-                .collect();
-
-            assert_eq!(
-                decrypted,
-                expected_prf_output_cleartexts(&oprf_cks, prf_seed.as_ref(), params, &bit_chunks),
-                "PRF output differs from the expected cleartext PRF"
-            );
-
-            for rerand_hash_algo in [
-                ReRandomizationHashAlgo::Blake3,
-                ReRandomizationHashAlgo::Shake256,
-            ] {
-                let seed_hasher = ReRandomizationSeedHasher::new(
-                    rerand_hash_algo,
-                    TFHE_PRF_RERAND_DOMAIN_SEPARATOR,
-                );
-                let prf_rerand_context = ReRandomizationContext::new_with_hasher(
-                    crate::shortint::public_key::compact::TFHE_PKE_DOMAIN_SEPARATOR,
-                    seed_hasher,
-                );
-
-                let prf_rerand_chunks = oprf_sks
-                    .generate_oblivious_pseudo_random_bits_chunks_and_re_randomize(
-                        prf_seed.as_ref(),
-                        &bit_chunks,
-                        &sks,
-                        &pubk,
-                        None,
-                        &prf_rerand_context,
-                    )
+                .zip(prf_not_rerand_chunks.iter().zip(prf_rerand_chunks.iter()))
+            {
+                let expected_len: usize = requested_rand_bits
+                    .div_ceil(message_bits)
+                    .try_into()
                     .unwrap();
+                assert_eq!(prf.len(), expected_len);
+                assert_eq!(prf_rerand.len(), expected_len);
 
-                assert_eq!(prf_not_rerand_chunks.len(), bit_chunks.len());
-                assert_eq!(prf_rerand_chunks.len(), bit_chunks.len());
-
-                for (requested_rand_bits, (prf, prf_rerand)) in bit_chunks
-                    .iter()
-                    .zip(prf_not_rerand_chunks.iter().zip(prf_rerand_chunks.iter()))
+                for (block_idx, (prf_ct, prf_rerand_ct)) in
+                    prf.iter().zip(prf_rerand.iter()).enumerate()
                 {
-                    let expected_len: usize = requested_rand_bits
-                        .div_ceil(message_bits)
-                        .try_into()
-                        .unwrap();
-                    assert_eq!(prf.len(), expected_len);
-                    assert_eq!(prf_rerand.len(), expected_len);
-
-                    for (block_idx, (prf_ct, prf_rerand_ct)) in
-                        prf.iter().zip(prf_rerand.iter()).enumerate()
-                    {
-                        let is_last_block = block_idx == expected_len - 1;
-                        let expected_max_value = if is_last_block {
-                            let last_block_is_full =
-                                requested_rand_bits.is_multiple_of(message_bits);
-                            if last_block_is_full {
-                                1 << message_bits
-                            } else {
-                                let remaining_bits = requested_rand_bits % message_bits;
-                                1 << remaining_bits
-                            }
-                        } else {
+                    let is_last_block = block_idx == expected_len - 1;
+                    let expected_max_value = if is_last_block {
+                        let last_block_is_full = requested_rand_bits.is_multiple_of(message_bits);
+                        if last_block_is_full {
                             1 << message_bits
-                        };
+                        } else {
+                            let remaining_bits = requested_rand_bits % message_bits;
+                            1 << remaining_bits
+                        }
+                    } else {
+                        1 << message_bits
+                    };
 
-                        let Ciphertext {
-                            ct: prf_lwe,
-                            degree: prf_degree,
-                            message_modulus: prf_message_modulus,
-                            carry_modulus: prf_carry_modulus,
-                            atomic_pattern: prf_atomic_pattern,
-                            .. // NoiseLevel private on purpose to avoid manual modifications
-                        } = prf_ct;
-                        let prf_noise_level = prf_ct.noise_level();
+                    let Ciphertext {
+                        ct: prf_lwe,
+                        degree: prf_degree,
+                        message_modulus: prf_message_modulus,
+                        carry_modulus: prf_carry_modulus,
+                        atomic_pattern: prf_atomic_pattern,
+                        .. // NoiseLevel private on purpose to avoid manual modifications
+                    } = prf_ct;
+                    let prf_noise_level = prf_ct.noise_level();
 
-                        let Ciphertext {
-                            ct: prf_rerand_lwe,
-                            degree: prf_rerand_degree,
-                            message_modulus: prf_rerand_message_modulus,
-                            carry_modulus: prf_rerand_carry_modulus,
-                            atomic_pattern: prf_rerand_atomic_pattern,
-                            .. // NoiseLevel private on purpose to avoid manual modifications
-                        } = prf_rerand_ct;
-                        let prf_rerand_noise_level = prf_rerand_ct.noise_level();
+                    let Ciphertext {
+                        ct: prf_rerand_lwe,
+                        degree: prf_rerand_degree,
+                        message_modulus: prf_rerand_message_modulus,
+                        carry_modulus: prf_rerand_carry_modulus,
+                        atomic_pattern: prf_rerand_atomic_pattern,
+                        .. // NoiseLevel private on purpose to avoid manual modifications
+                    } = prf_rerand_ct;
+                    let prf_rerand_noise_level = prf_rerand_ct.noise_level();
 
-                        assert_ne!(prf_lwe.as_ref(), prf_rerand_lwe.as_ref());
-                        assert_eq!(prf_lwe.lwe_size(), prf_rerand_lwe.lwe_size());
-                        assert_eq!(
-                            prf_lwe.ciphertext_modulus(),
-                            prf_rerand_lwe.ciphertext_modulus()
-                        );
-                        assert_eq!(prf_degree, prf_rerand_degree);
-                        // Check expected max degree
-                        assert_eq!(prf_degree.0, expected_max_value - 1);
-                        assert_eq!(prf_message_modulus, prf_rerand_message_modulus);
-                        assert_eq!(prf_carry_modulus, prf_rerand_carry_modulus);
-                        assert_eq!(prf_atomic_pattern, prf_rerand_atomic_pattern);
-                        assert_eq!(prf_noise_level, prf_rerand_noise_level);
+                    assert_ne!(prf_lwe.as_ref(), prf_rerand_lwe.as_ref());
+                    assert_eq!(prf_lwe.lwe_size(), prf_rerand_lwe.lwe_size());
+                    assert_eq!(
+                        prf_lwe.ciphertext_modulus(),
+                        prf_rerand_lwe.ciphertext_modulus()
+                    );
+                    assert_eq!(prf_degree, prf_rerand_degree);
+                    // Check expected max degree
+                    assert_eq!(prf_degree.0, expected_max_value - 1);
+                    assert_eq!(prf_message_modulus, prf_rerand_message_modulus);
+                    assert_eq!(prf_carry_modulus, prf_rerand_carry_modulus);
+                    assert_eq!(prf_atomic_pattern, prf_rerand_atomic_pattern);
+                    assert_eq!(prf_noise_level, prf_rerand_noise_level);
 
-                        assert_eq!(prf_noise_level, NoiseLevel::NOMINAL);
+                    assert_eq!(prf_noise_level, NoiseLevel::NOMINAL);
 
-                        let prf_dec = cks.decrypt_message_and_carry(prf_ct);
-                        assert!(prf_dec < expected_max_value, "invalid PRF output range");
+                    let prf_dec = cks.decrypt_message_and_carry(prf_ct);
+                    assert!(prf_dec < expected_max_value, "invalid PRF output range");
 
-                        let prf_rerand_dec = cks.decrypt_message_and_carry(prf_rerand_ct);
-                        assert_eq!(
-                            prf_dec, prf_rerand_dec,
-                            "rerand PRF differs from non-rerand PRF"
-                        );
-                    }
+                    let prf_rerand_dec = cks.decrypt_message_and_carry(prf_rerand_ct);
+                    assert_eq!(
+                        prf_dec, prf_rerand_dec,
+                        "rerand PRF differs from non-rerand PRF"
+                    );
                 }
             }
         }

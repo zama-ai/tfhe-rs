@@ -1,5 +1,7 @@
 use super::TranscipherSession;
+use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::backward_compatibility::transciphering::OneTimePadFheSecretMaskVersions;
+use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedServerKey;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::cuda_clone;
@@ -13,11 +15,13 @@ use crate::integer::RadixCiphertext;
 use crate::named::Named;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use crate::shortint::oprf::OprfSeed;
+use crate::shortint::parameters::CiphertextConformanceParams;
+use crate::shortint::AtomicPatternParameters;
 use crate::transciphering::{
     OneTimePadFheSecretMask as TranscipheringOneTimePadFheSecretMask, OneTimePadFheState,
     OneTimePadPlainSecretMask,
 };
-use crate::{ClientKey, Tag};
+use crate::{ClientKey, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -47,6 +51,21 @@ impl Clone for InnerOneTimePadFheSecretMask {
             Self::Cpu(k) => Self::Cpu(k.clone()),
             #[cfg(feature = "gpu")]
             Self::Cuda(k) => Self::Cuda(cuda_clone(k)),
+        }
+    }
+}
+
+impl InnerOneTimePadFheSecretMask {
+    /// Returns a ref to the inner cpu mask if self is on the CPU, otherwise, returns a copy that
+    /// is on the CPU
+    fn on_cpu(&self) -> MaybeCloned<'_, TranscipheringOneTimePadFheSecretMask> {
+        match self {
+            Self::Cpu(mask) => MaybeCloned::Borrowed(mask),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(_) => {
+                // Requires the implementation of the KeyStreamLayout on the GPU
+                unimplemented!("moving a GPU-resident OTP mask to the CPU is not supported yet")
+            }
         }
     }
 }
@@ -138,7 +157,9 @@ impl FheTryEncrypt<OneTimePadPlainSecretMask, ClientKey> for OneTimePadFheSecret
     type Error = crate::Error;
 
     fn try_encrypt(plain: OneTimePadPlainSecretMask, key: &ClientKey) -> Result<Self, Self::Error> {
-        let cpu_mask = plain.encrypt(&key.key.key.key);
+        let cpu_mask = plain
+            .encrypt(&key.key.key.key)
+            .map_err(|e| format!("{e}"))?;
         let tag = key.tag.clone();
         try_with_internal_keys(|keys| match keys {
             #[cfg(feature = "gpu")]
@@ -202,6 +223,34 @@ impl TranscipherSession {
                     .to_owned(),
             )),
         })
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct OneTimePadFheSecretMaskConformanceParams(pub(crate) CiphertextConformanceParams);
+
+impl<P> From<P> for OneTimePadFheSecretMaskConformanceParams
+where
+    P: Into<AtomicPatternParameters>,
+{
+    fn from(params: P) -> Self {
+        Self(params.into().to_shortint_conformance_param())
+    }
+}
+
+impl From<&ServerKey> for OneTimePadFheSecretMaskConformanceParams {
+    fn from(sk: &ServerKey) -> Self {
+        Self(sk.key.pbs_key().key.conformance_params())
+    }
+}
+
+impl ParameterSetConformant for OneTimePadFheSecretMask {
+    type ParameterSet = OneTimePadFheSecretMaskConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        let Self { inner, tag: _ } = self;
+
+        inner.on_cpu().is_conformant(&params.0)
     }
 }
 
