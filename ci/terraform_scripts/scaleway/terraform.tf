@@ -34,6 +34,7 @@ variable "instance_label" {
 variable "user_data" {
   type        = string
   description = "Script that will be run at instance startup"
+  sensitive   = true
 }
 
 resource "scaleway_instance_ip" "github_runner" {

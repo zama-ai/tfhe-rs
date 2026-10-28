@@ -36,6 +36,7 @@ variable "instance_label" {
 variable "user_data" {
   type        = string
   description = "Script that will be run at instance startup"
+  sensitive   = true
 }
 
 resource "scaleway_instance_ip" "github_runner" {
@@ -47,6 +48,7 @@ data "scaleway_instance_security_group" "github_runner" {
   name       = "github-actions-runner"
 }
 
+# trivy:ignore:ZAMA-TF-003 uses the base image label for now
 resource "scaleway_instance_server" "scaleway_gpu_instance" {
   project_id = var.project_id
   # Current latest ubuntu GPU OS image from Scaleway (2026/07/28)
