@@ -1699,20 +1699,21 @@ pub(crate) mod test {
                 test_uniformity(sample_count, p_value_limit, distinct_values, f)
             };
 
-            let random_bits_count = 2;
+            for random_bits_count in [2, 4] {
+                test_uniformity(1 << random_bits_count, &|seed| {
+                    let img = oprf_sk.inner.generate_pseudo_random_bits_chunks(
+                        Seed(seed as u128),
+                        &[random_bits_count],
+                        random_bits_count,
+                        &sk,
+                    );
 
-            test_uniformity(1 << random_bits_count, &|seed| {
-                let img = oprf_sk.generate_oblivious_pseudo_random_bits_chunks(
-                    Seed(seed as u128),
-                    &[random_bits_count],
-                    &sk,
-                );
+                    assert_eq!(img.len(), 1);
+                    assert_eq!(img[0].len(), 1);
 
-                assert_eq!(img.len(), 1);
-                assert_eq!(img[0].len(), 1);
-
-                ck.decrypt_message_and_carry(&img[0][0])
-            });
+                    ck.decrypt_message_and_carry(&img[0][0])
+                });
+            }
         }
     }
 

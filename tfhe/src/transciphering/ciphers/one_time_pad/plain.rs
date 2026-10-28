@@ -3,11 +3,17 @@ use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
 use crate::named::Named;
+use crate::shortint::ciphertext::Degree;
+use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
 use crate::shortint::client_key::ClientKey;
 use crate::transciphering::backward_compatibility::OneTimePadPlainSecretMaskVersions;
 use crate::transciphering::ciphers::one_time_pad::fhe::OneTimePadFheSecretMask;
 use crate::transciphering::ciphers::unpack_bits_lsb_first;
-use crate::transciphering::{InsufficientKeystream, StreamCipher, StreamCipherKind};
+use crate::transciphering::{
+    InsufficientKeystream, KeyStreamLayout, StreamCipher, StreamCipherKind,
+};
+
+use super::fhe::MaskGenerationError;
 
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(OneTimePadPlainSecretMaskVersions)]
@@ -40,16 +46,51 @@ impl OneTimePadPlainSecretMask {
         Self::try_new(secret_mask, bit_count).unwrap()
     }
 
-    pub fn encrypt(&self, client_key: &ClientKey) -> OneTimePadFheSecretMask {
+    pub fn encrypt(
+        &self,
+        client_key: &ClientKey,
+    ) -> Result<OneTimePadFheSecretMask, MaskGenerationError> {
+        let params = client_key.atomic_pattern.parameters();
+        let layout = KeyStreamLayout::full_space(params.message_modulus(), params.carry_modulus())
+            .ok_or(MaskGenerationError::IncompatibleParameters)?;
+
+        self.encrypt_with_layout(client_key, layout)
+    }
+
+    pub fn encrypt_with_layout(
+        &self,
+        client_key: &ClientKey,
+        layout: KeyStreamLayout,
+    ) -> Result<OneTimePadFheSecretMask, MaskGenerationError> {
+        let bits_per_ct = usize::from(layout.bits_per_ct().get());
+
+        let params = client_key.atomic_pattern.parameters();
+        if !layout.can_fit(params.message_modulus(), params.carry_modulus()) {
+            return Err(MaskGenerationError::IncompatibleParameters);
+        }
+
+        if !self.bit_count.is_multiple_of(bits_per_ct) {
+            return Err(MaskGenerationError::InvalidMaskSize);
+        }
+
         let mut bits = vec![false; self.bit_count];
         unpack_bits_lsb_first(&self.secret_mask, &mut bits);
 
         let secret_mask = bits
-            .into_iter()
-            .map(|b| client_key.encrypt_bool(b))
+            .chunks(bits_per_ct)
+            .map(|ct_bits| {
+                let val = ct_bits
+                    .iter()
+                    .enumerate()
+                    .map(|(i, b)| u64::from(*b) << i)
+                    .sum();
+                let mut ct = client_key.unchecked_encrypt(val);
+                ct.degree = Degree::new((1 << bits_per_ct) - 1);
+                ct
+            })
             .collect();
 
-        OneTimePadFheSecretMask::new(secret_mask)
+        Ok(OneTimePadFheSecretMask::new(secret_mask, layout))
     }
 }
 
