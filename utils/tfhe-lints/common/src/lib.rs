@@ -2,6 +2,7 @@
 #![warn(unused_extern_crates)]
 
 extern crate rustc_ast;
+extern crate rustc_attr_ir;
 extern crate rustc_errors;
 extern crate rustc_hir;
 extern crate rustc_lint;
@@ -9,8 +10,8 @@ extern crate rustc_middle;
 extern crate rustc_span;
 
 use rustc_ast::tokenstream::TokenTree;
+use rustc_attr_ir::AttrArgs;
 use rustc_errors::{Diag, DiagDecorator, MultiSpan};
-use rustc_hir::AttrArgs;
 use rustc_hir::def_id::DefId;
 use rustc_lint::{LateContext, Lint, LintContext};
 use rustc_middle::ty::{AliasTyKind, Ty, TyKind};
@@ -50,7 +51,7 @@ pub fn span_lint(
     cx: &LateContext<'_>,
     lint: &'static Lint,
     span: impl Into<MultiSpan>,
-    decorate: impl FnOnce(&mut Diag<'_, ()>),
+    decorate: impl FnOnce(&mut Diag),
 ) {
     cx.emit_span_lint(lint, span, DiagDecorator(decorate));
 }

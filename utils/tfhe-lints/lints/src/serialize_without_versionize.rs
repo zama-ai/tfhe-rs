@@ -3,7 +3,7 @@ use std::sync::{Arc, OnceLock};
 use rustc_hir::def_id::DefId;
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_session::{declare_lint, impl_lint_pass};
+use rustc_lint_defs::{declare_lint, impl_lint_pass};
 
 use tfhe_lints_common::{get_def_id_from_ty, is_allowed_lint, span_lint, symbols_list_from_str};
 
