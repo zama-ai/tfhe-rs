@@ -1,4 +1,5 @@
-# Run the CPU integer tests of some parameter tiers, unsigned and signed tests in parallel
+# Run the CPU integer tests of some parameter tiers with a test profile, unsigned and signed tests
+# in parallel
 name: aws_tfhe_integer_tests_common
 
 on:
@@ -6,6 +7,10 @@ on:
     inputs:
       tiers:
         description: "Comma separated parameter tiers to test, e.g. 0 or 1,2"
+        type: string
+        required: true
+      profile:
+        description: "Test profile of the radix test harness, e.g. cpu_light or cpu_baseline"
         type: string
         required: true
     secrets:
@@ -52,6 +57,7 @@ jobs:
     env:
       SIGN: ${{ matrix.sign }}
       TIERS: ${{ inputs.tiers }}
+      TFHE_RS_TEST_PROFILE: ${{ inputs.profile }}
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -91,4 +97,4 @@ jobs:
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Integer tests (${{ matrix.sign }}, tiers ${{ inputs.tiers }}) finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "Integer tests (${{ matrix.sign }}, tiers ${{ inputs.tiers }}, profile ${{ inputs.profile }}) finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"

@@ -199,7 +199,7 @@ if [[ "${NIGHTLY_TESTS}" == "TRUE" ]]; then
 fi
 
 if [[ -n "${TIERS}" ]]; then
-    echo "Running tier(s) ${TIERS} test set"
+    echo "Running tier(s) ${TIERS} test set, with the ${TFHE_RS_TEST_PROFILE:-default} test profile"
 
     # Run the check that checks that no CPU integer test is left behind (not run)
     # due to bad filtering

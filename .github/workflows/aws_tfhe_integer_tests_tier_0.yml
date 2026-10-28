@@ -1,0 +1,44 @@
+# CPU integer tests of the tier 0 parameters (prod params, see CPU_INTEGER_TIERS in
+# scripts/test_filtering.py) on the baseline profile.
+# Tier 0 also runs in aws_tfhe_fast_tests on each pull request (light profile) and in
+# aws_tfhe_integer_tests on approval and on each merge to main (FHEVM profile).
+name: aws_tfhe_integer_tests_tier_0
+
+on:
+  # Run tier 0 on any branch
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Test profile of the radix test harness"
+        type: choice
+        options:
+          - cpu_light
+          - cpu_baseline
+          - cpu_extensive
+          - cpu_fhevm
+        default: cpu_baseline
+  schedule:
+    # Tier 0, nightly after each work day
+    - cron: "0 1 * * MON-FRI"
+
+permissions:
+  contents: read
+
+jobs:
+  integer-tests:
+    name: aws_tfhe_integer_tests_tier_0/integer-tests
+    if: github.event_name == 'workflow_dispatch' || github.repository == 'zama-ai/tfhe-rs'
+    # Runs on main are not cancelled by the next one
+    concurrency:
+      group: ${{ github.workflow_ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
+    with:
+      tiers: "0"
+      # Scheduled runs have no inputs
+      profile: ${{ inputs.profile || 'cpu_baseline' }}
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
