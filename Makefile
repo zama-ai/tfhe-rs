@@ -21,8 +21,12 @@ FAST_TESTS?=FALSE
 BIT_SIZES_SET?=ALL
 NIGHTLY_TESTS?=FALSE
 # Comma separated parameter tiers of the CPU integer tests to run, e.g. 0 or 1,2.
-# When empty, the FAST_TESTS and NIGHTLY_TESTS selection applies
+# When empty, the FAST_TESTS and NIGHTLY_TESTS selection applies. When set, NIGHTLY_TESTS does
+# not apply and FAST_TESTS keeps only the default operations of the tiers
 TIERS?=
+# Test profile of the radix test harness: cpu_light, cpu_baseline, cpu_extensive or cpu_fhevm.
+# When empty, the harness uses cpu_baseline
+TFHE_RS_TEST_PROFILE?=
 BENCH_OP_FLAVOR?=DEFAULT
 BENCH_TYPE?=latency
 BENCH_PARAM_TYPE?=classical
@@ -1403,6 +1407,7 @@ test_integer_ci: install_cargo_nextest
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 	TIERS="$(TIERS)" \
+	TFHE_RS_TEST_PROFILE="$(TFHE_RS_TEST_PROFILE)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "tfhe"
@@ -1413,6 +1418,7 @@ test_unsigned_integer_ci: install_cargo_nextest
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 	TIERS="$(TIERS)" \
+	TFHE_RS_TEST_PROFILE="$(TFHE_RS_TEST_PROFILE)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--unsigned-only --tfhe-package "tfhe"
@@ -1423,6 +1429,7 @@ test_signed_integer_ci: install_cargo_nextest
 	FAST_TESTS="$(FAST_TESTS)" \
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 	TIERS="$(TIERS)" \
+	TFHE_RS_TEST_PROFILE="$(TFHE_RS_TEST_PROFILE)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "tfhe"
