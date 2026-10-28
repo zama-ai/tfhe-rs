@@ -18,6 +18,7 @@ where
     TestBuilder::new(ctxt)
         .size_requirements(vec![SizeRequirements::new_scalar(1)])
         // Only fixed_cases because we test the whole truth table
+        .fixed_cases_only()
         .fixed_cases(move |size_req, _ctx| {
             assert_eq!(
                 size_req.n_blocks, 1,

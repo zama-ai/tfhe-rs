@@ -58,8 +58,7 @@ jobs:
               - .github/workflows/aws_tfhe_integer_tests_tier_*.yml
               - .config/nextest.toml
 
-  # Tier 0 (prod params) on approval and on each merge to main, the other tiers run on a schedule
-  # in aws_tfhe_integer_tests_tier_N
+  # The other tiers (and profiles) run on a schedule in aws_tfhe_integer_tests_tier_N
   integer-tests:
     name: aws_tfhe_integer_tests/integer-tests
     needs: should-run
@@ -74,6 +73,7 @@ jobs:
     uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
     with:
       tiers: "0"
+      profile: cpu_fhevm
     secrets:
       REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

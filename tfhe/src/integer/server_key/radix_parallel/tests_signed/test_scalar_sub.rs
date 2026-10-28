@@ -125,7 +125,6 @@ where
     E: ExecuteOn<(SignedRadixCiphertext, i64), (SignedRadixCiphertext, BooleanBlock)>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(default_scalar_fixed_cases::<i64>)
         .execute(executor, |(lhs, rhs): (Int, TestScalar<_>)| {
             lhs.overflowing_scalar_sub(rhs.clear())
@@ -138,7 +137,7 @@ where
     E: ExecuteOn<(SignedRadixCiphertext, i8), (SignedRadixCiphertext, BooleanBlock)>,
 {
     TestBuilder::new(ctx)
-        .n_random(0)
+        .fixed_cases_only()
         .fixed_cases(narrow_scalar_cases)
         .execute(executor, |(lhs, rhs): (Int, TestScalar<_>)| {
             lhs.overflowing_scalar_sub(rhs.clear())

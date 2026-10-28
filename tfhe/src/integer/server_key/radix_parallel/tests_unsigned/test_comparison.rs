@@ -139,7 +139,6 @@ macro_rules! define_default_comparison_tests {
                     E: ExecuteOn<(RadixCiphertext, RadixCiphertext), BooleanBlock>,
                 {
                     TestBuilder::new(ctx)
-                        .n_random(4)
                         .fixed_cases(radix_pair_fixed_cases::<Uint>)
                         .execute(executor, |(lhs, rhs): (Uint, Uint)| lhs.$comparison_name(&rhs));
                 }
@@ -177,7 +176,6 @@ macro_rules! define_default_minmax_tests {
                     E: ExecuteOn<(RadixCiphertext, RadixCiphertext), RadixCiphertext>,
                 {
                     TestBuilder::new(ctx)
-                        .n_random(4)
                         .fixed_cases(radix_pair_fixed_cases::<Uint>)
                         .execute(executor, |(lhs, rhs): (Uint, Uint)| lhs.$name(rhs));
                 }

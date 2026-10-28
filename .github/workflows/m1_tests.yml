@@ -172,7 +172,7 @@ jobs:
 
       - name: Run integer tests
         run: |
-          make test_integer_ci
+          TFHE_RS_TEST_PROFILE=cpu_light make test_integer_ci
 
       - name: Gen Keys if required
         run: |

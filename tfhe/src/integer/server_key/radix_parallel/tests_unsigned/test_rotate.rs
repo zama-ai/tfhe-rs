@@ -48,7 +48,6 @@ where
     E: ExecuteOn<(RadixCiphertext, ShiftAmountOperand<RadixCiphertext>), RadixCiphertext>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(encrypted_shift_amount_fixed_cases::<Uint>)
         .execute(
             executor,
@@ -81,7 +80,6 @@ where
     E: ExecuteOn<(RadixCiphertext, ShiftAmountOperand<RadixCiphertext>), RadixCiphertext>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(encrypted_shift_amount_fixed_cases::<Uint>)
         .execute(
             executor,

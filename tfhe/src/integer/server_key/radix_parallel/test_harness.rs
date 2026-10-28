@@ -1,8 +1,9 @@
 //! Declarative harness for the 'default' radix operation tests.
 //!
 //! Backends are abstracted with the [`ExecuteOn`] trait.
-//! With [`TestBuilder`], a test declares a recipe: the block counts to cover, the number of
-//! random cases to draw and the fixed cases to run.
+//! With [`TestBuilder`], a test declares a recipe: how costly the operation is ([`OpCost`])
+//! and the fixed cases to run. The [`TestProfile`] of the run then decides how extensively
+//! to test: the block counts to cover and the number of random cases to draw.
 //!
 //! The harness will then coordinate test execution: generate inputs, encrypt, execute,
 //! check results.
@@ -40,11 +41,198 @@ pub(crate) fn max_block_requirement(params: TestParameters) -> u32 {
     }
 }
 
-/// Default block counts depending on parameters
-pub(crate) fn default_block_requirements(params: TestParameters) -> Vec<SizeRequirements> {
-    (1..=max_block_requirement(params))
-        .map(SizeRequirements::new_scalar)
+#[derive(Copy, Clone, Debug, PartialEq, Eq, strum::EnumIter)]
+pub(crate) enum CpuProfile {
+    /// Quick feedback: a few block counts
+    Light,
+    /// The usual block counts.
+    Baseline,
+    /// Denser and wider block counts, with more random cases.
+    Extensive,
+    /// The integer widths FHEVM exposes (see [`FHEVM_WIDTHS`]).
+    Fhevm,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, strum::EnumIter)]
+pub(crate) enum GpuProfile {
+    /// The integer widths FHEVM exposes (see [`FHEVM_WIDTHS`]).
+    Fhevm,
+}
+
+/// Environment variable selecting the [`TestProfile`] of a run by its name, case insensitive
+/// (e.g. `cpu_light`). [`TestProfile::DEFAULT`] when not set or empty.
+const PROFILE_ENV_VAR: &str = "TFHE_RS_TEST_PROFILE";
+
+/// How extensively the harness tests: the block counts and the number of random cases. Every
+/// fixed case and input state combination runs whatever the profile.
+///
+/// Profiles are per backend: CI costs differ between backends, so each tunes its own. The
+/// values of every profile are in [`cpu_settings`] and [`gpu_settings`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum TestProfile {
+    Cpu(CpuProfile),
+    Gpu(GpuProfile),
+}
+
+impl TestProfile {
+    /// The profile when [`PROFILE_ENV_VAR`] is not set.
+    const DEFAULT: Self = Self::Cpu(CpuProfile::Baseline);
+
+    fn all() -> impl Iterator<Item = Self> {
+        CpuProfile::iter()
+            .map(Self::Cpu)
+            .chain(GpuProfile::iter().map(Self::Gpu))
+    }
+
+    /// The name selecting the profile in [`PROFILE_ENV_VAR`].
+    fn name(self) -> &'static str {
+        match self {
+            Self::Cpu(CpuProfile::Light) => "cpu_light",
+            Self::Cpu(CpuProfile::Baseline) => "cpu_baseline",
+            Self::Cpu(CpuProfile::Extensive) => "cpu_extensive",
+            Self::Cpu(CpuProfile::Fhevm) => "cpu_fhevm",
+            Self::Gpu(GpuProfile::Fhevm) => "gpu_fhevm",
+        }
+    }
+
+    fn from_env() -> Self {
+        let name = std::env::var(PROFILE_ENV_VAR).unwrap_or_default();
+        if name.is_empty() {
+            return Self::DEFAULT;
+        }
+        Self::all()
+            .find(|profile| profile.name().eq_ignore_ascii_case(&name))
+            .unwrap_or_else(|| {
+                let names: Vec<_> = Self::all().map(Self::name).collect();
+                panic!("{PROFILE_ENV_VAR}={name:?} is not a profile, expected one of {names:?}")
+            })
+    }
+
+    fn settings(self, cost: OpCost, params: TestParameters) -> ProfileSettings {
+        match self {
+            Self::Cpu(profile) => cpu_settings(profile, cost, params),
+            Self::Gpu(profile) => gpu_settings(profile, cost, params),
+        }
+    }
+}
+
+impl std::fmt::Display for TestProfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+/// How the cost of an operation grows with its block count, which decides the block counts
+/// a profile tests it on.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) enum OpCost {
+    /// About linear: additions, bitwise operations, comparisons, shifts, cmux...
+    #[default]
+    Linear,
+    /// About quadratic: multiplications, divisions by a clear.
+    // TODO: remove the allow once the multiplications are on the harness
+    #[allow(dead_code)]
+    Quadratic,
+    /// The encrypted divisions: quadratic too, but far slower.
+    Division,
+}
+
+/// What a [`TestProfile`] sets for one test.
+struct ProfileSettings {
+    block_counts: Vec<u32>,
+    /// Random cases per block count, run with clean inputs.
+    n_random: u32,
+}
+
+/// The values of the CPU profiles.
+fn cpu_settings(profile: CpuProfile, cost: OpCost, params: TestParameters) -> ProfileSettings {
+    let max_n_blocks = max_block_requirement(params);
+    match profile {
+        CpuProfile::Light => {
+            let block_counts = match cost {
+                OpCost::Linear => vec![1, 2, 3, 4, 5, 8, 16, 32],
+                OpCost::Quadratic => vec![1, 2, 3, 4, 5, 8, 16],
+                OpCost::Division => vec![1, 2, 3, 4, 5, 8],
+            };
+            ProfileSettings {
+                block_counts: block_counts_up_to(max_n_blocks, params, block_counts),
+                n_random: 1,
+            }
+        }
+        CpuProfile::Baseline => {
+            let block_counts = match cost {
+                OpCost::Linear => (1..=max_n_blocks).collect(),
+                OpCost::Quadratic => vec![1, 2, 3, 4, 8, 13, 16, 32],
+                OpCost::Division => vec![1, 2, 3, 4, 8, 13, 16],
+            };
+            ProfileSettings {
+                block_counts: block_counts_up_to(max_n_blocks, params, block_counts),
+                n_random: 4,
+            }
+        }
+        CpuProfile::Extensive => {
+            // Twice the usual maximum: 128 bits on 2_2
+            let block_counts: Vec<u32> = match cost {
+                OpCost::Linear => (1..=2 * max_n_blocks).collect(),
+                OpCost::Quadratic => (1..=max_n_blocks).chain([2 * max_n_blocks]).collect(),
+                OpCost::Division => (1..=max_n_blocks / 2).chain([max_n_blocks]).collect(),
+            };
+            ProfileSettings {
+                block_counts: block_counts_up_to(2 * max_n_blocks, params, block_counts),
+                n_random: 16,
+            }
+        }
+        CpuProfile::Fhevm => ProfileSettings {
+            block_counts: fhevm_block_counts(cost, params),
+            n_random: 4,
+        },
+    }
+}
+
+/// The values of the GPU profiles.
+fn gpu_settings(profile: GpuProfile, cost: OpCost, params: TestParameters) -> ProfileSettings {
+    match profile {
+        GpuProfile::Fhevm => ProfileSettings {
+            block_counts: fhevm_block_counts(cost, params),
+            n_random: 4,
+        },
+    }
+}
+
+/// Keeps the `block_counts` up to `max_n_blocks` that the harness supports (see
+/// [`MAX_RADIX_BITS`]).
+fn block_counts_up_to(
+    max_n_blocks: u32,
+    params: TestParameters,
+    block_counts: Vec<u32>,
+) -> Vec<u32> {
+    let bits_per_block = params.message_modulus().0.ilog2();
+    block_counts
+        .into_iter()
+        .filter(|&n_blocks| n_blocks <= max_n_blocks && n_blocks * bits_per_block <= MAX_RADIX_BITS)
         .collect()
+}
+
+/// Integer widths FHEVM exposes, in bits.
+const FHEVM_WIDTHS: [u32; 8] = [4, 8, 16, 32, 64, 128, 160, 256];
+
+/// Block counts of the [`FHEVM_WIDTHS`], rounded up to whole blocks.
+///
+/// FHEVM does not expose the encrypted divisions (too slow), so they only go up to 32 bits,
+/// the other profiles cover them.
+///
+/// TODO: the widths that do not fit in [`MAX_RADIX_BITS`] (160 and 256 bits) are skipped, as
+/// the clear models are backed by u128. Test them once [`Uint`] and [`Int`] can be wider.
+fn fhevm_block_counts(cost: OpCost, params: TestParameters) -> Vec<u32> {
+    let bits_per_block = params.message_modulus().0.ilog2();
+    let mut block_counts: Vec<u32> = FHEVM_WIDTHS
+        .into_iter()
+        .filter(|&bits| cost != OpCost::Division || bits <= 32)
+        .map(|bits| bits.div_ceil(bits_per_block))
+        .filter(|&n_blocks| n_blocks * bits_per_block <= MAX_RADIX_BITS)
+        .collect();
+    block_counts.dedup();
+    block_counts
 }
 
 /// Block budget for a vector operation about as costly as a sum.
@@ -122,10 +310,16 @@ fn fail_fast_from_env() -> bool {
     std::env::var(FAIL_FAST_ENV_VAR).is_ok_and(|s| !s.is_empty() && s != "0")
 }
 
+/// The environment variables reproducing the cases of a run.
+fn reproduce_with(profile: TestProfile, seed: u128) -> String {
+    format!("{PROFILE_ENV_VAR}={profile} {SEED_ENV_VAR}={seed:#x}")
+}
+
 /// Things shared by every case of a test run.
 ///
 /// The clear values, input states and dirtying amounts derive from a single seed (through
-/// the rng), so a seed reproduces the cases of a run. Keys come from the key cache and the
+/// the rng), so a seed reproduces the cases of a run, along with the profile which decides
+/// the block counts and how many random cases are drawn. Keys come from the key cache and the
 /// encryption noise from the thread local engine, so it does not reproduce the ciphertexts.
 pub(crate) struct TestContext {
     params: TestParameters,
@@ -135,17 +329,19 @@ pub(crate) struct TestContext {
     /// The harness prepares inputs with it (carries, noise) and CPU executors run with it
     cpu_sks: Arc<ServerKey>,
     seed: u128,
+    profile: TestProfile,
     /// Stop at the first failing case instead of collecting them all.
     fail_fast: bool,
 }
 
 impl TestContext {
-    /// Context seeded from [`SEED_ENV_VAR`] when set, randomly otherwise, and failing fast
-    /// when [`FAIL_FAST_ENV_VAR`] is set.
+    /// Context seeded from [`SEED_ENV_VAR`] when set, randomly otherwise, with the profile
+    /// from [`PROFILE_ENV_VAR`], and failing fast when [`FAIL_FAST_ENV_VAR`] is set.
     pub(crate) fn from_env(params: impl Into<TestParameters>) -> Self {
         let params = params.into();
         let seed = seed_from_env_or_random();
-        println!("{SEED_ENV_VAR}={seed:#x}");
+        let profile = TestProfile::from_env();
+        println!("{}", reproduce_with(profile, seed));
 
         let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
         // The harness checks operations are deterministic
@@ -156,6 +352,7 @@ impl TestContext {
             cks,
             cpu_sks: Arc::new(sks),
             seed,
+            profile,
             fail_fast: fail_fast_from_env(),
         }
     }
@@ -227,15 +424,20 @@ impl SizeRequirements {
 /// Builder of the hardcoded cases of a test, for one size requirement.
 type FixedCaseFn<ClearInput> = Box<dyn Fn(SizeRequirements, &TestContext) -> Vec<ClearInput>>;
 
-/// Recipe for a default-op test: which block counts to cover, how many random cases to
-/// draw, and hardcoded edge cases.
+/// Recipe for a default-op test: how costly the operation is and hardcoded edge cases.
+///
+/// The [`TestProfile`] of the context decides, from the cost, the block counts to cover and
+/// the number of random cases to draw.
 ///
 /// `ClearInput` is the tuple of clear inputs of the operation (e.g. `(Uint, Uint)`)
 /// It is inferred from the closures given to [`Self::fixed_cases`] and [`Self::execute`].
 pub(crate) struct TestBuilder<'a, ClearInput> {
     ctx: &'a TestContext,
-    size_requirements: Vec<SizeRequirements>,
-    n_random: u32,
+    cost: OpCost,
+    /// Overrides the block counts of the profile.
+    size_requirements: Option<Vec<SizeRequirements>>,
+    /// Overrides the number of random cases of the profile.
+    n_random: Option<u32>,
     /// Hardcoded cases, built per size requirement since edge values depend on the radix
     /// width (and, for vector inputs, on the number of elements).
     fixed_cases: Vec<FixedCaseFn<ClearInput>>,
@@ -249,23 +451,47 @@ where
     pub(crate) fn new(ctx: &'a TestContext) -> Self {
         Self {
             ctx,
-            size_requirements: default_block_requirements(ctx.params),
-            n_random: 0,
+            cost: OpCost::default(),
+            size_requirements: None,
+            n_random: None,
             fixed_cases: vec![],
         }
     }
 
+    /// How costly the operation is, which decides the block counts the profile tests it on.
+    // TODO: remove the allow once the multiplications are on the harness
+    #[allow(dead_code)]
+    pub(crate) fn cost(&mut self, cost: OpCost) -> &mut Self {
+        self.cost = cost;
+        self
+    }
+
+    /// Overrides the block counts of the profile, for tests whose sizes follow from what they
+    /// check (e.g. a scalar narrower than the radix, a single boolean block).
     pub(crate) fn size_requirements(
         &mut self,
         size_requirements: Vec<SizeRequirements>,
     ) -> &mut Self {
-        self.size_requirements = size_requirements;
+        self.size_requirements = Some(size_requirements);
         self
     }
 
-    /// Number of random cases per block count (run with clean inputs).
+    /// Overrides the number of random cases per block count of the profile (run with clean
+    /// inputs).
+    ///
+    /// Meant for temporary local tests: committed tests leave it to the profile, or use
+    /// [`Self::fixed_cases_only`].
     pub(crate) fn n_random(&mut self, n: u32) -> &mut Self {
-        self.n_random = n;
+        self.n_random = Some(n);
+        self
+    }
+
+    /// Runs no random case with clean inputs, for tests made of their fixed cases (e.g. a
+    /// truth table, or the cases a scalar narrower than the radix adds to another test).
+    ///
+    /// The input state combinations still run on random inputs.
+    pub(crate) fn fixed_cases_only(&mut self) -> &mut Self {
+        self.n_random = Some(0);
         self
     }
 
@@ -289,7 +515,7 @@ where
 
     /// Runs every case with `executor` and panics with the report if any failed.
     ///
-    /// For each configured block counts this will run random tests,
+    /// For each block count of the profile this will run random tests,
     /// fixed tests cases and run the function using combinations of different input state
     /// (see [`InputState`]).
     ///
@@ -304,14 +530,24 @@ where
         Output: TestOutput,
     {
         let ctx = self.ctx;
+        let settings = ctx.profile.settings(self.cost, ctx.params);
+        let size_requirements = self.size_requirements.clone().unwrap_or_else(|| {
+            settings
+                .block_counts
+                .iter()
+                .copied()
+                .map(SizeRequirements::new_scalar)
+                .collect()
+        });
+        let n_random = self.n_random.unwrap_or(settings.n_random);
         let mut rng = ctx.new_rng();
         let mut runner = CaseRunner::new(ctx, executor, clear_func);
 
-        for size_req in self.size_requirements.iter().copied() {
+        for size_req in size_requirements {
             let fixed_cases = self.fixed_cases_for_requirements(size_req);
 
             // Fixed cases and random cases with clean inputs
-            let randoms: Vec<ClearInput> = (0..self.n_random)
+            let randoms: Vec<ClearInput> = (0..n_random)
                 .map(|_| ClearInput::generate_random(&mut rng, size_req, ctx))
                 .collect();
             for clear_inputs in fixed_cases.iter().cloned().chain(randoms) {
@@ -350,7 +586,7 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
             ctx,
             executor,
             clear_func,
-            report: Report::new(ctx.seed),
+            report: Report::new(ctx.seed, ctx.profile),
         }
     }
 
@@ -542,14 +778,16 @@ pub(crate) struct CaseFailure {
 /// "only odd block counts fail").
 pub(crate) struct Report {
     seed: u128,
+    profile: TestProfile,
     cases_run: usize,
     failing_cases: Vec<CaseFailure>,
 }
 
 impl Report {
-    fn new(seed: u128) -> Self {
+    fn new(seed: u128, profile: TestProfile) -> Self {
         Self {
             seed,
+            profile,
             cases_run: 0,
             failing_cases: vec![],
         }
@@ -564,10 +802,10 @@ impl std::fmt::Display for Report {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "{} failing case(s) out of {} run, reproduce with {SEED_ENV_VAR}={:#x}",
+            "{} failing case(s) out of {} run, reproduce with {}",
             self.failing_cases.len(),
             self.cases_run,
-            self.seed
+            reproduce_with(self.profile, self.seed)
         )?;
 
         // Summary by kind, in the enum's declaration order

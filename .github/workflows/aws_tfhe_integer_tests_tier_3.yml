@@ -5,6 +5,16 @@ name: aws_tfhe_integer_tests_tier_3
 on:
   # Run tier 3 on any branch
   workflow_dispatch:
+    inputs:
+      profile:
+        description: "Test profile of the radix test harness"
+        type: choice
+        options:
+          - cpu_light
+          - cpu_baseline
+          - cpu_extensive
+          - cpu_fhevm
+        default: cpu_light
   schedule:
     # Tier 3, weekly
     - cron: "0 4 * * SAT"
@@ -23,6 +33,8 @@ jobs:
     uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
     with:
       tiers: "3"
+      # Scheduled runs have no inputs
+      profile: ${{ inputs.profile || 'cpu_light' }}
     secrets:
       REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

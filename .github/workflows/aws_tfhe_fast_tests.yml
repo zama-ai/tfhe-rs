@@ -262,7 +262,7 @@ jobs:
       - name: Run integer tests
         if: needs.should-run.outputs.integer_test == 'true'
         run: |
-          BIG_TESTS_INSTANCE=TRUE FAST_TESTS=TRUE make test_integer_ci
+          BIG_TESTS_INSTANCE=TRUE TIERS=0 TFHE_RS_TEST_PROFILE=cpu_light make test_integer_ci
 
       - name: Run transciphering tests
         if: needs.should-run.outputs.transciphering_test == 'true'
