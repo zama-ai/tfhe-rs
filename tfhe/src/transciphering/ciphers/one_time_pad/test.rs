@@ -10,15 +10,15 @@ use crate::shortint::parameters::TranscipheringParameters;
 use crate::shortint::prelude::*;
 use crate::transciphering::ciphers::kreyvium::KreyviumPlainState;
 use crate::transciphering::ciphers::one_time_pad::fhe::{
-    OneTimePadFheSecretMask, OneTimePadFheState,
+    MaskGenerationError, OneTimePadFheSecretMask, OneTimePadFheState,
 };
 use crate::transciphering::ciphers::one_time_pad::{
     OneTimePadPlainSecretMask, OneTimePadPlainState,
 };
 use crate::transciphering::{
-    FheKeyStream, FheKeyStreamError, InsufficientKeystream, StreamCipher, StreamCipherKind,
-    TranscipherError, Transcipherer, TranscipheringOutputLayout, TranscipheringPrivateKey,
-    TranscipheringServerKey,
+    FheKeyStream, FheKeyStreamError, InsufficientKeystream, KeyStreamLayout, StreamCipher,
+    StreamCipherKind, TranscipherError, Transcipherer, TranscipheringOutputLayout,
+    TranscipheringPrivateKey, TranscipheringServerKey,
 };
 
 /// Reference implementation: LSB-first bit `first_bit + i` of `mask` becomes LSB-first bit
@@ -151,49 +151,56 @@ fn one_time_pad_next_bits_beyond_remaining_errors() {
 
 // ========== FHE tests below ==========
 
-/// Decrypt `keystream` (one single-bit ciphertext per bit) and compare it,
-/// bit for bit, against plain keystream bytes (LSB-first within each byte).
-/// Also checks the [`Transcipherer::next_keystream_bits`] contract: the keystream
-/// layout is single bit, and each ciphertext is a clean single-bit encryption
-/// (degree <= 1, value in {0, 1})
+/// Decrypt `keystream` (`bits_per_ct` keystream bits per ciphertext, LSB-first) and compare it,
+/// bit for bit, against plain keystream bytes (LSB-first within each byte). The unused high bits
+/// of the last ciphertext are not compared.
+/// Also checks the [`Transcipherer::next_keystream_bits`] contract: the keystream layout has
+/// `bits_per_ct` bits per ciphertext, and each ciphertext holds at most `bits_per_ct` bits
+/// (degree and decrypted value < 2^bits_per_ct)
 /// Also checks ciphertexts have strictly nominal noise, if checks are made
 /// on trivial ciphertexts update this function accordingly.
 fn assert_fhe_keystream_matches_plain(
     cks: &ClientKey,
     keystream: &FheKeyStream,
+    bits_per_ct: usize,
     plain_bytes: &[u8],
     expected_bit_count: usize,
     ctx: &str,
 ) {
     assert_eq!(
-        keystream.layout().bits_per_ct().get(),
-        1,
-        "{ctx}: expected a single bit keystream layout"
+        usize::from(keystream.layout().bits_per_ct().get()),
+        bits_per_ct,
+        "{ctx}: unexpected keystream layout"
     );
     let fhe_bits: Vec<_> = keystream.iter().collect();
     assert_eq!(
         fhe_bits.len(),
-        expected_bit_count,
-        "{ctx}: expected one ciphertext per keystream bit"
+        expected_bit_count.div_ceil(bits_per_ct),
+        "{ctx}: expected one ciphertext per {bits_per_ct} keystream bits"
     );
     for (i, ct) in fhe_bits.iter().enumerate() {
         assert!(
-            ct.degree.get() <= 1,
-            "{ctx}: keystream bit {i} is not a single bit (degree {})",
+            ct.degree.get() < (1 << bits_per_ct),
+            "{ctx}: keystream ciphertext {i} holds more than {bits_per_ct} bits (degree {})",
             ct.degree.get()
         );
         assert!(
             ct.noise_level() == NoiseLevel::NOMINAL,
-            "{ctx}: keystream bit {i} exceeds nominal noise (level {:?})",
+            "{ctx}: keystream ciphertext {i} exceeds nominal noise (level {:?})",
             ct.noise_level()
         );
-        let got = cks.decrypt_message_and_carry(ct);
+        let value = cks.decrypt_message_and_carry(ct);
         assert!(
-            got <= 1,
-            "{ctx}: keystream bit {i} decrypts to non-boolean value {got}"
+            value < (1 << bits_per_ct),
+            "{ctx}: keystream ciphertext {i} decrypts to {value}, more than {bits_per_ct} bits"
         );
-        let expected = ((plain_bytes[i / 8] >> (i % 8)) & 1) as u64;
-        assert_eq!(got, expected, "{ctx}: keystream bit {i} differs");
+    }
+    for bit_idx in 0..expected_bit_count {
+        let got = (cks.decrypt_message_and_carry(fhe_bits[bit_idx / bits_per_ct])
+            >> (bit_idx % bits_per_ct))
+            & 1;
+        let expected = ((plain_bytes[bit_idx / 8] >> (bit_idx % 8)) & 1) as u64;
+        assert_eq!(got, expected, "{ctx}: keystream bit {bit_idx} differs");
     }
 }
 
@@ -232,41 +239,84 @@ fn decrypt_transciphered_bytes(
 /// FHE keystream == plain keystream for every (start offset, length) pair.
 ///
 /// Seeks both sides before every draw, so this test isolates mask encryption/slicing from counter
-/// bookkeeping (covered separately).
+/// bookkeeping (covered separately). Starts that are not aligned on a mask ciphertext are refused
+/// without consuming keystream.
 #[test]
 fn one_time_pad_fhe_keystream_matches_plain_all_offsets_and_lengths() {
-    let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    for params in [
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    ] {
+        let (cks, sks) = gen_keys(params);
+        let full_space =
+            KeyStreamLayout::full_space(sks.message_modulus, sks.carry_modulus).unwrap();
+
+        for layout in [full_space, KeyStreamLayout::single_bit()] {
+            one_time_pad_fhe_keystream_matches_plain_all_offsets_and_lengths_impl(
+                &cks, &sks, &layout,
+            );
+        }
+    }
+}
+
+fn one_time_pad_fhe_keystream_matches_plain_all_offsets_and_lengths_impl(
+    cks: &ClientKey,
+    sks: &ServerKey,
+    layout: &KeyStreamLayout,
+) {
+    let bits_per_ct = usize::from(layout.bits_per_ct().get());
 
     let seed: u64 = rand::thread_rng().gen();
-    println!("one_time_pad_fhe_keystream_matches_plain_all_offsets_and_lengths seed={seed}");
+    println!(
+        "one_time_pad_fhe_keystream_matches_plain_all_offsets_and_lengths \
+        bits_per_ct={bits_per_ct} seed={seed}"
+    );
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
 
     let byte_count = 3usize;
     let max_bit_count = byte_count * 8;
     let mask_bytes: Vec<u8> = (0..byte_count).map(|_| rng.gen()).collect();
 
-    for max_bit_count in 0..=max_bit_count {
+    // Mask sizes must be a multiple of the number of bits per ciphertext
+    for max_bit_count in (0..=max_bit_count).step_by(bits_per_ct) {
         // to_vec for tests, don't do that in production
         let curr_mask_bytes = mask_bytes[..max_bit_count.div_ceil(8)].to_vec();
         let plain_mask = OneTimePadPlainSecretMask::new(curr_mask_bytes, max_bit_count);
-        let fhe_mask = plain_mask.encrypt(&cks);
+        let fhe_mask = plain_mask.encrypt_with_layout(cks, layout.clone()).unwrap();
         let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
         let mut plain_otp = OneTimePadPlainState::new(plain_mask);
 
         for start in 0..max_bit_count {
             for output_bit_count in 0..=(max_bit_count - start) {
+                let ctx = format!(
+                    "bits_per_ct={bits_per_ct}, start={start}, \
+                    output_bit_count={output_bit_count}, seed={seed}"
+                );
                 plain_otp.seek(start as u64);
-                fhe_otp.seek(&sks, start as u64);
+                fhe_otp.seek(sks, start as u64);
+
+                if !start.is_multiple_of(bits_per_ct) {
+                    assert!(
+                        matches!(
+                            fhe_otp.next_keystream_bits(sks, output_bit_count),
+                            Err(FheKeyStreamError::InvalidStreamCipherState)
+                        ),
+                        "{ctx}: unaligned draw should be refused"
+                    );
+                    assert_eq!(fhe_otp.current_counter(), start as u64, "{ctx}");
+                    continue;
+                }
 
                 let plain_bytes = plain_otp.next_keystream_bits(output_bit_count).unwrap();
-                let fhe_bits = fhe_otp.next_keystream_bits(&sks, output_bit_count).unwrap();
+                let fhe_bits = fhe_otp.next_keystream_bits(sks, output_bit_count).unwrap();
 
                 assert_fhe_keystream_matches_plain(
-                    &cks,
+                    cks,
                     &fhe_bits,
+                    bits_per_ct,
                     &plain_bytes,
                     output_bit_count,
-                    &format!("start={start}, output_bit_count={output_bit_count}"),
+                    &ctx,
                 );
             }
         }
@@ -287,7 +337,8 @@ fn one_time_pad_fhe_sequential_draws_advance_counter() {
     let bit_count = 8 * mask_bytes.len();
 
     let plain_mask = OneTimePadPlainSecretMask::new(mask_bytes, bit_count);
-    let fhe_mask = plain_mask.encrypt(&cks);
+    let fhe_mask = plain_mask.encrypt(&cks).unwrap();
+    let bits_per_ct = usize::from(fhe_mask.layout().bits_per_ct().get());
     let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
     let mut plain_otp = OneTimePadPlainState::new(plain_mask);
 
@@ -302,7 +353,14 @@ fn one_time_pad_fhe_sequential_draws_advance_counter() {
         "next_keystream_bits must advance the counter"
     );
     assert_eq!(fhe_otp.remaining_bits(), 40);
-    assert_fhe_keystream_matches_plain(&cks, &first_fhe, &first_plain, 24, "first draw");
+    assert_fhe_keystream_matches_plain(
+        &cks,
+        &first_fhe,
+        bits_per_ct,
+        &first_plain,
+        24,
+        "first draw",
+    );
 
     // Zero-bit draw: empty keystream, counter untouched.
     assert!(fhe_otp
@@ -317,14 +375,28 @@ fn one_time_pad_fhe_sequential_draws_advance_counter() {
     let second_plain = plain_otp.next_keystream_bits(40).unwrap();
     assert_eq!(fhe_otp.current_counter(), 64);
     assert_eq!(fhe_otp.remaining_bits(), 0);
-    assert_fhe_keystream_matches_plain(&cks, &second_fhe, &second_plain, 40, "second draw");
+    assert_fhe_keystream_matches_plain(
+        &cks,
+        &second_fhe,
+        bits_per_ct,
+        &second_plain,
+        40,
+        "second draw",
+    );
 
     // Backward seek: the OTP re-emits the exact same pad bits.
     fhe_otp.seek(&sks, 24);
     assert_eq!(fhe_otp.current_counter(), 24);
     assert_eq!(fhe_otp.remaining_bits(), 40);
     let second_again = fhe_otp.next_keystream_bits(&sks, 40).unwrap();
-    assert_fhe_keystream_matches_plain(&cks, &second_again, &second_plain, 40, "re-drawn second");
+    assert_fhe_keystream_matches_plain(
+        &cks,
+        &second_again,
+        bits_per_ct,
+        &second_plain,
+        40,
+        "re-drawn second",
+    );
 
     // Seeking to the exact end of the mask is allowed and leaves nothing to
     // draw.
@@ -346,7 +418,10 @@ fn one_time_pad_fhe_sequential_draws_advance_counter() {
 /// so that both `apply_keystream` implementations get exercised on their
 /// partial-block branches: under 2_2 the odd trailing keystream bit, under
 /// other parameters the partial final packing chunk.
-fn one_time_pad_fhe_transcipher_round_trip_impl(params: ClassicPBSParameters) {
+fn one_time_pad_fhe_transcipher_round_trip_impl(
+    params: ClassicPBSParameters,
+    layout: Option<KeyStreamLayout>,
+) {
     let seed: u64 = rand::thread_rng().gen();
     println!("one_time_pad_fhe_transcipher_round_trip seed: {seed}");
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
@@ -357,7 +432,12 @@ fn one_time_pad_fhe_transcipher_round_trip_impl(params: ClassicPBSParameters) {
     let bit_count = 8 * mask_bytes.len();
 
     let plain_mask = OneTimePadPlainSecretMask::new(mask_bytes, bit_count);
-    let fhe_mask = plain_mask.encrypt(&cks);
+    let fhe_mask = layout
+        .map_or_else(
+            || plain_mask.encrypt(&cks),
+            |layout| plain_mask.encrypt_with_layout(&cks, layout),
+        )
+        .unwrap();
     let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
     let mut plain_otp = OneTimePadPlainState::new(plain_mask);
 
@@ -383,6 +463,7 @@ fn one_time_pad_fhe_transcipher_round_trip_impl(params: ClassicPBSParameters) {
 fn one_time_pad_fhe_transcipher_round_trip() {
     one_time_pad_fhe_transcipher_round_trip_impl(
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        None,
     );
 }
 
@@ -390,13 +471,17 @@ fn one_time_pad_fhe_transcipher_round_trip() {
 fn one_time_pad_fhe_transcipher_round_trip_1_1() {
     one_time_pad_fhe_transcipher_round_trip_impl(
         TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        None,
     );
 }
 
+/// The full space of 3_3 params (6 bits) is not a valid layout, and the 3 bits output blocks
+/// can only be built from single bit keystream ciphertexts.
 #[test]
 fn one_time_pad_fhe_transcipher_round_trip_3_3() {
     one_time_pad_fhe_transcipher_round_trip_impl(
         TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+        Some(KeyStreamLayout::single_bit()),
     );
 }
 
@@ -418,7 +503,7 @@ fn one_time_pad_fhe_transcipher_error_paths() {
     let bit_count = 8 * mask_bytes.len();
 
     let plain_mask = OneTimePadPlainSecretMask::new(mask_bytes, bit_count);
-    let fhe_mask = plain_mask.encrypt(&cks);
+    let fhe_mask = plain_mask.encrypt(&cks).unwrap();
     let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
     assert_eq!(fhe_otp.kind(), StreamCipherKind::OneTimePad);
 
@@ -523,7 +608,9 @@ fn one_time_pad_fhe_transcipher_invalid_stream_ciphertext() {
 
     let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
-    let fhe_mask = OneTimePadPlainSecretMask::new(vec![0u8; 16], 128).encrypt(&cks);
+    let fhe_mask = OneTimePadPlainSecretMask::new(vec![0u8; 16], 128)
+        .encrypt(&cks)
+        .unwrap();
     let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
     let layout = TranscipheringOutputLayout::radix(64, sks.message_modulus);
 
@@ -555,7 +642,7 @@ fn one_time_pad_fhe_transcipher_invalid_stream_ciphertext() {
 
 /// Mask constructors validate their inputs: plain masks take
 /// `bit_count.div_ceil(8)` bytes; FHE mask ciphertexts must be clean
-/// single-bit encryptions.
+/// encryptions following the mask layout.
 #[test]
 fn one_time_pad_mask_validation() {
     let cks = ClientKey::new(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
@@ -565,23 +652,91 @@ fn one_time_pad_mask_validation() {
 
     // Cloning for tests, don't do that in production
     let cts: Vec<Ciphertext> = (0..5).map(|_| cks.encrypt_bool(false)).collect();
-    assert!(OneTimePadFheSecretMask::try_new(cts.clone()).is_ok());
+    assert!(OneTimePadFheSecretMask::try_new(cts.clone(), KeyStreamLayout::single_bit()).is_ok());
+
+    // Single bit ciphertexts do not follow a layout with more bits per ciphertext.
+    let full_space = KeyStreamLayout::full_space(
+        cks.parameters().message_modulus(),
+        cks.parameters().carry_modulus(),
+    )
+    .unwrap();
+    assert!(OneTimePadFheSecretMask::try_new(cts.clone(), full_space).is_err());
 
     // A ciphertext that may encrypt more than a single bit is refused.
     let mut degree_cts = cts.clone();
     degree_cts[3] = cks.encrypt(2);
-    assert_eq!(
-        OneTimePadFheSecretMask::try_new(degree_cts).map(|_| ()),
-        Err("Mask ciphertexts must encrypt single bits (degree <= 1).")
-    );
+    assert!(OneTimePadFheSecretMask::try_new(degree_cts, KeyStreamLayout::single_bit()).is_err());
 
     // A ciphertext with above-nominal noise is refused.
     let mut noisy_cts = cts;
     noisy_cts[3].set_noise_level(NoiseLevel::NOMINAL * 2, cks.parameters().max_noise_level());
-    assert_eq!(
-        OneTimePadFheSecretMask::try_new(noisy_cts).map(|_| ()),
-        Err("Mask ciphertexts must have nominal noise.")
-    );
+    assert!(OneTimePadFheSecretMask::try_new(noisy_cts, KeyStreamLayout::single_bit()).is_err());
+
+    // The mask size must be a multiple of the number of bits per ciphertext.
+    assert!(matches!(
+        OneTimePadPlainSecretMask::new(vec![0u8; 2], 10).encrypt(&cks),
+        Err(MaskGenerationError::InvalidMaskSize)
+    ));
+
+    // The full space of 3_3 params (6 bits) is not a valid layout.
+    let cks_3_3 = ClientKey::new(TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128);
+    assert!(matches!(
+        OneTimePadPlainSecretMask::new(vec![0u8; 2], 16).encrypt(&cks_3_3),
+        Err(MaskGenerationError::IncompatibleParameters)
+    ));
+}
+
+#[test]
+fn one_time_pad_fhe_secret_mask_conformance() {
+    use crate::conformance::ParameterSetConformant;
+    use crate::shortint::AtomicPatternParameters;
+
+    let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let cks = ClientKey::new(params);
+    let conformance_params = AtomicPatternParameters::from(params).to_shortint_conformance_param();
+
+    let plain_mask = OneTimePadPlainSecretMask::new(vec![0xAB; 2], 16);
+    let mask = plain_mask.encrypt(&cks).unwrap();
+    assert!(mask.is_conformant(&conformance_params));
+    let single_bit_mask = plain_mask
+        .encrypt_with_layout(&cks, KeyStreamLayout::single_bit())
+        .unwrap();
+    assert!(single_bit_mask.is_conformant(&conformance_params));
+
+    // A layout that does not fit in the parameters is refused at encryption.
+    let cks_1_1 = ClientKey::new(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    let layout_4 = KeyStreamLayout::try_new(4.try_into().unwrap()).unwrap();
+    assert!(matches!(
+        plain_mask.encrypt_with_layout(&cks_1_1, layout_4),
+        Err(MaskGenerationError::IncompatibleParameters)
+    ));
+
+    // Same serialized form as the mask, with a raw layout
+    #[derive(serde::Serialize)]
+    struct Tampered {
+        secret_mask: Vec<Ciphertext>,
+        bits_per_ct: u8,
+    }
+
+    let tamper = |bits_per_ct| {
+        bincode::serialize(&Tampered {
+            secret_mask: mask.ciphertexts().to_vec(),
+            bits_per_ct,
+        })
+        .unwrap()
+    };
+
+    let untampered: OneTimePadFheSecretMask = bincode::deserialize(&tamper(4)).unwrap();
+    assert!(untampered.is_conformant(&conformance_params));
+
+    // A layout with 0 bits per ciphertext cannot be deserialized.
+    assert!(bincode::deserialize::<OneTimePadFheSecretMask>(&tamper(0)).is_err());
+
+    // An invalid layout, or one that does not match the ciphertexts, is refused by conformance.
+    for bits_per_ct in [1, 2, 3, 8, 200] {
+        let tampered: OneTimePadFheSecretMask = bincode::deserialize(&tamper(bits_per_ct)).unwrap();
+        assert!(!tampered.is_conformant(&conformance_params));
+    }
 }
 
 // The `_sks` argument is unused by the OTP (no bootstrapping happens to draw
@@ -591,7 +746,9 @@ fn one_time_pad_mask_validation() {
 #[test]
 fn one_time_pad_fhe_next_bits_beyond_remaining_errors() {
     let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-    let fhe_mask = OneTimePadPlainSecretMask::new(vec![0u8; 2], 16).encrypt(&cks);
+    let fhe_mask = OneTimePadPlainSecretMask::new(vec![0u8; 2], 16)
+        .encrypt(&cks)
+        .unwrap();
     let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
     assert!(matches!(
         fhe_otp.next_keystream_bits(&sks, 17),
@@ -619,7 +776,7 @@ fn one_time_pad_fhe_mask_encrypt_decrypt_round_trip() {
                 .collect(),
         ] {
             let plain = OneTimePadPlainSecretMask::new(bytes.clone(), bit_count);
-            let recovered = plain.encrypt(&cks).decrypt(&cks);
+            let recovered = plain.encrypt(&cks).unwrap().decrypt(&cks);
 
             // The mask has no accessor for its bytes, so equality is checked through the
             // keystream: two masks that drive the same state produce the same ciphertext.
@@ -656,16 +813,23 @@ fn one_time_pad_fhe_new_random_prefix() {
             .unwrap()
             .ciphertexts()
             .iter()
-            .map(|ct| cks.decrypt(ct))
+            .map(|ct| cks.decrypt_message_and_carry(ct))
             .collect()
     };
 
+    // 4 bits per ciphertext with 2_2 params
     let short = decrypted_mask(16);
     let long = decrypted_mask(40);
 
-    assert_eq!(short.len(), 16);
-    assert_eq!(long.len(), 40);
-    assert_eq!(short, long[..16], "seed={seed:02x?}");
+    assert_eq!(short.len(), 4);
+    assert_eq!(long.len(), 10);
+    assert_eq!(short, long[..4], "seed={seed:02x?}");
+
+    // The mask size must be a multiple of the number of bits per ciphertext.
+    assert!(matches!(
+        OneTimePadFheSecretMask::new_random(seed.as_slice(), &transciphering_key, &sks, 6),
+        Err(MaskGenerationError::InvalidMaskSize)
+    ));
 }
 
 #[test]
