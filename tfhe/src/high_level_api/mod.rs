@@ -159,7 +159,8 @@ pub use tag::Tag;
 pub use traits::FheId;
 pub use transciphering::{
     AesFheKey, HlStreamCipher, HlStreamDecryptable, HlStreamEncryptable, HlTranscipherer,
-    KreyviumFheKey, OneTimePadFheSecretMask, StreamCiphertext, TranscipherSession,
+    KreyviumFheKey, OneTimePadFheSecretMask, OneTimePadFheSecretMaskConformanceParams,
+    StreamCiphertext, TranscipherSession,
 };
 pub mod xof_key_set;
 

@@ -59,6 +59,7 @@ mod keystream_application;
 
 use std::num::NonZeroU8;
 
+use backward_compatibility::KeyStreamLayoutVersions;
 use itertools::Itertools;
 pub use keys::{
     CompressedTranscipheringServerKey, ExpandedTranscipheringServerKey, TranscipheringPrivateKey,
@@ -80,6 +81,7 @@ pub use ciphers::one_time_pad::{
     OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
 };
 
+use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
@@ -287,6 +289,7 @@ pub enum FheKeyStreamError {
         degree: Degree,
         noise_level: NoiseLevel,
     },
+    InvalidStreamCipherState,
 }
 
 impl std::fmt::Display for FheKeyStreamError {
@@ -302,6 +305,7 @@ impl std::fmt::Display for FheKeyStreamError {
                 "keystream ciphertext {index} breaks the keystream contract: \
                 degree {degree:?}, noise level {noise_level:?}"
             ),
+            Self::InvalidStreamCipherState => write!(f, "the stream cipher is in an invalid state"),
         }
     }
 }
@@ -588,7 +592,8 @@ impl<'a> IntoIterator for &'a FheKeyStream {
 ///
 /// The number of bits per ciphertext must divide 8, so that the bits of a keystream ciphertext
 /// never span two bytes of the input.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(KeyStreamLayoutVersions)]
 pub struct KeyStreamLayout {
     // For simplicity, only "continuous" layouts, where all bits up to a point are used, are
     // supported.
@@ -637,6 +642,21 @@ impl KeyStreamLayout {
     /// Can this layout fit in ciphertexts with the corresponding message and carry moduli?
     pub fn can_fit(&self, message_modulus: MessageModulus, carry_modulus: CarryModulus) -> bool {
         message_modulus.0.ilog2() + carry_modulus.0.ilog2() >= u32::from(self.bits_per_ct.get())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KeyStreamLayoutConformanceParams {
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+}
+
+impl ParameterSetConformant for KeyStreamLayout {
+    type ParameterSet = KeyStreamLayoutConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        8u8.is_multiple_of(self.bits_per_ct.get())
+            && self.can_fit(params.message_modulus, params.carry_modulus)
     }
 }
 
