@@ -110,7 +110,6 @@ where
     E: ExecuteOn<(SignedRadixCiphertext,), SignedRadixCiphertext>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(radix_edges_fixed_cases::<Int>)
         .execute(executor, |(value,): (Int,)| value.wrapping_neg());
 }
@@ -120,7 +119,6 @@ where
     E: ExecuteOn<(SignedRadixCiphertext,), (SignedRadixCiphertext, BooleanBlock)>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(radix_edges_fixed_cases::<Int>)
         .execute(executor, |(value,): (Int,)| value.overflowing_neg());
 }
