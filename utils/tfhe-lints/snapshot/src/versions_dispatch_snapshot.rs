@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_hir::{Impl, Item, ItemKind};
 use rustc_lint::{LateContext, LateLintPass};
+use rustc_lint_defs::{declare_lint, impl_lint_pass};
 use rustc_middle::ty::{self, TyKind};
-use rustc_session::{declare_lint, impl_lint_pass};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

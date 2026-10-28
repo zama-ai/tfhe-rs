@@ -5,7 +5,7 @@ use rustc_hir::def::Res;
 use rustc_hir::def_id::DefId;
 use rustc_hir::{Item, ItemKind, QPath, TyKind, VariantData};
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_session::{declare_lint, impl_lint_pass};
+use rustc_lint_defs::{declare_lint, impl_lint_pass};
 use rustc_span::{Ident, Symbol};
 
 use tfhe_lints_common::{get_def_id_from_ty, is_allowed_lint, span_lint, symbols_list_from_str};
