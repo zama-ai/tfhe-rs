@@ -125,11 +125,14 @@ __device__ const T *get_multi_bit_ith_lwe_gth_group_kth_block(
 }
 
 ////////////////////////////////////////////////
+// `use_2_2_specialized_layout` selects the FFT16x16x4 layout consumed by the
+// SPECIALIZED_2_2 classical PBS kernel; callers decide through the same gate as
+// the kernel selection (supports_2_2_specialized_pbs), or force it for tests.
 template <typename T, typename ST>
 void cuda_convert_lwe_programmable_bootstrap_key(
     cudaStream_t stream, uint32_t gpu_index, double2 *dest, ST const *src,
     uint32_t polynomial_size, uint32_t total_polynomials,
-    bool use_specialized_fft_2_2, bool use_throughput_oriented) {
+    bool use_2_2_specialized_layout) {
   cuda_set_device(gpu_index);
   int shared_memory_size = safe_mul_sizeof<double>(polynomial_size);
 
@@ -168,49 +171,31 @@ void cuda_convert_lwe_programmable_bootstrap_key(
   // global scratch is only allocated on the NOSM paths below; cuda_drop_async
   // accepts the nullptr left by the FULLSM paths
   double2 *buffer = nullptr;
-  if (polynomial_size == 2048 && use_specialized_fft_2_2 &&
-      shared_memory_size <= max_shared_memory) {
-    // Specialized 2048 FFT paths for noise-squashing 2_2 parameters
-    if (use_throughput_oriented) {
-      // Throughput oriented path: the paired FFT16x16x4 forward of the PBS
-      // kernel, two polynomials per (64, 2, 1) block, bsk stored in the slot
-      // order the kernel reads it back.
-      if (total_polynomials % 2 != 0)
-        PANIC("the specialized 2_2 bootstrapping key needs an even number of "
-              "polynomials");
-      dim3 pair_grid(total_polynomials / 2);
-      dim3 pair_block(polynomial_size / AccumulatorDegree<2048>::opt, 2, 1);
-      size_t throughput_smem = FFT16x16x4_DUAL_SMEM_BYTES;
-      check_cuda_error(cudaFuncSetAttribute(
-          batch_FFT16x16x4_classical_specialized<
-              FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize,
-          static_cast<int>(throughput_smem)));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          batch_FFT16x16x4_classical_specialized<
-              FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
-          cudaFuncCachePreferShared));
-      batch_FFT16x16x4_classical_specialized<
-          FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>
-          <<<pair_grid, pair_block, throughput_smem, stream>>>(d_bsk, dest);
-    } else {
-      // Specialized natural-order layout consumed by the old
-      // device_programmable_bootstrap_specialized_2_2_params kernel (used
-      // when the throughput path is unavailable, e.g. GPUs without enough
-      // shared memory for the throughput kernel).
-      blockSize = polynomial_size / choose_opt(polynomial_size);
-      check_cuda_error(cudaFuncSetAttribute(
-          batch_NSMFFT_classical_specialized<
-              FFTDegree<Degree<2048>, ForwardFFT>>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, 2 * shared_memory_size));
-      check_cuda_error(
-          cudaFuncSetCacheConfig(batch_NSMFFT_classical_specialized<
-                                     FFTDegree<Degree<2048>, ForwardFFT>>,
-                                 cudaFuncCachePreferShared));
-      batch_NSMFFT_classical_specialized<FFTDegree<Degree<2048>, ForwardFFT>>
-          <<<gridSize, blockSize, 2 * shared_memory_size, stream>>>(d_bsk,
-                                                                    dest);
-    }
+  if (use_2_2_specialized_layout) {
+    // 2_2 specialized layout: the paired FFT16x16x4 forward of the PBS kernel,
+    // two polynomials per (64, 2, 1) block, bsk stored in the slot order the
+    // kernel reads it back.
+    PANIC_IF_FALSE(polynomial_size == 2048,
+                   "the 2_2 specialized bootstrapping key layout requires "
+                   "polynomial_size == 2048");
+    if (total_polynomials % 2 != 0)
+      PANIC("the 2_2 specialized bootstrapping key needs an even number of "
+            "polynomials");
+    dim3 pair_grid(total_polynomials / 2);
+    dim3 pair_block(polynomial_size / AccumulatorDegree<2048>::opt, 2, 1);
+    size_t throughput_smem = FFT16x16x4_DUAL_SMEM_BYTES;
+    check_cuda_error(cudaFuncSetAttribute(
+        batch_FFT16x16x4_classical_2_2_specialized<
+            FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize,
+        static_cast<int>(throughput_smem)));
+    check_cuda_error(cudaFuncSetCacheConfig(
+        batch_FFT16x16x4_classical_2_2_specialized<
+            FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>,
+        cudaFuncCachePreferShared));
+    batch_FFT16x16x4_classical_2_2_specialized<
+        FFTDegree<AccumulatorDegree<2048>, ForwardFFT>>
+        <<<pair_grid, pair_block, throughput_smem, stream>>>(d_bsk, dest);
   } else {
     // Generic FULLSM/NOSM path for all polynomial sizes
     DISPATCH_POLY_SIZE(

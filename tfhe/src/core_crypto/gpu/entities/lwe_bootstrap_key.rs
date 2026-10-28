@@ -115,6 +115,7 @@ impl CudaLweBootstrapKey {
                 input_lwe_dimension,
                 glwe_dimension,
                 decomp_level_count,
+                decomp_base_log,
                 polynomial_size,
             );
         }

@@ -53,41 +53,29 @@ bool cuda_pbs_golden_is_supported_async(uint32_t gpu_index);
 // above: the two policies are independent and may diverge.
 bool cuda_fft16x16x4_is_supported_async(uint32_t gpu_index);
 
-void cuda_convert_lwe_programmable_bootstrap_key_32_async(
-    void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size);
-
+// The (polynomial_size, base_log, level_count) order deliberately matches the
+// scratch and the launch: all three share the 2_2 specialized selection gate.
 void cuda_convert_lwe_programmable_bootstrap_key_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size);
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count);
 
 void cuda_convert_lwe_programmable_bootstrap_key_128_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size);
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t polynomial_size,
+    uint32_t level_count);
 
 uint64_t scratch_cuda_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type);
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 uint64_t scratch_cuda_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     PBS_MS_REDUCTION_T noise_reduction_type);
-
-void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
-    void *stream, uint32_t gpu_index, void *lwe_array_out,
-    void const *lwe_output_indexes, void const *lut_vector,
-    void const *lut_vector_indexes, void const *lwe_array_in,
-    void const *lwe_input_indexes, void const *bootstrapping_key,
-    int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride);
 
 void cuda_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,

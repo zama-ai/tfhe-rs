@@ -44,14 +44,14 @@ void generate_lwe_programmable_bootstrap_keys(
     Seed *seed, DynamicDistribution noise_distribution,
     const unsigned repetitions);
 
-void generate_lwe_programmable_bootstrap_keys_standard(
+void generate_lwe_programmable_bootstrap_keys_default(
     cudaStream_t stream, uint32_t gpu_index, double **d_fourier_bsk_array,
     uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
     int glwe_dimension, int polynomial_size, int pbs_level, int pbs_base_log,
     Seed *seed, DynamicDistribution noise_distribution,
     const unsigned repetitions);
 
-void generate_lwe_programmable_bootstrap_keys_specialized_2_2(
+void generate_lwe_programmable_bootstrap_keys_2_2_specialized(
     cudaStream_t stream, uint32_t gpu_index, double **d_fourier_bsk_array,
     uint64_t *lwe_sk_in_array, uint64_t *lwe_sk_out_array, int lwe_dimension,
     int glwe_dimension, int polynomial_size, int pbs_level, int pbs_base_log,

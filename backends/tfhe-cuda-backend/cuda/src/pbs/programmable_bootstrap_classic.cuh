@@ -6,15 +6,6 @@
 #include <cuda_runtime.h>
 #endif
 
-// This macro is needed because in debug mode the compiler doesn't apply all
-// optimizations
-//  and the register count is higher, which can lead to launch bounds conflicts.
-#ifdef __CUDACC_DEBUG__
-#define SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS
-#else
-#define SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS __launch_bounds__(1024)
-#endif
-
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
 #include "device.h"
@@ -29,26 +20,21 @@
 #include "polynomial/polynomial_math.cuh"
 #include "types/complex/operations.cuh"
 
+// This macro is needed because in debug mode the compiler doesn't apply all
+// optimizations and the register count is higher, which can lead to launch
+// bounds conflicts.
 #ifdef __CUDACC_DEBUG__
-#define SPECIALIZED_2_2_PARAMS_THROUGHPUT_LAUNCH_BOUNDS
+#define SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS
 #else
 // Each FFT16x16x4 group uses 64 threads, and we have 2 y-groups (mask/body)
 // per block. So we need a total of 128 threads per block, and we can to impose
 // that two blocks can be resident on the same SM, so we set the max blocks per
 // SM to 2.
-#define SPECIALIZED_2_2_PARAMS_THROUGHPUT_LAUNCH_BOUNDS                        \
-  __launch_bounds__(128, 2)
+#define SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS __launch_bounds__(128, 2)
 #endif
 
-// Helper function to get shared memory size for specialized 2_2_params kernel
-template <typename Torus>
-uint64_t get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params(
-    uint32_t polynomial_size) {
-  return sizeof(Torus) * polynomial_size * 5;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// SMEM layout for the FFT16x16x4-based mixprecision specialized kernel
+// SMEM layout for the FFT16x16x4-based mixprecision 2_2 specialized kernel
 //
 //   [0 .. TW_SMEM_DOUBLES-1]                twist-folded tw_1024 (1920 doubles)
 //   [SMEM_XPOSE0_OFFSET_DOUBLES ..]          xpose0 / final_acc0
@@ -75,59 +61,47 @@ uint64_t get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params(
 // constant memory into registers at startup. This is what brings the kernel
 // under the 100 KB of the sm_86/sm_89 parts (see SMEM_LIMIT_BYTES below).
 // ─────────────────────────────────────────────────────────────────────────────
-static constexpr int
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE0_OFFSET_DOUBLES =
-        FFT16x16x4_DUAL_XPOSE0_OFFSET;
-static constexpr int
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE1_OFFSET_DOUBLES =
-        FFT16x16x4_DUAL_XPOSE1_OFFSET;
-static constexpr int
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE0_PONG_OFFSET_DOUBLES =
-        FFT16x16x4_DUAL_XPOSE0_PONG_OFFSET;
-static constexpr int
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE1_PONG_OFFSET_DOUBLES =
-        FFT16x16x4_DUAL_XPOSE1_PONG_OFFSET;
-static constexpr int
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_OFFSET_DOUBLES =
-        FFT16x16x4_DUAL_SMEM_DOUBLES;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_XPOSE0_OFFSET_DOUBLES =
+    FFT16x16x4_DUAL_XPOSE0_OFFSET;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_XPOSE1_OFFSET_DOUBLES =
+    FFT16x16x4_DUAL_XPOSE1_OFFSET;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_XPOSE0_PONG_OFFSET_DOUBLES =
+    FFT16x16x4_DUAL_XPOSE0_PONG_OFFSET;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_XPOSE1_PONG_OFFSET_DOUBLES =
+    FFT16x16x4_DUAL_XPOSE1_PONG_OFFSET;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_ACC_OFFSET_DOUBLES =
+    FFT16x16x4_DUAL_SMEM_DOUBLES;
 // 2 y-groups × 2048 uint32 elements = 2048 doubles.
-static constexpr int SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_DOUBLES =
-    2048;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_ACC_DOUBLES = 2048;
 // Precalc-coefs sign table for the rotation step. Compact layout: one
 // int8_t per `block_size`-position chunk, since the band sign is constant
 // within each band (-1, +1, -1) and the band width equals `params::degree`,
 // an exact multiple of `block_size`. With block_size = 64 and degree = 2048,
 // each band collapses from 2048 entries to 32 entries.
 //   3 × 32 bytes = 96 bytes = 12 doubles.
-static constexpr int
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_PRECALC_OFFSET_DOUBLES =
-        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_OFFSET_DOUBLES +
-        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_DOUBLES;
-static constexpr int SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_PRECALC_DOUBLES =
-    12;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_PRECALC_OFFSET_DOUBLES =
+    SPECIALIZED_2_2_PARAMS_SMEM_ACC_OFFSET_DOUBLES +
+    SPECIALIZED_2_2_PARAMS_SMEM_ACC_DOUBLES;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_PRECALC_DOUBLES = 12;
 // Precomputed modswitched a_hat table (uint16 per LWE coefficient: the switch
 // to 2N = 4096 fits). The actual size depends on lwe_dimension and is appended
 // at the end of the smem allocation; the offset is fixed at compile time.
-static constexpr int
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_OFFSET_DOUBLES =
-        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_PRECALC_OFFSET_DOUBLES +
-        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_PRECALC_DOUBLES;
+static constexpr int SPECIALIZED_2_2_PARAMS_SMEM_AHAT_OFFSET_DOUBLES =
+    SPECIALIZED_2_2_PARAMS_SMEM_PRECALC_OFFSET_DOUBLES +
+    SPECIALIZED_2_2_PARAMS_SMEM_PRECALC_DOUBLES;
 // Fixed-region smem (everything except the a_hat table).
-static constexpr size_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_FIXED_BYTES =
-    static_cast<size_t>(
-        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_OFFSET_DOUBLES) *
+static constexpr size_t SPECIALIZED_2_2_PARAMS_SMEM_FIXED_BYTES =
+    static_cast<size_t>(SPECIALIZED_2_2_PARAMS_SMEM_AHAT_OFFSET_DOUBLES) *
     sizeof(double);
 
-// Largest LWE dimension the mixprecision kernel accepts. The 2_2 parameter set
-// it is specialized for uses 918, and decompression with the classic 2_2
+// Largest LWE dimension the 2_2 specialized kernel accepts. The 2_2 parameter
+// set it is specialized for uses 918, and decompression with the classic 2_2
 // compression parameters bootstraps from the packing key, 4 x 256 = 1024. 1312
 // is the largest value that keeps the kernel within SMEM_LIMIT_BYTES below: the
-// a_hat region is sized from this bound. Bootstraps above it fall back to the
-// full-precision specialized kernel on the X.0 parts; on the 100 KB parts the
-// gate (supports_specialized_2_2_params) rejects them, so the generic
-// CG/default kernels run instead.
-static constexpr uint32_t
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION = 1312;
+// a_hat region is sized from this bound. Bootstraps above it are rejected by
+// the gate (supports_2_2_specialized_pbs), so the generic default (split
+// step-one/step-two) kernels run instead.
+static constexpr uint32_t SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION = 1312;
 
 // a_hat table: one uint16 per LWE coefficient, padded to 8 bytes to keep the
 // region double-aligned. Sized from the maximum dimension and not from the one
@@ -136,42 +110,39 @@ static constexpr uint32_t
 // size that followed lwe_dimension let two concurrent bootstraps of different
 // parameter sets race on it. a_hat is the last region, so over-allocating it
 // moves nothing.
-static constexpr uint64_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_BYTES =
-    (static_cast<uint64_t>(
-         SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION) *
+static constexpr uint64_t SPECIALIZED_2_2_PARAMS_SMEM_AHAT_BYTES =
+    (static_cast<uint64_t>(SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION) *
          sizeof(uint16_t) +
      7ull) &
     ~static_cast<uint64_t>(7);
 
 // The one size this kernel is launched with and opts in to.
-static constexpr uint64_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES =
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_FIXED_BYTES +
-    SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_BYTES;
+static constexpr uint64_t SPECIALIZED_2_2_PARAMS_SMEM_BYTES =
+    SPECIALIZED_2_2_PARAMS_SMEM_FIXED_BYTES +
+    SPECIALIZED_2_2_PARAMS_SMEM_AHAT_BYTES;
 
 // Fits the 100 KB parts (sm_86, sm_89) at one block per SM and keeps two
 // blocks per SM on Hopper: 2 x (SMEM_BYTES + 1 KiB reserved) within 228 KiB.
-static constexpr uint64_t SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_LIMIT_BYTES =
-    100000ull;
-static_assert(SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES <=
-                  SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_LIMIT_BYTES,
-              "the mixprecision specialized kernel would not fit one block/SM "
+static constexpr uint64_t SPECIALIZED_2_2_PARAMS_SMEM_LIMIT_BYTES = 100000ull;
+static_assert(SPECIALIZED_2_2_PARAMS_SMEM_BYTES <=
+                  SPECIALIZED_2_2_PARAMS_SMEM_LIMIT_BYTES,
+              "the 2_2 specialized kernel would not fit one block/SM "
               "on 100 KB parts: lower "
-              "SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION");
-static_assert(2 * (SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES + 1024) <=
-                  228u * 1024u,
-              "the mixprecision specialized kernel would drop to 1 block/SM "
-              "on Hopper");
+              "SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION");
+static_assert(2 * (SPECIALIZED_2_2_PARAMS_SMEM_BYTES + 1024) <= 228u * 1024u,
+              "the 2_2 specialized kernel would drop to 1 block/SM on Hopper");
 
-// Reports which step of the mixprecision launch failed and with what
+// Reports which step of the 2_2 specialized launch failed and with what
 // configuration. check_cuda_error cannot: every call of the launch macro
 // expands to the single line the macro is invoked from. `grid`/`block` are zero
 // when the failure happens while configuring, before a launch exists.
-__host__ inline void check_specialized_2_2_mixprecision_error(
-    cudaError_t err, const char *step, uint32_t base_log,
-    uint32_t lwe_dimension, dim3 grid, dim3 block, uint64_t smem,
-    const char *file, int line) {
+__host__ inline void
+check_2_2_specialized_error(cudaError_t err, const char *step,
+                            uint32_t base_log, uint32_t lwe_dimension,
+                            dim3 grid, dim3 block, uint64_t smem,
+                            const char *file, int line) {
   if (err != cudaSuccess) {
-    PANIC("Cuda error (specialized 2_2 mixprecision PBS): %s failed with "
+    PANIC("Cuda error (2_2 specialized PBS): %s failed with "
           "\"%s\" at %s:%d\n"
           "  base_log=%u lwe_dimension=%u grid=(%u,%u,%u) block=(%u,%u,%u)\n"
           "  dynamic shared memory=%lu B (fixed size %lu B, max lwe "
@@ -179,246 +150,59 @@ __host__ inline void check_specialized_2_2_mixprecision_error(
           step, cudaGetErrorString(err), file, line, base_log, lwe_dimension,
           grid.x, grid.y, grid.z, block.x, block.y, block.z,
           static_cast<unsigned long>(smem),
-          static_cast<unsigned long>(
-              SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES),
-          SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION);
+          static_cast<unsigned long>(SPECIALIZED_2_2_PARAMS_SMEM_BYTES),
+          SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION);
   }
 }
 
-// True if the FFT16x16x4 mixprecision specialized kernel is applicable for the
-// given parameters. The LWE dimension bound keeps the a_hat region large
-// enough. The launch paths and the bootstrapping key conversion both decide
-// through here, so the key layout and the kernel reading it always agree.
+// The 2_2 specialized kernel is instantiated for this base_log range only;
+// parameter sets outside it take the DEFAULT variant.
+constexpr uint32_t SPECIALIZED_2_2_PARAMS_MIN_BASE_LOG = 21;
+constexpr uint32_t SPECIALIZED_2_2_PARAMS_MAX_BASE_LOG = 25;
+
+// Hard constraints of the 2_2 specialized kernel (parameters, lwe_dimension
+// bound, base_log range, shared memory). Every 2_2 specialized launch must pass
+// it.
 template <typename Torus>
-__host__ bool specialized_2_2_use_throughput_oriented(
+__host__ bool pbs_2_2_specialized_params_checker(
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
-    uint32_t lwe_dimension, uint32_t max_shared_memory) {
+    uint32_t lwe_dimension, uint32_t base_log, uint32_t max_shared_memory) {
   return polynomial_size == 2048 && glwe_dimension == 1 && level_count == 1 &&
-         lwe_dimension <=
-             SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION &&
-         SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES <=
+         lwe_dimension <= SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION &&
+         base_log >= SPECIALIZED_2_2_PARAMS_MIN_BASE_LOG &&
+         base_log <= SPECIALIZED_2_2_PARAMS_MAX_BASE_LOG &&
+         SPECIALIZED_2_2_PARAMS_SMEM_BYTES <=
              static_cast<uint64_t>(max_shared_memory);
 }
 
-// We validate that the params and shared memory constraints for the specialized
-// 2_2_params kernel are met.
+// Selection gate between the two classical 64-bit PBS flavors: true means the
+// SPECIALIZED_2_2 variant (the throughput-oriented 2_2 kernel) runs, false
+// means the generic DEFAULT (split step-one/step-two) variant runs. The scratch
+// function, the launch path and the bootstrapping key conversion all decide
+// through this gate, so the key layout and the kernel reading it always agree.
+// Reads the compute capability of the current device, which the callers select
+// with cuda_set_device(gpu_index) before deciding.
 template <typename Torus>
-__host__ bool specialized_2_2_params_checker(uint32_t polynomial_size,
-                                             uint32_t glwe_dimension,
-                                             uint32_t level_count,
-                                             uint32_t max_shared_memory) {
-  uint64_t required_shared_memory =
-      get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params<
-          Torus>(polynomial_size);
-  return polynomial_size == 2048 && glwe_dimension == 1 && level_count == 1 &&
-         max_shared_memory >= required_shared_memory;
-}
-
-// Compute capability of the current device, which the callers select with
-// cuda_set_device(gpu_index) before deciding. Two attribute queries: cheap,
-// unlike filling a cudaDeviceProp on every launch.
-__host__ inline void specialized_2_2_compute_capability(int &major,
-                                                        int &minor) {
+__host__ bool
+supports_2_2_specialized_pbs(uint32_t polynomial_size, uint32_t glwe_dimension,
+                             uint32_t level_count, uint32_t lwe_dimension,
+                             uint32_t base_log, uint32_t max_shared_memory) {
   int device = 0;
+  int major = 0;
   check_cuda_error(cudaGetDevice(&device));
   check_cuda_error(cudaDeviceGetAttribute(
       &major, cudaDevAttrComputeCapabilityMajor, device));
-  check_cuda_error(cudaDeviceGetAttribute(
-      &minor, cudaDevAttrComputeCapabilityMinor, device));
-}
-
-// This condition is more restrictive to enable the specialized kernels only on
-// high-end GPUs, which are the ones that can really benefit from them due to
-// their high double precision pressure. The mixprecision kernel is the
-// exception: it fits one block per SM on any part with 100 KB of shared memory
-// (sm_86, sm_89), so those are admitted only when the mixprecision kernel can
-// run: its shared memory fits and the LWE dimension stays within its a_hat
-// bound. Otherwise those parts take the generic CG/default path. The key
-// conversion and every launch path decide through this gate, so the key layout
-// and the kernel reading it always agree.
-template <typename Torus>
-__host__ bool supports_specialized_2_2_params(uint32_t polynomial_size,
-                                              uint32_t glwe_dimension,
-                                              uint32_t level_count,
-                                              uint32_t lwe_dimension,
-                                              uint32_t max_shared_memory) {
-  int major = 0, minor = 0;
-  specialized_2_2_compute_capability(major, minor);
   if (major < 7) {
     return false;
   }
-  if (minor != 0 &&
-      (SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES > max_shared_memory ||
-       lwe_dimension > SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION)) {
-    return false;
-  }
-  return specialized_2_2_params_checker<Torus>(polynomial_size, glwe_dimension,
-                                               level_count, max_shared_memory);
-}
-
-// Specialized 1-block kernel for 2_2_params (N=2048, k=1, l=1, log(B)=21-25,
-// n=918)
-template <typename Torus, class params, uint32_t base_log>
-__global__ SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS void
-device_programmable_bootstrap_specialized_2_2_params(
-    Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
-    const Torus *__restrict__ lut_vector,
-    const Torus *__restrict__ lut_vector_indexes,
-    const Torus *__restrict__ lwe_array_in,
-    const Torus *__restrict__ lwe_input_indexes,
-    const double2 *__restrict__ bootstrapping_key, uint32_t lwe_dimension,
-    uint32_t num_many_lut, uint32_t lut_stride,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
-
-  constexpr uint32_t level_count = 1;
-  constexpr uint32_t polynomial_size = 2048;
-  constexpr uint32_t glwe_dimension = 1;
-  auto this_block_rank = threadIdx.y;
-  extern __shared__ int8_t sharedmem[];
-
-  // Shared Memory Layout:
-  // We divide the shared memory in three sections to make sure the data is not
-  // overlapped
-  // |          GLWE0          |         GLWE1           | Common for both |
-  // | acc block0 | fft block0 | acc block1 | fft block1 | shared twiddles |
-  double2 *base_smem = (double2 *)sharedmem;
-  double2 *accumulator_fft =
-      base_smem + (polynomial_size / 2) * threadIdx.y * 2;
-  double2 *shared_fft = accumulator_fft + polynomial_size / 2;
-  double2 *shared_twiddles = base_smem + 2 * polynomial_size;
-
-  Torus *accumulator = (Torus *)shared_fft;
-
-  shared_twiddles[threadIdx.x + threadIdx.y * (params::degree / params::opt)] =
-      negtwiddles[threadIdx.x + threadIdx.y * (params::degree / params::opt)];
-
-  const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
-
-  const Torus *block_lut_vector =
-      &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
-                  (glwe_dimension + 1)];
-
-  constexpr auto log_modulus = params::log2_degree + 1;
-  Torus b_hat = 0;
-  Torus correction = 0;
-  if (noise_reduction_type == PBS_MS_REDUCTION_T::CENTERED) {
-    correction = centered_binary_modulus_switch_body_correction_to_add(
-        block_lwe_array_in, lwe_dimension, log_modulus);
-  }
-  modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
-                 log_modulus);
-
-  Torus reg_acc_try[params::opt];
-  divide_by_monomial_negacyclic_2_2_params_inplace<
-      Torus, params::opt, params::degree / params::opt>(
-      reg_acc_try, &block_lut_vector[threadIdx.y * params::degree], b_hat);
-
-  for (int i = 0; i < params::opt; i++) {
-    accumulator[threadIdx.x + i * (params::degree / params::opt)] =
-        reg_acc_try[i];
-  }
-
-  Torus temp_a_hat = 0;
-  for (int i = 0; i < lwe_dimension; i++) {
-    constexpr int WARP_SIZE = 32;
-    if (i % WARP_SIZE == 0 && (i + threadIdx.x % WARP_SIZE) < lwe_dimension) {
-      modulus_switch(block_lwe_array_in[i + threadIdx.x % WARP_SIZE],
-                     temp_a_hat, log_modulus);
-    }
-    Torus a_hat = __shfl_sync(0xFFFFFFFF, temp_a_hat, i % WARP_SIZE);
-
-    __syncthreads();
-    Torus reg_acc_rotated[params::opt];
-    multiply_by_monomial_negacyclic_and_sub_polynomial_both_in_regs<
-        Torus, params::opt, params::degree / params::opt>(
-        accumulator, reg_acc_try, reg_acc_rotated, a_hat);
-
-    init_decomposer_state_inplace_2_2_params<Torus, params::opt,
-                                             params::degree / params::opt,
-                                             base_log, level_count>(
-        reg_acc_rotated);
-
-    double2 fft_out_regs[params::opt / 2];
-    decompose_and_compress_level_2_2_params<Torus, params, base_log>(
-        fft_out_regs, reg_acc_rotated);
-    NSMFFT_direct_2_2_params<HalfDegree<params>>(shared_fft, fft_out_regs,
-                                                 shared_twiddles);
-    int tid = threadIdx.x;
-    for (Index k = 0; k < params::opt / 4; k++) {
-      accumulator_fft[tid] = fft_out_regs[k];
-      accumulator_fft[tid + params::degree / 4] =
-          fft_out_regs[k + params::opt / 4];
-      tid = tid + params::degree / params::opt;
-    }
-
-    double2 buffer_regs[params::opt / 2];
-    mul_ggsw_glwe_in_fourier_domain_2_2_params_classical_no_tbc<
-        params, polynomial_size, glwe_dimension, level_count>(
-        fft_out_regs, buffer_regs, base_smem, bootstrapping_key, i,
-        this_block_rank);
-
-    NSMFFT_inverse_2_2_params<HalfDegree<params>>(shared_fft, buffer_regs,
-                                                  shared_twiddles);
-    add_to_torus_2_2_params_using_regs<Torus, params>(buffer_regs, reg_acc_try);
-
-    for (int i = 0; i < params::opt; i++) {
-      accumulator[threadIdx.x + i * (params::degree / params::opt)] =
-          reg_acc_try[i];
-    }
-  }
-  auto block_lwe_array_out =
-      &lwe_array_out[lwe_output_indexes[blockIdx.x] *
-                         (glwe_dimension * polynomial_size + 1) +
-                     threadIdx.y * polynomial_size];
-
-  // The mask (threadIdx.y < glwe_dimension) and body threads take different
-  // paths below, so the block is synchronized once here for all of them
-  __syncthreads();
-  if (blockIdx.z == 0) {
-    if (threadIdx.y < glwe_dimension) {
-      sample_extract_mask<Torus, params, false>(block_lwe_array_out,
-                                                accumulator);
-
-      if (num_many_lut > 1) {
-        for (int i = 1; i < num_many_lut; i++) {
-          auto next_lwe_array_out =
-              lwe_array_out +
-              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
-          auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
-                                      (glwe_dimension * polynomial_size + 1) +
-                                  threadIdx.y * polynomial_size];
-
-          sample_extract_mask<Torus, params, false>(
-              next_block_lwe_array_out, accumulator, 1, i * lut_stride);
-        }
-      }
-    } else if (threadIdx.y == glwe_dimension) {
-      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
-
-      if (num_many_lut > 1) {
-        for (int i = 1; i < num_many_lut; i++) {
-          auto next_lwe_array_out =
-              lwe_array_out +
-              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
-          auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
-                                      (glwe_dimension * polynomial_size + 1) +
-                                  threadIdx.y * polynomial_size];
-          // No need to sync, it is already synchronized before the first
-          // sample_extract_body call
-          sample_extract_body<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 0, i * lut_stride);
-        }
-      }
-    }
-  }
+  return pbs_2_2_specialized_params_checker<Torus>(
+      polynomial_size, glwe_dimension, level_count, lwe_dimension, base_log,
+      max_shared_memory);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  FFT16x16x4-based flavor of the specialized 2_2_params kernel that aims at
-//  improving throughput
+//  2_2 specialized classical PBS kernel: FFT16x16x4-based, throughput-oriented,
+//  tuned for the 2_2 parameters (N=2048, k=1, l=1)
 //
 //  Block: (64, 2, 1) — threadIdx.y selects mask (0) / body (1). Each y-group
 //  feeds its component through the paired 1024-point FFT16x16x4
@@ -431,7 +215,7 @@ device_programmable_bootstrap_specialized_2_2_params(
 //  sample_extract_{mask,body}.
 //
 //  Layout assumption: this kernel REQUIRES the bsk to have been produced by
-//  batch_FFT16x16x4_classical_specialized so that bsk[tid + i*64] holds the
+//  batch_FFT16x16x4_classical_2_2_specialized so that bsk[tid + i*64] holds the
 //  bit-reversed frequency Â_bsk[bitreversal16(i)*64 + tid], which is the
 //  frequency the paired transform leaves in register i - 8*threadIdx.y of
 //  thread tid.
@@ -444,8 +228,8 @@ device_programmable_bootstrap_specialized_2_2_params(
 //  memory and on the A100, two on Hopper.
 // ─────────────────────────────────────────────────────────────────────────────
 template <typename Torus, class params, uint32_t base_log>
-__global__ SPECIALIZED_2_2_PARAMS_THROUGHPUT_LAUNCH_BOUNDS void
-device_programmable_bootstrap_specialized_2_2_params_throughput(
+__global__ SPECIALIZED_2_2_PARAMS_LAUNCH_BOUNDS void
+device_programmable_bootstrap_2_2_specialized(
     Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
     const Torus *__restrict__ lut_vector,
     const Torus *__restrict__ lut_vector_indexes,
@@ -470,15 +254,13 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   // regions, so all four are named: xpose_y is group y's first-transpose
   // region and xpose_pong_y its second-transpose region.
   double *smem_xpose0 =
-      smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE0_OFFSET_DOUBLES;
+      smem + SPECIALIZED_2_2_PARAMS_SMEM_XPOSE0_OFFSET_DOUBLES;
   double *smem_xpose1 =
-      smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE1_OFFSET_DOUBLES;
+      smem + SPECIALIZED_2_2_PARAMS_SMEM_XPOSE1_OFFSET_DOUBLES;
   double *smem_xpose0_pong =
-      smem +
-      SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE0_PONG_OFFSET_DOUBLES;
+      smem + SPECIALIZED_2_2_PARAMS_SMEM_XPOSE0_PONG_OFFSET_DOUBLES;
   double *smem_xpose1_pong =
-      smem +
-      SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_XPOSE1_PONG_OFFSET_DOUBLES;
+      smem + SPECIALIZED_2_2_PARAMS_SMEM_XPOSE1_PONG_OFFSET_DOUBLES;
   double *smem_xpose = (fft_id == 0) ? smem_xpose0 : smem_xpose1;
   double *smem_xpose_other = (fft_id == 0) ? smem_xpose1 : smem_xpose0;
   double *smem_xpose_pong = (fft_id == 0) ? smem_xpose0_pong : smem_xpose1_pong;
@@ -491,7 +273,7 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
 
   // Per-y uint32 accumulator slice (2048 elements per y-group)
   uint32_t *shared_accumulator_all = reinterpret_cast<uint32_t *>(
-      smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_ACC_OFFSET_DOUBLES);
+      smem + SPECIALIZED_2_2_PARAMS_SMEM_ACC_OFFSET_DOUBLES);
   uint32_t *shared_accumulator =
       shared_accumulator_all + fft_id * polynomial_size;
 
@@ -504,7 +286,7 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   // start, so the per-position resolution of the old 6144-byte table is
   // unnecessary.
   int8_t *precalc_coefs = reinterpret_cast<int8_t *>(
-      smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_PRECALC_OFFSET_DOUBLES);
+      smem + SPECIALIZED_2_2_PARAMS_SMEM_PRECALC_OFFSET_DOUBLES);
 
   // Precomputed modswitched a_hat table — one uint16 per LWE coefficient.
   // Filled cooperatively below; read once per PBS iteration as a broadcast
@@ -514,7 +296,7 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
   static_assert(params::log2_degree + 1 <= 16,
                 "the a_hat table stores the modulus switch to 2N in 16 bits");
   uint16_t *a_hat_table = reinterpret_cast<uint16_t *>(
-      smem + SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_AHAT_OFFSET_DOUBLES);
+      smem + SPECIALIZED_2_2_PARAMS_SMEM_AHAT_OFFSET_DOUBLES);
 
   // Cooperative twiddle load (128-thread loader).
   fft16x16x4_load_shared_twiddles_folded_128t(smem);
@@ -764,36 +546,33 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
 }
 
 // Applies the kernel's fixed attributes, reporting a failure the same way the
-// launch path does. They do not change between calls, so this could be done
-// once per device instead of once per launch; see
-// docs/gpu_kernel_configuration.md.
+// launch path does. The attributes are compile-time constants, so this runs
+// once at scratch time (see configure_2_2_specialized_kernel_for_base_log),
+// never on the launch hot path.
 template <typename Torus, class params, uint32_t base_log>
-__host__ void
-configure_specialized_2_2_mixprecision_kernel(uint32_t lwe_dimension,
-                                              const char *file, int line) {
+__host__ void configure_2_2_specialized_kernel(uint32_t lwe_dimension,
+                                               const char *file, int line) {
   // Last line of defence for the bound the selection predicate
-  // (specialized_2_2_use_throughput_oriented) already enforces: the a_hat
+  // (pbs_2_2_specialized_params_checker) already enforces: the a_hat
   // region is sized from MAX_LWE_DIMENSION, so a larger dimension reaching
   // here would have the kernel write past it instead of falling back.
-  PANIC_IF_FALSE(
-      lwe_dimension <= SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION,
-      "Cuda error (specialized 2_2 mixprecision PBS): lwe_dimension=%u "
-      "exceeds SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION=%u; this "
-      "launch path must not be selected for it",
-      lwe_dimension, SPECIALIZED_2_2_PARAMS_MIXPRECISION_MAX_LWE_DIMENSION);
+  PANIC_IF_FALSE(lwe_dimension <= SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION,
+                 "Cuda error (2_2 specialized PBS): lwe_dimension=%u "
+                 "exceeds SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION=%u; this "
+                 "launch path must not be selected for it",
+                 lwe_dimension, SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION);
 
-  auto kernel = device_programmable_bootstrap_specialized_2_2_params_throughput<
-      Torus, params, base_log>;
+  auto kernel =
+      device_programmable_bootstrap_2_2_specialized<Torus, params, base_log>;
   auto check_configure_error = [&](cudaError_t err, const char *step) {
-    check_specialized_2_2_mixprecision_error(
-        err, step, base_log, lwe_dimension, dim3(0, 0, 0), dim3(0, 0, 0),
-        SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES, file, line);
+    check_2_2_specialized_error(err, step, base_log, lwe_dimension,
+                                dim3(0, 0, 0), dim3(0, 0, 0),
+                                SPECIALIZED_2_2_PARAMS_SMEM_BYTES, file, line);
   };
 
   check_configure_error(
-      cudaFuncSetAttribute(
-          kernel, cudaFuncAttributeMaxDynamicSharedMemorySize,
-          static_cast<int>(SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES)),
+      cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize,
+                           static_cast<int>(SPECIALIZED_2_2_PARAMS_SMEM_BYTES)),
       "cudaFuncSetAttribute(MaxDynamicSharedMemorySize)");
   check_configure_error(
       cudaFuncSetAttribute(kernel,
@@ -803,6 +582,38 @@ configure_specialized_2_2_mixprecision_kernel(uint32_t lwe_dimension,
   check_configure_error(
       cudaFuncSetCacheConfig(kernel, cudaFuncCachePreferShared),
       "cudaFuncSetCacheConfig");
+}
+
+// Scratch-time dispatch of the configuration above over the supported base_log
+// instantiations, on the current device.
+template <typename Torus>
+__host__ void configure_2_2_specialized_kernel_for_base_log(
+    uint32_t base_log, uint32_t lwe_dimension, const char *file, int line) {
+  using mp_params = AccumulatorDegree<2048>;
+  switch (base_log) {
+  case 21:
+    configure_2_2_specialized_kernel<Torus, mp_params, 21>(lwe_dimension, file,
+                                                           line);
+    break;
+  case 22:
+    configure_2_2_specialized_kernel<Torus, mp_params, 22>(lwe_dimension, file,
+                                                           line);
+    break;
+  case 23:
+    configure_2_2_specialized_kernel<Torus, mp_params, 23>(lwe_dimension, file,
+                                                           line);
+    break;
+  case 24:
+    configure_2_2_specialized_kernel<Torus, mp_params, 24>(lwe_dimension, file,
+                                                           line);
+    break;
+  case 25:
+    configure_2_2_specialized_kernel<Torus, mp_params, 25>(lwe_dimension, file,
+                                                           line);
+    break;
+  default:
+    PANIC("Unsupported base_log value for the 2_2 specialized kernel");
+  }
 }
 
 template <typename Torus, class params, sharedMemDegree SMD, bool first_iter>
@@ -1047,52 +858,6 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   }
 }
 
-template <typename Torus>
-uint64_t get_buffer_size_programmable_bootstrap(
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory) {
-
-  uint64_t full_sm_step_one =
-      get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
-          polynomial_size);
-  uint64_t full_sm_step_two =
-      get_buffer_size_full_sm_programmable_bootstrap_step_two<Torus>(
-          polynomial_size);
-  uint64_t partial_sm =
-      get_buffer_size_partial_sm_programmable_bootstrap<Torus>(polynomial_size);
-
-  uint64_t partial_dm_step_one = full_sm_step_one - partial_sm;
-  uint64_t partial_dm_step_two = full_sm_step_two - partial_sm;
-  uint64_t full_dm = full_sm_step_one;
-
-  uint64_t device_mem = 0;
-  if (max_shared_memory < partial_sm) {
-    device_mem = safe_mul(full_dm, (size_t)input_lwe_ciphertext_count,
-                          (size_t)level_count, (size_t)(glwe_dimension + 1));
-  } else if (max_shared_memory < full_sm_step_two) {
-    device_mem = safe_mul(partial_dm_step_two + safe_mul(partial_dm_step_one,
-                                                         (size_t)level_count),
-                          (size_t)input_lwe_ciphertext_count,
-                          (size_t)(glwe_dimension + 1));
-  } else if (max_shared_memory < full_sm_step_one) {
-    device_mem =
-        safe_mul(partial_dm_step_one, (size_t)input_lwe_ciphertext_count,
-                 (size_t)level_count, (size_t)(glwe_dimension + 1));
-  }
-  // Otherwise, both kernels run all in shared memory
-  uint64_t buffer_size =
-      device_mem +
-      // global_join_buffer
-      safe_mul_sizeof<double2>(
-          safe_mul((size_t)(glwe_dimension + 1), (size_t)level_count),
-          (size_t)input_lwe_ciphertext_count, (size_t)(polynomial_size / 2)) +
-      // global_accumulator
-      safe_mul_sizeof<Torus>((size_t)(glwe_dimension + 1),
-                             (size_t)input_lwe_ciphertext_count,
-                             (size_t)polynomial_size);
-  return buffer_size + buffer_size % sizeof(double2);
-}
-
 template <typename Torus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
@@ -1273,13 +1038,12 @@ __host__ void execute_step_two(
   check_cuda_error(cudaGetLastError());
 }
 
-enum class ClassicalLaunchMode {
-  AUTO,
-  SPECIALIZED_2_2,
-};
-
-template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_with_mode(
+// Launches the 2_2 specialized (throughput-oriented) classical PBS kernel.
+// The caller guarantees pbs_2_2_specialized_params_checker holds for these
+// parameters and that the bootstrapping key was converted to the FFT16x16x4
+// 2_2 specialized layout.
+template <typename Torus>
+__host__ void host_programmable_bootstrap_2_2_specialized(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -1287,218 +1051,90 @@ __host__ void host_programmable_bootstrap_with_mode(
     pbs_buffer<Torus, CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t num_many_lut, uint32_t lut_stride,
-    ClassicalLaunchMode launch_mode) {
+    uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
 
-  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  // The buffer caches the device's max shared memory at scratch time, so this
+  // defence costs no device query on the launch path.
+  PANIC_IF_FALSE(
+      pbs_2_2_specialized_params_checker<Torus>(
+          polynomial_size, glwe_dimension, level_count, lwe_dimension, base_log,
+          pbs_buffer->max_shared_memory),
+      "Cuda error (classical PBS): the 2_2 specialized variant requires "
+      "(N=2048, level_count=1, glwe_dimension=1, lwe_dimension <= "
+      "%u, base_log in [%u, %u], sufficient shared memory).",
+      SPECIALIZED_2_2_PARAMS_MAX_LWE_DIMENSION,
+      SPECIALIZED_2_2_PARAMS_MIN_BASE_LOG, SPECIALIZED_2_2_PARAMS_MAX_BASE_LOG);
 
-  bool use_specialized;
-  if (launch_mode == ClassicalLaunchMode::SPECIALIZED_2_2) {
-    // This is a more relaxed constraint that just makes sure we have the right
-    // params and enough shared memory. It is used in the test.
-    use_specialized = specialized_2_2_params_checker<uint64_t>(
-        polynomial_size, glwe_dimension, level_count,
-        cuda_get_max_shared_memory(gpu_index));
-    PANIC_IF_FALSE(
-        use_specialized,
-        "Cuda error (classical PBS): forced specialized 2_2 requires "
-        "(N=2048, level_count=1, glwe_dimension=1, sufficient shared memory).");
-  } else {
-    // In auto mode we also check the compute capability.
-    use_specialized = supports_specialized_2_2_params<Torus>(
-        polynomial_size, glwe_dimension, level_count, lwe_dimension,
-        max_shared_memory);
-  }
+  auto noise_reduction_type = pbs_buffer->noise_reduction_type;
 
-  if (use_specialized) {
-    auto noise_reduction_type = pbs_buffer->noise_reduction_type;
-
-    // Kept the old specialized version as fallback, default is throughput
-    // oriented version.
-    if (specialized_2_2_use_throughput_oriented<Torus>(
-            polynomial_size, glwe_dimension, level_count, lwe_dimension,
-            max_shared_memory)) {
-      using mp_params = AccumulatorDegree<2048>;
-      int mp_thds = polynomial_size / mp_params::opt; // 64
-      dim3 mp_grid(input_lwe_ciphertext_count, 1, level_count);
-      dim3 mp_block(mp_thds, glwe_dimension + 1, 1); // (64, 2, 1) = 128 threads
-      uint64_t mp_smem = SPECIALIZED_2_2_PARAMS_MIXPRECISION_SMEM_BYTES;
+  using mp_params = AccumulatorDegree<2048>;
+  int mp_thds = polynomial_size / mp_params::opt; // 64
+  dim3 mp_grid(input_lwe_ciphertext_count, 1, level_count);
+  dim3 mp_block(mp_thds, glwe_dimension + 1, 1); // (64, 2, 1) = 128 threads
+  uint64_t mp_smem = SPECIALIZED_2_2_PARAMS_SMEM_BYTES;
 
 // Names the step that failed, since every call below expands to the line the
 // macro is invoked from.
-#define CHECK_SPECIALIZED_2_2_MIXPRECISION(call, step, BL)                     \
-  check_specialized_2_2_mixprecision_error((call), (step), (BL),               \
-                                           lwe_dimension, mp_grid, mp_block,   \
-                                           mp_smem, __FILE__, __LINE__)
+#define CHECK_2_2_SPECIALIZED(call, step, BL)                                  \
+  check_2_2_specialized_error((call), (step), (BL), lwe_dimension, mp_grid,    \
+                              mp_block, mp_smem, __FILE__, __LINE__)
 
 // The launched size and the opt-in are both the compile-time SMEM_BYTES, never
 // a per-call value: see the a_hat comment above.
-#define LAUNCH_SPECIALIZED_2_2_MIXPRECISION(BL)                                \
+// The kernel attributes were applied once at scratch time
+// (configure_2_2_specialized_kernel_for_base_log); the launch only checks and
+// runs.
+#define LAUNCH_2_2_SPECIALIZED(BL)                                             \
   do {                                                                         \
-    configure_specialized_2_2_mixprecision_kernel<Torus, mp_params, BL>(       \
-        lwe_dimension, __FILE__, __LINE__);                                    \
-    CHECK_SPECIALIZED_2_2_MIXPRECISION(                                        \
-        cudaGetLastError(), "a CUDA call issued before this launch", BL);      \
-    device_programmable_bootstrap_specialized_2_2_params_throughput<           \
-        Torus, mp_params, BL><<<mp_grid, mp_block, mp_smem, stream>>>(         \
-        lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,     \
-        lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,     \
-        num_many_lut, lut_stride, noise_reduction_type);                       \
-    CHECK_SPECIALIZED_2_2_MIXPRECISION(cudaGetLastError(),                     \
-                                       "the kernel launch", BL);               \
+    CHECK_2_2_SPECIALIZED(cudaGetLastError(),                                  \
+                          "a CUDA call issued before this launch", BL);        \
+    device_programmable_bootstrap_2_2_specialized<Torus, mp_params, BL>        \
+        <<<mp_grid, mp_block, mp_smem, stream>>>(                              \
+            lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes, \
+            lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension, \
+            num_many_lut, lut_stride, noise_reduction_type);                   \
+    CHECK_2_2_SPECIALIZED(cudaGetLastError(), "the kernel launch", BL);        \
   } while (0)
 
-      switch (base_log) {
-      case 21:
-        LAUNCH_SPECIALIZED_2_2_MIXPRECISION(21);
-        break;
-      case 22:
-        LAUNCH_SPECIALIZED_2_2_MIXPRECISION(22);
-        break;
-      case 23:
-        LAUNCH_SPECIALIZED_2_2_MIXPRECISION(23);
-        break;
-      case 24:
-        LAUNCH_SPECIALIZED_2_2_MIXPRECISION(24);
-        break;
-      case 25:
-        LAUNCH_SPECIALIZED_2_2_MIXPRECISION(25);
-        break;
-      default:
-        PANIC("Unsupported base_log value for specialized 2_2_params "
-              "mixprecision kernel");
-      }
-      // Both macros are intentionally left defined: the TBC entry point in
-      // programmable_bootstrap_tbc_classic.cuh includes this header and reuses
-      // them. They expect mp_grid / mp_block / mp_smem / mp_params in scope.
-      return;
-    }
-
-    int thds = polynomial_size / params::opt;
-    dim3 grid(input_lwe_ciphertext_count, 1, level_count);
-    dim3 new_block(thds, glwe_dimension + 1, 1);
-    uint64_t full_sm_specialized =
-        get_buffer_size_full_sm_programmable_bootstrap_specialized_2_2_params<
-            Torus>(polynomial_size);
-
-    // Switch on base_log to select the correct template instantiation
-    switch (base_log) {
-    case 21:
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               21>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_specialized));
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               21>,
-          cudaFuncAttributePreferredSharedMemoryCarveout,
-          cudaSharedmemCarveoutMaxShared));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               21>,
-          cudaFuncCachePreferShared));
-      check_cuda_error(cudaGetLastError());
-      device_programmable_bootstrap_specialized_2_2_params<Torus, params, 21>
-          <<<grid, new_block, full_sm_specialized, stream>>>(
-              lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-              lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
-              num_many_lut, lut_stride, noise_reduction_type);
-      check_cuda_error(cudaGetLastError());
-      break;
-    case 22:
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               22>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_specialized));
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               22>,
-          cudaFuncAttributePreferredSharedMemoryCarveout,
-          cudaSharedmemCarveoutMaxShared));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               22>,
-          cudaFuncCachePreferShared));
-      check_cuda_error(cudaGetLastError());
-      device_programmable_bootstrap_specialized_2_2_params<Torus, params, 22>
-          <<<grid, new_block, full_sm_specialized, stream>>>(
-              lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-              lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
-              num_many_lut, lut_stride, noise_reduction_type);
-      check_cuda_error(cudaGetLastError());
-      break;
-    case 23:
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               23>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_specialized));
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               23>,
-          cudaFuncAttributePreferredSharedMemoryCarveout,
-          cudaSharedmemCarveoutMaxShared));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               23>,
-          cudaFuncCachePreferShared));
-      check_cuda_error(cudaGetLastError());
-      device_programmable_bootstrap_specialized_2_2_params<Torus, params, 23>
-          <<<grid, new_block, full_sm_specialized, stream>>>(
-              lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-              lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
-              num_many_lut, lut_stride, noise_reduction_type);
-      check_cuda_error(cudaGetLastError());
-      break;
-    case 24:
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               24>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_specialized));
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               24>,
-          cudaFuncAttributePreferredSharedMemoryCarveout,
-          cudaSharedmemCarveoutMaxShared));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               24>,
-          cudaFuncCachePreferShared));
-      check_cuda_error(cudaGetLastError());
-      device_programmable_bootstrap_specialized_2_2_params<Torus, params, 24>
-          <<<grid, new_block, full_sm_specialized, stream>>>(
-              lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-              lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
-              num_many_lut, lut_stride, noise_reduction_type);
-      check_cuda_error(cudaGetLastError());
-      break;
-    case 25:
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               25>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_specialized));
-      check_cuda_error(cudaFuncSetAttribute(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               25>,
-          cudaFuncAttributePreferredSharedMemoryCarveout,
-          cudaSharedmemCarveoutMaxShared));
-      check_cuda_error(cudaFuncSetCacheConfig(
-          device_programmable_bootstrap_specialized_2_2_params<Torus, params,
-                                                               25>,
-          cudaFuncCachePreferShared));
-      check_cuda_error(cudaGetLastError());
-      device_programmable_bootstrap_specialized_2_2_params<Torus, params, 25>
-          <<<grid, new_block, full_sm_specialized, stream>>>(
-              lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-              lwe_array_in, lwe_input_indexes, bootstrapping_key, lwe_dimension,
-              num_many_lut, lut_stride, noise_reduction_type);
-      check_cuda_error(cudaGetLastError());
-      break;
-    default:
-      PANIC("Unsupported base_log value for specialized 2_2_params kernel");
-    }
-    return;
+  switch (base_log) {
+  case 21:
+    LAUNCH_2_2_SPECIALIZED(21);
+    break;
+  case 22:
+    LAUNCH_2_2_SPECIALIZED(22);
+    break;
+  case 23:
+    LAUNCH_2_2_SPECIALIZED(23);
+    break;
+  case 24:
+    LAUNCH_2_2_SPECIALIZED(24);
+    break;
+  case 25:
+    LAUNCH_2_2_SPECIALIZED(25);
+    break;
+  default:
+    PANIC("Unsupported base_log value for the 2_2 specialized kernel");
   }
+
+#undef LAUNCH_2_2_SPECIALIZED
+#undef CHECK_2_2_SPECIALIZED
+}
+
+// The generic DEFAULT classical PBS: the split step-one/step-two kernels, valid
+// for any parameter set. Expects the bootstrapping key in the default FFT
+// layout.
+template <typename Torus, class params>
+__host__ void host_programmable_bootstrap(
+    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lwe_output_indexes, Torus const *lut_vector,
+    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
+    pbs_buffer<Torus, CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    uint32_t num_many_lut, uint32_t lut_stride) {
+  cuda_set_device(gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
@@ -1558,42 +1194,6 @@ __host__ void host_programmable_bootstrap_with_mode(
           num_many_lut, lut_stride);
     }
   }
-}
-
-template <typename Torus, class params>
-__host__ void host_programmable_bootstrap(
-    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
-    Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
-    Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
-    pbs_buffer<Torus, CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t num_many_lut, uint32_t lut_stride) {
-  host_programmable_bootstrap_with_mode<Torus, params>(
-      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
-      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-      pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
-      level_count, input_lwe_ciphertext_count, num_many_lut, lut_stride,
-      ClassicalLaunchMode::AUTO);
-}
-
-template <typename Torus, class params>
-__host__ void host_programmable_bootstrap_specialized_2_2(
-    cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
-    Torus const *lwe_output_indexes, Torus const *lut_vector,
-    Torus const *lut_vector_indexes, Torus const *lwe_array_in,
-    Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
-    pbs_buffer<Torus, CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t num_many_lut, uint32_t lut_stride) {
-  host_programmable_bootstrap_with_mode<Torus, params>(
-      stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
-      lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-      pbs_buffer, glwe_dimension, lwe_dimension, polynomial_size, base_log,
-      level_count, input_lwe_ciphertext_count, num_many_lut, lut_stride,
-      ClassicalLaunchMode::SPECIALIZED_2_2);
 }
 
 #endif // CUDA_PBS_CUH

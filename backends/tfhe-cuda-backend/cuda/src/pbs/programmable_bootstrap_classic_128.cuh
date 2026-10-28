@@ -872,20 +872,13 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
   return size_tracker;
 }
 
+// Thin forwarder to the shared helper in pbs_utilities.h, so the buffer
+// sizing and the launch-side kernel selection always use the same threshold.
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap_128(
     uint32_t polynomial_size, uint32_t max_shared_memory) {
-  uint64_t minimum_sm =
-      get_buffer_size_full_sm_programmable_bootstrap_tbc<Torus>(
-          polynomial_size);
-
-  if (max_shared_memory < minimum_sm) {
-    // If we cannot allocate all the necessary memory for the TBC implementation
-    // in shared memory we return false.
-    return false;
-  } else {
-    return cuda_check_support_thread_block_clusters();
-  }
+  return supports_distributed_shared_memory_on_classic_programmable_bootstrap<
+      Torus>(polynomial_size, max_shared_memory);
 }
 
 template <typename InputTorus, typename params>
