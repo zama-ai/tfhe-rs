@@ -1,4 +1,6 @@
-use super::{CrtCiphertext, RadixCiphertext, SignedRadixCiphertext};
+#[cfg(feature = "experimental")]
+use super::CrtCiphertext;
+use super::{RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::Ciphertext;
 
@@ -94,6 +96,7 @@ impl IntegerRadixCiphertext for SignedRadixCiphertext {
     }
 }
 
+#[cfg(feature = "experimental")]
 impl IntegerCiphertext for CrtCiphertext {
     fn blocks(&self) -> &[Ciphertext] {
         &self.blocks

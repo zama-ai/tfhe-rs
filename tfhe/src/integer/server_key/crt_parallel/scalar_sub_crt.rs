@@ -1,7 +1,7 @@
-use crate::integer::{CrtCiphertext, ServerKey};
+use crate::integer::{CrtCiphertext, CrtServerKey};
 use rayon::prelude::*;
 
-impl ServerKey {
+impl CrtServerKey {
     /// Computes homomorphically a subtraction between a ciphertext and a scalar.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
