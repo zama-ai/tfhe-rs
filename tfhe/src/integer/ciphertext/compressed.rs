@@ -1,6 +1,5 @@
 use super::{
-    BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CrtCiphertext,
-    RadixCiphertext, SignedRadixCiphertext,
+    BaseRadixCiphertext, BaseSignedRadixCiphertext, RadixCiphertext, SignedRadixCiphertext,
 };
 use crate::shortint::CompressedCiphertext;
 
@@ -30,20 +29,5 @@ impl CompressedSignedRadixCiphertext {
                 .map(CompressedCiphertext::decompress)
                 .collect::<Vec<_>>(),
         )
-    }
-}
-
-/// Structure containing a **compressed** ciphertext in CRT decomposition.
-pub type CompressedCrtCiphertext = BaseCrtCiphertext<CompressedCiphertext>;
-
-impl CompressedCrtCiphertext {
-    pub fn decompress(&self) -> CrtCiphertext {
-        let blocks = self
-            .blocks
-            .iter()
-            .map(CompressedCiphertext::decompress)
-            .collect::<Vec<_>>();
-        let moduli = self.moduli.clone();
-        CrtCiphertext::from((blocks, moduli))
     }
 }

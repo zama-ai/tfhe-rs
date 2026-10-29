@@ -1,18 +1,8 @@
-mod add_crt;
-mod mul_crt;
-mod neg_crt;
-mod scalar_add_crt;
-mod scalar_mul_crt;
-mod scalar_sub_crt;
-mod sub_crt;
-#[cfg(test)]
-mod tests;
-
 use crate::integer::ciphertext::CrtCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::CrtServerKey;
 use rayon::prelude::*;
 
-impl ServerKey {
+impl CrtServerKey {
     /// Extract all the messages.
     ///
     /// # Example
