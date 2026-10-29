@@ -5,7 +5,7 @@ use super::backward_compatibility::key_switching_key::{
 use super::{ClientKey, CompressedServerKey, ServerKey};
 use crate::conformance::ParameterSetConformant;
 use crate::integer::client_key::secret_encryption_key::SecretEncryptionKeyView;
-use crate::integer::IntegerCiphertext;
+use crate::integer::IntegerRadixCiphertext;
 use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use rayon::prelude::*;
@@ -141,14 +141,17 @@ impl KeySwitchingKey {
         Self { key }
     }
 
-    pub fn cast<Int: IntegerCiphertext>(&self, ct: &Int) -> Int {
+    pub fn cast<Int: IntegerRadixCiphertext>(&self, ct: &Int) -> Int {
         Int::from_blocks(
             ct.blocks()
                 .par_iter()
                 .map(|b| {
                     let mut ret = self.key.cast(b);
 
-                    // These next 2 lines are to handle Crt ciphertexts
+                    // The shortint cast labels the output with the destination key's moduli. The
+                    // cast keeps the plaintext encoding (the key requires cast_rshift == 0, i.e.
+                    // the same total message * carry space, not the same split), so keep the
+                    // input block's own moduli.
                     ret.message_modulus = b.message_modulus;
                     ret.carry_modulus = b.carry_modulus;
 

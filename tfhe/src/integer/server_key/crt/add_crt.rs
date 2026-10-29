@@ -1,6 +1,6 @@
-use crate::integer::{CrtCiphertext, ServerKey};
+use crate::integer::{CrtCiphertext, CrtServerKey};
 
-impl ServerKey {
+impl CrtServerKey {
     pub fn unchecked_crt_add_assign(&self, ct_left: &mut CrtCiphertext, ct_right: &CrtCiphertext) {
         for (ct_left_i, ct_right_i) in ct_left.blocks.iter_mut().zip(ct_right.blocks.iter()) {
             self.key.unchecked_add_assign(ct_left_i, ct_right_i);
