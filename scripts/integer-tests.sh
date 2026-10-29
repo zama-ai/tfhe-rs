@@ -30,6 +30,7 @@ nightly_tests_argument=
 all_but_noise_argument=
 no_big_params_argument=
 no_big_params_argument_gpu=
+tier_arguments=()
 cargo_profile="release"
 backend="cpu"
 gpu_feature=""
@@ -128,6 +129,12 @@ if [[ "${NO_BIG_PARAMS_GPU}" == TRUE ]]; then
     no_big_params_argument_gpu=--no-big-params-gpu
 fi
 
+# Comma separated parameter tiers, e.g. TIERS=0 or TIERS=1,2
+TIERS="${TIERS// /}"
+for tier in ${TIERS//,/ }; do
+    tier_arguments+=(--tier "${tier}")
+done
+
 if [[ "${backend}" == "gpu" && -z "${gpu_feature}" ]]; then
     gpu_feature="gpu"
 fi
@@ -175,7 +182,7 @@ if [[ -n "${DOCTEST_THREADS}" ]]; then
     doctest_threads="${DOCTEST_THREADS}"
 fi
 
-filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${nightly_tests_argument:+$nightly_tests_argument} ${all_but_noise_argument:+$all_but_noise_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} ${no_big_params_argument:+$no_big_params_argument})
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${nightly_tests_argument:+$nightly_tests_argument} ${all_but_noise_argument:+$all_but_noise_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} ${no_big_params_argument:+$no_big_params_argument} "${tier_arguments[@]}")
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
     echo "Running 'fast' test set"
@@ -191,6 +198,23 @@ if [[ "${NIGHTLY_TESTS}" == "TRUE" ]]; then
     echo "Running 'nightly' test set"
 fi
 
+if [[ -n "${TIERS}" ]]; then
+    echo "Running tier(s) ${TIERS} test set"
+
+    # Run the check that checks that no CPU integer test is left behind (not run)
+    # due to bad filtering
+    #
+    # Use the same arguments as the real run to only build the binary once
+    test_list=$(cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest list \
+        --tests \
+        --cargo-profile "${cargo_profile}" \
+        --package "${tfhe_package}" \
+        --no-default-features \
+        --features=integer,internal-keycache,zk-pok,experimental,"${avx512_feature}","${gpu_feature}" \
+        --message-format json)
+    /usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" --check <<< "${test_list}"
+fi
+
 echo "${filter_expression}"
 
 cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest run \
@@ -203,7 +227,9 @@ cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} nextest run \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
-if [[ -z ${multi_bit_argument} && -z ${long_tests_argument} ]]; then
+# Doctests do not depend on the parameter tiers nor on the sign, they run with tier 0
+# in the job running the unsigned tests
+if [[ -z ${multi_bit_argument} && -z ${long_tests_argument} && "${sign_argument}" != --signed-only ]] && [[ -z "${TIERS}" || ",${TIERS}," == *",0,"* ]]; then
     cargo ${RUST_TOOLCHAIN:+"$RUST_TOOLCHAIN"} test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \

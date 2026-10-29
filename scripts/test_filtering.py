@@ -1,9 +1,61 @@
 """
 Script that generates a cargo-nextest filter as an output.
 The string result can be directly injected into a nextest command.
+
+With --check, it instead reads `cargo nextest list --message-format json` on stdin and checks
+that the CI workflows run every CPU integer test.
 """
 
 import argparse
+import glob
+import json
+import re
+import sys
+
+# Parameter tiers of the CPU integer tests: a test belongs to the tier whose regexes match its
+# name, i.e. the param suffix added by create_parameterized_test!.
+# Tier 0 (prod params, tested on each PR) is every test no other tier matches, so tests without
+# a param in their name, or with a param missing from this table, are tested the most, not never.
+CPU_INTEGER_TIERS = {
+    # Not prod but promoted to users
+    1: [r"_ks32_pbs_tuniform_2m128$"],
+    # Less used params
+    2: [
+        r"_param_message_1_carry_1_",
+        r"_param_multi_bit_group_\d_message_[12]_carry_[12]_",
+        r"_message_2_carry_2_ks_pbs_gaussian_2m128$",
+    ],
+    # Big (slow) params and legacy ones
+    3: [
+        r"_message_[34]_carry_[34]_",
+        r"_message_2_carry_3_",
+        r"_compact_pk_",
+        r"_pbs_ks_gaussian_",
+        r"legacy_wopbs_param_",
+    ],
+}
+
+# Tier 0 should only hold the prod params, under all their alias spellings. A test of another
+# param in tier 0 means that param is missing from CPU_INTEGER_TIERS.
+CPU_INTEGER_TIER_0_PARAMS = r"_param_message_2_carry_2(_ks_pbs_tuniform_2m128)?$"
+
+# Tests that no tier runs, with the reason. A pattern must match the tests of a single test
+# function (for any param), so that it cannot exclude more than intended.
+CPU_INTEGER_NEVER_RUN = {
+    r"::test_integer_default_div_(test_)?param_": "covered by integer_default_div_rem",
+    r"::test_integer_default_rem_(test_)?param_": "covered by integer_default_div_rem",
+}
+
+# Long run tests have their own workflow
+INTEGER_LONG_RUN_TESTS = r"::tests_long_run::"
+
+# Workflows running tiered integer tests, they give the tiers as a literal input (`tiers: "1"`)
+TIERED_INTEGER_WORKFLOWS = ".github/workflows/aws_tfhe_integer_tests*.yml"
+WORKFLOW_TIERS_INPUT = re.compile(r"^\s*tiers:\s*[\"']?([0-9][0-9, ]*)[\"']?\s*(#.*)?$", re.MULTILINE)
+# Jobs triggered by a cron have a `github.event.schedule == '<cron>'` condition, if the cron is
+# not in the `schedule` of the workflow, the job silently never runs
+WORKFLOW_CRON = re.compile(r"^\s*-\s*cron:\s*([\"']?)(.+?)\1\s*(#.*)?$", re.MULTILINE)
+WORKFLOW_SCHEDULE_CONDITION = re.compile(r"github\.event\.schedule\s*==\s*[\"']([^\"']+)[\"']")
 
 parser = argparse.ArgumentParser(allow_abbrev=False)
 parser.add_argument(
@@ -80,6 +132,21 @@ parser.add_argument(
     action="store_true",
     help="Run all tests except noise tests",
 )
+parser.add_argument(
+    "--tier",
+    dest="tiers",
+    action="append",
+    type=int,
+    choices=sorted({0, *CPU_INTEGER_TIERS}),
+    help="Run the tests of this parameter tier (integer layer, cpu backend), can be repeated",
+)
+parser.add_argument(
+    "--check",
+    dest="check",
+    action="store_true",
+    help="Check that the CI workflows run every CPU integer test listed by "
+    "`cargo nextest list --message-format json` (read on stdin)",
+)
 
 # block PBS are too slow for high params
 # mul_crt_4_4 is extremely flaky (~80% failure)
@@ -115,6 +182,9 @@ EXCLUDED_BIG_PARAMETERS_GPU = [
 
 
 def filter_integer_tests(input_args):
+    if input_args.tiers:
+        return filter_cpu_integer_tests_by_tier(input_args)
+
     # Run all tests except noise tests if all_but_noise is specified on GPU
     if input_args.all_but_noise and input_args.backend == "gpu":
         filter_expression = [
@@ -195,6 +265,132 @@ def filter_integer_tests(input_args):
     return " and ".join(filter_expression)
 
 
+def cpu_integer_tiers_of(test_name):
+    """Tiers whose regexes match a test name, [0] when none does"""
+    tiers = [
+        tier
+        for tier, patterns in CPU_INTEGER_TIERS.items()
+        if any(re.search(pattern, test_name) for pattern in patterns)
+    ]
+    return tiers or [0]
+
+
+def filter_cpu_integer_tests_by_tier(input_args):
+    tier_filters = []
+    # Each tier adds one term `test(xxx)` / `not test(xxx)` and are composed with `or`,
+    # i.e. despite tier 0 being defined differently, it can be combined with other tiers
+    # e.g. --tier 0 --tier 1 (TIERS=0,1 for the Makefile)
+    for tier in sorted(set(input_args.tiers)):
+        # Tier 0 is defined as: everything but other tiers
+        # This definition is what allows to be confident that tests that do not need to 
+        # be parameterized will run, and they will run as frequently as tier 0 runs
+        if tier == 0:
+            other_tiers = "|".join(
+                pattern for patterns in CPU_INTEGER_TIERS.values() for pattern in patterns
+            )
+            tier_filters.append(f"not test(/{other_tiers}/)")
+        else:
+            tier_filters.append(f"test(/{'|'.join(CPU_INTEGER_TIERS[tier])}/)")
+
+    filter_expression = ["test(/^integer::/)", f"({' or '.join(tier_filters)})"]
+
+    if input_args.signed_only:
+        filter_expression.append("test(~_signed)")
+    if input_args.unsigned_only:
+        filter_expression.append("not test(~_signed)")
+
+    filter_expression.append(f"not test(/{INTEGER_LONG_RUN_TESTS}/)")
+    for pattern in CPU_INTEGER_NEVER_RUN:
+        filter_expression.append(f"not test(/{pattern}/)")
+
+    return " and ".join(filter_expression)
+
+
+def workflow_tiers(workflow_files):
+    """Tiers given as a literal `tiers:` input in the workflow files"""
+    tiers = set()
+    for workflow_file in workflow_files:
+        with open(workflow_file) as f:
+            for match in WORKFLOW_TIERS_INPUT.finditer(f.read()):
+                tiers |= {int(tier) for tier in match.group(1).replace(" ", "").split(",") if tier}
+    return tiers
+
+
+def workflow_schedule_errors(workflow_files):
+    """
+    Lists the jobs conditioned on a cron that their workflow does not have (the job never runs),
+    and the crons that no job is conditioned on (the cron runs nothing)
+    """
+    errors = []
+    for workflow_file in workflow_files:
+        with open(workflow_file) as f:
+            content = f.read()
+        crons = {match.group(2) for match in WORKFLOW_CRON.finditer(content)}
+        conditions = set(WORKFLOW_SCHEDULE_CONDITION.findall(content))
+        for cron in sorted(conditions - crons):
+            errors.append(f"{workflow_file}: a job runs on schedule '{cron}', which is not a cron")
+        for cron in sorted(crons - conditions):
+            errors.append(f"{workflow_file}: no job runs on cron '{cron}'")
+    return errors
+
+
+def check_cpu_integer_tiers(test_list, scheduled_tiers):
+    """
+    Lists errors that prevent a CPU integer test from the `test_list` from being run in any
+    of the `scheduled_tiers`.
+    The scheduled tiers must be the tiers CPU_INTEGER_TIERS defines, no more no less.
+
+    `test_list` is the json coming from `cargo nextest list --message-format json`
+    """
+    # Lists all tests for CPU integer, as the `test_list` will contain tests for other
+    # modules
+    tests = {}  # test name -> ignored
+    for suite in test_list["rust-suites"].values():
+        for name, test_case in suite["testcases"].items():
+            if name.startswith("integer::") and not name.startswith("integer::gpu::"):
+                tests[name] = test_case["ignored"]
+
+    errors = []
+
+    defined_tiers = {0, *CPU_INTEGER_TIERS}
+    for tier in sorted(defined_tiers - scheduled_tiers):
+        errors.append(f"tier {tier} is not run by any workflow")
+    for tier in sorted(scheduled_tiers - defined_tiers):
+        errors.append(f"a workflow runs tier {tier}, which CPU_INTEGER_TIERS does not define")
+
+    for pattern, reason in CPU_INTEGER_NEVER_RUN.items():
+        # A test function is the test name without its param suffix
+        functions = {
+            re.sub(r"_(test_)?param_.*$", "", name) for name in tests if re.search(pattern, name)
+        }
+        if len(functions) != 1:
+            errors.append(
+                f"CPU_INTEGER_NEVER_RUN pattern {pattern!r} ({reason}) must match the tests of "
+                f"one test function, it matches {len(functions)}"
+            )
+
+    for name, ignored in sorted(tests.items()):
+        if ignored:
+            errors.append(f"{name}: is #[ignore]d, nextest does not run it")
+        if re.search(INTEGER_LONG_RUN_TESTS, name) or any(
+            re.search(pattern, name) for pattern in CPU_INTEGER_NEVER_RUN
+        ):
+            continue
+
+        tiers = cpu_integer_tiers_of(name)
+        test_function = name.rsplit("::", 1)[-1]
+        if len(tiers) > 1:
+            errors.append(f"{name}: belongs to several tiers {tiers}")
+        elif (
+            tiers[0] == 0
+            and "_param_" in test_function
+            and not re.search(CPU_INTEGER_TIER_0_PARAMS, test_function)
+        ):
+            errors.append(f"{name}: its param has no tier, add it to CPU_INTEGER_TIERS")
+
+    return errors
+
+
 def filter_shortint_tests(input_args):
     multi_bit_filter, group_filter = (
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
@@ -239,6 +435,33 @@ def filter_shortint_tests(input_args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+
+    if (args.tiers or args.check) and (args.layer != "integer" or args.backend != "cpu"):
+        parser.error("--tier and --check only apply to the integer layer on the cpu backend")
+    if args.tiers and (
+        args.fast_tests
+        or args.nightly_tests
+        or args.long_tests
+        or args.no_big_params
+        or args.all_but_noise
+        or args.multi_bit
+    ):
+        parser.error(
+            "--tier replaces --fast-tests, --nightly-tests, --long-tests, --no-big-params, "
+            "--all-but-noise and --multi-bit (multi-bit params belong to tiers like any param)"
+        )
+
+    if args.check:
+        workflow_files = sorted(glob.glob(TIERED_INTEGER_WORKFLOWS))
+        scheduled_tiers = workflow_tiers(workflow_files)
+        errors = workflow_schedule_errors(workflow_files)
+        errors += check_cpu_integer_tiers(json.load(sys.stdin), scheduled_tiers)
+        if errors:
+            for error in errors:
+                print(error, file=sys.stderr)
+            sys.exit(f"{len(errors)} error(s), some CPU integer tests would not run in CI")
+        print(f"Every CPU integer test runs in CI (scheduled tiers: {sorted(scheduled_tiers)})")
+        sys.exit(0)
 
     expression = ""
 
