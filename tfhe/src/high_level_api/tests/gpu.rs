@@ -79,6 +79,37 @@ fn test_drop_rayon_pool_with_gpu_server_key_thread_locals() {
     drop(pool);
 }
 
+/// Regression test: on GPU, a select with boolean branches used to return a
+/// CudaBooleanBlock whose degree metadata was the message-extraction LUT's
+/// worst case (message_modulus - 1) instead of <= 1. The value was correct,
+/// but the first boolean op consuming the result panicked on the
+/// CudaBooleanBlock degree assert.
+#[test]
+fn test_gpu_bool_if_then_else_result_is_usable() {
+    let config = ConfigBuilder::default().build();
+    let cks = ClientKey::generate(config);
+    let compressed_sks = CompressedServerKey::new(&cks);
+    set_server_key(compressed_sks.decompress_to_gpu());
+
+    for cond in [false, true] {
+        for a in [false, true] {
+            for b in [false, true] {
+                let ct_cond = FheBool::encrypt(cond, &cks);
+                let ct_a = FheBool::encrypt(a, &cks);
+                let ct_b = FheBool::encrypt(b, &cks);
+
+                let selected = ct_cond.if_then_else(&ct_a, &ct_b);
+                // Consuming the result is what used to panic
+                let consumed = &selected | &ct_a;
+
+                let expected = if cond { a } else { b };
+                assert_eq!(selected.decrypt(&cks), expected);
+                assert_eq!(consumed.decrypt(&cks), expected | a);
+            }
+        }
+    }
+}
+
 #[test]
 fn test_gpu_selection() {
     let config = ConfigBuilder::default().build();
