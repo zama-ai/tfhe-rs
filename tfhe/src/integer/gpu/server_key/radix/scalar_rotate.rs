@@ -13,7 +13,8 @@ use crate::integer::server_key::radix_parallel::scalar_rotate::reduce_scalar_rot
 use std::ops::Rem;
 
 impl CudaServerKey {
-    pub fn unchecked_scalar_rotate_left<Scalar, T>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_scalar_rotate_left<Scalar, T>(
         &self,
         ct: &T,
         n: Scalar,
@@ -29,7 +30,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_scalar_rotate_left_assign<Scalar, T>(
+    pub(crate) fn unchecked_scalar_rotate_left_assign<Scalar, T>(
         &self,
         ct: &mut T,
         n: Scalar,
@@ -72,7 +73,8 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_scalar_rotate_right<Scalar, T>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_scalar_rotate_right<Scalar, T>(
         &self,
         ct: &T,
         n: Scalar,
@@ -88,7 +90,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_scalar_rotate_right_assign<Scalar, T>(
+    pub(crate) fn unchecked_scalar_rotate_right_assign<Scalar, T>(
         &self,
         ct: &mut T,
         n: Scalar,

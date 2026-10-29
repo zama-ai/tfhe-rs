@@ -59,7 +59,6 @@ on:
         options:
           - default
           - fast_default
-          - unchecked
       precisions_set:
         description: "Bit precisions set"
         type: choice

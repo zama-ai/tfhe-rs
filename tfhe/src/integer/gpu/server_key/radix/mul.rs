@@ -7,52 +7,14 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
+    #[cfg(test)]
     /// Computes homomorphically a multiplication between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let number_of_blocks = 2;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
-    ///
-    /// let modulus = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-    ///     .message_modulus
-    ///     .0
-    ///     .pow(number_of_blocks as u32);
-    /// let clear_1: u64 = 13 % modulus;
-    /// let clear_2: u64 = 4 % modulus;
-    ///
-    /// // Encrypt two messages
-    /// let ctxt_1 = cks.encrypt_radix(clear_1, number_of_blocks);
-    /// let ctxt_2 = cks.encrypt_radix(clear_2, number_of_blocks);
-    ///
-    /// let d_ctxt_1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &streams);
-    /// let d_ctxt_2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &streams);
-    ///
-    /// // Compute homomorphically a multiplication
-    /// let d_ct_res = sks.unchecked_mul(&d_ctxt_1, &d_ctxt_2, &streams);
-    ///
-    /// // Decrypt
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    /// let res: u64 = cks.decrypt_radix(&ct_res);
-    /// assert_eq!((clear_1 * clear_2) % modulus, res);
-    /// ```
-    pub fn unchecked_mul<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_mul<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -63,7 +25,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_mul_assign<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_mul_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,

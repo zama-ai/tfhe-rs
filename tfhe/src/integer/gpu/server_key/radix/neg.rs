@@ -14,40 +14,8 @@ impl CudaServerKey {
     /// capacity of the ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// // Encrypt two messages:
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let modulus = 1 << 8;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg = 159u64;
-    ///
-    /// // Encrypt a message
-    /// let ctxt = cks.encrypt(msg);
-    /// let d_ctxt = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt, &streams);
-    ///
-    /// // Compute homomorphically a negation
-    /// let d_res = sks.unchecked_neg(&d_ctxt, &streams);
-    /// let res = d_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt
-    /// let dec: u64 = cks.decrypt(&res);
-    /// assert_eq!(modulus - msg, dec);
-    /// ```
-    pub fn unchecked_neg<T: CudaIntegerRadixCiphertext>(
+    #[allow(clippy::unused_self)]
+    pub(crate) fn unchecked_neg<T: CudaIntegerRadixCiphertext>(
         &self,
         ctxt: &T,
         streams: &CudaStreams,

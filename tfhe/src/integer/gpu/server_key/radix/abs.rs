@@ -4,7 +4,7 @@ use crate::integer::gpu::cuda_backend_unchecked_signed_abs_assign;
 use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 
 impl CudaServerKey {
-    pub fn unchecked_abs_assign<T>(&self, ct: &mut T, streams: &CudaStreams)
+    pub(crate) fn unchecked_abs_assign<T>(&self, ct: &mut T, streams: &CudaStreams)
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -37,7 +37,8 @@ impl CudaServerKey {
             );
         }
     }
-    pub fn unchecked_abs<T>(&self, ct: &T, streams: &CudaStreams) -> T
+    #[cfg(test)]
+    pub(crate) fn unchecked_abs<T>(&self, ct: &T, streams: &CudaStreams) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {

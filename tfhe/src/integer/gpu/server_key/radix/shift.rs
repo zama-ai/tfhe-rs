@@ -8,7 +8,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    pub fn unchecked_right_shift_assign<T>(
+    pub(crate) fn unchecked_right_shift_assign<T>(
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
@@ -48,7 +48,8 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_right_shift<T>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_right_shift<T>(
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
@@ -62,7 +63,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_left_shift_assign<T>(
+    pub(crate) fn unchecked_left_shift_assign<T>(
         &self,
         ct: &mut T,
         shift: &CudaUnsignedRadixCiphertext,
@@ -102,7 +103,8 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_left_shift<T>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_left_shift<T>(
         &self,
         ct: &T,
         shift: &CudaUnsignedRadixCiphertext,
@@ -145,7 +147,7 @@ impl CudaServerKey {
     /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
     /// let d_shift_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&shift_ct, &streams);
     ///
-    /// let d_ct_res = sks.unchecked_right_shift(&d_ct, &d_shift_ct, &streams);
+    /// let d_ct_res = sks.right_shift(&d_ct, &d_shift_ct, &streams);
     ///
     /// // Copy back to CPU
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);

@@ -13,49 +13,14 @@ use crate::integer::gpu::{
 use crate::integer::server_key::radix_parallel::OutputFlag;
 
 impl CudaServerKey {
+    #[cfg(test)]
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
     ///
     /// This function computes the subtraction without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
-    ///
-    /// let msg_1 = 12;
-    /// let msg_2 = 10;
-    ///
-    /// // Encrypt two messages:
-    /// let ctxt_1 = cks.encrypt(msg_1);
-    /// let ctxt_2 = cks.encrypt(msg_2);
-    ///
-    /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &streams);
-    ///
-    /// // Compute homomorphically an addition:
-    /// let d_ct_res = sks.unchecked_sub(&d_ct1, &d_ct2, &streams);
-    ///
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg_1 - msg_2);
-    /// ```
-    pub fn unchecked_sub<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_sub<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -66,50 +31,14 @@ impl CudaServerKey {
         result
     }
 
+    #[cfg(test)]
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
     ///
     /// This function computes the subtraction without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
-    ///
-    /// let msg_1 = 128;
-    /// let msg_2 = 99;
-    ///
-    /// // Encrypt two messages:
-    /// let ctxt_1 = cks.encrypt(msg_1);
-    /// let ctxt_2 = cks.encrypt(msg_2);
-    ///
-    /// // Copy to GPU
-    /// let mut d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_2, &streams);
-    ///
-    /// // Compute homomorphically an addition:
-    /// sks.unchecked_sub_assign(&mut d_ct1, &d_ct2, &streams);
-    ///
-    /// let ct_res = d_ct1.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec_result: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec_result, msg_1 - msg_2);
-    /// ```
-    pub fn unchecked_sub_assign<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_sub_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -267,7 +196,7 @@ impl CudaServerKey {
         self.unchecked_unsigned_overflowing_sub(lhs, rhs, stream)
     }
 
-    pub fn unchecked_unsigned_overflowing_sub(
+    pub(crate) fn unchecked_unsigned_overflowing_sub(
         &self,
         lhs: &CudaUnsignedRadixCiphertext,
         rhs: &CudaUnsignedRadixCiphertext,
@@ -438,7 +367,7 @@ impl CudaServerKey {
         self.unchecked_signed_overflowing_sub(lhs, rhs, stream)
     }
 
-    pub fn unchecked_signed_overflowing_sub(
+    pub(crate) fn unchecked_signed_overflowing_sub(
         &self,
         ct_left: &CudaSignedRadixCiphertext,
         ct_right: &CudaSignedRadixCiphertext,

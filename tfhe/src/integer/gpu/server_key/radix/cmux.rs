@@ -8,7 +8,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    pub fn unchecked_if_then_else<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_if_then_else<T: CudaIntegerRadixCiphertext>(
         &self,
         condition: &CudaBooleanBlock,
         true_ct: &T,

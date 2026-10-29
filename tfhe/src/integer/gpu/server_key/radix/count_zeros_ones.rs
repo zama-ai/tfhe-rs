@@ -75,34 +75,6 @@ impl CudaServerKey {
         self.unchecked_count_bits(ct, bit_value, streams)
     }
 
-    /// Counts the bits of ct equal to BitValue::One, see [Self::count_ones]
-    ///
-    /// Expects ct to have clean carries and blocks with a nominal noise level
-    pub fn unchecked_count_ones<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.unchecked_count_bits(ct, BitValue::One, streams)
-    }
-
-    /// Counts the bits of ct equal to BitValue::Zero, see [Self::count_zeros]
-    ///
-    /// Expects ct to have clean carries and blocks with a nominal noise level
-    pub fn unchecked_count_zeros<T>(
-        &self,
-        ct: &T,
-        streams: &CudaStreams,
-    ) -> CudaUnsignedRadixCiphertext
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.unchecked_count_bits(ct, BitValue::Zero, streams)
-    }
-
     /// Returns the number of ones in the binary representation of ct
     ///
     /// Carries of ct are propagated on a copy first if needed (also when a block has a

@@ -9,7 +9,7 @@ use crate::integer::gpu::server_key::CudaServerKey;
 use crate::shortint::parameters::{AtomicPatternKind, Degree, NoiseLevel};
 
 impl CudaServerKey {
-    pub fn unchecked_is_even<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
+    pub(crate) fn unchecked_is_even<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {
@@ -45,7 +45,7 @@ impl CudaServerKey {
         self.unchecked_is_even(ct, streams)
     }
 
-    pub fn unchecked_is_odd<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
+    pub(crate) fn unchecked_is_odd<T>(&self, ct: &T, streams: &CudaStreams) -> CudaBooleanBlock
     where
         T: CudaIntegerRadixCiphertext,
     {

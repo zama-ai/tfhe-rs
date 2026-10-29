@@ -11,47 +11,14 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
+    #[cfg(test)]
     /// Computes homomorphically bitnot for an encrypted integer value.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg = 1u64;
-    ///
-    /// let ct = cks.encrypt(msg);
-    ///
-    /// // Copy to GPU
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
-    ///
-    /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitnot(&d_ct, &streams);
-    ///
-    /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec, !msg % 256);
-    /// ```
-    pub fn unchecked_bitnot<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_bitnot<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &T,
         streams: &CudaStreams,
@@ -61,7 +28,7 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
         streams: &CudaStreams,
@@ -354,17 +321,7 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_boolean_bitnot(
-        &self,
-        ct: &CudaBooleanBlock,
-        streams: &CudaStreams,
-    ) -> CudaBooleanBlock {
-        let mut result = ct.duplicate(streams);
-        self.unchecked_boolean_bitnot_assign(&mut result, streams);
-        result
-    }
-
-    pub fn unchecked_boolean_bitnot_assign(
+    pub(crate) fn unchecked_boolean_bitnot_assign(
         &self,
         ct: &mut CudaBooleanBlock,
         streams: &CudaStreams,
@@ -396,50 +353,14 @@ impl CudaServerKey {
         }
     }
 
+    #[cfg(test)]
     /// Computes homomorphically bitand between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg1 = 201u64;
-    /// let msg2 = 1u64;
-    ///
-    /// let ct1 = cks.encrypt(msg1);
-    /// let ct2 = cks.encrypt(msg2);
-    ///
-    /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
-    ///
-    /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitand(&d_ct1, &d_ct2, &streams);
-    ///
-    /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec, msg1 & msg2);
-    /// ```
-    pub fn unchecked_bitand<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_bitand<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -599,7 +520,8 @@ impl CudaServerKey {
         actual_full_prop_mem.max(bitop_mem)
     }
 
-    pub fn unchecked_bitand_assign<T: CudaIntegerRadixCiphertext>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_bitand_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -608,50 +530,14 @@ impl CudaServerKey {
         self.unchecked_bitop_assign(ct_left, ct_right, BitOpType::And, streams);
     }
 
+    #[cfg(test)]
     /// Computes homomorphically bitor between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg1 = 200u64;
-    /// let msg2 = 1u64;
-    ///
-    /// let ct1 = cks.encrypt(msg1);
-    /// let ct2 = cks.encrypt(msg2);
-    ///
-    /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
-    ///
-    /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitor(&d_ct1, &d_ct2, &streams);
-    ///
-    /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec, msg1 | msg2);
-    /// ```
-    pub fn unchecked_bitor<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_bitor<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -662,7 +548,8 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_bitor_assign<T: CudaIntegerRadixCiphertext>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_bitor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -671,50 +558,14 @@ impl CudaServerKey {
         self.unchecked_bitop_assign(ct_left, ct_right, BitOpType::Or, streams);
     }
 
+    #[cfg(test)]
     /// Computes homomorphically bitxor between two ciphertexts encrypting integer values.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, size, &streams);
-    ///
-    /// let msg1 = 49;
-    /// let msg2 = 64;
-    ///
-    /// let ct1 = cks.encrypt(msg1);
-    /// let ct2 = cks.encrypt(msg2);
-    ///
-    /// // Copy to GPU
-    /// let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
-    /// let d_ct2 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct2, &streams);
-    ///
-    /// // Compute homomorphically a bitwise and:
-    /// let d_ct_res = sks.unchecked_bitxor(&d_ct1, &d_ct2, &streams);
-    ///
-    /// // Copy back to CPU
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// // Decrypt:
-    /// let dec: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(dec, msg1 ^ msg2);
-    /// ```
-    pub fn unchecked_bitxor<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn unchecked_bitxor<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
         ct_right: &T,
@@ -725,7 +576,8 @@ impl CudaServerKey {
         result
     }
 
-    pub fn unchecked_bitxor_assign<T: CudaIntegerRadixCiphertext>(
+    #[cfg(test)]
+    pub(crate) fn unchecked_bitxor_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,

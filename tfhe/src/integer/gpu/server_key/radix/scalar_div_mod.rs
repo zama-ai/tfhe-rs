@@ -26,41 +26,7 @@ impl CudaServerKey {
     /// ciphertext.
     ///
     /// The result is returned as a new ciphertext.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    ///
-    /// let gpu_index = 0;
-    /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    ///
-    /// // We have 4 * 2 = 8 bits of message
-    /// let size = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(
-    ///     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    ///     size,
-    ///     &streams,
-    /// );
-    ///
-    /// let msg = 30;
-    /// let scalar = 3;
-    ///
-    /// let ct = cks.encrypt(msg);
-    /// let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
-    ///
-    /// // Compute homomorphically a scalar division:
-    /// let d_ct_res = sks.unchecked_scalar_div(&d_ct, scalar, &streams);
-    /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
-    ///
-    /// let clear: u64 = cks.decrypt(&ct_res);
-    /// assert_eq!(msg / scalar, clear);
-    /// ```
-    pub fn unchecked_scalar_div<Scalar>(
+    pub(crate) fn unchecked_scalar_div<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
         divisor: Scalar,
@@ -161,7 +127,7 @@ impl CudaServerKey {
         self.unchecked_scalar_div(numerator, divisor, streams)
     }
 
-    pub fn unchecked_scalar_div_rem<Scalar>(
+    pub(crate) fn unchecked_scalar_div_rem<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
         divisor: Scalar,
@@ -268,7 +234,7 @@ impl CudaServerKey {
         self.unchecked_scalar_div_rem(numerator, divisor, streams)
     }
 
-    pub fn unchecked_scalar_rem<Scalar>(
+    pub(crate) fn unchecked_scalar_rem<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
         divisor: Scalar,
@@ -334,7 +300,7 @@ impl CudaServerKey {
         self.unchecked_scalar_rem(numerator, divisor, streams)
     }
 
-    pub fn unchecked_signed_scalar_div<Scalar>(
+    pub(crate) fn unchecked_signed_scalar_div<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
         divisor: Scalar,
@@ -434,7 +400,7 @@ impl CudaServerKey {
         self.unchecked_signed_scalar_div(numerator, divisor, streams)
     }
 
-    pub fn unchecked_signed_scalar_div_rem<Scalar>(
+    pub(crate) fn unchecked_signed_scalar_div_rem<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
         divisor: Scalar,
@@ -538,7 +504,7 @@ impl CudaServerKey {
         self.unchecked_signed_scalar_div_rem(numerator, divisor, streams)
     }
 
-    pub fn unchecked_signed_scalar_rem<Scalar>(
+    pub(crate) fn unchecked_signed_scalar_rem<Scalar>(
         &self,
         numerator: &CudaSignedRadixCiphertext,
         divisor: Scalar,

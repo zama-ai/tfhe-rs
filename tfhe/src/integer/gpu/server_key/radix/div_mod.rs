@@ -7,7 +7,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    pub fn unchecked_div_rem_assign<T>(
+    pub(crate) fn unchecked_div_rem_assign<T>(
         &self,
         quotient: &mut T,
         remainder: &mut T,
@@ -51,7 +51,12 @@ impl CudaServerKey {
         }
     }
 
-    pub fn unchecked_div_rem<T>(&self, numerator: &T, divisor: &T, streams: &CudaStreams) -> (T, T)
+    pub(crate) fn unchecked_div_rem<T>(
+        &self,
+        numerator: &T,
+        divisor: &T,
+        streams: &CudaStreams,
+    ) -> (T, T)
     where
         T: CudaIntegerRadixCiphertext,
     {

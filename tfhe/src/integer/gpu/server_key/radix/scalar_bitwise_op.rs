@@ -9,7 +9,7 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
-    pub fn unchecked_scalar_bitop_assign<Scalar, T>(
+    pub(crate) fn unchecked_scalar_bitop_assign<Scalar, T>(
         &self,
         ct: &mut T,
         rhs: Scalar,
@@ -57,82 +57,6 @@ impl CudaServerKey {
                 lwe_ciphertext_count.0 as u32,
             );
         }
-    }
-
-    pub fn unchecked_scalar_bitand<Scalar, T>(
-        &self,
-        ct: &T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let mut result = ct.duplicate(streams);
-        self.unchecked_scalar_bitand_assign(&mut result, rhs, streams);
-        result
-    }
-
-    pub fn unchecked_scalar_bitand_assign<Scalar, T>(
-        &self,
-        ct: &mut T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarAnd, streams);
-    }
-
-    pub fn unchecked_scalar_bitor<Scalar, T>(&self, ct: &T, rhs: Scalar, streams: &CudaStreams) -> T
-    where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let mut result = ct.duplicate(streams);
-        self.unchecked_scalar_bitor_assign(&mut result, rhs, streams);
-        result
-    }
-
-    pub fn unchecked_scalar_bitor_assign<Scalar, T>(
-        &self,
-        ct: &mut T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarOr, streams);
-    }
-
-    pub fn unchecked_scalar_bitxor<Scalar, T>(
-        &self,
-        ct: &T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let mut result = ct.duplicate(streams);
-        self.unchecked_scalar_bitxor_assign(&mut result, rhs, streams);
-        result
-    }
-
-    pub fn unchecked_scalar_bitxor_assign<Scalar, T>(
-        &self,
-        ct: &mut T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-    ) where
-        Scalar: DecomposableInto<u8>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        self.unchecked_scalar_bitop_assign(ct, rhs, BitOpType::ScalarXor, streams);
     }
 
     pub fn scalar_bitand_assign<Scalar, T>(&self, ct: &mut T, rhs: Scalar, streams: &CudaStreams)
