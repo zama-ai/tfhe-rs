@@ -1,14 +1,14 @@
 use crate::integer::ciphertext::CrtCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::CrtServerKey;
 use rayon::prelude::*;
 
-impl ServerKey {
-    /// Computes homomorphically an addition between two ciphertexts encrypting integer
+impl CrtServerKey {
+    /// Computes homomorphically a multiplication between two ciphertexts encrypting integer
     /// values in the CRT decomposition.
     ///
     /// # Example
     ///
-    ///```rust
+    /// ```rust
     /// use tfhe::integer::gen_keys_crt;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
     ///
@@ -17,21 +17,20 @@ impl ServerKey {
     /// let modulus: u64 = basis.iter().product();
     /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128, basis);
     ///
-    /// let clear_1 = 14;
-    /// let clear_2 = 14;
+    /// let clear_1 = 29;
+    /// let clear_2 = 23;
     ///
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     /// let ctxt_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// sks.unchecked_crt_add_assign_parallelized(&mut ctxt_1, &ctxt_2);
-    ///
+    /// sks.unchecked_crt_mul_assign_parallelized(&mut ctxt_1, &ctxt_2);
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
-    /// assert_eq!((clear_1 + clear_2) % modulus, res);
+    /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_crt_add_assign_parallelized(
+    pub fn unchecked_crt_mul_assign_parallelized(
         &self,
         ct_left: &mut CrtCiphertext,
         ct_right: &CrtCiphertext,
@@ -41,17 +40,30 @@ impl ServerKey {
             .par_iter_mut()
             .zip(ct_right.blocks.par_iter())
             .for_each(|(ct_left, ct_right)| {
-                self.key.unchecked_add_assign(ct_left, ct_right);
+                if self
+                    .key
+                    .is_functional_bivariate_pbs_possible(
+                        ct_left.noise_degree(),
+                        ct_right.noise_degree(),
+                        None,
+                    )
+                    .is_ok()
+                {
+                    self.key.unchecked_mul_lsb_assign(ct_left, ct_right);
+                } else {
+                    self.key
+                        .unchecked_mul_lsb_small_carry_assign(ct_left, ct_right);
+                }
             });
     }
 
-    pub fn unchecked_crt_add_parallelized(
+    pub fn unchecked_crt_mul_parallelized(
         &self,
         ct_left: &CrtCiphertext,
         ct_right: &CrtCiphertext,
     ) -> CrtCiphertext {
         let mut ct_res = ct_left.clone();
-        self.unchecked_crt_add_assign_parallelized(&mut ct_res, ct_right);
+        self.unchecked_crt_mul_assign_parallelized(&mut ct_res, ct_right);
         ct_res
     }
 }

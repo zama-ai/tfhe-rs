@@ -1,7 +1,7 @@
-use crate::integer::{CrtCiphertext, ServerKey};
+use crate::integer::{CrtCiphertext, CrtServerKey};
 use rayon::prelude::*;
 
-impl ServerKey {
+impl CrtServerKey {
     /// Computes homomorphically a multiplication between a scalar and a ciphertext.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
@@ -59,7 +59,7 @@ impl ServerKey {
                     && self
                         .key
                         .max_noise_level
-                        .validate(ct_i.noise_level() * scalar)
+                        .validate(ct_i.noise_level() * u64::from(scalar_i))
                         .is_ok()
                 {
                     self.key.unchecked_scalar_mul_assign(ct_i, scalar_i);
