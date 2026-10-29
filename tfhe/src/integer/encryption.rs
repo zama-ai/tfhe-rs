@@ -106,6 +106,7 @@ where
     BlockDecomposer::with_block_count(message, bits_in_block, num_blocks).iter_as::<u64>()
 }
 
+#[cfg(feature = "experimental")]
 pub(crate) fn encrypt_crt<BlockKey, Block, CrtCiphertextType, F>(
     encrypting_key: &BlockKey,
     message: u64,
@@ -128,9 +129,11 @@ where
     CrtCiphertextType::from((ctxt_vect, base_vec))
 }
 
+#[cfg(feature = "experimental")]
 pub(crate) type CrtManyMessageModulusIterator =
     core::iter::Map<std::vec::IntoIter<u64>, fn(u64) -> MessageModulus>;
 
+#[cfg(feature = "experimental")]
 pub(crate) fn encrypt_many_crt<BlockKey, Block, CrtCiphertextType, F>(
     encrypting_key: &BlockKey,
     message: u64,

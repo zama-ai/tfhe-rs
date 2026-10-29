@@ -1,7 +1,7 @@
-use crate::integer::{CrtCiphertext, ServerKey};
+use crate::integer::{CrtCiphertext, CrtServerKey};
 use rayon::prelude::*;
 
-impl ServerKey {
+impl CrtServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
     ///
     /// This function computes the opposite of a message without checking if it exceeds the
