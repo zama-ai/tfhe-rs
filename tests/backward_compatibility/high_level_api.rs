@@ -40,11 +40,10 @@ use tfhe_backward_compat_data::{
     DataKind, HlAesFheKeyTest, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
     HlCompressedKVStoreTest, HlCompressedSquashedNoiseCiphertextListTest,
     HlCompressedXofKeySetTest, HlHeterogeneousCiphertextListTest, HlKreyviumFheKeyTest,
-    HlOneTimePadFheSecretMaskTest, HlPublicKeyTest, HlSeededCompactCiphertextListTest,
-    HlServerKeyTest, HlSignedCiphertextTest, HlSquashedNoiseBoolCiphertextTest,
-    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest,
-    HlStreamCiphertextTest, TestMetadata, TestType, TestWithClientKey, Testcase,
-    ZkPkePublicParamsTest, ZkProofAuxiliaryInfo,
+    HlOneTimePadFheSecretMaskTest, HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest,
+    HlSquashedNoiseBoolCiphertextTest, HlSquashedNoiseSignedCiphertextTest,
+    HlSquashedNoiseUnsignedCiphertextTest, HlStreamCiphertextTest, TestMetadata, TestType,
+    Testcase, ZkPkePublicParamsTest,
 };
 use tfhe_versionable::Unversionize;
 
@@ -318,126 +317,6 @@ where
     Ok(())
 }
 
-/// Shared core for seeded compact ciphertext list backward compat tests.
-/// When `zk_proof_info` is `Some`, operates in ZK (proven) mode; otherwise plain mode.
-#[allow(clippy::too_many_arguments)]
-fn test_hl_seeded_compact_list_core<T: TestWithClientKey>(
-    dir: &Path,
-    test: &T,
-    format: DataFormat,
-    public_key_filename: &str,
-    clear_values: &[i64],
-    data_kinds: &[DataKind],
-    seed: &[u8],
-    zk_proof_info: Option<&ZkProofAuxiliaryInfo>,
-) -> Result<TestSuccess, TestFailure> {
-    #[cfg(not(feature = "zk-pok"))]
-    if zk_proof_info.is_some() {
-        return Ok(test.success(format));
-    }
-
-    let key: ClientKey = load_client_key(dir, test, format)?;
-
-    let server_key = key.generate_server_key();
-    set_server_key(server_key);
-
-    let pubkey_file = dir.join(public_key_filename);
-    let pubkey = CompactPublicKey::unversionize(
-        load_versioned_auxiliary(pubkey_file).map_err(|e| test.failure(e, format))?,
-    )
-    .map_err(|e| test.failure(e, format))?;
-
-    let mut builder = CompactCiphertextList::builder(&pubkey);
-    for (value, kind) in clear_values.iter().zip(data_kinds.iter()) {
-        match kind {
-            DataKind::Unsigned => {
-                builder.push(*value as u8);
-            }
-            DataKind::Signed => {
-                builder.push(*value as i8);
-            }
-            DataKind::Bool => {
-                builder.push(*value != 0);
-            }
-        }
-    }
-
-    if let Some(_proof_info) = zk_proof_info {
-        #[cfg(feature = "zk-pok")]
-        {
-            use tfhe::zk::ZkComputeLoad;
-
-            let crs_file = dir.join(&*_proof_info.params_filename);
-            let crs = CompactPkeCrs::unversionize(
-                load_versioned_auxiliary(crs_file).map_err(|e| test.failure(e, format))?,
-            )
-            .map_err(|e| test.failure(e, format))?;
-
-            let pregenerated: ProvenCompactCiphertextList =
-                load_and_unversionize(dir, test, format)?;
-
-            let rebuilt = builder
-                .build_with_proof_packed_seeded(
-                    &crs,
-                    _proof_info.metadata.as_bytes(),
-                    ZkComputeLoad::Proof,
-                    seed,
-                )
-                .map_err(|e| test.failure(e, format))?;
-
-            if pregenerated != rebuilt {
-                return Err(test.failure(
-                    "Seeded proven compact list rebuilt from values/seed does not match pregenerated",
-                    format,
-                ));
-            }
-
-            let expanded = pregenerated
-                .verify_and_expand(&crs, &pubkey, _proof_info.metadata.as_bytes())
-                .map_err(|e| test.failure(e, format))?;
-            verify_expanded_values(&expanded, clear_values, data_kinds, &key)
-                .map_err(|e| test.failure(e, format))?;
-        }
-    } else {
-        let pregenerated: CompactCiphertextList = load_and_unversionize(dir, test, format)?;
-
-        let rebuilt = builder.build_packed_seeded(seed).unwrap();
-
-        if pregenerated != rebuilt {
-            return Err(test.failure(
-                "Seeded compact list rebuilt from values/seed does not match pregenerated",
-                format,
-            ));
-        }
-
-        let expanded = pregenerated.expand().map_err(|e| test.failure(e, format))?;
-        verify_expanded_values(&expanded, clear_values, data_kinds, &key)
-            .map_err(|e| test.failure(e, format))?;
-    }
-
-    Ok(test.success(format))
-}
-
-/// Test seeded compact ciphertext list: loads pregenerated list, rebuilds from
-/// stored values/seed, asserts they match via PartialEq.
-pub fn test_hl_seeded_compact_ciphertext_list(
-    dir: &Path,
-    test: &HlSeededCompactCiphertextListTest,
-    format: DataFormat,
-) -> Result<TestSuccess, TestFailure> {
-    test_hl_seeded_compact_list_core(
-        dir,
-        test,
-        format,
-        &test.public_key_filename,
-        &test.clear_values,
-        &test.data_kinds,
-        &test.seed,
-        test.proof_info.as_ref(),
-    )
-}
-
-/// Test seeded proven compact ciphertext list
 /// Test HL client key: loads the key and checks the parameters using the values stored in
 /// the test metadata.
 pub fn test_hl_clientkey(
@@ -1301,9 +1180,6 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlCompressedXofKeySet(test) => {
                 test_hl_compressed_xof_key_set_test(test_dir.as_ref(), test, format).into()
-            }
-            TestMetadata::HlSeededCompactCiphertextList(test) => {
-                test_hl_seeded_compact_ciphertext_list(test_dir.as_ref(), test, format).into()
             }
             TestMetadata::HlKreyviumFheKey(test) => {
                 test_hl_kreyvium_fhe_key(test_dir.as_ref(), test, format).into()
