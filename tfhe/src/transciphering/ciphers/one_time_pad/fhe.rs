@@ -1,17 +1,26 @@
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
 use crate::named::Named;
 use crate::shortint::ciphertext::{
-    Ciphertext, DegreeConformance, NoiseLevel, NoiseLevelConformance,
+    Ciphertext, CompressedSquashedNoiseCiphertextList, DegreeConformance, NoiseLevel,
+    NoiseLevelConformance, SquashedNoiseCiphertext,
 };
 use crate::shortint::client_key::ClientKey;
+use crate::shortint::list_compression::{
+    NoiseSquashingCompressionKey, NoiseSquashingCompressionPrivateKey,
+};
+use crate::shortint::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
 use crate::shortint::oprf::OprfSeed;
-use crate::shortint::parameters::CiphertextConformanceParams;
+use crate::shortint::parameters::{
+    CiphertextConformanceParams, CompressedSquashedNoiseCiphertextListConformanceParams,
+};
 use crate::shortint::server_key::ServerKey;
-use crate::transciphering::backward_compatibility::OneTimePadFheSecretMaskVersions;
+use crate::transciphering::backward_compatibility::{
+    CompressedSquashedNoiseOneTimePadFheSecretMaskVersions, OneTimePadFheSecretMaskVersions,
+};
 use crate::transciphering::ciphers::one_time_pad::plain::OneTimePadPlainSecretMask;
 use crate::transciphering::ciphers::pack_bits_lsb_first;
 use crate::transciphering::{
@@ -191,6 +200,23 @@ impl OneTimePadFheSecretMask {
 
         OneTimePadPlainSecretMask::new(bytes, bits.len())
     }
+
+    pub fn squash_noise(
+        &self,
+        nsk: &NoiseSquashingKey,
+        sks: &ServerKey,
+    ) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
+        let secret_mask = self
+            .secret_mask
+            .par_iter()
+            .map(|ct| nsk.checked_squash_ciphertext_noise(ct, sks))
+            .collect::<crate::Result<_>>()?;
+
+        Ok(SquashedNoiseOneTimePadFheSecretMask {
+            secret_mask,
+            layout: self.layout.clone(),
+        })
+    }
 }
 
 impl ParameterSetConformant for OneTimePadFheSecretMask {
@@ -224,6 +250,134 @@ impl ParameterSetConformant for OneTimePadFheSecretMask {
 
 impl Named for OneTimePadFheSecretMask {
     const NAME: &'static str = "transciphering::OneTimePadFheSecretMask";
+}
+
+pub struct SquashedNoiseOneTimePadFheSecretMask {
+    secret_mask: Vec<SquashedNoiseCiphertext>,
+    layout: KeyStreamLayout,
+}
+
+impl SquashedNoiseOneTimePadFheSecretMask {
+    pub fn try_new(
+        secret_mask: Vec<SquashedNoiseCiphertext>,
+        layout: KeyStreamLayout,
+    ) -> crate::Result<Self> {
+        for ct in &secret_mask {
+            if ct.degree() != layout.expected_degree() {
+                return Err(crate::error!(
+                    "Mask ciphertexts does not follow the required layout (got {}, expected \
+                    {}).",
+                    ct.degree().get(),
+                    layout.expected_degree().get(),
+                ));
+            }
+        }
+
+        Ok(Self {
+            secret_mask,
+            layout,
+        })
+    }
+
+    pub fn decrypt(&self, key: &NoiseSquashingPrivateKey) -> OneTimePadPlainSecretMask {
+        let decrypted: Vec<_> = self
+            .secret_mask
+            .iter()
+            .map(|squashed_ct| key.decrypt_squashed_noise_ciphertext(squashed_ct))
+            .collect();
+
+        OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(&decrypted, &self.layout)
+            .expect("ciphertexts in list does not match the layout")
+    }
+
+    pub fn compress(
+        &self,
+        comp_key: &NoiseSquashingCompressionKey,
+    ) -> CompressedSquashedNoiseOneTimePadFheSecretMask {
+        let secret_mask = comp_key.compress_noise_squashed_ciphertexts_into_list(&self.secret_mask);
+
+        CompressedSquashedNoiseOneTimePadFheSecretMask {
+            secret_mask,
+            layout: self.layout.clone(),
+        }
+    }
+
+    pub fn ciphertexts(&self) -> &[SquashedNoiseCiphertext] {
+        &self.secret_mask
+    }
+
+    pub fn layout(&self) -> &KeyStreamLayout {
+        &self.layout
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedSquashedNoiseOneTimePadFheSecretMaskVersions)]
+pub struct CompressedSquashedNoiseOneTimePadFheSecretMask {
+    secret_mask: CompressedSquashedNoiseCiphertextList,
+    layout: KeyStreamLayout,
+}
+
+impl CompressedSquashedNoiseOneTimePadFheSecretMask {
+    /// Extracts the squashed mask, which is encrypted under the noise squashing compression key.
+    pub fn decompress(&self) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
+        let secret_mask = (0..self.secret_mask.len())
+            .map(|idx| {
+                let mut ct = self.secret_mask.unpack(idx)?;
+                // The list does not store degrees, unpack sets the max degree for the modulus
+                ct.set_degree(self.layout.expected_degree());
+                crate::Result::Ok(ct)
+            })
+            .collect::<Result<_, _>>()?;
+
+        Ok(SquashedNoiseOneTimePadFheSecretMask {
+            secret_mask,
+            layout: self.layout.clone(),
+        })
+    }
+
+    pub fn decrypt(
+        &self,
+        key: &NoiseSquashingCompressionPrivateKey,
+    ) -> crate::Result<OneTimePadPlainSecretMask> {
+        let values = key.unpack_and_decrypt_squashed_noise_ciphertexts(&self.secret_mask);
+
+        OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(&values, &self.layout)
+    }
+
+    pub fn layout(&self) -> &KeyStreamLayout {
+        &self.layout
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
+    pub list_params: CompressedSquashedNoiseCiphertextListConformanceParams,
+    pub layout: KeyStreamLayout,
+}
+
+impl ParameterSetConformant for CompressedSquashedNoiseOneTimePadFheSecretMask {
+    type ParameterSet = CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        let Self {
+            secret_mask,
+            layout,
+        } = self;
+
+        let CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
+            list_params,
+            layout: params_layout,
+        } = params;
+
+        let layout_params = KeyStreamLayoutConformanceParams {
+            message_modulus: list_params.message_modulus,
+            carry_modulus: list_params.carry_modulus,
+        };
+        layout == params_layout
+            && layout.is_conformant(&layout_params)
+            && secret_mask.is_conformant(list_params)
+    }
 }
 
 pub struct OneTimePadFheState {

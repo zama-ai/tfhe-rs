@@ -24,7 +24,11 @@ mod stream_ciphertext;
 
 pub use aes::AesFheKey;
 pub use kreyvium::KreyviumFheKey;
-pub use one_time_pad::{OneTimePadFheSecretMask, OneTimePadFheSecretMaskConformanceParams};
+pub use one_time_pad::{
+    CompressedSquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
+    OneTimePadFheSecretMaskConformanceParams, SquashedNoiseOneTimePadFheSecretMask,
+};
 pub use stream_ciphertext::StreamCiphertext;
 
 /// Types encryptable by [`HlStreamCipher`].
@@ -454,6 +458,79 @@ mod test {
 
         // The pad is spent: a further draw must fail rather than reuse bits.
         assert!(sym.try_encrypt(1u8).is_err());
+    }
+
+    /// Squash the noise of a pad and compress it, so that it can be decrypted by the KMS.
+    #[test]
+    fn test_one_time_pad_squashed_noise() {
+        use super::{
+            CompressedSquashedNoiseOneTimePadFheSecretMask,
+            CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams,
+            OneTimePadFheSecretMask,
+        };
+        use crate::conformance::ParameterSetConformant;
+        use crate::prelude::*;
+        use crate::shortint::parameters::current_params::{
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
+        use crate::transciphering::{KeyStreamLayout, OneTimePadPlainSecretMask};
+        use crate::{
+            generate_keys, set_server_key, CompressedSquashedNoiseCiphertextListConformanceParams,
+            ConfigBuilder,
+        };
+        use rand::Rng;
+
+        let config = ConfigBuilder::with_custom_parameters(
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .enable_noise_squashing(V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+        .enable_noise_squashing_compression(
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .build();
+        let (client_key, server_key) = generate_keys(config);
+        let conformance_params =
+            CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams::try_from(&server_key)
+                .unwrap();
+        // The pad is generated with the full space layout, so another layout is refused
+        let single_bit_params =
+            CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams::new(
+                CompressedSquashedNoiseCiphertextListConformanceParams::try_from(&server_key)
+                    .unwrap(),
+                KeyStreamLayout::single_bit(),
+            );
+        set_server_key(server_key);
+
+        let mut rng = rand::thread_rng();
+        let n_bits = 64;
+        let pad_bytes: Vec<u8> = (0..n_bits / 8).map(|_| rng.gen()).collect();
+        let plain_mask = OneTimePadPlainSecretMask::new(pad_bytes, n_bits);
+
+        let squashed = OneTimePadFheSecretMask::try_encrypt(plain_mask.clone(), &client_key)
+            .unwrap()
+            .squash_noise()
+            .unwrap();
+        assert!(squashed.decrypt(&client_key) == plain_mask);
+
+        let compressed = squashed.compress().unwrap();
+
+        // The compressed pad crosses the wire to the KMS
+        let mut serialized = vec![];
+        safe_serialize(&compressed, &mut serialized, SIZE_LIMIT).unwrap();
+        let compressed: CompressedSquashedNoiseOneTimePadFheSecretMask =
+            safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
+        assert!(compressed.is_conformant(&conformance_params));
+        assert!(!compressed.is_conformant(&single_bit_params));
+        assert!(compressed.decrypt(&client_key) == plain_mask);
+
+        // Decompression requires no key, and the result is decrypted with the compression key
+        let decompressed = compressed.decompress().unwrap();
+        assert!(decompressed.decrypt(&client_key) == plain_mask);
+
+        // A decompressed mask is under the compression key, so it cannot be compressed again
+        assert!(decompressed.compress().is_err());
     }
 
     #[test]

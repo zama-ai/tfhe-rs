@@ -1164,4 +1164,23 @@
             )),
         )),
     ),
+    (
+        tfhe_version_min: "1.9",
+        tfhe_module: "high_level_api",
+        metadata: HlCompressedSquashedNoiseOneTimePadFheSecretMask((
+            test_filename: "compressed_squashed_noise_one_time_pad_fhe_secret_mask",
+            key_filename: "client_key_with_noise_squashing",
+            pad: [
+                222,
+                173,
+                190,
+                239,
+                202,
+                254,
+                186,
+                190,
+            ],
+            n_bits: 64,
+        )),
+    ),
 ]
