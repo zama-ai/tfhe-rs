@@ -11,7 +11,11 @@ mod plain;
 #[cfg(test)]
 mod test;
 
-pub use fhe::{OneTimePadFheSecretMask, OneTimePadFheState};
+pub use fhe::{
+    CompressedSquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
+    OneTimePadFheState, SquashedNoiseOneTimePadFheSecretMask,
+};
 pub use plain::{
     OneTimePadPlainSecretMask, OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
 };
