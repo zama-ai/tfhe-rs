@@ -2,10 +2,14 @@
 //!
 //! This module implements the generation of the server public key, together with all the
 //! available homomorphic integer operations.
+#[cfg(feature = "experimental")]
 pub(crate) mod crt;
+#[cfg(feature = "experimental")]
 mod crt_parallel;
 pub(crate) mod radix;
 pub(crate) mod radix_parallel;
+#[cfg(feature = "experimental")]
+pub use crt::CrtServerKey;
 pub use radix_parallel::kv_store::{CompressedKVStore, KVStore};
 
 use super::backward_compatibility::server_key::{CompressedServerKeyVersions, ServerKeyVersions};
@@ -68,22 +72,6 @@ impl MaxDegree {
     }
 }
 
-impl MaxDegree {
-    /// Compute the [`MaxDegree`] for an integer server key (compressed or uncompressed).
-    /// This is tailored for [`CrtCiphertext`](`crate::integer::CrtCiphertext`) and not compatible
-    /// for use with [`RadixCiphertext`](`crate::integer::RadixCiphertext`).
-    ///
-    /// # Panics
-    ///
-    /// Panics if either modulus is 0.
-    fn integer_crt_server_key(
-        message_modulus: MessageModulus,
-        carry_modulus: CarryModulus,
-    ) -> Self {
-        Self::from_msg_carry_modulus(message_modulus, carry_modulus)
-    }
-}
-
 impl ServerKey {
     /// Generates a server key.
     ///
@@ -106,24 +94,6 @@ impl ServerKey {
         // It should remain just enough space to add a carry
         let client_key = cks.as_ref();
         let max_degree = MaxDegree::integer_radix_server_key(
-            client_key.key.parameters().message_modulus(),
-            client_key.key.parameters().carry_modulus(),
-        );
-
-        let sks = crate::shortint::server_key::ServerKey::new_with_max_degree(
-            &client_key.key,
-            max_degree,
-        );
-
-        Self { key: sks }
-    }
-
-    pub fn new_crt_server_key<C>(cks: C) -> Self
-    where
-        C: AsRef<ClientKey>,
-    {
-        let client_key = cks.as_ref();
-        let max_degree = MaxDegree::integer_crt_server_key(
             client_key.key.parameters().message_modulus(),
             client_key.key.parameters().carry_modulus(),
         );
@@ -164,33 +134,6 @@ impl ServerKey {
             MaxDegree::integer_radix_server_key(key.message_modulus, key.carry_modulus);
 
         key.max_degree = max_degree;
-        Self { key }
-    }
-
-    /// Creates a ServerKey destined to be used with
-    /// [`CrtCiphertext`](`crate::integer::CrtCiphertext`) from an already generated
-    /// shortint::ServerKey.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    /// use tfhe::shortint::ServerKey as ShortintServerKey;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-    ///
-    /// // Generate the shortint server key:
-    /// let shortint_sks = ShortintServerKey::new(cks.as_ref());
-    ///
-    /// // Generate the server key:
-    /// let sks = ServerKey::new_crt_server_key_from_shortint(shortint_sks);
-    /// ```
-    pub fn new_crt_server_key_from_shortint(
-        mut key: crate::shortint::server_key::ServerKey,
-    ) -> Self {
-        key.max_degree = MaxDegree::integer_crt_server_key(key.message_modulus, key.carry_modulus);
         Self { key }
     }
 
@@ -276,11 +219,6 @@ impl CompressedServerKey {
 
         let key =
             crate::shortint::CompressedServerKey::new_with_max_degree(&client_key.key, max_degree);
-        Self { key }
-    }
-
-    pub fn new_crt_compressed_server_key(client_key: &ClientKey) -> Self {
-        let key = crate::shortint::CompressedServerKey::new(&client_key.key);
         Self { key }
     }
 
@@ -376,6 +314,7 @@ mod test {
             assert_eq!(decompressed_sks.key.max_degree, expected_radix_max_degree);
         }
 
+        #[cfg(feature = "experimental")]
         {
             let cks = ClientKey::new(
                 crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
@@ -383,14 +322,8 @@ mod test {
             // msg_mod = 4, carry_mod = 4, msg_mod * carrymod - 1 = 15
             let expected_crt_max_degree = MaxDegree::new(15);
 
-            let sks = ServerKey::new_crt_server_key(&cks);
+            let sks = CrtServerKey::new(&cks);
             assert_eq!(sks.key.max_degree, expected_crt_max_degree);
-
-            let csks = CompressedServerKey::new_crt_compressed_server_key(&cks);
-            assert_eq!(csks.key.max_degree, expected_crt_max_degree);
-
-            let decompressed_sks: ServerKey = csks.decompress();
-            assert_eq!(decompressed_sks.key.max_degree, expected_crt_max_degree);
         }
 
         // Repro case from the user

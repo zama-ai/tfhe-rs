@@ -1,6 +1,7 @@
+#[cfg(feature = "experimental")]
+use super::{BaseCrtCiphertext, CrtCiphertext};
 use super::{
-    BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CrtCiphertext,
-    RadixCiphertext, SignedRadixCiphertext,
+    BaseRadixCiphertext, BaseSignedRadixCiphertext, RadixCiphertext, SignedRadixCiphertext,
 };
 use crate::shortint::CompressedCiphertext;
 
@@ -34,8 +35,10 @@ impl CompressedSignedRadixCiphertext {
 }
 
 /// Structure containing a **compressed** ciphertext in CRT decomposition.
+#[cfg(feature = "experimental")]
 pub type CompressedCrtCiphertext = BaseCrtCiphertext<CompressedCiphertext>;
 
+#[cfg(feature = "experimental")]
 impl CompressedCrtCiphertext {
     pub fn decompress(&self) -> CrtCiphertext {
         let blocks = self
