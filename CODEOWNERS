@@ -2,7 +2,10 @@
 # i.e. the `core_crypto` dir is owned and needs owner approval/review, but not the `gpu` sub dir
 # See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#example-of-a-codeowners-file
 
+*                                       @zama-ai/tfhe-rs
+
 /backends/tfhe-cuda-backend/            @zama-ai/gpu
+/backends/tfhe-cuda-common/             @zama-ai/gpu
 /backends/zk-cuda-backend/              @zama-ai/gpu
 /backends/tfhe-hpu-backend/             @zama-ai/hardware
 
