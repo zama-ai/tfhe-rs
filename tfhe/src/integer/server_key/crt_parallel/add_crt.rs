@@ -1,8 +1,8 @@
 use crate::integer::ciphertext::CrtCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::CrtServerKey;
 use rayon::prelude::*;
 
-impl ServerKey {
+impl CrtServerKey {
     /// Computes homomorphically an addition between two ciphertexts encrypting integer
     /// values in the CRT decomposition.
     ///
