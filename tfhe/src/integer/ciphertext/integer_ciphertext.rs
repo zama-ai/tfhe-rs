@@ -1,4 +1,4 @@
-use super::{CrtCiphertext, RadixCiphertext, SignedRadixCiphertext};
+use super::{RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::Ciphertext;
 
@@ -91,25 +91,6 @@ impl IntegerRadixCiphertext for SignedRadixCiphertext {
 
     fn into_blocks(self) -> Vec<Ciphertext> {
         self.blocks
-    }
-}
-
-impl IntegerCiphertext for CrtCiphertext {
-    fn blocks(&self) -> &[Ciphertext] {
-        &self.blocks
-    }
-
-    fn from_blocks(blocks: Vec<Ciphertext>) -> Self {
-        let moduli = blocks.iter().map(|x| x.message_modulus.0).collect();
-        Self { blocks, moduli }
-    }
-
-    fn blocks_mut(&mut self) -> &mut [Ciphertext] {
-        &mut self.blocks
-    }
-
-    fn moduli(&self) -> Vec<u64> {
-        self.moduli.clone()
     }
 }
 
