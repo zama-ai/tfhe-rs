@@ -880,3 +880,221 @@ fn one_time_pad_plain_secret_mask_conformance() {
     let dirty_padding: OneTimePadPlainSecretMask = bincode::deserialize(&dirty_padding).unwrap();
     assert!(!dirty_padding.is_conformant(&params(12)));
 }
+
+/// The squashed mask, with and without compression, must decrypt to the original plain mask.
+#[test]
+fn one_time_pad_squashed_noise_mask_round_trip() {
+    use crate::shortint::list_compression::NoiseSquashingCompressionPrivateKey;
+    use crate::shortint::noise_squashing::{
+        NoiseSquashingKey, NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView,
+    };
+    use crate::shortint::parameters::test_params::{
+        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+
+    let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let ns_private_key = NoiseSquashingPrivateKey::new(
+        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
+    let nsk = NoiseSquashingKey::new(&cks, &ns_private_key);
+    let comp_private_key = NoiseSquashingCompressionPrivateKey::new(
+        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
+    let comp_key = ns_private_key.new_noise_squashing_compression_key(&comp_private_key);
+    let decompressed_decryption_key = NoiseSquashingPrivateKeyView::from(&comp_private_key);
+
+    let params = cks.parameters();
+    // The full space layout uses the whole degree range of the list, the single bit one checks
+    // that the degree is set back to the layout after decompression.
+    let layouts = [
+        KeyStreamLayout::full_space(params.message_modulus(), params.carry_modulus()).unwrap(),
+        KeyStreamLayout::single_bit(),
+    ];
+
+    for layout in layouts {
+        let bits_per_ct = layout.bits_per_ct().get();
+
+        // Byte-aligned and not, since the mask carries an explicit bit count. The asymmetric
+        // pattern catches a reversed bit or ciphertext order.
+        for bit_count in [32usize, 12] {
+            let bytes: Vec<u8> = (0..bit_count.div_ceil(8))
+                .map(|i| 0x1Fu8.wrapping_mul(i as u8 + 1))
+                .collect();
+            let plain = OneTimePadPlainSecretMask::new(clear_padding(bytes, bit_count), bit_count);
+            let context = format!("{bits_per_ct} bits per ct, {bit_count} bits");
+
+            let squashed = plain
+                .encrypt_with_layout(&cks, layout.clone())
+                .unwrap()
+                .squash_noise(&nsk, &sks)
+                .unwrap();
+            assert_eq!(
+                squashed.ciphertexts().len(),
+                bit_count / usize::from(bits_per_ct)
+            );
+            assert!(
+                squashed.decrypt(&ns_private_key) == plain,
+                "squashed, {context}"
+            );
+
+            let compressed = squashed.compress(&comp_key);
+            assert!(
+                compressed.decrypt(&comp_private_key).unwrap() == plain,
+                "compressed, {context}"
+            );
+
+            let decompressed = compressed.decompress().unwrap();
+            assert_eq!(decompressed.layout().bits_per_ct(), layout.bits_per_ct());
+            for ct in decompressed.ciphertexts() {
+                assert_eq!(
+                    ct.degree(),
+                    layout.expected_degree(),
+                    "decompressed, {context}"
+                );
+            }
+            let values: Vec<u128> = decompressed
+                .ciphertexts()
+                .iter()
+                .map(|ct| decompressed_decryption_key.decrypt_squashed_noise_ciphertext(ct))
+                .collect();
+            assert!(
+                OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(&values, &layout)
+                    .unwrap()
+                    == plain,
+                "decompressed, {context}"
+            );
+        }
+    }
+
+    // An empty mask goes through the whole flow
+    let squashed = OneTimePadPlainSecretMask::new(vec![], 0)
+        .encrypt(&cks)
+        .unwrap()
+        .squash_noise(&nsk, &sks)
+        .unwrap();
+    assert!(squashed.ciphertexts().is_empty());
+    let compressed = squashed.compress(&comp_key);
+    assert!(compressed.decompress().unwrap().ciphertexts().is_empty());
+    assert!(
+        compressed.decrypt(&comp_private_key).unwrap() == OneTimePadPlainSecretMask::new(vec![], 0)
+    );
+}
+
+#[test]
+fn one_time_pad_plain_mask_from_squashed_noise_values() {
+    let layout_4 = KeyStreamLayout::try_new(4.try_into().unwrap()).unwrap();
+
+    // LSB first in each value, values in order
+    let mask = OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(
+        &[0x3, 0xC, 0xF],
+        &layout_4,
+    )
+    .unwrap();
+    assert!(mask == OneTimePadPlainSecretMask::new(vec![0xC3, 0x0F], 12));
+
+    let mask = OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(
+        &[1, 0, 1, 1],
+        &KeyStreamLayout::single_bit(),
+    )
+    .unwrap();
+    assert!(mask == OneTimePadPlainSecretMask::new(vec![0b1101], 4));
+
+    // Values that do not fit in the layout are refused
+    assert!(
+        OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(&[0, 16], &layout_4)
+            .is_err()
+    );
+    assert!(
+        OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(
+            &[1, 2],
+            &KeyStreamLayout::single_bit()
+        )
+        .is_err()
+    );
+    assert!(
+        OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(&[u128::MAX], &layout_4)
+            .is_err()
+    );
+}
+
+#[test]
+fn one_time_pad_compressed_squashed_noise_mask_conformance() {
+    use crate::conformance::ParameterSetConformant;
+    use crate::shortint::ciphertext::CompressedSquashedNoiseCiphertextList;
+    use crate::shortint::list_compression::NoiseSquashingCompressionPrivateKey;
+    use crate::shortint::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
+    use crate::shortint::parameters::test_params::{
+        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    use crate::shortint::parameters::CompressedSquashedNoiseCiphertextListConformanceParams;
+    use crate::transciphering::{
+        CompressedSquashedNoiseOneTimePadFheSecretMask,
+        CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams,
+    };
+
+    let ns_params = TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let comp_params = TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let ns_private_key = NoiseSquashingPrivateKey::new(ns_params);
+    let nsk = NoiseSquashingKey::new(&cks, &ns_private_key);
+    let comp_private_key = NoiseSquashingCompressionPrivateKey::new(comp_params);
+    let comp_key = ns_private_key.new_noise_squashing_compression_key(&comp_private_key);
+    let list_params =
+        CompressedSquashedNoiseCiphertextListConformanceParams::from_params(ns_params, comp_params);
+    let params = cks.parameters();
+    let layout =
+        KeyStreamLayout::full_space(params.message_modulus(), params.carry_modulus()).unwrap();
+    let conformance_params = CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
+        list_params,
+        layout,
+    };
+
+    let compressed = OneTimePadPlainSecretMask::new(vec![0xAB; 2], 16)
+        .encrypt(&cks)
+        .unwrap()
+        .squash_noise(&nsk, &sks)
+        .unwrap()
+        .compress(&comp_key);
+    assert!(compressed.is_conformant(&conformance_params));
+
+    // A mask with another layout than the expected one is refused
+    let single_bit_params = CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
+        list_params,
+        layout: KeyStreamLayout::single_bit(),
+    };
+    assert!(!compressed.is_conformant(&single_bit_params));
+
+    // Same serialized form as the compressed mask, with a raw layout
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Tampered {
+        secret_mask: CompressedSquashedNoiseCiphertextList,
+        bits_per_ct: u8,
+    }
+
+    let serialized = bincode::serialize(&compressed).unwrap();
+    let tamper = |bits_per_ct| {
+        let mut tampered: Tampered = bincode::deserialize(&serialized).unwrap();
+        tampered.bits_per_ct = bits_per_ct;
+        bincode::serialize(&tampered).unwrap()
+    };
+
+    let untampered: CompressedSquashedNoiseOneTimePadFheSecretMask =
+        bincode::deserialize(&tamper(4)).unwrap();
+    assert!(untampered.is_conformant(&conformance_params));
+
+    // A layout with 0 bits per ciphertext cannot be deserialized.
+    assert!(
+        bincode::deserialize::<CompressedSquashedNoiseOneTimePadFheSecretMask>(&tamper(0)).is_err()
+    );
+
+    // The degree of the ciphertexts is lost in compression, so a layout that differs from the
+    // expected one is refused by conformance, even if it fits in the parameters.
+    for bits_per_ct in [1, 2, 3, 5, 8, 200] {
+        let tampered: CompressedSquashedNoiseOneTimePadFheSecretMask =
+            bincode::deserialize(&tamper(bits_per_ct)).unwrap();
+        assert!(!tampered.is_conformant(&conformance_params));
+    }
+}

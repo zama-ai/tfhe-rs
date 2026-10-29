@@ -195,7 +195,8 @@ impl Named for CompressedSquashedNoiseCiphertextList {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct CompressedSquashedNoiseCiphertextListConformanceParams {
-    params: ShortintCompressedSquashedNoiseCiphertextListConformanceParams,
+    pub(in crate::high_level_api) params:
+        ShortintCompressedSquashedNoiseCiphertextListConformanceParams,
 }
 
 impl
