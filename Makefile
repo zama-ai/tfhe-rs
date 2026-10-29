@@ -1056,16 +1056,33 @@ test_high_level_api_gpu_memcheck: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && scripts/check_memory_errors.sh --memcheck
 
-.PHONY: test_gpu_racecheck # Run compute-sanitizer racecheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
-test_gpu_racecheck: install_cargo_nextest
+.PHONY: build_gpu_sanitizer_gtest # Build the CUDA backend GTest binary used by the compute-sanitizer targets
+build_gpu_sanitizer_gtest:
 	mkdir -p "$(TFHECUDA_BUILD)" && \
 		cd "$(TFHECUDA_BUILD)" && \
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON && \
 		"$(MAKE)" -j "$(CPU_COUNT)" test_tfhe_cuda_backend
+
+.PHONY: test_gpu_racecheck # Run compute-sanitizer racecheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
+test_gpu_racecheck: install_cargo_nextest build_gpu_sanitizer_gtest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
 	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
 		scripts/check_memory_errors.sh --racecheck
+
+.PHONY: test_gpu_initcheck # Run compute-sanitizer initcheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
+test_gpu_initcheck: install_cargo_nextest build_gpu_sanitizer_gtest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
+		scripts/check_memory_errors.sh --initcheck
+
+.PHONY: test_gpu_synccheck # Run compute-sanitizer synccheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
+test_gpu_synccheck: install_cargo_nextest build_gpu_sanitizer_gtest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
+		scripts/check_memory_errors.sh --synccheck
 
 # The relaxed flavor is opted into process-wide, and the 128-bit PBS panics on any
 # shape other than the noise-squashing one, so the filter is narrowed to the single
@@ -1078,6 +1095,24 @@ test_gpu_racecheck_relaxed_pbs128: install_cargo_nextest
 	export SANITIZER_TEST_FILTER_GPU_RACECHECK='test_bootstrap_u128_with_squashing' && \
 	export SANITIZER_TEST_EXCLUDES_GPU_RACECHECK='' && \
 		scripts/check_memory_errors.sh --racecheck
+
+.PHONY: test_gpu_initcheck_relaxed_pbs128 # Run compute-sanitizer initcheck on the 128-bit PBS with the relaxed (host-driven TBC) flavor
+test_gpu_initcheck_relaxed_pbs128: install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	export TFHE_RS_GPU_PBS128_RELAXED=1 && \
+	export SANITIZER_TEST_FILTER_GPU_INITCHECK='test_bootstrap_u128_with_squashing' && \
+	export SANITIZER_TEST_EXCLUDES_GPU_INITCHECK='' && \
+		scripts/check_memory_errors.sh --initcheck
+
+.PHONY: test_gpu_synccheck_relaxed_pbs128 # Run compute-sanitizer synccheck on the 128-bit PBS with the relaxed (host-driven TBC) flavor
+test_gpu_synccheck_relaxed_pbs128: install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
+	export TFHE_RS_GPU_PBS128_RELAXED=1 && \
+	export SANITIZER_TEST_FILTER_GPU_SYNCCHECK='test_bootstrap_u128_with_squashing' && \
+	export SANITIZER_TEST_EXCLUDES_GPU_SYNCCHECK='' && \
+		scripts/check_memory_errors.sh --synccheck
 
 .PHONY: test_zk_pok_gpu_sanitizer # Run compute-sanitizer memcheck on Rust zk-pok GPU tests
 test_zk_pok_gpu_sanitizer: install_cargo_nextest

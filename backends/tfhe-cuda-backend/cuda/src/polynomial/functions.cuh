@@ -477,7 +477,10 @@ __device__ void sample_extract_body(Torus *lwe_array_out, Torus const *glwe,
 }
 
 // Extracts the mask from the nth-LWE in a GLWE.
-template <typename Torus, class params>
+// With block_sync = false the caller must synchronize the block before the
+// call and must not write to glwe concurrently; this is needed when only part
+// of the block executes the extraction (barriers would otherwise diverge).
+template <typename Torus, class params, bool block_sync = true>
 __device__ void sample_extract_mask(Torus *lwe_array_out, Torus const *glwe,
                                     uint32_t glwe_dimension = 1,
                                     uint32_t nth = 0) {
@@ -486,7 +489,8 @@ __device__ void sample_extract_mask(Torus *lwe_array_out, Torus const *glwe,
         (Torus *)lwe_array_out + (ptrdiff_t)(z * params::degree);
     Torus *glwe_slice = (Torus *)glwe + (ptrdiff_t)(z * params::degree);
 
-    __syncthreads();
+    if constexpr (block_sync)
+      __syncthreads();
     // Reverse the glwe
     // Set ACC = -ACC
     int tid = threadIdx.x;
@@ -497,7 +501,8 @@ __device__ void sample_extract_mask(Torus *lwe_array_out, Torus const *glwe,
       result[i] = SEL(-x, x, tid >= params::degree - nth);
       tid = tid + params::degree / params::opt;
     }
-    __syncthreads();
+    if constexpr (block_sync)
+      __syncthreads();
 
     // Perform ACC * X
     // (equivalent to multiply_by_monomial_negacyclic_inplace(1))

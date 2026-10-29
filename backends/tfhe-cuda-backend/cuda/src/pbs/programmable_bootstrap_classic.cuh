@@ -372,9 +372,13 @@ device_programmable_bootstrap_specialized_2_2_params(
                          (glwe_dimension * polynomial_size + 1) +
                      threadIdx.y * polynomial_size];
 
+  // The mask (threadIdx.y < glwe_dimension) and body threads take different
+  // paths below, so the block is synchronized once here for all of them
+  __syncthreads();
   if (blockIdx.z == 0) {
     if (threadIdx.y < glwe_dimension) {
-      sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+      sample_extract_mask<Torus, params, false>(block_lwe_array_out,
+                                                accumulator);
 
       if (num_many_lut > 1) {
         for (int i = 1; i < num_many_lut; i++) {
@@ -386,12 +390,11 @@ device_programmable_bootstrap_specialized_2_2_params(
                                       (glwe_dimension * polynomial_size + 1) +
                                   threadIdx.y * polynomial_size];
 
-          sample_extract_mask<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 1, i * lut_stride);
+          sample_extract_mask<Torus, params, false>(
+              next_block_lwe_array_out, accumulator, 1, i * lut_stride);
         }
       }
     } else if (threadIdx.y == glwe_dimension) {
-      __syncthreads();
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
 
       if (num_many_lut > 1) {
@@ -712,7 +715,10 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
     }
   }
 
-  // Sample extraction follows the same logic than other pbs
+  // Sample extraction follows the same logic than other pbs. The mask
+  // (threadIdx.y < glwe_dimension) and body threads take different paths
+  // below, so the block is synchronized once here for all of them
+  __syncthreads();
   if (blockIdx.z == 0) {
     auto block_lwe_array_out =
         &lwe_array_out[lwe_output_indexes[blockIdx.x] *
@@ -720,8 +726,8 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
                        threadIdx.y * polynomial_size];
 
     if (threadIdx.y < glwe_dimension) {
-      sample_extract_mask<Torus, params>(block_lwe_array_out,
-                                         final_accumulator);
+      sample_extract_mask<Torus, params, false>(block_lwe_array_out,
+                                                final_accumulator);
 
       if (num_many_lut > 1) {
         for (int n = 1; n < num_many_lut; n++) {
@@ -732,12 +738,11 @@ device_programmable_bootstrap_specialized_2_2_params_throughput(
               &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
                                       (glwe_dimension * polynomial_size + 1) +
                                   threadIdx.y * polynomial_size];
-          sample_extract_mask<Torus, params>(
+          sample_extract_mask<Torus, params, false>(
               next_block_lwe_array_out, final_accumulator, 1, n * lut_stride);
         }
       }
     } else if (threadIdx.y == glwe_dimension) {
-      __syncthreads();
       sample_extract_body<Torus, params>(block_lwe_array_out, final_accumulator,
                                          0);
 
