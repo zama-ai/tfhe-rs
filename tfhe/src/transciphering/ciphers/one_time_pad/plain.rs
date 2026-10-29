@@ -7,7 +7,7 @@ use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
 use crate::shortint::client_key::ClientKey;
 use crate::transciphering::backward_compatibility::OneTimePadPlainSecretMaskVersions;
 use crate::transciphering::ciphers::one_time_pad::fhe::OneTimePadFheSecretMask;
-use crate::transciphering::ciphers::unpack_bits_lsb_first;
+use crate::transciphering::ciphers::{pack_bits_lsb_first, unpack_bits_lsb_first};
 use crate::transciphering::{
     InsufficientKeystream, KeyStreamLayout, StreamCipher, StreamCipherKind,
 };
@@ -42,6 +42,38 @@ impl OneTimePadPlainSecretMask {
             secret_mask,
             bit_count,
         })
+    }
+
+    /// Rebuild the plain mask from the decrypted values of a
+    /// [`SquashedNoiseOneTimePadFheSecretMask`].
+    ///
+    /// `values` must hold the decoded cleartext of each mask ciphertext.
+    ///
+    /// Returns an error if a value does not fit in `layout.bits_per_ct()` bits.
+    ///
+    /// [`SquashedNoiseOneTimePadFheSecretMask`]: super::SquashedNoiseOneTimePadFheSecretMask
+    pub fn from_squashed_noise_decrypted_values(
+        values: &[u128],
+        layout: &KeyStreamLayout,
+    ) -> crate::Result<Self> {
+        let bits_per_ct = usize::from(layout.bits_per_ct().get());
+
+        let max = layout.expected_degree().get();
+        let mut bits = Vec::with_capacity(values.len() * bits_per_ct);
+        for &val in values {
+            if val > u128::from(max) {
+                return Err(crate::error!(
+                    "Decrypted value {val} does not fit in the keystream layout ({bits_per_ct} \
+                    bits per ciphertext)"
+                ));
+            }
+            bits.extend((0..bits_per_ct).map(|i| (val >> i) & 1 != 0));
+        }
+
+        let mut bytes = vec![0u8; bits.len().div_ceil(8)];
+        pack_bits_lsb_first(&bits, &mut bytes);
+
+        Ok(Self::new(bytes, bits.len()))
     }
 
     /// Returns true if the bits of the last byte past `bit_count` are zero.

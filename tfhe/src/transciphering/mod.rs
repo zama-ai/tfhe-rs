@@ -78,8 +78,10 @@ pub use ciphers::kreyvium::{
     SerializableKreyviumFheKey,
 };
 pub use ciphers::one_time_pad::{
-    OneTimePadFheSecretMask, OneTimePadFheState, OneTimePadPlainSecretMask,
-    OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
+    CompressedSquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
+    OneTimePadFheState, OneTimePadPlainSecretMask, OneTimePadPlainSecretMaskConformanceParams,
+    OneTimePadPlainState, SquashedNoiseOneTimePadFheSecretMask,
 };
 
 use serde::{Deserialize, Serialize};
@@ -600,7 +602,7 @@ impl<'a> IntoIterator for &'a FheKeyStream {
 ///
 /// The number of bits per ciphertext must divide 8, so that the bits of a keystream ciphertext
 /// never span two bytes of the input.
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(KeyStreamLayoutVersions)]
 pub struct KeyStreamLayout {
     // For simplicity, only "continuous" layouts, where all bits up to a point are used, are

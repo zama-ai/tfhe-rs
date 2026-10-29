@@ -27,11 +27,12 @@ use tfhe::{
     CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
     CompressedKVStore, CompressedPublicKey, CompressedServerKey,
-    CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
-    FheInt8, FheUint32, FheUint64, FheUint8, HlStreamCipher, HlTranscipherer, KreyviumFheKey,
-    OneTimePadFheSecretMask, ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport,
-    Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
-    StreamCiphertext, TranscipherSession,
+    CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder,
+    CompressedSquashedNoiseOneTimePadFheSecretMask, FheBool, FheInt8, FheUint32, FheUint64,
+    FheUint8, HlStreamCipher, HlTranscipherer, KreyviumFheKey, OneTimePadFheSecretMask,
+    ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport, Seed, ServerKey,
+    SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, StreamCiphertext,
+    TranscipherSession,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
@@ -39,12 +40,12 @@ use tfhe_backward_compat_data::load::{
 use tfhe_backward_compat_data::{
     DataKind, HlAesFheKeyTest, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
     HlCompressedKVStoreTest, HlCompressedSquashedNoiseCiphertextListTest,
-    HlCompressedXofKeySetTest, HlHeterogeneousCiphertextListTest, HlKreyviumFheKeyTest,
-    HlOneTimePadFheSecretMaskTest, HlPublicKeyTest, HlSeededCompactCiphertextListTest,
-    HlServerKeyTest, HlSignedCiphertextTest, HlSquashedNoiseBoolCiphertextTest,
-    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest,
-    HlStreamCiphertextTest, TestMetadata, TestType, TestWithClientKey, Testcase,
-    ZkPkePublicParamsTest, ZkProofAuxiliaryInfo,
+    HlCompressedSquashedNoiseOneTimePadFheSecretMaskTest, HlCompressedXofKeySetTest,
+    HlHeterogeneousCiphertextListTest, HlKreyviumFheKeyTest, HlOneTimePadFheSecretMaskTest,
+    HlPublicKeyTest, HlSeededCompactCiphertextListTest, HlServerKeyTest, HlSignedCiphertextTest,
+    HlSquashedNoiseBoolCiphertextTest, HlSquashedNoiseSignedCiphertextTest,
+    HlSquashedNoiseUnsignedCiphertextTest, HlStreamCiphertextTest, TestMetadata, TestType,
+    TestWithClientKey, Testcase, ZkPkePublicParamsTest, ZkProofAuxiliaryInfo,
 };
 use tfhe_versionable::Unversionize;
 
@@ -1203,6 +1204,40 @@ fn test_hl_one_time_pad_fhe_secret_mask(
     )
 }
 
+/// Test HL compressed squashed noise one time pad: loads the mask and checks that it matches the
+/// one in the metadata.
+fn test_hl_compressed_squashed_noise_one_time_pad_fhe_secret_mask(
+    dir: &Path,
+    test: &HlCompressedSquashedNoiseOneTimePadFheSecretMaskTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
+
+    let fhe_mask: CompressedSquashedNoiseOneTimePadFheSecretMask =
+        load_and_unversionize(dir, test, format)?;
+
+    if fhe_mask.tag() != client_key.tag() {
+        return Err(test.failure(
+            format!(
+                "Invalid {} tag:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                client_key.tag(),
+                fhe_mask.tag()
+            ),
+            format,
+        ));
+    }
+
+    let pad = OneTimePadPlainSecretMask::new(test.pad.to_vec(), test.n_bits as usize);
+
+    check_recovered_key(
+        &mut OneTimePadPlainState::new(pad),
+        &mut OneTimePadPlainState::new(fhe_mask.decrypt(&client_key)),
+        test,
+        format,
+    )
+}
+
 /// Test HL stream ciphertext: loads the ciphertext and compare the decrypted value to the one in
 /// the metadata. This type holds no FHE data, so the plain cipher is replayed from the metadata.
 fn test_hl_stream_ciphertext(
@@ -1316,6 +1351,14 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlStreamCiphertext(test) => {
                 test_hl_stream_ciphertext(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlCompressedSquashedNoiseOneTimePadFheSecretMask(test) => {
+                test_hl_compressed_squashed_noise_one_time_pad_fhe_secret_mask(
+                    test_dir.as_ref(),
+                    test,
+                    format,
+                )
+                .into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);
