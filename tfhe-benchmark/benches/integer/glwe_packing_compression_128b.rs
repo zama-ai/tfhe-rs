@@ -1,3 +1,154 @@
+#[cfg(not(any(feature = "gpu", feature = "hpu")))]
+mod cpu {
+    use benchmark::find_optimal_batch::find_optimal_batch;
+    use benchmark::params_aliases::{
+        BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    use benchmark::utilities::{
+        will_this_bench_run, write_to_json, BitSizesSet, EnvConfig, OperatorType,
+    };
+    use benchmark_spec::{
+        get_bench_type, BenchmarkSpec, BenchmarkType, FheType, IntegerBench, IntegerPackingOp,
+    };
+    use criterion::{criterion_group, Criterion, Throughput};
+    use rayon::prelude::*;
+    use std::hint::black_box;
+    use tfhe::integer::ciphertext::{
+        CompressedSquashedNoiseCiphertextList, NoiseSquashingCompressionPrivateKey,
+        SquashedNoiseRadixCiphertext,
+    };
+    use tfhe::integer::keycache::KEY_CACHE;
+    use tfhe::integer::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
+    use tfhe::integer::IntegerKeyKind;
+    use tfhe::keycache::NamedParam;
+
+    fn default_config(lwe_per_glwe: usize, bits_per_block: u32) -> Vec<u32> {
+        match EnvConfig::new().bit_sizes_set {
+            BitSizesSet::Fast => vec![64],
+            _ => {
+                // Noise squashing packs two radix blocks into each stored sample.
+                // With the prefix below, a full GLWE's worth of bits crosses a boundary.
+                let full_glwe_bits = 2 * lwe_per_glwe as u32 * bits_per_block;
+                let mut sizes = vec![2, 4, 8, 16, 32, 64, 128, 256, full_glwe_bits];
+                sizes.sort_unstable();
+                sizes.dedup();
+                sizes
+            }
+        }
+    }
+
+    fn cpu_glwe_unpacking_128(c: &mut Criterion) {
+        let bench_type = get_bench_type();
+        let bench_name = "integer::128b_packing_compression";
+        let param = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let compression_params =
+            BENCH_COMP_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let bits_per_block = param.message_modulus.0.ilog2();
+        let cases = default_config(compression_params.lwe_per_glwe.0, bits_per_block)
+            .into_iter()
+            .filter_map(|bits| {
+                let spec = BenchmarkSpec::new_integer(
+                    IntegerBench::NoiseSquashingCompression(IntegerPackingOp::Unpack),
+                    &compression_params.name(),
+                    Some(
+                        FheType::Clear {
+                            signed: false,
+                            bits,
+                        }
+                        .into(),
+                    ),
+                    bench_type,
+                    None,
+                );
+                will_this_bench_run(bench_name, &spec.to_string()).then_some((bits, spec))
+            })
+            .collect::<Vec<_>>();
+        if cases.is_empty() {
+            return;
+        }
+        let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let squashing_private_key = NoiseSquashingPrivateKey::new(
+            BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        );
+        let squashing_key = NoiseSquashingKey::new(&cks, &squashing_private_key);
+        let compression_private_key = NoiseSquashingCompressionPrivateKey::new(compression_params);
+        let compression_key =
+            squashing_private_key.new_noise_squashing_compression_key(&compression_private_key);
+        let prefix = squashing_key
+            .squash_radix_ciphertext_noise(&sks, &cks.encrypt_radix(0u64, 2))
+            .unwrap();
+        let mut group = c.benchmark_group(bench_name);
+        group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(30));
+        for (bits, spec) in cases {
+            let num_blocks = (bits / bits_per_block) as usize;
+            let input = squashing_key
+                .squash_radix_ciphertext_noise(&sks, &cks.encrypt_radix(1u64, num_blocks))
+                .unwrap();
+            // Start after one packed sample: Uint512 then straddles a GLWE boundary
+            // with the standard 128-sample packing parameters.
+            let list = CompressedSquashedNoiseCiphertextList::builder()
+                .push(prefix.clone())
+                .push(input)
+                .build(&compression_key);
+            let extracted: SquashedNoiseRadixCiphertext = list.get(1).unwrap().unwrap();
+            assert_eq!(
+                compression_private_key
+                    .private_key_view()
+                    .decrypt_radix::<u64>(&extracted)
+                    .unwrap(),
+                1
+            );
+            match bench_type {
+                BenchmarkType::Latency => {
+                    group.bench_function(spec.to_string(), |b| {
+                        b.iter(|| {
+                            black_box(&list)
+                                .get::<SquashedNoiseRadixCiphertext>(1)
+                                .unwrap()
+                                .unwrap()
+                        })
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    // Give each request its own input storage, outside the timed region.
+                    let setup = |batch_size: usize| vec![list.clone(); batch_size];
+                    let run = |inputs: &mut Vec<CompressedSquashedNoiseCiphertextList>,
+                               _batch_size: usize| {
+                        inputs.par_iter().for_each(|list| {
+                            // Criterion only observes the unit result of the parallel loop.
+                            black_box(
+                                list.get::<SquashedNoiseRadixCiphertext>(1)
+                                    .unwrap()
+                                    .unwrap(),
+                            );
+                        });
+                    };
+                    let elements = find_optimal_batch(run, setup);
+                    let mut inputs = setup(elements);
+                    group.throughput(Throughput::Elements(elements as u64));
+                    group.bench_function(spec.to_string(), |b| {
+                        b.iter(|| run(black_box(&mut inputs), elements))
+                    });
+                }
+            }
+            write_to_json(
+                &spec,
+                "unpack",
+                &OperatorType::Atomic,
+                u64::from(bits),
+                vec![bits_per_block; num_blocks],
+            );
+        }
+        group.finish();
+    }
+
+    criterion_group!(cpu_glwe_unpacking_128_2, cpu_glwe_unpacking_128);
+}
+
 #[cfg(feature = "gpu")]
 mod cuda {
     use benchmark::params_aliases::*;
@@ -449,6 +600,8 @@ mod cuda {
     criterion_group!(gpu_glwe_unpacking_128_2, gpu_glwe_unpacking_128);
 }
 
+#[cfg(not(any(feature = "gpu", feature = "hpu")))]
+use cpu::cpu_glwe_unpacking_128_2;
 use criterion::Criterion;
 #[cfg(feature = "gpu")]
 use cuda::gpu_glwe_packing_128_2;
@@ -460,5 +613,7 @@ fn main() {
     gpu_glwe_packing_128_2();
     #[cfg(feature = "gpu")]
     gpu_glwe_unpacking_128_2();
+    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+    cpu_glwe_unpacking_128_2();
     Criterion::default().configure_from_args().final_summary();
 }

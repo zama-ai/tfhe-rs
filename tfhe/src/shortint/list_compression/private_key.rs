@@ -376,14 +376,31 @@ impl NoiseSquashingCompressionPrivateKey {
         &self,
         compressed_list: &CompressedSquashedNoiseCiphertextList,
     ) -> Vec<u128> {
+        let len = compressed_list.len();
+        if len == 0 {
+            return Vec::new();
+        }
+        let lwe_per_glwe = compressed_list
+            .meta
+            .as_ref()
+            .expect("Missing ciphertext metadata in CompressedSquashedNoiseCiphertextList")
+            .lwe_per_glwe
+            .get();
         let decryption_key = NoiseSquashingPrivateKeyView::from(self);
-        (0..compressed_list.len())
-            .map(|i| {
-                let ciphertext = compressed_list.unpack(i).unwrap(); // i is smaller than list size
-
-                decryption_key.decrypt_squashed_noise_ciphertext(&ciphertext)
-            })
-            .collect()
+        let mut decrypted = Vec::with_capacity(len);
+        // Expand each GLWE once, retaining at most one GLWE's worth of LWE ciphertexts.
+        for start in (0..len).step_by(lwe_per_glwe) {
+            let end = start + lwe_per_glwe.min(len - start);
+            let ciphertexts = compressed_list
+                .unpack_range(start..end)
+                .expect("Invalid CompressedSquashedNoiseCiphertextList");
+            decrypted.extend(
+                ciphertexts
+                    .iter()
+                    .map(|ciphertext| decryption_key.decrypt_squashed_noise_ciphertext(ciphertext)),
+            );
+        }
+        decrypted
     }
 
     pub fn post_packing_ks_key(&self) -> &GlweSecretKeyOwned<u128> {

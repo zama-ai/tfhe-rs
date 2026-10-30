@@ -223,9 +223,7 @@ impl CompressedSquashedNoiseCiphertextList {
             return Ok(None);
         };
 
-        let blocks = block_range
-            .map(|i| self.list.unpack(i))
-            .collect::<crate::Result<Vec<_>>>()?;
+        let blocks = self.list.unpack_range(block_range)?;
 
         Ok(Some((blocks, current_info)))
     }
@@ -467,6 +465,25 @@ mod test {
 
     #[test]
     fn test_compressed_noise_squashed_ciphertext_list() {
+        compressed_noise_squashed_ciphertext_list_round_trip(
+            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        );
+    }
+
+    #[test]
+    fn test_compressed_noise_squashed_ciphertext_list_crosses_glwe_boundaries() {
+        // Force radix items to cross GLWE boundaries and begin partway through a GLWE.
+        let mut compression_parameters =
+            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        compression_parameters.lwe_per_glwe = crate::core_crypto::prelude::LweCiphertextCount(3);
+
+        let list = compressed_noise_squashed_ciphertext_list_round_trip(compression_parameters);
+        assert!(list.list.glwe_ciphertext_list.len() > 1);
+    }
+
+    fn compressed_noise_squashed_ciphertext_list_round_trip(
+        compression_parameters: crate::shortint::parameters::NoiseSquashingCompressionParameters,
+    ) -> CompressedSquashedNoiseCiphertextList {
         let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_parameters =
             TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
@@ -479,9 +496,8 @@ mod test {
         let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
         let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
 
-        let noise_squashing_compression_private_key = NoiseSquashingCompressionPrivateKey::new(
-            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        );
+        let noise_squashing_compression_private_key =
+            NoiseSquashingCompressionPrivateKey::new(compression_parameters);
         let compression_key = noise_squashing_private_key
             .new_noise_squashing_compression_key(&noise_squashing_compression_private_key);
 
@@ -525,6 +541,11 @@ mod test {
             .push(ns_ct_e)
             .build(&compression_key);
 
+        assert!(list
+            .get::<SquashedNoiseRadixCiphertext>(list.len())
+            .unwrap()
+            .is_none());
+
         let ns_ct_a: SquashedNoiseSignedRadixCiphertext = list.get(0).unwrap().unwrap();
         let ns_ct_b: SquashedNoiseBooleanBlock = list.get(1).unwrap().unwrap();
         let ns_ct_c: SquashedNoiseBooleanBlock = list.get(2).unwrap().unwrap();
@@ -544,6 +565,8 @@ mod test {
         assert_eq!(clear_c, d_clear_c);
         assert_eq!(clear_d, d_clear_d);
         assert_eq!(clear_e, d_clear_e);
+
+        list
     }
 
     /// Check the behavior of the list when the info vec is modified
