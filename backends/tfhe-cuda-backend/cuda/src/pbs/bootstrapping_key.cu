@@ -359,6 +359,14 @@ bool cuda_pbs_golden_is_supported_async(uint32_t gpu_index) {
   return err == cudaSuccess && prop.major >= 8;
 }
 
+bool cuda_multi_bit_pbs_golden_is_supported_async(uint32_t gpu_index) {
+  cudaDeviceProp prop{};
+  cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
+  // sm_90 (Hopper) or newer: the multi-bit golden data is captured on H100 and
+  // only validated there.
+  return err == cudaSuccess && prop.major >= 9;
+}
+
 bool cuda_fft16x16x4_is_supported_async(uint32_t gpu_index) {
   cudaDeviceProp prop{};
   cudaError_t err = cudaGetDeviceProperties(&prop, gpu_index);
