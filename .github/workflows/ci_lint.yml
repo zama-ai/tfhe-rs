@@ -7,7 +7,6 @@ on:
 env:
   ACTIONLINT_VERSION: 1.7.7
   ACTIONLINT_CHECKSUM: "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757"
-  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 permissions:
   contents: read
@@ -21,6 +20,8 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        env:
+          CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
@@ -59,3 +60,15 @@ jobs:
           allowlist: |
             slsa-framework/slsa-github-generator
             ./
+
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
+      - name: Check Python requirements lock files are up to date
+        run: |
+          make check_python_requirements
+
+      - name: Check python is only run from a venv
+        run: |
+          make check_python_venv_usage

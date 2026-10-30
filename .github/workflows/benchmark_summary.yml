@@ -69,11 +69,15 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Parse profile and hardware name
         id: parse_profile
         env:
           INPUTS_PROFILE: ${{ inputs.gpu-profile }}
-        run: python3 ci/parse_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
+        run: venv/bin/python ci/parse_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
 
   run-benchmarks-cpu:
     name: benchmark_documentation/run-benchmarks-cpu-integer
@@ -161,6 +165,10 @@ jobs:
         with:
           path: summary-artifacts
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Extract GPU summary CSV
         run: |
           mapfile -t json_files < <(find summary-artifacts -path "*${PROFILE}*" -name 'parsed_benchmark_results_*.json')
@@ -175,7 +183,7 @@ jobs:
           fi
           inputs=()
           for f in "${json_files[@]}"; do inputs+=(-i "$f"); done
-          python3 ci/parse_summary_benches_to_csv.py "${inputs[@]}" \
+          venv/bin/python ci/parse_summary_benches_to_csv.py "${inputs[@]}" \
             --gpu-info-file "${gpu_info_file}" \
             --output-file summary_benchmarks_gpu.csv
           echo "----- summary_benchmarks_gpu.csv -----"

@@ -237,10 +237,14 @@ jobs:
           merge-multiple: true
           path: previous_protocol_table
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Render protocol results table
         if: ${{ contains(matrix.command, 'protocol') }}
         run: |
-          python3 ci/protocol_results_table.py "${RESULTS_FILENAME}" \
+          venv/bin/python ci/protocol_results_table.py "${RESULTS_FILENAME}" \
           --hardware "${HARDWARE_NAME}" \
           --csv "${PROTOCOL_TABLE_CSV}" \
           --merge "previous_protocol_table/${PROTOCOL_TABLE_CSV}"

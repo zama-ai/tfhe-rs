@@ -77,9 +77,13 @@ jobs:
         run: |
           make bench_ntt
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Parse results
         run: |
-          python3 ./ci/ntt_benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          venv/bin/python ./ci/ntt_benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database concrete_ntt \
           --hardware "hpc8a.96xlarge" \
           --project-version "${COMMIT_HASH}" \

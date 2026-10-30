@@ -47,17 +47,22 @@ SAFE_CHAIN_DIR?=$(HOME)/.safe-chain
 # Safe-Chain has a dedicated setup mode for CI pipelines (executable shims on the PATH instead of
 # aliases in the shell startup files), select it when running in CI
 SAFE_CHAIN_INSTALL_FLAGS:=$(if $(filter true,$(CI)),--ci,)
+# Shell snippet making sure Aikido Safe-Chain is installed and that its shims wrap the package
+# managers (npm, npx, pip, python...) for the rest of the recipe, sub-makes included. It must come
+# after the setup of the tools to wrap (`nvm use`, venv activation) on purpose: those put the real
+# npm/python first on the PATH, in front of Safe-Chain shims that may already be there.
+define activate_safe_chain
+( [ -x "$(SAFE_CHAIN_DIR)"/bin/safe-chain ] || $(MAKE) install_aikido_safe_chain ) && \
+( [ -d "$(SAFE_CHAIN_DIR)"/shims ] || "$(SAFE_CHAIN_DIR)"/bin/safe-chain setup-ci ) && \
+export PATH="$(SAFE_CHAIN_DIR)/shims:$(SAFE_CHAIN_DIR)/bin:$$PATH"
+endef
 # Shell snippet starting the recipes that need Node: it activates NODE_VERSION through nvm, then
-# makes sure Aikido Safe-Chain is installed and that its shims wrap the package managers for the
-# rest of the recipe, sub-makes included. Safe-Chain is set up after `nvm use` on purpose: nvm puts
-# the real npm/npx first on the PATH, in front of Safe-Chain shims that may already be there.
+# Safe-Chain, see activate_safe_chain
 define activate_node
 source "$(NVM_DIR)"/nvm.sh && \
 nvm install $(NODE_VERSION) && \
 nvm use $(NODE_VERSION) && \
-( [ -x "$(SAFE_CHAIN_DIR)"/bin/safe-chain ] || $(MAKE) install_aikido_safe_chain ) && \
-( [ -d "$(SAFE_CHAIN_DIR)"/shims ] || "$(SAFE_CHAIN_DIR)"/bin/safe-chain setup-ci ) && \
-export PATH="$(SAFE_CHAIN_DIR)/shims:$(SAFE_CHAIN_DIR)/bin:$$PATH"
+$(activate_safe_chain)
 endef
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_GEN_VERSION:=$(TFHE_VERSION)
@@ -83,6 +88,10 @@ export RUSTFLAGS?=-C target-cpu=native
 include utils/tfhe-lints/Makefile
 include make/transciphering.mk
 include make/compatibility.mk
+include make/python.mk
+
+# venv to use for this Makefile
+PYTHON_VENV?=venv
 
 ifeq ($(GEN_KEY_CACHE_MULTI_BIT_ONLY),TRUE)
 		MULTI_BIT_ONLY=--multi-bit-only
@@ -373,18 +382,18 @@ fmt_js: check_nvm_installed
 	$(MAKE) -C tfhe/js_on_wasm_tests fmt && \
 	$(MAKE) -C utils/wasm-par-mq fmt
 
-.PHONY: semgrep_lint_setup_venv # Create venv and install Python dependencies for GPU lint checks
+SEMGREP_LINT_VENV=venv_semgrep_lint
+.PHONY: semgrep_lint_setup_venv # Create venv with semgrep and the python requirements of the GPU lint checks
 semgrep_lint_setup_venv:
-	python3 -m venv venv
-	venv/bin/pip install -r scripts/gpu-lint-requirements.txt
+	$(call create_python_venv_with_requirements,$(SEMGREP_LINT_VENV),scripts/gpu-lint-requirements.txt)
 
 .PHONY: semgrep_and_lint_gpu_code # Run semgrep and lint checks on CUDA backend code
 semgrep_and_lint_gpu_code: semgrep_lint_setup_venv
 	find "$(TFHECUDA_SRC)" -name '*.h' -o -name '*.cuh' -o -name '*.cu' \
 		| grep -v '/cmake-build-debug/' \
 		| grep -v '/build/' \
-		| xargs venv/bin/semgrep --error --config "$(TFHECUDA_SRC)/.semgrep/release-ordering.yaml" --scan-unknown-extensions
-	venv/bin/python3 "scripts/check_scratch_cleanup.py"
+		| xargs $(SEMGREP_LINT_VENV)/bin/semgrep --error --config "$(TFHECUDA_SRC)/.semgrep/release-ordering.yaml" --scan-unknown-extensions
+	$(SEMGREP_LINT_VENV)/bin/python "scripts/check_scratch_cleanup.py"
 
 .PHONY: semver_check_cuda_backend # Run semver checks on tfhe-cuda-backend
 semver_check_cuda_backend:
@@ -402,13 +411,17 @@ semver_check_cuda_common:
 	DOCS_RS=1 cargo semver-checks --package tfhe-cuda-common
 
 .PHONY: check_documentation_up_to_date_gpu # Check that new code is documented with doxygen style-comments
-check_documentation_up_to_date_gpu:
-	python3 -m venv venv
-	@source venv/bin/activate && python ci/check_doxygen_gpu.py
+check_documentation_up_to_date_gpu: setup_python_venv
+	$(PYTHON_VENV)/bin/python ci/check_doxygen_gpu.py
+
+GPU_WORKFLOWS_TABLE_VENV=venv_gpu_workflows_table
+.PHONY: gpu_workflows_table_setup_venv # Create venv with the python requirements of the GPU workflows table
+gpu_workflows_table_setup_venv:
+	$(call create_python_venv_with_requirements,$(GPU_WORKFLOWS_TABLE_VENV),ci/gpu_workflows_table_requirements.txt)
 
 .PHONY: gpu_workflows_report_pdf # Generate a PDF table of GPU CI workflows from workflow YAML files
-gpu_workflows_report_pdf:
-	python3 ci/gpu_workflows_table.py | python3 ci/csv_to_ods.py workflows_auto.ods
+gpu_workflows_report_pdf: gpu_workflows_table_setup_venv
+	$(GPU_WORKFLOWS_TABLE_VENV)/bin/python ci/gpu_workflows_table.py | $(GPU_WORKFLOWS_TABLE_VENV)/bin/python ci/csv_to_ods.py workflows_auto.ods
 	libreoffice --headless --convert-to pdf workflows_auto.ods
 
 .PHONY: fmt_gpu # Format rust and cuda code
@@ -1813,19 +1826,19 @@ check_local_workspace_version:
 	RUSTFLAGS="" cargo xtask check-local-workspace-version
 
 .PHONY: release_status # Show which released crates need a version bump, a tag or a publish
-release_status:
-	python3 ./scripts/release_status.py
+release_status: setup_python_venv
+	$(PYTHON_VENV)/bin/python ./scripts/release_status.py
 
 # In a pull_request workflow actions/checkout produces a merge commit whose first parent
 # is the base branch, so HEAD^1 is the changes the pull request introduces. Locally
 # there is no such commit, and --pr-gate falls back to this branch's fork point.
 .PHONY: check_release_ready # Check PACKAGE is ready to be released from tag TAG
-check_release_ready:
-	python3 ./scripts/release_status.py --release-gate "$(TAG)" --crates "$(PACKAGE)"
+check_release_ready: setup_python_venv
+	$(PYTHON_VENV)/bin/python ./scripts/release_status.py --release-gate "$(TAG)" --crates "$(PACKAGE)"
 
 .PHONY: check_cuda_version_bump # Check that modified CUDA crates had their version bumped
-check_cuda_version_bump:
-	python3 ./scripts/release_status.py --files \
+check_cuda_version_bump: setup_python_venv
+	$(PYTHON_VENV)/bin/python ./scripts/release_status.py --files \
 		--pr-gate $(if $(GITHUB_BASE_REF),HEAD^1) \
 		--crates tfhe-cuda-common tfhe-cuda-backend zk-cuda-backend
 
@@ -1842,12 +1855,12 @@ check_main_readme_links: install_mlc
 	mlc README.md
 
 .PHONY: check_doc_paths_use_dash # Check paths use "-" instead of "_" in docs for gitbook compatibility
-check_doc_paths_use_dash:
-	python3 ./scripts/check_doc_paths_use_dash.py
+check_doc_paths_use_dash: setup_python_venv
+	$(PYTHON_VENV)/bin/python ./scripts/check_doc_paths_use_dash.py
 
 .PHONY: check_parameter_export_ok # Checks exported "current" shortint parameter module is correct
-check_parameter_export_ok:
-	python3 ./scripts/check_current_param_export.py
+check_parameter_export_ok: setup_python_venv
+	$(PYTHON_VENV)/bin/python ./scripts/check_current_param_export.py
 
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests:
@@ -1896,10 +1909,9 @@ build_wasm_par_mq_tests: install_wasm_pack
 	find pkg/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../wasm_par_mq_web_tests.js")|g' {} \;
 
 # This is an internal target, not meant to be called on its own.
-run_wasm_par_mq_tests: build_wasm_par_mq_tests setup_venv
+run_wasm_par_mq_tests: build_wasm_par_mq_tests webdriver_setup_venv
 	cd $(WASM_PAR_MQ_TEST_DIR) && npm ci && npm run build
-	source venv/bin/activate && \
-	python ci/webdriver.py \
+	$(WEBDRIVER_VENV)/bin/python ci/webdriver.py \
 	--browser-path $(browser_path) \
 	--driver-path $(driver_path) \
 	--browser-kind $(browser_kind) \
@@ -1916,7 +1928,7 @@ test_wasm_par_mq_chrome: browser_kind = chrome
 test_wasm_par_mq_chrome: run_wasm_par_mq_tests
 
 .PHONY: test_wasm_par_mq_chrome_ci # Run wasm-par-mq tests on Chrome in CI
-test_wasm_par_mq_chrome_ci: setup_venv
+test_wasm_par_mq_chrome_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) test_wasm_par_mq_chrome
 
@@ -1928,7 +1940,7 @@ test_wasm_par_mq_firefox: browser_kind = firefox
 test_wasm_par_mq_firefox: run_wasm_par_mq_tests
 
 .PHONY: test_wasm_par_mq_firefox_ci # Run wasm-par-mq tests on Firefox in CI
-test_wasm_par_mq_firefox_ci: setup_venv
+test_wasm_par_mq_firefox_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) test_wasm_par_mq_firefox
 
@@ -2611,8 +2623,8 @@ measure_boolean_key_sizes: install_rs_check_toolchain
 	-p tfhe-benchmark
 
 .PHONY: parse_integer_benches # Run python parser to output a csv containing integer benches data
-parse_integer_benches:
-	python3 ./ci/parse_integer_benches_to_csv.py \
+parse_integer_benches: setup_python_venv
+	$(PYTHON_VENV)/bin/python ./ci/parse_integer_benches_to_csv.py \
 		--criterion-dir target/criterion \
 		--output-file "$(PARSE_INTEGER_BENCH_CSV_FILE)"
 

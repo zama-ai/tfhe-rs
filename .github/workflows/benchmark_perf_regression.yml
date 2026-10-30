@@ -83,14 +83,18 @@ jobs:
 
       # TODO add support for HPU backend
 
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
       - name: Install Python requirements
         run: |
-          python3 -m pip install -r ci/perf_regression/requirements.txt
+          make install_python_requirements PYTHON_REQUIREMENTS=ci/perf_regression/requirements.txt
 
       - name: Generate cargo commands and env from label
         if: github.event_name == 'pull_request'
         run: |
-          python3 ci/perf_regression/perf_regression.py parse_profile --issue-comment "/bench ${DEFAULT_BENCH_OPTIONS}"
+          venv/bin/python ci/perf_regression/perf_regression.py parse_profile --issue-comment "/bench ${DEFAULT_BENCH_OPTIONS}"
           echo "COMMANDS=$(cat ci/perf_regression/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
 
       - name: Dump issue comment into file # To avoid possible code-injection
@@ -103,7 +107,7 @@ jobs:
       - name: Generate cargo commands and env
         if: github.event_name == 'issue_comment'
         run: |
-          python3 ci/perf_regression/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
+          venv/bin/python ci/perf_regression/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
           echo "COMMANDS=$(cat ci/perf_regression/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
 
       - name: Set commands output
@@ -121,7 +125,7 @@ jobs:
         id: get_hardware_name
         run:
           | # zizmor: ignore[template-injection] these interpolations are safe
-          HARDWARE_NAME=$(python3 ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
+          HARDWARE_NAME=$(venv/bin/python ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
           echo "name=${HARDWARE_NAME}" >> "${GITHUB_OUTPUT}"
 
       - name: Set regression details outputs
@@ -291,10 +295,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
       - name: Install requirements
         run: |
-          python3.12 -m venv venv
-          venv/bin/pip3 install -r ci/data_extractor/requirements.txt -r ci/perf_regression/requirements.txt
+          make install_python_requirements PYTHON_EXE=python3.12 \
+            PYTHON_REQUIREMENTS="ci/data_extractor/requirements.txt ci/perf_regression/requirements.txt"
 
       - name: Fetch data
         run: |

@@ -93,7 +93,7 @@ jobs:
           sudo apt-get install -y python3-venv doxygen
 
       - name: Check doxygen on new GPU code
-        run: python3 ci/check_doxygen_gpu.py
+        run: make check_documentation_up_to_date_gpu
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
 
@@ -101,6 +101,10 @@ jobs:
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
 
       - name: Run semgrep and lint checks on CUDA code
         if: inputs.run-pcc-gpu

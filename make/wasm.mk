@@ -76,11 +76,10 @@ build_web_js_api_parallel_client: install_rs_check_toolchain install_wasm_pack i
 	find $(WEB_CLIENT_OUT_DIR)/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
 	jq '.files += ["snippets"]' tfhe/$(WEB_CLIENT_OUT_DIR)/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/$(WEB_CLIENT_OUT_DIR)/package.json
 
-.PHONY: setup_venv # Setup Python virtualenv for wasm tests
-setup_venv:
-	python3 -m venv venv
-	@source venv/bin/activate && \
-	pip3 install -r ci/webdriver_requirements.txt
+WEBDRIVER_VENV=venv_webdriver
+.PHONY: webdriver_setup_venv # Create venv with the python requirements of the webdriver running the wasm tests
+webdriver_setup_venv:
+	$(call create_python_venv_with_requirements,$(WEBDRIVER_VENV),ci/webdriver_requirements.txt)
 
 # This is an internal target, not meant to be called on its own.
 install_web_resource:
@@ -128,10 +127,9 @@ install_firefox_web_driver: decompress_cmd = tar -xvf
 install_firefox_web_driver: install_web_resource
 
 # This is an internal target, not meant to be called on its own.
-run_web_js_api_parallel: build_web_js_api_parallel build_benchmark_spec_js setup_venv
+run_web_js_api_parallel: build_web_js_api_parallel build_benchmark_spec_js webdriver_setup_venv
 	cd $(WEB_SERVER_DIR) && npm ci && npm run build
-	source venv/bin/activate && \
-	python ci/webdriver.py \
+	$(WEBDRIVER_VENV)/bin/python ci/webdriver.py \
 	--browser-path $(browser_path) \
 	--driver-path $(driver_path) \
 	--browser-kind $(browser_kind) \
@@ -141,10 +139,9 @@ run_web_js_api_parallel: build_web_js_api_parallel build_benchmark_spec_js setup
 	--id-exclude-pattern asyncMainThread
 
 # This is an internal target, not meant to be called on its own.
-run_web_js_api_cross_origin: build_web_js_api build_benchmark_spec_js setup_venv
+run_web_js_api_cross_origin: build_web_js_api build_benchmark_spec_js webdriver_setup_venv
 	cd $(WEB_SERVER_DIR) && npm ci && npm run build
-	source venv/bin/activate && \
-	python ci/webdriver.py \
+	$(WEBDRIVER_VENV)/bin/python ci/webdriver.py \
 	--browser-path $(browser_path) \
 	--driver-path $(driver_path) \
 	--browser-kind  $(browser_kind) \
@@ -162,7 +159,7 @@ test_web_js_api_parallel_chrome: filter = Test
 test_web_js_api_parallel_chrome: run_web_js_api_parallel
 
 .PHONY: test_web_js_api_parallel_chrome_ci # Run tests for the web wasm api on Chrome
-test_web_js_api_parallel_chrome_ci: setup_venv
+test_web_js_api_parallel_chrome_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) test_web_js_api_parallel_chrome
 
@@ -176,7 +173,7 @@ test_web_js_api_parallel_firefox: filter = Test
 test_web_js_api_parallel_firefox: run_web_js_api_parallel
 
 .PHONY: test_web_js_api_parallel_firefox_ci # Run tests for the web wasm api on Firefox
-test_web_js_api_parallel_firefox_ci: setup_venv
+test_web_js_api_parallel_firefox_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) test_web_js_api_parallel_firefox
 
@@ -191,7 +188,7 @@ test_web_js_api_cross_origin_chrome: filter = ZeroKnowledgeTest
 test_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
 
 .PHONY: test_web_js_api_cross_origin_chrome_ci # Run tests for the web wasm api in cross-origin mode on Chrome
-test_web_js_api_cross_origin_chrome_ci: setup_venv
+test_web_js_api_cross_origin_chrome_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) test_web_js_api_cross_origin_chrome
 
@@ -205,7 +202,7 @@ test_web_js_api_cross_origin_firefox: filter = ZeroKnowledgeTest
 test_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
 
 .PHONY: test_web_js_api_cross_origin_firefox_ci # Run tests for the web wasm api in cross-origin mode on Firefox
-test_web_js_api_cross_origin_firefox_ci: setup_venv
+test_web_js_api_cross_origin_firefox_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) test_web_js_api_cross_origin_firefox
 
@@ -219,7 +216,7 @@ bench_web_js_api_parallel_chrome: filter = Bench
 bench_web_js_api_parallel_chrome: run_web_js_api_parallel
 
 .PHONY: bench_web_js_api_parallel_chrome_ci # Run benchmarks for the web wasm api
-bench_web_js_api_parallel_chrome_ci: setup_venv
+bench_web_js_api_parallel_chrome_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) bench_web_js_api_parallel_chrome
 
@@ -233,7 +230,7 @@ bench_web_js_api_parallel_firefox: filter = Bench
 bench_web_js_api_parallel_firefox: run_web_js_api_parallel
 
 .PHONY: bench_web_js_api_parallel_firefox_ci # Run benchmarks for the web wasm api
-bench_web_js_api_parallel_firefox_ci: setup_venv
+bench_web_js_api_parallel_firefox_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) bench_web_js_api_parallel_firefox
 
@@ -248,7 +245,7 @@ bench_web_js_api_cross_origin_chrome: filter = ZeroKnowledgeBench
 bench_web_js_api_cross_origin_chrome: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_chrome_ci # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_chrome_ci: setup_venv
+bench_web_js_api_cross_origin_chrome_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) bench_web_js_api_cross_origin_chrome
 
@@ -262,7 +259,7 @@ bench_web_js_api_cross_origin_firefox: filter = ZeroKnowledgeBench
 bench_web_js_api_cross_origin_firefox: run_web_js_api_cross_origin
 
 .PHONY: bench_web_js_api_cross_origin_firefox_ci # Run benchmarks for the web wasm api without cross-origin isolation
-bench_web_js_api_cross_origin_firefox_ci: setup_venv
+bench_web_js_api_cross_origin_firefox_ci: webdriver_setup_venv
 	$(activate_node) && \
 	$(MAKE) bench_web_js_api_cross_origin_firefox
 
