@@ -552,6 +552,9 @@ void execute_pbs_async(
     uint32_t input_lwe_ciphertext_count, pbs_type_params pbs_params,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
+  auto bsk_params =
+      make_bsk_params_ffi(lwe_dimension, glwe_dimension, polynomial_size,
+                          base_log, level_count, pbs_params);
   if constexpr (std::is_same_v<OutputTorus, uint32_t>) {
     // 32 bits
     std::visit(
@@ -583,8 +586,7 @@ void execute_pbs_async(
                     current_lwe_array_out, current_lwe_output_indexes,
                     lut_vec[i], d_lut_vector_indexes, current_lwe_array_in,
                     current_lwe_input_indexes, bootstrapping_keys[i],
-                    reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
-                    glwe_dimension, polynomial_size, base_log, level_count,
+                    reinterpret_cast<int8_t *>(pbs_buffer[i]), bsk_params,
                     num_inputs_on_gpu, num_many_lut, lut_stride);
               }
             },
@@ -623,8 +625,7 @@ void execute_pbs_async(
                     current_lwe_array_out, current_lwe_output_indexes,
                     lut_vec[i], d_lut_vector_indexes, current_lwe_array_in,
                     current_lwe_input_indexes, bootstrapping_keys[i],
-                    reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
-                    glwe_dimension, polynomial_size, base_log, level_count,
+                    reinterpret_cast<int8_t *>(pbs_buffer[i]), bsk_params,
                     num_inputs_on_gpu, num_many_lut, lut_stride);
               }
             },
@@ -657,10 +658,8 @@ void execute_pbs_async(
                     current_lwe_array_out, current_lwe_output_indexes,
                     lut_vec[i], d_lut_vector_indexes, current_lwe_array_in,
                     current_lwe_input_indexes, bootstrapping_keys[i],
-                    reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
-                    glwe_dimension, polynomial_size, multi_bit.grouping_factor,
-                    base_log, level_count, num_inputs_on_gpu, num_many_lut,
-                    lut_stride);
+                    reinterpret_cast<int8_t *>(pbs_buffer[i]), bsk_params,
+                    num_inputs_on_gpu, num_many_lut, lut_stride);
               }
             }},
         pbs_params);
@@ -694,8 +693,7 @@ void execute_pbs_async(
                     streams.stream(i), streams.gpu_index(i),
                     current_lwe_array_out, lut_vec[i], current_lwe_array_in,
                     bootstrapping_keys[i],
-                    reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
-                    glwe_dimension, polynomial_size, base_log, level_count,
+                    reinterpret_cast<int8_t *>(pbs_buffer[i]), bsk_params,
                     num_inputs_on_gpu);
               }
             },
@@ -723,10 +721,8 @@ void execute_pbs_async(
                     current_lwe_array_out, current_lwe_output_indexes,
                     lut_vec[i], current_lwe_array_in, current_lwe_input_indexes,
                     bootstrapping_keys[i],
-                    reinterpret_cast<int8_t *>(pbs_buffer[i]), lwe_dimension,
-                    glwe_dimension, polynomial_size, multi_bit.grouping_factor,
-                    base_log, level_count, num_inputs_on_gpu, num_many_lut,
-                    lut_stride);
+                    reinterpret_cast<int8_t *>(pbs_buffer[i]), bsk_params,
+                    num_inputs_on_gpu, num_many_lut, lut_stride);
               }
             }},
         pbs_params);
@@ -752,44 +748,44 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
       std::is_same_v<Torus, uint64_t> || std::is_same_v<Torus, __uint128_t>,
       "Cuda error: unsupported modulus size: only 64, or 128-bit integer "
       "moduli are supported.");
+  // The scratch does not read base_log.
+  auto bsk_params =
+      make_bsk_params_ffi(lwe_dimension, glwe_dimension, polynomial_size, 0,
+                          level_count, pbs_params);
   if constexpr (std::is_same_v<Torus, uint64_t>) {
     // 64 bits
     std::visit(
         pbs_type_visitor{
-            [&](classical_pbs_params classical) {
+            [&](classical_pbs_params) {
               size_tracker = scratch_cuda_programmable_bootstrap_64_async(
-                  stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
-                  polynomial_size, level_count, input_lwe_ciphertext_count,
-                  allocate_gpu_memory, classical.noise_reduction_type);
+                  stream, gpu_index, pbs_buffer, bsk_params,
+                  input_lwe_ciphertext_count, allocate_gpu_memory);
             },
             [&](multi_bit_pbs_params multi_bit) {
               if (multi_bit.grouping_factor == 0)
                 PANIC("Multi-bit PBS error: grouping factor should be > 0.")
               size_tracker =
                   scratch_cuda_multi_bit_programmable_bootstrap_64_async(
-                      stream, gpu_index, pbs_buffer, glwe_dimension,
-                      polynomial_size, level_count, input_lwe_ciphertext_count,
-                      allocate_gpu_memory);
+                      stream, gpu_index, pbs_buffer, bsk_params,
+                      input_lwe_ciphertext_count, allocate_gpu_memory);
             }},
         pbs_params);
   } else if constexpr (std::is_same_v<Torus, __uint128_t>) {
     // 128 bits
     std::visit(
         pbs_type_visitor{
-            [&](classical_pbs_params classical) {
+            [&](classical_pbs_params) {
               size_tracker = scratch_cuda_programmable_bootstrap_128_async(
-                  stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
-                  polynomial_size, level_count, input_lwe_ciphertext_count,
-                  allocate_gpu_memory, classical.noise_reduction_type);
+                  stream, gpu_index, pbs_buffer, bsk_params,
+                  input_lwe_ciphertext_count, allocate_gpu_memory);
             },
             [&](multi_bit_pbs_params multi_bit) {
               if (multi_bit.grouping_factor == 0)
                 PANIC("Multi-bit PBS error: grouping factor should be > 0.")
               size_tracker =
                   scratch_cuda_multi_bit_programmable_bootstrap_128_async(
-                      stream, gpu_index, pbs_buffer, glwe_dimension,
-                      polynomial_size, level_count, input_lwe_ciphertext_count,
-                      allocate_gpu_memory);
+                      stream, gpu_index, pbs_buffer, bsk_params,
+                      input_lwe_ciphertext_count, allocate_gpu_memory);
             }},
         pbs_params);
   } else {

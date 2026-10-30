@@ -295,6 +295,84 @@ unsafe extern "C" {
         level_count: u32,
     );
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaClassicalPbsParamsFFI {
+    pub noise_reduction_type: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaClassicalPbsParamsFFI"]
+        [::std::mem::size_of::<CudaClassicalPbsParamsFFI>() - 4usize];
+    ["Alignment of CudaClassicalPbsParamsFFI"]
+        [::std::mem::align_of::<CudaClassicalPbsParamsFFI>() - 4usize];
+    ["Offset of field: CudaClassicalPbsParamsFFI::noise_reduction_type"]
+        [::std::mem::offset_of!(CudaClassicalPbsParamsFFI, noise_reduction_type) - 0usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaMultiBitPbsParamsFFI {
+    pub grouping_factor: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaMultiBitPbsParamsFFI"]
+        [::std::mem::size_of::<CudaMultiBitPbsParamsFFI>() - 4usize];
+    ["Alignment of CudaMultiBitPbsParamsFFI"]
+        [::std::mem::align_of::<CudaMultiBitPbsParamsFFI>() - 4usize];
+    ["Offset of field: CudaMultiBitPbsParamsFFI::grouping_factor"]
+        [::std::mem::offset_of!(CudaMultiBitPbsParamsFFI, grouping_factor) - 0usize];
+};
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union CudaPbsTypeParamsFFI {
+    pub classical: CudaClassicalPbsParamsFFI,
+    pub multi_bit: CudaMultiBitPbsParamsFFI,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaPbsTypeParamsFFI"][::std::mem::size_of::<CudaPbsTypeParamsFFI>() - 4usize];
+    ["Alignment of CudaPbsTypeParamsFFI"][::std::mem::align_of::<CudaPbsTypeParamsFFI>() - 4usize];
+    ["Offset of field: CudaPbsTypeParamsFFI::classical"]
+        [::std::mem::offset_of!(CudaPbsTypeParamsFFI, classical) - 0usize];
+    ["Offset of field: CudaPbsTypeParamsFFI::multi_bit"]
+        [::std::mem::offset_of!(CudaPbsTypeParamsFFI, multi_bit) - 0usize];
+};
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct CudaLweBootstrapKeyParamsFFI {
+    pub input_lwe_dimension: u32,
+    pub glwe_dimension: u32,
+    pub polynomial_size: u32,
+    pub base_log: u32,
+    pub level_count: u32,
+    pub big_lwe_dimension: u32,
+    pub pbs_type: u32,
+    pub pbs_params: CudaPbsTypeParamsFFI,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaLweBootstrapKeyParamsFFI"]
+        [::std::mem::size_of::<CudaLweBootstrapKeyParamsFFI>() - 32usize];
+    ["Alignment of CudaLweBootstrapKeyParamsFFI"]
+        [::std::mem::align_of::<CudaLweBootstrapKeyParamsFFI>() - 4usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::input_lwe_dimension"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, input_lwe_dimension) - 0usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::glwe_dimension"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, glwe_dimension) - 4usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::polynomial_size"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, polynomial_size) - 8usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::base_log"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, base_log) - 12usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::level_count"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, level_count) - 16usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::big_lwe_dimension"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, big_lwe_dimension) - 20usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::pbs_type"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, pbs_type) - 24usize];
+    ["Offset of field: CudaLweBootstrapKeyParamsFFI::pbs_params"]
+        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, pbs_params) - 28usize];
+};
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_SHIFT: SHIFT_OR_ROTATE_TYPE = 0;
 pub const SHIFT_OR_ROTATE_TYPE_RIGHT_SHIFT: SHIFT_OR_ROTATE_TYPE = 1;
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_ROTATE: SHIFT_OR_ROTATE_TYPE = 2;
@@ -500,84 +578,6 @@ const _: () = {
         [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, glwe_dimension) - 20usize];
     ["Offset of field: CudaPackedGlweCiphertextListFFI::polynomial_size"]
         [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, polynomial_size) - 24usize];
-};
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct CudaClassicalPbsParamsFFI {
-    pub noise_reduction_type: u32,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaClassicalPbsParamsFFI"]
-        [::std::mem::size_of::<CudaClassicalPbsParamsFFI>() - 4usize];
-    ["Alignment of CudaClassicalPbsParamsFFI"]
-        [::std::mem::align_of::<CudaClassicalPbsParamsFFI>() - 4usize];
-    ["Offset of field: CudaClassicalPbsParamsFFI::noise_reduction_type"]
-        [::std::mem::offset_of!(CudaClassicalPbsParamsFFI, noise_reduction_type) - 0usize];
-};
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct CudaMultiBitPbsParamsFFI {
-    pub grouping_factor: u32,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaMultiBitPbsParamsFFI"]
-        [::std::mem::size_of::<CudaMultiBitPbsParamsFFI>() - 4usize];
-    ["Alignment of CudaMultiBitPbsParamsFFI"]
-        [::std::mem::align_of::<CudaMultiBitPbsParamsFFI>() - 4usize];
-    ["Offset of field: CudaMultiBitPbsParamsFFI::grouping_factor"]
-        [::std::mem::offset_of!(CudaMultiBitPbsParamsFFI, grouping_factor) - 0usize];
-};
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union CudaPbsTypeParamsFFI {
-    pub classical: CudaClassicalPbsParamsFFI,
-    pub multi_bit: CudaMultiBitPbsParamsFFI,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaPbsTypeParamsFFI"][::std::mem::size_of::<CudaPbsTypeParamsFFI>() - 4usize];
-    ["Alignment of CudaPbsTypeParamsFFI"][::std::mem::align_of::<CudaPbsTypeParamsFFI>() - 4usize];
-    ["Offset of field: CudaPbsTypeParamsFFI::classical"]
-        [::std::mem::offset_of!(CudaPbsTypeParamsFFI, classical) - 0usize];
-    ["Offset of field: CudaPbsTypeParamsFFI::multi_bit"]
-        [::std::mem::offset_of!(CudaPbsTypeParamsFFI, multi_bit) - 0usize];
-};
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct CudaLweBootstrapKeyParamsFFI {
-    pub input_lwe_dimension: u32,
-    pub glwe_dimension: u32,
-    pub polynomial_size: u32,
-    pub base_log: u32,
-    pub level_count: u32,
-    pub big_lwe_dimension: u32,
-    pub pbs_type: u32,
-    pub pbs_params: CudaPbsTypeParamsFFI,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaLweBootstrapKeyParamsFFI"]
-        [::std::mem::size_of::<CudaLweBootstrapKeyParamsFFI>() - 32usize];
-    ["Alignment of CudaLweBootstrapKeyParamsFFI"]
-        [::std::mem::align_of::<CudaLweBootstrapKeyParamsFFI>() - 4usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::input_lwe_dimension"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, input_lwe_dimension) - 0usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::glwe_dimension"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, glwe_dimension) - 4usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::polynomial_size"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, polynomial_size) - 8usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::base_log"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, base_log) - 12usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::level_count"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, level_count) - 16usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::big_lwe_dimension"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, big_lwe_dimension) - 20usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::pbs_type"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, pbs_type) - 24usize];
-    ["Offset of field: CudaLweBootstrapKeyParamsFFI::pbs_params"]
-        [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, pbs_params) - 28usize];
 };
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_64_async(
@@ -3145,10 +3145,7 @@ unsafe extern "C" {
         gpu_index: u32,
         dest: *mut ffi::c_void,
         src: *const ffi::c_void,
-        input_lwe_dim: u32,
-        glwe_dim: u32,
-        level_count: u32,
-        polynomial_size: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
     );
 }
 unsafe extern "C" {
@@ -3157,10 +3154,7 @@ unsafe extern "C" {
         gpu_index: u32,
         dest: *mut ffi::c_void,
         src: *const ffi::c_void,
-        input_lwe_dim: u32,
-        glwe_dim: u32,
-        level_count: u32,
-        polynomial_size: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
     );
 }
 unsafe extern "C" {
@@ -3169,10 +3163,7 @@ unsafe extern "C" {
         gpu_index: u32,
         dest: *mut ffi::c_void,
         src: *const ffi::c_void,
-        input_lwe_dim: u32,
-        glwe_dim: u32,
-        level_count: u32,
-        polynomial_size: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
     );
 }
 unsafe extern "C" {
@@ -3180,13 +3171,9 @@ unsafe extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         buffer: *mut *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -3194,13 +3181,9 @@ unsafe extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         buffer: *mut *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -3215,11 +3198,7 @@ unsafe extern "C" {
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
         buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        base_log: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         num_samples: u32,
         num_many_lut: u32,
         lut_stride: u32,
@@ -3237,11 +3216,7 @@ unsafe extern "C" {
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
         buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        base_log: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         num_samples: u32,
         num_many_lut: u32,
         lut_stride: u32,
@@ -3256,11 +3231,7 @@ unsafe extern "C" {
         lwe_array_in: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
         buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        base_log: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         num_samples: u32,
     );
 }
@@ -3280,9 +3251,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         num_samples: u32,
         max_shared_memory: u32,
     ) -> bool;
@@ -3293,11 +3262,7 @@ unsafe extern "C" {
         gpu_index: u32,
         dest: *mut ffi::c_void,
         src: *const ffi::c_void,
-        input_lwe_dim: u32,
-        glwe_dim: u32,
-        level_count: u32,
-        polynomial_size: u32,
-        grouping_factor: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
     );
 }
 unsafe extern "C" {
@@ -3306,11 +3271,7 @@ unsafe extern "C" {
         gpu_index: u32,
         dest: *mut ffi::c_void,
         src: *const ffi::c_void,
-        input_lwe_dim: u32,
-        glwe_dim: u32,
-        level_count: u32,
-        polynomial_size: u32,
-        grouping_factor: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
     );
 }
 unsafe extern "C" {
@@ -3318,9 +3279,7 @@ unsafe extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         buffer: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
@@ -3337,12 +3296,7 @@ unsafe extern "C" {
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
         buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        grouping_factor: u32,
-        base_log: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         num_samples: u32,
         num_many_lut: u32,
         lut_stride: u32,
@@ -3360,9 +3314,7 @@ unsafe extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         buffer: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
@@ -3386,12 +3338,7 @@ unsafe extern "C" {
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
         buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        grouping_factor: u32,
-        base_log: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         num_samples: u32,
         num_many_lut: u32,
         lut_stride: u32,
@@ -3402,9 +3349,7 @@ unsafe extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         buffer: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
@@ -3420,12 +3365,7 @@ unsafe extern "C" {
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
         mem_ptr: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        grouping_factor: u32,
-        base_log: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         num_samples: u32,
         num_many_lut: u32,
         lut_stride: u32,
@@ -3443,9 +3383,7 @@ unsafe extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         pbs_buffer: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
@@ -3468,12 +3406,7 @@ unsafe extern "C" {
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
         buffer: *mut i8,
-        lwe_dimension: u32,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        grouping_factor: u32,
-        base_log: u32,
-        level_count: u32,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
         num_samples: u32,
         num_many_lut: u32,
         lut_stride: u32,

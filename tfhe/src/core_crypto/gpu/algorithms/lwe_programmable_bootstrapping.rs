@@ -1,6 +1,6 @@
 #![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::entities::lwe_bootstrap_key::{CudaBootstrapKey, CudaLweBootstrapKey};
 use crate::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{programmable_bootstrap, programmable_bootstrap_128, CudaStreams};
@@ -112,7 +112,6 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
         lut_indexes.gpu_index(0).get(),
     );
 
-    let lwe_dimension = input.lwe_dimension();
     let num_samples = input.lwe_ciphertext_count();
     unsafe {
         programmable_bootstrap(
@@ -124,13 +123,8 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
             &input.0.d_vec,
             input_indexes,
             &bsk.d_vec,
-            lwe_dimension,
-            bsk.glwe_dimension(),
-            bsk.polynomial_size(),
-            bsk.decomp_base_log(),
-            bsk.decomp_level_count(),
+            bsk.params_ffi(),
             u32::try_from(num_samples.0).unwrap(),
-            bsk.ms_noise_reduction_configuration.as_ref(),
         );
     }
 }
@@ -242,7 +236,6 @@ pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
         streams.gpu_indexes[0].get(),
         accumulator.0.d_vec.gpu_index(0).get(),
     );
-    let lwe_dimension = input.lwe_dimension();
     let num_samples = input.lwe_ciphertext_count();
     unsafe {
         programmable_bootstrap_128(
@@ -251,13 +244,8 @@ pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
             &accumulator.0.d_vec,
             &input.0.d_vec,
             &bsk.d_vec,
-            lwe_dimension,
-            bsk.glwe_dimension(),
-            bsk.polynomial_size(),
-            bsk.decomp_base_log(),
-            bsk.decomp_level_count(),
+            bsk.params_ffi(),
             u32::try_from(num_samples.0).unwrap(),
-            bsk.ms_noise_reduction_configuration.as_ref(),
         );
     }
 }

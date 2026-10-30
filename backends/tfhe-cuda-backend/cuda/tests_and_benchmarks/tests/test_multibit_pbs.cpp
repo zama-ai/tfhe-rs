@@ -113,8 +113,11 @@ protected:
 
   bool supports_multibit_cg() const {
     return has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
-        glwe_dimension, polynomial_size, pbs_level, number_of_inputs,
-        cuda_get_max_shared_memory(gpu_index));
+        make_bsk_params_ffi(
+            lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
+            pbs_level,
+            multi_bit_pbs_params{static_cast<uint32_t>(grouping_factor)}),
+        number_of_inputs, cuda_get_max_shared_memory(gpu_index));
   }
 
   bool supports_multibit_tbc() const {
@@ -175,8 +178,12 @@ public:
 TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_default) {
   int8_t *pbs_buffer = nullptr;
   scratch_cuda_multi_bit_programmable_bootstrap_64_async(
-      stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
-      pbs_level, number_of_inputs, true);
+      stream, gpu_index, &pbs_buffer,
+      make_bsk_params_ffi(
+          lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
+          pbs_level,
+          multi_bit_pbs_params{static_cast<uint32_t>(grouping_factor)}),
+      number_of_inputs, true);
 
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;

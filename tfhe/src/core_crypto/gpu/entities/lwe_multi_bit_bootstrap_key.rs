@@ -1,7 +1,8 @@
 use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaBootstrapKey;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{
-    convert_lwe_multi_bit_programmable_bootstrap_key_async, CudaStreams,
+    bsk_params_ffi, convert_lwe_multi_bit_programmable_bootstrap_key_async, CudaPbsTypeParams,
+    CudaStreams,
 };
 use crate::core_crypto::prelude::{
     lwe_multi_bit_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
@@ -9,10 +10,7 @@ use crate::core_crypto::prelude::{
     UnsignedInteger,
 };
 use std::ffi::c_void;
-use tfhe_cuda_backend::bindings::{
-    CudaLweBootstrapKeyParamsFFI, CudaMultiBitPbsParamsFFI, CudaPbsTypeParamsFFI,
-    PBS_TYPE_MULTI_BIT,
-};
+use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
@@ -33,6 +31,7 @@ pub struct CudaLweMultiBitBootstrapKey<Scalar: UnsignedInteger> {
     pub(crate) grouping_factor: LweBskGroupingFactor,
 }
 
+#[allow(dead_code)]
 impl<Scalar: UnsignedInteger> CudaLweMultiBitBootstrapKey<Scalar> {
     pub fn from_lwe_multi_bit_bootstrap_key<InputBskCont: Container<Element = Scalar>>(
         bsk: &LweMultiBitBootstrapKey<InputBskCont>,
@@ -63,11 +62,14 @@ impl<Scalar: UnsignedInteger> CudaLweMultiBitBootstrapKey<Scalar> {
                 streams,
                 &mut d_vec,
                 bsk.as_ref(),
-                input_lwe_dimension,
-                glwe_dimension,
-                decomp_level_count,
-                polynomial_size,
-                grouping_factor,
+                bsk_params_ffi(
+                    input_lwe_dimension,
+                    glwe_dimension,
+                    polynomial_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    CudaPbsTypeParams::MultiBit { grouping_factor },
+                ),
             );
         }
         streams.synchronize();
@@ -121,24 +123,15 @@ impl<Scalar: UnsignedInteger> CudaBootstrapKey for CudaLweMultiBitBootstrapKey<S
     }
 
     fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
-        CudaLweBootstrapKeyParamsFFI {
-            input_lwe_dimension: u32::try_from(self.input_lwe_dimension.0).unwrap(),
-            glwe_dimension: u32::try_from(self.glwe_dimension.0).unwrap(),
-            polynomial_size: u32::try_from(self.polynomial_size.0).unwrap(),
-            base_log: u32::try_from(self.decomp_base_log.0).unwrap(),
-            level_count: u32::try_from(self.decomp_level_count.0).unwrap(),
-            big_lwe_dimension: u32::try_from(
-                self.glwe_dimension
-                    .to_equivalent_lwe_dimension(self.polynomial_size)
-                    .0,
-            )
-            .unwrap(),
-            pbs_type: PBS_TYPE_MULTI_BIT,
-            pbs_params: CudaPbsTypeParamsFFI {
-                multi_bit: CudaMultiBitPbsParamsFFI {
-                    grouping_factor: u32::try_from(self.grouping_factor.0).unwrap(),
-                },
+        bsk_params_ffi(
+            self.input_lwe_dimension,
+            self.glwe_dimension,
+            self.polynomial_size,
+            self.decomp_base_log,
+            self.decomp_level_count,
+            CudaPbsTypeParams::MultiBit {
+                grouping_factor: self.grouping_factor,
             },
-        }
+        )
     }
 }

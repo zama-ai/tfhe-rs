@@ -1,4 +1,5 @@
 #include <algorithm>
+#include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "pbs/programmable_bootstrap_testing.h"
@@ -169,9 +170,12 @@ void generate_lwe_programmable_bootstrap_keys(cudaStream_t stream, uint32_t gpu_
     double *d_fourier_bsk = *d_fourier_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
     cuda_synchronize_stream(stream, gpu_index);
-    cuda_convert_lwe_programmable_bootstrap_key_64_async(stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
-                                      lwe_dimension, glwe_dimension,
-                                      pbs_level, polynomial_size);
+    // The conversion does not read the noise reduction type.
+    cuda_convert_lwe_programmable_bootstrap_key_64_async(
+        stream, gpu_index, (void *)(d_fourier_bsk), (void *)(bsk),
+        make_bsk_params_ffi(
+            lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
+            pbs_level, classical_pbs_params{PBS_MS_REDUCTION_T::NO_REDUCTION}));
     shift_in += lwe_dimension;
     shift_out += glwe_dimension * polynomial_size;
     shift_bsk += bsk_size;
@@ -300,8 +304,11 @@ void generate_lwe_multi_bit_programmable_bootstrap_keys(
     uint64_t *d_bsk = *d_bsk_array + (ptrdiff_t)(shift_bsk);
     uint64_t *bsk = bsk_array + (ptrdiff_t)(shift_bsk);
     cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
-        stream, gpu_index, d_bsk, bsk, lwe_dimension, glwe_dimension, pbs_level,
-        polynomial_size, grouping_factor);
+        stream, gpu_index, d_bsk, bsk,
+        make_bsk_params_ffi(
+            lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
+            pbs_level,
+            multi_bit_pbs_params{static_cast<uint32_t>(grouping_factor)}));
     shift_in += lwe_dimension;
     shift_out += glwe_dimension * polynomial_size;
     shift_bsk += bsk_size;
