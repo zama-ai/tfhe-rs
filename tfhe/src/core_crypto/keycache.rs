@@ -1,15 +1,15 @@
 #[cfg(feature = "gpu")]
 use crate::core_crypto::algorithms::test::NoiseSquashingTestParams;
 use crate::core_crypto::algorithms::test::{
-    ClassicBootstrapKeys, ClassicTestParams, FftBootstrapKeys, FftTestParams, FftWopPbsKeys,
-    FftWopPbsTestParams, MultiBitBootstrapKeys, MultiBitTestParams, PackingKeySwitchKeys,
-    PackingKeySwitchTestParams,
+    lwe_multi_bit_programmable_bootstrapping, lwe_packing_keyswitch,
+    lwe_programmable_bootstrapping, ClassicBootstrapKeys, ClassicTestParams, FftBootstrapKeys,
+    FftTestParams, FftWopPbsKeys, FftWopPbsTestParams, MultiBitBootstrapKeys, MultiBitTestParams,
+    PackingKeySwitchKeys, PackingKeySwitchTestParams, TestResources,
 };
+use crate::core_crypto::prelude::{CastFrom, CastInto, UnsignedTorus};
 use crate::keycache::*;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-#[cfg(feature = "internal-keycache")]
-use std::fmt::Debug;
 use std::sync::LazyLock;
 pub struct KeyCacheCoreImpl<P, K>
 where
@@ -36,13 +36,10 @@ impl<
 impl<P, K> KeyCacheCoreImpl<P, K>
 where
     P: Copy + NamedParam + DeserializeOwned + Serialize + PartialEq,
-    K: DeserializeOwned + Serialize + Clone,
+    K: DeserializeOwned + Serialize + Clone + GenerateKeyFromParams<P>,
 {
-    pub fn get_key_with_closure<C>(&self, params: P, mut c: C) -> K
-    where
-        C: FnMut(P) -> K,
-    {
-        (*self.inner.get_with_closure(params, &mut c)).clone()
+    pub fn get_key(&self, params: P) -> K {
+        (*self.inner.get(params)).clone()
     }
 
     pub fn clear_in_memory_cache(&self) {
@@ -68,26 +65,23 @@ pub struct KeyCache {
 }
 
 impl KeyCache {
-    pub fn get_key_with_closure<C, P, K>(&self, params: P, c: C) -> K
+    pub fn get_key<P>(&self, params: P) -> P::Keys
     where
-        C: FnMut(P) -> K,
-        P: KeyCacheAccess<Keys = K> + Serialize + DeserializeOwned + Copy + PartialEq + NamedParam,
-        K: DeserializeOwned + Serialize + Clone,
+        P: KeyCacheAccess,
     {
-        P::access(self).get_key_with_closure(params, c)
+        P::access(self).get_key(params)
     }
 
-    pub fn clear_in_memory_cache<P, K>(&self)
+    pub fn clear_in_memory_cache<P>(&self)
     where
-        P: KeyCacheAccess<Keys = K> + Serialize + DeserializeOwned + Copy + PartialEq + NamedParam,
-        K: DeserializeOwned + Serialize + Clone,
+        P: KeyCacheAccess,
     {
         P::access(self).clear_in_memory_cache();
     }
 }
 
 pub trait KeyCacheAccess: Serialize + DeserializeOwned + Copy + PartialEq + NamedParam {
-    type Keys: DeserializeOwned + Serialize;
+    type Keys: DeserializeOwned + Serialize + Clone + GenerateKeyFromParams<Self>;
 
     fn access(keycache: &KeyCache) -> &KeyCacheCoreImpl<Self, Self::Keys>;
 }
@@ -188,95 +182,163 @@ impl KeyCacheAccess for NoiseSquashingTestParams<u128> {
     }
 }
 
+impl<Scalar> GenerateKeyFromParams<ClassicTestParams<Scalar>> for ClassicBootstrapKeys<Scalar>
+where
+    Scalar: UnsignedTorus
+        + Sync
+        + Send
+        + CastFrom<usize>
+        + CastInto<usize>
+        + Serialize
+        + DeserializeOwned,
+{
+    fn generate_key_from_params(params: ClassicTestParams<Scalar>) -> Self {
+        lwe_programmable_bootstrapping::generate_keys(params, &mut TestResources::new())
+    }
+}
+
+impl<Scalar> GenerateKeyFromParams<MultiBitTestParams<Scalar>> for MultiBitBootstrapKeys<Scalar>
+where
+    Scalar: UnsignedTorus
+        + Sync
+        + Send
+        + CastFrom<usize>
+        + CastInto<usize>
+        + Serialize
+        + DeserializeOwned,
+{
+    fn generate_key_from_params(params: MultiBitTestParams<Scalar>) -> Self {
+        lwe_multi_bit_programmable_bootstrapping::generate_keys(params, &mut TestResources::new())
+    }
+}
+
+impl<Scalar> GenerateKeyFromParams<FftTestParams<Scalar>> for FftBootstrapKeys<Scalar>
+where
+    Scalar: UnsignedTorus
+        + Sync
+        + Send
+        + CastFrom<usize>
+        + CastInto<usize>
+        + Serialize
+        + DeserializeOwned,
+{
+    fn generate_key_from_params(params: FftTestParams<Scalar>) -> Self {
+        crate::core_crypto::fft_impl::common::tests::generate_keys(
+            params,
+            &mut TestResources::new(),
+        )
+    }
+}
+
+impl<Scalar> GenerateKeyFromParams<FftWopPbsTestParams<Scalar>> for FftWopPbsKeys<Scalar>
+where
+    Scalar: UnsignedTorus
+        + Sync
+        + Send
+        + CastFrom<usize>
+        + CastInto<usize>
+        + Serialize
+        + DeserializeOwned,
+{
+    fn generate_key_from_params(params: FftWopPbsTestParams<Scalar>) -> Self {
+        crate::core_crypto::fft_impl::fft64::crypto::wop_pbs::tests::generate_keys(
+            params,
+            &mut TestResources::new(),
+        )
+    }
+}
+
+impl<Scalar> GenerateKeyFromParams<PackingKeySwitchTestParams<Scalar>>
+    for PackingKeySwitchKeys<Scalar>
+where
+    Scalar: UnsignedTorus + Sync + Send + Serialize + DeserializeOwned,
+{
+    fn generate_key_from_params(params: PackingKeySwitchTestParams<Scalar>) -> Self {
+        lwe_packing_keyswitch::generate_keys(params, &mut TestResources::new())
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Scalar> GenerateKeyFromParams<NoiseSquashingTestParams<Scalar>> for FftBootstrapKeys<Scalar>
+where
+    Scalar: UnsignedTorus
+        + Sync
+        + Send
+        + CastFrom<usize>
+        + CastFrom<u64>
+        + CastInto<usize>
+        + Serialize
+        + DeserializeOwned,
+{
+    fn generate_key_from_params(params: NoiseSquashingTestParams<Scalar>) -> Self {
+        crate::core_crypto::gpu::algorithms::test::lwe_programmable_bootstrapping_128::generate_keys(
+            params,
+            &mut TestResources::new(),
+        )
+    }
+}
+
 pub static KEY_CACHE: LazyLock<KeyCache> = LazyLock::new(KeyCache::default);
 
 #[cfg(feature = "internal-keycache")]
 #[test]
 pub fn generate_keys() {
     use crate::core_crypto::algorithms::test::{
-        lwe_multi_bit_programmable_bootstrapping, lwe_programmable_bootstrapping, TestResources,
         DUMMY_31_U32, DUMMY_NATIVE_U32, FFT128_U128_PARAMS, FFT_U128_PARAMS, FFT_U32_PARAMS,
         FFT_U64_PARAMS, FFT_WOPBS_N1024_PARAMS, FFT_WOPBS_N2048_PARAMS, FFT_WOPBS_N512_PARAMS,
         FFT_WOPBS_PARAMS, MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS, MULTI_BIT_2_2_2_PARAMS,
         MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS, MULTI_BIT_2_2_3_PARAMS, TEST_PARAMS_3_BITS_63_U64,
         TEST_PARAMS_4_BITS_NATIVE_U64,
     };
-    use crate::core_crypto::fft_impl;
-    use crate::core_crypto::fft_impl::fft64::crypto::wop_pbs;
 
-    fn generate_and_store<
-        P: Debug + KeyCacheAccess<Keys = K> + serde::Serialize + serde::de::DeserializeOwned,
-        K: serde::de::DeserializeOwned + serde::Serialize + Clone,
-    >(
-        params: P,
-        keygen_func: &mut dyn FnMut(P) -> K,
-    ) {
+    fn generate_and_store<P>(params: P)
+    where
+        P: KeyCacheAccess,
+    {
         println!("Generating : {}", params.name());
 
         let start = std::time::Instant::now();
 
-        let _ = KEY_CACHE.get_key_with_closure(params, keygen_func);
+        let _ = KEY_CACHE.get_key(params);
 
         let stop = start.elapsed().as_secs();
 
         println!("Generation took {stop} seconds");
 
         // Clear keys as we go to avoid filling the RAM
-        KEY_CACHE.clear_in_memory_cache::<P, K>();
+        KEY_CACHE.clear_in_memory_cache::<P>();
     }
-
-    let mut rsc = TestResources::new();
 
     println!("Generating keys for core_crypto");
 
-    let classical_u32_params = [DUMMY_31_U32, DUMMY_NATIVE_U32];
-    for param in classical_u32_params.iter().copied() {
-        let mut keys_gen = |_| lwe_programmable_bootstrapping::generate_keys(param, &mut rsc);
-        generate_and_store(param, &mut keys_gen);
+    for param in [DUMMY_31_U32, DUMMY_NATIVE_U32] {
+        generate_and_store(param);
     }
 
-    let multi_bit_params = [
+    for param in [
         MULTI_BIT_2_2_2_PARAMS,
         MULTI_BIT_2_2_3_PARAMS,
         MULTI_BIT_2_2_2_CUSTOM_MOD_PARAMS,
         MULTI_BIT_2_2_3_CUSTOM_MOD_PARAMS,
-    ];
-    for param in multi_bit_params.iter().copied() {
-        let mut keys_gen =
-            |_| lwe_multi_bit_programmable_bootstrapping::generate_keys(param, &mut rsc);
-        generate_and_store(param, &mut keys_gen);
+    ] {
+        generate_and_store(param);
     }
 
-    let classical_u64_params = [TEST_PARAMS_4_BITS_NATIVE_U64, TEST_PARAMS_3_BITS_63_U64];
-    for param in classical_u64_params.iter().copied() {
-        let mut keys_gen = |_| lwe_programmable_bootstrapping::generate_keys(param, &mut rsc);
-        generate_and_store(param, &mut keys_gen);
+    for param in [TEST_PARAMS_4_BITS_NATIVE_U64, TEST_PARAMS_3_BITS_63_U64] {
+        generate_and_store(param);
     }
 
-    generate_and_store(FFT_U32_PARAMS, &mut |_| {
-        fft_impl::common::tests::generate_keys(FFT_U32_PARAMS, &mut rsc)
-    });
-    generate_and_store(FFT_U64_PARAMS, &mut |_| {
-        fft_impl::common::tests::generate_keys(FFT_U64_PARAMS, &mut rsc)
-    });
-    generate_and_store(FFT_U128_PARAMS, &mut |_| {
-        fft_impl::common::tests::generate_keys(FFT_U128_PARAMS, &mut rsc)
-    });
+    generate_and_store(FFT_U32_PARAMS);
+    generate_and_store(FFT_U64_PARAMS);
+    generate_and_store(FFT_U128_PARAMS);
+    generate_and_store(FFT128_U128_PARAMS);
 
-    generate_and_store(FFT128_U128_PARAMS, &mut |_| {
-        fft_impl::common::tests::generate_keys(FFT128_U128_PARAMS, &mut rsc)
-    });
-
-    generate_and_store(FFT_WOPBS_PARAMS, &mut |_| {
-        wop_pbs::tests::generate_keys(FFT_WOPBS_PARAMS, &mut rsc)
-    });
-    generate_and_store(FFT_WOPBS_N512_PARAMS, &mut |_| {
-        wop_pbs::tests::generate_keys(FFT_WOPBS_N512_PARAMS, &mut rsc)
-    });
-    generate_and_store(FFT_WOPBS_N1024_PARAMS, &mut |_| {
-        wop_pbs::tests::generate_keys(FFT_WOPBS_N1024_PARAMS, &mut rsc)
-    });
-    generate_and_store(FFT_WOPBS_N2048_PARAMS, &mut |_| {
-        wop_pbs::tests::generate_keys(FFT_WOPBS_N2048_PARAMS, &mut rsc)
-    });
+    for param in [
+        FFT_WOPBS_PARAMS,
+        FFT_WOPBS_N512_PARAMS,
+        FFT_WOPBS_N1024_PARAMS,
+        FFT_WOPBS_N2048_PARAMS,
+    ] {
+        generate_and_store(param);
+    }
 }

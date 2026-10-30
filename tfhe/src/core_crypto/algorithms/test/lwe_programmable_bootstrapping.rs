@@ -109,8 +109,7 @@ where
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
 
-        let mut keys_gen = |params| generate_keys(params, &mut rsc);
-        let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+        let keys = gen_keys_or_get_from_cache_if_enabled(params);
         let (input_lwe_secret_key, output_lwe_secret_key, fbsk) =
             (keys.small_lwe_sk, keys.big_lwe_sk, keys.fbsk);
 
@@ -209,8 +208,7 @@ where
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
 
-        let mut keys_gen = |params| generate_keys(params, &mut rsc);
-        let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+        let keys = gen_keys_or_get_from_cache_if_enabled(params);
         let (input_lwe_secret_key, output_lwe_secret_key, fbsk) =
             (keys.small_lwe_sk, keys.big_lwe_sk, keys.fbsk);
 
@@ -467,8 +465,7 @@ where
         while msg != Scalar::ZERO {
             msg = msg.wrapping_sub(Scalar::ONE);
 
-            let mut keys_gen = |params| generate_keys(params, &mut rsc);
-            let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+            let keys = gen_keys_or_get_from_cache_if_enabled(params);
             let (input_lwe_secret_key, output_lwe_secret_key, fbsk) =
                 (keys.small_lwe_sk, keys.big_lwe_sk, keys.fbsk);
 
@@ -632,9 +629,7 @@ where
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
 
-        let mut keys_gen = |params| generate_keys(params, &mut rsc);
-
-        let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+        let keys = gen_keys_or_get_from_cache_if_enabled(params);
         let (input_lwe_secret_key, output_lwe_secret_key, bsk) =
             (keys.small_lwe_sk, keys.big_lwe_sk, keys.bsk);
 
@@ -1197,8 +1192,7 @@ fn lwe_encrypt_pbs_karatsuba_decrypt_custom_mod(params: ClassicTestParams<u64>) 
     while msg != 0 {
         msg = msg.wrapping_sub(1);
 
-        let mut keys_gen = |params| generate_keys(params, &mut rsc);
-        let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+        let keys = gen_keys_or_get_from_cache_if_enabled(params);
         let (input_lwe_secret_key, output_lwe_secret_key, bsk) =
             (keys.small_lwe_sk, keys.big_lwe_sk, keys.bsk);
 
