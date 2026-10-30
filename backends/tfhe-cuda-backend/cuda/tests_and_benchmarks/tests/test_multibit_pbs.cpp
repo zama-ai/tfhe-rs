@@ -290,6 +290,77 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_tbc_2_2) {
                                                    &pbs_buffer);
 }
 
+class MultiBitPbsBufferReuseTest_u64
+    : public MultiBitProgrammableBootstrapTestPrimitives_u64 {
+protected:
+  pbs_buffer<uint64_t, MULTI_BIT> *scratch(uint32_t num_inputs) {
+    int8_t *buffer = nullptr;
+    scratch_cuda_multi_bit_programmable_bootstrap_64_async(
+        stream, gpu_index, &buffer, glwe_dimension, polynomial_size, pbs_level,
+        num_inputs, true);
+    return reinterpret_cast<pbs_buffer<uint64_t, MULTI_BIT> *>(buffer);
+  }
+
+  std::vector<uint64_t> run_pbs(pbs_buffer<uint64_t, MULTI_BIT> *buffer,
+                                uint32_t num_inputs) {
+    size_t output_size =
+        (size_t)(glwe_dimension * polynomial_size + 1) * num_inputs;
+    cuda_memset_async(d_lwe_ct_out_array, 0, output_size * sizeof(uint64_t),
+                      stream, gpu_index);
+    cuda_multi_bit_programmable_bootstrap_64_async(
+        stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
+        d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
+        d_lwe_input_indexes, d_bsk_array, reinterpret_cast<int8_t *>(buffer),
+        lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+        pbs_base_log, pbs_level, num_inputs, 1, 0);
+    std::vector<uint64_t> output(output_size);
+    cuda_memcpy_async_to_cpu(output.data(), d_lwe_ct_out_array,
+                             output_size * sizeof(uint64_t), stream, gpu_index);
+    cuda_synchronize_stream(stream, gpu_index);
+    return output;
+  }
+
+  void release(pbs_buffer<uint64_t, MULTI_BIT> *buffer) {
+    buffer->release(stream, gpu_index);
+    delete buffer;
+  }
+};
+
+TEST_P(MultiBitPbsBufferReuseTest_u64, shared_buffer_matches_own_buffer) {
+  const uint32_t n = number_of_inputs;
+  auto *owner = scratch(n);
+  uint32_t num_smaller_compared = 0;
+
+  // Calls of different sizes, one after the other, on the same owner
+  // 4 inputs get a different lwe_chunk_size on sm_90 (num_sms / 2)
+  for (uint32_t num_inputs : {n, n / 10, n / 2, 4u, n}) {
+    auto *own = scratch(num_inputs);
+    if (own->pbs_variant != owner->pbs_variant) {
+      release(own);
+      continue;
+    }
+    EXPECT_EQ(run_pbs(own, num_inputs), run_pbs(owner, num_inputs))
+        << "num_inputs: " << num_inputs
+        << ", own lwe_chunk_size: " << own->lwe_chunk_size
+        << ", owner lwe_chunk_size: " << owner->lwe_chunk_size;
+    release(own);
+    if (num_inputs < n)
+      num_smaller_compared++;
+  }
+
+  release(owner);
+  if (num_smaller_compared == 0)
+    GTEST_SKIP() << "No smaller input count uses the PBS variant of the owner "
+                    "on this GPU.";
+}
+
+::testing::internal::ParamGenerator<MultiBitProgrammableBootstrapTestParams>
+    multipbs_reuse_params_u64 = ::testing::Values(
+        // V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+        (MultiBitProgrammableBootstrapTestParams){
+            920, 1, 2048, new_t_uniform(45), new_t_uniform(17), 22, 1, 4, 4,
+            520, 4, 1, 1});
+
 // Defines for which parameters set the PBS will be tested.
 // It executes each src for all pairs on phis X qs (Cartesian product)
 ::testing::internal::ParamGenerator<MultiBitProgrammableBootstrapTestParams>
@@ -319,3 +390,7 @@ std::string printParamName(
 INSTANTIATE_TEST_CASE_P(MultiBitProgrammableBootstrapInstantiation,
                         MultiBitProgrammableBootstrapTestPrimitives_u64,
                         multipbs_params_u64, printParamName);
+
+INSTANTIATE_TEST_CASE_P(MultiBitPbsBufferReuseInstantiation,
+                        MultiBitPbsBufferReuseTest_u64,
+                        multipbs_reuse_params_u64, printParamName);
