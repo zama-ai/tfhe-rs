@@ -10,7 +10,7 @@
 
 #include "checked_arithmetic.h"
 
-// The mixprecision 2_2 kernel used to size its shared memory from the LWE
+// The 2_2 specialized kernel used to size its shared memory from the LWE
 // dimension, which is not one of its template arguments. Since the opt-in is
 // per-function state shared by the whole context, two concurrent bootstraps of
 // different dimensions raced on it and the larger launch died with "invalid
@@ -70,11 +70,11 @@ struct ConcurrentPbsKeys {
         CONCURRENT_PBS_LEVEL, CONCURRENT_MESSAGE_MODULUS,
         CONCURRENT_CARRY_MODULUS, &payload_modulus, &delta, 1, 1, 1);
 
-    // The specialized kernel reads the bsk in its own layout.
+    // The 2_2 specialized kernel reads the bsk in its own layout.
     cuda_drop_async(d_fourier_bsk_array, stream, gpu_index);
     Seed bsk_seed;
     init_seed(&bsk_seed);
-    generate_lwe_programmable_bootstrap_keys_specialized_2_2(
+    generate_lwe_programmable_bootstrap_keys_2_2_specialized(
         stream, gpu_index, &d_fourier_bsk_array, lwe_sk_in_array,
         lwe_sk_out_array, lwe_dimension, CONCURRENT_GLWE_DIMENSION,
         CONCURRENT_POLYNOMIAL_SIZE, CONCURRENT_PBS_LEVEL,
@@ -106,16 +106,17 @@ struct ConcurrentPbsWorker {
                                            (size_t)CONCURRENT_POLYNOMIAL_SIZE) +
                                   1);
     d_lwe_ct_out = (uint64_t *)cuda_malloc_async(out_size, stream, gpu_index);
-    scratch_cuda_programmable_bootstrap_specialized_2_2_64_async(
+    scratch_cuda_programmable_bootstrap_2_2_specialized_64_async(
         stream, gpu_index, &pbs_buffer, keys.lwe_dimension,
         CONCURRENT_GLWE_DIMENSION, CONCURRENT_POLYNOMIAL_SIZE,
-        CONCURRENT_PBS_LEVEL, 1, true, PBS_MS_REDUCTION_T::NO_REDUCTION);
+        CONCURRENT_PBS_BASE_LOG, CONCURRENT_PBS_LEVEL, 1, true,
+        PBS_MS_REDUCTION_T::NO_REDUCTION);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
   // Issues one bootstrap and returns, without reading the result back.
   void launch(const ConcurrentPbsKeys &keys) {
-    cuda_programmable_bootstrap_specialized_2_2_64_async(
+    cuda_programmable_bootstrap_2_2_specialized_64_async(
         stream, gpu_index, (void *)d_lwe_ct_out,
         (void *)keys.d_lwe_output_indexes, (void *)keys.d_lut_pbs_identity,
         (void *)keys.d_lut_pbs_indexes, (void *)keys.d_lwe_ct_in_array,
@@ -154,11 +155,14 @@ struct ConcurrentPbsWorker {
 
 TEST(ConcurrentSpecialized2_2ProgrammableBootstrap, DistinctLweDimensions) {
   uint32_t gpu_index = 0;
-  if (!specialized_2_2_params_checker<uint64_t>(
-          CONCURRENT_POLYNOMIAL_SIZE, CONCURRENT_GLWE_DIMENSION,
-          CONCURRENT_PBS_LEVEL, cuda_get_max_shared_memory(gpu_index))) {
-    GTEST_SKIP() << "Specialized 2_2 classical PBS is not supported here.";
-  }
+  for (int n : CONCURRENT_LWE_DIMENSIONS)
+    if (!pbs_2_2_specialized_params_checker<uint64_t>(
+            CONCURRENT_POLYNOMIAL_SIZE, CONCURRENT_GLWE_DIMENSION,
+            CONCURRENT_PBS_LEVEL, n, CONCURRENT_PBS_BASE_LOG,
+            cuda_get_max_shared_memory(gpu_index))) {
+      GTEST_SKIP()
+          << "The 2_2 specialized classical PBS is not supported here.";
+    }
 
   std::vector<std::unique_ptr<ConcurrentPbsKeys>> keys;
   for (int n : CONCURRENT_LWE_DIMENSIONS)

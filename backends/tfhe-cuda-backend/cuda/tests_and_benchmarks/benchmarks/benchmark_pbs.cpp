@@ -253,63 +253,45 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
   cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 
-#if CUDA_ARCH >= 900
-BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
+BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, Specialized2_2PBS)
 (benchmark::State &st) {
-  if (!has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
-          input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          pbs_level, cuda_get_max_shared_memory(0))) {
-    st.SkipWithError("Configuration not supported for tbc operation");
+  cuda_set_device(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  if (!pbs_2_2_specialized_params_checker<uint64_t>(
+          polynomial_size, glwe_dimension, pbs_level, lwe_dimension,
+          pbs_base_log, max_shared_memory)) {
+    st.SkipWithError("Configuration not supported for the 2_2 specialized PBS");
     return;
   }
 
-  scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
-      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      input_lwe_ciphertext_count, true, PBS_MS_REDUCTION_T::NO_REDUCTION);
+  // Regenerate the key in the 2_2 specialized layout only when the automatic
+  // conversion in the fixture picked a different one.
+  if (!supports_2_2_specialized_pbs<uint64_t>(
+          polynomial_size, glwe_dimension, pbs_level, lwe_dimension,
+          pbs_base_log, max_shared_memory)) {
+    cuda_drop_async(d_fourier_bsk, stream, gpu_index);
+    Seed bsk_seed;
+    init_seed(&bsk_seed);
+    generate_lwe_programmable_bootstrap_keys_2_2_specialized(
+        stream, gpu_index, &d_fourier_bsk, lwe_sk_in_array, lwe_sk_out_array,
+        lwe_dimension, glwe_dimension, polynomial_size, pbs_level, pbs_base_log,
+        &bsk_seed, new_t_uniform(17), 1);
+  }
+
+  scratch_cuda_programmable_bootstrap_2_2_specialized_64_async(
+      stream, gpu_index, &buffer, lwe_dimension, glwe_dimension,
+      polynomial_size, pbs_base_log, pbs_level, input_lwe_ciphertext_count,
+      true, PBS_MS_REDUCTION_T::NO_REDUCTION);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
-    cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector_async<uint64_t>(
-        stream, gpu_index, (uint64_t *)d_lwe_ct_out_array,
-        (uint64_t *)d_lwe_output_indexes, (uint64_t *)d_lut_pbs_identity,
-        (uint64_t *)d_lut_pbs_indexes, (uint64_t *)d_lwe_ct_in_array,
-        (uint64_t *)d_lwe_input_indexes, (double2 *)d_fourier_bsk,
-        (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        input_lwe_ciphertext_count, num_many_lut, lut_stride);
-    cuda_synchronize_stream(stream, gpu_index);
-  }
-
-  cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &buffer);
-}
-#endif
-
-BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
-(benchmark::State &st) {
-  if (!has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
-          glwe_dimension, polynomial_size, pbs_level, lwe_dimension,
-          input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index))) {
-    st.SkipWithError("Configuration not supported for fast operation");
-    return;
-  }
-
-  scratch_cuda_programmable_bootstrap_cg<uint64_t>(
-      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      input_lwe_ciphertext_count, true, PBS_MS_REDUCTION_T::NO_REDUCTION);
-  uint32_t num_many_lut = 1;
-  uint32_t lut_stride = 0;
-  for (auto _ : st) {
-    // Execute PBS
-    cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_async<uint64_t>(
-        stream, gpu_index, (uint64_t *)d_lwe_ct_out_array,
-        (uint64_t *)d_lwe_output_indexes, (uint64_t *)d_lut_pbs_identity,
-        (uint64_t *)d_lut_pbs_indexes, (uint64_t *)d_lwe_ct_in_array,
-        (uint64_t *)d_lwe_input_indexes, (double2 *)d_fourier_bsk,
-        (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+    cuda_programmable_bootstrap_2_2_specialized_64_async(
+        stream, gpu_index, (void *)d_lwe_ct_out_array,
+        (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
+        (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in_array,
+        (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, buffer,
+        lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
         input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
@@ -319,22 +301,35 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
 
 BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
 (benchmark::State &st) {
+  // Regenerate the key in the default layout only when the automatic
+  // conversion in the fixture picked the 2_2 specialized one.
+  cuda_set_device(gpu_index);
+  if (supports_2_2_specialized_pbs<uint64_t>(
+          polynomial_size, glwe_dimension, pbs_level, lwe_dimension,
+          pbs_base_log, cuda_get_max_shared_memory(gpu_index))) {
+    cuda_drop_async(d_fourier_bsk, stream, gpu_index);
+    Seed bsk_seed;
+    init_seed(&bsk_seed);
+    generate_lwe_programmable_bootstrap_keys_default(
+        stream, gpu_index, &d_fourier_bsk, lwe_sk_in_array, lwe_sk_out_array,
+        lwe_dimension, glwe_dimension, polynomial_size, pbs_level, pbs_base_log,
+        &bsk_seed, new_t_uniform(17), 1);
+  }
 
-  scratch_cuda_programmable_bootstrap<uint64_t>(
-      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
-      input_lwe_ciphertext_count, true, PBS_MS_REDUCTION_T::NO_REDUCTION);
+  scratch_cuda_programmable_bootstrap_default_64_async(
+      stream, gpu_index, &buffer, lwe_dimension, glwe_dimension,
+      polynomial_size, pbs_base_log, pbs_level, input_lwe_ciphertext_count,
+      true, PBS_MS_REDUCTION_T::NO_REDUCTION);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
-    cuda_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
-        stream, gpu_index, (uint64_t *)d_lwe_ct_out_array,
-        (uint64_t *)d_lwe_output_indexes, (uint64_t *)d_lut_pbs_identity,
-        (uint64_t *)d_lut_pbs_indexes, (uint64_t *)d_lwe_ct_in_array,
-        (uint64_t *)d_lwe_input_indexes, (double2 *)d_fourier_bsk,
-        (pbs_buffer<uint64_t, CLASSICAL> *)buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+    cuda_programmable_bootstrap_default_64_async(
+        stream, gpu_index, (void *)d_lwe_ct_out_array,
+        (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
+        (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in_array,
+        (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, buffer,
+        lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
         input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
@@ -410,19 +405,12 @@ BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, DefaultMultiBit)
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
                 "grouping_factor"});
 
-#if CUDA_ARCH >= 900
-BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, TbcPBC)
+BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, Specialized2_2PBS)
     ->Apply(BootstrapBenchmarkGenerateParams)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count"});
-#endif
 
 BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, DefaultPBS)
-    ->Apply(BootstrapBenchmarkGenerateParams)
-    ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
-                "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count"});
-
-BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, CgPBS)
     ->Apply(BootstrapBenchmarkGenerateParams)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count"});

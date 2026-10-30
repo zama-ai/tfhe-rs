@@ -62,8 +62,8 @@ pub struct CooperativeBlockShape {
     dim_y: u32,
 }
 
-// The block of the specialized 2_2 throughput PBS
-const THROUGHPUT_PBS_BLOCK_SHAPE: CooperativeBlockShape = CooperativeBlockShape {
+// The block of the 2_2 specialized (throughput-oriented) PBS
+const SPECIALIZED_2_2_PBS_BLOCK_SHAPE: CooperativeBlockShape = CooperativeBlockShape {
     dim_x: 64,
     dim_y: 2,
 };
@@ -468,10 +468,10 @@ fn check_cuda_cooperative_centered_modulus_switch(
 }
 
 #[test]
-fn compare_cpu_and_gpu_cooperative_centered_modulus_switch_throughput_pbs_block() {
+fn compare_cpu_and_gpu_cooperative_centered_modulus_switch_2_2_specialized_pbs_block() {
     for lwe_dimension in COOPERATIVE_TEST_LWE_DIMENSIONS {
         check_cuda_cooperative_centered_modulus_switch(
-            THROUGHPUT_PBS_BLOCK_SHAPE,
+            SPECIALIZED_2_2_PBS_BLOCK_SHAPE,
             LweDimension(lwe_dimension),
         );
     }

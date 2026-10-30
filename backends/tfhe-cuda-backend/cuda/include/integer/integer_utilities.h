@@ -598,8 +598,9 @@ struct int_radix_lut_custom_input_output {
       execute_scratch_pbs<OutputTorus>(
           active_streams.stream(i), active_streams.gpu_index(i),
           &gpu_pbs_buffer_raw, params.glwe_dimension,
-          params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
-          num_blocks_on_gpu, params.pbs_params(), allocate_gpu_memory, size);
+          params.small_lwe_dimension, params.polynomial_size,
+          params.pbs_base_log, params.pbs_level, num_blocks_on_gpu,
+          params.pbs_params(), allocate_gpu_memory, size);
       if (i == 0) {
         size_tracker += size;
       }

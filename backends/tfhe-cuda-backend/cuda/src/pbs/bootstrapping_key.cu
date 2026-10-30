@@ -3,79 +3,57 @@
 #include "polynomial/dispatch.cuh"
 #include "programmable_bootstrap_classic.cuh"
 
-void cuda_convert_lwe_programmable_bootstrap_key_32_async(
-    void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size) {
-  size_t total_polynomials =
-      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
-               (size_t)(glwe_dim + 1), (size_t)level_count);
-  // We don't have a specialized version for 32 bit
-  cuda_convert_lwe_programmable_bootstrap_key<uint32_t, int32_t>(
-      static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
-      (const int32_t *)src, polynomial_size, total_polynomials,
-      /*use_specialized_fft_2_2=*/false, /*use_throughput_oriented=*/false);
-}
-
 void cuda_convert_lwe_programmable_bootstrap_key_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size) {
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count) {
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
-  // The gate reads the compute capability of the current device.
+  // The gate reads the compute capability of the current device. It is the
+  // same gate the PBS scratch and launch decide through, so the key layout and
+  // the kernel reading it always agree.
   cuda_set_device(gpu_index);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  bool use_specialized = supports_specialized_2_2_params<uint64_t>(
-      polynomial_size, glwe_dim, level_count, input_lwe_dim, max_shared_memory);
-  bool use_throughput_oriented =
-      use_specialized && specialized_2_2_use_throughput_oriented<uint64_t>(
-                             polynomial_size, glwe_dim, level_count,
-                             input_lwe_dim, max_shared_memory);
-  cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
-      static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
-      (const int64_t *)src, polynomial_size, total_polynomials, use_specialized,
-      use_throughput_oriented);
-}
-
-// Only used for testing to keep the vanilla layout of the bsk.
-void cuda_convert_lwe_programmable_bootstrap_key_standard_64_async(
-    void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size) {
-  size_t total_polynomials =
-      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
-               (size_t)(glwe_dim + 1), (size_t)level_count);
-  // Force vanilla FFT layout.
+  bool use_2_2_specialized_layout = supports_2_2_specialized_pbs<uint64_t>(
+      polynomial_size, glwe_dim, level_count, input_lwe_dim, base_log,
+      max_shared_memory);
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int64_t *)src, polynomial_size, total_polynomials,
-      /*use_specialized_fft_2_2=*/false, /*use_throughput_oriented=*/false);
+      use_2_2_specialized_layout);
 }
 
-// Only used during testing to convert the classical bsk in the specialized
-// 2_2_params layout that works better for the global loads when using
-// registers.
-void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
+// Only used for testing to keep the default layout of the bsk, so the DEFAULT
+// flavor can be tested on parameters the automatic gate would route to the
+// 2_2 specialized layout.
+void cuda_convert_lwe_programmable_bootstrap_key_default_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size) {
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t polynomial_size,
+    uint32_t level_count) {
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
-  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  bool use_throughput_oriented =
-      specialized_2_2_use_throughput_oriented<uint64_t>(
-          polynomial_size, glwe_dim, level_count, input_lwe_dim,
-          max_shared_memory);
-  // This entry point always targets the specialized 2_2 layout; the throughput
-  // flag only selects between the FFT16x16x4 and the natural-order specialized
-  // conversion within it.
+  // Force the default FFT layout.
   cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
       (const int64_t *)src, polynomial_size, total_polynomials,
-      /*use_specialized_fft_2_2=*/true, use_throughput_oriented);
+      /*use_2_2_specialized_layout=*/false);
+}
+
+// Only used during testing to force the FFT16x16x4 2_2 specialized layout of
+// the bsk, bypassing the compute capability policy of the automatic gate.
+void cuda_convert_lwe_programmable_bootstrap_key_2_2_specialized_64_async(
+    void *stream, uint32_t gpu_index, void *dest, void const *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t polynomial_size,
+    uint32_t level_count) {
+  size_t total_polynomials =
+      safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
+               (size_t)(glwe_dim + 1), (size_t)level_count);
+  cuda_convert_lwe_programmable_bootstrap_key<uint64_t, int64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index, (double2 *)dest,
+      (const int64_t *)src, polynomial_size, total_polynomials,
+      /*use_2_2_specialized_layout=*/true);
 }
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
@@ -117,20 +95,11 @@ template __device__ const uint64_t *
 get_ith_mask_kth_block(const uint64_t *ptr, int i, int k, int level,
                        uint32_t polynomial_size, int glwe_dimension,
                        uint32_t level_count);
-template __device__ const uint32_t *
-get_ith_mask_kth_block(const uint32_t *ptr, int i, int k, int level,
-                       uint32_t polynomial_size, int glwe_dimension,
-                       uint32_t level_count);
 template __device__ const double2 *
 get_ith_mask_kth_block(const double2 *ptr, int i, int k, int level,
                        uint32_t polynomial_size, int glwe_dimension,
                        uint32_t level_count);
 template __device__ uint64_t *get_ith_mask_kth_block(uint64_t *ptr, int i,
-                                                     int k, int level,
-                                                     uint32_t polynomial_size,
-                                                     int glwe_dimension,
-                                                     uint32_t level_count);
-template __device__ uint32_t *get_ith_mask_kth_block(uint32_t *ptr, int i,
                                                      int k, int level,
                                                      uint32_t polynomial_size,
                                                      int glwe_dimension,
@@ -142,11 +111,6 @@ template __device__ double2 *get_ith_mask_kth_block(double2 *ptr, int i, int k,
                                                     uint32_t level_count);
 
 template __device__ uint64_t *get_ith_body_kth_block(uint64_t *ptr, int i,
-                                                     int k, int level,
-                                                     uint32_t polynomial_size,
-                                                     int glwe_dimension,
-                                                     uint32_t level_count);
-template __device__ uint32_t *get_ith_body_kth_block(uint32_t *ptr, int i,
                                                      int k, int level,
                                                      uint32_t polynomial_size,
                                                      int glwe_dimension,
@@ -222,7 +186,7 @@ void cuda_fourier_polynomial_mul_async(void *stream, uint32_t gpu_index,
 // Shared launch path of the three FFT16x16x4 test entry points below: same
 // parameter checks, same (total_polynomials / 2) x (64, 2, 1) launch shape and
 // the same shared memory opt-in, so the transforms run exactly as the
-// specialized 2_2_params PBS runs them. Only the kernel and its tensor
+// 2_2 specialized PBS runs them. Only the kernel and its tensor
 // arguments differ. `entry_point_name` identifies the caller in the PANIC
 // messages, since they all fire from this function's lines.
 template <typename Kernel, typename... Args>
@@ -258,7 +222,7 @@ static void launch_fft16x16x4_pair_kernel(cudaStream_t stream,
 }
 
 // Test-only entry point: negacyclic polynomial multiplication driven by the
-// paired FFT16x16x4 transforms (the FFTs of the specialized 2_2_params PBS).
+// paired FFT16x16x4 transforms (the FFTs of the 2_2 specialized PBS).
 // Hardcoded to polynomial_size == 2048 and two polynomials per block, so
 // total_polynomials must be even. See batch_polynomial_mul_fft16x16x4.
 void cuda_fourier_polynomial_mul_fft16x16x4_async(
@@ -312,7 +276,7 @@ void cuda_forward_fft_classic_async(void *stream, uint32_t gpu_index,
 }
 
 // Test-only entry point: forward-only negacyclic FFT driven by the paired
-// FFT16x16x4 transform (the forward FFT of the specialized 2_2_params PBS).
+// FFT16x16x4 transform (the forward FFT of the 2_2 specialized PBS).
 // Hardcoded to polynomial_size == 2048 and two polynomials per block, so
 // total_polynomials must be even. The spectra are written in NATURAL frequency
 // order; see batch_forward_fft16x16x4.
@@ -328,7 +292,7 @@ void cuda_forward_fft16x16x4_async(void *stream, uint32_t gpu_index,
 }
 
 // Test-only entry point: inverse-only negacyclic FFT driven by the paired
-// FFT16x16x4 transform (the inverse FFT of the specialized 2_2_params PBS).
+// FFT16x16x4 transform (the inverse FFT of the 2_2 specialized PBS).
 // The clean inverse of cuda_forward_fft16x16x4_async: natural-order spectra
 // in, natural time order out, no 1/N (the PBS folds it into the key). Same
 // restrictions as the forward entry point; see batch_backward_fft16x16x4.
@@ -393,10 +357,12 @@ void cuda_convert_lwe_programmable_bootstrap_key_u128_async(
   cuda_drop_async(d_standard, stream, gpu_index);
 }
 
+// Same (polynomial_size, level_count) argument order as the 64-bit classical
+// conversion family, so the calls cannot be swapped silently.
 void cuda_convert_lwe_programmable_bootstrap_key_128_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size) {
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t polynomial_size,
+    uint32_t level_count) {
 
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
