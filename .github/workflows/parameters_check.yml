@@ -97,12 +97,17 @@ jobs:
           -v "${PWD}":/repo_src \
           sagemath/sagemath:10.8 /bin/bash /repo_src/scripts/execute_lattice_estimator.sh
 
+      - name: Setup Python venv
+        if: ${{ always() }}
+        run: |
+          make setup_python_venv
+
       - name: Get time elapsed
         if: ${{ always() }}
-        shell: python
         env:
           START_DATE: ${{ steps.start-time.outputs.value }}
         run: |
+          venv/bin/python - <<'EOF'
           import datetime
           import math
           import os
@@ -115,6 +120,7 @@ jobs:
 
           with open(env_file, "a") as f:
             f.write(f"TIME_ELAPSED={total_minutes}\n")
+          EOF
 
       - name: Slack Notification
         if: ${{ always() }}

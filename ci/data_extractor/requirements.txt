@@ -49,9 +49,9 @@ platformdirs==4.12.4 ; python_full_version < '3.11' \
     --hash=sha256:63743c02414e755de4e31b8f68125c1407495b86c5a006e203c01ff8b9924250 \
     --hash=sha256:78bfb9db2a8471ed7eebe3c3c932da413911042994e699b384fbb4493fa872d7
     # via black
-platformdirs==4.13.5 ; python_full_version >= '3.11' \
-    --hash=sha256:05831adf87d392760f4b5c3a0a95579ab5a10b18b9b9bd43680dcb47544788a0 \
-    --hash=sha256:53d3ec4280b815c1e0b02edad7f9ee8fda1ba9c0865dd9c2e6e63849ce82fc1e
+platformdirs==4.14.0 ; python_full_version >= '3.11' \
+    --hash=sha256:1dadfc59a8a5d7565b3d9270ae8fa71c065595352c4277b41c11ee6c222c4b91 \
+    --hash=sha256:83f009c1e8c5fc36869b5171755b291887bd2cade7965233cdfabd23d754720b
     # via black
 psycopg2-binary==2.9.9 \
     --hash=sha256:03ef7df18daf2c4c07e2695e8cfd5ee7f748a1d54d802330985a78d2a5a6dca9 \
