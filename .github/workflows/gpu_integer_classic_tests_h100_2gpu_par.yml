@@ -1,4 +1,8 @@
-# Run signed and unsigned integer GPU classic tests in parallel on a 2xH100 machine
+# Run signed and unsigned integer GPU classic tests in parallel on a 2xH100 machine.
+# Restricted to message_2_carry_2 params (FAST_TESTS=TRUE): the full classical
+# param sweep is already covered on cron by gpu_4090_tests (make test_gpu ->
+# test_integer_gpu --all-but-noise, every 2 days), so there's no need to pay
+# for it again on every approval.
 name: gpu_integer_classic_tests_h100_2gpu_par
 
 env:
@@ -12,6 +16,8 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   SLACKIFY_MARKDOWN: true
+  FAST_TESTS: TRUE
+  NIGHTLY_TESTS: FALSE
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}

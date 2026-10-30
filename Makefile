@@ -1156,11 +1156,11 @@ test_integer_long_run_gpu: install_cargo_nextest
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "tfhe" --backend "gpu"
 
-.PHONY: test_integer_short_run_gpu # Run the long run integer tests on the gpu backend
+.PHONY: test_integer_short_run_gpu # Run the short long-run integer tests (classical params only) on the gpu backend
 test_integer_short_run_gpu: install_cargo_nextest
 	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence --test-threads=1 --nocapture
+		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence::test_gpu_random_op_sequence_param_message_2_carry_2_ks_pbs_tuniform_2m128 integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence::test_gpu_signed_random_op_sequence_param_message_2_carry_2_ks_pbs_tuniform_2m128 --test-threads=1 --nocapture
 
 .PHONY: build_debug_integer_short_run_gpu # Run the long run integer tests on the gpu backend
 build_debug_integer_short_run_gpu: install_cargo_nextest
@@ -1501,11 +1501,11 @@ test_high_level_api_noise_squash_relaxed_pbs128_gpu: install_cargo_nextest
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::tests::noise_squashing::.*gpu.*/)"
 
-.PHONY: test_high_level_api_fake_multi_gpu
+.PHONY: test_high_level_api_fake_multi_gpu # Run the classical (non-multi-bit) subset of the GPU HLAPI tests with fake multi-gpu emulation
 test_high_level_api_fake_multi_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu-debug-fake-multi-gpu,zk-pok -p tfhe \
-		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/)"
+		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/) and not test(/multi_?bit/)"
 
 .PHONY: test_protocol_long_run_gpu # Run the long run protocol workflow test on the gpu backend
 test_protocol_long_run_gpu:

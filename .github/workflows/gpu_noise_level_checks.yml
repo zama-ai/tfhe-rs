@@ -1,8 +1,10 @@
 # Run signed and unsigned GPU integer tests with the gpu-debug-noise-check
 # feature so that the CHECK_NOISE_LEVEL assertions in the CUDA backend are
 # active, without the multi-GPU emulation that requires a multi-GPU host.
+# Classical params only (message_2_carry_2) — multi-bit is excluded from
+# both steps below.
 # Runs on a single L40S Scaleway instance (Hyperstack fallback), triggered
-# automatically on every PR that touches GPU code, alongside gpu_fast_tests.
+# once a PR that touches GPU code is labeled 'approved' (see approve_label.yml).
 name: gpu_noise_level_checks
 
 env:
