@@ -26,6 +26,9 @@ jobs:
           persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
       - name: Get actionlint
         run: |
           wget "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
@@ -66,6 +69,14 @@ jobs:
             slsa-framework/slsa-github-generator
             ./
 
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
       - name: Check Python requirements lock files are up to date
         run: |
           make check_python_requirements
+
+      - name: Check python is only run from a venv
+        run: |
+          make check_python_venv_usage

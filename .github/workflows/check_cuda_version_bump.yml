@@ -24,5 +24,8 @@ jobs:
           persist-credentials: "false"
           fetch-depth: 0
 
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
       - name: Check CUDA backend version bumps
         run: make check_cuda_version_bump
