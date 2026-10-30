@@ -53,6 +53,11 @@ jobs:
           persona: pedantic
           version: ${{ steps.get_zizmor.outputs.version }}
 
+      - name: Scan IaC with Trivy
+        uses: zama-ai/ci-templates/.github/actions/trivy-iac@86fee8d4853c023c411af7f085b358a82c185eee # v1.1.0
+        with:
+          misconfig-scanners: "terraform"
+
       - name: Ensure SHA pinned actions
         uses: zgosalvez/github-actions-ensure-sha-pinned-actions@c4e71056006d29f90204b2d063be337109507d62 # v5.0.10
         with:

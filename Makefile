@@ -508,6 +508,22 @@ check_fmt_workflow:
 check_workflow_security: install_zizmor
 	zizmor --persona pedantic .
 
+.PHONY: check_iac_security # Run the trivy-iac scan from ci-templates, at the commit pinned in ci_lint.yml
+check_iac_security:
+	@sha=$$(sed -n 's|.*ci-templates/.github/actions/trivy-iac@\([0-9a-f]\{40\}\).*|\1|p' .github/workflows/ci_lint.yml); \
+	[ -n "$$sha" ] || { echo "trivy-iac pin not found in ci_lint.yml"; exit 1; }; \
+	dir="$${TMPDIR:-/tmp}/ci-templates-$$sha"; \
+	if [ ! -f "$$dir/.github/actions/trivy-iac/action.yml" ]; then \
+		rm -rf "$$dir" && git init -q "$$dir" && \
+		git -C "$$dir" fetch -q --depth 1 https://github.com/zama-ai/ci-templates.git "$$sha" && \
+		git -C "$$dir" checkout -q FETCH_HEAD || exit 1; \
+	fi; \
+	action="$$dir/.github/actions/trivy-iac"; \
+	GITHUB_WORKSPACE="$(CURDIR)" SHARED_CHECKS="$$action/checks" SCAN_PATH=. EXTRA_CHECKS= \
+	MISCONFIG_SCANNERS=terraform EXIT_CODE=1 \
+	TRIVY_IMAGE="$$(sed -n 's/^ *TRIVY_IMAGE: //p' "$$action/action.yml")" \
+	bash -eo pipefail <(awk '/run: \|/{f=1;next} f{sub(/^        /,""); print}' "$$action/action.yml")
+
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
