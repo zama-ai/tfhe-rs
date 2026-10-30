@@ -1,5 +1,5 @@
 pub use utils::{
-    FileStorage, KeyCache as ImplKeyCache, NamedParam, PersistentStorage,
+    FileStorage, GenerateKeyFromParams, KeyCache as ImplKeyCache, NamedParam, PersistentStorage,
     SharedKey as GenericSharedKey,
 };
 
@@ -17,6 +17,14 @@ pub mod utils {
     pub trait PersistentStorage<P, K> {
         fn load(&self, param: P) -> Option<K>;
         fn store(&self, param: P, key: &K);
+    }
+
+    /// Generation of the key stored by a [`KeyCache`] for some parameters.
+    ///
+    /// Persistent storage is keyed by parameters only, so all the keys cached for a given
+    /// `(P, K)` must come from this single generation function.
+    pub trait GenerateKeyFromParams<P> {
+        fn generate_key_from_params(params: P) -> Self;
     }
 
     pub trait NamedParam {
@@ -221,10 +229,10 @@ pub mod utils {
     where
         P: Copy + PartialEq,
         S: PersistentStorage<P, K>,
-        K: From<P>,
+        K: GenerateKeyFromParams<P>,
     {
         pub fn get(&self, param: P) -> SharedKey<K> {
-            self.get_with_closure(param, &mut K::from)
+            self.get_with_closure(param, &mut K::generate_key_from_params)
         }
     }
 
@@ -233,15 +241,7 @@ pub mod utils {
         P: Copy + PartialEq,
         S: PersistentStorage<P, K>,
     {
-        pub fn get_with_closure<C: FnMut(P) -> K>(
-            &self,
-            param: P,
-            key_gen_closure: &mut C,
-        ) -> SharedKey<K> {
-            self.with_closure(param, key_gen_closure)
-        }
-
-        pub fn with_closure<C>(&self, param: P, key_gen_closure: &mut C) -> SharedKey<K>
+        pub fn get_with_closure<C>(&self, param: P, key_gen_closure: &mut C) -> SharedKey<K>
         where
             C: FnMut(P) -> K,
         {

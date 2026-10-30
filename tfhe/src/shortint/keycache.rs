@@ -7,7 +7,7 @@ use crate::keycache::*;
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
-use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
+use crate::shortint::{gen_keys, ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
 
 named_params_impl!( ShortintParameterSet =>
@@ -180,18 +180,9 @@ named_params_impl!( NoiseSquashingCompressionParameters =>
     V1_9_NOISE_SQUASHING_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 );
 
-impl From<AtomicPatternParameters> for (ClientKey, ServerKey) {
-    fn from(param: AtomicPatternParameters) -> Self {
-        let param_set = ShortintParameterSet::from(param);
-        param_set.into()
-    }
-}
-
-impl From<ShortintParameterSet> for (ClientKey, ServerKey) {
-    fn from(param: ShortintParameterSet) -> Self {
-        let cks = ClientKey::new(param);
-        let sks = ServerKey::new(&cks);
-        (cks, sks)
+impl GenerateKeyFromParams<AtomicPatternParameters> for (ClientKey, ServerKey) {
+    fn generate_key_from_params(params: AtomicPatternParameters) -> Self {
+        gen_keys(params)
     }
 }
 
