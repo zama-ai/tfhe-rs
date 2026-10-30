@@ -1,8 +1,6 @@
 use clap::{Arg, ArgAction, Command};
 use tfhe::boolean;
 use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS};
-#[cfg(feature = "experimental")]
-use tfhe::shortint::keycache::KEY_CACHE_WOPBS;
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK};
 #[cfg(tarpaulin)]
 use tfhe::shortint::parameters::coverage_parameters::{
@@ -17,12 +15,6 @@ use tfhe::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 use tfhe::shortint::parameters::current_params::*;
 use tfhe::shortint::parameters::{
     v1_6, ClassicPBSParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-};
-#[cfg(feature = "experimental")]
-use tfhe::shortint::parameters::{
-    WopbsParameters, LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-    LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS, LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-    LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
 };
 use tfhe::shortint::MultiBitPBSParameters;
 
@@ -41,7 +33,7 @@ fn client_server_keys() {
         .arg(
             Arg::new("multi_bit_only")
                 .long("multi-bit-only")
-                .help("Set to generate only multi bit keys, otherwise only PBS and WoPBS keys are generated")
+                .help("Set to generate only multi bit keys, otherwise only PBS keys are generated")
                 .action(ArgAction::SetTrue)
                 .exclusive(true),
         )
@@ -93,15 +85,6 @@ fn client_server_keys() {
             generate_pbs_multi_bit_keys(&MULTI_BIT_PARAMS);
         }
 
-        #[cfg(feature = "experimental")]
-        {
-            const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 1] = [(
-                V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-                LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            )];
-            generate_wopbs_keys(&WOPBS_PARAMS);
-        }
-
         const BOOLEAN_PARAMS: [BooleanParameters; 2] =
             [DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS];
         generate_boolean_keys(&BOOLEAN_PARAMS);
@@ -129,30 +112,6 @@ fn client_server_keys() {
             v1_6::V1_6_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
         ];
         generate_pbs_keys(&PBS_KEYS);
-
-        #[cfg(feature = "experimental")]
-        {
-            const WOPBS_PARAMS: [(ClassicPBSParameters, WopbsParameters); 4] = [
-                (
-                    v1_6::V1_6_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-                    LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
-                ),
-                (
-                    v1_6::V1_6_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-                    LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-                ),
-                (
-                    v1_6::V1_6_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-                    LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-                ),
-                (
-                    v1_6::V1_6_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-                    LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS,
-                ),
-            ];
-
-            generate_wopbs_keys(&WOPBS_PARAMS);
-        }
     }
 }
 
@@ -216,26 +175,6 @@ fn generate_ksk_keys(
 
         // Clear keys as we go to avoid filling the RAM
         KEY_CACHE_KSK.clear_in_memory_cache()
-    }
-}
-
-#[cfg(feature = "experimental")]
-fn generate_wopbs_keys(params: &[(ClassicPBSParameters, WopbsParameters)]) {
-    println!("Generating woPBS keys");
-
-    for (i, (params_shortint, params_wopbs)) in params.iter().copied().enumerate() {
-        println!("Generating [{} / {}]", i + 1, params.len());
-
-        let start = std::time::Instant::now();
-
-        let _ = KEY_CACHE_WOPBS.get_from_param((params_shortint, params_wopbs));
-
-        let stop = start.elapsed().as_secs();
-
-        println!("Generation took {stop} seconds");
-
-        // Clear keys as we go to avoid filling the RAM
-        KEY_CACHE_WOPBS.clear_in_memory_cache()
     }
 }
 

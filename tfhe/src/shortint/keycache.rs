@@ -7,7 +7,6 @@ use crate::keycache::*;
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
-use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
 
@@ -214,11 +213,6 @@ pub struct SharedKey {
     inner: GenericSharedKey<(ClientKey, ServerKey)>,
 }
 
-pub struct SharedWopbsKey {
-    inner: GenericSharedKey<(ClientKey, ServerKey)>,
-    wopbs: GenericSharedKey<WopbsKey>,
-}
-
 pub struct SharedKeySwitchingKey {
     inner_1: GenericSharedKey<(ClientKey, ServerKey)>,
     inner_2: GenericSharedKey<(ClientKey, ServerKey)>,
@@ -231,18 +225,6 @@ impl SharedKey {
     }
     pub fn server_key(&self) -> &ServerKey {
         &self.inner.1
-    }
-}
-
-impl SharedWopbsKey {
-    pub fn client_key(&self) -> &ClientKey {
-        &self.inner.0
-    }
-    pub fn server_key(&self) -> &ServerKey {
-        &self.inner.1
-    }
-    pub fn wopbs_key(&self) -> &WopbsKey {
-        &self.wopbs
     }
 }
 
@@ -276,61 +258,6 @@ impl Keycache {
 
     pub fn clear_in_memory_cache(&self) {
         self.inner.clear_in_memory_cache();
-    }
-}
-
-#[cfg(feature = "experimental")]
-mod wopbs {
-    use super::*;
-
-    #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-    pub struct WopbsParamPair(pub PBSParameters, pub WopbsParameters);
-
-    impl<P> From<(P, WopbsParameters)> for WopbsParamPair
-    where
-        P: Into<PBSParameters>,
-    {
-        fn from(tuple: (P, WopbsParameters)) -> Self {
-            Self(tuple.0.into(), tuple.1)
-        }
-    }
-
-    /// The KeyCache struct for shortint.
-    ///
-    /// You should not create an instance yourself,
-    /// but rather use the global variable defined: [static@KEY_CACHE_WOPBS]
-    pub struct KeycacheWopbsV0 {
-        inner: ImplKeyCache<WopbsParamPair, WopbsKey, FileStorage>,
-    }
-
-    impl Default for KeycacheWopbsV0 {
-        fn default() -> Self {
-            Self {
-                inner: ImplKeyCache::new(FileStorage::new("../keys/shortint/wopbs_v0".to_string())),
-            }
-        }
-    }
-
-    impl KeycacheWopbsV0 {
-        pub fn get_from_param<T: Into<WopbsParamPair>>(&self, params: T) -> SharedWopbsKey {
-            let params = params.into();
-            let key = KEY_CACHE.get_from_param(params.0);
-            let wk = self.inner.get_with_closure(params, &mut |_| {
-                WopbsKey::new_wopbs_key(
-                    key.inner.0.as_view().try_into().unwrap(),
-                    key.inner.1.as_view().try_into().unwrap(),
-                    &params.1,
-                )
-            });
-            SharedWopbsKey {
-                inner: key.inner,
-                wopbs: wk,
-            }
-        }
-
-        pub fn clear_in_memory_cache(&self) {
-            self.inner.clear_in_memory_cache();
-        }
     }
 }
 
@@ -402,7 +329,3 @@ impl KeycacheKeySwitchingKey {
 pub static KEY_CACHE: LazyLock<Keycache> = LazyLock::new(Keycache::default);
 pub static KEY_CACHE_KSK: LazyLock<KeycacheKeySwitchingKey> =
     LazyLock::new(KeycacheKeySwitchingKey::default);
-
-#[cfg(feature = "experimental")]
-pub static KEY_CACHE_WOPBS: LazyLock<wopbs::KeycacheWopbsV0> =
-    LazyLock::new(wopbs::KeycacheWopbsV0::default);

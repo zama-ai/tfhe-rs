@@ -20,8 +20,9 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::*;
 use parameters::KeySwitch32PBSParameters;
+use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
-use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+use tfhe_versionable::{Upgrade, Version, Versionize, VersionsDispatch};
 
 #[derive(VersionsDispatch)]
 pub enum MessageModulusVersions {
@@ -203,6 +204,31 @@ pub enum ShortintParameterSetVersions {
 #[derive(VersionsDispatch)]
 pub enum MultiBitPBSParametersVersions {
     V0(MultiBitPBSParameters),
+}
+
+/// Parameters of the without-padding PBS, which is not supported anymore. They are only kept to
+/// be able to deserialize data that contain them.
+#[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
+#[versionize(WopbsParametersVersions)]
+pub struct WopbsParameters {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_noise_distribution: DynamicDistribution<u64>,
+    pub glwe_noise_distribution: DynamicDistribution<u64>,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub pfks_level: DecompositionLevelCount,
+    pub pfks_base_log: DecompositionBaseLog,
+    pub pfks_noise_distribution: DynamicDistribution<u64>,
+    pub cbs_level: DecompositionLevelCount,
+    pub cbs_base_log: DecompositionBaseLog,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub encryption_key_choice: EncryptionKeyChoice,
 }
 
 #[derive(VersionsDispatch)]
