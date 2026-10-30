@@ -53,11 +53,15 @@ jobs:
         with:
           persist-credentials: "false"
 
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
       - name: Produce table from database
         if: inputs.backend_comparison == false
         run: |
           make install_python_requirements PYTHON_REQUIREMENTS=ci/data_extractor/requirements.txt
-          python3 ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
+          venv/bin/python ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
           --generate-svg \
           --branch "${REF_NAME}" \
           --backend "${BACKEND}" \
@@ -98,7 +102,7 @@ jobs:
         if: inputs.backend_comparison == true
         run: |
           make install_python_requirements PYTHON_REQUIREMENTS=ci/data_extractor/requirements.txt
-          python3 ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
+          venv/bin/python ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
           --generate-svg \
           --backends-comparison \
           --time-span-days "${TIME_SPAN}"

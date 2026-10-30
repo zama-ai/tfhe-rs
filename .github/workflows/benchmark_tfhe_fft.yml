@@ -77,9 +77,13 @@ jobs:
         run: |
           make bench_fft
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Parse AVX512 results
         run: |
-          python3 ./ci/fft_benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          venv/bin/python ./ci/fft_benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database concrete_fft \
           --hardware "hpc8a.96xlarge" \
           --project-version "${COMMIT_HASH}" \

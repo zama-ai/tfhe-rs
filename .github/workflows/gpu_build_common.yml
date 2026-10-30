@@ -102,6 +102,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
       - name: Run semgrep and lint checks on CUDA code
         if: inputs.run-pcc-gpu
         run: |

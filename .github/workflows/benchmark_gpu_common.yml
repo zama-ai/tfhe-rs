@@ -249,6 +249,10 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           BENCH_TYPE: ${{ matrix.bench_type }}
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Parse and merge multi_group results
         if: ${{ endsWith(inputs.command, '_multi_group') }}
         run: |
@@ -267,7 +271,7 @@ jobs:
             --bench-type "${BENCH_TYPE}"
             group_results+=("${group_result}")
           done
-          python3 ./ci/merge_multi_group_results.py --bench-type "${BENCH_TYPE}" --output "${RESULTS_FILENAME}" "${group_results[@]}"
+          venv/bin/python ./ci/merge_multi_group_results.py --bench-type "${BENCH_TYPE}" --output "${RESULTS_FILENAME}" "${group_results[@]}"
         env:
           REF_NAME: ${{ github.ref_name }}
           BENCH_TYPE: ${{ matrix.bench_type }}
@@ -301,7 +305,7 @@ jobs:
           if [[ "${BENCH_COMMAND}" == *_multi_group ]]; then
             gpus_used="${NUM_GROUPS}"
           fi
-          python3 ci/protocol_results_table.py "${RESULTS_FILENAME}" \
+          venv/bin/python ci/protocol_results_table.py "${RESULTS_FILENAME}" \
           --gpu-info gpu_info.txt \
           --hardware "${HARDWARE_NAME}" \
           --gpus-used "${gpus_used}" \
