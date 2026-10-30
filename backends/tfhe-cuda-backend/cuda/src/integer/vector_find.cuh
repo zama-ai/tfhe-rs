@@ -670,6 +670,13 @@ __host__ void host_unchecked_match_value(
     int_unchecked_match_buffer<Torus> *mem_ptr, void *const *bsks,
     Torus *const *ksks) {
 
+  // The large lookup tables of mem_ptr share the same PBS buffers
+  // (int_shared_pbs_buffer). That is correct only because every step below
+  // applies its lookup tables on the caller's streams, one after another.
+  // Do not run two of these steps, or two lookup tables inside one step, on
+  // different streams, or the shared keybundle and accumulator arrays will be
+  // overwritten while in use, with no error.
+
   // sel_i = (key == key_i) in {0,1},
   // toy example: [10] vs [1,2,5,10,20] -> [0,0,0,1,0]
   host_compute_eq_selectors_ct_vs_clears<Torus>(
