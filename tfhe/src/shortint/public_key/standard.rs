@@ -83,7 +83,7 @@ impl PublicKey {
 
     /// Atomic pattern of the ciphertexts encrypted with this key.
     pub fn atomic_pattern(&self) -> AtomicPatternKind {
-        AtomicPatternKind::Standard(self.parameters.encryption_key_choice().into())
+        self.parameters.atomic_pattern()
     }
 
     /// Encrypt a small integer message using the client key.

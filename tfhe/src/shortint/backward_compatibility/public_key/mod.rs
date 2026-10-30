@@ -42,18 +42,21 @@ impl Upgrade<PublicKey> for PublicKeyV1 {
     type Error = crate::Error;
 
     fn upgrade(self) -> Result<PublicKey, Self::Error> {
-        let key = PublicKey::from_raw_parts(self.lwe_public_key, self.parameters.ap_parameters())?;
+        let parameters = self.parameters.ap_parameters();
 
-        if key.atomic_pattern() != self.atomic_pattern {
+        // Previous versions always stored a Standard atomic pattern, even for KS32 parameters
+        let expected_atomic_pattern =
+            AtomicPatternKind::Standard(parameters.encryption_key_choice().into());
+
+        if self.atomic_pattern != expected_atomic_pattern {
             return Err(crate::Error::new(format!(
                 "Mismatch between the stored atomic pattern ({:?}) and the one expected from \
                 the parameters ({:?})",
-                self.atomic_pattern,
-                key.atomic_pattern(),
+                self.atomic_pattern, expected_atomic_pattern,
             )));
         }
 
-        Ok(key)
+        PublicKey::from_raw_parts(self.lwe_public_key, parameters)
     }
 }
 
@@ -124,21 +127,21 @@ impl Upgrade<CompressedPublicKey> for CompressedPublicKeyV1 {
     type Error = crate::Error;
 
     fn upgrade(self) -> Result<CompressedPublicKey, Self::Error> {
-        let key = CompressedPublicKey::from_raw_parts(
-            self.lwe_public_key,
-            self.parameters.ap_parameters(),
-        )?;
+        let parameters = self.parameters.ap_parameters();
 
-        if key.atomic_pattern() != self.atomic_pattern {
+        // Previous versions always stored a Standard atomic pattern, even for KS32 parameters
+        let expected_atomic_pattern =
+            AtomicPatternKind::Standard(parameters.encryption_key_choice().into());
+
+        if self.atomic_pattern != expected_atomic_pattern {
             return Err(crate::Error::new(format!(
                 "Mismatch between the stored atomic pattern ({:?}) and the one expected from \
                 the parameters ({:?})",
-                self.atomic_pattern,
-                key.atomic_pattern(),
+                self.atomic_pattern, expected_atomic_pattern,
             )));
         }
 
-        Ok(key)
+        CompressedPublicKey::from_raw_parts(self.lwe_public_key, parameters)
     }
 }
 
