@@ -595,8 +595,7 @@ pub fn test_extract_bit_circuit_bootstrapping_vertical_packing() {
     let fft = Fft::new(polynomial_size);
     let fft = fft.as_view();
 
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params);
     let (fourier_bsk, lwe_small_sk, lwe_big_sk, vec_pfpksk) = (
         keys.fbsk,
         keys.small_lwe_sk,
@@ -783,8 +782,7 @@ fn test_wop_add_one(params: FftWopPbsTestParams<u64>) {
     let fft = Fft::new(polynomial_size);
     let fft = fft.as_view();
 
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params);
     let (fourier_bsk, small_sk, big_lwe_sk, cbs_pfpksk) = (
         keys.fbsk,
         keys.small_lwe_sk,

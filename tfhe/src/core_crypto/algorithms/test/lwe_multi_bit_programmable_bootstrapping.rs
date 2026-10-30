@@ -111,9 +111,7 @@ where
         ciphertext_modulus
     ));
 
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params);
     let (input_lwe_secret_key, output_lwe_secret_key, bsk, fbsk) =
         (keys.small_lwe_sk, keys.big_lwe_sk, keys.bsk, keys.fbsk);
 
@@ -216,9 +214,7 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
         ciphertext_modulus
     ));
 
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params);
     let (input_lwe_secret_key, output_lwe_secret_key, bsk, fbsk) =
         (keys.small_lwe_sk, keys.big_lwe_sk, keys.bsk, keys.fbsk);
 
@@ -345,9 +341,7 @@ where
         ciphertext_modulus
     ));
 
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params);
     let (input_lwe_secret_key, output_lwe_secret_key, bsk) =
         (keys.small_lwe_sk, keys.big_lwe_sk, keys.bsk);
 
@@ -450,9 +444,7 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
         ciphertext_modulus
     ));
 
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params);
     let (input_lwe_secret_key, output_lwe_secret_key, bsk) =
         (keys.small_lwe_sk, keys.big_lwe_sk, keys.bsk);
 

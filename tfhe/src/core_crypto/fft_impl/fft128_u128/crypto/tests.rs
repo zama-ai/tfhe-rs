@@ -1,10 +1,8 @@
 use super::super::super::{fft128, fft128_u128};
 use super::super::math::fft::Fft128View;
 use super::ggsw::collect_next_term_split_scalar;
-use crate::core_crypto::fft_impl::common::tests::{
-    gen_keys_or_get_from_cache_if_enabled, generate_keys,
-};
-use crate::core_crypto::prelude::test::{TestResources, FFT128_U128_PARAMS};
+use crate::core_crypto::fft_impl::common::tests::gen_keys_or_get_from_cache_if_enabled;
+use crate::core_crypto::prelude::test::FFT128_U128_PARAMS;
 use crate::core_crypto::prelude::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodBuffer, PodStack};
@@ -18,8 +16,6 @@ fn test_split_external_product() {
     let ciphertext_modulus = params.ciphertext_modulus;
     let ciphertext_modulus_split = CiphertextModulus::<u64>::new_native();
 
-    let mut rsc = TestResources::new();
-
     let mut glwe = GlweCiphertext::new(
         0u128,
         glwe_dimension.to_glwe_size(),
@@ -31,8 +27,7 @@ fn test_split_external_product() {
         *x = rand::random();
     }
 
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params);
     let std_bootstrapping_key = keys.bsk;
 
     let mut fourier_bsk = Fourier128LweBootstrapKey::new(
@@ -143,10 +138,7 @@ fn test_split_pbs() {
     let polynomial_size = params.polynomial_size;
     let ciphertext_modulus = params.ciphertext_modulus;
 
-    let mut rsc = TestResources::new();
-
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(params);
     let std_bootstrapping_key = keys.bsk;
 
     let mut fourier_bsk = Fourier128LweBootstrapKey::new(

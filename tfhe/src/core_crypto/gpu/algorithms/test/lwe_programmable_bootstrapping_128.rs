@@ -98,8 +98,7 @@ pub fn execute_bootstrap_u128(
         ciphertext_modulus: squash_params.ciphertext_modulus,
     };
 
-    let mut keys_gen = |_params| generate_keys(noise_squashing_test_params, &mut rsc);
-    let keys = gen_keys_or_get_from_cache_if_enabled(noise_squashing_test_params, &mut keys_gen);
+    let keys = gen_keys_or_get_from_cache_if_enabled(noise_squashing_test_params);
     let (std_bootstrapping_key, small_lwe_sk, big_lwe_sk) =
         (keys.bsk, keys.small_lwe_sk, keys.big_lwe_sk);
     let output_lwe_dimension = big_lwe_sk.lwe_dimension();

@@ -7,7 +7,7 @@ const NB_TESTS: usize = 10;
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
-fn generate_keys<Scalar: UnsignedTorus + Sync + Send + Serialize + DeserializeOwned>(
+pub(crate) fn generate_keys<Scalar: UnsignedTorus + Sync + Send + Serialize + DeserializeOwned>(
     params: PackingKeySwitchTestParams<Scalar>,
     rsc: &mut TestResources,
 ) -> PackingKeySwitchKeys<Scalar> {
@@ -65,8 +65,7 @@ where
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
         for _ in 0..NB_TESTS {
-            let mut keys_gen = |params| generate_keys(params, &mut rsc);
-            let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+            let keys = gen_keys_or_get_from_cache_if_enabled(params);
             let (pksk, lwe_sk, glwe_sk) = (keys.pksk, keys.lwe_sk, keys.glwe_sk);
 
             let plaintext = Plaintext(msg * delta);
@@ -139,8 +138,7 @@ where
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
         for _ in 0..NB_TESTS {
-            let mut keys_gen = |params| generate_keys(params, &mut rsc);
-            let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+            let keys = gen_keys_or_get_from_cache_if_enabled(params);
             let (pksk, lwe_sk, glwe_sk) = (keys.pksk, keys.lwe_sk, keys.glwe_sk);
 
             let mut input_lwe_list = LweCiphertextList::new(
