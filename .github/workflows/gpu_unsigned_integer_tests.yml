@@ -129,9 +129,9 @@ jobs:
             echo "NIGHTLY_TESTS=TRUE";
           } >> "${GITHUB_ENV}"
 
-      - name: Run unsigned integer multi-bit tests
+      - name: Run unsigned integer classical tests
         run: |
-          make test_unsigned_integer_multi_bit_gpu_ci
+          make test_unsigned_integer_gpu_ci
 
   slack-notify:
     name: gpu_unsigned_integer_tests/slack-notify

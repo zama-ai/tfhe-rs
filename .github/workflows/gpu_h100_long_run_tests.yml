@@ -19,7 +19,6 @@ on:
   schedule:
     # Weekly tests will be triggered every weekday at 1a.m.
     - cron: "0 1 * * MON-FRI"
-  pull_request:
 
 permissions:
   contents: read

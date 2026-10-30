@@ -22,8 +22,9 @@ env:
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
-  pull_request:
-    types: [labeled]
+  schedule:
+    # Every Wednesday at midnight Paris time (winter time, 1a.m. in summer time)
+    - cron: "0 23 * * 3"
 
 permissions:
   contents: read
@@ -34,6 +35,8 @@ jobs:
   should-run:
     name: gpu_full_multi_gpu_tests/should-run
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     permissions:
       pull-requests: read # Needed to check for file change
     outputs:
@@ -123,14 +126,13 @@ jobs:
       - name: Enable nvidia multi-process service
         run: |
           nvidia-cuda-mps-control -d
-      - name: Run multi-bit CUDA integer compression tests
+      - name: Run CUDA integer compression tests
         run: |
           BIG_TESTS_INSTANCE=TRUE make test_integer_compression_gpu
 
-      # No need to test core_crypto and classic PBS in integer since it's already tested on single GPU.
-      - name: Run multi-bit CUDA integer tests
+      - name: Run classical CUDA integer tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE NO_BIG_PARAMS_GPU=TRUE make test_integer_multi_bit_gpu_ci
+          BIG_TESTS_INSTANCE=TRUE NO_BIG_PARAMS_GPU=TRUE make test_integer_gpu_ci
 
       - name: Run user docs tests
         run: |
