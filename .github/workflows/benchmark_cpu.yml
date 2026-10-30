@@ -95,18 +95,22 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Parse profile and hardware name
         id: parse_profile_and_hardware_name
         env:
           INPUTS_PROFILE: ${{ inputs.profile }}
-        run: python3 ci/parse_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
+        run: venv/bin/python ci/parse_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
 
       - name: Get additional file to parse
         id: set_file_to_parse
-        shell: python
         env:
           INPUTS_COMMAND: ${{ inputs.command }}
         run: |
+          venv/bin/python - <<'EOF'
           import os
 
           inputs_command = os.environ["INPUTS_COMMAND"]
@@ -130,6 +134,7 @@ jobs:
 
           with open(output_file, "a") as f:
             f.write(f"""additional_file_to_parse={",".join(files_to_parse)}\n""")
+          EOF
 
   run-benchmarks:
     name: benchmark_cpu/run-benchmarks

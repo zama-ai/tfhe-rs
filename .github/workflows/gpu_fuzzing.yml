@@ -71,11 +71,15 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Parse instance type
         id: parse
         env:
           INSTANCE_TYPE: ${{ inputs['instance-type'] || env.INSTANCE_TYPE_SCHEDULED }}
-        run: python3 ci/parse_benchmark_profile.py "$INSTANCE_TYPE" "$GITHUB_OUTPUT"
+        run: venv/bin/python ci/parse_benchmark_profile.py "$INSTANCE_TYPE" "$GITHUB_OUTPUT"
 
   setup-instance:
     name: gpu-fuzzing/setup-instance
