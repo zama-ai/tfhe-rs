@@ -371,6 +371,6 @@ impl EncryptionAtomicPattern for StandardAtomicPatternClientKey {
     }
 
     fn kind(&self) -> AtomicPatternKind {
-        AtomicPatternKind::Standard(self.parameters().encryption_key_choice().into())
+        self.parameters.atomic_pattern()
     }
 }
