@@ -3,12 +3,17 @@ use tfhe_versionable::Versionize;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::backward_compatibility::public_key::PublicKeyVersions;
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::{CrtCiphertext, RadixCiphertext};
+#[cfg(feature = "experimental")]
+use crate::integer::ciphertext::CrtCiphertext;
+use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::client_key::ClientKey;
-use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
+#[cfg(feature = "experimental")]
+use crate::integer::encryption::encrypt_crt;
+use crate::integer::encryption::encrypt_words_radix_impl;
 use crate::integer::public_key::compressed::CompressedPublicKey;
 use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
+#[cfg(feature = "experimental")]
 use crate::shortint::parameters::MessageModulus;
 use crate::shortint::PublicKey as ShortintPublicKey;
 
@@ -38,6 +43,7 @@ impl PublicKey {
         Self { key }
     }
 
+    #[cfg(feature = "experimental")]
     pub fn encrypt_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
         self.encrypt_crt_impl(
             message,
@@ -46,6 +52,7 @@ impl PublicKey {
         )
     }
 
+    #[cfg(feature = "experimental")]
     pub fn encrypt_native_crt(&self, message: u64, base_vec: Vec<u64>) -> CrtCiphertext {
         self.encrypt_crt_impl(
             message,
@@ -54,6 +61,7 @@ impl PublicKey {
         )
     }
 
+    #[cfg(feature = "experimental")]
     fn encrypt_crt_impl<Block, CrtCiphertextType, F>(
         &self,
         message: u64,
