@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-versionable"
-version = "0.8.1"
+version = "0.8.2"
 edition = "2024"
 keywords = ["versioning", "serialization", "encoding"]
 homepage = "https://zama.org/"
@@ -25,7 +25,7 @@ toml = "1.1"
 
 [dependencies]
 serde = { workspace = true, features = ["default", "derive"] }
-tfhe-versionable-derive = { version = "0.8.1", path = "../tfhe-versionable-derive" }
+tfhe-versionable-derive = { version = "0.8.2", path = "../tfhe-versionable-derive" }
 num-complex = { workspace = true, features = ["serde"] }
 aligned-vec = { workspace = true, features = ["default", "serde"] }
 

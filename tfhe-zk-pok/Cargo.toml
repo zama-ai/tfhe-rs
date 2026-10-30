@@ -23,7 +23,7 @@ shake = { workspace = true }
 serde = { workspace = true, features = ["default", "derive"] }
 zeroize = { version = "1.7.0", features = ["derive"] }
 num-bigint = "0.5.1"
-tfhe-versionable = { version = "0.8.1", path = "../utils/tfhe-versionable" }
+tfhe-versionable = { version = "0.8.2", path = "../utils/tfhe-versionable" }
 tfhe-safe-serialize = { version = "0.1.1", path = "../utils/tfhe-safe-serialize" }
 zk-cuda-backend = { version = "0.3.0", path = "../backends/zk-cuda-backend", optional = true }
 tfhe-cuda-common = { version = "0.2.0", path = "../backends/tfhe-cuda-common", optional = true }

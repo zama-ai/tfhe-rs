@@ -2,28 +2,44 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
-use crate::shortint::ciphertext::{Ciphertext, NoiseLevel};
+use crate::conformance::ParameterSetConformant;
+use crate::named::Named;
+use crate::shortint::ciphertext::{
+    Ciphertext, DegreeConformance, NoiseLevel, NoiseLevelConformance,
+};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::oprf::OprfSeed;
+use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::server_key::ServerKey;
 use crate::transciphering::backward_compatibility::OneTimePadFheSecretMaskVersions;
 use crate::transciphering::ciphers::one_time_pad::plain::OneTimePadPlainSecretMask;
 use crate::transciphering::ciphers::pack_bits_lsb_first;
 use crate::transciphering::{
-    FheKeyStream, FheKeyStreamError, InsufficientKeystream, KeyStreamLayout, StreamCipherKind,
-    Transcipherer, TranscipheringServerKey,
+    FheKeyStream, FheKeyStreamError, InsufficientKeystream, KeyStreamLayout,
+    KeyStreamLayoutConformanceParams, StreamCipherKind, Transcipherer, TranscipheringServerKey,
 };
 
 #[derive(Debug)]
-pub struct InvalidMaskSize;
+pub enum MaskGenerationError {
+    InvalidMaskSize,
+    IncompatibleParameters,
+}
 
-impl std::fmt::Display for InvalidMaskSize {
+impl std::fmt::Display for MaskGenerationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "The requested mask size is invalid")
+        match self {
+            Self::InvalidMaskSize => write!(f, "The requested mask size is invalid"),
+            Self::IncompatibleParameters => {
+                write!(
+                    f,
+                    "The parameter set in use is not compatible with otp mask generation"
+                )
+            }
+        }
     }
 }
 
-impl std::error::Error for InvalidMaskSize {}
+impl std::error::Error for MaskGenerationError {}
 
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(OneTimePadFheSecretMaskVersions)]
@@ -31,34 +47,45 @@ pub struct OneTimePadFheSecretMask {
     /// Collection of encrypted random bits, from which one can pull secret bits to hide sensitive
     /// values by XOR-ing them together.
     secret_mask: Vec<Ciphertext>,
+    /// Number of mask bits in each ciphertext
+    layout: KeyStreamLayout,
 }
 
 impl OneTimePadFheSecretMask {
-    /// `secret_mask` must hold exactly one [`Ciphertext`] per bit, each a fresh single-bit
-    /// encryption (degree <= 1, nominal noise, not trivial), conformant with the [`ServerKey`]
-    /// parameters that will be used for transciphering.
-    pub fn try_new(secret_mask: Vec<Ciphertext>) -> Result<Self, &'static str> {
+    /// `secret_mask` must hold Ciphertexts following `layout`, each a fresh encryption of
+    /// `layout.bits_per_ct()` bits.
+    pub fn try_new(secret_mask: Vec<Ciphertext>, layout: KeyStreamLayout) -> crate::Result<Self> {
         for ct in &secret_mask {
-            if ct.degree.get() > 1 {
-                return Err("Mask ciphertexts must encrypt single bits (degree <= 1).");
+            if ct.degree != layout.expected_degree() {
+                return Err(crate::error!(
+                    "Mask ciphertexts does not follow the required layout (got {}, expected \
+                    {}).",
+                    layout.expected_degree().get(),
+                    ct.degree.get(),
+                ));
             }
             if ct.noise_level() != NoiseLevel::NOMINAL {
-                return Err("Mask ciphertexts must have nominal noise.");
+                return Err(crate::error!("Mask ciphertexts must have nominal noise."));
             }
         }
 
-        Ok(Self { secret_mask })
+        Ok(Self {
+            secret_mask,
+            layout,
+        })
     }
 
     /// # Panics
     ///
-    /// Panics if `secret_mask` contains a ciphertext that is not a fresh boolean encryption
-    /// (degree <= 1, nominal noise, not trivial).
-    pub fn new(secret_mask: Vec<Ciphertext>) -> Self {
-        Self::try_new(secret_mask).unwrap()
+    /// Panics if `secret_mask` contains a ciphertext that is not a fresh encryption of
+    /// `layout.bits_per_ct()` bits (degree == 2^bits_per_ct - 1, nominal noise).
+    pub fn new(secret_mask: Vec<Ciphertext>, layout: KeyStreamLayout) -> Self {
+        Self::try_new(secret_mask, layout).unwrap()
     }
 
     /// Generate a mask of `n_bits` encrypted random bits with the OPRF of `transciphering_key`.
+    ///
+    /// This will use the full message space + carry space for mask bits.
     ///
     /// The mask is generated in counter mode: the ciphertext at index `i` is generated
     /// independently, from `seed ‖ i`, with `i` as a little-endian `u32`. As a result, the mask
@@ -73,36 +100,71 @@ impl OneTimePadFheSecretMask {
         transciphering_key: &TranscipheringServerKey,
         sks: &ServerKey,
         n_bits: u64,
-    ) -> Result<Self, InvalidMaskSize> {
-        let seed = seed.into_vec();
+    ) -> Result<Self, MaskGenerationError> {
+        let layout = KeyStreamLayout::full_space(sks.message_modulus, sks.carry_modulus)
+            .ok_or(MaskGenerationError::IncompatibleParameters)?;
 
+        Self::new_random_with_layout(seed, transciphering_key, sks, n_bits, layout)
+    }
+
+    pub fn new_random_with_layout(
+        seed: impl OprfSeed,
+        transciphering_key: &TranscipheringServerKey,
+        sks: &ServerKey,
+        n_bits: u64,
+        layout: KeyStreamLayout,
+    ) -> Result<Self, MaskGenerationError> {
+        let bits_per_ct = u64::from(layout.bits_per_ct.get());
+
+        if !layout.can_fit(sks.message_modulus, sks.carry_modulus) {
+            return Err(MaskGenerationError::IncompatibleParameters);
+        }
+
+        if !n_bits.is_multiple_of(bits_per_ct) {
+            return Err(MaskGenerationError::InvalidMaskSize);
+        }
+
+        let seed = seed.into_vec();
         let oprf_key = transciphering_key.oprf_key();
 
         // Generate mask bits following RFC030:
         // Each call to the prf generates only 1 ciphertext, and the seed is suffixed
         // by the ciphertext index stored on 32bits.
-        let n_blocks = u32::try_from(n_bits).map_err(|_| InvalidMaskSize)?;
+        let n_blocks = u32::try_from(n_bits / bits_per_ct)
+            .map_err(|_| MaskGenerationError::InvalidMaskSize)?;
         let secret_mask = (0..n_blocks)
             .into_par_iter()
             .map(|i| {
                 let mut block_seed = seed.clone();
                 block_seed.extend_from_slice(&(i).to_le_bytes());
                 oprf_key
-                    .generate_random_boolean_sequence(block_seed, 1, sks)
+                    .inner
+                    .generate_pseudo_random_bits_chunks(
+                        block_seed,
+                        &[bits_per_ct],
+                        bits_per_ct,
+                        sks,
+                    )
+                    .pop()
+                    .unwrap()
                     .pop()
                     .unwrap()
             })
             .collect();
 
-        Ok(Self::new(secret_mask))
+        Ok(Self::new(secret_mask, layout))
     }
 
-    /// Single bit per [`Ciphertext`].
+    /// Number of input bits this mask can encrypt
     fn bit_count(&self) -> usize {
-        self.secret_mask.len()
+        self.secret_mask.len() * usize::from(self.layout.bits_per_ct.get())
     }
 
-    /// Borrow the pad bits, one single-bit shortint ciphertext per bit.
+    pub fn layout(&self) -> &KeyStreamLayout {
+        &self.layout
+    }
+
+    /// Borrow the mask bits as lwe ciphertexts
     pub fn ciphertexts(&self) -> &[Ciphertext] {
         &self.secret_mask
     }
@@ -113,10 +175,15 @@ impl OneTimePadFheSecretMask {
     ///
     /// [`OneTimePadPlainState`]: super::OneTimePadPlainState
     pub fn decrypt(&self, client_key: &ClientKey) -> OneTimePadPlainSecretMask {
+        let bits_per_ct = usize::from(self.layout.bits_per_ct().get());
+
         let bits: Vec<bool> = self
             .secret_mask
             .iter()
-            .map(|ct| client_key.decrypt(ct) != 0)
+            .flat_map(|ct| {
+                let val = client_key.decrypt_message_and_carry(ct);
+                (0..bits_per_ct).map(move |i| (val >> i) & 1 != 0)
+            })
             .collect();
 
         let mut bytes = vec![0u8; bits.len().div_ceil(8)];
@@ -124,6 +191,39 @@ impl OneTimePadFheSecretMask {
 
         OneTimePadPlainSecretMask::new(bytes, bits.len())
     }
+}
+
+impl ParameterSetConformant for OneTimePadFheSecretMask {
+    type ParameterSet = CiphertextConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        let Self {
+            secret_mask,
+            layout,
+        } = self;
+
+        let layout_params = KeyStreamLayoutConformanceParams {
+            message_modulus: params.message_modulus,
+            carry_modulus: params.carry_modulus,
+        };
+        if !layout.is_conformant(&layout_params) {
+            return false;
+        }
+
+        // Mask ciphertexts use the carry space, so their degree is above the one of a fresh
+        // encryption
+        let ct_params = CiphertextConformanceParams {
+            degree: DegreeConformance::Exact(layout.expected_degree()),
+            noise_level: NoiseLevelConformance::Exact(NoiseLevel::NOMINAL),
+            ..*params
+        };
+
+        secret_mask.iter().all(|ct| ct.is_conformant(&ct_params))
+    }
+}
+
+impl Named for OneTimePadFheSecretMask {
+    const NAME: &'static str = "transciphering::OneTimePadFheSecretMask";
 }
 
 pub struct OneTimePadFheState {
@@ -156,26 +256,33 @@ impl Transcipherer for OneTimePadFheState {
         _sks: &ServerKey,
         n_bits: usize,
     ) -> Result<FheKeyStream, FheKeyStreamError> {
-        if n_bits == 0 {
-            return FheKeyStream::try_new(vec![], KeyStreamLayout::single_bit());
+        let bits_per_ct = u64::from(self.secret_mask.layout.bits_per_ct().get());
+        if !self.current_counter.is_multiple_of(bits_per_ct) {
+            return Err(FheKeyStreamError::InvalidStreamCipherState);
         }
 
-        let n_bits_u64: u64 = n_bits.try_into().unwrap();
+        if n_bits == 0 {
+            return FheKeyStream::try_new(vec![], self.secret_mask.layout().clone());
+        }
+
+        let n_bits = u64::try_from(n_bits).unwrap();
+        let n_blocks = n_bits.div_ceil(bits_per_ct);
 
         let remaining_bits = self.remaining_bits();
-        if remaining_bits < n_bits_u64 {
+        if remaining_bits < n_bits {
             return Err(InsufficientKeystream.into());
         }
 
-        let start_ciphertext_idx: usize = self.current_counter.try_into().unwrap();
-        let stop_ciphertext_idx = start_ciphertext_idx + n_bits;
+        // We checked above that we will not start in the middle of an already produced ciphertext
+        let start_ciphertext_idx = usize::try_from(self.current_counter / bits_per_ct).unwrap();
+        let stop_ciphertext_idx = start_ciphertext_idx + usize::try_from(n_blocks).unwrap();
 
         let keystream = FheKeyStream::try_new(
             self.secret_mask.secret_mask[start_ciphertext_idx..stop_ciphertext_idx].to_vec(),
-            KeyStreamLayout::single_bit(),
+            self.secret_mask.layout.clone(),
         )?;
 
-        self.current_counter = self.current_counter.checked_add(n_bits_u64).unwrap();
+        self.current_counter = self.current_counter.checked_add(n_bits).unwrap();
 
         Ok(keystream)
     }
