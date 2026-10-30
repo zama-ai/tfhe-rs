@@ -33,6 +33,12 @@ rules:
             $MEM->release(...);
             ...
           }
+      - pattern-not: |
+          void release(...) {
+            ...
+            release_pbs_buffers_on_active_gpus_and_sync(...);
+            ...
+          }
 
 
   - id: cleanup-missing-release-or-synchronize

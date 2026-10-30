@@ -134,6 +134,17 @@ struct pbs_buffer_base {
   virtual ~pbs_buffer_base() = default;
 };
 
+// The variant the classical scratch selects for num_samples inputs.
+template <typename Torus>
+PBS_VARIANT
+get_classical_pbs_variant(uint32_t gpu_index, uint32_t glwe_dimension,
+                          uint32_t polynomial_size, uint32_t level_count,
+                          uint32_t lwe_dimension, uint32_t num_samples);
+template <>
+PBS_VARIANT get_classical_pbs_variant<uint64_t>(
+    uint32_t gpu_index, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t lwe_dimension, uint32_t num_samples);
+
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer;
 
 template <typename Torus>
