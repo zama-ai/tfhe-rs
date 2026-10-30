@@ -169,6 +169,10 @@ supports_distributed_shared_memory_on_classic_programmable_bootstrap(
 }
 
 struct pbs_buffer_base {
+  /// Null if the buffer is not shared: no stream check. Otherwise, the only
+  /// stream that can use the buffer.
+  cudaStream_t shared_stream = nullptr;
+
   virtual void release(cudaStream_t stream, uint32_t gpu_index) = 0;
   virtual ~pbs_buffer_base() = default;
 };

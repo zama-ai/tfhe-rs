@@ -518,6 +518,11 @@ void execute_pbs_async(CudaStreams streams,
     PANIC("Error: unsupported cuda PBS type %u.", bsk_params.pbs_type)
 
   for (uint i = 0; i < streams.count(); i++) {
+    PANIC_IF_FALSE(pbs_buffer[i]->shared_stream == nullptr ||
+                       pbs_buffer[i]->shared_stream == streams.stream(i),
+                   "Cuda error: the shared PBS buffer on GPU %u is used on "
+                   "another stream than the one it was created on.",
+                   streams.gpu_index(i));
     int num_inputs_on_gpu =
         get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, streams.count());
 
