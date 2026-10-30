@@ -64,7 +64,7 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        if d_range.is_empty() {
+        if d_range.is_empty() || shift_bits_extractor.is_empty() {
             let mut result = ct.clone();
             result
                 .blocks_mut()

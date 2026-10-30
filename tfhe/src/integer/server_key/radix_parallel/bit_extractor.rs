@@ -115,6 +115,13 @@ impl<'a> BitExtractor<'a> {
         }
     }
 
+    /// Checks for emptyness
+    ///
+    /// Returns `true` if there's at least a bit left
+    pub(crate) fn is_empty(&self) -> bool {
+        self.buffer.is_empty() && self.input_blocks.as_slice().is_empty()
+    }
+
     /// Extract the remaining `n` bits in parallel from the current source blocks
     /// and place them into the internal buffer
     ///

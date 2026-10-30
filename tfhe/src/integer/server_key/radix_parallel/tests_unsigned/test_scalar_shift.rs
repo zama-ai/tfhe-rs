@@ -1,5 +1,6 @@
 use crate::integer::server_key::radix_parallel::test_harness::{
-    shift_amount_fixed_cases, ExecuteOn, TestBuilder, TestContext, TestScalar,
+    scalar_shift_amount_fixed_cases, ExecuteOn, ShiftAmount, ShiftAmountOperand, TestBuilder,
+    TestContext,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     unchecked_scalar_left_shift_test, unchecked_scalar_right_shift_test,
@@ -30,13 +31,13 @@ where
 
 pub(crate) fn default_scalar_left_shift_test<E>(ctx: &TestContext, executor: E)
 where
-    E: ExecuteOn<(RadixCiphertext, u128), RadixCiphertext>,
+    E: ExecuteOn<(RadixCiphertext, ShiftAmountOperand<u128>), RadixCiphertext>,
 {
     TestBuilder::new(ctx)
         .n_random(4)
-        .fixed_cases(shift_amount_fixed_cases::<Uint>)
-        .execute(executor, |(lhs, amount): (Uint, TestScalar<u128>)| {
-            lhs.shl(amount.clear().value())
+        .fixed_cases(scalar_shift_amount_fixed_cases::<Uint, u128>)
+        .execute(executor, |(lhs, amount): (Uint, ShiftAmount<u128>)| {
+            lhs.shl(amount.value())
         });
 }
 
@@ -60,13 +61,13 @@ where
 
 pub(crate) fn default_scalar_right_shift_test<E>(ctx: &TestContext, executor: E)
 where
-    E: ExecuteOn<(RadixCiphertext, u128), RadixCiphertext>,
+    E: ExecuteOn<(RadixCiphertext, ShiftAmountOperand<u128>), RadixCiphertext>,
 {
     TestBuilder::new(ctx)
         .n_random(4)
-        .fixed_cases(shift_amount_fixed_cases::<Uint>)
-        .execute(executor, |(lhs, amount): (Uint, TestScalar<u128>)| {
-            lhs.shr(amount.clear().value())
+        .fixed_cases(scalar_shift_amount_fixed_cases::<Uint, u128>)
+        .execute(executor, |(lhs, amount): (Uint, ShiftAmount<u128>)| {
+            lhs.shr(amount.value())
         });
 }
 
