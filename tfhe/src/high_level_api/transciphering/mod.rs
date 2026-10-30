@@ -178,6 +178,9 @@ pub trait HlStreamCipher {
     /// Encrypt `input` at exactly `n_bits`. If `n_bits > T::BITS` the value is
     /// sign- or zero-extended, if `n_bits < T::BITS` it is truncated.
     ///
+    /// For integers, the server only accepts an `n_bits` that is a multiple of the number of
+    /// message bits per block of its parameters (2 with the default parameters).
+    ///
     /// Errors if the cipher's keystream is exhausted.
     ///
     /// # Panics
@@ -315,7 +318,10 @@ where
     T: Expandable + Tagged,
 {
     let integer_sks = &cpu_key.key.key;
-    let blocks = Transcipherer::transcipher(session, &integer_sks.key, input.inner())
+    let layout = input
+        .output_layout(cpu_key.message_modulus())
+        .map_err(|e| crate::error!("{e}"))?;
+    let blocks = Transcipherer::transcipher(session, &integer_sks.key, input.inner(), &layout)
         .map_err(|e| crate::error!("{e}"))?;
     let kind = input.kind().to_data_kind(blocks.len())?;
     let mut out = T::from_expanded_blocks(blocks, kind)?;
@@ -332,10 +338,14 @@ fn gpu_transcipher<T>(
 where
     T: CudaExpandable + Tagged,
 {
+    let layout = input
+        .output_layout(cuda_key.message_modulus())
+        .map_err(|e| crate::error!("{e}"))?;
     let blocks = CudaIntegerTranscipherer::transcipher(
         session,
         cuda_key.pbs_key(),
         input.inner(),
+        &layout,
         &cuda_key.streams,
     )
     .map_err(|e| crate::error!("{e}"))?;
@@ -352,7 +362,7 @@ mod test {
 
     use crate::shortint::parameters::{OprfParameters, TranscipheringParameters};
     use crate::shortint::prelude::LweDimension;
-    use crate::FheUint64;
+    use crate::{FheUint64, HlStreamCipher};
 
     const SIZE_LIMIT: u64 = 1024 * 1024 * 1024;
 
@@ -511,6 +521,87 @@ mod test {
         ] {
             assert!(!ct.is_conformant(&mismatched), "{mismatched:?}");
         }
+    }
+
+    /// A ciphertext tagged as Boolean but carrying more than 1 bit must be rejected before any
+    /// keystream is consumed, otherwise the resulting FheBool could encrypt a value > 1.
+    #[test]
+    fn test_forged_boolean_is_rejected() {
+        use super::{HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession};
+        use crate::integer::transciphering::{
+            IntegerStreamCiphertext, IntegerStreamCiphertextKind,
+        };
+        use crate::prelude::*;
+        use crate::transciphering::{
+            OneTimePadPlainSecretMask, OneTimePadPlainState, StreamCipher,
+        };
+        use crate::{generate_keys, set_server_key, ConfigBuilder, FheBool};
+
+        let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+        set_server_key(server_key);
+
+        let pad_bytes = vec![0b1010_0110u8];
+        let fhe_mask = OneTimePadFheSecretMask::try_encrypt(
+            OneTimePadPlainSecretMask::new(pad_bytes.clone(), 8),
+            &client_key,
+        )
+        .unwrap();
+        let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
+
+        // Malicious client: encrypt 2 bits (value 3) and tag them as a Boolean.
+        let mut sym =
+            OneTimePadPlainState::new(OneTimePadPlainSecretMask::new(pad_bytes.clone(), 8));
+        let forged = sym.encrypt_bits(&[0b11], 2).unwrap();
+        let forged = super::StreamCiphertext::from_raw_parts(
+            IntegerStreamCiphertext::from_raw_parts(forged, IntegerStreamCiphertextKind::Boolean),
+        );
+
+        let res: crate::Result<FheBool> = fhe_stream.transcipher(&forged);
+        assert!(res.is_err());
+
+        // The rejected input must not have consumed keystream: an honest bool at the same
+        // position still transciphers.
+        let mut sym = OneTimePadPlainState::new(OneTimePadPlainSecretMask::new(pad_bytes, 8));
+        let honest = sym.try_encrypt(true).unwrap();
+        let transciphered: FheBool = fhe_stream.transcipher(&honest).unwrap();
+        assert!(transciphered.decrypt(&client_key));
+    }
+
+    /// Integers whose bit count does not fill whole blocks are rejected before any keystream is
+    /// consumed: a partial top block would decode wrongly for signed values.
+    #[test]
+    fn test_radix_partial_block_is_rejected() {
+        use super::{HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession};
+        use crate::prelude::*;
+        use crate::transciphering::{OneTimePadPlainSecretMask, OneTimePadPlainState};
+        use crate::{generate_keys, set_server_key, ConfigBuilder, FheInt14, FheUint14};
+
+        let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+        set_server_key(server_key);
+
+        let pad_bytes = vec![0x5a, 0xc3];
+        let new_pad = || OneTimePadPlainSecretMask::new(pad_bytes.clone(), 16);
+        let fhe_mask = OneTimePadFheSecretMask::try_encrypt(new_pad(), &client_key).unwrap();
+        let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
+
+        // 13 bits do not fill whole 2-bit blocks with the default parameters
+        let mut sym = OneTimePadPlainState::new(new_pad());
+        let signed = sym.try_encrypt_with_num_bits(-1i16, 13).unwrap();
+        let res: crate::Result<FheInt14> = fhe_stream.transcipher(&signed);
+        assert!(res.is_err());
+
+        let mut sym = OneTimePadPlainState::new(new_pad());
+        let unsigned = sym.try_encrypt_with_num_bits(100u16, 13).unwrap();
+        let res: crate::Result<FheUint14> = fhe_stream.transcipher(&unsigned);
+        assert!(res.is_err());
+
+        // The rejected inputs must not have consumed keystream, and a bit count that fills
+        // whole blocks keeps its sign.
+        let mut sym = OneTimePadPlainState::new(new_pad());
+        let signed = sym.try_encrypt_with_num_bits(-1i16, 14).unwrap();
+        let transciphered: FheInt14 = fhe_stream.transcipher(&signed).unwrap();
+        let recovered: i16 = transciphered.decrypt(&client_key);
+        assert_eq!(recovered, -1);
     }
 
     /// The pad picks up the tag of the key set it was generated under and keeps it across the
