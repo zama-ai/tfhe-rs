@@ -163,9 +163,11 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64,
        classical_auto_dispatch) {
   int8_t *pbs_buffer = nullptr;
   scratch_cuda_programmable_bootstrap_64_async(
-      stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
-      polynomial_size, pbs_base_log, pbs_level, number_of_inputs, true,
-      PBS_MS_REDUCTION_T::NO_REDUCTION);
+      stream, gpu_index, &pbs_buffer,
+      make_bsk_params_ffi(
+          lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
+          pbs_level, classical_pbs_params{PBS_MS_REDUCTION_T::NO_REDUCTION}),
+      number_of_inputs, true);
 
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
@@ -176,8 +178,11 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64,
             (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
             (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
             (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, buffer,
-            lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
-            pbs_level, number_of_inputs, num_many_lut, lut_stride);
+            make_bsk_params_ffi(
+                lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
+                pbs_level,
+                classical_pbs_params{PBS_MS_REDUCTION_T::NO_REDUCTION}),
+            number_of_inputs, num_many_lut, lut_stride);
       },
       pbs_buffer);
 

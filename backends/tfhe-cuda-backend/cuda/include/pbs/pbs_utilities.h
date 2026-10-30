@@ -1,6 +1,7 @@
 #ifndef CUDA_BOOTSTRAP_UTILITIES_H
 #define CUDA_BOOTSTRAP_UTILITIES_H
 
+#include "bootstrap_key_params.h"
 #include "checked_arithmetic.h"
 #include "device.h"
 #include "pbs_enums.h"
@@ -24,6 +25,34 @@ template <typename... PbsTypeFns> struct pbs_type_visitor : PbsTypeFns... {
 };
 template <typename... PbsTypeFns>
 pbs_type_visitor(PbsTypeFns...) -> pbs_type_visitor<PbsTypeFns...>;
+
+/// @brief Builds the FFI bootstrap key parameters of a classical or a
+/// multi-bit key. The variant selects pbs_type and the union member.
+inline CudaLweBootstrapKeyParamsFFI
+make_bsk_params_ffi(uint32_t input_lwe_dimension, uint32_t glwe_dimension,
+                    uint32_t polynomial_size, uint32_t base_log,
+                    uint32_t level_count, const pbs_type_params &pbs_params) {
+  CudaLweBootstrapKeyParamsFFI bsk_params{};
+  bsk_params.input_lwe_dimension = input_lwe_dimension;
+  bsk_params.glwe_dimension = glwe_dimension;
+  bsk_params.polynomial_size = polynomial_size;
+  bsk_params.base_log = base_log;
+  bsk_params.level_count = level_count;
+  bsk_params.big_lwe_dimension = glwe_dimension * polynomial_size;
+  std::visit(
+      pbs_type_visitor{[&](classical_pbs_params classical) {
+                         bsk_params.pbs_type = PBS_TYPE::CLASSICAL;
+                         bsk_params.pbs_params.classical.noise_reduction_type =
+                             classical.noise_reduction_type;
+                       },
+                       [&](multi_bit_pbs_params multi_bit) {
+                         bsk_params.pbs_type = PBS_TYPE::MULTI_BIT;
+                         bsk_params.pbs_params.multi_bit.grouping_factor =
+                             multi_bit.grouping_factor;
+                       }},
+      pbs_params);
+  return bsk_params;
+}
 
 // The 128-bit FFT stores one complex coefficient as four doubles
 // (re_hi, re_lo, im_hi, im_lo), the f128x2 type in fft128/f128.cuh. That
