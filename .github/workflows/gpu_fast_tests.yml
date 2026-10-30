@@ -1,4 +1,8 @@
-# Compile and test tfhe-cuda-backend on an AWS instance
+# Push-time GPU smoke test: user-doc and high-level-API tests on a single L40
+# Scaleway instance. test_core_crypto_gpu, test_integer_compression_gpu,
+# test_cuda_backend and test_c_api_gpu are intentionally left out: they're
+# already covered by gpu_core_hlapi_h100_2gpu_par on approval, and running
+# them again here would just duplicate that coverage on every push.
 name: gpu_fast_tests
 
 env:
@@ -121,19 +125,9 @@ jobs:
         run: |
           nvidia-cuda-mps-control -d
 
-      - name: Run core crypto and internal CUDA backend tests
-        run: |
-          make test_core_crypto_gpu
-          make test_integer_compression_gpu
-          make test_cuda_backend
-
       - name: Run user docs tests
         run: |
           make test_user_doc_gpu
-
-      - name: Test C API
-        run: |
-          make test_c_api_gpu
 
       - name: Run High Level API Tests
         run: |
