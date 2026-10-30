@@ -13,6 +13,17 @@ bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
     uint32_t num_samples, const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t max_shared_memory);
 
+// The variant the multi-bit scratch selects for num_samples inputs.
+template <typename Torus>
+PBS_VARIANT
+get_multi_bit_pbs_variant(uint32_t gpu_index,
+                          const CudaLweBootstrapKeyParamsFFI &bsk_params,
+                          uint32_t num_samples);
+template <>
+PBS_VARIANT get_multi_bit_pbs_variant<uint64_t>(
+    uint32_t gpu_index, const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t num_samples);
+
 #if CUDA_ARCH >= 900
 template <typename Torus>
 uint64_t scratch_cuda_tbc_multi_bit_programmable_bootstrap(

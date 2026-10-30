@@ -5,6 +5,7 @@
 #include "integer/radix_ciphertext.cuh"
 #include "integer/radix_ciphertext.h"
 #include "keyswitch/keyswitch.h"
+#include "pbs/pbs_multibit_utilities.h"
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include "utils/helper_multi_gpu.cuh"
@@ -476,6 +477,208 @@ private:
   CudaLweBootstrapKeyParamsFFI bsk_params_ffi;
 };
 
+template <typename Torus> struct int_shared_pbs_buffer;
+
+/// @brief Builds one PBS buffer per active GPU. When shared_pbs is null, a new
+/// buffer is allocated on each active GPU. When shared_pbs is not null, the
+/// buffers of shared_pbs are used on every active GPU and nothing is allocated.
+/// Panics if a buffer of shared_pbs cannot serve the PBS: the caller must know
+/// whether a buffer is shared, so that memory use and performance are
+/// predictable.
+/// @tparam OutputTorus Torus type of the PBS output.
+/// @param active_streams Streams of the active GPUs, one buffer per stream.
+/// @param num_radix_blocks Number of blocks the buffers must be able to serve.
+/// @param buffer Receives one PBS buffer per active GPU.
+/// @param shared_pbs Buffers to use instead of allocating, or nullptr.
+/// @return true when the buffers were allocated and the caller owns them, false
+/// when they are the buffers of shared_pbs and must not be released with
+/// buffer.
+template <typename OutputTorus>
+bool allocate_pbs_buffers_on_active_gpus(
+    CudaStreams active_streams, int_radix_params params,
+    uint32_t num_radix_blocks, bool allocate_gpu_memory, uint64_t &size_tracker,
+    std::vector<pbs_buffer_base *> &buffer,
+    int_shared_pbs_buffer<OutputTorus> *shared_pbs) {
+
+  int classical_threshold = sizeof(OutputTorus) == 16
+                                ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
+                                : get_threshold_multi_gpu_classical();
+  int threshold = (params.pbs_type() == PBS_TYPE::MULTI_BIT)
+                      ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
+                      : classical_threshold;
+  auto num_blocks_on_gpu = [&](uint i) {
+    return std::min(
+        (int)num_radix_blocks,
+        std::max(threshold, get_num_inputs_on_gpu(num_radix_blocks, i,
+                                                  active_streams.count())));
+  };
+
+  if (shared_pbs != nullptr) {
+    if constexpr (std::is_same_v<OutputTorus, uint64_t>) {
+      for (uint i = 0; i < active_streams.count(); i++) {
+        shared_pbs->check_pbs_settings_on_gpu(
+            params, i, active_streams.gpu_index(i), num_blocks_on_gpu(i));
+        // An already allocated buffer can be used. No need to allocate one.
+        buffer.push_back(shared_pbs->buffer[i]);
+      }
+      return false;
+    } else {
+      PANIC("Cuda error: shared PBS buffers are only supported for 64-bit "
+            "LUTs.")
+    }
+  }
+
+  for (uint i = 0; i < active_streams.count(); i++) {
+    cuda_set_device(active_streams.gpu_index(i));
+    int8_t *gpu_pbs_buffer_raw;
+    uint64_t size = 0;
+    execute_scratch_pbs<OutputTorus>(
+        active_streams.stream(i), active_streams.gpu_index(i),
+        &gpu_pbs_buffer_raw, params.bsk_params(), num_blocks_on_gpu(i),
+        allocate_gpu_memory, size);
+    if (i == 0) {
+      size_tracker += size;
+    }
+    buffer.push_back(reinterpret_cast<pbs_buffer_base *>(gpu_pbs_buffer_raw));
+  }
+  return true;
+}
+
+/// @brief Releases and deletes the PBS buffers built by
+/// allocate_pbs_buffers_on_active_gpus, one per active GPU. Buffers that are
+/// not owned are only forgotten. When owned is true, synchronizes the stream of
+/// each GPU (through pbs_buffer::release).
+/// @param active_streams Streams of the active GPUs that own the buffers.
+/// @param buffer The PBS buffers to release. It is empty on return.
+/// @param owned true when all the buffers must be released, false when none
+/// must be released.
+inline void
+release_pbs_buffers_on_active_gpus(CudaStreams active_streams,
+                                   std::vector<pbs_buffer_base *> &buffer,
+                                   bool owned) {
+  for (uint i = 0; i < buffer.size(); i++) {
+    if (owned) {
+      // release() synchronizes the stream of this GPU, so every stream that
+      // owns a buffer is synchronized on return.
+      buffer[i]->release(active_streams.stream(i), active_streams.gpu_index(i));
+      delete buffer[i];
+    }
+    buffer[i] = nullptr;
+  }
+  buffer.clear();
+}
+
+/// @brief PBS buffers that the LUTs of one operation use instead of
+/// allocating their own. Only 64-bit buffers are shared, classical or
+/// multi-bit. Sharing is correct only if the LUTs that use these buffers are
+/// applied one after the other on the same streams. Only this struct releases
+/// the buffers.
+template <typename Torus> struct int_shared_pbs_buffer {
+  int_radix_params params;
+  /// Streams of the GPUs that hold a buffer.
+  CudaStreams active_streams;
+  /// One PBS buffer per active GPU.
+  std::vector<pbs_buffer_base *> buffer;
+
+  int_shared_pbs_buffer(CudaStreams streams, int_radix_params params,
+                        uint32_t num_radix_blocks, bool allocate_gpu_memory,
+                        uint64_t &size_tracker)
+      : params(params) {
+    // Only 64-bit buffers are shared. No operation builds several 128-bit
+    // lookup tables today, so that path has no consumer and no test.
+    static_assert(std::is_same_v<Torus, uint64_t>,
+                  "Shared PBS buffers are only supported for 64-bit LUTs");
+    active_streams =
+        streams.active_gpu_subset(num_radix_blocks, params.pbs_type());
+    allocate_pbs_buffers_on_active_gpus<Torus>(
+        active_streams, params, num_radix_blocks, allocate_gpu_memory,
+        size_tracker, buffer, nullptr);
+  }
+
+  /// @brief Panics unless the PBS buffer on gpu_rank can run a PBS with
+  /// lut_params and num_inputs on that GPU: lut_params must equal the PBS
+  /// parameters of the buffer, num_inputs can be at most the number of inputs
+  /// of the buffer. For multi-bit PBS, num_inputs must select the variant of
+  /// the buffer.
+  ///
+  /// Example: the shared multi-bit buffer on GPU 0 was built for 2048 inputs
+  /// and uses the TBC variant. A LUT with the same parameters on GPU 0 can use
+  /// it for 512 inputs if 512 inputs also select TBC. It panics for 4096
+  /// inputs (the buffer is too small), and for 8 inputs if 8 inputs select CG.
+  ///
+  /// @param lut_params Parameters of the LUT that wants to use the buffer.
+  /// @param gpu_rank Rank of the GPU among the active GPUs.
+  /// @param gpu_index Index of the GPU the LUT runs on.
+  /// @param num_inputs Number of inputs the buffer must serve.
+  void check_pbs_settings_on_gpu(int_radix_params lut_params, uint32_t gpu_rank,
+                                 uint32_t gpu_index, uint32_t num_inputs) {
+    PANIC_IF_FALSE(gpu_rank < buffer.size() &&
+                       active_streams.gpu_index(gpu_rank) == gpu_index,
+                   "Cuda error: the shared PBS buffer has no buffer on GPU %u "
+                   "(rank %u).",
+                   gpu_index, gpu_rank);
+    PANIC_IF_FALSE(lut_params.glwe_dimension == params.glwe_dimension &&
+                       lut_params.polynomial_size == params.polynomial_size &&
+                       lut_params.pbs_level == params.pbs_level &&
+                       lut_params.pbs_type() == params.pbs_type(),
+                   "Cuda error: the LUT PBS parameters differ from the "
+                   "parameters of the shared PBS buffer.");
+
+    // The common parameters match. Check the ones specific to the PBS type.
+    switch (params.pbs_type()) {
+    case PBS_TYPE::CLASSICAL: {
+      auto shared_cl = std::get<classical_pbs_params>(params.pbs_params());
+      auto lut_cl = std::get<classical_pbs_params>(lut_params.pbs_params());
+      PANIC_IF_FALSE(
+          lut_cl.noise_reduction_type == shared_cl.noise_reduction_type &&
+              lut_params.small_lwe_dimension == params.small_lwe_dimension &&
+              lut_params.pbs_base_log == params.pbs_base_log,
+          "Cuda error: the LUT classical PBS parameters differ from the "
+          "parameters of the shared PBS buffer.");
+      auto *shared =
+          static_cast<pbs_buffer<Torus, CLASSICAL> *>(buffer[gpu_rank]);
+      PANIC_IF_FALSE(num_inputs <= shared->input_lwe_ciphertext_count,
+                     "Cuda error: the shared PBS buffer on GPU %u serves %u "
+                     "inputs, the LUT needs %u.",
+                     gpu_index, shared->input_lwe_ciphertext_count, num_inputs);
+      break;
+    }
+    case PBS_TYPE::MULTI_BIT: {
+      auto shared_mb = std::get<multi_bit_pbs_params>(params.pbs_params());
+      auto lut_mb = std::get<multi_bit_pbs_params>(lut_params.pbs_params());
+      PANIC_IF_FALSE(lut_mb.grouping_factor == shared_mb.grouping_factor,
+                     "Cuda error: the LUT grouping factor (%u) differs from "
+                     "the grouping factor of the shared PBS buffer (%u).",
+                     lut_mb.grouping_factor, shared_mb.grouping_factor);
+      auto *shared =
+          static_cast<pbs_buffer<Torus, MULTI_BIT> *>(buffer[gpu_rank]);
+      PANIC_IF_FALSE(num_inputs <= shared->input_lwe_ciphertext_count,
+                     "Cuda error: the shared PBS buffer on GPU %u serves %u "
+                     "inputs, the LUT needs %u.",
+                     gpu_index, shared->input_lwe_ciphertext_count, num_inputs);
+      PANIC_IF_FALSE(
+          get_multi_bit_pbs_variant<Torus>(gpu_index, params.bsk_params(),
+                                           num_inputs) == shared->pbs_variant,
+          "Cuda error: %u inputs select another multi-bit PBS variant than "
+          "the shared PBS buffer on GPU %u (variant %u).",
+          num_inputs, gpu_index, shared->pbs_variant);
+      break;
+    }
+    default:
+      PANIC("Error: unsupported cuda PBS type %u.", params.pbs_type())
+    }
+  }
+
+  void release() {
+    release_pbs_buffers_on_active_gpus(active_streams, buffer, true);
+  }
+
+  ~int_shared_pbs_buffer() {
+    GPU_ASSERT(buffer.empty(),
+               "int_shared_pbs_buffer: must call release before destruction");
+  }
+};
+
 // Store things needed to apply LUTs
 template <typename InputTorus, typename OutputTorus>
 struct int_radix_lut_custom_input_output {
@@ -511,6 +714,8 @@ struct int_radix_lut_custom_input_output {
   // There will be one buffer on each GPU in multi-GPU computations
   // (same for tmp lwe arrays)
   std::vector<pbs_buffer_base *> buffer;
+  /// False when the LUT uses the buffers of int_shared_pbs_buffer
+  bool owns_pbs_buffers = true;
 
   // These arrays will reside on all GPUs
   // lut could actually be allocated & initialized GPU per GPU but this is not
@@ -588,34 +793,12 @@ struct int_radix_lut_custom_input_output {
   }
 
   void allocate_pbs_buffers(int_radix_params params, uint32_t num_radix_blocks,
-                            bool allocate_gpu_memory, uint64_t &size_tracker) {
+                            bool allocate_gpu_memory, uint64_t &size_tracker,
+                            int_shared_pbs_buffer<OutputTorus> *shared_pbs) {
 
-    int classical_threshold =
-        sizeof(OutputTorus) == 16
-            ? THRESHOLD_MULTI_GPU_WITH_CLASSICAL_PARAMS_U128
-            : get_threshold_multi_gpu_classical();
-    int threshold = (params.pbs_type() == PBS_TYPE::MULTI_BIT)
-                        ? THRESHOLD_MULTI_GPU_WITH_MULTI_BIT_PARAMS
-                        : classical_threshold;
-
-    for (uint i = 0; i < active_streams.count(); i++) {
-      cuda_set_device(active_streams.gpu_index(i));
-      int8_t *gpu_pbs_buffer_raw;
-      auto num_blocks_on_gpu = std::min(
-          (int)num_radix_blocks,
-          std::max(threshold, get_num_inputs_on_gpu(num_radix_blocks, i,
-                                                    active_streams.count())));
-
-      uint64_t size = 0;
-      execute_scratch_pbs<OutputTorus>(
-          active_streams.stream(i), active_streams.gpu_index(i),
-          &gpu_pbs_buffer_raw, params.bsk_params(), num_blocks_on_gpu,
-          allocate_gpu_memory, size);
-      if (i == 0) {
-        size_tracker += size;
-      }
-      buffer.push_back(reinterpret_cast<pbs_buffer_base *>(gpu_pbs_buffer_raw));
-    }
+    owns_pbs_buffers = allocate_pbs_buffers_on_active_gpus<OutputTorus>(
+        active_streams, params, num_radix_blocks, allocate_gpu_memory,
+        size_tracker, buffer, shared_pbs);
 
     // This buffer is created with num_input_blocks since it
     // stores the ciphertext before KS or packing.
@@ -720,11 +903,11 @@ struct int_radix_lut_custom_input_output {
     }
   }
 
-  int_radix_lut_custom_input_output(CudaStreams streams,
-                                    int_radix_params params, uint32_t num_luts,
-                                    uint32_t num_radix_blocks,
-                                    bool allocate_gpu_memory,
-                                    uint64_t &size_tracker) {
+  int_radix_lut_custom_input_output(
+      CudaStreams streams, int_radix_params params, uint32_t num_luts,
+      uint32_t num_radix_blocks, bool allocate_gpu_memory,
+      uint64_t &size_tracker,
+      int_shared_pbs_buffer<OutputTorus> *shared_pbs = nullptr) {
 
     setup_config_and_degrees(streams, params.big_lwe_dimension, params,
                              num_luts, 1, num_radix_blocks, num_radix_blocks,
@@ -733,7 +916,7 @@ struct int_radix_lut_custom_input_output {
     setup_degrees();
 
     allocate_pbs_buffers(params, num_radix_blocks, allocate_gpu_memory,
-                         size_tracker);
+                         size_tracker, shared_pbs);
 
     allocate_luts_and_indexes(num_radix_blocks, size_tracker);
 
@@ -747,13 +930,12 @@ struct int_radix_lut_custom_input_output {
   // Constructor for noise squashing LUT which packs the input
   // ciphertext of num_input_blocks blocks into a new one with fewer blocks,
   // num_radix_blocks
-  int_radix_lut_custom_input_output(CudaStreams streams,
-                                    uint32_t input_big_lwe_dimension,
-                                    int_radix_params params, uint32_t num_luts,
-                                    uint32_t num_radix_blocks,
-                                    uint32_t num_input_blocks,
-                                    bool allocate_gpu_memory,
-                                    uint64_t &size_tracker) {
+  int_radix_lut_custom_input_output(
+      CudaStreams streams, uint32_t input_big_lwe_dimension,
+      int_radix_params params, uint32_t num_luts, uint32_t num_radix_blocks,
+      uint32_t num_input_blocks, bool allocate_gpu_memory,
+      uint64_t &size_tracker,
+      int_shared_pbs_buffer<OutputTorus> *shared_pbs = nullptr) {
 
     setup_config_and_degrees(streams, input_big_lwe_dimension, params, num_luts,
                              1, num_radix_blocks, num_input_blocks,
@@ -762,7 +944,7 @@ struct int_radix_lut_custom_input_output {
     setup_degrees();
 
     allocate_pbs_buffers(params, num_radix_blocks, allocate_gpu_memory,
-                         size_tracker);
+                         size_tracker, shared_pbs);
 
     allocate_luts_and_indexes(num_radix_blocks, size_tracker);
 
@@ -774,12 +956,11 @@ struct int_radix_lut_custom_input_output {
   }
 
   // Construction for many luts
-  int_radix_lut_custom_input_output(CudaStreams streams,
-                                    int_radix_params params, uint32_t num_luts,
-                                    uint32_t num_radix_blocks,
-                                    uint32_t num_many_lut,
-                                    bool allocate_gpu_memory,
-                                    uint64_t &size_tracker) {
+  int_radix_lut_custom_input_output(
+      CudaStreams streams, int_radix_params params, uint32_t num_luts,
+      uint32_t num_radix_blocks, uint32_t num_many_lut,
+      bool allocate_gpu_memory, uint64_t &size_tracker,
+      int_shared_pbs_buffer<OutputTorus> *shared_pbs = nullptr) {
 
     setup_config_and_degrees(streams, params.big_lwe_dimension, params,
                              num_luts, num_many_lut, num_radix_blocks,
@@ -788,7 +969,7 @@ struct int_radix_lut_custom_input_output {
     setup_degrees();
 
     allocate_pbs_buffers(params, num_radix_blocks, allocate_gpu_memory,
-                         size_tracker);
+                         size_tracker, shared_pbs);
 
     allocate_luts_and_indexes(num_radix_blocks, size_tracker);
 
@@ -1267,14 +1448,10 @@ public:
     release_radix_ciphertext_async(active_streams.stream(0),
                                    active_streams.gpu_index(0),
                                    tmp_lwe_before_ks, gpu_memory_allocated);
-    for (int i = 0; i < buffer.size(); i++) {
-      buffer[i]->release(active_streams.stream(i), active_streams.gpu_index(i));
-      delete buffer[i];
-      buffer[i] = nullptr;
-    }
+    release_pbs_buffers_on_active_gpus(active_streams, buffer,
+                                       owns_pbs_buffers);
     delete tmp_lwe_before_ks;
     tmp_lwe_before_ks = nullptr;
-    buffer.clear();
 
     if (gpu_memory_allocated) {
       multi_gpu_release_async(active_streams, lwe_array_in_vec);

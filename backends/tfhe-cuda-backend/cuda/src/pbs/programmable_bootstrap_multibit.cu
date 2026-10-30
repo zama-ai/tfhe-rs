@@ -321,6 +321,23 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap(
           input_lwe_ciphertext_count, allocate_gpu_memory));
 }
 
+template <>
+PBS_VARIANT get_multi_bit_pbs_variant<uint64_t>(
+    uint32_t gpu_index, const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t num_samples) {
+  // Use TBC when the GPU and the parameters support it (sm_90 and later),
+  // otherwise CG when it is supported, otherwise the default variant.
+#if (CUDA_ARCH >= 900)
+  if (has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
+          num_samples, bsk_params, cuda_get_max_shared_memory(gpu_index)))
+    return PBS_VARIANT::TBC;
+#endif
+  if (supports_cooperative_groups_on_multibit_programmable_bootstrap<uint64_t>(
+          bsk_params, num_samples, cuda_get_max_shared_memory(gpu_index)))
+    return PBS_VARIANT::CG;
+  return PBS_VARIANT::DEFAULT;
+}
+
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64_async(
     void *stream, uint32_t gpu_index, int8_t **buffer,
     CudaLweBootstrapKeyParamsFFI bsk_params,
@@ -330,37 +347,26 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64_async(
           "multi-bit (pbs_type %u).",
           bsk_params.pbs_type)
 
-  bool supports_cg =
-      supports_cooperative_groups_on_multibit_programmable_bootstrap<uint64_t>(
-          bsk_params, input_lwe_ciphertext_count,
-          cuda_get_max_shared_memory(gpu_index));
+  switch (get_multi_bit_pbs_variant<uint64_t>(gpu_index, bsk_params,
+                                              input_lwe_ciphertext_count)) {
 #if (CUDA_ARCH >= 900)
   // On H100s we should be using TBC until num_samples < num_sms / 2.
   // After that we switch to CG until not supported anymore.
   // At this point we return to TBC.
-  int num_sms = 0;
-  check_cuda_error(cudaDeviceGetAttribute(
-      &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));
-
-  bool supports_tbc =
-      has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
-          input_lwe_ciphertext_count, bsk_params,
-          cuda_get_max_shared_memory(gpu_index));
-
-  if (supports_tbc)
+  case PBS_VARIANT::TBC:
     return scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
         bsk_params, input_lwe_ciphertext_count, allocate_gpu_memory);
-  else
 #endif
-      if (supports_cg)
+  case PBS_VARIANT::CG:
     return scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
         bsk_params, input_lwe_ciphertext_count, allocate_gpu_memory);
-  else
+  default:
     return scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
         bsk_params, input_lwe_ciphertext_count, allocate_gpu_memory);
+  }
 }
 
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_tbc_generic_64_async(
