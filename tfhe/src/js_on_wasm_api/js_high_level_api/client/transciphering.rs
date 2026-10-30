@@ -181,6 +181,8 @@ impl KreyviumPlainState {
     /// Encrypt `value` at exactly `n_bits` bits. `kind` carries the signedness;
     /// its natural bit-width is ignored. `n_bits == 0` panics; `Bool` requires
     /// `n_bits == 1`.
+    /// For integers, the server only accepts an `n_bits` that is a multiple of the number of
+    /// message bits per block of its parameters (2 with the default parameters).
     #[wasm_bindgen]
     pub fn encrypt_with_num_bits(
         &mut self,
@@ -436,6 +438,8 @@ impl OneTimePadPlainState {
     /// Encrypt `value` at exactly `n_bits` bits. `kind` carries the signedness;
     /// its natural bit-width is ignored. `n_bits == 0` panics; `Bool` requires
     /// `n_bits == 1`.
+    /// For integers, the server only accepts an `n_bits` that is a multiple of the number of
+    /// message bits per block of its parameters (2 with the default parameters).
     #[wasm_bindgen]
     pub fn encrypt_with_num_bits(
         &mut self,
