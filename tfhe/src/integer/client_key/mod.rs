@@ -24,9 +24,7 @@ use crate::integer::compression_keys::{CompressionKey, CompressionPrivateKeys, D
 use crate::integer::encryption::{encrypt_crt, encrypt_words_radix_impl};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::parameters::{CompressionParameters, MessageModulus};
-use crate::shortint::{
-    Ciphertext, ClientKey as ShortintClientKey, ShortintParameterSet as ShortintParameters,
-};
+use crate::shortint::{AtomicPatternParameters, Ciphertext, ClientKey as ShortintClientKey};
 pub use crt::CrtClientKey;
 pub use radix::RadixClientKey;
 use secret_encryption_key::SecretEncryptionKeyView;
@@ -94,8 +92,7 @@ impl ClientKey {
     /// ```
     pub fn new<P>(parameter_set: P) -> Self
     where
-        P: TryInto<ShortintParameters>,
-        <P as TryInto<ShortintParameters>>::Error: std::fmt::Debug,
+        P: Into<AtomicPatternParameters>,
     {
         Self {
             key: ShortintClientKey::new(parameter_set),
@@ -142,8 +139,8 @@ impl ClientKey {
         Self { key }
     }
 
-    pub fn parameters(&self) -> crate::shortint::AtomicPatternParameters {
-        self.key.parameters().ap_parameters().unwrap()
+    pub fn parameters(&self) -> AtomicPatternParameters {
+        self.key.parameters()
     }
 
     /// Is this client key compatible with the "strings" feature?

@@ -11,9 +11,7 @@ use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionPrivateKeys,
 };
 use crate::integer::BooleanBlock;
-use crate::shortint::{
-    AtomicPatternParameters as ShortintParameters, Ciphertext as ShortintCiphertext,
-};
+use crate::shortint::{AtomicPatternParameters, Ciphertext as ShortintCiphertext};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -63,7 +61,7 @@ impl<'key> From<&'key RadixClientKey> for SecretEncryptionKeyView<'key> {
 impl RadixClientKey {
     pub fn new<P>(parameters: P, num_blocks: usize) -> Self
     where
-        P: Into<ShortintParameters>,
+        P: Into<AtomicPatternParameters>,
     {
         Self {
             key: ClientKey::new(parameters.into()),
@@ -123,7 +121,7 @@ impl RadixClientKey {
     }
 
     /// Returns the parameters used by the client key.
-    pub fn parameters(&self) -> ShortintParameters {
+    pub fn parameters(&self) -> AtomicPatternParameters {
         self.key.parameters()
     }
 

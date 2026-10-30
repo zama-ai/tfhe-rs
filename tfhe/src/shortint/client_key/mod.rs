@@ -15,11 +15,11 @@ use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
 use crate::shortint::backward_compatibility::client_key::GenericClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{DynamicDistribution, MessageModulus, ShortintParameterSet};
+use crate::shortint::parameters::{DynamicDistribution, MessageModulus};
 use crate::shortint::CarryModulus;
 use secret_encryption_key::SecretEncryptionKeyView;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 /// A structure containing the client key, which must be kept secret.
 ///
@@ -84,8 +84,7 @@ impl ClientKey {
     /// ```
     pub fn new<P>(parameters: P) -> Self
     where
-        P: TryInto<ShortintParameterSet>,
-        <P as TryInto<ShortintParameterSet>>::Error: Debug,
+        P: Into<AtomicPatternParameters>,
     {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_client_key(parameters))
     }
@@ -95,22 +94,17 @@ impl ClientKey {
         parameters: P,
     ) -> crate::Result<Self>
     where
-        P: TryInto<AtomicPatternParameters>,
-        <P as TryInto<AtomicPatternParameters>>::Error: Display,
+        P: Into<AtomicPatternParameters>,
     {
-        let parameters = parameters
-            .try_into()
-            .map_err(|err| crate::Error::new(format!("{err}")))?;
-
         let atomic_pattern =
-            AtomicPatternClientKey::try_from_lwe_encryption_key(encryption_key, parameters)?;
+            AtomicPatternClientKey::try_from_lwe_encryption_key(encryption_key, parameters.into())?;
 
         Ok(Self { atomic_pattern })
     }
 }
 
 impl<AP: EncryptionAtomicPattern> GenericClientKey<AP> {
-    pub fn parameters(&self) -> ShortintParameterSet {
+    pub fn parameters(&self) -> AtomicPatternParameters {
         self.atomic_pattern.parameters()
     }
 

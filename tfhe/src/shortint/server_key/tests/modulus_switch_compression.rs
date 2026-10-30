@@ -67,8 +67,6 @@ where
         assert!(compressed_ct.is_conformant(&sks.compressed_modswitched_conformance_params()));
         assert!(compressed_ct.is_conformant(
             &cks.parameters()
-                .ap_parameters()
-                .unwrap()
                 .to_compressed_modswitched_conformance_param()
         ));
     }

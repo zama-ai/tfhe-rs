@@ -3,7 +3,7 @@ use crate::core_crypto::entities::*;
 use crate::shortint::backward_compatibility::public_key::PublicKeyVersions;
 use crate::shortint::ciphertext::Ciphertext;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{AtomicPatternKind, MessageModulus, ShortintParameterSet};
+use crate::shortint::parameters::{AtomicPatternKind, AtomicPatternParameters, MessageModulus};
 use crate::shortint::{ClientKey, CompressedPublicKey};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -14,8 +14,7 @@ use tfhe_versionable::Versionize;
 #[versionize(PublicKeyVersions)]
 pub struct PublicKey {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u64>,
-    pub parameters: ShortintParameterSet,
-    pub atomic_pattern: AtomicPatternKind,
+    pub parameters: AtomicPatternParameters,
 }
 
 impl PublicKey {
@@ -38,66 +37,53 @@ impl PublicKey {
     }
 
     /// Deconstruct a [`PublicKey`] into its constituents.
-    pub fn into_raw_parts(
-        self,
-    ) -> (
-        LwePublicKeyOwned<u64>,
-        ShortintParameterSet,
-        AtomicPatternKind,
-    ) {
+    pub fn into_raw_parts(self) -> (LwePublicKeyOwned<u64>, AtomicPatternParameters) {
         let Self {
             lwe_public_key,
             parameters,
-            atomic_pattern,
         } = self;
 
-        (lwe_public_key, parameters, atomic_pattern)
+        (lwe_public_key, parameters)
     }
 
     /// Construct a [`PublicKey`] from its constituents.
     ///
-    /// # Panics
-    ///
-    /// Panics if the constituents are not compatible with each others.
+    /// Returns an error if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         lwe_public_key: LwePublicKeyOwned<u64>,
-        parameters: ShortintParameterSet,
-        atomic_pattern: AtomicPatternKind,
-    ) -> Self {
-        let expected_atomic_pattern =
-            AtomicPatternKind::Standard(parameters.encryption_key_choice().into());
-
-        assert_eq!(
-            atomic_pattern, expected_atomic_pattern,
-            "Mismatch between expected atomic pattern ({expected_atomic_pattern:?}) and \
-            provided atomic pattern ({atomic_pattern:?})"
-        );
-
+        parameters: AtomicPatternParameters,
+    ) -> Result<Self, crate::Error> {
         let ciphertext_lwe_dimension = parameters.encryption_lwe_dimension();
+        let key_lwe_dimension = lwe_public_key.lwe_size().to_lwe_dimension();
 
-        assert_eq!(
-            (*lwe_public_key).lwe_size().to_lwe_dimension(),
-            ciphertext_lwe_dimension,
-            "Mismatch between the LwePublicKeyOwned LweDimension ({:?}) and \
-            the provided parameters LweDimension ({:?})",
-            (*lwe_public_key).lwe_size().to_lwe_dimension(),
-            ciphertext_lwe_dimension,
-        );
+        if key_lwe_dimension != ciphertext_lwe_dimension {
+            return Err(crate::Error::new(format!(
+                "Mismatch between the LwePublicKeyOwned LweDimension \
+                ({key_lwe_dimension:?}) and the provided parameters LweDimension \
+                ({ciphertext_lwe_dimension:?})",
+            )));
+        }
 
-        assert_eq!(
-            (*lwe_public_key).ciphertext_modulus(),
-            parameters.ciphertext_modulus(),
-            "Mismatch between the LwePublicKeyOwned CiphertextModulus ({:?}) and \
-            the provided parameters CiphertextModulus ({:?})",
-            (*lwe_public_key).ciphertext_modulus(),
-            parameters.ciphertext_modulus(),
-        );
+        let key_ciphertext_modulus = lwe_public_key.ciphertext_modulus();
+        let ciphertext_modulus = parameters.ciphertext_modulus();
 
-        Self {
+        if key_ciphertext_modulus != ciphertext_modulus {
+            return Err(crate::Error::new(format!(
+                "Mismatch between the LwePublicKeyOwned CiphertextModulus \
+                ({key_ciphertext_modulus:?}) and the provided parameters CiphertextModulus \
+                ({ciphertext_modulus:?})",
+            )));
+        }
+
+        Ok(Self {
             lwe_public_key,
             parameters,
-            atomic_pattern,
-        }
+        })
+    }
+
+    /// Atomic pattern of the ciphertexts encrypted with this key.
+    pub fn atomic_pattern(&self) -> AtomicPatternKind {
+        self.parameters.atomic_pattern()
     }
 
     /// Encrypt a small integer message using the client key.
@@ -269,7 +255,6 @@ impl CompressedPublicKey {
         PublicKey {
             lwe_public_key: decompressed_public_key,
             parameters,
-            atomic_pattern: self.atomic_pattern,
         }
     }
 }

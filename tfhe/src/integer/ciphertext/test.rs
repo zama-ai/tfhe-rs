@@ -14,7 +14,7 @@ use crate::shortint::parameters::test_params::{
 use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, CompressionParameters, ReRandomizationParameters,
 };
-use crate::shortint::ShortintParameterSet;
+use crate::shortint::AtomicPatternParameters;
 use itertools::Itertools;
 use rand::Rng;
 
@@ -54,12 +54,12 @@ fn test_ciphertext_re_randomization_after_compression_with_derived_cpk() {
 }
 
 fn test_ciphertext_re_randomization_after_compression_impl(
-    params: ShortintParameterSet,
+    params: AtomicPatternParameters,
     comp_params: CompressionParameters,
     cpk_params: Option<CompactPublicKeyEncryptionParameters>,
     rerand_params: ReRandomizationParameters,
 ) {
-    let (cks, sks) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+    let (cks, sks) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
     let private_compression_key = cks.new_compression_private_key(comp_params);
 

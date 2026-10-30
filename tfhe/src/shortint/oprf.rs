@@ -1439,14 +1439,14 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
 pub mod test_utils {
     use super::*;
     use crate::core_crypto::prelude::{decrypt_lwe_ciphertext, CastInto, LweSecretKeyView};
-    use crate::shortint::ShortintParameterSet;
+    use crate::shortint::AtomicPatternParameters;
 
     /// Returns the `(plain_prf_input, random_bits_in_block)` pairs feeding the pbs of the prf for
     /// the provided seed, one per output block, matching the layout requested by `bit_chunks`.
     pub fn gen_prf_inputs(
         oprf_ck: &OprfPrivateKey,
         seed: impl OprfSeed,
-        params: ShortintParameterSet,
+        params: AtomicPatternParameters,
         bit_chunks: &[u64],
     ) -> Vec<(u64, u64)> {
         match &oprf_ck.0 {
@@ -1462,7 +1462,7 @@ pub mod test_utils {
     fn gen_prf_inputs_impl<Scalar>(
         sk: &LweSecretKeyView<Scalar>,
         seed: impl OprfSeed,
-        params: ShortintParameterSet,
+        params: AtomicPatternParameters,
         bit_chunks: &[u64],
     ) -> Vec<(u64, u64)>
     where
@@ -1516,7 +1516,7 @@ pub mod test_utils {
     pub fn expected_prf_output_cleartexts(
         oprf_ck: &OprfPrivateKey,
         seed: impl OprfSeed,
-        params: ShortintParameterSet,
+        params: AtomicPatternParameters,
         bit_chunks: &[u64],
     ) -> Vec<u64> {
         // includes padding bit
@@ -1585,7 +1585,7 @@ pub(crate) mod test {
         TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     };
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    use crate::shortint::{gen_keys, ClientKey, ServerKey, ShortintParameterSet};
+    use crate::shortint::{gen_keys, AtomicPatternParameters, ClientKey, ServerKey};
     use rand::SeedableRng;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
@@ -1603,8 +1603,8 @@ pub(crate) mod test {
     #[test]
     fn oprf_compare_plain_ci_run_filter() {
         for params in [
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
+            AtomicPatternParameters::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            AtomicPatternParameters::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
         ] {
             let (ck, sk) = gen_keys(params);
             let oprf_ck = OprfPrivateKey::new(&ck);
@@ -1685,11 +1685,11 @@ pub(crate) mod test {
         let p_value_limit: f64 = 0.000_01;
 
         for params in [
-            ShortintParameterSet::from(
+            AtomicPatternParameters::from(
                 TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
             ),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
+            AtomicPatternParameters::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            AtomicPatternParameters::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
         ] {
             let (ck, sk) = gen_keys(params);
             let oprf_ck = OprfPrivateKey::new(&ck);
@@ -1787,8 +1787,8 @@ pub(crate) mod test {
         println!("oprf_test_blocks_range_bits rng_seed: {rng_seed:?}");
 
         for params in [
-            ShortintParameterSet::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
+            AtomicPatternParameters::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            AtomicPatternParameters::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
         ] {
             let (ck, sk) = gen_keys(params);
             let oprf_ck = OprfPrivateKey::new(&ck);
@@ -1924,11 +1924,11 @@ pub(crate) mod test {
         let mut rng = rand::thread_rng();
 
         for params in [
-            ShortintParameterSet::from(
+            AtomicPatternParameters::from(
                 TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
             ),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
+            AtomicPatternParameters::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            AtomicPatternParameters::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
         ] {
             let message_bits: u64 = params.message_modulus().0.ilog2().into();
 
