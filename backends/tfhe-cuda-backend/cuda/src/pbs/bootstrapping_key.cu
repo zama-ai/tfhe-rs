@@ -5,8 +5,15 @@
 
 void cuda_convert_lwe_programmable_bootstrap_key_32_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size) {
+    CudaLweBootstrapKeyParamsFFI bsk_params) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t input_lwe_dim = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dim = bsk_params.glwe_dimension;
+  uint32_t level_count = bsk_params.level_count;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
@@ -19,8 +26,15 @@ void cuda_convert_lwe_programmable_bootstrap_key_32_async(
 
 void cuda_convert_lwe_programmable_bootstrap_key_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size) {
+    CudaLweBootstrapKeyParamsFFI bsk_params) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t input_lwe_dim = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dim = bsk_params.glwe_dimension;
+  uint32_t level_count = bsk_params.level_count;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
@@ -80,8 +94,16 @@ void cuda_convert_lwe_programmable_bootstrap_key_specialized_2_2_64_async(
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size, uint32_t grouping_factor) {
+    CudaLweBootstrapKeyParamsFFI bsk_params) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t input_lwe_dim = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dim = bsk_params.glwe_dimension;
+  uint32_t level_count = bsk_params.level_count;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t grouping_factor = bsk_params.pbs_params.multi_bit.grouping_factor;
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
@@ -97,8 +119,16 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
 
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size, uint32_t grouping_factor) {
+    CudaLweBootstrapKeyParamsFFI bsk_params) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t input_lwe_dim = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dim = bsk_params.glwe_dimension;
+  uint32_t level_count = bsk_params.level_count;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t grouping_factor = bsk_params.pbs_params.multi_bit.grouping_factor;
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),
                (size_t)(glwe_dim + 1), (size_t)level_count);
@@ -395,8 +425,15 @@ void cuda_convert_lwe_programmable_bootstrap_key_u128_async(
 
 void cuda_convert_lwe_programmable_bootstrap_key_128_async(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
-    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
-    uint32_t polynomial_size) {
+    CudaLweBootstrapKeyParamsFFI bsk_params) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t input_lwe_dim = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dim = bsk_params.glwe_dimension;
+  uint32_t level_count = bsk_params.level_count;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
 
   size_t total_polynomials =
       safe_mul((size_t)input_lwe_dim, (size_t)(glwe_dim + 1),

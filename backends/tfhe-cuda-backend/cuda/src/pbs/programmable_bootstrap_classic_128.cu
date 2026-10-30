@@ -37,10 +37,19 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector_64(
 }
 
 uint64_t scratch_cuda_programmable_bootstrap_128_async(
-    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    void *stream, uint32_t gpu_index, int8_t **buffer,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t level_count = bsk_params.level_count;
+  auto noise_reduction_type = static_cast<PBS_MS_REDUCTION_T>(
+      bsk_params.pbs_params.classical.noise_reduction_type);
 
   return scratch_cuda_programmable_bootstrap_128_vector_64(
       stream, gpu_index, buffer, lwe_dimension, glwe_dimension, polynomial_size,
@@ -239,9 +248,17 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
 void cuda_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lut_vector, void const *lwe_array_in,
-    void const *bootstrapping_key, int8_t *buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples) {
+    void const *bootstrapping_key, int8_t *buffer,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t num_samples) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t base_log = bsk_params.base_log;
+  uint32_t level_count = bsk_params.level_count;
   auto *pbs_buf = (pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *)buffer;
 
   host_programmable_bootstrap_lwe_ciphertext_vector_128<uint64_t>(

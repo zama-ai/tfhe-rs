@@ -1,6 +1,7 @@
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{
-    convert_lwe_programmable_bootstrap_key_async, CudaStreams, PBSMSNoiseReductionType,
+    bsk_params_ffi, convert_lwe_programmable_bootstrap_key_async, CudaPbsTypeParams, CudaStreams,
+    PBSMSNoiseReductionType,
 };
 use crate::core_crypto::prelude::{
     lwe_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
@@ -8,10 +9,7 @@ use crate::core_crypto::prelude::{
 };
 use crate::shortint::server_key::ModulusSwitchConfiguration;
 use std::ffi::c_void;
-use tfhe_cuda_backend::bindings::{
-    CudaClassicalPbsParamsFFI, CudaLweBootstrapKeyParamsFFI, CudaPbsTypeParamsFFI,
-    PBS_TYPE_CLASSICAL,
-};
+use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
 
 pub(crate) trait CudaBootstrapKey {
     fn ptrs(&self) -> &[*mut c_void];
@@ -112,10 +110,18 @@ impl CudaLweBootstrapKey {
                 streams,
                 &mut d_vec,
                 bsk.as_ref(),
-                input_lwe_dimension,
-                glwe_dimension,
-                decomp_level_count,
-                polynomial_size,
+                bsk_params_ffi(
+                    input_lwe_dimension,
+                    glwe_dimension,
+                    polynomial_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    CudaPbsTypeParams::Classical {
+                        noise_reduction_type: ms_noise_reduction_type(
+                            ms_noise_reduction_configuration.as_ref(),
+                        ),
+                    },
+                ),
             );
         }
 
@@ -165,26 +171,17 @@ impl CudaBootstrapKey for CudaLweBootstrapKey {
     }
 
     fn params_ffi(&self) -> CudaLweBootstrapKeyParamsFFI {
-        CudaLweBootstrapKeyParamsFFI {
-            input_lwe_dimension: u32::try_from(self.input_lwe_dimension.0).unwrap(),
-            glwe_dimension: u32::try_from(self.glwe_dimension.0).unwrap(),
-            polynomial_size: u32::try_from(self.polynomial_size.0).unwrap(),
-            base_log: u32::try_from(self.decomp_base_log.0).unwrap(),
-            level_count: u32::try_from(self.decomp_level_count.0).unwrap(),
-            big_lwe_dimension: u32::try_from(
-                self.glwe_dimension
-                    .to_equivalent_lwe_dimension(self.polynomial_size)
-                    .0,
-            )
-            .unwrap(),
-            pbs_type: PBS_TYPE_CLASSICAL,
-            pbs_params: CudaPbsTypeParamsFFI {
-                classical: CudaClassicalPbsParamsFFI {
-                    noise_reduction_type: ms_noise_reduction_type(
-                        self.ms_noise_reduction_configuration.as_ref(),
-                    ) as u32,
-                },
+        bsk_params_ffi(
+            self.input_lwe_dimension,
+            self.glwe_dimension,
+            self.polynomial_size,
+            self.decomp_base_log,
+            self.decomp_level_count,
+            CudaPbsTypeParams::Classical {
+                noise_reduction_type: ms_noise_reduction_type(
+                    self.ms_noise_reduction_configuration.as_ref(),
+                ),
             },
-        }
+        )
     }
 }

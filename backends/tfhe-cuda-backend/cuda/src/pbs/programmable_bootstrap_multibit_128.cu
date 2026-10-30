@@ -36,9 +36,16 @@ uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap_128(
 }
 
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
-    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    void *stream, uint32_t gpu_index, int8_t **buffer,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t level_count = bsk_params.level_count;
 
   bool supports_cg =
       supports_cooperative_groups_on_multibit_programmable_bootstrap_128<
@@ -108,10 +115,19 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lwe_array_in, void const *lwe_input_indexes,
-    void const *bootstrapping_key, int8_t *mem_ptr, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    void const *bootstrapping_key, int8_t *mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t grouping_factor = bsk_params.pbs_params.multi_bit.grouping_factor;
+  uint32_t base_log = bsk_params.base_log;
+  uint32_t level_count = bsk_params.level_count;
 
   if (base_log > 64)
     PANIC("Cuda error (multi-bit PBS): base log should be <= 64")
@@ -161,11 +177,15 @@ void cleanup_cuda_multi_bit_programmable_bootstrap_128(void *stream,
 // that callers using the noise-tests PBS128 variant have a consistent API.
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
   return scratch_cuda_multi_bit_programmable_bootstrap_128_async(
-      stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
+      stream, gpu_index, pbs_buffer, bsk_params, input_lwe_ciphertext_count,
+      allocate_gpu_memory);
 }
 
 void cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_128(
@@ -182,10 +202,19 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lwe_array_in, void const *lwe_input_indexes,
-    void const *bootstrapping_key, int8_t *buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    void const *bootstrapping_key, int8_t *buffer,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t grouping_factor = bsk_params.pbs_params.multi_bit.grouping_factor;
+  uint32_t base_log = bsk_params.base_log;
+  uint32_t level_count = bsk_params.level_count;
 
   PANIC_IF_FALSE(num_samples == 1,
                  "Cuda error (multi-bit PBS): num_samples (%d) should be 1",

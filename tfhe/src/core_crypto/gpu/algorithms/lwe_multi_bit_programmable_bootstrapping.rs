@@ -1,5 +1,6 @@
 #![deny(clippy::cast_possible_truncation)]
 use crate::core_crypto::gpu::entities::glwe_ciphertext_list::CudaGlweCiphertextList;
+use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaBootstrapKey;
 use crate::core_crypto::gpu::entities::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::entities::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::vec::CudaVec;
@@ -131,12 +132,7 @@ pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext<Scalar>(
             &input.0.d_vec,
             input_indexes,
             &multi_bit_bsk.d_vec,
-            input.lwe_dimension(),
-            multi_bit_bsk.glwe_dimension(),
-            multi_bit_bsk.polynomial_size(),
-            multi_bit_bsk.decomp_base_log(),
-            multi_bit_bsk.decomp_level_count(),
-            multi_bit_bsk.grouping_factor(),
+            multi_bit_bsk.params_ffi(),
             u32::try_from(input.lwe_ciphertext_count().0).unwrap(),
         );
         streams.synchronize();
@@ -260,12 +256,7 @@ pub fn cuda_multi_bit_programmable_bootstrap_128_lwe_ciphertext<OutputScalar>(
             &input.0.d_vec,
             input_indexes,
             &multi_bit_bsk.d_vec,
-            input.lwe_dimension(),
-            multi_bit_bsk.glwe_dimension(),
-            multi_bit_bsk.polynomial_size(),
-            multi_bit_bsk.decomp_base_log(),
-            multi_bit_bsk.decomp_level_count(),
-            multi_bit_bsk.grouping_factor(),
+            multi_bit_bsk.params_ffi(),
             u32::try_from(input.lwe_ciphertext_count().0).unwrap(),
         );
         streams.synchronize();

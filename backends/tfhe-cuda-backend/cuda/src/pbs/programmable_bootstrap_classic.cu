@@ -132,10 +132,19 @@ uint64_t scratch_cuda_programmable_bootstrap(
  * the GPU in case FULLSM or PARTIALSM mode is going to be used.
  */
 uint64_t scratch_cuda_programmable_bootstrap_64_async(
-    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    void *stream, uint32_t gpu_index, int8_t **buffer,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t level_count = bsk_params.level_count;
+  auto noise_reduction_type = static_cast<PBS_MS_REDUCTION_T>(
+      bsk_params.pbs_params.classical.noise_reduction_type);
 
   // The specialized 2_2 gate behind the variant choice reads the compute
   // capability of the current device.
@@ -273,9 +282,17 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_32_async(
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
-    int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    int8_t *buffer, CudaLweBootstrapKeyParamsFFI bsk_params,
     uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t base_log = bsk_params.base_log;
+  uint32_t level_count = bsk_params.level_count;
 
   if (base_log > 32)
     PANIC("Cuda error (classical PBS): base log should be <= 32")
@@ -394,9 +411,17 @@ void cuda_programmable_bootstrap_64_async(
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
-    int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    int8_t *buffer, CudaLweBootstrapKeyParamsFFI bsk_params,
     uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t base_log = bsk_params.base_log;
+  uint32_t level_count = bsk_params.level_count;
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
