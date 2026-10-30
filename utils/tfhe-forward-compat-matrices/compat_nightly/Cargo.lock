@@ -1187,7 +1187,6 @@ dependencies = [
  "ark-ff",
  "ark-poly",
  "getrandom",
- "itertools 0.15.0",
  "num-bigint 0.5.1",
  "rand",
  "rayon",

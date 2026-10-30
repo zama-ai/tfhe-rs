@@ -27,7 +27,6 @@ tfhe-versionable = { version = "0.8.1", path = "../utils/tfhe-versionable" }
 tfhe-safe-serialize = { version = "0.1.1", path = "../utils/tfhe-safe-serialize" }
 zk-cuda-backend = { version = "0.3.0", path = "../backends/zk-cuda-backend", optional = true }
 tfhe-cuda-common = { version = "0.2.0", path = "../backends/tfhe-cuda-common", optional = true }
-itertools.workspace = true
 [target.'cfg(target_family = "wasm")'.dependencies]
 getrandom = { workspace = true, features = ["js"] }
 wasm-par-mq = { version = "0.1.1", path = "../utils/wasm-par-mq", features = [
