@@ -919,16 +919,14 @@ __host__ void integer_radix_apply_univariate_lookup_table(
   }
 
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
-  if (lut->d_lut_values != nullptr) {
-    execute_trivial_lut_batched<Torus>(streams, lwe_array_out, lwe_array_in,
-                                       lut, num_radix_blocks, /*num_many_lut=*/1);
-    for (uint i = 0; i < num_radix_blocks; i++) {
-      lwe_array_out->degrees[i] = lut->degrees[lut->h_lut_indexes[i]];
-      lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
-    }
-    POP_RANGE()
-    return;
+  execute_trivial_lut_batched<Torus>(streams, lwe_array_out, lwe_array_in,
+                                     lut, num_radix_blocks, /*num_many_lut=*/1);
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    lwe_array_out->degrees[i] = lut->degrees[lut->h_lut_indexes[i]];
+    lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
+  POP_RANGE()
+  return;
 #endif
 
   // In the case of extracting a single LWE this parameters are dummy
@@ -1062,17 +1060,15 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
   }
 
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
-  if (lut->d_lut_values != nullptr) {
-    execute_trivial_lut_batched<Torus>(streams, lwe_array_out, lwe_array_in,
-                                       lut, num_radix_blocks, num_many_lut);
-    for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-      auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
-      lwe_array_out->degrees[i] = lut->degrees[degrees_index];
-      lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
-    }
-    POP_RANGE()
-    return;
+  execute_trivial_lut_batched<Torus>(streams, lwe_array_out, lwe_array_in,
+                                     lut, num_radix_blocks, num_many_lut);
+  for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+    auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
+    lwe_array_out->degrees[i] = lut->degrees[degrees_index];
+    lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
+  POP_RANGE()
+  return;
 #endif
 
   /// For multi GPU execution we create vectors of pointers for inputs and
@@ -1189,6 +1185,18 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
                         params.carry_modulus);
     }
   }
+
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  execute_trivial_bivariate_lut_batched<Torus>(streams, lwe_array_out,
+                                               lwe_array_1, lwe_array_2,
+                                               lut, num_radix_blocks);
+  for (uint i = 0; i < num_radix_blocks; i++) {
+    lwe_array_out->degrees[i] = lut->degrees[lut->h_lut_indexes[i]];
+    lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
+  }
+  POP_RANGE()
+  return;
+#endif
 
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;

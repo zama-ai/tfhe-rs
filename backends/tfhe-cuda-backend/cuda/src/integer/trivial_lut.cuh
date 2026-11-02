@@ -81,6 +81,67 @@ __global__ void device_trivial_lut_batched(
   lwe_out[idx_out * lwe_size + coeff_id] = result;
 }
 
+// Bivariate variant: result[coeff] = d_lut_values[lut_index * p*p + x*p + y]
+// where x = lwe_in_1[coeff] % p, y = lwe_in_2[coeff] % p, p = message_modulus.
+template <typename Torus>
+__global__ void device_trivial_bivariate_lut_batched(
+    Torus *lwe_out, Torus const *lwe_in_1, Torus const *lwe_in_2,
+    Torus const *d_lut_values, uint32_t const *lwe_indexes_in,
+    uint32_t const *lwe_indexes_out, Torus const *d_lut_indexes,
+    uint32_t lwe_dimension, uint32_t p, uint32_t num_in_blocks) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  int lwe_size = lwe_dimension + 1;
+  if (tid >= (int)(num_in_blocks * lwe_size))
+    return;
+
+  int block_id = tid / lwe_size;
+  int coeff_id = tid % lwe_size;
+
+  uint32_t slot =
+      (d_lut_indexes != nullptr) ? (uint32_t)d_lut_indexes[block_id] : 0u;
+  uint32_t idx_in = lwe_indexes_in ? lwe_indexes_in[block_id] : (uint32_t)block_id;
+  uint32_t idx_out = lwe_indexes_out ? lwe_indexes_out[block_id] : (uint32_t)block_id;
+
+  Torus x = lwe_in_1[idx_in * lwe_size + coeff_id] % p;
+  Torus y = lwe_in_2[idx_in * lwe_size + coeff_id] % p;
+  lwe_out[idx_out * lwe_size + coeff_id] = d_lut_values[slot * p * p + x * p + y];
+}
+
+template <typename Torus>
+__host__ void execute_trivial_bivariate_lut_batched(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in_1,
+    CudaRadixCiphertextFFI const *lwe_array_in_2,
+    int_radix_lut<Torus> *lut, uint32_t num_in_blocks) {
+  cuda_set_device(streams.gpu_index(0));
+  auto lwe_dimension = lwe_array_out->lwe_dimension;
+  int lwe_size = lwe_dimension + 1;
+  int num_entries = (int)(num_in_blocks * (uint32_t)lwe_size);
+  int num_blocks = 0, num_threads = 0;
+  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
+
+  uint32_t const *lwe_indexes_in =
+      lut->using_trivial_lwe_indexes
+          ? nullptr
+          : reinterpret_cast<uint32_t const *>(lut->lwe_indexes_in);
+  uint32_t const *lwe_indexes_out =
+      lut->using_trivial_lwe_indexes
+          ? nullptr
+          : reinterpret_cast<uint32_t const *>(lut->lwe_indexes_out);
+  Torus const *d_lut_indexes = lut->lut_indexes_vec.empty()
+                                    ? nullptr
+                                    : (Torus const *)lut->lut_indexes_vec[0];
+
+  device_trivial_bivariate_lut_batched<Torus>
+      <<<num_blocks, num_threads, 0, streams.stream(0)>>>(
+          (Torus *)lwe_array_out->ptr,
+          (Torus const *)lwe_array_in_1->ptr,
+          (Torus const *)lwe_array_in_2->ptr,
+          lut->d_lut_values, lwe_indexes_in, lwe_indexes_out, d_lut_indexes,
+          lwe_dimension, lut->lut_num_values, num_in_blocks);
+  check_cuda_error(cudaGetLastError());
+}
+
 // Host wrapper.  num_in_blocks = number of input blocks (lwe_array_in).
 // For many-lut the output has num_in_blocks * num_many_lut blocks.
 template <typename Torus>

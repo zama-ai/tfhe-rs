@@ -721,6 +721,45 @@ impl ClientKey {
         num_blocks: usize,
         rng: &mut impl rand_core::RngCore,
     ) -> (RadixCiphertext, Vec<u64>) {
+        let params = self.key.parameters();
+        let p = params.message_modulus().0 as u64;
+        let lwe_dimension = params.encryption_lwe_dimension().0;
+        let bits = num_blocks as u32 * p.ilog2();
+        let test_vectors: Vec<u64> = (0..lwe_dimension)
+            .map(|_| {
+                let v = rng.next_u64();
+                if bits < 64 { v % (1u64 << bits) } else { v }
+            })
+            .collect();
+        self.encrypt_radix_with_test_vectors(value, num_blocks, test_vectors)
+    }
+
+    /// Like [`encrypt_radix_batched_trivial`] but replicates a single scalar into
+    /// every mask slot instead of drawing random test vectors.  Use this when you
+    /// need all slots to hold the same value (e.g. to test the zero-divisor path).
+    #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
+    pub fn encrypt_radix_batched_trivial_scalar(
+        &self,
+        value: u64,
+        num_blocks: usize,
+        slot_scalar: u64,
+    ) -> (RadixCiphertext, Vec<u64>) {
+        let params = self.key.parameters();
+        let p = params.message_modulus().0 as u64;
+        let lwe_dimension = params.encryption_lwe_dimension().0;
+        let bits = num_blocks as u32 * p.ilog2();
+        let clamped = if bits < 64 { slot_scalar % (1u64 << bits) } else { slot_scalar };
+        let test_vectors = vec![clamped; lwe_dimension];
+        self.encrypt_radix_with_test_vectors(value, num_blocks, test_vectors)
+    }
+
+    #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
+    fn encrypt_radix_with_test_vectors(
+        &self,
+        value: u64,
+        num_blocks: usize,
+        test_vectors: Vec<u64>,
+    ) -> (RadixCiphertext, Vec<u64>) {
         use crate::core_crypto::entities::LweCiphertext;
         use crate::shortint::ciphertext::NoiseLevel;
         use crate::shortint::parameters::AtomicPatternKind;
@@ -731,11 +770,6 @@ impl ClientKey {
         let p = params.message_modulus().0 as u64;
         let lwe_dimension = params.encryption_lwe_dimension().0;
         let ciphertext_modulus = params.ciphertext_modulus();
-        let max_value: u64 = p.pow(num_blocks as u32);
-
-        // Draw lwe_dimension independent test vectors from [0, max_value).
-        let test_vectors: Vec<u64> =
-            (0..lwe_dimension).map(|_| rng.next_u64() % max_value).collect();
 
         let blocks: Vec<ShortintCiphertext> = (0..num_blocks)
             .map(|i| {
@@ -771,12 +805,18 @@ impl ClientKey {
     /// The body of each block is read directly (no key material needed).
     /// Every mask slot is also verified against the corresponding `expected_slots`
     /// entry — this is the primary correctness gate for the batched-trivial mode.
+    /// `body_inputs` lists the scalar operands for the body (e.g. `[("n", n), ("d", d)]`).
+    /// `slot_inputs` lists `(label, test_vector)` pairs for the mask slots.
+    /// Both are printed verbatim in the failure message so a reproducer can be
+    /// written by substituting those fixed values for the random draws.
     #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
     pub fn decrypt_and_check_radix_batched_trivial(
         &self,
         ct: &RadixCiphertext,
         expected_body: u64,
         expected_slots: &[u64],
+        body_inputs: &[(&str, u64)],
+        slot_inputs: &[(&str, &[u64])],
     ) {
         let p = self.key.parameters().message_modulus().0 as u64;
         let num_blocks = ct.blocks.len();
@@ -793,19 +833,33 @@ impl ClientKey {
             // Body: coefficient lwe_dimension holds block i of the primary result.
             let body_got = container[lwe_dimension] % p;
             let body_exp = (expected_body / p.pow(i as u32)) % p;
-            assert_eq!(
-                body_got, body_exp,
-                "block {i} body mismatch: got {body_got}, expected {body_exp}"
-            );
+            if body_got != body_exp {
+                let input_info: String = body_inputs
+                    .iter()
+                    .map(|(name, val)| format!("{name}={val}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                panic!(
+                    "block {i} body mismatch: got {body_got}, expected {body_exp} \
+                     (full expected body = {expected_body}; inputs: {input_info})"
+                );
+            }
 
             // Mask slots: coefficient j holds block i of test_vectors[j] result.
             for (j, &exp_slot) in expected_slots.iter().enumerate() {
                 let slot_got = container[j] % p;
                 let slot_exp = (exp_slot / p.pow(i as u32)) % p;
-                assert_eq!(
-                    slot_got, slot_exp,
-                    "block {i} slot {j} mismatch: got {slot_got}, expected {slot_exp}"
-                );
+                if slot_got != slot_exp {
+                    let input_info: String = slot_inputs
+                        .iter()
+                        .map(|(name, vals)| format!("{name}[{j}]={}", vals[j]))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    panic!(
+                        "block {i} slot {j} mismatch: got {slot_got}, expected {slot_exp} \
+                         (full expected slot = {exp_slot}; inputs: {input_info})"
+                    );
+                }
             }
         }
     }
