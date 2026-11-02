@@ -1110,6 +1110,32 @@ public:
       }
     }
     broadcast_lut(streams);
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+    // Populate compact integer lookup table for batched-trivial mode.
+    // Layout: d_lut_values[slot * num_values + msg] for univariate (num_many_lut=1).
+    // For many-lut the layout is d_lut_values[(slot*num_many_lut+func)*num_values+msg];
+    // generate_and_broadcast_many_lut handles that separately.
+    if (gpu_memory_allocated && d_lut_values == nullptr) {
+      uint32_t num_values = params.message_modulus * params.carry_modulus;
+      // Allocate for all num_luts slots (unused slots stay zero).
+      size_t table_size = (size_t)num_luts * num_values;
+      std::vector<OutputTorus> h_values(table_size, 0);
+      for (size_t k = 0; k < lut_ids.size(); k++) {
+        uint32_t slot = lut_ids[k];
+        for (uint32_t msg = 0; msg < num_values; msg++)
+          h_values[(size_t)slot * num_values + msg] =
+              lut_value_generator[k]((OutputTorus)msg);
+      }
+      d_lut_values = static_cast<OutputTorus *>(cuda_malloc_async(
+          table_size * sizeof(OutputTorus), streams.stream(0),
+          streams.gpu_index(0)));
+      cuda_memcpy_async_to_gpu(d_lut_values, h_values.data(),
+                               table_size * sizeof(OutputTorus),
+                               streams.stream(0), streams.gpu_index(0));
+      cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+      lut_num_values = num_values;
+    }
+#endif
   }
 
   // Generate and broadcast LUT with custom input/output encoding parameters.
@@ -1170,6 +1196,33 @@ public:
           params.carry_modulus, funcs_many_lut[i], gpu_memory_allocated);
     }
     broadcast_lut(streams);
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+    // Populate compact integer lookup table for batched-trivial mode.
+    // Layout: d_lut_values[(slot * num_many_lut + func) * num_values + msg].
+    // num_many_lut (struct field) is the number of functions per slot.
+    if (gpu_memory_allocated && d_lut_values == nullptr && !funcs_many_lut.empty()) {
+      uint32_t num_values = params.message_modulus * params.carry_modulus;
+      // Allocate for all num_luts slots × num_many_lut functions.
+      size_t table_size = (size_t)num_luts * num_many_lut * num_values;
+      std::vector<OutputTorus> h_values(table_size, 0);
+      for (size_t k = 0; k < lut_indexes.size(); k++) {
+        uint32_t slot = lut_indexes[k];
+        for (uint32_t f = 0; f < (uint32_t)funcs_many_lut[k].size(); f++) {
+          for (uint32_t msg = 0; msg < num_values; msg++)
+            h_values[((size_t)slot * num_many_lut + f) * num_values + msg] =
+                funcs_many_lut[k][f]((OutputTorus)msg);
+        }
+      }
+      d_lut_values = static_cast<OutputTorus *>(cuda_malloc_async(
+          table_size * sizeof(OutputTorus), streams.stream(0),
+          streams.gpu_index(0)));
+      cuda_memcpy_async_to_gpu(d_lut_values, h_values.data(),
+                               table_size * sizeof(OutputTorus),
+                               streams.stream(0), streams.gpu_index(0));
+      cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
+      lut_num_values = num_values;
+    }
+#endif
   }
 
   template <typename IndexGenerator = std::nullptr_t>
