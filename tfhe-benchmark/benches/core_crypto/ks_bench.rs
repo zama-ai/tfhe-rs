@@ -19,7 +19,7 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     criterion: &mut Criterion,
     parameters: &[(String, BenchPbsParams<Scalar>)],
 ) {
-    let cc_bench = CoreCryptoBench::Keyswitch;
+    let cc_bench = CoreCryptoBench::Keyswitch(None);
     let bench_type = get_bench_type();
     let mut bench_group = criterion.benchmark_group(cc_bench.to_string());
 
@@ -347,7 +347,8 @@ mod cuda {
     };
     use benchmark::BenchPbsParams;
     use benchmark_spec::{
-        get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench, CudaKeyswitchConfig,
+        get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench, KsIndices, KsVariant,
+        PrecisionTag,
     };
     use criterion::{Criterion, Throughput};
     use itertools::Itertools;
@@ -365,6 +366,19 @@ mod cuda {
 
     use tfhe::core_crypto::prelude::*;
 
+    fn ks_variant(uses_gemm_ks: bool, uses_trivial_indices: bool) -> KsVariant {
+        let indices = if uses_trivial_indices {
+            KsIndices::TrivialIndices
+        } else {
+            KsIndices::ComplexIndices
+        };
+        if uses_gemm_ks {
+            KsVariant::Gemm(indices)
+        } else {
+            KsVariant::Classical(indices)
+        }
+    }
+
     fn cuda_keyswitch_classical_and_gemm<
         Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize,
         KeyswitchScalar: UnsignedTorus + CastFrom<Scalar>,
@@ -372,7 +386,7 @@ mod cuda {
         criterion: &mut Criterion,
         parameters: &[(String, BenchPbsParams<Scalar>)],
     ) {
-        let cc_bench = CoreCryptoBench::Keyswitch;
+        let cc_bench = CoreCryptoBench::Keyswitch(None);
         let bench_type = get_bench_type();
         let mut bench_group = criterion.benchmark_group(cc_bench.to_string());
 
@@ -473,11 +487,15 @@ mod cuda {
                     let h_indexes = [Scalar::ZERO];
                     let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
-                    let ks_config = CudaKeyswitchConfig::new(ks_bits, None, None);
+                    let uses_trivial_indices = true;
+                    let uses_gemm_ks = false;
                     let benchmark_spec = BenchmarkSpec::new_cuda_core_crypto(
-                        cc_bench,
+                        CoreCryptoBench::Keyswitch(Some(ks_variant(
+                            uses_gemm_ks,
+                            uses_trivial_indices,
+                        ))),
                         name,
-                        Some(ks_config.into()),
+                        Some(PrecisionTag::Bits(ks_bits).into()),
                         bench_type,
                     );
                     let bench_id = benchmark_spec.to_string();
@@ -490,9 +508,9 @@ mod cuda {
                                     &mut output_ct_gpu,
                                     &cuda_indexes.d_input,
                                     &cuda_indexes.d_output,
-                                    true,
+                                    uses_trivial_indices,
                                     &streams,
-                                    false,
+                                    uses_gemm_ks,
                                 );
 
                                 black_box(&mut ct_gpu);
@@ -515,15 +533,13 @@ mod cuda {
 
                     for uses_gemm_ks in [false, true] {
                         for uses_trivial_indices in [false, true] {
-                            let ks_config = CudaKeyswitchConfig::new(
-                                ks_bits,
-                                Some(uses_gemm_ks),
-                                Some(uses_trivial_indices),
-                            );
                             let benchmark_spec = BenchmarkSpec::new_cuda_core_crypto(
-                                cc_bench,
+                                CoreCryptoBench::Keyswitch(Some(ks_variant(
+                                    uses_gemm_ks,
+                                    uses_trivial_indices,
+                                ))),
                                 name,
-                                Some(ks_config.into()),
+                                Some(PrecisionTag::Bits(ks_bits).into()),
                                 bench_type,
                             );
                             let bench_id = benchmark_spec.to_string();

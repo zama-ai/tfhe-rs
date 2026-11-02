@@ -1,12 +1,14 @@
 #![allow(non_snake_case)]
 
-use std::fs;
-use std::path::PathBuf;
-
+use benchmark_spec::zk::pke::PkeBench;
+use benchmark_spec::{
+    Backend, BenchmarkMetric, BenchmarkSpec, ComputeLoad as SpecComputeLoad, ZkPkeConfig,
+};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use serde::Serialize;
+use tfhe_benchmark_parser::{write_to_json, OperatorType};
 use tfhe_zk_pok::proofs::pke::{commit, crs_gen, PrivateCommit, PublicCommit, PublicParams};
+use tfhe_zk_pok::proofs::ComputeLoad;
 
 use tfhe_zk_pok::proofs::pke_v2::{
     commit as commitv2, crs_gen_cs as crs_genv2_cs, crs_gen_ghl as crs_genv2_ghl, Bound,
@@ -35,156 +37,38 @@ pub fn polymul_rev(a: &[i64], b: &[i64]) -> Vec<i64> {
     c
 }
 
-#[derive(Clone, Copy, Default, Serialize)]
-pub struct CryptoParametersRecord {
-    pub lwe_dimension: usize,
-    #[serde(serialize_with = "CryptoParametersRecord::serialize_distribution")]
-    pub lwe_noise_distribution: u64,
-    pub message_modulus: u64,
-    pub carry_modulus: u64,
-    pub ciphertext_modulus: u64,
-}
-
-impl CryptoParametersRecord {
-    pub fn noise_distribution_as_string(bound: u64) -> String {
-        format!("TUniform({})", bound.ilog2())
-    }
-
-    pub fn serialize_distribution<S>(
-        noise_distribution: &u64,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&Self::noise_distribution_as_string(*noise_distribution))
+pub fn spec_compute_load(load: ComputeLoad) -> SpecComputeLoad {
+    match load {
+        ComputeLoad::Proof => SpecComputeLoad::Proof,
+        ComputeLoad::Verify => SpecComputeLoad::Verify,
     }
 }
 
-#[derive(Serialize)]
-enum PolynomialMultiplication {
-    Fft,
-    // Ntt,
-}
-
-#[derive(Serialize)]
-enum IntegerRepresentation {
-    Radix,
-    // Crt,
-    // Hybrid,
-}
-
-#[derive(Serialize)]
-enum ExecutionType {
-    Sequential,
-    Parallel,
-}
-
-#[derive(Serialize)]
-enum KeySetType {
-    Single,
-    // Multi,
-}
-
-#[derive(Serialize)]
-enum OperandType {
-    CipherText,
-    PlainText,
-}
-
-#[derive(Clone, Serialize)]
-pub enum OperatorType {
-    Atomic,
-    // AtomicPattern,
-}
-
-#[derive(Serialize)]
-struct BenchmarkParametersRecord {
-    display_name: String,
-    crypto_parameters_alias: String,
-    crypto_parameters: CryptoParametersRecord,
-    message_modulus: Option<usize>,
-    carry_modulus: Option<usize>,
-    ciphertext_modulus: usize,
-    bit_size: u32,
-    polynomial_multiplication: PolynomialMultiplication,
-    precision: u32,
-    error_probability: f64,
-    integer_representation: IntegerRepresentation,
-    decomposition_basis: Vec<u32>,
-    pbs_algorithm: Option<String>,
-    execution_type: ExecutionType,
-    key_set_type: KeySetType,
-    operand_type: OperandType,
-    operator_type: OperatorType,
-}
-
-/// Writes benchmarks parameters to disk in JSON format.
-pub fn write_to_json<T: Into<CryptoParametersRecord>>(
-    bench_id: &str,
-    params: T,
-    params_alias: impl Into<String>,
-    display_name: impl Into<String>,
-) {
-    let params = params.into();
-
-    let execution_type = match bench_id.contains("parallelized") {
-        true => ExecutionType::Parallel,
-        false => ExecutionType::Sequential,
+pub fn pke_spec(
+    bench: PkeBench,
+    backend: Backend,
+    params: PkeTestParameters,
+    param_name: &str,
+) -> BenchmarkSpec {
+    let bits = (params.k as u32) * (params.t >> 1).ilog2();
+    // The proof packs all the messages the CRS is built for.
+    let config = ZkPkeConfig {
+        bits_packed: Some(bits),
+        crs_bits: bits,
     };
-    let operand_type = match bench_id.contains("scalar") {
-        true => OperandType::PlainText,
-        false => OperandType::CipherText,
-    };
-
-    let record = BenchmarkParametersRecord {
-        display_name: display_name.into(),
-        crypto_parameters_alias: params_alias.into(),
-        crypto_parameters: params,
-        message_modulus: Some(params.message_modulus as usize),
-        carry_modulus: Some(params.carry_modulus as usize),
-        ciphertext_modulus: 64,
-        bit_size: params.message_modulus as u32,
-        polynomial_multiplication: PolynomialMultiplication::Fft,
-        precision: (params.message_modulus as u32).ilog2(),
-        error_probability: 2f64.powf(-41.0),
-        integer_representation: IntegerRepresentation::Radix,
-        decomposition_basis: Vec::new(),
-        pbs_algorithm: None, // To be added in future version
-        execution_type,
-        key_set_type: KeySetType::Single,
-        operand_type,
-        operator_type: OperatorType::Atomic,
-    };
-
-    let mut params_directory = ["benchmarks_parameters", bench_id]
-        .iter()
-        .collect::<PathBuf>();
-    fs::create_dir_all(&params_directory).unwrap();
-    params_directory.push("parameters.json");
-
-    fs::write(params_directory, serde_json::to_string(&record).unwrap()).unwrap();
+    BenchmarkSpec::new_zk_pke(bench, backend, param_name, config, BenchmarkMetric::Latency)
 }
 
-impl From<PkeTestParameters> for CryptoParametersRecord {
-    fn from(value: PkeTestParameters) -> Self {
-        let effective = value.t / 2; // Remove padding bit
-        let (message_modulus, carry_modulus) = match effective.ilog2() {
-            2 => (2, 2),
-            4 => (4, 4),
-            6 => (8, 8),
-            8 => (16, 16),
-            _ => panic!("Unsupported parameters for tfhe-zk-pok bench"),
-        };
-
-        Self {
-            lwe_dimension: value.d,
-            lwe_noise_distribution: value.B,
-            message_modulus,
-            carry_modulus,
-            ciphertext_modulus: value.q,
-        }
-    }
+pub fn write_pke_record(spec: &BenchmarkSpec, params: PkeTestParameters, display_name: &str) {
+    // Padding bit removed, the rest split evenly between message and carry.
+    let message_modulus = 1u64 << ((params.t / 2).ilog2() / 2);
+    write_to_json(
+        spec,
+        display_name,
+        &OperatorType::Atomic,
+        message_modulus,
+        vec![],
+    );
 }
 
 /// parameters needed for a PKE zk proof test

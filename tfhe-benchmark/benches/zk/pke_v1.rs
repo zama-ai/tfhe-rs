@@ -1,8 +1,10 @@
+use benchmark_spec::zk::pke::{PkeBench, PkeProof, PkeVerify};
+use benchmark_spec::Backend;
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
 use tfhe_zk_pok::proofs::pke::{prove, verify};
 use tfhe_zk_pok::proofs::ComputeLoad;
-use utils::{write_to_json, PKEV1_TEST_PARAMS, PKEV2_TEST_PARAMS};
+use utils::{pke_spec, spec_compute_load, write_pke_record, PKEV1_TEST_PARAMS, PKEV2_TEST_PARAMS};
 
 #[path = "./utils.rs"]
 mod utils;
@@ -24,11 +26,15 @@ fn bench_pke_v1_prove(c: &mut Criterion) {
         (PKEV2_TEST_PARAMS, "PKEV2_TEST_PARAMS"),
     ] {
         let (public_param, public_commit, private_commit, metadata) = init_params_v1(params);
-        let effective_t = params.t >> 1;
-        let bits = (params.k as u32) * effective_t.ilog2();
 
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-            let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}");
+            let spec = pke_spec(
+                PkeBench::Proof(PkeProof::V1(spec_compute_load(load))),
+                Backend::Cpu,
+                params,
+                param_name,
+            );
+            let bench_id = spec.to_string();
 
             let seed: u128 = rng.gen();
 
@@ -44,7 +50,7 @@ fn bench_pke_v1_prove(c: &mut Criterion) {
                 })
             });
 
-            write_to_json(&bench_id, params, param_name, bench_shortname);
+            write_pke_record(&spec, params, bench_shortname);
         }
     }
 }
@@ -64,11 +70,15 @@ fn bench_pke_v1_verify(c: &mut Criterion) {
         (PKEV2_TEST_PARAMS, "PKEV2_TEST_PARAMS"),
     ] {
         let (public_param, public_commit, private_commit, metadata) = init_params_v1(params);
-        let effective_t = params.t >> 1;
-        let bits = (params.k as u32) * effective_t.ilog2();
 
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
-            let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}");
+            let spec = pke_spec(
+                PkeBench::Verify(PkeVerify::V1(spec_compute_load(load))),
+                Backend::Cpu,
+                params,
+                param_name,
+            );
+            let bench_id = spec.to_string();
 
             let seed: u128 = rng.gen();
 
@@ -86,7 +96,7 @@ fn bench_pke_v1_verify(c: &mut Criterion) {
                 })
             });
 
-            write_to_json(&bench_id, params, param_name, bench_shortname);
+            write_pke_record(&spec, params, bench_shortname);
         }
     }
 }
