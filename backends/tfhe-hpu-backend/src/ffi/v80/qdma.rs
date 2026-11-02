@@ -32,7 +32,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, PoisonError};
 
 const QDMA_VERSION_FILE: &str = "/sys/module/qdma_pf/version";
-const QDMA_VERSION_PATTERN: &str = r"2024\.1\.0\.\d+-zama";
+const QDMA_VERSION_PATTERN: &str = r"2024\.1\.1\.\d+-zama";
 pub(crate) const QDMA_LANES: usize = 2;
 
 /// Linux AIO (uapi aio_abi.h)
@@ -171,11 +171,9 @@ impl QdmaDriver {
     }
 
     pub fn write_bytes(&self, addr: usize, bytes: &[u8]) {
-        let lane = self.next_lane();
-        self.qdma_h2c[lane]
-            .write_all_at(bytes, addr as u64)
-            .unwrap();
-        tracing::trace!("QDMA written {} bytes to device [lane {lane}]", bytes.len());
+        // H2C on lane 0 only: the second H2C queue intermittently stalls (EIO after 10s)
+        self.qdma_h2c[0].write_all_at(bytes, addr as u64).unwrap();
+        tracing::trace!("QDMA written {} bytes to device", bytes.len());
     }
 
     pub fn read_bytes(&self, addr: usize, bytes: &mut [u8]) {
