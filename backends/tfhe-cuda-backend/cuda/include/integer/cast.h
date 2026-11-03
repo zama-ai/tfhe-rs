@@ -98,7 +98,7 @@ template <typename Torus> struct int_cast_to_unsigned_buffer {
 
     if (requires_full_propagate) {
       this->prop_buffer = new int_fullprop_buffer<Torus>(
-          streams, params, allocate_gpu_memory, size_tracker);
+          streams, params, num_input_blocks, allocate_gpu_memory, size_tracker);
     }
 
     this->requires_sign_extension =

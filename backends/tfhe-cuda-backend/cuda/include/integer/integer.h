@@ -171,12 +171,12 @@ void cuda_apply_many_univariate_lut_64_async(
 uint64_t scratch_cuda_full_propagation_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory);
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory);
 
 void cuda_full_propagation_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *input_blocks,
-    int8_t *mem_ptr, void *const *ksks, void *const *bsks, uint32_t num_blocks);
+    int8_t *mem_ptr, void *const *ksks, void *const *bsks);
 
 void cleanup_cuda_full_propagation_64_inplace(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void);
