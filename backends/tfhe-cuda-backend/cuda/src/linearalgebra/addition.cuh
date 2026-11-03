@@ -68,6 +68,18 @@ __global__ void constant_addition(T *output, T const *input_1, T const *input_2,
   }
 }
 
+// Adds a compile-time constant scalar to every element in-place.
+// Used by host_bitnot in batched-trivial mode to add (ct_message_modulus - 1)
+// to all lwe_size coefficients of every block uniformly.
+template <typename T>
+__global__ void constant_addition_inplace(T *lwe_array, uint32_t num_entries,
+                                          T scalar) {
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index < num_entries) {
+    lwe_array[index] += scalar;
+  }
+}
+
 template <typename T>
 __global__ void subtraction(T *output, T const *input_1, T const *input_2,
                             uint32_t num_entries) {
