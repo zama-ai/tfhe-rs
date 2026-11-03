@@ -333,7 +333,7 @@ impl CompressedSquashedNoiseCiphertextList {
     ///
     /// Empty ranges within the list (including `len()..len()`) return an empty vector.
     /// Reversed ranges and ranges extending past the list return an error.
-    pub(crate) fn unpack_range(
+    pub fn unpack_range(
         &self,
         range: std::ops::Range<usize>,
     ) -> crate::Result<Vec<SquashedNoiseCiphertext>> {
