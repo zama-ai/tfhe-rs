@@ -2046,3 +2046,120 @@ where
         );
     }
 }
+
+/// Full propagation of inputs where every block is at the full block degree
+/// (`message_modulus * carry_modulus - 1`).
+///
+/// This is above `full block degree - (carry_modulus - 1)`, the highest degree at which a block can
+/// still absorb the carry of the previous block without overflowing into the padding bit.
+/// Checked operations never go that far, as integer server keys keep room for one carry, but
+/// unchecked operations can.
+///
+/// Inputs are a sum of encryptions, filled up to the full block degree with scalar additions
+/// (which do not add noise). They are crafted twice: from a single encryption, so the noise stays
+/// nominal, and from as many encryptions as the max noise level allows.
+pub(crate) fn full_propagate_full_blocks_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<&'a mut RadixCiphertext, ()>,
+{
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    executor.setup(&cks, sks.clone());
+
+    let mut rng = rand::thread_rng();
+
+    let block_msg_mod = cks.parameters().message_modulus().0;
+    let block_carry_mod = cks.parameters().carry_modulus().0;
+    let block_max_value = block_msg_mod - 1;
+    let full_block_degree = block_msg_mod * block_carry_mod - 1;
+    let max_degree_that_can_absorb_carry = full_block_degree - (block_carry_mod - 1);
+    // Without carry bits, there would be no degree beyond the absorbing one to test
+    assert!(full_block_degree > max_degree_that_can_absorb_carry);
+
+    // message_modulus^vec_length
+    let modulus = block_msg_mod.pow(NB_CTXT as u32);
+    // Scalar with all its blocks equal to 1, multiplied by d < message_modulus it gives a scalar
+    // with all its blocks equal to d
+    let all_ones_scalar = (0..NB_CTXT as u32)
+        .map(|i| block_msg_mod.pow(i))
+        .sum::<u64>();
+
+    let max_num_ct_to_sum = sks
+        .key
+        .max_noise_level
+        .get()
+        .min(full_block_degree / block_max_value);
+
+    for num_ct_to_sum in [1, max_num_ct_to_sum] {
+        for test_index in 0..=nb_tests_smaller {
+            // The first test puts the max value in every block, as it creates the biggest carries
+            let clears = (0..num_ct_to_sum)
+                .map(|_| {
+                    if test_index == 0 {
+                        modulus - 1
+                    } else {
+                        rng.gen::<u64>() % modulus
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let mut ct = cks.encrypt(clears[0]);
+            for &clear in &clears[1..] {
+                sks.unchecked_add_assign(&mut ct, &cks.encrypt(clear));
+            }
+            let mut expected = clears.iter().sum::<u64>() % modulus;
+
+            let mut degree_left = full_block_degree - num_ct_to_sum * block_max_value;
+            while degree_left > 0 {
+                let scalar = degree_left.min(block_max_value) * all_ones_scalar;
+                sks.unchecked_scalar_add_assign(&mut ct, scalar);
+                expected = (expected + scalar) % modulus;
+                degree_left -= degree_left.min(block_max_value);
+            }
+
+            // Check we crafted what we want
+            let crafted_noise_degree = CiphertextNoiseDegree::new(
+                NoiseLevel::NOMINAL * num_ct_to_sum,
+                Degree::new(full_block_degree),
+            );
+            for block in &ct.blocks {
+                assert_eq!(block.noise_degree(), crafted_noise_degree);
+            }
+
+            executor.execute(&mut ct);
+
+            let decrypted: u64 = cks.decrypt(&ct);
+            assert_eq!(
+                decrypted, expected,
+                "Invalid full propagation result for the sum of {clears:?} filled to full \
+                block degree, expected {expected}, got {decrypted}"
+            );
+
+            // Decrypting the radix also counts carries left in the blocks, so each block
+            // (message and carry) is checked as well
+            let clean_noise_degree =
+                CiphertextNoiseDegree::new(NoiseLevel::NOMINAL, Degree::new(block_max_value));
+            let expected_blocks = BlockDecomposer::new(expected, block_msg_mod.ilog2())
+                .iter_as::<u64>()
+                .take(NB_CTXT);
+            let shortint_cks = &cks.as_ref().key;
+            for (i, (block, expected_block)) in ct.blocks.iter().zip(expected_blocks).enumerate() {
+                assert_eq!(
+                    block.noise_degree(),
+                    clean_noise_degree,
+                    "Block at index {i} is not clean after propagation"
+                );
+                assert_eq!(
+                    shortint_cks.decrypt_message_and_carry(block),
+                    expected_block,
+                    "Block at index {i} has an invalid value after propagation"
+                );
+            }
+        }
+    }
+}

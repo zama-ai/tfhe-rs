@@ -8,6 +8,7 @@
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include "utils/helper_multi_gpu.cuh"
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <optional>
@@ -361,6 +362,78 @@ inline void calculate_final_degrees(uint64_t *const out_degrees,
 
   for (int i = 0; i < num_blocks; i++) {
     out_degrees[i] = (columns[i].empty()) ? 0 : columns[i].front();
+  }
+}
+
+/// @brief Computes the output degrees and noise levels of a partial sum that
+/// does not reduce its result to message blocks: each output block is the
+/// plain sum of the blocks left in its column once every column holds at most
+/// chunk_size blocks.
+///
+/// Mirrors the column accumulation of host_integer_partial_sum_ciphertexts_vec,
+/// where terms of degree 0 belong to no column. While some column holds more
+/// than chunk_size blocks, every full chunk of every column is summed and
+/// bootstrapped into a message block, which stays in its column, and a carry
+/// block, which moves to the next column (the last column drops it). A new
+/// column holds its message blocks, then the carry blocks of the previous
+/// column, then its blocks that were not part of a full chunk.
+inline void calculate_final_metadata_without_reduction(
+    uint64_t *const out_degrees, uint64_t *const out_noise_levels,
+    const uint64_t *const input_degrees,
+    const uint64_t *const input_noise_levels, uint32_t num_blocks,
+    uint32_t num_radix_in_vec, uint32_t chunk_size, uint64_t message_modulus) {
+  struct block_metadata {
+    uint64_t degree;
+    uint64_t noise_level;
+  };
+  std::vector<std::vector<block_metadata>> columns(num_blocks);
+  for (uint32_t i = 0; i < num_radix_in_vec; ++i) {
+    for (uint32_t j = 0; j < num_blocks; ++j) {
+      uint32_t block = i * num_blocks + j;
+      if (input_degrees[block])
+        columns[j].push_back({input_degrees[block], input_noise_levels[block]});
+    }
+  }
+
+  auto needs_processing = [&columns, chunk_size]() {
+    return std::any_of(columns.begin(), columns.end(),
+                       [chunk_size](const std::vector<block_metadata> &column) {
+                         return column.size() > chunk_size;
+                       });
+  };
+  while (needs_processing()) {
+    std::vector<std::vector<block_metadata>> messages(num_blocks);
+    std::vector<std::vector<block_metadata>> carries(num_blocks);
+    for (uint32_t j = 0; j < num_blocks; ++j) {
+      uint32_t num_chunks = columns[j].size() / chunk_size;
+      for (uint32_t chunk = 0; chunk < num_chunks; ++chunk) {
+        uint64_t chunk_degree = 0;
+        for (uint32_t k = 0; k < chunk_size; ++k)
+          chunk_degree += columns[j][chunk * chunk_size + k].degree;
+        messages[j].push_back(
+            {std::min(message_modulus - 1, chunk_degree), NoiseLevel::NOMINAL});
+        if (j + 1 < num_blocks)
+          carries[j + 1].push_back(
+              {chunk_degree / message_modulus, NoiseLevel::NOMINAL});
+      }
+    }
+    for (uint32_t j = 0; j < num_blocks; ++j) {
+      auto remaining_begin =
+          columns[j].begin() + (columns[j].size() / chunk_size) * chunk_size;
+      std::vector<block_metadata> new_column = std::move(messages[j]);
+      new_column.insert(new_column.end(), carries[j].begin(), carries[j].end());
+      new_column.insert(new_column.end(), remaining_begin, columns[j].end());
+      columns[j] = std::move(new_column);
+    }
+  }
+
+  for (uint32_t j = 0; j < num_blocks; ++j) {
+    out_degrees[j] = 0;
+    out_noise_levels[j] = 0;
+    for (const auto &block : columns[j]) {
+      out_degrees[j] += block.degree;
+      out_noise_levels[j] += block.noise_level;
+    }
   }
 }
 
@@ -1328,6 +1401,7 @@ struct int_noise_squashing_lut
 
 // Forward declarations for operation buffers
 template <typename Torus> struct int_sub_and_propagate;
+template <typename Torus> struct int_sc_prop_memory;
 
 template <typename Torus> struct int_bit_extract_luts_buffer {
   int_radix_params params;
@@ -1426,66 +1500,122 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
   }
 };
 
+/// @brief Memory of host_full_propagate_inplace, for radix ciphertexts of
+/// num_radix_blocks blocks
 template <typename Torus> struct int_fullprop_buffer {
   int_radix_params params;
-
-  int_radix_lut<Torus> *lut;
-
-  CudaRadixCiphertextFFI *tmp_small_lwe_vector;
-  CudaRadixCiphertextFFI *tmp_big_lwe_vector;
+  uint32_t num_radix_blocks;
   bool gpu_memory_allocated;
 
+  /// @brief Whether carries are propagated with the parallel single carry
+  /// propagation, otherwise they are propagated sequentially
+  bool use_single_carry_propagation;
+  /// @brief Block degrees must be strictly below this bound when entering the
+  /// single carry propagation
+  uint64_t single_carry_degree_limit;
+
+  /// @brief Message LUT on blocks [0, n), carry LUT on blocks [n, 2n)
+  int_radix_lut<Torus> *lut_message_carry = nullptr;
+  /// @brief 2n blocks holding the input blocks twice, then their messages and
+  /// carries. Its first 2 blocks are reused by the sequential propagation
+  CudaRadixCiphertextFFI *tmp_message_carry = nullptr;
+
+  /// @brief Only allocated if use_single_carry_propagation
+  int_sc_prop_memory<Torus> *sc_prop_mem = nullptr;
+  /// @brief Only allocated if !use_single_carry_propagation: message LUT on
+  /// block 0, carry LUT on block 1
+  int_radix_lut<Torus> *lut_sequential = nullptr;
+
   int_fullprop_buffer(CudaStreams streams, int_radix_params params,
-                      bool allocate_gpu_memory, uint64_t &size_tracker) {
+                      uint32_t num_radix_blocks, bool allocate_gpu_memory,
+                      uint64_t &size_tracker) {
     this->params = params;
+    this->num_radix_blocks = num_radix_blocks;
     gpu_memory_allocated = allocate_gpu_memory;
-    lut = new int_radix_lut<Torus>(streams.get_ith(0), params, 2, 2,
-                                   allocate_gpu_memory, size_tracker);
+    auto message_modulus = params.message_modulus;
+    uint64_t block_modulus = message_modulus * params.carry_modulus;
 
-    // LUTs
-    auto lut_f_message = [params](Torus x) -> Torus {
-      return x % params.message_modulus;
+    // The single carry propagation needs 4 bits per block. Its first PBS
+    // applies 2 LUTs, each on half of the block space, and a block plus the
+    // carry it receives must generate at most one carry: blocks must be at
+    // most 2 * (message_modulus - 1), as in an addition of two clean blocks.
+    // When some block is above, the carries are extracted first, after which
+    // blocks are at most a message plus a carry.
+    single_carry_degree_limit =
+        std::min<uint64_t>(2 * message_modulus - 1, block_modulus / 2);
+    uint64_t max_degree_after_extraction =
+        (message_modulus - 1) + (block_modulus - 1) / message_modulus;
+    use_single_carry_propagation =
+        block_modulus >= 16 &&
+        max_degree_after_extraction < single_carry_degree_limit;
+
+    if (num_radix_blocks == 0)
+      return;
+
+    auto lut_f_message = [message_modulus](Torus x) -> Torus {
+      return x % message_modulus;
     };
-    auto lut_f_carry = [params](Torus x) -> Torus {
-      return x / params.message_modulus;
+    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
+      return x / message_modulus;
     };
 
-    //
+    lut_message_carry =
+        new int_radix_lut<Torus>(streams, params, 2, 2 * num_radix_blocks,
+                                 allocate_gpu_memory, size_tracker);
+    auto message_carry_index_generator =
+        [num_radix_blocks](Torus *h_lut_indexes, uint32_t) {
+          for (uint32_t i = 0; i < 2 * num_radix_blocks; i++)
+            h_lut_indexes[i] = i / num_radix_blocks;
+        };
+    lut_message_carry->generate_and_broadcast_lut(
+        streams.active_gpu_subset(2 * num_radix_blocks, params.pbs_type()),
+        {0, 1}, {lut_f_message, lut_f_carry}, message_carry_index_generator);
 
-    //
-    // No broadcast is needed because full prop is done on 1 single GPU.
-    // By passing a single-GPU CudaStreams with streams.get_ith(0) the LUT is
-    // not broadcast.
-    //
-    auto active_streams = streams.get_ith(0);
-    auto lut_index_generator = [](Torus *h_lut_indexes, uint32_t) {
-      for (int i = 0; i < 2; i++)
-        h_lut_indexes[i] = i;
-    };
-    lut->generate_and_broadcast_lut(active_streams, {0, 1},
-                                    {lut_f_message, lut_f_carry},
-                                    lut_index_generator);
-
-    tmp_small_lwe_vector = new CudaRadixCiphertextFFI;
+    tmp_message_carry = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_small_lwe_vector, 2,
-        params.small_lwe_dimension, size_tracker, allocate_gpu_memory);
-    tmp_big_lwe_vector = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_big_lwe_vector, 2,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+        streams.stream(0), streams.gpu_index(0), tmp_message_carry,
+        2 * num_radix_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
+
+    if (use_single_carry_propagation) {
+      sc_prop_mem = new int_sc_prop_memory<Torus>(
+          streams, params, num_radix_blocks, outputFlag::FLAG_NONE,
+          allocate_gpu_memory, size_tracker);
+    } else {
+      lut_sequential = new int_radix_lut<Torus>(
+          streams, params, 2, 2, allocate_gpu_memory, size_tracker);
+      auto sequential_index_generator = [](Torus *h_lut_indexes, uint32_t) {
+        h_lut_indexes[0] = 0;
+        h_lut_indexes[1] = 1;
+      };
+      lut_sequential->generate_and_broadcast_lut(
+          streams.active_gpu_subset(2, params.pbs_type()), {0, 1},
+          {lut_f_message, lut_f_carry}, sequential_index_generator);
+    }
   }
 
   void release(CudaStreams streams) {
-
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   tmp_small_lwe_vector, gpu_memory_allocated);
-    release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                   tmp_big_lwe_vector, gpu_memory_allocated);
-    lut->release(streams.get_ith(0));
-    delete tmp_small_lwe_vector;
-    delete tmp_big_lwe_vector;
-    delete lut;
+    if (lut_message_carry != nullptr) {
+      lut_message_carry->release(streams);
+      delete lut_message_carry;
+      lut_message_carry = nullptr;
+    }
+    if (tmp_message_carry != nullptr) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     tmp_message_carry, gpu_memory_allocated);
+      delete tmp_message_carry;
+      tmp_message_carry = nullptr;
+    }
+    if (sc_prop_mem != nullptr) {
+      sc_prop_mem->release(streams);
+      delete sc_prop_mem;
+      sc_prop_mem = nullptr;
+    }
+    if (lut_sequential != nullptr) {
+      lut_sequential->release(streams);
+      delete lut_sequential;
+      lut_sequential = nullptr;
+    }
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 };
