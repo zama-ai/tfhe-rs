@@ -81,6 +81,8 @@ impl OneTimePadPlainSecretMask {
     /// Expects `secret_mask` to hold `bit_count.div_ceil(8)` bytes.
     fn is_canonical(secret_mask: &[u8], bit_count: usize) -> bool {
         let used_bits_in_last_byte = bit_count % 8;
+
+        // If this is 0, the last byte is full, so the list is canonical
         if used_bits_in_last_byte == 0 {
             return true;
         }
@@ -155,9 +157,19 @@ impl ParameterSetConformant for OneTimePadPlainSecretMask {
     type ParameterSet = OneTimePadPlainSecretMaskConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
-        self.bit_count == params.n_bits
-            && self.secret_mask.len() == self.bit_count.div_ceil(8)
-            && Self::is_canonical(&self.secret_mask, self.bit_count)
+        let OneTimePadPlainSecretMaskConformanceParams { n_bits } = params;
+
+        let Self {
+            secret_mask,
+            bit_count,
+        } = self;
+
+        #[allow(clippy::suspicious_operation_groupings, reason = "That's what we want")]
+        {
+            bit_count == n_bits
+                && secret_mask.len() == bit_count.div_ceil(8)
+                && Self::is_canonical(secret_mask, *bit_count)
+        }
     }
 }
 

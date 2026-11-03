@@ -12,7 +12,9 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::list_compression::{
     NoiseSquashingCompressionKey, NoiseSquashingCompressionPrivateKey,
 };
-use crate::shortint::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
+use crate::shortint::noise_squashing::{
+    NoiseSquashingKey, NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView,
+};
 use crate::shortint::oprf::OprfSeed;
 use crate::shortint::parameters::{
     CiphertextConformanceParams, CompressedSquashedNoiseCiphertextListConformanceParams,
@@ -258,28 +260,14 @@ pub struct SquashedNoiseOneTimePadFheSecretMask {
 }
 
 impl SquashedNoiseOneTimePadFheSecretMask {
-    pub fn try_new(
-        secret_mask: Vec<SquashedNoiseCiphertext>,
-        layout: KeyStreamLayout,
-    ) -> crate::Result<Self> {
-        for ct in &secret_mask {
-            if ct.degree() != layout.expected_degree() {
-                return Err(crate::error!(
-                    "Mask ciphertexts does not follow the required layout (got {}, expected \
-                    {}).",
-                    ct.degree().get(),
-                    layout.expected_degree().get(),
-                ));
-            }
-        }
-
-        Ok(Self {
-            secret_mask,
-            layout,
-        })
+    pub fn decrypt(&self, key: &NoiseSquashingPrivateKey) -> OneTimePadPlainSecretMask {
+        self.decrypt_with_key_view(&key.as_view())
     }
 
-    pub fn decrypt(&self, key: &NoiseSquashingPrivateKey) -> OneTimePadPlainSecretMask {
+    pub(crate) fn decrypt_with_key_view(
+        &self,
+        key: &NoiseSquashingPrivateKeyView<'_>,
+    ) -> OneTimePadPlainSecretMask {
         let decrypted: Vec<_> = self
             .secret_mask
             .iter()
@@ -321,14 +309,7 @@ pub struct CompressedSquashedNoiseOneTimePadFheSecretMask {
 impl CompressedSquashedNoiseOneTimePadFheSecretMask {
     /// Extracts the squashed mask, which is encrypted under the noise squashing compression key.
     pub fn decompress(&self) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
-        let secret_mask = (0..self.secret_mask.len())
-            .map(|idx| {
-                let mut ct = self.secret_mask.unpack(idx)?;
-                // The list does not store degrees, unpack sets the max degree for the modulus
-                ct.set_degree(self.layout.expected_degree());
-                crate::Result::Ok(ct)
-            })
-            .collect::<Result<_, _>>()?;
+        let secret_mask = self.secret_mask.unpack_range(0..self.secret_mask.len())?;
 
         Ok(SquashedNoiseOneTimePadFheSecretMask {
             secret_mask,
@@ -370,12 +351,12 @@ impl ParameterSetConformant for CompressedSquashedNoiseOneTimePadFheSecretMask {
             layout: params_layout,
         } = params;
 
-        let layout_params = KeyStreamLayoutConformanceParams {
+        let layout_conformance_params = KeyStreamLayoutConformanceParams {
             message_modulus: list_params.message_modulus,
             carry_modulus: list_params.carry_modulus,
         };
         layout == params_layout
-            && layout.is_conformant(&layout_params)
+            && layout.is_conformant(&layout_conformance_params)
             && secret_mask.is_conformant(list_params)
     }
 }

@@ -357,18 +357,7 @@ impl SquashNoise for OneTimePadFheSecretMask {
 impl FheDecrypt<OneTimePadPlainSecretMask> for SquashedNoiseOneTimePadFheSecretMask {
     fn decrypt(&self, key: &ClientKey) -> OneTimePadPlainSecretMask {
         let decryption_key = key.private_noise_squashing_decryption_key(self.state);
-        let values: Vec<u128> = self
-            .inner
-            .ciphertexts()
-            .iter()
-            .map(|ct| decryption_key.key.decrypt_squashed_noise_ciphertext(ct))
-            .collect();
-
-        OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(
-            &values,
-            self.inner.layout(),
-        )
-        .expect("The mask ciphertexts do not match the mask layout")
+        self.inner.decrypt_with_key_view(&decryption_key.key)
     }
 }
 
@@ -390,22 +379,6 @@ pub struct CompressedSquashedNoiseOneTimePadFheSecretMask {
 }
 
 impl CompressedSquashedNoiseOneTimePadFheSecretMask {
-    pub fn from_raw_parts(
-        mask: TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMask,
-        tag: Tag,
-    ) -> Self {
-        Self { inner: mask, tag }
-    }
-
-    pub fn into_raw_parts(
-        self,
-    ) -> (
-        TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMask,
-        Tag,
-    ) {
-        (self.inner, self.tag)
-    }
-
     /// Extracts the squashed mask from the compressed one. This does not require any key.
     pub fn decompress(&self) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
         Ok(SquashedNoiseOneTimePadFheSecretMask {
