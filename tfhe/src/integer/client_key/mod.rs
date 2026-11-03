@@ -728,7 +728,11 @@ impl ClientKey {
         let test_vectors: Vec<u64> = (0..lwe_dimension)
             .map(|_| {
                 let v = rng.next_u64();
-                if bits < 64 { v % (1u64 << bits) } else { v }
+                if bits < 64 {
+                    v % (1u64 << bits)
+                } else {
+                    v
+                }
             })
             .collect();
         self.encrypt_radix_with_test_vectors(value, num_blocks, test_vectors)
@@ -748,7 +752,11 @@ impl ClientKey {
         let p = params.message_modulus().0 as u64;
         let lwe_dimension = params.encryption_lwe_dimension().0;
         let bits = num_blocks as u32 * p.ilog2();
-        let clamped = if bits < 64 { slot_scalar % (1u64 << bits) } else { slot_scalar };
+        let clamped = if bits < 64 {
+            slot_scalar % (1u64 << bits)
+        } else {
+            slot_scalar
+        };
         let test_vectors = vec![clamped; lwe_dimension];
         self.encrypt_radix_with_test_vectors(value, num_blocks, test_vectors)
     }
@@ -763,8 +771,7 @@ impl ClientKey {
         use crate::core_crypto::entities::LweCiphertext;
         use crate::shortint::ciphertext::NoiseLevel;
         use crate::shortint::parameters::AtomicPatternKind;
-        use crate::shortint::PBSOrder;
-        use crate::shortint::Ciphertext as ShortintCiphertext;
+        use crate::shortint::{Ciphertext as ShortintCiphertext, PBSOrder};
 
         let params = self.key.parameters();
         let p = params.message_modulus().0 as u64;

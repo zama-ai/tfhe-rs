@@ -135,8 +135,7 @@ unchecked_sub_with_correcting_term(T *output, T const *input_1,
 // Batched-trivial variant: no delta, correcting term z applied to every
 // coefficient so mask slots stay consistent with the body.
 template <typename T>
-__global__ void
-unchecked_sub_with_correcting_term_batched_trivial(
+__global__ void unchecked_sub_with_correcting_term_batched_trivial(
     T *output, T const *input_1, T const *input_2, uint32_t num_entries,
     uint32_t lwe_size, uint32_t message_modulus, uint32_t carry_modulus,
     uint32_t degree) {

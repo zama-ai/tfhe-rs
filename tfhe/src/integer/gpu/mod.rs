@@ -1,7 +1,5 @@
 #[cfg(all(feature = "gpu", feature = "gpu-nofhe-testing-batched-trivial"))]
-compile_error!(
-    "features `gpu` and `gpu-nofhe-testing-batched-trivial` are mutually exclusive"
-);
+compile_error!("features `gpu` and `gpu-nofhe-testing-batched-trivial` are mutually exclusive");
 
 pub mod ciphertext;
 pub mod client_key;

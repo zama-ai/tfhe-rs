@@ -26,7 +26,8 @@
 //   LUT slot = d_lut_indexes[in_block_id]  (null → slot 0 for all)
 //   Combined table index = slot * num_many_lut + lut_func
 //
-// d_lut_values layout: [slot * num_many_lut + func][msg] with outer stride num_values
+// d_lut_values layout: [slot * num_many_lut + func][msg] with outer stride
+// num_values
 //   i.e. d_lut_values[(slot * num_many_lut + func) * num_values + msg]
 //
 // d_lut_indexes is Torus* (uint64_t*); values are small LUT slot IDs, read and
@@ -62,7 +63,8 @@ __global__ void device_trivial_lut_batched(
     lut_index = slot;
   }
 
-  uint32_t idx_in = lwe_indexes_in ? (uint32_t)lwe_indexes_in[in_block_id] : in_block_id;
+  uint32_t idx_in =
+      lwe_indexes_in ? (uint32_t)lwe_indexes_in[in_block_id] : in_block_id;
   uint32_t idx_out =
       lwe_indexes_out ? (uint32_t)lwe_indexes_out[out_block_id] : out_block_id;
 
@@ -99,20 +101,23 @@ __global__ void device_trivial_bivariate_lut_batched(
 
   uint32_t slot =
       (d_lut_indexes != nullptr) ? (uint32_t)d_lut_indexes[block_id] : 0u;
-  uint32_t idx_in = lwe_indexes_in ? (uint32_t)lwe_indexes_in[block_id] : (uint32_t)block_id;
-  uint32_t idx_out = lwe_indexes_out ? (uint32_t)lwe_indexes_out[block_id] : (uint32_t)block_id;
+  uint32_t idx_in =
+      lwe_indexes_in ? (uint32_t)lwe_indexes_in[block_id] : (uint32_t)block_id;
+  uint32_t idx_out = lwe_indexes_out ? (uint32_t)lwe_indexes_out[block_id]
+                                     : (uint32_t)block_id;
 
   Torus x = lwe_in_1[idx_in * lwe_size + coeff_id] % p;
   Torus y = lwe_in_2[idx_in * lwe_size + coeff_id] % p;
-  lwe_out[idx_out * lwe_size + coeff_id] = d_lut_values[slot * p * p + x * p + y];
+  lwe_out[idx_out * lwe_size + coeff_id] =
+      d_lut_values[slot * p * p + x * p + y];
 }
 
 template <typename Torus>
 __host__ void execute_trivial_bivariate_lut_batched(
     CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in_1,
-    CudaRadixCiphertextFFI const *lwe_array_in_2,
-    int_radix_lut<Torus> *lut, uint32_t num_in_blocks) {
+    CudaRadixCiphertextFFI const *lwe_array_in_2, int_radix_lut<Torus> *lut,
+    uint32_t num_in_blocks) {
   cuda_set_device(streams.gpu_index(0));
   auto lwe_dimension = lwe_array_out->lwe_dimension;
   int lwe_size = lwe_dimension + 1;
@@ -125,16 +130,15 @@ __host__ void execute_trivial_bivariate_lut_batched(
   Torus const *lwe_indexes_out =
       lut->using_trivial_lwe_indexes ? nullptr : lut->lwe_indexes_out;
   Torus const *d_lut_indexes = lut->lut_indexes_vec.empty()
-                                    ? nullptr
-                                    : (Torus const *)lut->lut_indexes_vec[0];
+                                   ? nullptr
+                                   : (Torus const *)lut->lut_indexes_vec[0];
 
   device_trivial_bivariate_lut_batched<Torus>
       <<<num_blocks, num_threads, 0, streams.stream(0)>>>(
-          (Torus *)lwe_array_out->ptr,
-          (Torus const *)lwe_array_in_1->ptr,
-          (Torus const *)lwe_array_in_2->ptr,
-          lut->d_lut_values, lwe_indexes_in, lwe_indexes_out, d_lut_indexes,
-          lwe_dimension, lut->lut_num_values, num_in_blocks);
+          (Torus *)lwe_array_out->ptr, (Torus const *)lwe_array_in_1->ptr,
+          (Torus const *)lwe_array_in_2->ptr, lut->d_lut_values, lwe_indexes_in,
+          lwe_indexes_out, d_lut_indexes, lwe_dimension, lut->lut_num_values,
+          num_in_blocks);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -144,13 +148,10 @@ __host__ void execute_trivial_bivariate_lut_batched(
 // a two-pass caller can process a slice of entries (e.g. carries only, then
 // messages only) without allocating additional index buffers.
 template <typename Torus>
-__host__ void execute_trivial_lut_batched(CudaStreams streams,
-                                          CudaRadixCiphertextFFI *lwe_array_out,
-                                          CudaRadixCiphertextFFI const *lwe_array_in,
-                                          int_radix_lut<Torus> *lut,
-                                          uint32_t num_in_blocks,
-                                          uint32_t num_many_lut,
-                                          uint32_t block_offset = 0) {
+__host__ void execute_trivial_lut_batched(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in, int_radix_lut<Torus> *lut,
+    uint32_t num_in_blocks, uint32_t num_many_lut, uint32_t block_offset = 0) {
   cuda_set_device(streams.gpu_index(0));
   auto lwe_dimension = lwe_array_out->lwe_dimension;
   int lwe_size = lwe_dimension + 1;
@@ -169,15 +170,18 @@ __host__ void execute_trivial_lut_batched(CudaStreams streams,
   // Per-block LUT slot indexes: lut_indexes_vec[0] is a device array of
   // uint64_t values (small LUT slot IDs).  The kernel reads them as Torus
   // (= uint64_t) and casts to uint32_t, so the stride is correct.
-  Torus const *d_lut_indexes_base = lut->lut_indexes_vec.empty()
-                                        ? nullptr
-                                        : (Torus const *)lut->lut_indexes_vec[0];
+  Torus const *d_lut_indexes_base =
+      lut->lut_indexes_vec.empty() ? nullptr
+                                   : (Torus const *)lut->lut_indexes_vec[0];
 
   // Apply block_offset to index arrays so the caller can process a contiguous
   // slice of the entry list (e.g. for two-pass in-place carry+message split).
-  Torus const *lwe_indexes_in = lwe_indexes_in_base ? lwe_indexes_in_base + block_offset : nullptr;
-  Torus const *lwe_indexes_out = lwe_indexes_out_base ? lwe_indexes_out_base + block_offset : nullptr;
-  Torus const *d_lut_indexes = d_lut_indexes_base ? d_lut_indexes_base + block_offset : nullptr;
+  Torus const *lwe_indexes_in =
+      lwe_indexes_in_base ? lwe_indexes_in_base + block_offset : nullptr;
+  Torus const *lwe_indexes_out =
+      lwe_indexes_out_base ? lwe_indexes_out_base + block_offset : nullptr;
+  Torus const *d_lut_indexes =
+      d_lut_indexes_base ? d_lut_indexes_base + block_offset : nullptr;
 
   device_trivial_lut_batched<Torus>
       <<<num_blocks, num_threads, 0, streams.stream(0)>>>(

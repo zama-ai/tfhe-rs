@@ -66,6 +66,11 @@ mod aes256;
 mod kreyvium;
 pub(crate) mod kv_store;
 pub(crate) use kreyvium::CudaKreyviumState;
+#[cfg(all(
+    test,
+    any(feature = "gpu", feature = "gpu-nofhe-testing-batched-trivial")
+))]
+mod tests_batched_trivial;
 #[cfg(all(test, feature = "gpu"))]
 mod tests_long_run;
 #[cfg(all(test, feature = "gpu"))]
@@ -74,8 +79,6 @@ mod tests_noise_distribution;
 mod tests_signed;
 #[cfg(all(test, feature = "gpu"))]
 pub(crate) mod tests_unsigned;
-#[cfg(all(test, any(feature = "gpu", feature = "gpu-nofhe-testing-batched-trivial")))]
-mod tests_batched_trivial;
 mod trivium;
 
 impl CudaServerKey {

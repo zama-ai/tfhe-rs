@@ -534,8 +534,9 @@ struct int_radix_lut_custom_input_output {
   bool gpu_memory_allocated;
 
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
-  // Compact GPU lookup table extracted at scratch time: [num_many_lut * num_values].
-  // nullptr in normal mode; set by scratch_cuda_apply_*_lut in batched-trivial mode.
+  // Compact GPU lookup table extracted at scratch time: [num_many_lut *
+  // num_values]. nullptr in normal mode; set by scratch_cuda_apply_*_lut in
+  // batched-trivial mode.
   OutputTorus *d_lut_values = nullptr;
   uint32_t lut_num_values = 0;
 #endif
@@ -1112,21 +1113,23 @@ public:
     broadcast_lut(streams);
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
     // Populate compact integer lookup table for batched-trivial mode.
-    // Layout: d_lut_values[slot * num_values + msg] for univariate (num_many_lut=1).
-    // For many-lut the layout is d_lut_values[(slot*num_many_lut+func)*num_values+msg];
+    // Layout: d_lut_values[slot * num_values + msg] for univariate
+    // (num_many_lut=1). For many-lut the layout is
+    // d_lut_values[(slot*num_many_lut+func)*num_values+msg];
     // generate_and_broadcast_many_lut handles that separately.
     //
     // NOTE: allocation is one-time (d_lut_values == nullptr guard), but the
     // values are always re-uploaded.  Some LUT objects (e.g. is_max_value_lut
-    // inside are_all_comparisons_block_true) are reused with different functions
-    // across iterations, so the table must reflect the current call's functions.
+    // inside are_all_comparisons_block_true) are reused with different
+    // functions across iterations, so the table must reflect the current call's
+    // functions.
     if (gpu_memory_allocated) {
       uint32_t num_values = params.message_modulus * params.carry_modulus;
       size_t table_size = (size_t)num_luts * num_values;
       if (d_lut_values == nullptr) {
-        d_lut_values = static_cast<OutputTorus *>(cuda_malloc_async(
-            table_size * sizeof(OutputTorus), streams.stream(0),
-            streams.gpu_index(0)));
+        d_lut_values = static_cast<OutputTorus *>(
+            cuda_malloc_async(table_size * sizeof(OutputTorus),
+                              streams.stream(0), streams.gpu_index(0)));
         lut_num_values = num_values;
       } else {
         GPU_ASSERT(lut_num_values == num_values,
@@ -1225,13 +1228,14 @@ public:
         }
       }
       if (d_lut_values == nullptr) {
-        d_lut_values = static_cast<OutputTorus *>(cuda_malloc_async(
-            table_size * sizeof(OutputTorus), streams.stream(0),
-            streams.gpu_index(0)));
+        d_lut_values = static_cast<OutputTorus *>(
+            cuda_malloc_async(table_size * sizeof(OutputTorus),
+                              streams.stream(0), streams.gpu_index(0)));
         lut_num_values = num_values;
       } else {
-        GPU_ASSERT(lut_num_values == num_values,
-                   "batched-trivial: lut_num_values mismatch on many-LUT reuse");
+        GPU_ASSERT(
+            lut_num_values == num_values,
+            "batched-trivial: lut_num_values mismatch on many-LUT reuse");
       }
       cuda_memcpy_async_to_gpu(d_lut_values, h_values.data(),
                                table_size * sizeof(OutputTorus),
@@ -1299,10 +1303,12 @@ public:
             h_values[(size_t)slot * p * p + x * p + y] =
                 f[k]((OutputTorus)x, (OutputTorus)y);
       }
-      d_lut_values = static_cast<OutputTorus *>(cuda_malloc_async(
-          table_size * sizeof(OutputTorus), streams.stream(0), streams.gpu_index(0)));
+      d_lut_values = static_cast<OutputTorus *>(
+          cuda_malloc_async(table_size * sizeof(OutputTorus), streams.stream(0),
+                            streams.gpu_index(0)));
       cuda_memcpy_async_to_gpu(d_lut_values, h_values.data(),
-          table_size * sizeof(OutputTorus), streams.stream(0), streams.gpu_index(0));
+                               table_size * sizeof(OutputTorus),
+                               streams.stream(0), streams.gpu_index(0));
       cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
       lut_num_values = p;
     }

@@ -15,8 +15,10 @@ fn batched_trivial_num_iterations() -> usize {
 
 #[test]
 fn test_gpu_integer_add_batched_trivial() {
-    let (cks, _) = KEY_CACHE
-        .get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
 
     let streams = CudaStreams::new_multi_gpu();
     let sks = CudaServerKey::new(&cks, &streams);
@@ -47,8 +49,105 @@ fn test_gpu_integer_add_batched_trivial() {
             .map(|(&a, &b)| a.wrapping_add(b) % modulus)
             .collect();
 
-        cks.decrypt_and_check_radix_batched_trivial(&result, expected_body, &expected_slots,
-            &[("a", clear_0), ("b", clear_1)], &[("a", &tv0), ("b", &tv1)]);
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("a", clear_0), ("b", clear_1)],
+            &[("a", &tv0), ("b", &tv1)],
+        );
+    }
+}
+
+#[test]
+fn test_gpu_integer_sub_batched_trivial() {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let expected_body = clear_0.wrapping_sub(clear_1) % modulus;
+
+        let (ct0, tv0) = cks.encrypt_radix_batched_trivial(clear_0, num_blocks, &mut rng);
+        let (ct1, tv1) = cks.encrypt_radix_batched_trivial(clear_1, num_blocks, &mut rng);
+
+        let d_ct0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct0, &streams);
+        let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+
+        let d_result = sks.sub(&d_ct0, &d_ct1, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+
+        let expected_slots: Vec<u64> = tv0
+            .iter()
+            .zip(tv1.iter())
+            .map(|(&a, &b)| a.wrapping_sub(b) % modulus)
+            .collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("a", clear_0), ("b", clear_1)],
+            &[("a", &tv0), ("b", &tv1)],
+        );
+    }
+}
+
+#[test]
+fn test_gpu_integer_mul_batched_trivial() {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let expected_body = clear_0.wrapping_mul(clear_1) % modulus;
+
+        let (ct0, tv0) = cks.encrypt_radix_batched_trivial(clear_0, num_blocks, &mut rng);
+        let (ct1, tv1) = cks.encrypt_radix_batched_trivial(clear_1, num_blocks, &mut rng);
+
+        let d_ct0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct0, &streams);
+        let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+
+        let d_result = sks.mul(&d_ct0, &d_ct1, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+
+        let expected_slots: Vec<u64> = tv0
+            .iter()
+            .zip(tv1.iter())
+            .map(|(&a, &b)| a.wrapping_mul(b) % modulus)
+            .collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("a", clear_0), ("b", clear_1)],
+            &[("a", &tv0), ("b", &tv1)],
+        );
     }
 }
 
@@ -83,16 +182,30 @@ fn test_gpu_integer_goldschmidt_division_batched_trivial() {
         let q = d_q.to_radix_ciphertext(&streams);
         let r = d_r.to_radix_ciphertext(&streams);
 
-        let expected_q_slots: Vec<u64> = tv_n.iter().zip(tv_d.iter())
+        let expected_q_slots: Vec<u64> = tv_n
+            .iter()
+            .zip(tv_d.iter())
             .map(|(&n_v, &d_v)| div_rem_expected(n_v, d_v).0)
             .collect();
-        let expected_r_slots: Vec<u64> = tv_n.iter().zip(tv_d.iter())
+        let expected_r_slots: Vec<u64> = tv_n
+            .iter()
+            .zip(tv_d.iter())
             .map(|(&n_v, &d_v)| div_rem_expected(n_v, d_v).1)
             .collect();
-        cpu_cks.decrypt_and_check_radix_batched_trivial(&q, u64::MAX, &expected_q_slots,
-            &[("n", n), ("d", 0)], &[("n", &tv_n), ("d", &tv_d)]);
-        cpu_cks.decrypt_and_check_radix_batched_trivial(&r, n, &expected_r_slots,
-            &[("n", n), ("d", 0)], &[("n", &tv_n), ("d", &tv_d)]);
+        cpu_cks.decrypt_and_check_radix_batched_trivial(
+            &q,
+            u64::MAX,
+            &expected_q_slots,
+            &[("n", n), ("d", 0)],
+            &[("n", &tv_n), ("d", &tv_d)],
+        );
+        cpu_cks.decrypt_and_check_radix_batched_trivial(
+            &r,
+            n,
+            &expected_r_slots,
+            &[("n", n), ("d", 0)],
+            &[("n", &tv_n), ("d", &tv_d)],
+        );
     }
 
     for iter in 0..batched_trivial_num_iterations() {
@@ -108,24 +221,40 @@ fn test_gpu_integer_goldschmidt_division_batched_trivial() {
         let q = d_q.to_radix_ciphertext(&streams);
         let r = d_r.to_radix_ciphertext(&streams);
 
-        let expected_q_slots: Vec<u64> = tv_n.iter().zip(tv_d.iter())
+        let expected_q_slots: Vec<u64> = tv_n
+            .iter()
+            .zip(tv_d.iter())
             .map(|(&n_v, &d_v)| div_rem_expected(n_v, d_v).0)
             .collect();
-        let expected_r_slots: Vec<u64> = tv_n.iter().zip(tv_d.iter())
+        let expected_r_slots: Vec<u64> = tv_n
+            .iter()
+            .zip(tv_d.iter())
             .map(|(&n_v, &d_v)| div_rem_expected(n_v, d_v).1)
             .collect();
 
-        cpu_cks.decrypt_and_check_radix_batched_trivial(&q, n / d, &expected_q_slots,
-            &[("n", n), ("d", d)], &[("n", &tv_n), ("d", &tv_d)]);
-        cpu_cks.decrypt_and_check_radix_batched_trivial(&r, n % d, &expected_r_slots,
-            &[("n", n), ("d", d)], &[("n", &tv_n), ("d", &tv_d)]);
+        cpu_cks.decrypt_and_check_radix_batched_trivial(
+            &q,
+            n / d,
+            &expected_q_slots,
+            &[("n", n), ("d", d)],
+            &[("n", &tv_n), ("d", &tv_d)],
+        );
+        cpu_cks.decrypt_and_check_radix_batched_trivial(
+            &r,
+            n % d,
+            &expected_r_slots,
+            &[("n", n), ("d", d)],
+            &[("n", &tv_n), ("d", &tv_d)],
+        );
     }
 }
 
 #[test]
 fn test_gpu_integer_div_rem_batched_trivial() {
-    let (cks, _) = KEY_CACHE
-        .get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
 
     let streams = CudaStreams::new_multi_gpu();
     let sks = CudaServerKey::new(&cks, &streams);
@@ -143,8 +272,7 @@ fn test_gpu_integer_div_rem_batched_trivial() {
         let clear_num = rng.gen::<u64>() % modulus;
         let clear_denom = 0u64;
 
-        let (ct_num, tv_num) =
-            cks.encrypt_radix_batched_trivial(clear_num, num_blocks, &mut rng);
+        let (ct_num, tv_num) = cks.encrypt_radix_batched_trivial(clear_num, num_blocks, &mut rng);
         let (ct_denom, tv_denom) =
             cks.encrypt_radix_batched_trivial_scalar(clear_denom, num_blocks, 0u64);
 
@@ -157,12 +285,22 @@ fn test_gpu_integer_div_rem_batched_trivial() {
 
         let expected_q_body = modulus - 1;
         let expected_q_slots: Vec<u64> = tv_num.iter().map(|_| modulus - 1).collect();
-        cks.decrypt_and_check_radix_batched_trivial(&q, expected_q_body, &expected_q_slots,
-            &[("num", clear_num), ("denom", clear_denom)], &[("num", &tv_num), ("denom", &tv_denom)]);
+        cks.decrypt_and_check_radix_batched_trivial(
+            &q,
+            expected_q_body,
+            &expected_q_slots,
+            &[("num", clear_num), ("denom", clear_denom)],
+            &[("num", &tv_num), ("denom", &tv_denom)],
+        );
 
         let expected_r_slots: Vec<u64> = tv_num.to_vec();
-        cks.decrypt_and_check_radix_batched_trivial(&r, clear_num, &expected_r_slots,
-            &[("num", clear_num), ("denom", clear_denom)], &[("num", &tv_num), ("denom", &tv_denom)]);
+        cks.decrypt_and_check_radix_batched_trivial(
+            &r,
+            clear_num,
+            &expected_r_slots,
+            &[("num", clear_num), ("denom", clear_denom)],
+            &[("num", &tv_num), ("denom", &tv_denom)],
+        );
     }
 
     for _ in 0..batched_trivial_num_iterations() {
@@ -172,8 +310,7 @@ fn test_gpu_integer_div_rem_batched_trivial() {
         let expected_q_body = clear_num / clear_denom;
         let expected_r_body = clear_num % clear_denom;
 
-        let (ct_num, tv_num) =
-            cks.encrypt_radix_batched_trivial(clear_num, num_blocks, &mut rng);
+        let (ct_num, tv_num) = cks.encrypt_radix_batched_trivial(clear_num, num_blocks, &mut rng);
         let (ct_denom, tv_denom) =
             cks.encrypt_radix_batched_trivial(clear_denom, num_blocks, &mut rng);
 
@@ -195,9 +332,19 @@ fn test_gpu_integer_div_rem_batched_trivial() {
             .map(|(&n, &d)| if d == 0 { n } else { n % d })
             .collect();
 
-        cks.decrypt_and_check_radix_batched_trivial(&q, expected_q_body, &expected_q_slots,
-            &[("num", clear_num), ("denom", clear_denom)], &[("num", &tv_num), ("denom", &tv_denom)]);
-        cks.decrypt_and_check_radix_batched_trivial(&r, expected_r_body, &expected_r_slots,
-            &[("num", clear_num), ("denom", clear_denom)], &[("num", &tv_num), ("denom", &tv_denom)]);
+        cks.decrypt_and_check_radix_batched_trivial(
+            &q,
+            expected_q_body,
+            &expected_q_slots,
+            &[("num", clear_num), ("denom", clear_denom)],
+            &[("num", &tv_num), ("denom", &tv_denom)],
+        );
+        cks.decrypt_and_check_radix_batched_trivial(
+            &r,
+            expected_r_body,
+            &expected_r_slots,
+            &[("num", clear_num), ("denom", clear_denom)],
+            &[("num", &tv_num), ("denom", &tv_denom)],
+        );
     }
 }

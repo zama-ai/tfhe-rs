@@ -52,11 +52,10 @@ __global__ void device_negation(Torus *output, Torus const *input,
 // Batched-trivial variant: no delta, z applied to all lwe_size positions.
 // Every coefficient (mask + body) receives the same correcting term.
 template <typename Torus>
-__global__ void device_negation_batched_trivial(Torus *output,
-                                                Torus const *input,
-                                                int32_t num_blocks,
-                                                uint64_t lwe_dimension,
-                                                uint64_t message_modulus) {
+__global__ void
+device_negation_batched_trivial(Torus *output, Torus const *input,
+                                int32_t num_blocks, uint64_t lwe_dimension,
+                                uint64_t message_modulus) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < lwe_dimension + 1) {
     uint64_t z = (2 * message_modulus - 1) / message_modulus;

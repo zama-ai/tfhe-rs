@@ -397,14 +397,16 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     // Fix: carry pass first (writes to different blocks), then message pass.
     uint32_t total_carries = total_ciphertexts - total_messages;
     if (total_carries > 0) {
-      execute_trivial_lut_batched<Torus>(streams, current_blocks, current_blocks,
-                                        luts_message_carry, total_carries,
-                                        /*num_many_lut=*/1, total_messages);
+      execute_trivial_lut_batched<Torus>(streams, current_blocks,
+                                         current_blocks, luts_message_carry,
+                                         total_carries,
+                                         /*num_many_lut=*/1, total_messages);
     }
     if (total_messages > 0) {
-      execute_trivial_lut_batched<Torus>(streams, current_blocks, current_blocks,
-                                        luts_message_carry, total_messages,
-                                        /*num_many_lut=*/1, 0);
+      execute_trivial_lut_batched<Torus>(streams, current_blocks,
+                                         current_blocks, luts_message_carry,
+                                         total_messages,
+                                         /*num_many_lut=*/1, 0);
     }
 #else
     // broadcast_lut updates last_broadcast_streams (required by the assertion
@@ -412,8 +414,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     // so no LUT data is re-copied.
     luts_message_carry->broadcast_lut(active_streams, false);
     integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, current_blocks, current_blocks, bsks, ksks,
-        luts_message_carry, total_ciphertexts, true);
+        streams, current_blocks, current_blocks, bsks, ksks, luts_message_carry,
+        total_ciphertexts, true);
 #endif
     cuda_set_device(streams.gpu_index(0));
     std::swap(d_columns, d_new_columns);

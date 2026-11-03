@@ -27,11 +27,9 @@ device_scalar_addition_inplace(Torus *lwe_array, Torus const *scalar_input,
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
 // Batched-trivial variant: no delta, scalar added to all D+1 positions.
 template <typename Torus>
-__global__ void
-device_scalar_addition_inplace_batched_trivial(Torus *lwe_array,
-                                               Torus const *scalar_input,
-                                               int32_t num_blocks,
-                                               uint32_t lwe_dimension) {
+__global__ void device_scalar_addition_inplace_batched_trivial(
+    Torus *lwe_array, Torus const *scalar_input, int32_t num_blocks,
+    uint32_t lwe_dimension) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
     for (uint32_t j = 0; j <= lwe_dimension; j++) {
@@ -65,9 +63,9 @@ __host__ void host_scalar_addition_inplace(
 
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
   device_scalar_addition_inplace_batched_trivial<Torus>
-      <<<grid, thds, 0, streams.stream(0)>>>(
-          (Torus *)lwe_array->ptr, scalar_input, num_scalars,
-          lwe_array->lwe_dimension);
+      <<<grid, thds, 0, streams.stream(0)>>>((Torus *)lwe_array->ptr,
+                                             scalar_input, num_scalars,
+                                             lwe_array->lwe_dimension);
 #else
   device_scalar_addition_inplace<Torus><<<grid, thds, 0, streams.stream(0)>>>(
       (Torus *)lwe_array->ptr, scalar_input, num_scalars,
@@ -94,10 +92,8 @@ device_add_scalar_one_inplace(Torus *lwe_array, int32_t num_blocks,
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
 // Batched-trivial variant: no delta, 1 added to all D+1 positions.
 template <typename Torus>
-__global__ void
-device_add_scalar_one_inplace_batched_trivial(Torus *lwe_array,
-                                              int32_t num_blocks,
-                                              uint32_t lwe_dimension) {
+__global__ void device_add_scalar_one_inplace_batched_trivial(
+    Torus *lwe_array, int32_t num_blocks, uint32_t lwe_dimension) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
     for (uint32_t j = 0; j <= lwe_dimension; j++) {
@@ -128,9 +124,9 @@ __host__ void host_add_scalar_one_inplace(CudaStreams streams,
 
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
   device_add_scalar_one_inplace_batched_trivial<Torus>
-      <<<grid, thds, 0, streams.stream(0)>>>(
-          (Torus *)lwe_array->ptr, lwe_array->num_radix_blocks,
-          lwe_array->lwe_dimension);
+      <<<grid, thds, 0, streams.stream(0)>>>((Torus *)lwe_array->ptr,
+                                             lwe_array->num_radix_blocks,
+                                             lwe_array->lwe_dimension);
 #else
   device_add_scalar_one_inplace<Torus><<<grid, thds, 0, streams.stream(0)>>>(
       (Torus *)lwe_array->ptr, lwe_array->num_radix_blocks,
@@ -160,11 +156,9 @@ device_scalar_subtraction_inplace(Torus *lwe_array, Torus *scalar_input,
 #ifdef TFHE_GPU_BATCHED_TRIVIAL
 // Batched-trivial variant: no delta, scalar subtracted from all D+1 positions.
 template <typename Torus>
-__global__ void
-device_scalar_subtraction_inplace_batched_trivial(Torus *lwe_array,
-                                                  Torus *scalar_input,
-                                                  int32_t num_blocks,
-                                                  uint32_t lwe_dimension) {
+__global__ void device_scalar_subtraction_inplace_batched_trivial(
+    Torus *lwe_array, Torus *scalar_input, int32_t num_blocks,
+    uint32_t lwe_dimension) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
     Torus scalar = scalar_input[tid];
