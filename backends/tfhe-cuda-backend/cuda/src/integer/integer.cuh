@@ -1916,87 +1916,6 @@ void host_compute_shifted_blocks_and_borrow_states(
       2 * num_radix_blocks);
 }
 
-/*
- * input_blocks: input radix ciphertext propagation will happen inplace
- * acc_message_carry: list of two lut s, [(message_acc), (carry_acc)]
- * lut_indexes_message_carry: lut_indexes_vec for message and carry, should
- * always be  {0, 1} small_lwe_vector: output of keyswitch should have size = 2
- * * (lwe_dimension + 1) * sizeof(Torus) big_lwe_vector: output of pbs should
- * have size = 2 * (glwe_dimension * polynomial_size + 1) * sizeof(Torus)
- */
-template <typename Torus, typename KSTorus>
-void host_full_propagate_inplace(CudaStreams streams,
-                                 CudaRadixCiphertextFFI *input_blocks,
-                                 int_fullprop_buffer<Torus> *mem_ptr,
-                                 KSTorus *const *ksks, void *const *bsks,
-                                 uint32_t num_blocks) {
-  auto params = mem_ptr->lut->params;
-
-  // In the case of extracting a single LWE this parameters are dummy
-  uint32_t num_many_lut = 1;
-  uint32_t lut_stride = 0;
-  for (int i = 0; i < num_blocks; i++) {
-    CudaRadixCiphertextFFI cur_input_block;
-    as_radix_ciphertext_slice<Torus>(&cur_input_block, input_blocks, i, i + 1);
-
-    /// Since the keyswitch is done on one input only, use only 1 GPU
-    execute_keyswitch_async<Torus>(
-        streams.get_ith(0), (Torus *)(mem_ptr->tmp_small_lwe_vector->ptr),
-        mem_ptr->lut->lwe_trivial_indexes, (Torus *)cur_input_block.ptr,
-        mem_ptr->lut->lwe_trivial_indexes, ksks, params.big_lwe_dimension,
-        params.small_lwe_dimension, params.ks_base_log, params.ks_level, 1,
-        mem_ptr->lut->using_trivial_lwe_indexes);
-
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_small_lwe_vector,
-        1, 2, mem_ptr->tmp_small_lwe_vector, 0, 1);
-
-    execute_pbs_async<Torus, Torus>(
-        streams.get_ith(0), (Torus *)mem_ptr->tmp_big_lwe_vector->ptr,
-        mem_ptr->lut->lwe_trivial_indexes, mem_ptr->lut->lut_vec,
-        mem_ptr->lut->lut_indexes_vec,
-        (Torus *)mem_ptr->tmp_small_lwe_vector->ptr,
-        mem_ptr->lut->lwe_trivial_indexes, bsks, mem_ptr->lut->buffer,
-        params.glwe_dimension, params.small_lwe_dimension,
-        params.polynomial_size, params.pbs_base_log, params.pbs_level, 2,
-        params.pbs_params(), num_many_lut, lut_stride);
-
-    copy_radix_ciphertext_slice_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), &cur_input_block, 0, 1,
-        mem_ptr->tmp_big_lwe_vector, 0, 1);
-    auto degrees_index = mem_ptr->lut->h_lut_indexes[0];
-    input_blocks->degrees[i] = mem_ptr->lut->degrees[degrees_index];
-    input_blocks->noise_levels[i] = NoiseLevel::NOMINAL;
-    CHECK_NOISE_LEVEL(input_blocks->noise_levels[i], params.message_modulus,
-                      params.carry_modulus);
-
-    if (i < num_blocks - 1) {
-      CudaRadixCiphertextFFI next_input_block;
-      as_radix_ciphertext_slice<Torus>(&next_input_block, input_blocks, i + 1,
-                                       i + 2);
-      CudaRadixCiphertextFFI second_input;
-      as_radix_ciphertext_slice<Torus>(&second_input,
-                                       mem_ptr->tmp_big_lwe_vector, 1, 2);
-
-      host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
-                           &next_input_block, &next_input_block, &second_input,
-                           1, params.message_modulus, params.carry_modulus);
-    }
-  }
-}
-
-template <typename Torus>
-uint64_t scratch_cuda_full_propagation(CudaStreams streams,
-                                       int_fullprop_buffer<Torus> **mem_ptr,
-                                       int_radix_params params,
-                                       bool allocate_gpu_memory) {
-
-  uint64_t size_tracker = 0;
-  *mem_ptr = new int_fullprop_buffer<Torus>(streams, params,
-                                            allocate_gpu_memory, size_tracker);
-  return size_tracker;
-}
-
 // (lwe_dimension+1) threads
 // (num_radix_blocks / 2) thread blocks
 template <typename Torus>
@@ -2599,6 +2518,171 @@ void host_add_and_propagate_single_carry(
         mem->lut_message_extract, num_radix_blocks);
   }
   POP_RANGE()
+}
+
+/// @brief Extracts the carries of blocks so that each block ends up holding
+/// at most a message plus the carry of the block below it: block 0 becomes its
+/// message, and block i becomes message_i + carry_{i-1}. The carry of the last
+/// block is dropped and never computed.
+/// @tparam Torus Integer type of the ciphertexts.
+/// @tparam KSTorus Integer type of the keyswitch keys.
+/// @param streams Streams the computation runs on.
+/// @param blocks Radix ciphertext updated in place, at least 2 blocks.
+/// @param mem_ptr Full propagation buffer holding the message / carry LUTs and
+/// the temporary blocks.
+/// @param ksks Keyswitch keys, one per GPU.
+/// @param bsks Bootstrapping keys, one per GPU.
+template <typename Torus, typename KSTorus>
+void host_full_propagate_extract_carries(CudaStreams streams,
+                                         CudaRadixCiphertextFFI *blocks,
+                                         int_fullprop_buffer<Torus> *mem_ptr,
+                                         KSTorus *const *ksks,
+                                         void *const *bsks) {
+  auto params = mem_ptr->params;
+  auto num_blocks = blocks->num_radix_blocks;
+  auto tmp = mem_ptr->tmp_message_carry;
+  PANIC_IF_FALSE(num_blocks >= 2,
+                 "Cuda error: carry extraction needs at least 2 blocks");
+
+  copy_radix_ciphertext_slice_async<Torus>(streams.stream(0),
+                                           streams.gpu_index(0), tmp, 0,
+                                           num_blocks, blocks, 0, num_blocks);
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), tmp, num_blocks,
+      2 * num_blocks - 1, blocks, 0, num_blocks - 1);
+  integer_radix_apply_univariate_lookup_table<Torus>(
+      streams, tmp, tmp, bsks, ksks, mem_ptr->lut_message_carry,
+      2 * num_blocks - 1);
+
+  copy_radix_ciphertext_slice_async<Torus>(
+      streams.stream(0), streams.gpu_index(0), blocks, 0, 1, tmp, 0, 1);
+  CudaRadixCiphertextFFI blocks_except_first, messages_except_first,
+      carries_except_last;
+  as_radix_ciphertext_slice<Torus>(&blocks_except_first, blocks, 1, num_blocks);
+  as_radix_ciphertext_slice<Torus>(&messages_except_first, tmp, 1, num_blocks);
+  as_radix_ciphertext_slice<Torus>(&carries_except_last, tmp, num_blocks,
+                                   2 * num_blocks - 1);
+  host_addition<Torus>(streams.stream(0), streams.gpu_index(0),
+                       &blocks_except_first, &messages_except_first,
+                       &carries_except_last, num_blocks - 1,
+                       params.message_modulus, params.carry_modulus);
+}
+
+/// @brief Propagates the carries of input_blocks in place and cleans their
+/// noise, so that every block ends with an empty carry and a nominal noise.
+/// Follows the following algorithm:
+///  - if no block has a carry, only a message extraction on all blocks, and
+///    only if some block has a noise above nominal
+///  - with at least 4 bits per block, a parallel single carry propagation,
+///    preceded by a carry extraction if some block is too big for it
+///  - otherwise, a carry extraction then a sequential propagation, one block
+///    after the other
+/// @tparam Torus Integer type of the ciphertexts.
+/// @tparam KSTorus Integer type of the keyswitch keys.
+/// @param streams Streams the computation runs on.
+/// @param input_blocks Radix ciphertext propagated in place. It must have as
+/// many blocks as mem_ptr was created for.
+/// @param mem_ptr Full propagation buffer created for the input's block count.
+/// @param ksks Keyswitch keys, one per GPU.
+/// @param bsks Bootstrapping keys, one per GPU.
+template <typename Torus, typename KSTorus>
+void host_full_propagate_inplace(CudaStreams streams,
+                                 CudaRadixCiphertextFFI *input_blocks,
+                                 int_fullprop_buffer<Torus> *mem_ptr,
+                                 KSTorus *const *ksks, void *const *bsks) {
+
+  auto params = mem_ptr->params;
+  auto message_modulus = params.message_modulus;
+  auto num_blocks = mem_ptr->num_radix_blocks;
+  PANIC_IF_FALSE(num_blocks == input_blocks->num_radix_blocks,
+                 "Cuda error: full propagation memory was created for %u "
+                 "blocks, not %u",
+                 num_blocks, input_blocks->num_radix_blocks);
+
+  CudaRadixCiphertextFFI blocks;
+  as_radix_ciphertext_slice<Torus>(&blocks, input_blocks, 0, num_blocks);
+
+  uint64_t max_degree = 0;
+  bool has_noisy_block = false;
+  for (uint32_t i = 0; i < num_blocks; i++) {
+    max_degree = std::max(max_degree, blocks.degrees[i]);
+    has_noisy_block |= blocks.noise_levels[i] > NoiseLevel::NOMINAL;
+  }
+
+  // Without carries, or with a single block whose carry would be dropped, a
+  // message extraction is enough. The first n LUT indexes are message ones.
+  bool has_carries = max_degree >= message_modulus;
+  if (!has_carries || num_blocks == 1) {
+    if (has_carries || has_noisy_block)
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, &blocks, &blocks, bsks, ksks, mem_ptr->lut_message_carry,
+          num_blocks);
+    return;
+  }
+
+  if (mem_ptr->use_single_carry_propagation) {
+    // The CPU extracts from degree 2 * (message_modulus - 1), which the single
+    // carry propagation still supports, e.g. right after an unchecked add.
+    if (max_degree >= mem_ptr->single_carry_degree_limit)
+      host_full_propagate_extract_carries<Torus>(streams, &blocks, mem_ptr,
+                                                 ksks, bsks);
+    for (uint32_t i = 0; i < num_blocks; i++)
+      PANIC_IF_FALSE(blocks.degrees[i] < mem_ptr->single_carry_degree_limit,
+                     "Cuda error: block %u has degree %lu, too high for the "
+                     "single carry propagation",
+                     i, (unsigned long)blocks.degrees[i]);
+    host_propagate_single_carry<Torus>(streams, &blocks, nullptr, nullptr,
+                                       mem_ptr->sc_prop_mem, bsks, ksks,
+                                       outputFlag::FLAG_NONE, 0);
+    return;
+  }
+
+  // Unlike the CPU, the extraction is always done first: it costs the same
+  // number of PBS rounds, as the sequential propagation then starts one block
+  // later, and it guarantees each block can receive a carry without
+  // overflowing its degree or noise.
+  host_full_propagate_extract_carries<Torus>(streams, &blocks, mem_ptr, ksks,
+                                             bsks);
+  auto tmp = mem_ptr->tmp_message_carry;
+  CudaRadixCiphertextFFI carry;
+  as_radix_ciphertext_slice<Torus>(&carry, tmp, 1, 2);
+  for (uint32_t i = 1; i < num_blocks; i++) {
+    // The carry of the last block would be dropped: only its message is
+    // computed
+    bool is_last_block = i + 1 == num_blocks;
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), tmp, 0, 1, &blocks, i, i + 1);
+    if (!is_last_block)
+      copy_radix_ciphertext_slice_async<Torus>(streams.stream(0),
+                                               streams.gpu_index(0), tmp, 1, 2,
+                                               &blocks, i, i + 1);
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams, tmp, tmp, bsks, ksks, mem_ptr->lut_sequential,
+        is_last_block ? 1 : 2);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), &blocks, i, i + 1, tmp, 0, 1);
+
+    if (!is_last_block) {
+      CudaRadixCiphertextFFI next_block;
+      as_radix_ciphertext_slice<Torus>(&next_block, &blocks, i + 1, i + 2);
+      host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &next_block,
+                           &next_block, &carry, 1, params.message_modulus,
+                           params.carry_modulus);
+    }
+  }
+}
+
+template <typename Torus>
+uint64_t scratch_cuda_full_propagation(CudaStreams streams,
+                                       int_fullprop_buffer<Torus> **mem_ptr,
+                                       int_radix_params params,
+                                       uint32_t num_radix_blocks,
+                                       bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_fullprop_buffer<Torus>(streams, params, num_radix_blocks,
+                                            allocate_gpu_memory, size_tracker);
+  return size_tracker;
 }
 
 /** @brief Subtracts the first num_radix_blocks blocks of input_2 (rhs) from

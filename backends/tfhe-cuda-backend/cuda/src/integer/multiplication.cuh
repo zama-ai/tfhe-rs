@@ -343,6 +343,18 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     return;
   }
 
+  // Without the final reduction, the output metadata is computed from the
+  // terms one, before the accumulation below overwrites it
+  std::vector<uint64_t> out_degrees, out_noise_levels;
+  if (!mem_ptr->reduce_degrees_for_single_carry_propagation) {
+    out_degrees.resize(num_radix_blocks);
+    out_noise_levels.resize(num_radix_blocks);
+    calculate_final_metadata_without_reduction(
+        out_degrees.data(), out_noise_levels.data(), terms->degrees,
+        terms->noise_levels, num_radix_blocks, num_radix_in_vec, chunk_size,
+        mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
+  }
+
   if (current_blocks != terms) {
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        current_blocks, terms);
@@ -480,6 +492,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
                          current_blocks, &current_blocks_slice,
                          num_radix_blocks, mem_ptr->params.message_modulus,
                          mem_ptr->params.carry_modulus);
+  } else {
+    std::copy(out_degrees.begin(), out_degrees.end(), radix_lwe_out->degrees);
+    std::copy(out_noise_levels.begin(), out_noise_levels.end(),
+              radix_lwe_out->noise_levels);
   }
 }
 
