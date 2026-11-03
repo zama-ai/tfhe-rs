@@ -354,3 +354,69 @@ create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge_one_blo
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
+
+/// Parity with the CPU implementation for scalar min/max when the scalar is
+/// out of the ciphertext's range. CPU compares against the full scalar and
+/// selects the scalar truncated to the type's width (e.g. max(5u8, 256) == 0),
+/// while the GPU backend entry point aborts if the decomposed scalar has more
+/// blocks than the ciphertext; the host-side bounds pre-check in
+/// `unchecked_scalar_minmax` must make both backends agree.
+fn integer_scalar_minmax_out_of_range<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let cks = crate::integer::ClientKey::new(param.into());
+    let streams = CudaStreams::new_multi_gpu();
+    let cpu_sks = crate::integer::ServerKey::new_radix_server_key(&cks);
+    let gpu_sks = CudaServerKey::new(&cks, &streams);
+
+    let num_blocks = 4usize;
+    let msg_mod = cks.parameters().message_modulus().0;
+    let ct_max = msg_mod.pow(num_blocks as u32) - 1; // max value of the type
+
+    let clears = [0u64, 1, ct_max / 2, ct_max];
+    let scalars = [0u64, ct_max, ct_max + 1, ct_max + 45, u64::MAX];
+
+    for clear in clears {
+        let ct = cks.encrypt_radix(clear, num_blocks);
+        let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+        for scalar in scalars {
+            let results = [
+                (
+                    "unchecked_scalar_max",
+                    cpu_sks.unchecked_scalar_max_parallelized(&ct, scalar),
+                    gpu_sks.unchecked_scalar_max(&d_ct, scalar, &streams),
+                ),
+                (
+                    "unchecked_scalar_min",
+                    cpu_sks.unchecked_scalar_min_parallelized(&ct, scalar),
+                    gpu_sks.unchecked_scalar_min(&d_ct, scalar, &streams),
+                ),
+                (
+                    "scalar_max",
+                    cpu_sks.scalar_max_parallelized(&ct, scalar),
+                    gpu_sks.scalar_max(&d_ct, scalar, &streams),
+                ),
+                (
+                    "scalar_min",
+                    cpu_sks.scalar_min_parallelized(&ct, scalar),
+                    gpu_sks.scalar_min(&d_ct, scalar, &streams),
+                ),
+            ];
+            for (name, cpu_res, gpu_res) in results {
+                let cpu_dec: u64 = cks.decrypt_radix(&cpu_res);
+                let gpu_dec: u64 = cks.decrypt_radix(&gpu_res.to_radix_ciphertext(&streams));
+                assert_eq!(
+                    cpu_dec, gpu_dec,
+                    "CPU and GPU {name} differ for ct {clear} vs scalar {scalar}: \
+                     CPU {cpu_dec}, GPU {gpu_dec}"
+                );
+            }
+        }
+    }
+}
+
+create_gpu_parameterized_test!(integer_scalar_minmax_out_of_range {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
