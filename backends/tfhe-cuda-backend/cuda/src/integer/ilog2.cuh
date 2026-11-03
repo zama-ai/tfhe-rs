@@ -195,8 +195,7 @@ host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
       mem_ptr->counter_num_blocks, 3);
 
   host_full_propagate_inplace<Torus>(streams, output_ct,
-                                     mem_ptr->final_propagate_mem, ksks, bsks,
-                                     mem_ptr->counter_num_blocks);
+                                     mem_ptr->final_propagate_mem, ksks, bsks);
 }
 
 #endif

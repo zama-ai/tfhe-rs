@@ -22,28 +22,27 @@ void cuda_add_lwe_ciphertext_vector_inplace_64(
 
 void cuda_full_propagation_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *input_blocks,
-    int8_t *mem_ptr, void *const *ksks, void *const *bsks,
-    uint32_t num_blocks) {
+    int8_t *mem_ptr, void *const *ksks, void *const *bsks) {
 
   int_fullprop_buffer<uint64_t> *buffer =
       (int_fullprop_buffer<uint64_t> *)mem_ptr;
 
   host_full_propagate_inplace<uint64_t>(CudaStreams(streams), input_blocks,
-                                        buffer, (uint64_t **)(ksks), bsks,
-                                        num_blocks);
+                                        buffer, (uint64_t **)(ksks), bsks);
 }
 
 uint64_t scratch_cuda_full_propagation_64_inplace_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,
-    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t message_modulus,
-    uint32_t carry_modulus, bool allocate_gpu_memory) {
+    CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    bool allocate_gpu_memory) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus);
 
   return scratch_cuda_full_propagation<uint64_t>(
       CudaStreams(streams), (int_fullprop_buffer<uint64_t> **)mem_ptr, params,
-      allocate_gpu_memory);
+      num_blocks, allocate_gpu_memory);
 }
 
 void cleanup_cuda_full_propagation_64_inplace(CudaStreamsFFI streams,
