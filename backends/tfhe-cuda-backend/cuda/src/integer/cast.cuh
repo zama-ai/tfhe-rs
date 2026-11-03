@@ -135,7 +135,7 @@ host_cast_to_unsigned(CudaStreams streams, CudaRadixCiphertextFFI *output,
 
   if (mem_ptr->requires_full_propagate) {
     host_full_propagate_inplace<Torus>(streams, input, mem_ptr->prop_buffer,
-                                       ksks, bsks, current_num_blocks);
+                                       ksks, bsks);
   }
 
   if (target_num_blocks > current_num_blocks) {

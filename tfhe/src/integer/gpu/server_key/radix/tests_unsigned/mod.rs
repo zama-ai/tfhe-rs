@@ -8,6 +8,7 @@ pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
 pub(crate) mod test_count_zeros_ones;
 pub(crate) mod test_div_mod;
+mod test_full_propagate;
 pub(crate) mod test_ilog2;
 pub(crate) mod test_kreyvium;
 mod test_kv_store;
