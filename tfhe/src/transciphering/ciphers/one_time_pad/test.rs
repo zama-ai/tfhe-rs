@@ -34,6 +34,15 @@ fn reference_keystream(mask: &[u8], first_bit: usize, n_bits: usize) -> Vec<u8> 
     out
 }
 
+/// Clears the bits of the last byte past `bit_count`, which a plain mask requires to be zero.
+fn clear_padding(mut bytes: Vec<u8>, bit_count: usize) -> Vec<u8> {
+    let used_bits_in_last_byte = bit_count % 8;
+    if used_bits_in_last_byte != 0 {
+        *bytes.last_mut().unwrap() &= (1u8 << used_bits_in_last_byte) - 1;
+    }
+    bytes
+}
+
 #[test]
 fn one_time_pad_keystream_all_offsets_and_lengths() {
     let max_byte_count = 3usize;
@@ -49,7 +58,10 @@ fn one_time_pad_keystream_all_offsets_and_lengths() {
 
         let mut otp = OneTimePadPlainState::new(OneTimePadPlainSecretMask::new(
             // to_vec for tests, don't do that in production
-            mask_bytes[..max_bit_count.div_ceil(8)].to_vec(),
+            clear_padding(
+                mask_bytes[..max_bit_count.div_ceil(8)].to_vec(),
+                max_bit_count,
+            ),
             max_bit_count,
         ));
 
@@ -280,7 +292,10 @@ fn one_time_pad_fhe_keystream_matches_plain_all_offsets_and_lengths_impl(
     // Mask sizes must be a multiple of the number of bits per ciphertext
     for max_bit_count in (0..=max_bit_count).step_by(bits_per_ct) {
         // to_vec for tests, don't do that in production
-        let curr_mask_bytes = mask_bytes[..max_bit_count.div_ceil(8)].to_vec();
+        let curr_mask_bytes = clear_padding(
+            mask_bytes[..max_bit_count.div_ceil(8)].to_vec(),
+            max_bit_count,
+        );
         let plain_mask = OneTimePadPlainSecretMask::new(curr_mask_bytes, max_bit_count);
         let fhe_mask = plain_mask.encrypt_with_layout(cks, layout.clone()).unwrap();
         let mut fhe_otp = OneTimePadFheState::new(fhe_mask);
@@ -775,22 +790,12 @@ fn one_time_pad_fhe_mask_encrypt_decrypt_round_trip() {
                 .map(|i| 0x1Fu8.wrapping_mul(i as u8 + 1))
                 .collect(),
         ] {
+            let bytes = clear_padding(bytes, bit_count);
             let plain = OneTimePadPlainSecretMask::new(bytes.clone(), bit_count);
             let recovered = plain.encrypt(&cks).unwrap().decrypt(&cks);
 
-            // The mask has no accessor for its bytes, so equality is checked through the
-            // keystream: two masks that drive the same state produce the same ciphertext.
-            let value = vec![0u8; byte_count];
-            let from_plain = OneTimePadPlainState::new(plain)
-                .encrypt_bits(&value, bit_count)
-                .unwrap();
-            let from_recovered = OneTimePadPlainState::new(recovered)
-                .encrypt_bits(&value, bit_count)
-                .unwrap();
-
-            assert_eq!(
-                from_recovered.bytes(),
-                from_plain.bytes(),
+            assert!(
+                recovered == plain,
                 "OTP mask did not survive the encrypt/decrypt round trip \
                  for {bit_count} bits of {bytes:02x?}"
             );
@@ -848,6 +853,11 @@ fn one_time_pad_plain_secret_mask_conformance() {
     // `try_new` rejects the inconsistent mask, so it can only be built through deserialization.
     assert!(OneTimePadPlainSecretMask::try_new(vec![0xAB; 4], 64).is_err());
 
+    // The bits past `bit_count` must be zero
+    assert!(OneTimePadPlainSecretMask::try_new(vec![0xFF, 0x0F], 12).is_ok());
+    assert!(OneTimePadPlainSecretMask::try_new(vec![0xFF, 0x1F], 12).is_err());
+    assert!(OneTimePadPlainSecretMask::try_new(vec![0x80], 7).is_err());
+
     #[derive(serde::Serialize)]
     struct Tampered {
         secret_mask: Vec<u8>,
@@ -861,4 +871,12 @@ fn one_time_pad_plain_secret_mask_conformance() {
     .unwrap();
     let tampered: OneTimePadPlainSecretMask = bincode::deserialize(&tampered).unwrap();
     assert!(!tampered.is_conformant(&params(64)));
+
+    let dirty_padding = bincode::serialize(&Tampered {
+        secret_mask: vec![0xFF, 0x1F],
+        bit_count: 12,
+    })
+    .unwrap();
+    let dirty_padding: OneTimePadPlainSecretMask = bincode::deserialize(&dirty_padding).unwrap();
+    assert!(!dirty_padding.is_conformant(&params(12)));
 }

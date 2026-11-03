@@ -14,7 +14,7 @@ use crate::transciphering::{
 
 use super::fhe::MaskGenerationError;
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(OneTimePadPlainSecretMaskVersions)]
 pub struct OneTimePadPlainSecretMask {
     /// Collection of random u8, from which one can pull secret bits to hide sensitive values by
@@ -25,11 +25,17 @@ pub struct OneTimePadPlainSecretMask {
 }
 
 impl OneTimePadPlainSecretMask {
+    /// `secret_mask` must hold exactly `bit_count.div_ceil(8)` bytes, and the bits of the last
+    /// byte past `bit_count` must be zero.
     pub fn try_new(secret_mask: Vec<u8>, bit_count: usize) -> Result<Self, &'static str> {
         let expected_byte_count = bit_count.div_ceil(8);
 
         if secret_mask.len() != expected_byte_count {
             return Err("Invalid bit_count for provided secret_mask");
+        }
+
+        if !Self::is_canonical(&secret_mask, bit_count) {
+            return Err("The bits of secret_mask past bit_count must be zero");
         }
 
         Ok(Self {
@@ -38,9 +44,24 @@ impl OneTimePadPlainSecretMask {
         })
     }
 
+    /// Returns true if the bits of the last byte past `bit_count` are zero.
+    ///
+    /// Expects `secret_mask` to hold `bit_count.div_ceil(8)` bytes.
+    fn is_canonical(secret_mask: &[u8], bit_count: usize) -> bool {
+        let used_bits_in_last_byte = bit_count % 8;
+        if used_bits_in_last_byte == 0 {
+            return true;
+        }
+
+        secret_mask
+            .last()
+            .is_some_and(|last| last >> used_bits_in_last_byte == 0)
+    }
+
     /// # Panics
     ///
-    /// Panics if `secret_mask` does not have the expected length: `bit_count.div_ceil(8)`
+    /// Panics if `secret_mask` does not have the expected length: `bit_count.div_ceil(8)`, or if
+    /// the bits of its last byte past `bit_count` are not zero.
     pub fn new(secret_mask: Vec<u8>, bit_count: usize) -> Self {
         Self::try_new(secret_mask, bit_count).unwrap()
     }
@@ -102,7 +123,9 @@ impl ParameterSetConformant for OneTimePadPlainSecretMask {
     type ParameterSet = OneTimePadPlainSecretMaskConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
-        self.bit_count == params.n_bits && self.secret_mask.len() == self.bit_count.div_ceil(8)
+        self.bit_count == params.n_bits
+            && self.secret_mask.len() == self.bit_count.div_ceil(8)
+            && Self::is_canonical(&self.secret_mask, self.bit_count)
     }
 }
 
