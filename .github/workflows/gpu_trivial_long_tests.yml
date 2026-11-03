@@ -1,0 +1,111 @@
+name: gpu_trivial_long_tests
+
+env:
+  CARGO_TERM_COLOR: always
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUSTFLAGS: "-C target-cpu=native"
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+
+on:
+  # Manual trigger only: this sweep exercises per-slot FHE-free paths across
+  # thousands of random inputs and is too long to run on every push.
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Iterations per batched-trivial test (TFHE_RS_GPU_TRIVIAL_BATCHED_ITERATIONS)"
+        default: "10000"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  setup-instance:
+    name: gpu_trivial_long_tests/setup-instance
+    uses: ./.github/workflows/slab_setup.yml
+    with:
+      backend: terraform
+      profile: generic-1or2-h100
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+
+  cuda-tests:
+    name: gpu_trivial_long_tests/cuda-tests
+    needs: [setup-instance]
+    concurrency:
+      group: ${{ github.workflow_ref }}_${{ github.event_name }}
+      cancel-in-progress: true
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "12.8 12.2"
+            gcc: 12
+    timeout-minutes: 4320 # 72 hours
+    env:
+      TFHE_RS_GPU_TRIVIAL_BATCHED_ITERATIONS: ${{ inputs.iterations }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Setup cloud GPU machine dependencies
+        uses: ./.github/actions/gpu_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+          cloud-provider: ${{ needs.setup-instance.outputs.cloud-provider }}
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Enable nvidia multi-process service
+        run: |
+          nvidia-cuda-mps-control -d
+
+      - name: Run batched-trivial GPU tests
+        run: |
+          make test_integer_batched_trivial_gpu
+
+  slack-notify:
+    name: gpu_trivial_long_tests/slack-notify
+    needs: [setup-instance, cuda-tests]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.cuda-tests.result != 'skipped' && failure() }}
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        env:
+          SLACK_COLOR: ${{ needs.cuda-tests.result }}
+          SLACK_MESSAGE: "GPU batched-trivial long tests finished with status: ${{ needs.cuda-tests.result }}. (${{ env.ACTION_RUN_URL }})"
+
+  teardown-instance:
+    name: gpu_trivial_long_tests/teardown-instance
+    if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
+    needs: [setup-instance, cuda-tests]
+    uses: ./.github/workflows/slab_teardown.yml
+    with:
+      runner-name: ${{ needs.setup-instance.outputs.runner-name }}
+      notification-context: gpu-trivial-long-tests
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

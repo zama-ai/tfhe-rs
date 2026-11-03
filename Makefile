@@ -1162,6 +1162,12 @@ test_integer_short_run_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence --test-threads=1 --nocapture
 
+.PHONY: test_integer_batched_trivial_gpu # Run batched-trivial GPU integer tests (per-slot FHE-free sweep)
+test_integer_batched_trivial_gpu:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
+		--features=integer,gpu,gpu-nofhe-testing-batched-trivial -p tfhe -- \
+		integer::gpu::server_key::radix::tests_batched_trivial:: --test-threads=1 --nocapture
+
 .PHONY: build_debug_integer_short_run_gpu # Run the long run integer tests on the gpu backend
 build_debug_integer_short_run_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test -vv --no-run --profile debug_lto_off \
