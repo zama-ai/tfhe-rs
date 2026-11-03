@@ -608,6 +608,7 @@ encrypted bits: {numerator_bits}, scalar bits: {}
                 streams,
                 &self.bootstrapping_key,
                 computing_ks_key.params_ffi(),
+                num_blocks,
                 self.message_modulus,
                 self.carry_modulus,
             )
