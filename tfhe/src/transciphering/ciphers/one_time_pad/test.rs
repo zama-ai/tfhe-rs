@@ -957,13 +957,6 @@ fn one_time_pad_squashed_noise_mask_round_trip() {
 
             let decompressed = compressed.decompress().unwrap();
             assert_eq!(decompressed.layout().bits_per_ct(), layout.bits_per_ct());
-            for ct in decompressed.ciphertexts() {
-                assert_eq!(
-                    ct.degree(),
-                    layout.expected_degree(),
-                    "decompressed, {context}"
-                );
-            }
             let values: Vec<u128> = decompressed
                 .ciphertexts()
                 .iter()

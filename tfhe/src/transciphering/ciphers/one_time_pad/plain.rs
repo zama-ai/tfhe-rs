@@ -155,9 +155,19 @@ impl ParameterSetConformant for OneTimePadPlainSecretMask {
     type ParameterSet = OneTimePadPlainSecretMaskConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
-        self.bit_count == params.n_bits
-            && self.secret_mask.len() == self.bit_count.div_ceil(8)
-            && Self::is_canonical(&self.secret_mask, self.bit_count)
+        let OneTimePadPlainSecretMaskConformanceParams { n_bits } = params;
+
+        let Self {
+            secret_mask,
+            bit_count,
+        } = self;
+
+        #[allow(clippy::suspicious_operation_groupings, reason = "That's what we want")]
+        {
+            bit_count == n_bits
+                && secret_mask.len() == bit_count.div_ceil(8)
+                && Self::is_canonical(secret_mask, *bit_count)
+        }
     }
 }
 
