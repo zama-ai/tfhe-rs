@@ -26,12 +26,13 @@ use tfhe::{
     set_server_key, AesFheKey, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
     CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
-    CompressedKVStore, CompressedServerKey, CompressedSquashedNoiseCiphertextList,
-    CompressedSquashedNoiseCiphertextListBuilder, CompressedSquashedNoiseOneTimePadFheSecretMask,
-    FheBool, FheInt8, FheUint32, FheUint64, FheUint8, HlStreamCipher, HlTranscipherer,
-    KreyviumFheKey, OneTimePadFheSecretMask, ReRandomizationContext, ReRandomizationMode,
-    ReRandomizationSupport, Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
-    SquashedNoiseFheUint, StreamCiphertext, TranscipherSession,
+    CompressedKVStore, CompressedPublicKey, CompressedServerKey,
+    CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder,
+    CompressedSquashedNoiseOneTimePadFheSecretMask, FheBool, FheInt8, FheUint32, FheUint64,
+    FheUint8, HlStreamCipher, HlTranscipherer, KreyviumFheKey, OneTimePadFheSecretMask,
+    ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport, Seed, ServerKey,
+    SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, StreamCiphertext,
+    StreamCiphertextList, TranscipherSession,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
@@ -43,8 +44,9 @@ use tfhe_backward_compat_data::{
     HlHeterogeneousCiphertextListTest, HlKreyviumFheKeyTest, HlOneTimePadFheSecretMaskTest,
     HlPublicKeyTest, HlSeededCompactCiphertextListTest, HlServerKeyTest, HlSignedCiphertextTest,
     HlSquashedNoiseBoolCiphertextTest, HlSquashedNoiseSignedCiphertextTest,
-    HlSquashedNoiseUnsignedCiphertextTest, HlStreamCiphertextTest, TestMetadata, TestType,
-    TestWithClientKey, Testcase, ZkPkePublicParamsTest, ZkProofAuxiliaryInfo,
+    HlSquashedNoiseUnsignedCiphertextTest, HlStreamCiphertextListTest, HlStreamCiphertextTest,
+    TestMetadata, TestType, TestWithClientKey, Testcase, ZkPkePublicParamsTest,
+    ZkProofAuxiliaryInfo,
 };
 use tfhe_versionable::Unversionize;
 
@@ -1270,6 +1272,30 @@ fn test_hl_stream_ciphertext(
     }
 }
 
+/// Test HL stream ciphertext list: loads the list, transciphers it with the pad from the metadata
+/// and compares the decrypted values to the ones in the metadata.
+fn test_hl_stream_ciphertext_list(
+    dir: &Path,
+    test: &HlStreamCiphertextListTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key: ClientKey = load_client_key(dir, test, format)?;
+    set_server_key(key.generate_server_key());
+
+    let list: StreamCiphertextList = load_and_unversionize(dir, test, format)?;
+
+    let pad = OneTimePadPlainSecretMask::new(test.pad.to_vec(), test.pad.len() * 8);
+    let mask =
+        OneTimePadFheSecretMask::try_encrypt(pad, &key).map_err(|e| test.failure(e, format))?;
+    let expander = TranscipherSession::one_time_pad(mask)
+        .and_then(|mut session| session.transcipher_list(&list))
+        .map_err(|e| test.failure(e, format))?;
+
+    verify_expanded_values(&expander, &test.clear_values, &test.data_kinds, &key)
+        .map(|_| test.success(format))
+        .map_err(|msg| test.failure(msg, format))
+}
+
 pub struct Hl;
 
 impl TestedModule for Hl {
@@ -1352,6 +1378,9 @@ impl TestedModule for Hl {
                     format,
                 )
                 .into()
+            }
+            TestMetadata::HlStreamCiphertextList(test) => {
+                test_hl_stream_ciphertext_list(test_dir.as_ref(), test, format).into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);
