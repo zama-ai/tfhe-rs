@@ -761,8 +761,11 @@ impl ClientKey {
         self.encrypt_radix_with_test_vectors(value, num_blocks, test_vectors)
     }
 
+    /// Encrypts a batched-trivial radix ciphertext from an explicit test-vector
+    /// list, letting callers pick per-slot values (e.g. to avoid zeros for
+    /// `ilog2`, or to bias toward a boolean domain for `if_then_else`).
     #[cfg(feature = "gpu-nofhe-testing-batched-trivial")]
-    fn encrypt_radix_with_test_vectors(
+    pub fn encrypt_radix_with_test_vectors(
         &self,
         value: u64,
         num_blocks: usize,

@@ -1984,13 +1984,34 @@ void host_full_propagate_inplace(CudaStreams streams,
                                  uint32_t num_blocks) {
   auto params = mem_ptr->lut->params;
 
+#ifndef TFHE_GPU_BATCHED_TRIVIAL
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
+#endif
   for (int i = 0; i < num_blocks; i++) {
     CudaRadixCiphertextFFI cur_input_block;
     as_radix_ciphertext_slice<Torus>(&cur_input_block, input_blocks, i, i + 1);
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+    // The direct KS+PBS path above bootstraps a trivial-zero output in BT
+    // mode, wiping every mask slot. Route through the LUT wrapper instead:
+    // its BT branch calls execute_trivial_lut_batched, which keeps per-slot
+    // mask coefficients alive. Duplicate the block into both slots of
+    // tmp_big_lwe_vector so the 2-slot LUT (slot 0 = message, slot 1 = carry)
+    // produces (message, carry) in one wrapper call.
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_big_lwe_vector, 0,
+        1, &cur_input_block, 0, 1);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams.stream(0), streams.gpu_index(0), mem_ptr->tmp_big_lwe_vector, 1,
+        2, &cur_input_block, 0, 1);
+
+    // Force the single-GPU path: the LUT was broadcast to GPU 0 only.
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        streams.get_ith(0), mem_ptr->tmp_big_lwe_vector,
+        mem_ptr->tmp_big_lwe_vector, bsks, ksks, mem_ptr->lut, 2);
+#else
     /// Since the keyswitch is done on one input only, use only 1 GPU
     execute_keyswitch_async<Torus>(
         streams.get_ith(0), (Torus *)(mem_ptr->tmp_small_lwe_vector->ptr),
@@ -2012,6 +2033,7 @@ void host_full_propagate_inplace(CudaStreams streams,
         params.glwe_dimension, params.small_lwe_dimension,
         params.polynomial_size, params.pbs_base_log, params.pbs_level, 2,
         params.pbs_params(), num_many_lut, lut_stride);
+#endif
 
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &cur_input_block, 0, 1,

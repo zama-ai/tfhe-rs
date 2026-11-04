@@ -304,15 +304,23 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     return;
 
   auto current_blocks = mem_ptr->current_blocks;
+  auto small_lwe_vector = mem_ptr->small_lwe_vector;
   auto d_degrees = mem_ptr->d_degrees;
   auto d_columns = mem_ptr->d_columns;
   auto d_columns_counter = mem_ptr->d_columns_counter;
   auto d_new_columns = mem_ptr->d_new_columns;
   auto d_new_columns_counter = mem_ptr->d_new_columns_counter;
 
+  auto glwe_dimension = mem_ptr->params.glwe_dimension;
+  auto polynomial_size = mem_ptr->params.polynomial_size;
+  auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
   auto chunk_size = mem_ptr->params.max_degree();
 
   size_t total_blocks_in_vec = num_radix_blocks * num_radix_in_vec;
+
+  // In the case of extracting a single LWE this parameters are dummy
+  uint32_t num_many_lut = 1;
+  uint32_t lut_stride = 0;
 
   if (terms->num_radix_blocks == 0) {
     return;
@@ -409,13 +417,30 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
                                          /*num_many_lut=*/1, 0);
     }
 #else
-    // broadcast_lut updates last_broadcast_streams (required by the assertion
-    // inside integer_radix_apply_univariate_lookup_table); index-only (false)
-    // so no LUT data is re-copied.
-    luts_message_carry->broadcast_lut(active_streams, false);
-    integer_radix_apply_univariate_lookup_table<Torus>(
-        streams, current_blocks, current_blocks, bsks, ksks, luts_message_carry,
-        total_ciphertexts, true);
+    if (active_streams.count() == 1) {
+      execute_keyswitch_async<Torus>(
+          streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
+          (Torus *)current_blocks->ptr, d_pbs_indexes_in, ksks,
+          big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
+          mem_ptr->params.ks_level, total_messages, false);
+
+      execute_pbs_async<Torus, Torus>(
+          streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
+          luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
+          (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
+          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
+          polynomial_size, mem_ptr->params.pbs_base_log,
+          mem_ptr->params.pbs_level, total_ciphertexts,
+          mem_ptr->params.pbs_params(), num_many_lut, lut_stride);
+    } else {
+      // broadcast_lut updates last_broadcast_streams (required by the assertion
+      // inside integer_radix_apply_univariate_lookup_table); index-only (false)
+      // so no LUT data is re-copied.
+      luts_message_carry->broadcast_lut(active_streams, false);
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          streams, current_blocks, current_blocks, bsks, ksks,
+          luts_message_carry, total_ciphertexts, true);
+    }
 #endif
     cuda_set_device(streams.gpu_index(0));
     std::swap(d_columns, d_new_columns);
@@ -443,12 +468,38 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     auto active_streams = streams.active_gpu_subset(2 * num_radix_blocks,
                                                     mem_ptr->params.pbs_type());
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
     uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
     luts_message_carry->broadcast_lut(active_streams, false);
     luts_message_carry->using_trivial_lwe_indexes = false;
     integer_radix_apply_univariate_lookup_table<Torus>(
         active_streams, current_blocks, radix_lwe_out, bsks, ksks,
         luts_message_carry, num_blocks_in_apply_lut, true);
+#else
+    if (active_streams.count() == 1) {
+      execute_keyswitch_async<Torus>(
+          streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
+          (Torus *)radix_lwe_out->ptr, d_pbs_indexes_in, ksks,
+          big_lwe_dimension, small_lwe_dimension, mem_ptr->params.ks_base_log,
+          mem_ptr->params.ks_level, num_radix_blocks, false);
+
+      execute_pbs_async<Torus, Torus>(
+          streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
+          luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
+          (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
+          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
+          polynomial_size, mem_ptr->params.pbs_base_log,
+          mem_ptr->params.pbs_level, 2 * num_radix_blocks,
+          mem_ptr->params.pbs_params(), num_many_lut, lut_stride);
+    } else {
+      uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
+      luts_message_carry->broadcast_lut(active_streams, false);
+      luts_message_carry->using_trivial_lwe_indexes = false;
+      integer_radix_apply_univariate_lookup_table<Torus>(
+          active_streams, current_blocks, radix_lwe_out, bsks, ksks,
+          luts_message_carry, num_blocks_in_apply_lut, true);
+    }
+#endif
     calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
                             num_radix_blocks, num_radix_in_vec, chunk_size,
                             mem_ptr->params.message_modulus);
