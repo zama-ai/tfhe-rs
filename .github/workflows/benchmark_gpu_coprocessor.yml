@@ -50,7 +50,6 @@ env:
   BENCHMARKS: "erc20"
   BRANCH_NAME: ${{ github.ref_name }}
   COMMIT_SHA: ${{ github.sha }}
-  SLAB_SECRET: ${{ secrets.JOB_SECRET }}
 
 jobs:
   parse-inputs:
@@ -319,22 +318,22 @@ jobs:
           name: ${{ env.COMMIT_SHA }}_${{ env.BENCHMARKS }}_${{ needs.parse-inputs.outputs.profile }}
           path: fhevm/coprocessor/tfhe-rs/${{ env.RESULTS_FILENAME }}
 
-      - name: Checkout Slab repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: zama-ai/slab
-          path: slab
-          ref: a0d3a61d593fc69bcdd13cb834323f8645258246
-          persist-credentials: "false"
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-      - name: Send data to Slab
-        shell: bash
-        env:
-          SLAB_URL: ${{ secrets.SLAB_URL }}
-        run: |
-          python3 slab/scripts/data_sender.py fhevm/coprocessor/tfhe-rs/"${RESULTS_FILENAME}" "${SLAB_SECRET}" \
-          --slab-url "${SLAB_URL}"
+  send-data:
+    name: benchmark_gpu_coprocessor/send-data
+    needs: [parse-inputs, benchmark-gpu]
+    if: ${{ !cancelled() && needs.benchmark-gpu.result != 'skipped' }}
+    uses: ./.github/workflows/slab_send_data.yml
+    with:
+      artifact-pattern: ${{ github.sha }}_erc20_${{ needs.parse-inputs.outputs.profile }}
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   teardown-instance:
     name: benchmark_gpu_coprocessor/teardown-instance
