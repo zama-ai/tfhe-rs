@@ -78,10 +78,15 @@ jobs:
       backend: terraform
       profile: scaleway-small-gpu
       fallback-runner: gpu_ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
       JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   cuda-unsigned-integer-tests:
     name: gpu_unsigned_integer_tests/cuda-unsigned-integer-tests
@@ -163,6 +168,9 @@ jobs:
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}
       notification-context: cuda-unsigned-integer-tests
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
@@ -170,3 +178,5 @@ jobs:
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}

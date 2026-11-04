@@ -81,6 +81,8 @@ jobs:
       command: integer,signed_integer, integer_compression
       op_flavor: ${{ needs.prepare-inputs.outputs.op_flavor }}
       precisions_set: ${{ needs.prepare-inputs.outputs.precisions_set }}
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -90,6 +92,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-integer-zk-pke:
     name: benchmark_cpu_weekly/run-benchmarks-integer-zk-pke
@@ -99,6 +103,8 @@ jobs:
     with:
       command: integer_zk
       additional_file_to_parse: pke_zk_crs_sizes.csv
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -108,6 +114,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-hlapi-erc7984:
     name: benchmark_cpu_weekly/run-benchmarks-hlapi-erc7984
@@ -117,6 +125,8 @@ jobs:
     with:
       command: hlapi_erc7984
       additional_file_to_parse: erc7984_pbs_count.csv
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -126,6 +136,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-hlapi-dex:
     name: benchmark_cpu_weekly/run-benchmarks-hlapi-dex
@@ -135,6 +147,8 @@ jobs:
     with:
       command: hlapi_dex
       additional_file_to_parse: dex_swap_request_update_dex_balance_pbs_count.csv,dex_swap_request_finalize_pbs_count.csv,dex_swap_claim_prepare_pbs_count.csv,dex_swap_claim_update_dex_balance_pbs_count.csv
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -144,6 +158,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-core-crypto:
     name: benchmark_cpu_weekly/run-benchmarks-core-crypto
@@ -152,6 +168,8 @@ jobs:
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
       command: ks,pbs,pbs128,ks_pbs
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -161,6 +179,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-shortint:
     name: benchmark_cpu_weekly/run-benchmarks-shortint
@@ -170,6 +190,8 @@ jobs:
     with:
       op_flavor: ${{ needs.prepare-inputs.outputs.op_flavor }}
       command: shortint
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -179,6 +201,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-boolean:
     name: benchmark_cpu_weekly/run-benchmarks-boolean
@@ -189,6 +213,8 @@ jobs:
       command: boolean
       additional_recipe: measure_boolean_key_sizes
       additional_file_to_parse: boolean_key_sizes.csv
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -198,6 +224,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-tfhe-zk-pok:
     name: benchmark_cpu_weekly/run-benchmarks-tfhe-zk-pok
@@ -206,6 +234,8 @@ jobs:
     uses: ./.github/workflows/benchmark_cpu_common.yml
     with:
       command: tfhe_zk_pok
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -215,3 +245,5 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
