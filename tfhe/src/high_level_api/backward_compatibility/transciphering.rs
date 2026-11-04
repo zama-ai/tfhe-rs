@@ -4,7 +4,7 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::high_level_api::transciphering::{
     AesFheKey, CompressedSquashedNoiseOneTimePadFheSecretMask, KreyviumFheKey,
-    OneTimePadFheSecretMask, StreamCiphertext,
+    OneTimePadFheSecretMask, StreamCiphertext, StreamCiphertextList,
 };
 use crate::transciphering::{
     AesFheKey as ShortintAesFheKey, KreyviumFheKey as ShortintKreyviumFheKey,
@@ -15,6 +15,11 @@ use crate::Tag;
 #[derive(VersionsDispatch)]
 pub enum StreamCiphertextVersions {
     V0(StreamCiphertext),
+}
+
+#[derive(VersionsDispatch)]
+pub enum StreamCiphertextListVersions {
+    V0(StreamCiphertextList),
 }
 
 #[derive(Version)]
