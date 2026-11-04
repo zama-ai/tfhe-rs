@@ -29,6 +29,7 @@ const {
   OneTimePadPlainState,
   OneTimePadFheSecretMask,
   StreamCiphertext,
+  StreamCiphertextList,
   FheTypes,
 } = require("../pkg/tfhe.js");
 const { randomBytes } = require("node:crypto");
@@ -545,4 +546,37 @@ test("hlapi_transciphering_one_time_pad", (t) => {
   let recoveredState = new OneTimePadPlainState(recoveredMask);
   assert.deepStrictEqual(recoveredState.decrypt(enc_a), clear_a);
   assert.deepStrictEqual(recoveredState.decrypt(enc_b), clear_b);
+});
+
+test("hlapi_transciphering_stream_ciphertext_list", (t) => {
+  let builder = StreamCiphertextList.builder();
+  builder.push(generateRandomBigInt(64), FheTypes.Uint64);
+  builder.push(true, FheTypes.Bool);
+  builder.push(-5n, FheTypes.Int8);
+  builder.push(3n, FheTypes.Uint4);
+  assert.throws(() => builder.push(1n, FheTypes.Bool));
+
+  // Each value starts on a byte boundary
+  const nBits = builder.n_bits();
+  assert.deepStrictEqual(nBits, 64 + 8 + 8 + 8);
+
+  const plainMask = new OneTimePadPlainSecretMask(
+    randomBytes(nBits / 8),
+    nBits,
+  );
+  let state = new OneTimePadPlainState(plainMask);
+  let list = builder.build(state);
+  assert.deepStrictEqual(list.len(), 4);
+  assert.deepStrictEqual(list.n_bits(), nBits);
+
+  // The pad is spent: building again must fail rather than reuse bits
+  assert.throws(() => builder.build(state));
+
+  let serialized = list.safe_serialize(SAFE_LARGE_SERIALIZATION_SIZE_LIMIT);
+  let deserialized = StreamCiphertextList.safe_deserialize(
+    serialized,
+    SAFE_LARGE_SERIALIZATION_SIZE_LIMIT,
+  );
+  assert.deepStrictEqual(deserialized.len(), 4);
+  assert.deepStrictEqual(deserialized.n_bits(), nBits);
 });
