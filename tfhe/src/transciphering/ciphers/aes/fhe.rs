@@ -58,6 +58,11 @@ impl Transcipherer for AesFheState {
         //  a non-block-aligned call wastes the head + tail. The byte-aligned
         //  transciphering path requests the whole message in one call to avoid
         //  this.
+        if n_bits == 0 {
+            // Otherwise a counter in the middle of a block would compute it for nothing
+            return FheKeyStream::try_new(vec![], KeyStreamLayout::single_bit());
+        }
+
         let end_counter = self
             .counter
             .checked_add(n_bits as u64)

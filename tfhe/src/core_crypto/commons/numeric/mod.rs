@@ -47,6 +47,18 @@ pub trait Numeric:
 
     /// The largest value that can be encoded by the type.
     const MAX: Self;
+
+    /// Whether the type can represent negative values.
+    ///
+    /// Detected by setting the most significant bit, which only gives a negative value for signed
+    /// types. This works because rust always uses two's complement.
+    #[inline]
+    fn is_signed() -> bool
+    where
+        Self: std::ops::Shl<u32, Output = Self>,
+    {
+        (Self::ONE << (Self::BITS as u32 - 1)) < Self::ZERO
+    }
 }
 
 pub trait UnsignedNumeric: Numeric {

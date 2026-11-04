@@ -69,9 +69,7 @@ where
         let decomposer = create_clear_radix_block_iterator(self, message_modulus, num_blocks.get());
         messages.extend(decomposer);
 
-        // This works because rust always uses two's complement
-        let is_signed = (T::ONE << (T::BITS - 1)) < T::ZERO;
-        if is_signed {
+        if T::is_signed() {
             Some(DataKind::Signed(num_blocks))
         } else {
             Some(DataKind::Unsigned(num_blocks))
