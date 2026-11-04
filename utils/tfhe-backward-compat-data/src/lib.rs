@@ -975,6 +975,35 @@ impl TestType for HlStreamCiphertextTest {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlStreamCiphertextListTest {
+    pub test_filename: Cow<'static, str>,
+    pub key_filename: Cow<'static, str>,
+    pub pad: Cow<'static, [u8]>,
+    pub clear_values: Cow<'static, [i64]>,
+    pub data_kinds: Cow<'static, [DataKind]>,
+}
+
+impl TestType for HlStreamCiphertextListTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "StreamCiphertextList".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
+impl TestWithClientKey for HlStreamCiphertextListTest {
+    fn client_key_filename(&self) -> String {
+        self.key_filename.to_string()
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Display)]
 pub enum TestMetadata {
     // Shortint
@@ -1005,6 +1034,7 @@ pub enum TestMetadata {
     HlCompressedSquashedNoiseOneTimePadFheSecretMask(
         HlCompressedSquashedNoiseOneTimePadFheSecretMaskTest,
     ),
+    HlStreamCiphertextList(HlStreamCiphertextListTest),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
