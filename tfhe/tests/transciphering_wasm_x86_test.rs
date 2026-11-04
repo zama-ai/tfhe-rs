@@ -3,6 +3,8 @@
 //! - Generate a pad server-side with the OPRF and decrypt it in rust
 //! - Load the pad in js, encrypt a few inputs of different widths with it
 //! - Load the stream ciphertexts in rust, transcipher them and check the values
+//! - Do the same with a stream ciphertext list built in js, transciphered with a pad regenerated
+//!   from its seed at the length of the list
 //!
 //! This is mimics the production input flow, minus the parties: a single process here holds
 //! both the client key and the server key, so it plays the KMS (releasing the
@@ -24,7 +26,7 @@ use tfhe::safe_serialization::{safe_deserialize, safe_serialize};
 use tfhe::shortint::parameters::TranscipheringParameters;
 use tfhe::{
     generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint12, FheUint64, HlTranscipherer,
-    OneTimePadFheSecretMask, Seed, StreamCiphertext, TranscipherSession,
+    OneTimePadFheSecretMask, Seed, StreamCiphertext, StreamCiphertextList, TranscipherSession,
 };
 
 const SIZE_LIMIT: u64 = 1024 * 1024 * 1024;
@@ -81,6 +83,13 @@ fn test_transciphering_compat_with_wasm() {
     let mut f_pad = File::create(test_path.join("pad.bin")).unwrap();
     safe_serialize(&plain_mask, &mut f_pad, SIZE_LIMIT).unwrap();
 
+    let list_seed = Seed(1);
+    let list_plain_mask = OneTimePadFheSecretMask::new_random(list_seed, PAD_BITS)
+        .unwrap()
+        .decrypt(&client_key);
+    let mut f_list_pad = File::create(test_path.join("list_pad.bin")).unwrap();
+    safe_serialize(&list_plain_mask, &mut f_list_pad, SIZE_LIMIT).unwrap();
+
     encrypt_inputs_in_wasm(&test_path);
 
     let input_a = read_stream_ciphertext(&test_path, "input_a.bin");
@@ -107,4 +116,29 @@ fn test_transciphering_compat_with_wasm() {
     assert_eq!(dec_b, CLEAR_B);
     assert_eq!(dec_c, CLEAR_C);
     println!("transciphering matched the values encrypted in wasm");
+
+    let mut f_list = File::open(test_path.join("list.bin")).unwrap();
+    let list: StreamCiphertextList = safe_deserialize(&mut f_list, SIZE_LIMIT).unwrap();
+    assert_eq!(list.len(), 3);
+
+    println!("Transciphering the list");
+    // The list only needs a prefix of the pad decrypted by the client
+    let list_fhe_mask =
+        OneTimePadFheSecretMask::new_random(list_seed, list.n_bits() as u64).unwrap();
+    let expander = TranscipherSession::one_time_pad(list_fhe_mask)
+        .unwrap()
+        .transcipher_list(&list)
+        .unwrap();
+    let out_a: FheUint64 = expander.get(0).unwrap().unwrap();
+    let out_b: FheUint12 = expander.get(1).unwrap().unwrap();
+    let out_c: FheBool = expander.get(2).unwrap().unwrap();
+
+    let dec_a: u64 = out_a.decrypt(&client_key);
+    let dec_b: u16 = out_b.decrypt(&client_key);
+    let dec_c: bool = out_c.decrypt(&client_key);
+
+    assert_eq!(dec_a, CLEAR_A);
+    assert_eq!(dec_b, CLEAR_B);
+    assert_eq!(dec_c, CLEAR_C);
+    println!("transciphering matched the list built in wasm");
 }
