@@ -193,6 +193,8 @@ jobs:
       precisions_set: documentation
       hpu_number: ${{ inputs.hpu_number }}
       runner_target: ${{ inputs.hpu_runner }}
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -203,6 +205,8 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-cpu-core-crypto:
     name: benchmark_documentation/run-benchmarks-cpu-core-crypto
