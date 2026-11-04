@@ -1,4 +1,7 @@
 use crate::core_crypto::prelude::Numeric;
+use crate::high_level_api::compact_list::{
+    CompactCiphertextListExpander, InnerCompactCiphertextListExpander,
+};
 use crate::high_level_api::compressed_ciphertext_list::HlExpandable;
 use crate::high_level_api::errors::UninitializedServerKey;
 use crate::high_level_api::global_state::try_with_internal_keys;
@@ -14,6 +17,7 @@ use crate::integer::gpu::server_key::radix::CudaKreyviumStream;
 use crate::integer::gpu::transciphering::CudaIntegerTranscipherer;
 use crate::integer::transciphering::{
     IntegerStreamCipher, IntegerStreamCiphertext, IntegerStreamCiphertextKind,
+    IntegerStreamCiphertextList, IntegerTranscipherer,
 };
 use crate::transciphering::{StreamCipher, Transcipherer};
 
@@ -21,6 +25,7 @@ mod aes;
 mod kreyvium;
 mod one_time_pad;
 mod stream_ciphertext;
+mod stream_ciphertext_list;
 
 pub use aes::AesFheKey;
 pub use kreyvium::KreyviumFheKey;
@@ -30,6 +35,9 @@ pub use one_time_pad::{
     OneTimePadFheSecretMaskConformanceParams, SquashedNoiseOneTimePadFheSecretMask,
 };
 pub use stream_ciphertext::StreamCiphertext;
+pub use stream_ciphertext_list::{
+    HlStreamPackable, StreamCiphertextList, StreamCiphertextListBuilder,
+};
 
 /// Types encryptable by [`HlStreamCipher`].
 pub trait HlStreamEncryptable {
@@ -233,6 +241,11 @@ pub trait HlTranscipherer {
     fn transcipher<T>(&mut self, input: &StreamCiphertext) -> crate::Result<T>
     where
         T: HlExpandable + Tagged;
+
+    fn transcipher_list(
+        &mut self,
+        input: &StreamCiphertextList,
+    ) -> crate::Result<CompactCiphertextListExpander>;
 }
 
 impl<X: Transcipherer> HlTranscipherer for X {
@@ -243,6 +256,26 @@ impl<X: Transcipherer> HlTranscipherer for X {
         try_with_internal_keys(|keys| match keys {
             Some(InternalServerKey::Cpu(cpu_key)) => {
                 cpu_transcipher(self, input.integer(), cpu_key)
+            }
+            #[cfg(feature = "gpu")]
+            Some(InternalServerKey::Cuda(_)) => Err(crate::Error::new(
+                "CPU Transcipherer used while a CUDA server key is set".to_owned(),
+            )),
+            #[cfg(feature = "hpu")]
+            Some(InternalServerKey::Hpu(_)) => Err(crate::Error::new(
+                "Transciphering is not supported on HPU".to_owned(),
+            )),
+            None => Err(UninitializedServerKey.into()),
+        })
+    }
+
+    fn transcipher_list(
+        &mut self,
+        input: &StreamCiphertextList,
+    ) -> crate::Result<CompactCiphertextListExpander> {
+        try_with_internal_keys(|keys| match keys {
+            Some(InternalServerKey::Cpu(cpu_key)) => {
+                cpu_transcipher_list(self, input.integer(), cpu_key)
             }
             #[cfg(feature = "gpu")]
             Some(InternalServerKey::Cuda(_)) => Err(crate::Error::new(
@@ -310,6 +343,28 @@ impl HlTranscipherer for TranscipherSession {
             )),
         })
     }
+
+    fn transcipher_list(
+        &mut self,
+        input: &StreamCiphertextList,
+    ) -> crate::Result<CompactCiphertextListExpander> {
+        try_with_internal_keys(|keys| match (&mut self.inner, keys) {
+            (InnerTranscipherSession::Cpu(inner), Some(InternalServerKey::Cpu(cpu_key))) => {
+                cpu_transcipher_list(inner, input.integer(), cpu_key)
+            }
+            #[cfg(feature = "gpu")]
+            (InnerTranscipherSession::Gpu(_), Some(InternalServerKey::Cuda(_))) => {
+                Err(crate::Error::new(
+                    "Transciphering a StreamCiphertextList is not yet supported on GPU".to_owned(),
+                ))
+            }
+            (_, None) => Err(UninitializedServerKey.into()),
+            #[cfg(any(feature = "gpu", feature = "hpu"))]
+            _ => Err(crate::Error::new(
+                "TranscipherSession device does not match the current server key device".to_owned(),
+            )),
+        })
+    }
 }
 
 fn cpu_transcipher<X, T>(
@@ -331,6 +386,22 @@ where
     let mut out = T::from_expanded_blocks(blocks, kind)?;
     out.tag_mut().set_data(cpu_key.tag.data());
     Ok(out)
+}
+
+fn cpu_transcipher_list<X>(
+    session: &mut X,
+    input: &IntegerStreamCiphertextList,
+    cpu_key: &crate::high_level_api::keys::ServerKey,
+) -> crate::Result<CompactCiphertextListExpander>
+where
+    X: Transcipherer,
+{
+    let expander = IntegerTranscipherer::transcipher_list(session, &cpu_key.key.key, input)
+        .map_err(|e| crate::error!("{e}"))?;
+    Ok(CompactCiphertextListExpander {
+        inner: InnerCompactCiphertextListExpander::Cpu(expander),
+        tag: cpu_key.tag.clone(),
+    })
 }
 
 #[cfg(feature = "gpu")]
@@ -531,6 +602,133 @@ mod test {
 
         // A decompressed mask is under the compression key, so it cannot be compressed again
         assert!(decompressed.compress().is_err());
+    }
+
+    #[test]
+    fn test_stream_ciphertext_list() {
+        use super::{
+            HlTranscipherer, OneTimePadFheSecretMask, StreamCiphertextList, TranscipherSession,
+        };
+        use crate::prelude::*;
+        use crate::transciphering::{OneTimePadPlainSecretMask, OneTimePadPlainState};
+        use crate::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheInt8, FheUint4};
+        use rand::Rng;
+
+        let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+        set_server_key(server_key);
+
+        let mut rng = rand::thread_rng();
+        let input_a: u64 = rng.gen();
+        let input_b: bool = rng.gen();
+        let input_c: i8 = rng.gen();
+        let input_d: u8 = rng.gen_range(0..16);
+
+        let mut builder = StreamCiphertextList::builder();
+        builder
+            .push(input_a)
+            .push(input_b)
+            .push(input_c)
+            .push_with_num_bits(input_d, 4);
+        // Each value starts on a byte boundary
+        let n_bits = builder.n_bits();
+        assert_eq!(n_bits, 64 + 8 + 8 + 8);
+
+        let pad_bytes: Vec<u8> = (0..n_bits / 8).map(|_| rng.gen()).collect();
+        let pad = OneTimePadPlainSecretMask::new(pad_bytes, n_bits);
+
+        // Client: encrypt the values with the pad
+        let list = builder
+            .build(&mut OneTimePadPlainState::new(pad.clone()))
+            .unwrap();
+
+        let mut serialized = vec![];
+        safe_serialize(&list, &mut serialized, SIZE_LIMIT).unwrap();
+        let list: StreamCiphertextList =
+            safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
+
+        assert_eq!(list.n_bits(), n_bits);
+
+        // Server: transcipher the whole list with the FHE pad
+        let fhe_mask = OneTimePadFheSecretMask::try_encrypt(pad, &client_key).unwrap();
+        let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
+        let expander = fhe_stream.transcipher_list(&list).unwrap();
+        assert_eq!(expander.len(), 4);
+
+        let a: FheUint64 = expander.get(0).unwrap().unwrap();
+        let b: FheBool = expander.get(1).unwrap().unwrap();
+        let c: FheInt8 = expander.get(2).unwrap().unwrap();
+        let d: FheUint4 = expander.get(3).unwrap().unwrap();
+
+        let a: u64 = a.decrypt(&client_key);
+        let b: bool = b.decrypt(&client_key);
+        let c: i8 = c.decrypt(&client_key);
+        let d: u8 = d.decrypt(&client_key);
+        assert_eq!((a, b, c, d), (input_a, input_b, input_c, input_d));
+    }
+
+    #[test]
+    fn test_stream_ciphertext_list_conformance() {
+        use super::StreamCiphertextList;
+        use crate::conformance::ParameterSetConformant;
+        use crate::integer::transciphering::{
+            IntegerStreamCiphertextListConformanceParams, IntegerStreamCiphertextPart,
+        };
+        use crate::shortint::parameters::current_params::V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        use crate::shortint::MessageModulus;
+        use crate::transciphering::{KreyviumPlainKey, KreyviumPlainState, StreamCipherKind};
+
+        let mut cipher = KreyviumPlainState::new(KreyviumPlainKey::from([7u8; 16]), [3u8; 16]);
+        let list = StreamCiphertextList::builder()
+            .push(42u32)
+            .push(true)
+            .build(&mut cipher)
+            .unwrap();
+
+        let matching = IntegerStreamCiphertextListConformanceParams::from_parameters_and_max_n_bits(
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            StreamCipherKind::Kreyvium,
+            40,
+        );
+        assert!(list.is_conformant(&matching));
+
+        for mismatched in [
+            IntegerStreamCiphertextListConformanceParams {
+                cipher_kind: StreamCipherKind::OneTimePad,
+                ..matching
+            },
+            IntegerStreamCiphertextListConformanceParams {
+                max_n_bits: 39,
+                ..matching
+            },
+            // 32 bits do not fill whole 3-bit blocks
+            IntegerStreamCiphertextListConformanceParams {
+                message_modulus: MessageModulus(8),
+                ..matching
+            },
+        ] {
+            assert!(!list.is_conformant(&mismatched));
+        }
+
+        // Simulate an attacker sending parts that do not describe the stream bits
+        {
+            #[derive(serde::Serialize)]
+            struct Tampered {
+                inner: crate::transciphering::StreamCiphertext,
+                info: Vec<IntegerStreamCiphertextPart>,
+            }
+
+            let tampered = bincode::serialize(&Tampered {
+                inner: list.integer().inner().clone(),
+                info: vec![
+                    IntegerStreamCiphertextPart::Unsigned(32.try_into().unwrap()),
+                    IntegerStreamCiphertextPart::Unsigned(16.try_into().unwrap()),
+                ],
+            })
+            .unwrap();
+            let tampered: StreamCiphertextList = bincode::deserialize(&tampered).unwrap();
+
+            assert!(!tampered.is_conformant(&matching));
+        }
     }
 
     #[test]
