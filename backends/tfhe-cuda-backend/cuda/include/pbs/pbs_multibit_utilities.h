@@ -10,14 +10,14 @@ bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
-    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory);
+    uint32_t num_samples, const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t max_shared_memory);
 
 #if CUDA_ARCH >= 900
 template <typename Torus>
 uint64_t scratch_cuda_tbc_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
@@ -26,16 +26,15 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
-    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride);
 #endif
 
 template <typename Torus>
 uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
@@ -44,15 +43,14 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
-    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride);
 
 template <typename Torus>
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, MULTI_BIT> **pbs_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
 
 template <typename Torus>
@@ -61,9 +59,8 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
-    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<Torus, MULTI_BIT> *pbs_buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride);
 
 template <typename Torus>
@@ -96,12 +93,11 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
 
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
-                            uint32_t polynomial_size, uint32_t glwe_dimension,
-                            uint32_t level_count, uint64_t full_sm_keybundle);
+                            const CudaLweBootstrapKeyParamsFFI &bsk_params,
+                            uint64_t full_sm_keybundle);
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
-                                uint32_t polynomial_size,
-                                uint32_t glwe_dimension, uint32_t level_count,
+                                const CudaLweBootstrapKeyParamsFFI &bsk_params,
                                 uint64_t full_sm_keybundle);
 template <typename Torus>
 struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
@@ -129,14 +125,15 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
 private:
   // Variant-free part: shared fields plus the buffers every multi-bit variant
   // uses (keybundle scratch, keybundle FFT, accumulator, join buffer).
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
-             uint32_t polynomial_size, uint32_t level_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
              uint32_t input_lwe_ciphertext_count, uint64_t lwe_chunk_size,
              bool allocate_gpu_memory, uint64_t &size_tracker)
       : lwe_chunk_size(lwe_chunk_size),
         gpu_memory_allocated(allocate_gpu_memory),
-        glwe_dimension(glwe_dimension), polynomial_size(polynomial_size),
-        level_count(level_count),
+        glwe_dimension(bsk_params.glwe_dimension),
+        polynomial_size(bsk_params.polynomial_size),
+        level_count(bsk_params.level_count),
         input_lwe_ciphertext_count(input_lwe_ciphertext_count) {
     cuda_set_device(gpu_index);
     max_shared_memory = cuda_get_max_shared_memory(gpu_index);
@@ -205,14 +202,13 @@ private:
   }
 
 public:
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
-             uint32_t polynomial_size, uint32_t level_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
              uint32_t input_lwe_ciphertext_count, uint64_t lwe_chunk_size,
              pbs_variant_tag<PBS_VARIANT::DEFAULT>, bool allocate_gpu_memory,
              uint64_t &size_tracker)
-      : pbs_buffer(stream, gpu_index, glwe_dimension, polynomial_size,
-                   level_count, input_lwe_ciphertext_count, lwe_chunk_size,
-                   allocate_gpu_memory, size_tracker) {
+      : pbs_buffer(stream, gpu_index, bsk_params, input_lwe_ciphertext_count,
+                   lwe_chunk_size, allocate_gpu_memory, size_tracker) {
     pbs_variant = PBS_VARIANT::DEFAULT;
 
     uint64_t full_sm_accumulate_step_one =
@@ -238,14 +234,13 @@ public:
           stream, gpu_index, size_tracker, allocate_gpu_memory);
   }
 
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
-             uint32_t polynomial_size, uint32_t level_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
              uint32_t input_lwe_ciphertext_count, uint64_t lwe_chunk_size,
              pbs_variant_tag<PBS_VARIANT::CG>, bool allocate_gpu_memory,
              uint64_t &size_tracker)
-      : pbs_buffer(stream, gpu_index, glwe_dimension, polynomial_size,
-                   level_count, input_lwe_ciphertext_count, lwe_chunk_size,
-                   allocate_gpu_memory, size_tracker) {
+      : pbs_buffer(stream, gpu_index, bsk_params, input_lwe_ciphertext_count,
+                   lwe_chunk_size, allocate_gpu_memory, size_tracker) {
     pbs_variant = PBS_VARIANT::CG;
 
     uint64_t full_sm_cg_accumulate =
@@ -263,14 +258,13 @@ public:
 #if CUDA_ARCH >= 900
   // Used by the 64-bit PBS only; there is no 128-bit multi-bit TBC kernel.
   // Constructors of a class template are instantiated only when called.
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
-             uint32_t polynomial_size, uint32_t level_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
              uint32_t input_lwe_ciphertext_count, uint64_t lwe_chunk_size,
              pbs_variant_tag<PBS_VARIANT::TBC>, bool allocate_gpu_memory,
              uint64_t &size_tracker)
-      : pbs_buffer(stream, gpu_index, glwe_dimension, polynomial_size,
-                   level_count, input_lwe_ciphertext_count, lwe_chunk_size,
-                   allocate_gpu_memory, size_tracker) {
+      : pbs_buffer(stream, gpu_index, bsk_params, input_lwe_ciphertext_count,
+                   lwe_chunk_size, allocate_gpu_memory, size_tracker) {
     pbs_variant = PBS_VARIANT::TBC;
 
     uint64_t full_sm_tbc_accumulate =

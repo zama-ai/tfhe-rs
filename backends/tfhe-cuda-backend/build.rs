@@ -135,6 +135,7 @@ fn main() {
             "cuda/include/keyswitch/ks_enums.h",
             "cuda/include/linear_algebra.h",
             "cuda/include/fft/fft128.h",
+            "cuda/include/pbs/bootstrap_key_params.h",
             "cuda/include/pbs/programmable_bootstrap.h",
             "cuda/include/pbs/programmable_bootstrap_multibit.h",
         ];
@@ -160,6 +161,8 @@ fn main() {
                 .header(header_path)
                 // allow only what we are interested in, the custom types appearing in the interface
                 .allowlist_type("PBS_TYPE")
+                // no ffi function takes it since the bsk params struct carries it as a u32
+                .allowlist_type("PBS_MS_REDUCTION_T")
                 .allowlist_type("SHIFT_OR_ROTATE_TYPE")
                 // and the functions reachable from the headers included in wrapper.h
                 .allowlist_function(".*")

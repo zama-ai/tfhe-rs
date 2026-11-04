@@ -53,6 +53,12 @@ protected:
   uint64_t *d_lwe_output_indexes;
   int8_t *buffer;
 
+  CudaLweBootstrapKeyParamsFFI bsk_params() const {
+    return make_bsk_params_ffi(
+        lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+        multi_bit_pbs_params{static_cast<uint32_t>(grouping_factor)});
+  }
+
 public:
   void SetUp(const ::benchmark::State &state) {
     stream = cuda_create_stream(gpu_index);
@@ -123,6 +129,12 @@ protected:
   cudaStream_t stream;
   uint32_t gpu_index = 0;
 
+  CudaLweBootstrapKeyParamsFFI bsk_params() const {
+    return make_bsk_params_ffi(
+        lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+        classical_pbs_params{PBS_MS_REDUCTION_T::NO_REDUCTION});
+  }
+
 public:
   void SetUp(const ::benchmark::State &state) {
     stream = cuda_create_stream(gpu_index);
@@ -167,16 +179,15 @@ public:
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 (benchmark::State &st) {
   if (!has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
-          input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          pbs_level, cuda_get_max_shared_memory(0))) {
+          input_lwe_ciphertext_count, bsk_params(),
+          cuda_get_max_shared_memory(0))) {
     st.SkipWithError("Configuration not supported for tbc operation");
     return;
   }
 
   scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
-      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
-      true);
+      bsk_params(), input_lwe_ciphertext_count, true);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
@@ -185,10 +196,8 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
         uint64_t>(stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
                   d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
                   d_lwe_input_indexes, d_bsk,
-                  (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
-                  glwe_dimension, polynomial_size, grouping_factor,
-                  pbs_base_log, pbs_level, input_lwe_ciphertext_count,
-                  num_many_lut, lut_stride);
+                  (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, bsk_params(),
+                  input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -199,31 +208,29 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, CgMultiBit)
 (benchmark::State &st) {
   if (!has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
-          glwe_dimension, polynomial_size, pbs_level,
-          input_lwe_ciphertext_count, cuda_get_max_shared_memory(gpu_index))) {
+          bsk_params(), input_lwe_ciphertext_count,
+          cuda_get_max_shared_memory(gpu_index))) {
     st.SkipWithError("Configuration not supported for fast operation");
     return;
   }
 
   scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
-      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
-      true);
+      bsk_params(), input_lwe_ciphertext_count, true);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
     // Execute PBS
     cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_async<
-        uint64_t>(
-        stream, gpu_index, d_lwe_ct_out_array,
-        (const uint64_t *)d_lwe_output_indexes,
-        (const uint64_t *)d_lut_pbs_identity,
-        (const uint64_t *)d_lut_pbs_indexes,
-        (const uint64_t *)d_lwe_ct_in_array,
-        (const uint64_t *)d_lwe_input_indexes, (const uint64_t *)d_bsk,
-        (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
-        pbs_level, input_lwe_ciphertext_count, num_many_lut, lut_stride);
+        uint64_t>(stream, gpu_index, d_lwe_ct_out_array,
+                  (const uint64_t *)d_lwe_output_indexes,
+                  (const uint64_t *)d_lut_pbs_identity,
+                  (const uint64_t *)d_lut_pbs_indexes,
+                  (const uint64_t *)d_lwe_ct_in_array,
+                  (const uint64_t *)d_lwe_input_indexes,
+                  (const uint64_t *)d_bsk,
+                  (pbs_buffer<uint64_t, MULTI_BIT> *)buffer, bsk_params(),
+                  input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -234,8 +241,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
 (benchmark::State &st) {
   scratch_cuda_multi_bit_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)&buffer,
-      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
-      true);
+      bsk_params(), input_lwe_ciphertext_count, true);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
@@ -244,9 +250,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
         stream, gpu_index, d_lwe_ct_out_array, d_lwe_output_indexes,
         d_lut_pbs_identity, d_lut_pbs_indexes, d_lwe_ct_in_array,
         d_lwe_input_indexes, d_bsk, (pbs_buffer<uint64_t, MULTI_BIT> *)buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-        pbs_base_log, pbs_level, input_lwe_ciphertext_count, num_many_lut,
-        lut_stride);
+        bsk_params(), input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -257,18 +261,16 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, Specialized2_2PBS)
 (benchmark::State &st) {
   cuda_set_device(gpu_index);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-  if (!pbs_2_2_specialized_params_checker<uint64_t>(
-          polynomial_size, glwe_dimension, pbs_level, lwe_dimension,
-          pbs_base_log, max_shared_memory)) {
+  if (!pbs_2_2_specialized_params_checker<uint64_t>(bsk_params(),
+                                                    max_shared_memory)) {
     st.SkipWithError("Configuration not supported for the 2_2 specialized PBS");
     return;
   }
 
   // Regenerate the key in the 2_2 specialized layout only when the automatic
   // conversion in the fixture picked a different one.
-  if (!supports_2_2_specialized_pbs<uint64_t>(
-          polynomial_size, glwe_dimension, pbs_level, lwe_dimension,
-          pbs_base_log, max_shared_memory)) {
+  if (!supports_2_2_specialized_pbs<uint64_t>(bsk_params(),
+                                              max_shared_memory)) {
     cuda_drop_async(d_fourier_bsk, stream, gpu_index);
     Seed bsk_seed;
     init_seed(&bsk_seed);
@@ -279,9 +281,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, Specialized2_2PBS)
   }
 
   scratch_cuda_programmable_bootstrap_2_2_specialized_64_async(
-      stream, gpu_index, &buffer, lwe_dimension, glwe_dimension,
-      polynomial_size, pbs_base_log, pbs_level, input_lwe_ciphertext_count,
-      true, PBS_MS_REDUCTION_T::NO_REDUCTION);
+      stream, gpu_index, &buffer, bsk_params(), input_lwe_ciphertext_count,
+      true);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
@@ -291,8 +292,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, Specialized2_2PBS)
         (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
         (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in_array,
         (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        input_lwe_ciphertext_count, num_many_lut, lut_stride);
+        bsk_params(), input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -305,8 +305,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
   // conversion in the fixture picked the 2_2 specialized one.
   cuda_set_device(gpu_index);
   if (supports_2_2_specialized_pbs<uint64_t>(
-          polynomial_size, glwe_dimension, pbs_level, lwe_dimension,
-          pbs_base_log, cuda_get_max_shared_memory(gpu_index))) {
+          bsk_params(), cuda_get_max_shared_memory(gpu_index))) {
     cuda_drop_async(d_fourier_bsk, stream, gpu_index);
     Seed bsk_seed;
     init_seed(&bsk_seed);
@@ -317,9 +316,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
   }
 
   scratch_cuda_programmable_bootstrap_default_64_async(
-      stream, gpu_index, &buffer, lwe_dimension, glwe_dimension,
-      polynomial_size, pbs_base_log, pbs_level, input_lwe_ciphertext_count,
-      true, PBS_MS_REDUCTION_T::NO_REDUCTION);
+      stream, gpu_index, &buffer, bsk_params(), input_lwe_ciphertext_count,
+      true);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
@@ -329,8 +327,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
         (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
         (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in_array,
         (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        input_lwe_ciphertext_count, num_many_lut, lut_stride);
+        bsk_params(), input_lwe_ciphertext_count, num_many_lut, lut_stride);
     cuda_synchronize_stream(stream, gpu_index);
   }
 

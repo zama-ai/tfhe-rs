@@ -405,17 +405,23 @@ struct int_radix_params {
         small_lwe_dimension(small_lwe_dimension), ks_level(ks_level),
         ks_base_log(ks_base_log), pbs_level(pbs_level),
         pbs_base_log(pbs_base_log), message_modulus(message_modulus),
-        carry_modulus(carry_modulus), pbs_type_and_params(pbs){};
+        carry_modulus(carry_modulus), pbs_type_and_params(pbs),
+        bsk_params_ffi(make_bsk_params_ffi(small_lwe_dimension, glwe_dimension,
+                                           polynomial_size, pbs_base_log,
+                                           pbs_level, pbs)){};
 
   int_radix_params(CudaLweBootstrapKeyParamsFFI bsk_params,
                    CudaLweKeyswitchKeyParamsFFI ksk_params,
                    uint32_t message_modulus, uint32_t carry_modulus)
-      : int_radix_params(pbs_type_params_from_ffi(bsk_params),
-                         bsk_params.glwe_dimension, bsk_params.polynomial_size,
-                         bsk_params.big_lwe_dimension,
-                         bsk_params.input_lwe_dimension, ksk_params.level_count,
-                         ksk_params.base_log, bsk_params.level_count,
-                         bsk_params.base_log, message_modulus, carry_modulus){};
+      : glwe_dimension(bsk_params.glwe_dimension),
+        polynomial_size(bsk_params.polynomial_size),
+        big_lwe_dimension(bsk_params.big_lwe_dimension),
+        small_lwe_dimension(bsk_params.input_lwe_dimension),
+        ks_level(ksk_params.level_count), ks_base_log(ksk_params.base_log),
+        pbs_level(bsk_params.level_count), pbs_base_log(bsk_params.base_log),
+        message_modulus(message_modulus), carry_modulus(carry_modulus),
+        pbs_type_and_params(pbs_type_params_from_ffi(bsk_params)),
+        bsk_params_ffi(bsk_params){};
 
   int_radix_params() = default;
 
@@ -426,6 +432,9 @@ struct int_radix_params {
 
   /// @brief PBS type tag together with its type specific parameters.
   pbs_type_params pbs_params() const { return pbs_type_and_params; }
+
+  /// @brief Bootstrap key parameters to pass to the PBS functions.
+  CudaLweBootstrapKeyParamsFFI bsk_params() const { return bsk_params_ffi; }
 
   /// @brief PBS type tag, derived from the active alternative so it can never
   /// disagree with pbs_params().
@@ -462,6 +471,9 @@ private:
   /// @brief PBS type tag together with its type specific parameters. Read it
   /// through pbs_params() and pbs_type().
   pbs_type_params pbs_type_and_params;
+  /// @brief Bootstrap key parameters, built once at construction. Read it
+  /// through bsk_params().
+  CudaLweBootstrapKeyParamsFFI bsk_params_ffi;
 };
 
 // Store things needed to apply LUTs
@@ -597,10 +609,8 @@ struct int_radix_lut_custom_input_output {
       uint64_t size = 0;
       execute_scratch_pbs<OutputTorus>(
           active_streams.stream(i), active_streams.gpu_index(i),
-          &gpu_pbs_buffer_raw, params.glwe_dimension,
-          params.small_lwe_dimension, params.polynomial_size,
-          params.pbs_base_log, params.pbs_level, num_blocks_on_gpu,
-          params.pbs_params(), allocate_gpu_memory, size);
+          &gpu_pbs_buffer_raw, params.bsk_params(), num_blocks_on_gpu,
+          allocate_gpu_memory, size);
       if (i == 0) {
         size_tracker += size;
       }

@@ -12,7 +12,7 @@ use crate::core_crypto::commons::noise_formulas::noise_simulation::{
     NoiseSimulationLweMultiBitFourierBsk,
 };
 use crate::core_crypto::gpu::algorithms::lwe_keyswitch::cuda_keyswitch_lwe_ciphertext;
-use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::entities::lwe_bootstrap_key::{CudaBootstrapKey, CudaLweBootstrapKey};
 use crate::core_crypto::gpu::entities::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaModulusSwitchNoiseReductionConfiguration;
@@ -1155,12 +1155,7 @@ impl LweMultiBitFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>
                         &input_cuda_lwe.0.d_vec,
                         &input_indexes,
                         &mb_bsk.d_vec,
-                        mb_bsk.input_lwe_dimension(),
-                        mb_bsk.glwe_dimension(),
-                        mb_bsk.polynomial_size(),
-                        mb_bsk.decomp_base_log(),
-                        mb_bsk.decomp_level_count(),
-                        mb_bsk.grouping_factor(),
+                        mb_bsk.params_ffi(),
                         num_samples,
                     );
                 }
@@ -1252,12 +1247,7 @@ impl CudaServerKey {
                                 &input_cuda_lwe.0.d_vec,
                                 &input_indexes,
                                 &mb_bsk.d_vec,
-                                mb_bsk.input_lwe_dimension(),
-                                mb_bsk.glwe_dimension(),
-                                mb_bsk.polynomial_size(),
-                                mb_bsk.decomp_base_log(),
-                                mb_bsk.decomp_level_count(),
-                                mb_bsk.grouping_factor(),
+                                mb_bsk.params_ffi(),
                                 num_samples,
                             );
                         }
@@ -1402,12 +1392,7 @@ impl LweGenericBlindRotate128<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u12
                             &input_cuda_lwe.0.d_vec,
                             &input_indexes,
                             &mb_bsk.d_vec,
-                            mb_bsk.input_lwe_dimension(),
-                            mb_bsk.glwe_dimension(),
-                            mb_bsk.polynomial_size(),
-                            mb_bsk.decomp_base_log(),
-                            mb_bsk.decomp_level_count(),
-                            mb_bsk.grouping_factor(),
+                            mb_bsk.params_ffi(),
                             num_samples,
                         );
                     }
@@ -1611,12 +1596,7 @@ impl LweMultiBitFftBootstrap<CudaDynLwe, CudaDynLwe, CudaGlweCiphertextList<u64>
                         &input_cuda_lwe.0.d_vec,
                         &input_indexes,
                         &mb_bsk.d_vec,
-                        mb_bsk.input_lwe_dimension(),
-                        mb_bsk.glwe_dimension(),
-                        mb_bsk.polynomial_size(),
-                        mb_bsk.decomp_base_log(),
-                        mb_bsk.decomp_level_count(),
-                        mb_bsk.grouping_factor(),
+                        mb_bsk.params_ffi(),
                         num_samples,
                     );
                 }

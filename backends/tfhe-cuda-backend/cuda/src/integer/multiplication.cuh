@@ -311,8 +311,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
   auto d_new_columns = mem_ptr->d_new_columns;
   auto d_new_columns_counter = mem_ptr->d_new_columns_counter;
 
-  auto glwe_dimension = mem_ptr->params.glwe_dimension;
-  auto polynomial_size = mem_ptr->params.polynomial_size;
   auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
   auto chunk_size = mem_ptr->params.max_degree();
 
@@ -403,10 +401,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
           (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
-          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
-          polynomial_size, mem_ptr->params.pbs_base_log,
-          mem_ptr->params.pbs_level, total_ciphertexts,
-          mem_ptr->params.pbs_params(), num_many_lut, lut_stride);
+          luts_message_carry->buffer, mem_ptr->params.bsk_params(),
+          total_ciphertexts, num_many_lut, lut_stride);
     } else {
 
       // we just need to broadcast the indexes
@@ -454,10 +450,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           streams.get_ith(0), (Torus *)current_blocks->ptr, d_pbs_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
           (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in, bsks,
-          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
-          polynomial_size, mem_ptr->params.pbs_base_log,
-          mem_ptr->params.pbs_level, 2 * num_radix_blocks,
-          mem_ptr->params.pbs_params(), num_many_lut, lut_stride);
+          luts_message_carry->buffer, mem_ptr->params.bsk_params(),
+          2 * num_radix_blocks, num_many_lut, lut_stride);
     } else {
       uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
       // we just need to broadcast the indexes

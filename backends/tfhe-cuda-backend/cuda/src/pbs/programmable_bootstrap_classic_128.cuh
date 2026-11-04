@@ -677,17 +677,16 @@ template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_cg_128(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   cuda_set_device(gpu_index);
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t partial_sm =
       get_buffer_size_partial_sm_programmable_bootstrap_cg<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm) {
     check_cuda_error(cudaFuncSetAttribute(
@@ -709,10 +708,8 @@ __host__ uint64_t scratch_programmable_bootstrap_cg_128(
 
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL>(
-      stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count,
-      pbs_variant_tag<PBS_VARIANT::CG>{}, allocate_gpu_memory,
-      noise_reduction_type, size_tracker);
+      stream, gpu_index, bsk_params, input_lwe_ciphertext_count,
+      pbs_variant_tag<PBS_VARIANT::CG>{}, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
@@ -720,20 +717,19 @@ template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   cuda_set_device(gpu_index);
   uint64_t full_sm_step_one =
       get_buffer_size_full_sm_programmable_bootstrap_step_one<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t full_sm_step_two =
       get_buffer_size_full_sm_programmable_bootstrap_step_two<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t partial_sm =
       get_buffer_size_partial_sm_programmable_bootstrap<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
@@ -782,7 +778,7 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
   // Configuring the func attributes is harmless even if the kernel ends up not
   // being launched (base_log != 24 at runtime).
   if constexpr (params::degree == 2048) {
-    if (level_count == 3) {
+    if (bsk_params.level_count == 3) {
       if (max_shared_memory >= partial_sm &&
           max_shared_memory < full_sm_step_one) {
         check_cuda_error(cudaFuncSetAttribute(
@@ -865,10 +861,9 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
 
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL>(
-      stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count,
+      stream, gpu_index, bsk_params, input_lwe_ciphertext_count,
       pbs_variant_tag<PBS_VARIANT::DEFAULT>{}, allocate_gpu_memory,
-      noise_reduction_type, size_tracker);
+      size_tracker);
   return size_tracker;
 }
 
@@ -884,15 +879,16 @@ bool supports_distributed_shared_memory_on_classic_programmable_bootstrap_128(
 template <typename InputTorus, typename params>
 __host__ bool
 supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
-    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory) {
+    uint32_t num_samples, const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t max_shared_memory) {
 
   if (!cuda_check_support_thread_block_clusters())
     return false;
 
   // The TBC implementation is a specialized implementation for the noise
   // squash params.
-  if (polynomial_size != 2048 || level_count != 3 || glwe_dimension != 2) {
+  if (bsk_params.polynomial_size != 2048 || bsk_params.level_count != 3 ||
+      bsk_params.glwe_dimension != 2) {
     return false;
   }
 #if CUDA_ARCH < 900
@@ -900,17 +896,17 @@ supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
 #else
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_tbc<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
 
   int cluster_size;
 
-  dim3 grid(num_samples, glwe_dimension + 1, level_count);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+  dim3 grid(num_samples, bsk_params.glwe_dimension + 1, bsk_params.level_count);
+  dim3 thds(bsk_params.polynomial_size / params::opt, 1, 1);
   cudaLaunchAttribute attribute[1];
   attribute[0].id = cudaLaunchAttributeClusterDimension;
   attribute[0].val.clusterDim.x = 1;
-  attribute[0].val.clusterDim.y = glwe_dimension + 1;
-  attribute[0].val.clusterDim.z = level_count;
+  attribute[0].val.clusterDim.y = bsk_params.glwe_dimension + 1;
+  attribute[0].val.clusterDim.z = bsk_params.level_count;
 
   cudaLaunchConfig_t config = {0};
   config.gridDim = grid;
@@ -931,7 +927,8 @@ supports_thread_block_clusters_on_classic_programmable_bootstrap_128(
       device_programmable_bootstrap_tbc_128<InputTorus, params, FULLSM>,
       &config));
 
-  return cluster_size >= level_count * (glwe_dimension + 1);
+  return cluster_size >=
+         bsk_params.level_count * (bsk_params.glwe_dimension + 1);
 #endif
 }
 
@@ -1126,8 +1123,9 @@ __host__ void execute_host_driven_tbc_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key, __uint128_t *global_accumulator,
-    uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
-    uint32_t lwe_iteration, PBS_MS_REDUCTION_T noise_reduction_type) {
+    uint32_t input_lwe_ciphertext_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t lwe_iteration,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   auto kernel = device_programmable_bootstrap_host_driven_tbc_128<
       InputTorus, params, is_first_iter, is_last_iter, base_log, level_count,
@@ -1152,10 +1150,10 @@ __host__ void execute_host_driven_tbc_128(
   config.attrs = attribute;
   config.numAttrs = 2;
 
-  check_cuda_error(
-      cudaLaunchKernelEx(&config, kernel, lwe_array_out, lut_vector,
-                         lwe_array_in, bootstrapping_key, global_accumulator,
-                         lwe_iteration, lwe_dimension, noise_reduction_type));
+  check_cuda_error(cudaLaunchKernelEx(
+      &config, kernel, lwe_array_out, lut_vector, lwe_array_in,
+      bootstrapping_key, global_accumulator, lwe_iteration,
+      bsk_params.input_lwe_dimension, noise_reduction_type));
 }
 
 // One launch per blind-rotation iteration. Short launches let the concurrent
@@ -1170,9 +1168,8 @@ template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_host_driven_tbc_128(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   cuda_set_device(gpu_index);
   configure_host_driven_tbc_128<InputTorus, params, PBS128_SNS_BASE_LOG,
@@ -1181,10 +1178,9 @@ __host__ uint64_t scratch_programmable_bootstrap_host_driven_tbc_128(
 
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL>(
-      stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count,
+      stream, gpu_index, bsk_params, input_lwe_ciphertext_count,
       pbs_variant_tag<PBS_VARIANT::TBC_HOST_DRIVEN>{}, allocate_gpu_memory,
-      noise_reduction_type, size_tracker);
+      size_tracker);
   return size_tracker;
 }
 
@@ -1194,8 +1190,7 @@ __host__ void host_programmable_bootstrap_host_driven_tbc_128(
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log_rt, uint32_t level_count_rt,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count) {
 
   // The flavor is compiled for exactly the noise-squashing shape: the GGSW
@@ -1208,9 +1203,10 @@ __host__ void host_programmable_bootstrap_host_driven_tbc_128(
   static_assert(params::degree == PBS128_SNS_POLYNOMIAL_SIZE,
                 "the host-driven TBC flavor is only compiled for the "
                 "noise-squashing polynomial size");
-  PANIC_IF_FALSE(polynomial_size == PBS128_SNS_POLYNOMIAL_SIZE &&
-                     base_log_rt == base_log && level_count_rt == level_count &&
-                     glwe_dimension == glwe_dimension_ct &&
+  PANIC_IF_FALSE(bsk_params.polynomial_size == PBS128_SNS_POLYNOMIAL_SIZE &&
+                     bsk_params.base_log == base_log &&
+                     bsk_params.level_count == level_count &&
+                     bsk_params.glwe_dimension == glwe_dimension_ct &&
                      cuda_check_support_thread_block_clusters(),
                  "Cuda error: the host-driven TBC implementation of the "
                  "128-bit programmable bootstrap only supports the "
@@ -1224,33 +1220,33 @@ __host__ void host_programmable_bootstrap_host_driven_tbc_128(
   auto *global_accumulator = buffer->global_accumulator;
   // The scratch function already raised the shared-memory limit.
 
-  for (uint32_t i = 0; i < lwe_dimension; i++) {
+  for (uint32_t i = 0; i < bsk_params.input_lwe_dimension; i++) {
     const bool is_first = (i == 0);
-    const bool is_last = (i == lwe_dimension - 1);
+    const bool is_last = (i == bsk_params.input_lwe_dimension - 1);
     if (is_first && is_last)
       execute_host_driven_tbc_128<InputTorus, params, true, true, base_log,
                                   level_count, glwe_dimension_ct>(
           stream, gpu_index, lwe_array_out, lut_vector, lwe_array_in,
           bootstrapping_key, global_accumulator, input_lwe_ciphertext_count,
-          lwe_dimension, i, noise_reduction_type);
+          bsk_params, i, noise_reduction_type);
     else if (is_first)
       execute_host_driven_tbc_128<InputTorus, params, true, false, base_log,
                                   level_count, glwe_dimension_ct>(
           stream, gpu_index, lwe_array_out, lut_vector, lwe_array_in,
           bootstrapping_key, global_accumulator, input_lwe_ciphertext_count,
-          lwe_dimension, i, noise_reduction_type);
+          bsk_params, i, noise_reduction_type);
     else if (is_last)
       execute_host_driven_tbc_128<InputTorus, params, false, true, base_log,
                                   level_count, glwe_dimension_ct>(
           stream, gpu_index, lwe_array_out, lut_vector, lwe_array_in,
           bootstrapping_key, global_accumulator, input_lwe_ciphertext_count,
-          lwe_dimension, i, noise_reduction_type);
+          bsk_params, i, noise_reduction_type);
     else
       execute_host_driven_tbc_128<InputTorus, params, false, false, base_log,
                                   level_count, glwe_dimension_ct>(
           stream, gpu_index, lwe_array_out, lut_vector, lwe_array_in,
           bootstrapping_key, global_accumulator, input_lwe_ciphertext_count,
-          lwe_dimension, i, noise_reduction_type);
+          bsk_params, i, noise_reduction_type);
   }
 }
 #endif
@@ -1259,20 +1255,19 @@ template <typename InputTorus, typename params>
 __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   cuda_set_device(gpu_index);
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap_128<
-          __uint128_t>(polynomial_size, max_shared_memory);
+          __uint128_t>(bsk_params.polynomial_size, max_shared_memory);
 
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_tbc<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
 #if CUDA_ARCH >= 900
   check_cuda_error(cudaFuncSetAttribute(
       device_programmable_bootstrap_tbc_128<InputTorus, params, FULLSM>,
@@ -1287,10 +1282,8 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
   check_cuda_error(cudaGetLastError());
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL>(
-      stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count,
-      pbs_variant_tag<PBS_VARIANT::TBC>{}, allocate_gpu_memory,
-      noise_reduction_type, size_tracker);
+      stream, gpu_index, bsk_params, input_lwe_ciphertext_count,
+      pbs_variant_tag<PBS_VARIANT::TBC>{}, allocate_gpu_memory, size_tracker);
   return size_tracker;
 #else
   PANIC("Cuda error (PBS): unsupported implementation variant.")
@@ -1310,11 +1303,11 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc_128(
 #if CUDA_ARCH >= 900
 template <typename InputTorus, class params>
 __host__ bool has_support_to_cuda_programmable_bootstrap_host_driven_tbc_128(
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t max_shared_memory) {
-  if (polynomial_size != PBS128_SNS_POLYNOMIAL_SIZE ||
-      glwe_dimension != PBS128_SNS_GLWE_DIMENSION ||
-      level_count != PBS128_SNS_LEVEL_COUNT)
+  if (bsk_params.polynomial_size != PBS128_SNS_POLYNOMIAL_SIZE ||
+      bsk_params.glwe_dimension != PBS128_SNS_GLWE_DIMENSION ||
+      bsk_params.level_count != PBS128_SNS_LEVEL_COUNT)
     return false;
   if (!cuda_check_support_thread_block_clusters())
     return false;
@@ -1328,7 +1321,7 @@ __host__ bool has_support_to_cuda_programmable_bootstrap_host_driven_tbc_128(
 // is not compiled and can never be selected.
 template <typename InputTorus, class params>
 __host__ bool has_support_to_cuda_programmable_bootstrap_host_driven_tbc_128(
-    uint32_t, uint32_t, uint32_t, uint32_t) {
+    const CudaLweBootstrapKeyParamsFFI &, uint32_t) {
   return false;
 }
 #endif
@@ -1351,9 +1344,8 @@ template <typename InputTorus>
 uint64_t scratch_cuda_programmable_bootstrap_128_vector(
     void *stream, uint32_t gpu_index,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> **buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
@@ -1368,8 +1360,8 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
     // be read as macro argument separators.
     const bool is_supported =
         has_support_to_cuda_programmable_bootstrap_host_driven_tbc_128<
-            InputTorus, Degree<PBS128_SNS_POLYNOMIAL_SIZE>>(
-            glwe_dimension, polynomial_size, level_count, max_shared_memory);
+            InputTorus, Degree<PBS128_SNS_POLYNOMIAL_SIZE>>(bsk_params,
+                                                            max_shared_memory);
     // Loud rather than a silent fallback: a run that asked for the relaxed
     // flavor and quietly got the default one would report success without
     // having tested anything.
@@ -1384,9 +1376,8 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
 
     return scratch_programmable_bootstrap_host_driven_tbc_128<
         InputTorus, Degree<PBS128_SNS_POLYNOMIAL_SIZE>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+        static_cast<cudaStream_t>(stream), gpu_index, buffer, bsk_params,
+        input_lwe_ciphertext_count, allocate_gpu_memory);
 #else
     PANIC("Cuda error (classical PBS128): TFHE_RS_GPU_PBS128_RELAXED asks for "
           "the relaxed arithmetic flavor of the 128-bit programmable "
@@ -1403,15 +1394,12 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
   // size.
   if (!force_step_one_step_two &&
       has_support_to_cuda_programmable_bootstrap_128_tbc(
-          input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          level_count, max_shared_memory)) {
-    switch (polynomial_size) {
+          input_lwe_ciphertext_count, bsk_params, max_shared_memory)) {
+    switch (bsk_params.polynomial_size) {
     case 2048:
       return scratch_programmable_bootstrap_tbc_128<InputTorus, Degree<2048>>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type);
+          static_cast<cudaStream_t>(stream), gpu_index, buffer, bsk_params,
+          input_lwe_ciphertext_count, allocate_gpu_memory);
       break;
     default:
       PANIC("Cuda error (classical PBS128 TBC): unsupported polynomial size. "
@@ -1419,23 +1407,18 @@ uint64_t scratch_cuda_programmable_bootstrap_128_vector(
     }
   } else if (!force_step_one_step_two &&
              has_support_to_cuda_programmable_bootstrap_128_cg(
-                 glwe_dimension, polynomial_size, level_count,
-                 input_lwe_ciphertext_count, max_shared_memory)) {
+                 bsk_params, input_lwe_ciphertext_count, max_shared_memory)) {
     DISPATCH_POLY_SIZE(
-        polynomial_size, Multibit128DegreePolicy,
+        bsk_params.polynomial_size, Multibit128DegreePolicy,
         return scratch_programmable_bootstrap_cg_128<InputTorus, Params>(
-            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-            glwe_dimension, polynomial_size, level_count,
-            input_lwe_ciphertext_count, allocate_gpu_memory,
-            noise_reduction_type));
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, bsk_params,
+            input_lwe_ciphertext_count, allocate_gpu_memory));
   } else {
     DISPATCH_POLY_SIZE(
-        polynomial_size, Multibit128DegreePolicy,
+        bsk_params.polynomial_size, Multibit128DegreePolicy,
         return scratch_programmable_bootstrap_128<InputTorus, Params>(
-            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-            glwe_dimension, polynomial_size, level_count,
-            input_lwe_ciphertext_count, allocate_gpu_memory,
-            noise_reduction_type));
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, bsk_params,
+            input_lwe_ciphertext_count, allocate_gpu_memory));
   }
 }
 
@@ -1445,37 +1428,41 @@ __host__ void execute_step_one_128(
     InputTorus const *lwe_array_in, double const *bootstrapping_key,
     __uint128_t *global_accumulator, double *global_join_buffer,
     PBS_MS_REDUCTION_T noise_reduction_type,
-    uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, int8_t *d_mem, int lwe_iteration, uint64_t partial_sm,
-    uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm) {
+    uint32_t input_lwe_ciphertext_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, int8_t *d_mem,
+    int lwe_iteration, uint64_t partial_sm, uint64_t partial_dm,
+    uint64_t full_sm, uint64_t full_dm) {
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
-  int thds = polynomial_size / params::opt;
-  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
+  int thds = bsk_params.polynomial_size / params::opt;
+  dim3 grid(input_lwe_ciphertext_count, bsk_params.glwe_dimension + 1,
+            bsk_params.level_count);
 
   if (max_shared_memory < partial_sm) {
     device_programmable_bootstrap_step_one_128<InputTorus, params, NOSM,
                                                first_iter>
         <<<grid, thds, 0, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, full_dm, noise_reduction_type);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, bsk_params.base_log,
+            bsk_params.level_count, d_mem, full_dm, noise_reduction_type);
   } else if (max_shared_memory < full_sm) {
     device_programmable_bootstrap_step_one_128<InputTorus, params, PARTIALSM,
                                                first_iter>
         <<<grid, thds, partial_sm, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, partial_dm, noise_reduction_type);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, bsk_params.base_log,
+            bsk_params.level_count, d_mem, partial_dm, noise_reduction_type);
   } else {
     device_programmable_bootstrap_step_one_128<InputTorus, params, FULLSM,
                                                first_iter>
         <<<grid, thds, full_sm, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, 0, noise_reduction_type);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, bsk_params.base_log,
+            bsk_params.level_count, d_mem, 0, noise_reduction_type);
   }
   check_cuda_error(cudaGetLastError());
 }
@@ -1490,37 +1477,39 @@ __host__ void execute_step_one_128_regs(
     InputTorus const *lwe_array_in, double const *bootstrapping_key,
     __uint128_t *global_accumulator, double *global_join_buffer,
     PBS_MS_REDUCTION_T noise_reduction_type,
-    uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, int8_t *d_mem,
+    uint32_t input_lwe_ciphertext_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, int8_t *d_mem,
     int lwe_iteration, uint64_t partial_sm, uint64_t partial_dm,
     uint64_t full_sm, uint64_t full_dm) {
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
-  int thds = polynomial_size / params::opt;
-  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
+  int thds = bsk_params.polynomial_size / params::opt;
+  dim3 grid(input_lwe_ciphertext_count, bsk_params.glwe_dimension + 1,
+            level_count);
 
   if (max_shared_memory < partial_sm) {
     device_programmable_bootstrap_step_one_128_regs<
         InputTorus, params, NOSM, first_iter, base_log, level_count>
         <<<grid, thds, 0, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            d_mem, full_dm, noise_reduction_type);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, d_mem, full_dm, noise_reduction_type);
   } else if (max_shared_memory < full_sm) {
     device_programmable_bootstrap_step_one_128_regs<
         InputTorus, params, PARTIALSM, first_iter, base_log, level_count>
         <<<grid, thds, partial_sm, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            d_mem, partial_dm, noise_reduction_type);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, d_mem, partial_dm,
+            noise_reduction_type);
   } else {
     device_programmable_bootstrap_step_one_128_regs<
         InputTorus, params, FULLSM, first_iter, base_log, level_count>
         <<<grid, thds, full_sm, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            d_mem, 0, noise_reduction_type);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, d_mem, 0, noise_reduction_type);
   }
   check_cuda_error(cudaGetLastError());
 }
@@ -1530,37 +1519,39 @@ __host__ void execute_step_two_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     double const *bootstrapping_key, __uint128_t *global_accumulator,
     double *global_join_buffer, uint32_t input_lwe_ciphertext_count,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count, int8_t *d_mem, int lwe_iteration,
-    uint64_t partial_sm, uint64_t partial_dm, uint64_t full_sm,
-    uint64_t full_dm) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, int8_t *d_mem,
+    int lwe_iteration, uint64_t partial_sm, uint64_t partial_dm,
+    uint64_t full_sm, uint64_t full_dm) {
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
-  int thds = polynomial_size / params::opt;
-  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);
+  int thds = bsk_params.polynomial_size / params::opt;
+  dim3 grid(input_lwe_ciphertext_count, bsk_params.glwe_dimension + 1);
 
   if (max_shared_memory < partial_sm) {
     device_programmable_bootstrap_step_two_128<__uint128_t, params, NOSM,
                                                last_iter>
         <<<grid, thds, 0, stream>>>(
             lwe_array_out, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, full_dm);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, bsk_params.base_log,
+            bsk_params.level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
     device_programmable_bootstrap_step_two_128<__uint128_t, params, PARTIALSM,
                                                last_iter>
         <<<grid, thds, partial_sm, stream>>>(
             lwe_array_out, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, partial_dm);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, bsk_params.base_log,
+            bsk_params.level_count, d_mem, partial_dm);
   } else {
     device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
                                                last_iter>
         <<<grid, thds, full_sm, stream>>>(
             lwe_array_out, bootstrapping_key, global_accumulator,
-            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
-            base_log, level_count, d_mem, 0);
+            global_join_buffer, lwe_iteration, bsk_params.input_lwe_dimension,
+            bsk_params.polynomial_size, bsk_params.base_log,
+            bsk_params.level_count, d_mem, 0);
   }
   check_cuda_error(cudaGetLastError());
 }
@@ -1574,8 +1565,7 @@ __host__ void host_programmable_bootstrap_128(
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *pbs_buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count) {
   cuda_set_device(gpu_index);
 
@@ -1583,14 +1573,14 @@ __host__ void host_programmable_bootstrap_128(
   // duplicate data for each
   uint64_t full_sm_step_one =
       get_buffer_size_full_sm_programmable_bootstrap_step_one<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t full_sm_step_two =
       get_buffer_size_full_sm_programmable_bootstrap_step_two<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
 
   uint64_t partial_sm =
       get_buffer_size_partial_sm_programmable_bootstrap<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
 
   uint64_t partial_dm_step_one = full_sm_step_one - partial_sm;
   uint64_t partial_dm_step_two = full_sm_step_two - partial_sm;
@@ -1607,25 +1597,24 @@ __host__ void host_programmable_bootstrap_128(
   // configuration falls back to the generic shared-memory step one.
   bool use_regs_step_one = false;
   if constexpr (params::degree == 2048) {
-    use_regs_step_one = (base_log == 24 && level_count == 3);
+    use_regs_step_one =
+        (bsk_params.base_log == 24 && bsk_params.level_count == 3);
   }
 
-  for (int i = 0; i < lwe_dimension; i++) {
+  for (int i = 0; i < bsk_params.input_lwe_dimension; i++) {
     if (i == 0) {
       if (use_regs_step_one) {
         if constexpr (params::degree == 2048)
           execute_step_one_128_regs<InputTorus, params, true, 24, 3>(
               stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
               global_accumulator, global_join_buffer, noise_reduction_type,
-              input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
-              polynomial_size, d_mem, i, partial_sm, partial_dm_step_one,
-              full_sm_step_one, full_dm_step_one);
+              input_lwe_ciphertext_count, bsk_params, d_mem, i, partial_sm,
+              partial_dm_step_one, full_sm_step_one, full_dm_step_one);
       } else {
         execute_step_one_128<InputTorus, params, true>(
             stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
             global_accumulator, global_join_buffer, noise_reduction_type,
-            input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, d_mem, i, partial_sm,
+            input_lwe_ciphertext_count, bsk_params, d_mem, i, partial_sm,
             partial_dm_step_one, full_sm_step_one, full_dm_step_one);
       }
     } else {
@@ -1634,32 +1623,28 @@ __host__ void host_programmable_bootstrap_128(
           execute_step_one_128_regs<InputTorus, params, false, 24, 3>(
               stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
               global_accumulator, global_join_buffer, noise_reduction_type,
-              input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
-              polynomial_size, d_mem, i, partial_sm, partial_dm_step_one,
-              full_sm_step_one, full_dm_step_one);
+              input_lwe_ciphertext_count, bsk_params, d_mem, i, partial_sm,
+              partial_dm_step_one, full_sm_step_one, full_dm_step_one);
       } else {
         execute_step_one_128<InputTorus, params, false>(
             stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
             global_accumulator, global_join_buffer, noise_reduction_type,
-            input_lwe_ciphertext_count, lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, d_mem, i, partial_sm,
+            input_lwe_ciphertext_count, bsk_params, d_mem, i, partial_sm,
             partial_dm_step_one, full_sm_step_one, full_dm_step_one);
       }
     }
-    if (i == lwe_dimension - 1) {
+    if (i == bsk_params.input_lwe_dimension - 1) {
       execute_step_two_128<params, true>(
           stream, gpu_index, lwe_array_out, bootstrapping_key,
           global_accumulator, global_join_buffer, input_lwe_ciphertext_count,
-          lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
-          d_mem, i, partial_sm, partial_dm_step_two, full_sm_step_two,
-          full_dm_step_two);
+          bsk_params, d_mem, i, partial_sm, partial_dm_step_two,
+          full_sm_step_two, full_dm_step_two);
     } else {
       execute_step_two_128<params, false>(
           stream, gpu_index, lwe_array_out, bootstrapping_key,
           global_accumulator, global_join_buffer, input_lwe_ciphertext_count,
-          lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
-          d_mem, i, partial_sm, partial_dm_step_two, full_sm_step_two,
-          full_dm_step_two);
+          bsk_params, d_mem, i, partial_sm, partial_dm_step_two,
+          full_sm_step_two, full_dm_step_two);
     }
   }
 }
@@ -1670,19 +1655,18 @@ __host__ void host_programmable_bootstrap_cg_128(
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count) {
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
 
   uint64_t partial_sm =
       get_buffer_size_partial_sm_programmable_bootstrap_cg<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
@@ -1695,8 +1679,14 @@ __host__ void host_programmable_bootstrap_cg_128(
   double *buffer_fft = buffer->global_join_buffer;
   auto noise_reduction_type = buffer->noise_reduction_type;
 
-  int thds = polynomial_size / params::opt;
-  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
+  int thds = bsk_params.polynomial_size / params::opt;
+  dim3 grid(input_lwe_ciphertext_count, bsk_params.glwe_dimension + 1,
+            bsk_params.level_count);
+
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t base_log = bsk_params.base_log;
+  uint32_t level_count = bsk_params.level_count;
 
   void *kernel_args[12];
   kernel_args[0] = &lwe_array_out;
@@ -1741,15 +1731,13 @@ __host__ void host_programmable_bootstrap_tbc_128(
     __uint128_t const *lut_vector, InputTorus const *lwe_array_in,
     double const *bootstrapping_key,
     pbs_buffer<__uint128_t, PBS_TYPE::CLASSICAL> *buffer,
-    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count) {
 
-  bool can_use_tbc =
-      has_support_to_cuda_programmable_bootstrap_128_tbc(
-          input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          level_count, cuda_get_max_shared_memory(gpu_index)) &&
-      base_log == 24;
+  bool can_use_tbc = has_support_to_cuda_programmable_bootstrap_128_tbc(
+                         input_lwe_ciphertext_count, bsk_params,
+                         cuda_get_max_shared_memory(gpu_index)) &&
+                     bsk_params.base_log == 24;
 
   PANIC_IF_FALSE(can_use_tbc,
                  "Cuda error: the TBC implementation of the programmable "
@@ -1763,15 +1751,16 @@ __host__ void host_programmable_bootstrap_tbc_128(
 
   bool supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap_128<
-          __uint128_t>(polynomial_size, max_shared_memory);
+          __uint128_t>(bsk_params.polynomial_size, max_shared_memory);
 
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_tbc<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
 
   auto noise_reduction_type = buffer->noise_reduction_type;
-  int thds = polynomial_size / params::opt;
-  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
+  int thds = bsk_params.polynomial_size / params::opt;
+  dim3 grid(input_lwe_ciphertext_count, bsk_params.glwe_dimension + 1,
+            bsk_params.level_count);
 
   cudaLaunchConfig_t config = {0};
   config.gridDim = grid;
@@ -1781,8 +1770,9 @@ __host__ void host_programmable_bootstrap_tbc_128(
   cudaLaunchAttribute attribute[1];
   attribute[0].id = cudaLaunchAttributeClusterDimension;
   attribute[0].val.clusterDim.x = 1;
-  attribute[0].val.clusterDim.y = glwe_dimension + 1; // Cluster size Y = 3
-  attribute[0].val.clusterDim.z = level_count;        // Cluster size Z = 3
+  attribute[0].val.clusterDim.y =
+      bsk_params.glwe_dimension + 1;                      // Cluster size Y = 3
+  attribute[0].val.clusterDim.z = bsk_params.level_count; // Cluster size Z = 3
   config.attrs = attribute;
   config.numAttrs = 1;
   config.dynamicSmemBytes = full_sm;
@@ -1793,8 +1783,8 @@ __host__ void host_programmable_bootstrap_tbc_128(
   check_cuda_error(cudaLaunchKernelEx(
       &config,
       device_programmable_bootstrap_tbc_128<InputTorus, params, FULLSM>,
-      lwe_array_out, lut_vector, lwe_array_in, bootstrapping_key, lwe_dimension,
-      noise_reduction_type));
+      lwe_array_out, lut_vector, lwe_array_in, bootstrapping_key,
+      bsk_params.input_lwe_dimension, noise_reduction_type));
 
   check_cuda_error(cudaGetLastError());
 }
@@ -1804,7 +1794,7 @@ __host__ void host_programmable_bootstrap_tbc_128(
 // Verify if the grid size satisfies the cooperative group constraints
 template <class params>
 __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
-    int glwe_dimension, int level_count, int num_samples,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, int num_samples,
     uint32_t max_shared_memory) {
 
   // If Cooperative Groups is not supported, no need to check anything else
@@ -1823,7 +1813,8 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
   int thds = params::degree / params::opt;
 
   // Get the maximum number of active blocks per streaming multiprocessors
-  int number_of_blocks = level_count * (glwe_dimension + 1) * num_samples;
+  int number_of_blocks =
+      bsk_params.level_count * (bsk_params.glwe_dimension + 1) * num_samples;
   int max_active_blocks_per_sm;
 
   if (max_shared_memory < partial_sm) {
@@ -1867,12 +1858,12 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
 
 // Verify if the grid size satisfies the cooperative group constraints
 __host__ bool supports_cooperative_groups_on_programmable_bootstrap_128(
-    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, int num_samples,
     uint32_t max_shared_memory) {
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit classic PBS
   DISPATCH_POLY_SIZE(
-      polynomial_size, Multibit128DegreePolicy,
+      bsk_params.polynomial_size, Multibit128DegreePolicy,
       return verify_cuda_programmable_bootstrap_128_cg_grid_size<Params>(
-          glwe_dimension, level_count, num_samples, max_shared_memory));
+          bsk_params, num_samples, max_shared_memory));
 }
 #endif // TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_PBS_PROGRAMMABLE_BOOTSTRAP_CLASSIC_128_CUH_
