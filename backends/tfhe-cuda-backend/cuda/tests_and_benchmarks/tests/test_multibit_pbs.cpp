@@ -111,16 +111,20 @@ protected:
     }
   }
 
+  CudaLweBootstrapKeyParamsFFI bsk_params() const {
+    return make_bsk_params_ffi(
+        lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
+        multi_bit_pbs_params{static_cast<uint32_t>(grouping_factor)});
+  }
+
   bool supports_multibit_cg() const {
     return has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
-        glwe_dimension, polynomial_size, pbs_level, number_of_inputs,
-        cuda_get_max_shared_memory(gpu_index));
+        bsk_params(), number_of_inputs, cuda_get_max_shared_memory(gpu_index));
   }
 
   bool supports_multibit_tbc() const {
     return has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
-        number_of_inputs, glwe_dimension, polynomial_size, pbs_level,
-        cuda_get_max_shared_memory(gpu_index));
+        number_of_inputs, bsk_params(), cuda_get_max_shared_memory(gpu_index));
   }
 
 public:
@@ -175,8 +179,7 @@ public:
 TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_default) {
   int8_t *pbs_buffer = nullptr;
   scratch_cuda_multi_bit_programmable_bootstrap_64_async(
-      stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
-      pbs_level, number_of_inputs, true);
+      stream, gpu_index, &pbs_buffer, bsk_params(), number_of_inputs, true);
 
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
@@ -188,9 +191,8 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_default) {
             uint64_t>(stream, gpu_index, d_lwe_ct_out_array,
                       d_lwe_output_indexes, d_lut_pbs_identity,
                       d_lut_pbs_indexes, d_lwe_ct_in, d_lwe_input_indexes,
-                      d_bsk, typed, lwe_dimension, glwe_dimension,
-                      polynomial_size, grouping_factor, pbs_base_log, pbs_level,
-                      number_of_inputs, num_many_lut, lut_stride);
+                      d_bsk, typed, bsk_params(), number_of_inputs,
+                      num_many_lut, lut_stride);
       },
       pbs_buffer);
 
@@ -205,8 +207,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_cg) {
 
   pbs_buffer<uint64_t, MULTI_BIT> *typed_buffer = nullptr;
   scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
-      stream, gpu_index, &typed_buffer, glwe_dimension, polynomial_size,
-      pbs_level, number_of_inputs, true);
+      stream, gpu_index, &typed_buffer, bsk_params(), number_of_inputs, true);
   int8_t *pbs_buffer = reinterpret_cast<int8_t *>(typed_buffer);
 
   uint32_t num_many_lut = 1;
@@ -219,9 +220,8 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_cg) {
             uint64_t>(stream, gpu_index, d_lwe_ct_out_array,
                       d_lwe_output_indexes, d_lut_pbs_identity,
                       d_lut_pbs_indexes, d_lwe_ct_in, d_lwe_input_indexes,
-                      d_bsk, typed, lwe_dimension, glwe_dimension,
-                      polynomial_size, grouping_factor, pbs_base_log, pbs_level,
-                      number_of_inputs, num_many_lut, lut_stride);
+                      d_bsk, typed, bsk_params(), number_of_inputs,
+                      num_many_lut, lut_stride);
       },
       pbs_buffer);
 
@@ -236,8 +236,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_tbc) {
 
   int8_t *pbs_buffer = nullptr;
   scratch_cuda_multi_bit_programmable_bootstrap_tbc_generic_64_async(
-      stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
-      pbs_level, number_of_inputs, true);
+      stream, gpu_index, &pbs_buffer, bsk_params(), number_of_inputs, true);
 
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
@@ -247,9 +246,8 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_tbc) {
             stream, gpu_index, (void *)d_lwe_ct_out_array,
             (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
             (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
-            (void *)d_lwe_input_indexes, (void *)d_bsk, buffer, lwe_dimension,
-            glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
-            pbs_level, number_of_inputs, num_many_lut, lut_stride);
+            (void *)d_lwe_input_indexes, (void *)d_bsk, buffer, bsk_params(),
+            number_of_inputs, num_many_lut, lut_stride);
       },
       pbs_buffer);
 
@@ -269,8 +267,7 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_tbc_2_2) {
 
   int8_t *pbs_buffer = nullptr;
   scratch_cuda_multi_bit_programmable_bootstrap_tbc_2_2_64_async(
-      stream, gpu_index, &pbs_buffer, glwe_dimension, polynomial_size,
-      pbs_level, number_of_inputs, true);
+      stream, gpu_index, &pbs_buffer, bsk_params(), number_of_inputs, true);
 
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
@@ -280,9 +277,8 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64, multi_bit_tbc_2_2) {
             stream, gpu_index, (void *)d_lwe_ct_out_array,
             (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
             (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
-            (void *)d_lwe_input_indexes, (void *)d_bsk, buffer, lwe_dimension,
-            glwe_dimension, polynomial_size, grouping_factor, pbs_base_log,
-            pbs_level, number_of_inputs, num_many_lut, lut_stride);
+            (void *)d_lwe_input_indexes, (void *)d_bsk, buffer, bsk_params(),
+            number_of_inputs, num_many_lut, lut_stride);
       },
       pbs_buffer);
 

@@ -18,48 +18,42 @@
 template <typename Torus>
 uint64_t scratch_cuda_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   // Degree<2048> is measured to outperform AmortizedDegree<2048> for the
   // classic PBS.
   uint64_t size_tracker = 0;
   DISPATCH_POLY_SIZE(
-      polynomial_size, ClassicPBSDegreePolicy,
+      bsk_params.polynomial_size, ClassicPBSDegreePolicy,
       size_tracker = scratch_programmable_bootstrap<Torus, Params>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-          glwe_dimension, polynomial_size, level_count,
-          input_lwe_ciphertext_count, allocate_gpu_memory,
-          noise_reduction_type));
+          static_cast<cudaStream_t>(stream), gpu_index, buffer, bsk_params,
+          input_lwe_ciphertext_count, allocate_gpu_memory));
   // Recorded so the launch guard can compare scratch and launch parameters.
-  (*buffer)->pbs_base_log = base_log;
+  (*buffer)->pbs_base_log = bsk_params.base_log;
   return size_tracker;
 }
 
 template <typename Torus>
 uint64_t scratch_cuda_programmable_bootstrap_2_2_specialized(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **buffer,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    PBS_MS_REDUCTION_T noise_reduction_type) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   // The 2_2 specialized kernel keeps everything in registers and shared memory,
   // so the buffer only records the variant and the noise reduction type. Its
   // fixed attributes are applied here, once, so launches pay no driver calls.
   cuda_set_device(gpu_index);
-  configure_2_2_specialized_kernel_for_base_log<Torus>(base_log, lwe_dimension,
-                                                       __FILE__, __LINE__);
+  configure_2_2_specialized_kernel_for_base_log<Torus>(bsk_params, __FILE__,
+                                                       __LINE__);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
-      static_cast<cudaStream_t>(stream), gpu_index, lwe_dimension,
-      glwe_dimension, polynomial_size, level_count, input_lwe_ciphertext_count,
+      static_cast<cudaStream_t>(stream), gpu_index, bsk_params,
+      input_lwe_ciphertext_count,
       pbs_variant_tag<PBS_VARIANT::SPECIALIZED_2_2>{}, allocate_gpu_memory,
-      noise_reduction_type, size_tracker);
+      size_tracker);
   // Recorded so the launch guard can compare scratch and launch parameters.
-  (*buffer)->pbs_base_log = base_log;
+  (*buffer)->pbs_base_log = bsk_params.base_log;
   return size_tracker;
 }
 
@@ -69,29 +63,28 @@ uint64_t scratch_cuda_programmable_bootstrap_2_2_specialized(
  * the GPU in case FULLSM or PARTIALSM mode is going to be used.
  */
 uint64_t scratch_cuda_programmable_bootstrap_64_async(
-    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    void *stream, uint32_t gpu_index, int8_t **buffer,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
 
   // The gate reads the compute capability of the current device.
   cuda_set_device(gpu_index);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto **typed_buffer = (pbs_buffer<uint64_t, CLASSICAL> **)buffer;
   uint64_t size_tracker;
-  if (supports_2_2_specialized_pbs<uint64_t>(polynomial_size, glwe_dimension,
-                                             level_count, lwe_dimension,
-                                             base_log, max_shared_memory))
+  if (supports_2_2_specialized_pbs<uint64_t>(bsk_params, max_shared_memory))
     size_tracker =
         scratch_cuda_programmable_bootstrap_2_2_specialized<uint64_t>(
-            stream, gpu_index, typed_buffer, lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-            allocate_gpu_memory, noise_reduction_type);
+            stream, gpu_index, typed_buffer, bsk_params,
+            input_lwe_ciphertext_count, allocate_gpu_memory);
   else
     size_tracker = scratch_cuda_programmable_bootstrap<uint64_t>(
-        stream, gpu_index, typed_buffer, lwe_dimension, glwe_dimension,
-        polynomial_size, base_log, level_count, input_lwe_ciphertext_count,
-        allocate_gpu_memory, noise_reduction_type);
+        stream, gpu_index, typed_buffer, bsk_params, input_lwe_ciphertext_count,
+        allocate_gpu_memory);
   return size_tracker;
 }
 
@@ -101,21 +94,19 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_async(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
-    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
-    uint32_t lut_stride) {
+    pbs_buffer<Torus, CLASSICAL> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
 
   // Degree<2048> is measured to outperform AmortizedDegree<2048> for the
   // classic PBS.
-  DISPATCH_POLY_SIZE(polynomial_size, ClassicPBSDegreePolicy,
+  DISPATCH_POLY_SIZE(bsk_params.polynomial_size, ClassicPBSDegreePolicy,
                      host_programmable_bootstrap<Torus, Params>(
                          static_cast<cudaStream_t>(stream), gpu_index,
                          lwe_array_out, lwe_output_indexes, lut_vector,
                          lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-                         bootstrapping_key, buffer, glwe_dimension,
-                         lwe_dimension, polynomial_size, base_log, level_count,
-                         num_samples, num_many_lut, lut_stride));
+                         bootstrapping_key, buffer, bsk_params, num_samples,
+                         num_many_lut, lut_stride));
 }
 
 template <typename Torus>
@@ -124,16 +115,14 @@ void cuda_programmable_bootstrap_2_2_specialized_lwe_ciphertext_vector_async(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, double2 const *bootstrapping_key,
-    pbs_buffer<Torus, CLASSICAL> *buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
-    uint32_t lut_stride) {
+    pbs_buffer<Torus, CLASSICAL> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
+    uint32_t num_many_lut, uint32_t lut_stride) {
 
   host_programmable_bootstrap_2_2_specialized<Torus>(
       static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
       lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
-      lwe_input_indexes, bootstrapping_key, buffer, glwe_dimension,
-      lwe_dimension, polynomial_size, base_log, level_count, num_samples,
+      lwe_input_indexes, bootstrapping_key, buffer, bsk_params, num_samples,
       num_many_lut, lut_stride);
 }
 
@@ -163,15 +152,17 @@ void cuda_programmable_bootstrap_2_2_specialized_lwe_ciphertext_vector_async(
  * GLWE. The polynomial size for GLWE and the lut
  * are the same because they have to be in the same ring
  * to be multiplied.
- * - lwe_dimension: size of the Torus vector used to encrypt the input
- * LWE ciphertexts - referred to as n above (~ 600)
- * - glwe_dimension: size of the polynomial vector used to encrypt the LUT
- * GLWE ciphertexts - referred to as k above. Only the value 1 is supported for
- * this parameter.
- * - polynomial_size: size of the test polynomial (lut) and size of the
- * GLWE polynomial (~1024)
- * - base_log: log base used for the gadget matrix - B = 2^base_log (~8)
- * - level_count: number of decomposition levels in the gadget matrix (~4)
+ * - bsk_params.input_lwe_dimension: size of the Torus vector used to encrypt
+ * the input LWE ciphertexts - referred to as n above (~ 600)
+ * - bsk_params.glwe_dimension: size of the polynomial vector used to encrypt
+ * the LUT GLWE ciphertexts - referred to as k above. Only the value 1 is
+ * supported for this parameter.
+ * - bsk_params.polynomial_size: size of the test polynomial (lut) and size of
+ * the GLWE polynomial (~1024)
+ * - bsk_params.base_log: log base used for the gadget matrix - B = 2^base_log
+ * (~8)
+ * - bsk_params.level_count: number of decomposition levels in the gadget matrix
+ * (~4)
  * - num_samples: number of encrypted input messages
  *
  * This function calls a wrapper to a device kernel that performs the
@@ -203,10 +194,13 @@ void cuda_programmable_bootstrap_64_async(
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
-    int8_t *buffer, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    int8_t *buffer, CudaLweBootstrapKeyParamsFFI bsk_params,
     uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
-  if (base_log > 64)
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+          "classical (pbs_type %u).",
+          bsk_params.pbs_type)
+  if (bsk_params.base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
   auto *pbs_buf = (pbs_buffer<uint64_t, CLASSICAL> *)buffer;
@@ -221,19 +215,20 @@ void cuda_programmable_bootstrap_64_async(
   // with the wrong key layout and silently return wrong results; fail loudly
   // instead.
   PANIC_IF_FALSE(
-      pbs_buf->lwe_dimension == lwe_dimension &&
-          pbs_buf->glwe_dimension == glwe_dimension &&
-          pbs_buf->polynomial_size == polynomial_size &&
-          pbs_buf->pbs_base_log == base_log &&
-          pbs_buf->level_count == level_count,
+      pbs_buf->lwe_dimension == bsk_params.input_lwe_dimension &&
+          pbs_buf->glwe_dimension == bsk_params.glwe_dimension &&
+          pbs_buf->polynomial_size == bsk_params.polynomial_size &&
+          pbs_buf->pbs_base_log == bsk_params.base_log &&
+          pbs_buf->level_count == bsk_params.level_count,
       "Cuda error (classical PBS): the pbs buffer was allocated for "
       "(lwe_dimension=%u, glwe_dimension=%u, polynomial_size=%u, base_log=%u, "
       "level_count=%u) but launched with (lwe_dimension=%u, glwe_dimension=%u, "
       "polynomial_size=%u, base_log=%u, level_count=%u): the scratch was given "
       "different parameters than the launch.",
       pbs_buf->lwe_dimension, pbs_buf->glwe_dimension, pbs_buf->polynomial_size,
-      pbs_buf->pbs_base_log, pbs_buf->level_count, lwe_dimension,
-      glwe_dimension, polynomial_size, base_log, level_count);
+      pbs_buf->pbs_base_log, pbs_buf->level_count,
+      bsk_params.input_lwe_dimension, bsk_params.glwe_dimension,
+      bsk_params.polynomial_size, bsk_params.base_log, bsk_params.level_count);
 
   // The buffer's device scratch is sized for input_lwe_ciphertext_count
   // samples; launching more would index past it. Launching fewer is fine and
@@ -254,8 +249,7 @@ void cuda_programmable_bootstrap_64_async(
                   static_cast<const uint64_t *>(lwe_array_in),
                   static_cast<const uint64_t *>(lwe_input_indexes),
                   static_cast<const double2 *>(bootstrapping_key), pbs_buf,
-                  lwe_dimension, glwe_dimension, polynomial_size, base_log,
-                  level_count, num_samples, num_many_lut, lut_stride);
+                  bsk_params, num_samples, num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
     cuda_programmable_bootstrap_lwe_ciphertext_vector_async<uint64_t>(
@@ -265,9 +259,8 @@ void cuda_programmable_bootstrap_64_async(
         static_cast<const uint64_t *>(lut_vector_indexes),
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
-        static_cast<const double2 *>(bootstrapping_key), pbs_buf, lwe_dimension,
-        glwe_dimension, polynomial_size, base_log, level_count, num_samples,
-        num_many_lut, lut_stride);
+        static_cast<const double2 *>(bootstrapping_key), pbs_buf, bsk_params,
+        num_samples, num_many_lut, lut_stride);
     break;
   default:
     PANIC("Cuda error (PBS): unknown pbs variant.")
@@ -279,14 +272,12 @@ void cuda_programmable_bootstrap_64_async(
 // on parameters the 2_2 specialized kernel supports (with a key converted to
 // the default layout).
 uint64_t scratch_cuda_programmable_bootstrap_default_64_async(
-    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    void *stream, uint32_t gpu_index, int8_t **buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
   return scratch_cuda_programmable_bootstrap<uint64_t>(
-      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
-      input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer, bsk_params,
+      input_lwe_ciphertext_count, allocate_gpu_memory);
 }
 
 // Test-only entry point: launches the DEFAULT (split step-one/step-two)
@@ -296,10 +287,9 @@ void cuda_programmable_bootstrap_default_64_async(
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
-    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    int8_t *mem_ptr, const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
-  if (base_log > 64)
+  if (bsk_params.base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
   pbs_buffer<uint64_t, CLASSICAL> *buffer =
@@ -314,24 +304,21 @@ void cuda_programmable_bootstrap_default_64_async(
       static_cast<const uint64_t *>(lut_vector_indexes),
       static_cast<const uint64_t *>(lwe_array_in),
       static_cast<const uint64_t *>(lwe_input_indexes),
-      static_cast<const double2 *>(bootstrapping_key), buffer, lwe_dimension,
-      glwe_dimension, polynomial_size, base_log, level_count, num_samples,
-      num_many_lut, lut_stride);
+      static_cast<const double2 *>(bootstrapping_key), buffer, bsk_params,
+      num_samples, num_many_lut, lut_stride);
 }
 
 // Test-only entry point: builds a SPECIALIZED_2_2 buffer, bypassing the compute
 // capability policy of the automatic selection (the hard parameter and shared
 // memory constraints still apply).
 uint64_t scratch_cuda_programmable_bootstrap_2_2_specialized_64_async(
-    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
+    void *stream, uint32_t gpu_index, int8_t **buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
   cuda_set_device(gpu_index);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   PANIC_IF_FALSE(pbs_2_2_specialized_params_checker<uint64_t>(
-                     polynomial_size, glwe_dimension, level_count,
-                     lwe_dimension, base_log, max_shared_memory),
+                     bsk_params, max_shared_memory),
                  "Cuda error (classical PBS): 2_2 specialized scratch requires "
                  "(N=2048, level_count=1, glwe_dimension=1, lwe_dimension <= "
                  "%u, base_log in [%u, %u], sufficient shared memory).",
@@ -339,9 +326,8 @@ uint64_t scratch_cuda_programmable_bootstrap_2_2_specialized_64_async(
                  SPECIALIZED_2_2_PARAMS_MIN_BASE_LOG,
                  SPECIALIZED_2_2_PARAMS_MAX_BASE_LOG);
   return scratch_cuda_programmable_bootstrap_2_2_specialized<uint64_t>(
-      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
-      lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
-      input_lwe_ciphertext_count, allocate_gpu_memory, noise_reduction_type);
+      stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer, bsk_params,
+      input_lwe_ciphertext_count, allocate_gpu_memory);
 }
 
 // Test-only entry point: launches the SPECIALIZED_2_2 (throughput-oriented)
@@ -352,10 +338,9 @@ void cuda_programmable_bootstrap_2_2_specialized_64_async(
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
-    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+    int8_t *mem_ptr, const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
-  if (base_log > 64)
+  if (bsk_params.base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
   pbs_buffer<uint64_t, CLASSICAL> *buffer =
@@ -372,8 +357,7 @@ void cuda_programmable_bootstrap_2_2_specialized_64_async(
                 static_cast<const uint64_t *>(lwe_array_in),
                 static_cast<const uint64_t *>(lwe_input_indexes),
                 static_cast<const double2 *>(bootstrapping_key), buffer,
-                lwe_dimension, glwe_dimension, polynomial_size, base_log,
-                level_count, num_samples, num_many_lut, lut_stride);
+                bsk_params, num_samples, num_many_lut, lut_stride);
 }
 
 /*
@@ -389,9 +373,7 @@ void cleanup_cuda_programmable_bootstrap_64(void *stream, uint32_t gpu_index,
 }
 
 template bool pbs_2_2_specialized_params_checker<uint64_t>(
-    uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
-    uint32_t lwe_dimension, uint32_t base_log, uint32_t max_shared_memory);
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t max_shared_memory);
 
 template bool supports_2_2_specialized_pbs<uint64_t>(
-    uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count,
-    uint32_t lwe_dimension, uint32_t base_log, uint32_t max_shared_memory);
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t max_shared_memory);

@@ -1,6 +1,7 @@
 #ifndef CUDA_BOOTSTRAP_UTILITIES_H
 #define CUDA_BOOTSTRAP_UTILITIES_H
 
+#include "bootstrap_key_params.h"
 #include "checked_arithmetic.h"
 #include "device.h"
 #include "pbs_enums.h"
@@ -24,6 +25,34 @@ template <typename... PbsTypeFns> struct pbs_type_visitor : PbsTypeFns... {
 };
 template <typename... PbsTypeFns>
 pbs_type_visitor(PbsTypeFns...) -> pbs_type_visitor<PbsTypeFns...>;
+
+/// @brief Builds the FFI bootstrap key parameters of a classical or a
+/// multi-bit key. The variant selects pbs_type and the union member.
+inline CudaLweBootstrapKeyParamsFFI
+make_bsk_params_ffi(uint32_t input_lwe_dimension, uint32_t glwe_dimension,
+                    uint32_t polynomial_size, uint32_t base_log,
+                    uint32_t level_count, const pbs_type_params &pbs_params) {
+  CudaLweBootstrapKeyParamsFFI bsk_params{};
+  bsk_params.input_lwe_dimension = input_lwe_dimension;
+  bsk_params.glwe_dimension = glwe_dimension;
+  bsk_params.polynomial_size = polynomial_size;
+  bsk_params.base_log = base_log;
+  bsk_params.level_count = level_count;
+  bsk_params.big_lwe_dimension = glwe_dimension * polynomial_size;
+  std::visit(
+      pbs_type_visitor{[&](classical_pbs_params classical) {
+                         bsk_params.pbs_type = PBS_TYPE::CLASSICAL;
+                         bsk_params.pbs_params.classical.noise_reduction_type =
+                             classical.noise_reduction_type;
+                       },
+                       [&](multi_bit_pbs_params multi_bit) {
+                         bsk_params.pbs_type = PBS_TYPE::MULTI_BIT;
+                         bsk_params.pbs_params.multi_bit.grouping_factor =
+                             multi_bit.grouping_factor;
+                       }},
+      pbs_params);
+  return bsk_params;
+}
 
 // The 128-bit FFT stores one complex coefficient as four doubles
 // (re_hi, re_lo, im_hi, im_lo), the f128x2 type in fft128/f128.cuh. That
@@ -176,15 +205,20 @@ struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> : public pbs_buffer_base {
 private:
   // Variant-free part. Every public constructor delegates here first, then
   // sets pbs_variant and allocates what its own kernel needs.
-  pbs_buffer(uint32_t gpu_index, uint32_t lwe_dimension,
-             uint32_t glwe_dimension, uint32_t polynomial_size,
-             uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-             bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type)
-      : noise_reduction_type(noise_reduction_type),
-        gpu_memory_allocated(allocate_gpu_memory), lwe_dimension(lwe_dimension),
-        glwe_dimension(glwe_dimension), polynomial_size(polynomial_size),
-        level_count(level_count),
+  pbs_buffer(uint32_t gpu_index, const CudaLweBootstrapKeyParamsFFI &bsk_params,
+             uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory)
+      : gpu_memory_allocated(allocate_gpu_memory),
+        lwe_dimension(bsk_params.input_lwe_dimension),
+        glwe_dimension(bsk_params.glwe_dimension),
+        polynomial_size(bsk_params.polynomial_size),
+        level_count(bsk_params.level_count),
         input_lwe_ciphertext_count(input_lwe_ciphertext_count) {
+    if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+      PANIC("Cuda error (classical PBS): the bootstrap key parameters are not "
+            "classical (pbs_type %u).",
+            bsk_params.pbs_type)
+    noise_reduction_type = static_cast<PBS_MS_REDUCTION_T>(
+        bsk_params.pbs_params.classical.noise_reduction_type);
     cuda_set_device(gpu_index);
     max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   }
@@ -234,14 +268,13 @@ private:
   }
 
 public:
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t lwe_dimension,
-             uint32_t glwe_dimension, uint32_t polynomial_size,
-             uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
+             uint32_t input_lwe_ciphertext_count,
              pbs_variant_tag<PBS_VARIANT::DEFAULT>, bool allocate_gpu_memory,
-             PBS_MS_REDUCTION_T noise_reduction_type, uint64_t &size_tracker)
-      : pbs_buffer(gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-                   level_count, input_lwe_ciphertext_count, allocate_gpu_memory,
-                   noise_reduction_type) {
+             uint64_t &size_tracker)
+      : pbs_buffer(gpu_index, bsk_params, input_lwe_ciphertext_count,
+                   allocate_gpu_memory) {
     pbs_variant = PBS_VARIANT::DEFAULT;
 
     uint64_t full_sm_step_one =
@@ -285,26 +318,23 @@ public:
   // The 2_2 specialized (throughput-oriented) kernel keeps everything in
   // registers and shared memory: no device scratch, no join buffer, no global
   // accumulator.
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t lwe_dimension,
-             uint32_t glwe_dimension, uint32_t polynomial_size,
-             uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
+             uint32_t input_lwe_ciphertext_count,
              pbs_variant_tag<PBS_VARIANT::SPECIALIZED_2_2>,
-             bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type,
-             uint64_t &size_tracker)
-      : pbs_buffer(gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-                   level_count, input_lwe_ciphertext_count, allocate_gpu_memory,
-                   noise_reduction_type) {
+             bool allocate_gpu_memory, uint64_t &size_tracker)
+      : pbs_buffer(gpu_index, bsk_params, input_lwe_ciphertext_count,
+                   allocate_gpu_memory) {
     pbs_variant = PBS_VARIANT::SPECIALIZED_2_2;
   }
 
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t lwe_dimension,
-             uint32_t glwe_dimension, uint32_t polynomial_size,
-             uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
+             uint32_t input_lwe_ciphertext_count,
              pbs_variant_tag<PBS_VARIANT::CG>, bool allocate_gpu_memory,
-             PBS_MS_REDUCTION_T noise_reduction_type, uint64_t &size_tracker)
-      : pbs_buffer(gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-                   level_count, input_lwe_ciphertext_count, allocate_gpu_memory,
-                   noise_reduction_type) {
+             uint64_t &size_tracker)
+      : pbs_buffer(gpu_index, bsk_params, input_lwe_ciphertext_count,
+                   allocate_gpu_memory) {
     pbs_variant = PBS_VARIANT::CG;
 
     uint64_t full_sm = get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(
@@ -319,14 +349,13 @@ public:
   }
 
 #if CUDA_ARCH >= 900
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t lwe_dimension,
-             uint32_t glwe_dimension, uint32_t polynomial_size,
-             uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
+             uint32_t input_lwe_ciphertext_count,
              pbs_variant_tag<PBS_VARIANT::TBC>, bool allocate_gpu_memory,
-             PBS_MS_REDUCTION_T noise_reduction_type, uint64_t &size_tracker)
-      : pbs_buffer(gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-                   level_count, input_lwe_ciphertext_count, allocate_gpu_memory,
-                   noise_reduction_type) {
+             uint64_t &size_tracker)
+      : pbs_buffer(gpu_index, bsk_params, input_lwe_ciphertext_count,
+                   allocate_gpu_memory) {
     pbs_variant = PBS_VARIANT::TBC;
 
     bool supports_dsm =
@@ -355,15 +384,13 @@ public:
 
   // Used by the 128-bit PBS only. Constructors of a class template are
   // instantiated only when called, so no width check is needed here.
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t lwe_dimension,
-             uint32_t glwe_dimension, uint32_t polynomial_size,
-             uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index,
+             const CudaLweBootstrapKeyParamsFFI &bsk_params,
+             uint32_t input_lwe_ciphertext_count,
              pbs_variant_tag<PBS_VARIANT::TBC_HOST_DRIVEN>,
-             bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type,
-             uint64_t &size_tracker)
-      : pbs_buffer(gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
-                   level_count, input_lwe_ciphertext_count, allocate_gpu_memory,
-                   noise_reduction_type) {
+             bool allocate_gpu_memory, uint64_t &size_tracker)
+      : pbs_buffer(gpu_index, bsk_params, input_lwe_ciphertext_count,
+                   allocate_gpu_memory) {
     pbs_variant = PBS_VARIANT::TBC_HOST_DRIVEN;
     // One blind-rotation iteration per launch, all levels in shared memory:
     // no device scratch and no join buffer.
@@ -383,12 +410,12 @@ public:
 };
 
 bool has_support_to_cuda_programmable_bootstrap_128_cg(
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples, uint32_t max_shared_memory);
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
+    uint32_t max_shared_memory);
 
 bool has_support_to_cuda_programmable_bootstrap_128_tbc(
-    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory);
+    uint32_t num_samples, const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t max_shared_memory);
 
 #ifdef __CUDACC__
 __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,
