@@ -10,8 +10,10 @@ use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::DefaultRandomGenerator;
 use tfhe::prelude::*;
 use tfhe::shortint::engine::ShortintEngine;
-use tfhe::transciphering::OneTimePadPlainSecretMask;
-use tfhe::{ClientKey, OneTimePadFheSecretMask, Seed, ServerKey, set_server_key};
+use tfhe::transciphering::{OneTimePadPlainSecretMask, OneTimePadPlainState};
+use tfhe::{
+    ClientKey, OneTimePadFheSecretMask, Seed, ServerKey, StreamCiphertextList, set_server_key,
+};
 use tfhe_backward_compat_data::generate::*;
 use tfhe_backward_compat_data::*;
 
@@ -26,6 +28,14 @@ const HL_COMPRESSED_SQUASHED_NOISE_ONE_TIME_PAD_FHE_SECRET_MASK_TEST:
         pad: Cow::Borrowed(&ONE_TIME_PAD),
         n_bits: 64,
     };
+
+const HL_STREAM_CIPHERTEXT_LIST_TEST: HlStreamCiphertextListTest = HlStreamCiphertextListTest {
+    test_filename: Cow::Borrowed("stream_ciphertext_list"),
+    key_filename: Cow::Borrowed("client_key_with_noise_squashing"),
+    pad: Cow::Borrowed(&ONE_TIME_PAD),
+    clear_values: Cow::Borrowed(&[42, 1, -12]),
+    data_kinds: Cow::Borrowed(&[DataKind::Unsigned, DataKind::Bool, DataKind::Signed]),
+};
 
 pub struct V1_9;
 
@@ -76,12 +86,23 @@ impl TfhersVersion for V1_9 {
                 &dir,
                 &HL_COMPRESSED_SQUASHED_NOISE_ONE_TIME_PAD_FHE_SECRET_MASK_TEST.test_filename(),
             );
+
+            let list = StreamCiphertextList::builder()
+                .push(HL_STREAM_CIPHERTEXT_LIST_TEST.clear_values[0] as u8)
+                .push(HL_STREAM_CIPHERTEXT_LIST_TEST.clear_values[1] != 0)
+                .push(HL_STREAM_CIPHERTEXT_LIST_TEST.clear_values[2] as i8)
+                .build(&mut OneTimePadPlainState::new(
+                    OneTimePadPlainSecretMask::new(ONE_TIME_PAD.to_vec(), ONE_TIME_PAD.len() * 8),
+                ))
+                .unwrap();
+            store_versioned_test(&list, &dir, &HL_STREAM_CIPHERTEXT_LIST_TEST.test_filename());
         }
 
         vec![
             TestMetadata::HlCompressedSquashedNoiseOneTimePadFheSecretMask(
                 HL_COMPRESSED_SQUASHED_NOISE_ONE_TIME_PAD_FHE_SECRET_MASK_TEST,
             ),
+            TestMetadata::HlStreamCiphertextList(HL_STREAM_CIPHERTEXT_LIST_TEST),
         ]
     }
 }
