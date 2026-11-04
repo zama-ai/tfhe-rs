@@ -129,7 +129,9 @@ export_concrete_array_types!(
 );
 
 pub use crate::integer::parameters::CompactCiphertextListConformanceParams;
-pub use crate::integer::transciphering::IntegerStreamCiphertextConformanceParams;
+pub use crate::integer::transciphering::{
+    IntegerStreamCiphertextConformanceParams, IntegerStreamCiphertextListConformanceParams,
+};
 pub use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
 #[cfg(feature = "strings")]
 pub use crate::strings::ciphertext::ClearString;
@@ -160,9 +162,10 @@ pub use traits::FheId;
 pub use transciphering::{
     AesFheKey, CompressedSquashedNoiseOneTimePadFheSecretMask,
     CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, HlStreamCipher,
-    HlStreamDecryptable, HlStreamEncryptable, HlTranscipherer, KreyviumFheKey,
+    HlStreamDecryptable, HlStreamEncryptable, HlStreamPackable, HlTranscipherer, KreyviumFheKey,
     OneTimePadFheSecretMask, OneTimePadFheSecretMaskConformanceParams,
-    SquashedNoiseOneTimePadFheSecretMask, StreamCiphertext, TranscipherSession,
+    SquashedNoiseOneTimePadFheSecretMask, StreamCiphertext, StreamCiphertextList,
+    StreamCiphertextListBuilder, TranscipherSession,
 };
 pub mod xof_key_set;
 
