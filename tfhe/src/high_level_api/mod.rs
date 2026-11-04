@@ -189,7 +189,7 @@ pub(crate) mod compact_list;
 mod kv_store;
 mod tag;
 
-#[cfg(feature = "gpu")]
+#[cfg(any(feature = "gpu", feature = "gpu-nofhe-testing-batched-trivial"))]
 pub use crate::core_crypto::gpu::vec::GpuIndex;
 
 mod compressed_noise_squashed_ciphertext_list;

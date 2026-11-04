@@ -50,6 +50,12 @@ fn main() {
             cmake_config.define("GOLDSCHMIDT_TRACE", "OFF");
         }
 
+        if cfg!(feature = "gpu-nofhe-testing-batched-trivial") {
+            cmake_config.define("BATCHED_TRIVIAL", "ON");
+        } else {
+            cmake_config.define("BATCHED_TRIVIAL", "OFF");
+        }
+
         if cfg!(feature = "debug") {
             cmake_config.define("CMAKE_BUILD_TYPE", "Debug");
         } else if cfg!(feature = "debug-fake-multi-gpu") {

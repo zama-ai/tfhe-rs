@@ -66,13 +66,18 @@ mod aes256;
 mod kreyvium;
 pub(crate) mod kv_store;
 pub(crate) use kreyvium::CudaKreyviumState;
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(feature = "gpu", feature = "gpu-nofhe-testing-batched-trivial")
+))]
+mod tests_batched_trivial;
+#[cfg(all(test, feature = "gpu"))]
 mod tests_long_run;
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 mod tests_noise_distribution;
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 mod tests_signed;
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 pub(crate) mod tests_unsigned;
 mod trivium;
 
@@ -211,7 +216,14 @@ impl CudaServerKey {
         );
         let mut info = Vec::with_capacity(num_blocks);
         for (block_value, mut lwe) in decomposer.zip(cpu_lwe_list.iter_mut()) {
-            *lwe.get_mut_body().data = self.encoding().encode(Cleartext(block_value)).0;
+            // In batched-trivial mode every LWE coefficient carries an independent
+            // raw integer test vector, so fill all lwe_size positions with the
+            // unscaled block value rather than only the body with delta*value.
+            if cfg!(feature = "gpu-nofhe-testing-batched-trivial") {
+                lwe.as_mut().fill(block_value);
+            } else {
+                *lwe.get_mut_body().data = self.encoding().encode(Cleartext(block_value)).0;
+            }
             info.push(CudaBlockInfo {
                 degree: Degree::new(block_value),
                 message_modulus: self.message_modulus,

@@ -392,6 +392,31 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     GPU_ASSERT(total_ciphertexts <= mem_ptr->luts_message_carry->num_blocks,
                "SUM CT");
 
+    luts_message_carry->using_trivial_lwe_indexes = false;
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+    // In batched-trivial mode the message LUT writes in-place to the same
+    // blocks that the carry LUT reads from (same source column).  Running both
+    // in a single kernel causes a data race: a message thread may overwrite a
+    // block before the carry thread reads it, yielding (x%p)/p == 0.
+    //
+    // prepare_new_columns_and_pbs_indexes uses __syncthreads between the
+    // message and carry filling loops, so the first total_messages entries in
+    // the index arrays are always messages and the remaining are carries.
+    // Fix: carry pass first (writes to different blocks), then message pass.
+    uint32_t total_carries = total_ciphertexts - total_messages;
+    if (total_carries > 0) {
+      execute_trivial_lut_batched<Torus>(streams, current_blocks,
+                                         current_blocks, luts_message_carry,
+                                         total_carries,
+                                         /*num_many_lut=*/1, total_messages);
+    }
+    if (total_messages > 0) {
+      execute_trivial_lut_batched<Torus>(streams, current_blocks,
+                                         current_blocks, luts_message_carry,
+                                         total_messages,
+                                         /*num_many_lut=*/1, 0);
+    }
+#else
     if (active_streams.count() == 1) {
       execute_keyswitch_async<Torus>(
           streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
@@ -408,15 +433,15 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           mem_ptr->params.pbs_level, total_ciphertexts,
           mem_ptr->params.pbs_params(), num_many_lut, lut_stride);
     } else {
-
-      // we just need to broadcast the indexes
+      // broadcast_lut updates last_broadcast_streams (required by the assertion
+      // inside integer_radix_apply_univariate_lookup_table); index-only (false)
+      // so no LUT data is re-copied.
       luts_message_carry->broadcast_lut(active_streams, false);
-      luts_message_carry->using_trivial_lwe_indexes = false;
-
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, current_blocks, current_blocks, bsks, ksks,
           luts_message_carry, total_ciphertexts, true);
     }
+#endif
     cuda_set_device(streams.gpu_index(0));
     std::swap(d_columns, d_new_columns);
     std::swap(d_columns_counter, d_new_columns_counter);
@@ -443,6 +468,14 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     auto active_streams = streams.active_gpu_subset(2 * num_radix_blocks,
                                                     mem_ptr->params.pbs_type());
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+    uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
+    luts_message_carry->broadcast_lut(active_streams, false);
+    luts_message_carry->using_trivial_lwe_indexes = false;
+    integer_radix_apply_univariate_lookup_table<Torus>(
+        active_streams, current_blocks, radix_lwe_out, bsks, ksks,
+        luts_message_carry, num_blocks_in_apply_lut, true);
+#else
     if (active_streams.count() == 1) {
       execute_keyswitch_async<Torus>(
           streams.get_ith(0), (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
@@ -460,14 +493,13 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           mem_ptr->params.pbs_params(), num_many_lut, lut_stride);
     } else {
       uint32_t num_blocks_in_apply_lut = 2 * num_radix_blocks;
-      // we just need to broadcast the indexes
       luts_message_carry->broadcast_lut(active_streams, false);
       luts_message_carry->using_trivial_lwe_indexes = false;
-
       integer_radix_apply_univariate_lookup_table<Torus>(
           active_streams, current_blocks, radix_lwe_out, bsks, ksks,
           luts_message_carry, num_blocks_in_apply_lut, true);
     }
+#endif
     calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
                             num_radix_blocks, num_radix_in_vec, chunk_size,
                             mem_ptr->params.message_modulus);

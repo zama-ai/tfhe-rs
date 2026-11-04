@@ -1,5 +1,5 @@
 mod fast_fhe;
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 mod test;
 
 use crate::integer::gpu::server_key::CudaKreyviumState;

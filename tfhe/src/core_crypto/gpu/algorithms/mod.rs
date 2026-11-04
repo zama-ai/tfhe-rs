@@ -5,7 +5,7 @@ pub mod lwe_multi_bit_programmable_bootstrapping;
 pub mod lwe_packing_keyswitch;
 pub mod lwe_programmable_bootstrapping;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "gpu"))]
 pub(crate) mod test;
 
 pub use lwe_keyswitch::*;

@@ -68,7 +68,7 @@ pub mod prelude;
 pub mod public_key;
 pub mod server_key;
 
-#[cfg(feature = "gpu")]
+#[cfg(any(feature = "gpu", feature = "gpu-nofhe-testing-batched-trivial"))]
 pub mod gpu;
 
 #[cfg(feature = "hpu")]
