@@ -1,0 +1,107 @@
+name: slab_send_data
+
+on:
+  workflow_call:
+    inputs:
+      artifact-pattern:
+        description: Glob matching the artifacts holding the parsed benchmark results (an exact name works too)
+        type: string
+        required: true
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+      JOB_SECRET:
+        required: true
+      SLAB_URL:
+        required: true
+      TS_SLAB_OAUTH_CLIENT_ID:
+        required: true
+      TS_SLAB_OAUTH_AUDIENCE:
+        required: true
+
+env:
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
+
+jobs:
+  send-data:
+    name: slab_send_data/send-data
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    steps:
+      # Before the download: checking out at the workspace root would clean the results
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+
+      - name: Download parsed results
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ inputs.artifact-pattern }}
+          path: results
+
+      # A benchmark job that failed uploads no results: skip the send instead of failing again.
+      - name: Count results files
+        id: count
+        shell: bash
+        run: |
+          count=0
+          if [ -d results ]; then
+            count=$(find results -type f -name "${RESULTS_FILENAME}" | wc -l)
+          fi
+          echo "Found ${count} results file(s)"
+          echo "count=${count}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout Slab repo
+        if: steps.count.outputs.count != '0'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: zama-ai/slab
+          path: slab
+          ref: a0d3a61d593fc69bcdd13cb834323f8645258246
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Setup Python
+        if: steps.count.outputs.count != '0'
+        uses: ./.github/actions/setup_python
+
+      - name: Install Safe-Chain
+        if: steps.count.outputs.count != '0'
+        run: |
+          make install_aikido_safe_chain
+
+      - name: Setup Python venv
+        if: steps.count.outputs.count != '0'
+        run: |
+          make slab_send_data_setup_venv
+
+      - name: Join tailnet
+        if: steps.count.outputs.count != '0'
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
+      - name: Send data to Slab
+        if: steps.count.outputs.count != '0'
+        shell: bash
+        run: |
+          failed=0
+          while IFS= read -r -d '' file; do
+            echo "Sending ${file}"
+            if ! venv_slab_send_data/bin/python slab/scripts/data_sender.py "${file}" "${JOB_SECRET}" --slab-url "${SLAB_URL}"; then
+              echo "::error::Failed to send ${file}"
+              failed=1
+            fi
+          done < <(find results -type f -name "${RESULTS_FILENAME}" -print0)
+          exit "${failed}"
+        env:
+          JOB_SECRET: ${{ secrets.JOB_SECRET }}
+          SLAB_URL: ${{ secrets.SLAB_URL }}

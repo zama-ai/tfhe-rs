@@ -41,6 +41,10 @@ on:
         required: true
       SSH_PRIVATE_KEY:
         required: true
+      TS_SLAB_OAUTH_CLIENT_ID:
+        required: true
+      TS_SLAB_OAUTH_AUDIENCE:
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -61,6 +65,7 @@ jobs:
       command: ${{ steps.set_matrix_args.outputs.command }}
       op_flavor: ${{ steps.set_matrix_args.outputs.op_flavor }}
       bench_type: ${{ steps.set_matrix_args.outputs.bench_type }}
+      artifact_prefix: ${{ steps.set_matrix_args.outputs.artifact_prefix }}
     env:
       INPUTS_COMMAND: ${{ inputs.command }}
       INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
@@ -102,6 +107,7 @@ jobs:
             echo "command=${{ toJSON(env.COMMAND) }}";
             echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}";
             echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}";
+            echo "artifact_prefix=${GITHUB_SHA}_$(openssl rand -hex 4)";
           } >> "${GITHUB_OUTPUT}"
 
   hpu-benchmarks:
@@ -190,23 +196,21 @@ jobs:
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: ${{ github.sha }}_${{ matrix.bench_type }}_${{ matrix.command }}_benchmarks
+          name: ${{ needs.prepare-matrix.outputs.artifact_prefix }}_${{ matrix.bench_type }}_${{ matrix.command }}_benchmarks
           path: ${{ env.RESULTS_FILENAME }}
 
-      - name: Checkout Slab repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: zama-ai/slab
-          path: slab
-          ref: a0d3a61d593fc69bcdd13cb834323f8645258246
-          persist-credentials: "false"
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-      - name: Send data to Slab
-        shell: bash
-        run: |
-          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${JOB_SECRET}" \
-          --slab-url "${SLAB_URL}"
-        env:
-          JOB_SECRET: ${{ secrets.JOB_SECRET }}
-          SLAB_URL: ${{ secrets.SLAB_URL }}
+  send-data:
+    name: benchmark_hpu_common/send-data
+    needs: [prepare-matrix, hpu-benchmarks]
+    if: ${{ !cancelled() && needs.hpu-benchmarks.result != 'skipped' }}
+    uses: ./.github/workflows/slab_send_data.yml
+    with:
+      artifact-pattern: ${{ needs.prepare-matrix.outputs.artifact_prefix }}_*
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}

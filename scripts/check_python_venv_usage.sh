@@ -10,8 +10,6 @@
 #     Aikido Safe-Chain, which wraps commands by name, can check them
 #   - 'shell: python' workflow steps: inline standard library snippets parsing the workflow inputs,
 #     which run before any checkout, so no venv can exist yet, and run no repository code
-#   - the data sender script of slab, which runs on slab runners with the Python environment that
-#     slab sets up
 
 set -euo pipefail
 
@@ -31,8 +29,7 @@ awk '
     }
     !tolerated \
         && line ~ /(^|[^\/A-Za-z0-9_.-])python3?(\.[0-9]+)?[[:space:]]+(-|["\x27]|\.\/|[A-Za-z0-9_.-]+\/|[A-Za-z0-9_.\/-]*\.py)/ \
-        && line !~ /shell: python[[:space:]]*$/ \
-        && line !~ /slab\/scripts\// {
+        && line !~ /shell: python[[:space:]]*$/ {
         printf "%s:%d: %s\n", FILENAME, FNR, $0
         status = 1
     }
