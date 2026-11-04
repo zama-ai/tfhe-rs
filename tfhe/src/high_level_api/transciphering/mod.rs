@@ -699,6 +699,7 @@ mod test {
         let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
         let expander = fhe_stream.transcipher_list(&list).unwrap();
 
+        assert!(expander.is_empty());
         assert!(expander.get::<FheBool>(0).unwrap().is_none());
     }
 

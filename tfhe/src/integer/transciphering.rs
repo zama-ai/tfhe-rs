@@ -370,9 +370,14 @@ impl IntegerStreamCiphertextListBuilder {
         bytes_before: usize,
         part: IntegerStreamCiphertextPart,
     ) {
-        let added_bits = (self.bytes.len() - bytes_before) * 8;
+        // None if `pack_into` removed bytes, which never matches a valid part
+        let added_bits = self
+            .bytes
+            .len()
+            .checked_sub(bytes_before)
+            .and_then(|n| n.checked_mul(8));
         assert_eq!(
-            Some(added_bits),
+            added_bits,
             part.checked_aligned_n_bits(),
             "Internal error: non coherent byte count after push"
         );
