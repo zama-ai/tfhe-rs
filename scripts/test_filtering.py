@@ -38,13 +38,6 @@ CPU_INTEGER_TIERS = {
 # param in tier 0 means that param is missing from CPU_INTEGER_TIERS.
 CPU_INTEGER_TIER_0_PARAMS = r"_param_message_2_carry_2(_ks_pbs_tuniform_2m128)?$"
 
-# Tests that no tier runs, with the reason. A pattern must match the tests of a single test
-# function (for any param), so that it cannot exclude more than intended.
-CPU_INTEGER_NEVER_RUN = {
-    r"::test_integer_default_div_(test_)?param_": "covered by integer_default_div_rem",
-    r"::test_integer_default_rem_(test_)?param_": "covered by integer_default_div_rem",
-}
-
 # Long run tests have their own workflow
 INTEGER_LONG_RUN_TESTS = r"::tests_long_run::"
 
@@ -150,20 +143,14 @@ parser.add_argument(
 # block PBS are too slow for high params
 # mul_crt_4_4 is extremely flaky (~80% failure)
 # test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs_gaussian_2m64 is too slow
-# skip default_div, default_rem which are covered by default_div_rem
 EXCLUDED_INTEGER_TESTS = [
-    "/.*integer_default_div_param/",
-    "/.*integer_default_rem_param/",
     "/.*_block_pbs(_base)?_param_message_[34]_carry_[34]_ks_pbs_gaussian_2m64$/",
     "~mul_crt_param_message_4_carry_4_ks_pbs_gaussian_2m64",
     "/.*test_integer_default_add_sequence_multi_thread_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
     "/.*::tests_long_run::.*/",
 ]
 
-# skip default_div, default_rem which are covered by default_div_rem
 EXCLUDED_INTEGER_FAST_TESTS = [
-    "/.*integer_default_div_param/",
-    "/.*integer_default_rem_param/",
     "/.*_param_message_[14]_carry_[14]_ks_pbs_gaussian_2m64$/",
     "/.*default_add_sequence_multi_thread_param_message_3_carry_3_ks_pbs_gaussian_2m64$/",
 ]
@@ -297,8 +284,6 @@ def filter_cpu_integer_tests_by_tier(input_args):
         filter_expression.append("not test(~_signed)")
 
     filter_expression.append(f"not test(/{INTEGER_LONG_RUN_TESTS}/)")
-    for pattern in CPU_INTEGER_NEVER_RUN:
-        filter_expression.append(f"not test(/{pattern}/)")
 
     return " and ".join(filter_expression)
 
@@ -355,23 +340,10 @@ def check_cpu_integer_tiers(test_list, scheduled_tiers):
     for tier in sorted(scheduled_tiers - defined_tiers):
         errors.append(f"a workflow runs tier {tier}, which CPU_INTEGER_TIERS does not define")
 
-    for pattern, reason in CPU_INTEGER_NEVER_RUN.items():
-        # A test function is the test name without its param suffix
-        functions = {
-            re.sub(r"_(test_)?param_.*$", "", name) for name in tests if re.search(pattern, name)
-        }
-        if len(functions) != 1:
-            errors.append(
-                f"CPU_INTEGER_NEVER_RUN pattern {pattern!r} ({reason}) must match the tests of "
-                f"one test function, it matches {len(functions)}"
-            )
-
     for name, ignored in sorted(tests.items()):
         if ignored:
             errors.append(f"{name}: is #[ignore]d, nextest does not run it")
-        if re.search(INTEGER_LONG_RUN_TESTS, name) or any(
-            re.search(pattern, name) for pattern in CPU_INTEGER_NEVER_RUN
-        ):
+        if re.search(INTEGER_LONG_RUN_TESTS, name):
             continue
 
         tiers = cpu_integer_tiers_of(name)
