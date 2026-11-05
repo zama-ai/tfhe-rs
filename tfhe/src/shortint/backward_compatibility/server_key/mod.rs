@@ -139,20 +139,31 @@ impl<AP: 'static> Upgrade<GenericServerKey<AP>> for GenericServerKeyV1 {
     type Error = Error;
 
     fn upgrade(self) -> Result<GenericServerKey<AP>, Self::Error> {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            pbs_order,
+            ciphertext_modulus: _,
+        } = self;
+
         let std_ap = StandardAtomicPatternServerKey::from_raw_parts(
-            self.key_switching_key,
-            self.bootstrapping_key,
-            self.pbs_order,
+            key_switching_key,
+            bootstrapping_key,
+            pbs_order,
         );
 
         if TypeId::of::<AP>() == TypeId::of::<AtomicPatternServerKey>() {
             let ap = AtomicPatternServerKey::Standard(std_ap);
             let sk: Box<dyn Any + 'static> = Box::new(ServerKey::from_raw_parts(
                 ap,
-                self.message_modulus,
-                self.carry_modulus,
-                self.max_degree,
-                self.max_noise_level,
+                message_modulus,
+                carry_modulus,
+                max_degree,
+                max_noise_level,
             ));
             Ok(*sk.downcast::<GenericServerKey<AP>>().unwrap()) // We know from the TypeId that
                                                                 // AP is of the right type so we
@@ -160,10 +171,10 @@ impl<AP: 'static> Upgrade<GenericServerKey<AP>> for GenericServerKeyV1 {
         } else if TypeId::of::<AP>() == TypeId::of::<StandardAtomicPatternServerKey>() {
             let sk: Box<dyn Any + 'static> = Box::new(StandardServerKey::from_raw_parts(
                 std_ap,
-                self.message_modulus,
-                self.carry_modulus,
-                self.max_degree,
-                self.max_noise_level,
+                message_modulus,
+                carry_modulus,
+                max_degree,
+                max_noise_level,
             ));
             Ok(*sk.downcast::<GenericServerKey<AP>>().unwrap()) // We know from the TypeId that
                                                                 // AP is of the right type so we

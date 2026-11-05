@@ -142,9 +142,11 @@ impl<Id: FheIntId> Upgrade<FheIntV1<Id>> for FheIntV0<Id> {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<FheIntV1<Id>, Self::Error> {
+        let Self { ciphertext, id } = self;
+
         Ok(FheIntV1 {
-            ciphertext: self.ciphertext,
-            id: self.id,
+            ciphertext,
+            id,
             tag: Tag::default(),
         })
     }
@@ -196,9 +198,11 @@ impl<Id: FheIntId> Upgrade<CompressedFheInt<Id>> for CompressedFheIntV0<Id> {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedFheInt<Id>, Self::Error> {
+        let Self { ciphertext, id } = self;
+
         Ok(CompressedFheInt {
-            ciphertext: self.ciphertext,
-            id: self.id,
+            ciphertext,
+            id,
             tag: Tag::default(),
         })
     }
@@ -220,9 +224,11 @@ impl<Id: FheUintId> Upgrade<FheUintV1<Id>> for FheUintV0<Id> {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<FheUintV1<Id>, Self::Error> {
+        let Self { ciphertext, id } = self;
+
         Ok(FheUintV1 {
-            ciphertext: self.ciphertext,
-            id: self.id,
+            ciphertext,
+            id,
             tag: Tag::default(),
         })
     }
@@ -274,7 +280,9 @@ impl<Id: FheUintId> Upgrade<CompressedFheUint<Id>> for CompressedFheUintV0<Id> {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedFheUint<Id>, Self::Error> {
-        Ok(CompressedFheUint::new(self.ciphertext, Tag::default()))
+        let Self { ciphertext, id: _ } = self;
+
+        Ok(CompressedFheUint::new(ciphertext, Tag::default()))
     }
 }
 
@@ -300,10 +308,12 @@ impl Upgrade<SquashedNoiseFheUint> for SquashedNoiseFheUintV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SquashedNoiseFheUint, Self::Error> {
+        let Self { inner, tag } = self;
+
         Ok(SquashedNoiseFheUint::new(
-            self.inner,
+            inner,
             SquashedNoiseCiphertextState::Normal,
-            self.tag,
+            tag,
         ))
     }
 }
@@ -330,10 +340,12 @@ impl Upgrade<SquashedNoiseFheInt> for SquashedNoiseFheIntV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SquashedNoiseFheInt, Self::Error> {
+        let Self { inner, tag } = self;
+
         Ok(SquashedNoiseFheInt::new(
-            self.inner,
+            inner,
             SquashedNoiseCiphertextState::Normal,
-            self.tag,
+            tag,
         ))
     }
 }

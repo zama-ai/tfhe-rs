@@ -114,24 +114,31 @@ impl<AP: 'static> Upgrade<GenericNoiseSquashingKey<AP>> for GenericNoiseSquashin
     type Error = Error;
 
     fn upgrade(self) -> Result<GenericNoiseSquashingKey<AP>, Self::Error> {
-        let std_ap = StandardAtomicPatternNoiseSquashingKey::from_raw_parts(self.bootstrapping_key);
+        let Self {
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = self;
+
+        let std_ap = StandardAtomicPatternNoiseSquashingKey::from_raw_parts(bootstrapping_key);
 
         if TypeId::of::<AP>() == TypeId::of::<AtomicPatternNoiseSquashingKey>() {
             let ap = AtomicPatternNoiseSquashingKey::Standard(std_ap);
             let sk: Box<dyn Any + 'static> = Box::new(NoiseSquashingKey::from_raw_parts(
                 ap,
-                self.message_modulus,
-                self.carry_modulus,
-                self.output_ciphertext_modulus,
+                message_modulus,
+                carry_modulus,
+                output_ciphertext_modulus,
             ));
             // We know from the TypeId that AP is of the right type so we can unwrap
             Ok(*sk.downcast::<GenericNoiseSquashingKey<AP>>().unwrap())
         } else if TypeId::of::<AP>() == TypeId::of::<StandardAtomicPatternNoiseSquashingKey>() {
             let sk: Box<dyn Any + 'static> = Box::new(StandardNoiseSquashingKey::from_raw_parts(
                 std_ap,
-                self.message_modulus,
-                self.carry_modulus,
-                self.output_ciphertext_modulus,
+                message_modulus,
+                carry_modulus,
+                output_ciphertext_modulus,
             ));
             // We know from the TypeId that AP is of the right type so we can unwrap
             Ok(*sk.downcast::<GenericNoiseSquashingKey<AP>>().unwrap())
@@ -366,17 +373,23 @@ impl Upgrade<CompressedNoiseSquashingKey> for CompressedNoiseSquashingKeyV2 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedNoiseSquashingKey, Self::Error> {
-        let std_ap = CompressedStandardAtomicPatternNoiseSquashingKey::from_raw_parts(
-            self.bootstrapping_key,
-        );
+        let Self {
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = self;
+
+        let std_ap =
+            CompressedStandardAtomicPatternNoiseSquashingKey::from_raw_parts(bootstrapping_key);
 
         let atomic_pattern = CompressedAtomicPatternNoiseSquashingKey::Standard(std_ap);
 
         Ok(CompressedNoiseSquashingKey::from_raw_parts(
             atomic_pattern,
-            self.message_modulus,
-            self.carry_modulus,
-            self.output_ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
         ))
     }
 }

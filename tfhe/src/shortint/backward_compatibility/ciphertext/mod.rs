@@ -46,13 +46,22 @@ impl Upgrade<Ciphertext> for CiphertextV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<Ciphertext, Self::Error> {
+        let Self {
+            ct,
+            degree,
+            noise_level,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+        } = self;
+
         Ok(Ciphertext::new(
-            self.ct,
-            self.degree,
-            self.noise_level,
-            self.message_modulus,
-            self.carry_modulus,
-            AtomicPatternKind::Standard(self.pbs_order),
+            ct,
+            degree,
+            noise_level,
+            message_modulus,
+            carry_modulus,
+            AtomicPatternKind::Standard(pbs_order),
         ))
     }
 }
@@ -77,15 +86,24 @@ impl Upgrade<CompactCiphertextListV1> for CompactCiphertextListV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompactCiphertextListV1, Self::Error> {
+        let Self {
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            noise_level,
+        } = self;
+
         Ok(CompactCiphertextListV1 {
-            ct_list: self.ct_list,
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
             expansion_kind: CompactCiphertextListExpansionKind::NoCasting(
-                AtomicPatternKind::Standard(self.pbs_order),
+                AtomicPatternKind::Standard(pbs_order),
             ),
-            noise_level: self.noise_level,
+            noise_level,
         })
     }
 }
@@ -104,12 +122,21 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV1 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
+        let Self {
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind,
+            noise_level: _,
+        } = self;
+
         Ok(CompactCiphertextList {
-            ct_list: self.ct_list,
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            expansion_kind: self.expansion_kind,
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind,
         })
     }
 }
@@ -141,13 +168,22 @@ impl Upgrade<CompressedCiphertext> for CompressedCiphertextV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedCiphertext, Self::Error> {
+        let Self {
+            ct,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            noise_level,
+        } = self;
+
         Ok(CompressedCiphertext::from_raw_parts(
-            self.ct,
-            self.degree,
-            self.message_modulus,
-            self.carry_modulus,
-            AtomicPatternKind::Standard(self.pbs_order),
-            self.noise_level,
+            ct,
+            degree,
+            message_modulus,
+            carry_modulus,
+            AtomicPatternKind::Standard(pbs_order),
+            noise_level,
         ))
     }
 }
@@ -171,15 +207,23 @@ impl Upgrade<CompressedModulusSwitchedCiphertextV1> for CompressedModulusSwitche
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertextV1, Self::Error> {
+        let Self {
+            compressed_modulus_switched_lwe_ciphertext,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+        } = self;
+
         Ok(CompressedModulusSwitchedCiphertextV1 {
             compressed_modulus_switched_lwe_ciphertext:
                 InternalCompressedModulusSwitchedCiphertext::Classic(
-                    self.compressed_modulus_switched_lwe_ciphertext,
+                    compressed_modulus_switched_lwe_ciphertext,
                 ),
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            pbs_order: self.pbs_order,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
         })
     }
 }
@@ -197,14 +241,20 @@ impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedC
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertext, Self::Error> {
-        Ok(CompressedModulusSwitchedCiphertext {
-            compressed_modulus_switched_lwe_ciphertext: self
-                .compressed_modulus_switched_lwe_ciphertext,
+        let Self {
+            compressed_modulus_switched_lwe_ciphertext,
+            degree,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+        } = self;
 
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            atomic_pattern: AtomicPatternKind::Standard(self.pbs_order),
+        Ok(CompressedModulusSwitchedCiphertext {
+            compressed_modulus_switched_lwe_ciphertext,
+            degree,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern: AtomicPatternKind::Standard(pbs_order),
         })
     }
 }
@@ -237,14 +287,24 @@ impl Upgrade<CompressedCiphertextListV1> for CompressedCiphertextListV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedCiphertextListV1, Self::Error> {
+        let Self {
+            modulus_switched_glwe_ciphertext_list,
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            pbs_order,
+            lwe_per_glwe,
+            count,
+        } = self;
+
         Ok(CompressedCiphertextListV1 {
-            modulus_switched_glwe_ciphertext_list: self.modulus_switched_glwe_ciphertext_list,
-            ciphertext_modulus: self.ciphertext_modulus,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            atomic_pattern: AtomicPatternKind::Standard(self.pbs_order),
-            lwe_per_glwe: self.lwe_per_glwe,
-            count: self.count,
+            modulus_switched_glwe_ciphertext_list,
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern: AtomicPatternKind::Standard(pbs_order),
+            lwe_per_glwe,
+            count,
         })
     }
 }
@@ -264,21 +324,31 @@ impl Upgrade<CompressedCiphertextList> for CompressedCiphertextListV1 {
     type Error = crate::Error;
 
     fn upgrade(self) -> Result<CompressedCiphertextList, Self::Error> {
-        let meta = if self.modulus_switched_glwe_ciphertext_list.is_empty() {
+        let Self {
+            modulus_switched_glwe_ciphertext_list,
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            lwe_per_glwe,
+            count: _,
+        } = self;
+
+        let meta = if modulus_switched_glwe_ciphertext_list.is_empty() {
             None
         } else {
-            let lwe_per_glwe = self.lwe_per_glwe.try_into()?;
+            let lwe_per_glwe = lwe_per_glwe.try_into()?;
             Some(CompressedCiphertextListMeta {
-                ciphertext_modulus: self.ciphertext_modulus,
-                message_modulus: self.message_modulus,
-                carry_modulus: self.carry_modulus,
-                atomic_pattern: self.atomic_pattern,
+                ciphertext_modulus,
+                message_modulus,
+                carry_modulus,
+                atomic_pattern,
                 lwe_per_glwe,
             })
         };
 
         Ok(CompressedCiphertextList {
-            modulus_switched_glwe_ciphertext_list: self.modulus_switched_glwe_ciphertext_list,
+            modulus_switched_glwe_ciphertext_list,
             meta,
         })
     }

@@ -97,31 +97,55 @@ impl Upgrade<SerializablePKEv2PublicParams> for SerializablePKEv2PublicParamsV0 
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SerializablePKEv2PublicParams, Self::Error> {
+        let Self {
+            g_lists,
+            D,
+            n,
+            d,
+            k,
+            B_bound_squared,
+            B_inf,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            bound_type,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = self;
+
         let domain_separators = SerializablePKEv2DomainSeparatorsV0 {
-            hash: self.hash,
-            hash_R: self.hash_R,
-            hash_t: self.hash_t,
-            hash_w: self.hash_w,
-            hash_agg: self.hash_agg,
-            hash_lmap: self.hash_lmap,
-            hash_phi: self.hash_phi,
-            hash_xi: self.hash_xi,
-            hash_z: self.hash_z,
-            hash_chi: self.hash_chi,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
         };
 
         Ok(SerializablePKEv2PublicParams {
-            g_lists: self.g_lists,
-            D: self.D,
-            n: self.n,
-            d: self.d,
-            k: self.k,
-            B_bound_squared: self.B_bound_squared,
-            B_inf: self.B_inf,
-            q: self.q,
-            t: self.t,
-            msbs_zero_padding_bit_count: self.msbs_zero_padding_bit_count,
-            bound_type: self.bound_type,
+            g_lists,
+            D,
+            n,
+            d,
+            k,
+            B_bound_squared,
+            B_inf,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            bound_type,
             sid: None,
             domain_separators: domain_separators.upgrade().unwrap(), // upgrade is infallible
         })
@@ -152,35 +176,41 @@ impl Upgrade<SerializablePKEv2DomainSeparators> for SerializablePKEv2DomainSepar
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SerializablePKEv2DomainSeparators, Self::Error> {
+        let Self {
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = self;
+
         // V0 used an unspecified random for gamma anyways, so we can simply use a random DS.
         // We use Shake256 XoF to get a reproducible value for a given CRS.
         let mut hasher = shake::Shake256::default();
-        for data in &[
-            &self.hash,
-            &self.hash_t,
-            &self.hash_w,
-            &self.hash_agg,
-            &self.hash_lmap,
-            &self.hash_z,
-        ] {
+        for data in &[&hash, &hash_t, &hash_w, &hash_agg, &hash_lmap, &hash_z] {
             hasher.update(data);
         }
 
-        let len = self.hash.len();
+        let len = hash.len();
         let mut hash_gamma = vec![0u8; len];
         hasher.finalize_xof_into(&mut hash_gamma);
 
         Ok(SerializablePKEv2DomainSeparators {
-            hash: self.hash,
-            hash_R: self.hash_R,
-            hash_t: self.hash_t,
-            hash_w: self.hash_w,
-            hash_agg: self.hash_agg,
-            hash_lmap: self.hash_lmap,
-            hash_phi: self.hash_phi,
-            hash_xi: self.hash_xi,
-            hash_z: self.hash_z,
-            hash_chi: self.hash_chi,
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
             hash_gamma,
         })
     }
@@ -216,26 +246,45 @@ impl Upgrade<SerializablePKEv1PublicParams> for SerializablePKEv1PublicParamsV0 
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SerializablePKEv1PublicParams, Self::Error> {
+        let Self {
+            g_lists,
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_z,
+            hash_w,
+        } = self;
+
         let domain_separators = SerializablePKEv1DomainSeparatorsV0 {
-            hash: self.hash,
-            hash_t: self.hash_t,
-            hash_agg: self.hash_agg,
-            hash_lmap: self.hash_lmap,
-            hash_w: self.hash_w,
-            hash_z: self.hash_z,
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_w,
+            hash_z,
         };
 
         Ok(SerializablePKEv1PublicParams {
-            g_lists: self.g_lists,
-            big_d: self.big_d,
-            n: self.n,
-            d: self.d,
-            k: self.k,
-            b: self.b,
-            b_r: self.b_r,
-            q: self.q,
-            t: self.t,
-            msbs_zero_padding_bit_count: self.msbs_zero_padding_bit_count,
+            g_lists,
+            big_d,
+            n,
+            d,
+            k,
+            b,
+            b_r,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
             sid: None,
             domain_separators: domain_separators.upgrade().unwrap(), // upgrade is infallible
         })
@@ -262,31 +311,33 @@ impl Upgrade<SerializablePKEv1DomainSeparators> for SerializablePKEv1DomainSepar
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SerializablePKEv1DomainSeparators, Self::Error> {
+        let Self {
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_z,
+            hash_w,
+        } = self;
+
         // V0 used an unspecified random for gamma anyways, so we can simply use a random DS.
         // We use Shake256 XoF to get a reproducible value for a given CRS.
         let mut hasher = shake::Shake256::default();
-        for data in &[
-            &self.hash,
-            &self.hash_t,
-            &self.hash_w,
-            &self.hash_agg,
-            &self.hash_lmap,
-            &self.hash_z,
-        ] {
+        for data in &[&hash, &hash_t, &hash_w, &hash_agg, &hash_lmap, &hash_z] {
             hasher.update(data);
         }
 
-        let len = self.hash.len();
+        let len = hash.len();
         let mut hash_gamma = vec![0u8; len];
         hasher.finalize_xof_into(&mut hash_gamma);
 
         Ok(SerializablePKEv1DomainSeparators {
-            hash: self.hash,
-            hash_t: self.hash_t,
-            hash_w: self.hash_w,
-            hash_agg: self.hash_agg,
-            hash_lmap: self.hash_lmap,
-            hash_z: self.hash_z,
+            hash,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_z,
             hash_gamma,
         })
     }

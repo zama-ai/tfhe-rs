@@ -48,13 +48,22 @@ impl Upgrade<CompactPublicKeyEncryptionParameters> for CompactPublicKeyEncryptio
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompactPublicKeyEncryptionParameters, Self::Error> {
+        let Self {
+            encryption_lwe_dimension,
+            encryption_noise_distribution,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            expansion_kind,
+        } = self;
+
         Ok(CompactPublicKeyEncryptionParameters {
-            encryption_lwe_dimension: self.encryption_lwe_dimension,
-            encryption_noise_distribution: self.encryption_noise_distribution,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            ciphertext_modulus: self.ciphertext_modulus,
-            expansion_kind: self.expansion_kind,
+            encryption_lwe_dimension,
+            encryption_noise_distribution,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            expansion_kind,
             // TFHE-rs v0.10 and before used only the v1 zk scheme
             zk_scheme: SupportedCompactPkeZkScheme::V1,
         })

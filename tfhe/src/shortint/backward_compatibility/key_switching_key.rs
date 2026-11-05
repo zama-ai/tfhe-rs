@@ -21,10 +21,16 @@ impl Upgrade<KeySwitchingKeyMaterial> for KeySwitchingKeyMaterialV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<KeySwitchingKeyMaterial, Self::Error> {
+        let Self {
+            key_switching_key,
+            cast_rshift,
+            destination_key,
+        } = self;
+
         Ok(KeySwitchingKeyMaterial {
-            key_switching_key: self.key_switching_key,
-            cast_rshift: self.cast_rshift,
-            destination_key: self.destination_key,
+            key_switching_key,
+            cast_rshift,
+            destination_key,
             destination_atomic_pattern: KeySwitchingKeyDestinationAtomicPattern::Standard,
         })
     }

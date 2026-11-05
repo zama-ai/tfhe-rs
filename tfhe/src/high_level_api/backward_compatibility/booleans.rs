@@ -24,8 +24,10 @@ impl Upgrade<FheBoolV1> for FheBoolV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<FheBoolV1, Self::Error> {
+        let Self { ciphertext } = self;
+
         Ok(FheBoolV1 {
-            ciphertext: self.ciphertext,
+            ciphertext,
             tag: Tag::default(),
         })
     }
@@ -104,10 +106,12 @@ impl Upgrade<SquashedNoiseFheBool> for SquashedNoiseFheBoolV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SquashedNoiseFheBool, Self::Error> {
+        let Self { inner, tag } = self;
+
         Ok(SquashedNoiseFheBool::new(
-            self.inner,
+            inner,
             SquashedNoiseCiphertextState::Normal,
-            self.tag,
+            tag,
         ))
     }
 }

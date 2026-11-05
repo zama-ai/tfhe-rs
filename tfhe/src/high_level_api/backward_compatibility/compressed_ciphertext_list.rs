@@ -19,8 +19,10 @@ impl Upgrade<CompressedCiphertextListV1> for CompressedCiphertextListV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedCiphertextListV1, Self::Error> {
+        let Self(inner) = self;
+
         Ok(CompressedCiphertextListV1 {
-            inner: self.0,
+            inner,
             tag: Tag::default(),
         })
     }
@@ -36,9 +38,11 @@ impl Upgrade<CompressedCiphertextListV2> for CompressedCiphertextListV1 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedCiphertextListV2, Self::Error> {
+        let Self { inner, tag } = self;
+
         Ok(CompressedCiphertextListV2 {
-            inner: InnerCompressedCiphertextList::Cpu(self.inner),
-            tag: self.tag,
+            inner: InnerCompressedCiphertextList::Cpu(inner),
+            tag,
         })
     }
 }

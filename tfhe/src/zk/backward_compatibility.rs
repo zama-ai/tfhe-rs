@@ -20,8 +20,10 @@ impl Upgrade<CompactPkeCrs> for CompactPkeCrsV0 {
     type Error = InvalidSerializedPublicParamsError;
 
     fn upgrade(self) -> Result<CompactPkeCrs, Self::Error> {
+        let Self(public_params) = self;
+
         Ok(CompactPkeCrs::PkeV1(
-            self.0
+            public_params
                 .upgrade()
                 .unwrap() // update is infallible so it is ok to unwrap
                 .try_into()?,
@@ -44,7 +46,9 @@ impl Upgrade<CompressedCompactPkeCrs> for CompressedCompactPkeCrsV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedCompactPkeCrs, Self::Error> {
-        Ok(CompressedCompactPkeCrs::PkeV1(self.0))
+        let Self(public_params) = self;
+
+        Ok(CompressedCompactPkeCrs::PkeV1(public_params))
     }
 }
 
@@ -62,7 +66,9 @@ impl Upgrade<CompactPkeProofV1> for CompactPkeProofV0 {
     type Error = IncompleteProof;
 
     fn upgrade(self) -> Result<CompactPkeProofV1, Self::Error> {
-        Ok(CompactPkeProofV1(self.0.upgrade()?))
+        let Self(proof) = self;
+
+        Ok(CompactPkeProofV1(proof.upgrade()?))
     }
 }
 
@@ -74,7 +80,9 @@ impl Upgrade<CompactPkeProof> for CompactPkeProofV1 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompactPkeProof, Self::Error> {
-        Ok(CompactPkeProof::PkeV1(self.0))
+        let Self(proof) = self;
+
+        Ok(CompactPkeProof::PkeV1(proof))
     }
 }
 

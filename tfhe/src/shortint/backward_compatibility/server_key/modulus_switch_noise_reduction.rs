@@ -27,7 +27,14 @@ where
     type Error = Error;
 
     fn upgrade(self) -> Result<ModulusSwitchNoiseReductionKey<InputScalar>, Self::Error> {
-        let modulus_switch_zeros: Box<dyn Any> = Box::new(self.modulus_switch_zeros);
+        let Self {
+            modulus_switch_zeros,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
+        } = self;
+
+        let modulus_switch_zeros: Box<dyn Any> = Box::new(modulus_switch_zeros);
 
         // Keys from previous versions where only stored as u64, we check if the destination
         // key is also u64 or we return an error
@@ -41,9 +48,9 @@ where
                         std::any::type_name::<InputScalar>(),
                     ))
                 })?,
-            ms_bound: self.ms_bound,
-            ms_r_sigma_factor: self.ms_r_sigma_factor,
-            ms_input_variance: self.ms_input_variance,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
         })
     }
 }
@@ -73,7 +80,14 @@ where
     type Error = Error;
 
     fn upgrade(self) -> Result<CompressedModulusSwitchNoiseReductionKey<InputScalar>, Self::Error> {
-        let modulus_switch_zeros: Box<dyn Any> = Box::new(self.modulus_switch_zeros);
+        let Self {
+            modulus_switch_zeros,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
+        } = self;
+
+        let modulus_switch_zeros: Box<dyn Any> = Box::new(modulus_switch_zeros);
 
         // Keys from previous versions where only stored as u64, we check if the destination
         // key is also u64 or we return an error
@@ -87,9 +101,9 @@ where
                         std::any::type_name::<InputScalar>(),
                     ))
                 })?,
-            ms_bound: self.ms_bound,
-            ms_r_sigma_factor: self.ms_r_sigma_factor,
-            ms_input_variance: self.ms_input_variance,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
         })
     }
 }

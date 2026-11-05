@@ -28,21 +28,25 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     ) -> Result<CompressedModulusSwitchedMultiBitLweCiphertextV1<Scalar>, Self::Error> {
         // In the previous version a last coefficient for the body was stored along the mask
         // elements. This was a duplicate, so we remove it.
+        let Self {
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
+        } = self;
 
-        let mask: Vec<usize> = self
-            .packed_mask
-            .unpack()
-            .take(self.lwe_dimension.0)
-            .collect();
-        let mask_without_body = PackedIntegers::pack(&mask, self.packed_mask.log_modulus());
+        let mask: Vec<usize> = packed_mask.unpack().take(lwe_dimension.0).collect();
+        let mask_without_body = PackedIntegers::pack(&mask, packed_mask.log_modulus());
 
         Ok(CompressedModulusSwitchedMultiBitLweCiphertextV1 {
-            body: self.body,
+            body,
             packed_mask: mask_without_body,
-            packed_diffs: self.packed_diffs,
-            lwe_dimension: self.lwe_dimension,
-            uncompressed_ciphertext_modulus: self.uncompressed_ciphertext_modulus,
-            grouping_factor: self.grouping_factor,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
         })
     }
 }
@@ -71,18 +75,26 @@ where
     fn upgrade(
         self,
     ) -> Result<CompressedModulusSwitchedMultiBitLweCiphertext<Scalar>, Self::Error> {
-        let mask: Vec<_> = self.packed_mask.unpack::<Scalar>().collect();
-        let diffs_opt: Option<(Vec<_>, _)> = self
-            .packed_diffs
-            .map(|diffs| (diffs.unpack::<Scalar>().collect(), diffs.log_modulus()));
+        let Self {
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
+        } = self;
+
+        let mask: Vec<_> = packed_mask.unpack::<Scalar>().collect();
+        let diffs_opt: Option<(Vec<_>, _)> =
+            packed_diffs.map(|diffs| (diffs.unpack::<Scalar>().collect(), diffs.log_modulus()));
         Ok(
             CompressedModulusSwitchedMultiBitLweCiphertext::from_raw_parts(
-                self.body.cast_into(),
-                PackedIntegers::pack(&mask, self.packed_mask.log_modulus()),
+                body.cast_into(),
+                PackedIntegers::pack(&mask, packed_mask.log_modulus()),
                 diffs_opt.map(|(diffs, log_modulus)| PackedIntegers::pack(&diffs, log_modulus)),
-                self.lwe_dimension,
-                self.uncompressed_ciphertext_modulus,
-                self.grouping_factor,
+                lwe_dimension,
+                uncompressed_ciphertext_modulus,
+                grouping_factor,
             ),
         )
     }
