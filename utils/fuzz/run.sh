@@ -12,9 +12,9 @@
 #   ./run.sh --total-cores 16         # simulate a 16-core machine
 #
 # Usage (GPU):
-#   ./run.sh --gpu                         # auto-detect GPUs, 24h
-#   ./run.sh --gpu --duration-seconds 3600 # 1-hour GPU run
-#   ./run.sh --gpu --compute-secondary 5   # force secondary count (overrides 2*NUM_GPUS-1)
+#   ./run.sh --gpu                              # auto-detect GPUs, 24h
+#   ./run.sh --gpu --duration-seconds 3600      # 1-hour GPU run
+#   ./run.sh --gpu --compute-secondary 5        # force secondary count (overrides 2*NUM_GPUS-1)
 #
 # CPU sizing model:
 #   3 masters (one per harness: deser, verify, compute), nproc-3 secondaries
@@ -121,8 +121,8 @@ if [[ "$GPU_MODE" == 1 ]]; then
         exit 1
     fi
     COMPUTE_SECONDARY="${COMPUTE_SECONDARY:-$(( 2 * NUM_GPUS - 1 ))}"
-    HARNESS_NAMES=(cuda_compute)
-    HARNESS_SECONDARY=("$COMPUTE_SECONDARY")
+    HARNESS_NAMES=( cuda_compute )
+    HARNESS_SECONDARY=( "$COMPUTE_SECONDARY" )
     EXTRA_AFL_FLAGS=(-t 100000)
 else
     [[ -z "$TOTAL_CORES" ]] && TOTAL_CORES="$(nproc)"

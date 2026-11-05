@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::fs::File;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Mul, Sub};
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "gpu")]
@@ -8,16 +8,17 @@ use tfhe::{ClientKey, CompressedServerKey, CudaServerKey};
 
 use tfhe::core_crypto::commons::parameters::*;
 use tfhe::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
-use tfhe::prelude::{CiphertextList, Tagged};
+use tfhe::prelude::{CiphertextList, ReRandomize, Tagged};
 use tfhe::safe_serialization::safe_deserialize;
 use tfhe::shortint::parameters::list_compression::ClassicCompressionParameters;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::{CarryModulus, MessageModulus};
 use tfhe::zk::CompactPkeCrs;
 use tfhe::{
-    CompactCiphertextListExpander, CompactPublicKey, CompressedCiphertextListBuilder, FheInt8,
-    FheInt16, FheInt32, FheInt64, FheTypes, FheUint8, FheUint16, FheUint32, FheUint64,
-    HlCompressible, HlExpandable, ServerKey, set_server_key,
+    CompactCiphertextListExpander, CompactPublicKey, CompressedCiphertextListBuilder, FheBool,
+    FheInt8, FheInt16, FheInt32, FheInt64, FheTypes, FheUint8, FheUint16, FheUint32, FheUint64,
+    FheUint128, FheUint160, FheUint256, FheUint512, FheUint1024, FheUint2048, HlCompressible,
+    HlExpandable, ReRandomizationContext, ServerKey, set_server_key,
 };
 
 #[cfg(fuzzing)]
@@ -85,6 +86,21 @@ pub const INSECURE_FUZZ_COMPRESSION_PARAMS: CompressionParameters =
         lwe_per_glwe: LweCiphertextCount(256),
         // Must be <= polynomial_size.to_blind_rotation_input_modulus_log() = log2(256) + 1 = 9.
         storage_log_modulus: CiphertextModulusLog(9),
+        packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(0),
+    });
+
+// The compute params use polynomial_size=32, which caps storage_log_modulus at
+// log2(32)+1 = 6 (enforced by CompressionPrivateKeys::new_compression_key_with_engine).
+pub const INSECURE_FUZZ_GPU_COMPRESSION_PARAMS: CompressionParameters =
+    CompressionParameters::Classic(ClassicCompressionParameters {
+        br_level: DecompositionLevelCount(1),
+        br_base_log: DecompositionBaseLog(24),
+        packing_ks_level: DecompositionLevelCount(1),
+        packing_ks_base_log: DecompositionBaseLog(30),
+        packing_ks_polynomial_size: PolynomialSize(256),
+        packing_ks_glwe_dimension: GlweDimension(1),
+        lwe_per_glwe: LweCiphertextCount(256),
+        storage_log_modulus: CiphertextModulusLog(6),
         packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(0),
     });
 
@@ -294,6 +310,237 @@ pub fn use_list(exp: &CompactCiphertextListExpander) -> ExecEndCause {
     ExecEndCause::ExecSuccess
 }
 
+/// Bool-specific driver: FheBool has no Add/Sub/Mul; exercise the bitwise ops instead.
+fn compute_bool(ct: FheBool, builder: &mut CompressedCiphertextListBuilder) {
+    let res = ct.clone().bitxor(ct.clone());
+    let res = res.bitand(ct.clone());
+    let res = res.bitor(ct);
+    builder.push(res);
+}
+
+fn compute_integer<FheType>(ct: FheType, builder: &mut CompressedCiphertextListBuilder)
+where
+    FheType: Tagged
+        + Clone
+        + Add<FheType, Output = FheType>
+        + Sub<FheType, Output = FheType>
+        + Mul<FheType, Output = FheType>
+        + HlCompressible,
+{
+    let res = ct.clone() + ct.clone();
+    let res = res * ct.clone();
+    let res = res - ct;
+    builder.push(res);
+}
+
+/// GPU-only variant of `compute_integer`: single addition instead of add+mul+sub.
+///
+/// Used by the cuda-compute harness for widths >64 bits (U128, U256). On GPU, mul and
+/// sub on those widths dominate the per-exec time at the small synthetic params the
+/// fuzzer emits and push the harness past AFL's timeout; one addition keeps the
+/// arithmetic → compression pipeline exercised without starving the execution rate.
+fn compute_integer_add_only<FheType>(ct: FheType, builder: &mut CompressedCiphertextListBuilder)
+where
+    FheType: Tagged + Clone + Add<FheType, Output = FheType> + HlCompressible,
+{
+    let res = ct.clone() + ct;
+    builder.push(res);
+}
+
+/// Holds one expanded ciphertext of a fhevm backend-ciphertext variant.
+///
+/// The accepted set is `ALL = H ∪ W` where:
+/// - `H = {Bool, U8, U16, U32, U64, U128, U160, U256}` — fhevm host-executor types (see
+///   `fhevm_support_spec_test.md` §3 and `fhevm-operator-registry.md`).
+/// - `W = {U512, U1024, U2048}` — backend-only large-integer wrappers (fhevm `FheBytes64/128/256`).
+///
+/// Any other `FheTypes` variant — notably signed integers and backend-only `U4` — is rejected
+/// with [`ExecEndCause::UnsupportedType`] by [`FhevmCt::extract`].
+pub enum FhevmCt {
+    Bool(FheBool),
+    U8(FheUint8),
+    U16(FheUint16),
+    U32(FheUint32),
+    U64(FheUint64),
+    U128(FheUint128),
+    U160(FheUint160),
+    U256(FheUint256),
+    U512(FheUint512),
+    U1024(FheUint1024),
+    U2048(FheUint2048),
+}
+
+impl FhevmCt {
+    fn extract(
+        exp: &CompactCiphertextListExpander,
+        i: usize,
+        kind: FheTypes,
+    ) -> Result<Self, ExecEndCause> {
+        fn get<T: HlExpandable + Tagged>(
+            exp: &CompactCiphertextListExpander,
+            i: usize,
+        ) -> Result<T, ExecEndCause> {
+            match exp.get::<T>(i) {
+                Ok(Some(ct)) => Ok(ct),
+                Ok(None) | Err(_) => Err(ExecEndCause::ExpanderGetFailed),
+            }
+        }
+        Ok(match kind {
+            FheTypes::Bool => Self::Bool(get(exp, i)?),
+            FheTypes::Uint8 => Self::U8(get(exp, i)?),
+            FheTypes::Uint16 => Self::U16(get(exp, i)?),
+            FheTypes::Uint32 => Self::U32(get(exp, i)?),
+            FheTypes::Uint64 => Self::U64(get(exp, i)?),
+            FheTypes::Uint128 => Self::U128(get(exp, i)?),
+            FheTypes::Uint160 => Self::U160(get(exp, i)?),
+            FheTypes::Uint256 => Self::U256(get(exp, i)?),
+            FheTypes::Uint512 => Self::U512(get(exp, i)?),
+            FheTypes::Uint1024 => Self::U1024(get(exp, i)?),
+            FheTypes::Uint2048 => Self::U2048(get(exp, i)?),
+            _ => return Err(ExecEndCause::UnsupportedType),
+        })
+    }
+
+    fn add_to_re_randomization_context(&self, context: &mut ReRandomizationContext) {
+        match self {
+            Self::Bool(x) => context.add_ciphertext(x),
+            Self::U8(x) => context.add_ciphertext(x),
+            Self::U16(x) => context.add_ciphertext(x),
+            Self::U32(x) => context.add_ciphertext(x),
+            Self::U64(x) => context.add_ciphertext(x),
+            Self::U128(x) => context.add_ciphertext(x),
+            Self::U160(x) => context.add_ciphertext(x),
+            Self::U256(x) => context.add_ciphertext(x),
+            Self::U512(x) => context.add_ciphertext(x),
+            Self::U1024(x) => context.add_ciphertext(x),
+            Self::U2048(x) => context.add_ciphertext(x),
+        }
+    }
+
+    fn re_randomise(
+        &mut self,
+        cpk: &CompactPublicKey,
+        seed: tfhe::integer::ciphertext::ReRandomizationSeed,
+    ) -> tfhe::Result<()> {
+        match self {
+            Self::Bool(x) => x.re_randomize(cpk, seed),
+            Self::U8(x) => x.re_randomize(cpk, seed),
+            Self::U16(x) => x.re_randomize(cpk, seed),
+            Self::U32(x) => x.re_randomize(cpk, seed),
+            Self::U64(x) => x.re_randomize(cpk, seed),
+            Self::U128(x) => x.re_randomize(cpk, seed),
+            Self::U160(x) => x.re_randomize(cpk, seed),
+            Self::U256(x) => x.re_randomize(cpk, seed),
+            Self::U512(x) => x.re_randomize(cpk, seed),
+            Self::U1024(x) => x.re_randomize(cpk, seed),
+            Self::U2048(x) => x.re_randomize(cpk, seed),
+        }
+    }
+
+    /// Widths >64 bits (U128, U256) perform a single addition instead of add+mul+sub.
+    /// See `compute_integer_add_only` for the rationale.
+    fn compute_and_push_gpu(self, builder: &mut CompressedCiphertextListBuilder) {
+        match self {
+            Self::Bool(ct) => compute_bool(ct, builder),
+            Self::U8(ct) => compute_integer(ct, builder),
+            Self::U16(ct) => compute_integer(ct, builder),
+            Self::U32(ct) => compute_integer(ct, builder),
+            Self::U64(ct) => compute_integer(ct, builder),
+            Self::U128(ct) => compute_integer_add_only(ct, builder),
+            Self::U256(ct) => compute_integer_add_only(ct, builder),
+            Self::U160(ct) => {
+                builder.push(ct);
+            }
+            Self::U512(ct) => {
+                builder.push(ct);
+            }
+            Self::U1024(ct) => {
+                builder.push(ct);
+            }
+            Self::U2048(ct) => {
+                builder.push(ct);
+            }
+        }
+    }
+}
+
+/// GPU variant of [`use_list`] restricted to the fhevm host-executor ciphertext types.
+///
+/// See [`FhevmCt`] for the accepted type set.
+pub fn use_list_gpu(exp: &CompactCiphertextListExpander) -> ExecEndCause {
+    let mut cts = Vec::with_capacity(exp.len());
+    for i in 0..exp.len() {
+        let Some(kind) = exp.get_kind_of(i) else {
+            return ExecEndCause::ExpanderGetFailed;
+        };
+        match FhevmCt::extract(exp, i, kind) {
+            Ok(ct) => cts.push(ct),
+            Err(cause) => return cause,
+        }
+    }
+
+    let mut builder = CompressedCiphertextListBuilder::new();
+    for ct in cts {
+        ct.compute_and_push_gpu(&mut builder);
+    }
+
+    if builder.build().is_err() {
+        return ExecEndCause::CompressionFailed;
+    }
+
+    ExecEndCause::ExecSuccess
+}
+
+/// GPU variant that re-randomizes every ciphertext against `public_key` before computing on it.
+///
+/// Mirrors [`use_list_gpu`] but inserts a re-randomization pass after decompression. The
+/// seed generator is driven by `input_seed` through the function-description slot of the
+/// [`ReRandomizationContext`], which makes AFL replays deterministic: identical input bytes
+/// produce identical post-rerand ciphertexts.
+pub fn use_list_gpu_rerand(
+    exp: &CompactCiphertextListExpander,
+    public_key: &CompactPublicKey,
+    input_seed: &[u8],
+) -> ExecEndCause {
+    let mut cts = Vec::with_capacity(exp.len());
+    for i in 0..exp.len() {
+        let Some(kind) = exp.get_kind_of(i) else {
+            return ExecEndCause::ExpanderGetFailed;
+        };
+        match FhevmCt::extract(exp, i, kind) {
+            Ok(ct) => cts.push(ct),
+            Err(cause) => return cause,
+        }
+    }
+
+    let mut re_rand_context = ReRandomizationContext::new(*b"FUZZ_Rrd", [input_seed], *b"FUZZ_Enc");
+    for ct in &cts {
+        ct.add_to_re_randomization_context(&mut re_rand_context);
+    }
+    let mut seed_gen = re_rand_context.finalize();
+
+    for ct in &mut cts {
+        let seed = match seed_gen.next_seed() {
+            Ok(seed) => seed,
+            Err(_) => return ExecEndCause::ReRandomizationFailed,
+        };
+        if ct.re_randomise(public_key, seed).is_err() {
+            return ExecEndCause::ReRandomizationFailed;
+        }
+    }
+
+    let mut builder = CompressedCiphertextListBuilder::new();
+    for ct in cts {
+        ct.compute_and_push_gpu(&mut builder);
+    }
+
+    if builder.build().is_err() {
+        return ExecEndCause::CompressionFailed;
+    }
+
+    ExecEndCause::ExecSuccess
+}
+
 /// The reason why the execution of a sample ended (without crash)
 ///
 /// All these cases are considered "successes" from the point of view of the fuzzer, meaning that no
@@ -307,6 +554,7 @@ pub enum ExecEndCause {
     ExpanderGetFailed,
     UnsupportedType,
     CompressionFailed,
+    ReRandomizationFailed,
     ExecSuccess,
 }
 
@@ -322,6 +570,7 @@ impl Display for ExecEndCause {
             ExecEndCause::ExpanderGetFailed => write!(f, "Failed to get ciphertext from expander"),
             ExecEndCause::UnsupportedType => write!(f, "Type is not supported by exec harness"),
             ExecEndCause::CompressionFailed => write!(f, "Failed to compress the result list"),
+            ExecEndCause::ReRandomizationFailed => write!(f, "Failed to re-randomize a ciphertext"),
             ExecEndCause::ExecSuccess => write!(f, "Sample executed without error"),
         }
     }

@@ -43,7 +43,7 @@ usage() {
     echo "Build the stored corpus (afl-cmin) + minimized crashes, and write summary.md."
     echo ""
     echo "Options:"
-    echo "  --gpu              GPU campaign (single cuda-compute_m harness)"
+    echo "  --gpu              GPU campaign (cuda-compute harness)"
     echo "  --sync-dir DIR     AFL sync/output directory (default: $SCRIPT_DIR/sync_dir)"
     echo "  --out DIR          Stored corpus output (default: $SCRIPT_DIR/stored_corpus)"
     echo "  --crashes-out DIR  Minimized crashes output (default: $SCRIPT_DIR/stored_crashes)"

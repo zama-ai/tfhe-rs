@@ -1,10 +1,13 @@
 use std::fs::File;
 
 use fuzz_utils::{
-    AUX_MAX_SIZE, AuxDataDir, CorpusDir, FUZZ_DOMAIN_SEPARATOR, INSECURE_FUZZ_GPU_KS_PARAMS,
-    INSECURE_FUZZ_GPU_PARAMS, INSECURE_FUZZ_GPU_PKE_PARAMS,
+    AUX_MAX_SIZE, AuxDataDir, CorpusDir, FUZZ_DOMAIN_SEPARATOR,
+    INSECURE_FUZZ_GPU_COMPRESSION_PARAMS, INSECURE_FUZZ_GPU_KS_PARAMS, INSECURE_FUZZ_GPU_PARAMS,
+    INSECURE_FUZZ_GPU_PKE_PARAMS,
 };
 use tfhe::core_crypto::prelude::*;
+use tfhe::integer::U256;
+use tfhe::integer::bigint::{U512, U1024, U2048};
 use tfhe::safe_serialization::safe_serialize;
 use tfhe::{CompactCiphertextList, CompactPublicKey, ConfigBuilder, generate_keys};
 
@@ -14,12 +17,34 @@ fn main() {
             INSECURE_FUZZ_GPU_PKE_PARAMS,
             INSECURE_FUZZ_GPU_KS_PARAMS,
         ))
+        .enable_compression(INSECURE_FUZZ_GPU_COMPRESSION_PARAMS)
         .build();
     let (client_key, _) = generate_keys(config);
     let compact_pub_key = CompactPublicKey::new(&client_key);
 
     let mut compact_builder = CompactCiphertextList::builder(&compact_pub_key);
-    compact_builder.push(1u8).push(2u8).push(137u8).push(54u8);
+
+    // One ciphertext per fhevm backend-ciphertext variant: H (host-exposed) ∪ W (large wrappers).
+    // U160 lives in a U256 container with the top 96 bits zero (fhevm eaddress encoding).
+    let u160_val = U256::from((1u128, (1u128 << 32) - 1));
+    let u256_val = U256::from((2u128, 3u128));
+    let u512_val = U512::from([4u64; 8]);
+    let u1024_val = U1024::from([5u64; 16]);
+    let u2048_val = U2048::from([6u64; 32]);
+
+    compact_builder
+        .push(true)
+        .push(137u8)
+        .push(42069u16)
+        .push(123_456_789u32)
+        .push(9_876_543_210u64)
+        .push(1_000_000_000_000_000_000u128);
+    compact_builder.push_with_num_bits(u160_val, 160).unwrap();
+    compact_builder
+        .push(u256_val)
+        .push(u512_val)
+        .push(u1024_val)
+        .push(u2048_val);
 
     let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
