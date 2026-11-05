@@ -1,8 +1,9 @@
 use std::fs::File;
 
 use fuzz_utils::{
-    AUX_MAX_SIZE, AuxDataDir, CorpusDir, FUZZ_DOMAIN_SEPARATOR, INSECURE_FUZZ_GPU_KS_PARAMS,
-    INSECURE_FUZZ_GPU_PARAMS, INSECURE_FUZZ_GPU_PKE_PARAMS,
+    AUX_MAX_SIZE, AuxDataDir, CorpusDir, FUZZ_DOMAIN_SEPARATOR,
+    INSECURE_FUZZ_GPU_COMPRESSION_PARAMS, INSECURE_FUZZ_GPU_KS_PARAMS, INSECURE_FUZZ_GPU_PARAMS,
+    INSECURE_FUZZ_GPU_PKE_PARAMS,
 };
 use tfhe::core_crypto::prelude::*;
 use tfhe::safe_serialization::safe_serialize;
@@ -14,6 +15,7 @@ fn main() {
             INSECURE_FUZZ_GPU_PKE_PARAMS,
             INSECURE_FUZZ_GPU_KS_PARAMS,
         ))
+        .enable_compression(INSECURE_FUZZ_GPU_COMPRESSION_PARAMS)
         .build();
     let (client_key, _) = generate_keys(config);
     let compact_pub_key = CompactPublicKey::new(&client_key);

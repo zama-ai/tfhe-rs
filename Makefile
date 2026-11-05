@@ -762,22 +762,31 @@ fuzz_gpu_run: check_fuzz_system_config
 .PHONY: fuzz_gpu_reproduce # Reproduce GPU crashes from a CI artifact: GPU_FUZZ_ARTIFACT=<unpacked-artifact-dir>
 fuzz_gpu_reproduce:
 	$(if $(GPU_FUZZ_ARTIFACT),,$(error GPU_FUZZ_ARTIFACT is not set. Usage: make fuzz_gpu_reproduce GPU_FUZZ_ARTIFACT=<unpacked-artifact-dir>))
-	TFHE_CUDA_FUZZING=1 cargo build -p harness-cuda-compute --features gpu
-	@crashes="$(GPU_FUZZ_ARTIFACT)/stored_crashes/cuda-compute"; \
-	if [ ! -d "$$crashes" ]; then echo "ERROR: no crashes dir at $$crashes" >&2; exit 1; fi; \
-	total=$$(ls "$$crashes" | wc -l); \
-	echo "==> Reproducing $$total crash(es) from $$crashes"; \
-	failed=0; \
-	for f in "$$crashes"/*; do \
-		echo "--- $$(basename $$f)"; \
-		if RUST_BACKTRACE=1 TFHE_FUZZ_AUX_DIR="$(GPU_FUZZ_ARTIFACT)/aux_data" \
-				./target/debug/harness-cuda-compute < "$$f"; then \
-			echo "    (no crash)"; \
-		else \
-			failed=$$((failed + 1)); \
+	TFHE_CUDA_FUZZING=1 cargo build -p harness-cuda-compute -p harness-cuda-scalars --features gpu
+	@overall_failed=0; overall_total=0; \
+	for harness in cuda-compute cuda-scalars; do \
+		crashes="$(GPU_FUZZ_ARTIFACT)/stored_crashes/$$harness"; \
+		if [ ! -d "$$crashes" ]; then \
+			echo "==> $$harness: no crashes dir at $$crashes, skipping"; \
+			continue; \
 		fi; \
+		total=$$(ls "$$crashes" | wc -l); \
+		echo "==> $$harness: reproducing $$total crash(es) from $$crashes"; \
+		failed=0; \
+		for f in "$$crashes"/*; do \
+			echo "--- $$(basename $$f)"; \
+			if RUST_BACKTRACE=1 TFHE_FUZZ_AUX_DIR="$(GPU_FUZZ_ARTIFACT)/aux_data" \
+					./target/debug/harness-$$harness < "$$f"; then \
+				echo "    (no crash)"; \
+			else \
+				failed=$$((failed + 1)); \
+			fi; \
+		done; \
+		echo "==> $$harness: $$failed/$$total inputs crashed"; \
+		overall_failed=$$((overall_failed + failed)); \
+		overall_total=$$((overall_total + total)); \
 	done; \
-	echo "==> $$failed/$$total inputs crashed"
+	echo "==> total $$overall_failed/$$overall_total inputs crashed"
 
 .PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
 clippy_wasm_par_mq: install_rs_check_toolchain

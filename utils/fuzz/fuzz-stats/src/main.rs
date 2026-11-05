@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 #[cfg(feature = "gpu")]
-use fuzz_utils::GpuCorpusCpuContext;
+use fuzz_utils::{GpuCorpusCpuContext, use_list_gpu};
 use fuzz_utils::{ExecEndCause, FUZZ_DOMAIN_SEPARATOR, FuzzContext, INPUT_MAX_SIZE, use_list};
 use rayon::prelude::*;
 use serde::Serialize;
@@ -30,6 +30,7 @@ struct Histogram {
     expander_get_failed: usize,
     unsupported_type: usize,
     compression_failed: usize,
+    re_randomization_failed: usize,
     exec_success: usize,
     crashes: usize,
 }
@@ -44,6 +45,7 @@ impl Histogram {
             expander_get_failed,
             unsupported_type,
             compression_failed,
+            re_randomization_failed,
             exec_success,
             crashes,
         } = other;
@@ -54,13 +56,14 @@ impl Histogram {
         self.expander_get_failed += expander_get_failed;
         self.unsupported_type += unsupported_type;
         self.compression_failed += compression_failed;
+        self.re_randomization_failed += re_randomization_failed;
         self.exec_success += exec_success;
         self.crashes += crashes;
         self
     }
 
     /// Labelled rows in display order, paired with their counts.
-    fn rows(&self) -> [(ExecEndCause, usize); 7] {
+    fn rows(&self) -> [(ExecEndCause, usize); 8] {
         [
             (
                 ExecEndCause::SafeDeserializationFailed,
@@ -74,6 +77,10 @@ impl Histogram {
             (ExecEndCause::ExpanderGetFailed, self.expander_get_failed),
             (ExecEndCause::UnsupportedType, self.unsupported_type),
             (ExecEndCause::CompressionFailed, self.compression_failed),
+            (
+                ExecEndCause::ReRandomizationFailed,
+                self.re_randomization_failed,
+            ),
             (ExecEndCause::ExecSuccess, self.exec_success),
         ]
     }
@@ -113,6 +120,7 @@ fn classify(input: &[u8], ctx: &FuzzContext) -> Histogram {
         ExecEndCause::ExpanderGetFailed => hist.expander_get_failed = 1,
         ExecEndCause::UnsupportedType => hist.unsupported_type = 1,
         ExecEndCause::CompressionFailed => hist.compression_failed = 1,
+        ExecEndCause::ReRandomizationFailed => hist.re_randomization_failed = 1,
         // Reachable only via the verify branch / the deser gate, both handled above.
         ExecEndCause::SafeDeserializationFailed | ExecEndCause::ZkVerificationFailed => {}
         ExecEndCause::ExecSuccess => {
@@ -232,7 +240,7 @@ fn classify_gpu(input: &[u8], ctx: &GpuCorpusCpuContext) -> Histogram {
     };
 
     let compute_result = match ct_list.expand_without_verification() {
-        Ok(exp) => use_list(&exp),
+        Ok(exp) => use_list_gpu(&exp),
         Err(_) => ExecEndCause::ExpandFailed,
     };
     match compute_result {
@@ -240,6 +248,7 @@ fn classify_gpu(input: &[u8], ctx: &GpuCorpusCpuContext) -> Histogram {
         ExecEndCause::ExpanderGetFailed => hist.expander_get_failed = 1,
         ExecEndCause::UnsupportedType => hist.unsupported_type = 1,
         ExecEndCause::CompressionFailed => hist.compression_failed = 1,
+        ExecEndCause::ReRandomizationFailed => hist.re_randomization_failed = 1,
         ExecEndCause::SafeDeserializationFailed | ExecEndCause::ZkVerificationFailed => {}
         ExecEndCause::ExecSuccess => hist.exec_success = 1,
     }
