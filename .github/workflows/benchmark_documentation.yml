@@ -50,6 +50,8 @@ jobs:
       op_flavor: fast_default
       bench_type: both
       precisions_set: documentation
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -59,6 +61,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-cpu-zk-server:
     name: benchmark_documentation/run-benchmarks-cpu-zk-server
@@ -68,6 +72,8 @@ jobs:
       command: integer_zk
       op_flavor: default
       bench_type: both
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -77,6 +83,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-cpu-zk-client:
     name: benchmark_documentation/run-benchmarks-cpu-zk-client
@@ -84,6 +92,8 @@ jobs:
     if: inputs.run-cpu-benchmarks
     with:
       browser: chrome
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -93,6 +103,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-cpu-kvstore:
     name: benchmark_documentation/run-benchmarks-cpu-kvstore
@@ -103,6 +115,8 @@ jobs:
       op_flavor: default
       bench_type: latency
       precisions_set: all
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -112,6 +126,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-gpu-integer:
     name: benchmark_documentation/run-benchmarks-gpu-integer
@@ -126,6 +142,8 @@ jobs:
       op_flavor: fast_default
       bench_type: both
       precisions_set: documentation
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -135,6 +153,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-gpu-erc7984-multi-group:
     name: benchmark_documentation/run-benchmarks-gpu-erc7984-multi-group
@@ -148,6 +168,8 @@ jobs:
       bench_type: throughput
       params_type: classical + multi_bit
       erc7984_filter: "::transfer::(whitepaper|no_cmux|overflow)"
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -157,6 +179,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-hpu-integer:
     name: benchmark_documentation/run-benchmarks-hpu-integer
@@ -188,6 +212,8 @@ jobs:
       command: pbs, ks_pbs
       bench_type: latency
       params_type: classical_documentation + multi_bit_documentation
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -197,6 +223,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-gpu-core-crypto:
     name: benchmark_documentation/run-benchmarks-gpu-core-crypto
@@ -210,6 +238,8 @@ jobs:
       command: pbs, ks_pbs
       bench_type: latency
       params_type: classical_documentation + multi_bit_documentation
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -219,6 +249,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   run-benchmarks-gpu-zk-server:
     name: benchmark_documentation/run-benchmarks-gpu-zk-server
@@ -232,6 +264,8 @@ jobs:
       command: integer_zk
       op_flavor: default
       bench_type: both
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -241,6 +275,8 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   generate-svgs-with-benchmarks-run:
     name: benchmark-documentation/generate-svgs-with-benchmarks-run

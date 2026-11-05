@@ -81,9 +81,18 @@ jobs:
     name: gpu-fuzzing/setup-instance
     needs: parse-inputs
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Start instance
         id: start-instance
         uses: zama-ai/slab-github-runner@7543a9f2c12d01bcd839b4ef9f52c10b0da5cc73 # v1.6.4
@@ -179,7 +188,16 @@ jobs:
     if: ${{ always() && needs.setup-instance.result != 'skipped' }}
     needs: [parse-inputs, setup-instance, fuzz]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Stop instance
         id: stop-instance
         uses: zama-ai/slab-github-runner@7543a9f2c12d01bcd839b4ef9f52c10b0da5cc73 # v1.6.4
