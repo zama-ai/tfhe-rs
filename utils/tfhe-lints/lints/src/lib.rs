@@ -4,6 +4,7 @@
 extern crate rustc_errors;
 extern crate rustc_hir;
 extern crate rustc_lint;
+extern crate rustc_lint_defs;
 extern crate rustc_middle;
 extern crate rustc_session;
 extern crate rustc_span;
@@ -20,10 +21,10 @@ pub fn register_lints(_sess: &rustc_session::Session, lint_store: &mut rustc_lin
         serialize_without_versionize::SERIALIZE_WITHOUT_VERSIONIZE,
         invalid_versionize_dispatch::INVALID_VERSIONIZE_DISPATCH,
     ]);
-    lint_store.register_late_pass(|_| {
+    lint_store.register_late_lint_pass(Box::new(|_| {
         Box::new(serialize_without_versionize::SerializeWithoutVersionize::default())
-    });
-    lint_store.register_late_pass(|_| {
+    }));
+    lint_store.register_late_lint_pass(Box::new(|_| {
         Box::new(invalid_versionize_dispatch::InvalidVersionizeDispatch::default())
-    });
+    }));
 }
