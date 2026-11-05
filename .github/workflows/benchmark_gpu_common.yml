@@ -53,6 +53,10 @@ on:
         required: true
       SLACK_WEBHOOK:
         required: true
+      TS_SLAB_OAUTH_CLIENT_ID:
+        required: true
+      TS_SLAB_OAUTH_AUDIENCE:
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -131,9 +135,18 @@ jobs:
     name: benchmark_gpu_common/setup-instance
     needs: prepare-matrix
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     outputs:
       runner-name: ${{ steps.start-instance.outputs.label }}
     steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Start instance
         id: start-instance
         uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
@@ -335,7 +348,16 @@ jobs:
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-benchmarks, slack-notify ]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Stop instance
         id: stop-instance
         uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3

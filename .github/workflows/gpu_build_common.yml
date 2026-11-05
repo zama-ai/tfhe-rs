@@ -29,6 +29,10 @@ on:
         required: true
       SLACK_WEBHOOK:
         required: true
+      TS_SLAB_OAUTH_CLIENT_ID:
+        required: true
+      TS_SLAB_OAUTH_AUDIENCE:
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -52,10 +56,20 @@ jobs:
   setup-instance:
     name: gpu_build_common/setup-instance
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label }}
       cloud-provider: ${{ steps.start-remote-instance.outputs.cloud-provider }}
     steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Start remote instance
         id: start-remote-instance
         uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
@@ -170,7 +184,17 @@ jobs:
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [ setup-instance, cuda-checks ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Stop remote instance
         id: stop-instance
         uses: zama-ai/slab-github-runner@d4a5bb6e2a4b8aa19a10f596d7f142006a7e2c21 # v1.6.3
