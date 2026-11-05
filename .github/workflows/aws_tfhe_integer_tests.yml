@@ -55,11 +55,11 @@ jobs:
               - scripts/test_filtering.py
               - .github/workflows/aws_tfhe_integer_tests.yml
               - .github/workflows/aws_tfhe_integer_tests_common.yml
-              - .github/workflows/aws_tfhe_integer_tests_scheduled.yml
+              - .github/workflows/aws_tfhe_integer_tests_tier_*.yml
               - .config/nextest.toml
 
   # Tier 0 (prod params) on approval and on each merge to main, the other tiers run on a schedule
-  # in aws_tfhe_integer_tests_scheduled
+  # in aws_tfhe_integer_tests_tier_N
   integer-tests:
     name: aws_tfhe_integer_tests/integer-tests
     needs: should-run

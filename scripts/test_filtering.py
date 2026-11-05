@@ -44,10 +44,6 @@ INTEGER_LONG_RUN_TESTS = r"::tests_long_run::"
 # Workflows running tiered integer tests, they give the tiers as a literal input (`tiers: "1"`)
 TIERED_INTEGER_WORKFLOWS = ".github/workflows/aws_tfhe_integer_tests*.yml"
 WORKFLOW_TIERS_INPUT = re.compile(r"^\s*tiers:\s*[\"']?([0-9][0-9, ]*)[\"']?\s*(#.*)?$", re.MULTILINE)
-# Jobs triggered by a cron have a `github.event.schedule == '<cron>'` condition, if the cron is
-# not in the `schedule` of the workflow, the job silently never runs
-WORKFLOW_CRON = re.compile(r"^\s*-\s*cron:\s*([\"']?)(.+?)\1\s*(#.*)?$", re.MULTILINE)
-WORKFLOW_SCHEDULE_CONDITION = re.compile(r"github\.event\.schedule\s*==\s*[\"']([^\"']+)[\"']")
 
 parser = argparse.ArgumentParser(allow_abbrev=False)
 parser.add_argument(
@@ -298,24 +294,6 @@ def workflow_tiers(workflow_files):
     return tiers
 
 
-def workflow_schedule_errors(workflow_files):
-    """
-    Lists the jobs conditioned on a cron that their workflow does not have (the job never runs),
-    and the crons that no job is conditioned on (the cron runs nothing)
-    """
-    errors = []
-    for workflow_file in workflow_files:
-        with open(workflow_file) as f:
-            content = f.read()
-        crons = {match.group(2) for match in WORKFLOW_CRON.finditer(content)}
-        conditions = set(WORKFLOW_SCHEDULE_CONDITION.findall(content))
-        for cron in sorted(conditions - crons):
-            errors.append(f"{workflow_file}: a job runs on schedule '{cron}', which is not a cron")
-        for cron in sorted(crons - conditions):
-            errors.append(f"{workflow_file}: no job runs on cron '{cron}'")
-    return errors
-
-
 def check_cpu_integer_tiers(test_list, scheduled_tiers):
     """
     Lists errors that prevent a CPU integer test from the `test_list` from being run in any
@@ -421,10 +399,8 @@ if __name__ == "__main__":
         )
 
     if args.check:
-        workflow_files = sorted(glob.glob(TIERED_INTEGER_WORKFLOWS))
-        scheduled_tiers = workflow_tiers(workflow_files)
-        errors = workflow_schedule_errors(workflow_files)
-        errors += check_cpu_integer_tiers(json.load(sys.stdin), scheduled_tiers)
+        scheduled_tiers = workflow_tiers(sorted(glob.glob(TIERED_INTEGER_WORKFLOWS)))
+        errors = check_cpu_integer_tiers(json.load(sys.stdin), scheduled_tiers)
         if errors:
             for error in errors:
                 print(error, file=sys.stderr)
