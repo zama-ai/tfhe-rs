@@ -42,3 +42,5 @@ jobs:
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
