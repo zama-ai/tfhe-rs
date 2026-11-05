@@ -222,3 +222,8 @@ pub trait IOwnedArray: Clone + Slicing + SlicingMut {}
 pub trait FheSliceDotProduct<Lhs, Rhs> {
     fn dot_product(lhs: &[Lhs], rhs: &[Rhs]) -> Self;
 }
+
+// Trait to overload `dot_product_parallel` free functions
+pub trait FheSliceDotProductParallel<Lhs, Rhs> {
+    fn dot_product_parallel(lhs: &[Lhs], rhs: &[Rhs]) -> Self;
+}

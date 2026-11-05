@@ -92,6 +92,12 @@ harness = false
 required-features = ["integer", "internal-keycache", "pbs-stats"]
 
 [[bench]]
+name = "hlapi-dot-product"
+path = "benches/high_level_api/dot_product.rs"
+harness = false
+required-features = ["integer", "gpu", "internal-keycache", "pbs-stats"]
+
+[[bench]]
 name = "hlapi-erc7984"
 path = "benches/high_level_api/erc7984.rs"
 harness = false
