@@ -25,6 +25,10 @@ on:
         required: false
       JOB_SECRET:
         required: false
+      TS_SLAB_OAUTH_CLIENT_ID:
+        required: false
+      TS_SLAB_OAUTH_AUDIENCE:
+        required: false
 
 permissions: {}
 
@@ -34,12 +38,22 @@ jobs:
   start-instance:
     name: slab_setup/start-instance
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     env:
       SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-fallback-instance.outputs.runner_group }}
       cloud-provider: ${{ steps.start-fallback-instance.outputs.cloud-provider }}
     steps:
+      - name: Join tailnet
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Start remote instance
         id: start-remote-instance
         if: env.SECRETS_AVAILABLE == 'true'

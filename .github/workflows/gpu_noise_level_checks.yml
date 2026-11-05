@@ -81,10 +81,15 @@ jobs:
       backend: terraform
       profile: scaleway-small-gpu-noise-check
       fallback-runner: gpu_ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
       JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   cuda-noise-check-tests:
     name: gpu_noise_level_checks/cuda-noise-check-tests
@@ -165,6 +170,9 @@ jobs:
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}
       notification-context: gpu-noise-check
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
@@ -172,3 +180,5 @@ jobs:
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}

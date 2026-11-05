@@ -89,10 +89,15 @@ jobs:
     with:
       backend: ${{ needs.parse-inputs.outputs.backend }}
       profile: ${{ needs.parse-inputs.outputs.profile }}
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
       JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   benchmark-gpu:
     name: benchmark_gpu_coprocessor/benchmark-gpu (bpr)
@@ -339,6 +344,9 @@ jobs:
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}
       notification-context: benchmark-gpu-coprocessor
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
@@ -346,3 +354,5 @@ jobs:
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}

@@ -31,10 +31,15 @@ jobs:
       backend: aws
       # We want an hpc7a more compute, will be faster
       profile: bench
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
       JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
 
   noise-checks:
     name: aws_tfhe_noise_checks/noise-checks
@@ -82,6 +87,9 @@ jobs:
     with:
       runner-name: ${{ needs.setup-instance.outputs.runner-name }}
       notification-context: noise-checks
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
@@ -89,3 +97,5 @@ jobs:
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
