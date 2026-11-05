@@ -21,8 +21,10 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --corpusgen    Also run corpusgen to (re)generate corpus + aux data"
-    echo "  --gpu          Build GPU harness only (harness-cuda-compute); requires CUDA + afl++"
-    echo "                 Combined with --corpusgen: also runs gpu-corpusgen (CPU-only)"
+    echo "  --gpu          Build GPU harnesses (harness-cuda-compute, harness-cuda-scalars);"
+    echo "                 requires CUDA + afl++"
+    echo "                 Combined with --corpusgen: also runs gpu-corpusgen and"
+    echo "                 gpu-scalars-corpusgen (CPU-only)"
     echo "  -h, --help     Show this help message"
 }
 
@@ -48,6 +50,9 @@ if [[ "$CORPUSGEN" == "1" ]]; then
         echo "==> Building and running gpu-corpusgen"
         cargo run --release -p corpusgen --bin gpu-corpusgen
         echo "    GPU corpus and aux_data written"
+        echo "==> Building and running gpu-scalars-corpusgen"
+        cargo run --release -p corpusgen --bin gpu-scalars-corpusgen
+        echo "    GPU scalars corpus written"
     else
         echo "==> Building and running corpusgen"
         cargo run --release -p corpusgen --bin corpusgen
@@ -58,7 +63,7 @@ fi
 # ── Build harnesses with full AFL instrumentation ──────────────────────────
 HARNESSES=()
 if [[ "$GPU" == "1" ]]; then
-    HARNESSES+=(harness-cuda-compute)
+    HARNESSES+=(harness-cuda-compute harness-cuda-scalars)
 else
     HARNESSES=(harness-deser harness-verify harness-compute)
 fi
@@ -66,12 +71,15 @@ fi
 # ── Build harnesses with full AFL instrumentation ──────────────────────────
 for harness in "${HARNESSES[@]}"; do
     echo "==> Building $harness"
-    if [[ "$harness" == "harness-cuda-compute" ]]; then
-        # Instrument host-side C++ via AFL's clang wrappers so NVCC uses them as -ccbin.
-        AFL_CXX=afl-clang-fast++ cargo afl build -vv --release -j16 -p "$harness" --features gpu
-    else
-        cargo afl build --release -p "$harness"
-    fi
+    case "$harness" in
+        harness-cuda-*)
+            # Instrument host-side C++ via AFL's clang wrappers so NVCC uses them as -ccbin.
+            AFL_CXX=afl-clang-fast++ cargo afl build -vv --release -j16 -p "$harness" --features gpu
+            ;;
+        *)
+            cargo afl build --release -p "$harness"
+            ;;
+    esac
 done
 
 BUILD_OK=1
