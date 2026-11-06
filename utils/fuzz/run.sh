@@ -122,7 +122,7 @@ if [[ "$GPU_MODE" == 1 ]]; then
     fi
     # --compute-secondary controls the secondary count for every GPU harness.
     COMPUTE_SECONDARY="${COMPUTE_SECONDARY:-$(( 2 * NUM_GPUS - 1 ))}"
-    HARNESS_NAMES=( cuda_scalars) # cuda_compute
+    HARNESS_NAMES=( cuda_compute cuda_scalars )
     HARNESS_SECONDARY=("$COMPUTE_SECONDARY" "$COMPUTE_SECONDARY")
     EXTRA_AFL_FLAGS=(-t 100000)
 else

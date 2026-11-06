@@ -743,6 +743,10 @@ fuzz_postcampaign: install_cargo_afl
 fuzz_clean:
 	rm -rf utils/fuzz/sync_dir utils/fuzz/stored_corpus utils/fuzz/stored_crashes utils/fuzz/summary.md
 
+.PHONY: fuzz_clean_all # Also wipe seed corpus and generated aux data (keys/CRS); next run must re-seed
+fuzz_clean_all: fuzz_clean
+	rm -rf utils/fuzz/corpus utils/fuzz/aux_data
+
 .PHONY: fuzz_gpu_postcampaign # Postprocess a finished GPU campaign: save crashes, minimize corpus, write summary.md
 fuzz_gpu_postcampaign: install_cargo_afl
 	cd utils/fuzz && ./postcampaign.sh --gpu

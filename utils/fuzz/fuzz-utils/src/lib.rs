@@ -18,8 +18,8 @@ use tfhe::zk::CompactPkeCrs;
 use tfhe::{
     CompactCiphertextListExpander, CompactPublicKey, CompressedCiphertextListBuilder, FheBool,
     FheInt8, FheInt16, FheInt32, FheInt64, FheTypes, FheUint8, FheUint16, FheUint32, FheUint64,
-    FheUint128, FheUint160, FheUint256, HlCompressible, HlExpandable, ReRandomizationContext,
-    Seed, ServerKey, set_server_key,
+    FheUint128, FheUint160, FheUint256, FheUint512, FheUint1024, FheUint2048, HlCompressible,
+    HlExpandable, ReRandomizationContext, Seed, ServerKey, set_server_key,
 };
 
 #[cfg(fuzzing)]
@@ -338,12 +338,15 @@ where
     builder.push(res);
 }
 
-/// Holds one expanded ciphertext of a fhevm host-executor type.
+/// Holds one expanded ciphertext of a fhevm backend-ciphertext variant.
 ///
-/// The accepted set is `H = {Bool, U8, U16, U32, U64, U128, U160, U256}` as defined by the
-/// fhevm host executor (see `fhevm_support_spec_test.md` §3 and `fhevm-operator-registry.md`).
-/// Any other `FheTypes` variant — notably signed integers, backend-only widths like U4, U512,
-/// U1024, U2048 — is rejected with [`ExecEndCause::UnsupportedType`] by [`FhevmCt::extract`].
+/// The accepted set is `ALL = H ∪ W` where:
+/// - `H = {Bool, U8, U16, U32, U64, U128, U160, U256}` — fhevm host-executor types (see
+///   `fhevm_support_spec_test.md` §3 and `fhevm-operator-registry.md`).
+/// - `W = {U512, U1024, U2048}` — backend-only large-integer wrappers (fhevm `FheBytes64/128/256`).
+///
+/// Any other `FheTypes` variant — notably signed integers and backend-only `U4` — is rejected
+/// with [`ExecEndCause::UnsupportedType`] by [`FhevmCt::extract`].
 pub enum FhevmCt {
     Bool(FheBool),
     U8(FheUint8),
@@ -353,6 +356,9 @@ pub enum FhevmCt {
     U128(FheUint128),
     U160(FheUint160),
     U256(FheUint256),
+    U512(FheUint512),
+    U1024(FheUint1024),
+    U2048(FheUint2048),
 }
 
 impl FhevmCt {
@@ -379,6 +385,9 @@ impl FhevmCt {
             FheTypes::Uint128 => Self::U128(get(exp, i)?),
             FheTypes::Uint160 => Self::U160(get(exp, i)?),
             FheTypes::Uint256 => Self::U256(get(exp, i)?),
+            FheTypes::Uint512 => Self::U512(get(exp, i)?),
+            FheTypes::Uint1024 => Self::U1024(get(exp, i)?),
+            FheTypes::Uint2048 => Self::U2048(get(exp, i)?),
             _ => return Err(ExecEndCause::UnsupportedType),
         })
     }
@@ -393,6 +402,9 @@ impl FhevmCt {
             Self::U128(x) => context.add_ciphertext(x),
             Self::U160(x) => context.add_ciphertext(x),
             Self::U256(x) => context.add_ciphertext(x),
+            Self::U512(x) => context.add_ciphertext(x),
+            Self::U1024(x) => context.add_ciphertext(x),
+            Self::U2048(x) => context.add_ciphertext(x),
         }
     }
 
@@ -410,6 +422,9 @@ impl FhevmCt {
             Self::U128(x) => x.re_randomize(cpk, seed),
             Self::U160(x) => x.re_randomize(cpk, seed),
             Self::U256(x) => x.re_randomize(cpk, seed),
+            Self::U512(x) => x.re_randomize(cpk, seed),
+            Self::U1024(x) => x.re_randomize(cpk, seed),
+            Self::U2048(x) => x.re_randomize(cpk, seed),
         }
     }
 
@@ -421,8 +436,21 @@ impl FhevmCt {
             Self::U32(ct) => compute_integer(ct, builder),
             Self::U64(ct) => compute_integer(ct, builder),
             Self::U128(ct) => compute_integer(ct, builder),
-            Self::U160(ct) => compute_integer(ct, builder),
             Self::U256(ct) => compute_integer(ct, builder),
+            // U160 (eaddress) and the FheBytes wrappers (U512/U1024/U2048) are compressed
+            // as-is: fhevm exposes no arithmetic ops on them.
+            Self::U160(ct) => {
+                builder.push(ct);
+            }
+            Self::U512(ct) => {
+                builder.push(ct);
+            }
+            Self::U1024(ct) => {
+                builder.push(ct);
+            }
+            Self::U2048(ct) => {
+                builder.push(ct);
+            }
         }
     }
 }
@@ -515,14 +543,19 @@ impl<'a> ScalarSource<'a> {
     }
 }
 
-/// Mirrors the fhevm `generate_random_number` dispatch:
-/// `random_bits = upper_bound.map(be_number_random_bits).unwrap_or(bit_count).min(bit_count) as u64`.
+/// Pick a `random_bits_count` value `k` for a bounded OPRF call.
 ///
-/// The fuzz cursor plays the role of `upper_bound`: one byte, clamped to `bit_count`, giving
-/// the same `0..=bit_count` range the host passes to the backend.
-fn next_random_bits(source: &mut ScalarSource, bit_count: u64) -> u64 {
+/// Cycles `k` over `[min_log2 + 1, bit_count]` from the fuzz cursor so the OPRF is exercised
+/// with every supported upper bound in that interval. Across the per-type calls in
+/// [`generate_scalar_ops_gpu`], `min_log2` is set to the width of the next-smaller standard
+/// integer type (`0` for U8, `8` for U16, `16` for U32, `32` for U64, `64` for U128,
+/// `128` for U256), partitioning the full `random_bits_count` range `[1, 256]` into disjoint
+/// per-type intervals.
+fn next_random_bits(source: &mut ScalarSource, bit_count: u64, min_log2: u64) -> u64 {
     let raw = source.next_byte() as u64;
-    raw.min(bit_count)
+    let lo = min_log2 + 1;
+    let range = bit_count - lo + 1;
+    lo + (raw % range)
 }
 
 /// Builds one OPRF ciphertext and one trivial ciphertext for each fhevm host-executor type
@@ -532,9 +565,11 @@ fn next_random_bits(source: &mut ScalarSource, bit_count: u64) -> u64 {
 /// `fhevm-operator-registry.md` opcodes 24/26/27):
 ///   - Bool uses the unbounded `generate_oblivious_pseudo_random` (no `random_bits` argument).
 ///   - U8/U16/U32/U64/U128/U256 use `generate_oblivious_pseudo_random_bounded(seed, random_bits)`
-///     with `random_bits` clamped to the type width — same as the host.
-///   - U160 (eaddress) has no host random-generation node per the registry, so it only
-///     exercises `try_encrypt_trivial`.
+///     with `random_bits` cycled over a per-type interval of the full `[1, 256]` supported range
+///     (U8: 1-8, U16: 9-16, U32: 17-32, U64: 33-64, U128: 65-128, U256: 129-256) so the OPRF kernel
+///     is exercised at every supported upper bound across one input.
+///   - U160 (eaddress) has no host random-generation node per the registry, so it only exercises
+///     `try_encrypt_trivial`.
 ///
 /// The server key must already be set on this thread.
 pub fn generate_scalar_ops_gpu(
@@ -549,9 +584,9 @@ pub fn generate_scalar_ops_gpu(
         builder.push(ct);
     }
 
-    // U8
+    // U8: random_bits_count ∈ [1, 8].
     let seed = source.next_u128();
-    let random_bits = next_random_bits(source, 8);
+    let random_bits = next_random_bits(source, 8, 0);
     builder.push(FheUint8::generate_oblivious_pseudo_random_bounded(
         Seed(seed),
         random_bits,
@@ -561,9 +596,9 @@ pub fn generate_scalar_ops_gpu(
         builder.push(ct);
     }
 
-    // U16
+    // U16: random_bits_count ∈ [9, 16].
     let seed = source.next_u128();
-    let random_bits = next_random_bits(source, 16);
+    let random_bits = next_random_bits(source, 16, 8);
     builder.push(FheUint16::generate_oblivious_pseudo_random_bounded(
         Seed(seed),
         random_bits,
@@ -573,9 +608,9 @@ pub fn generate_scalar_ops_gpu(
         builder.push(ct);
     }
 
-    // U32
+    // U32: random_bits_count ∈ [17, 32].
     let seed = source.next_u128();
-    let random_bits = next_random_bits(source, 32);
+    let random_bits = next_random_bits(source, 32, 16);
     builder.push(FheUint32::generate_oblivious_pseudo_random_bounded(
         Seed(seed),
         random_bits,
@@ -585,9 +620,9 @@ pub fn generate_scalar_ops_gpu(
         builder.push(ct);
     }
 
-    // U64
+    // U64: random_bits_count ∈ [33, 64].
     let seed = source.next_u128();
-    let random_bits = next_random_bits(source, 64);
+    let random_bits = next_random_bits(source, 64, 32);
     builder.push(FheUint64::generate_oblivious_pseudo_random_bounded(
         Seed(seed),
         random_bits,
@@ -597,9 +632,9 @@ pub fn generate_scalar_ops_gpu(
         builder.push(ct);
     }
 
-    // U128
+    // U128: random_bits_count ∈ [65, 128].
     let seed = source.next_u128();
-    let random_bits = next_random_bits(source, 128);
+    let random_bits = next_random_bits(source, 128, 64);
     builder.push(FheUint128::generate_oblivious_pseudo_random_bounded(
         Seed(seed),
         random_bits,
@@ -609,9 +644,9 @@ pub fn generate_scalar_ops_gpu(
         builder.push(ct);
     }
 
-    // U256
+    // U256: random_bits_count ∈ [129, 256].
     let seed = source.next_u128();
-    let random_bits = next_random_bits(source, 256);
+    let random_bits = next_random_bits(source, 256, 128);
     builder.push(FheUint256::generate_oblivious_pseudo_random_bounded(
         Seed(seed),
         random_bits,
@@ -650,8 +685,7 @@ pub fn use_list_gpu_rerand(
         }
     }
 
-    let mut re_rand_context =
-        ReRandomizationContext::new(*b"FUZZ_Rrd", [input_seed], *b"FUZZ_Enc");
+    let mut re_rand_context = ReRandomizationContext::new(*b"FUZZ_Rrd", [input_seed], *b"FUZZ_Enc");
     for ct in &cts {
         ct.add_to_re_randomization_context(&mut re_rand_context);
     }

@@ -8,9 +8,9 @@ use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
+use fuzz_utils::{ExecEndCause, FUZZ_DOMAIN_SEPARATOR, FuzzContext, INPUT_MAX_SIZE, use_list};
 #[cfg(feature = "gpu")]
 use fuzz_utils::{GpuCorpusCpuContext, use_list_gpu};
-use fuzz_utils::{ExecEndCause, FUZZ_DOMAIN_SEPARATOR, FuzzContext, INPUT_MAX_SIZE, use_list};
 use rayon::prelude::*;
 use serde::Serialize;
 use tfhe::ProvenCompactCiphertextList;
