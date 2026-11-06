@@ -15,12 +15,14 @@ region = "eu-west-3"
 image_id = "ami-01c204b15b504da60"
 instance_type = "m6i.4xlarge"
 user = "ubuntu"
+security_group_ids = ["sg-01c7e047d218a968c"]
 
 [backend.aws.bench]
-region = "eu-west-1"
-image_id = "ami-067f3893108afe8cd"
-instance_type = "hpc7a.96xlarge"
+region = "eu-west-3"
+image_id = "ami-01c204b15b504da60"
+instance_type = "m6i.4xlarge"
 user = "ubuntu"
+security_group_ids = ["sg-01c7e047d218a968c"]
 
 [backend.aws.bench-hpc8]
 region = "eu-north-1"
@@ -64,7 +66,7 @@ region = "us-east-1"
 image_id = "ami-0250f541bc1358116"
 instance_type = "g6e.24xlarge"
 user = "ubuntu"
-fallbacks = [ "hyperstack.4-l40", "terraform.scaleway-4-l40" ]
+fallbacks = ["hyperstack.4-l40", "terraform.scaleway-4-l40"]
 
 [backend.aws.small-gpu]
 region = "us-east-1"
@@ -77,14 +79,14 @@ environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-L40x1"
 user = "ubuntu"
-fallbacks = [ "terraform.scaleway-small-gpu", "hyperstack.rtx-a6000" ]
+fallbacks = ["terraform.scaleway-small-gpu", "hyperstack.rtx-a6000"]
 
 [backend.hyperstack.gpu-test-sanitizer]
 environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-L40x1"
 user = "ubuntu"
-fallbacks = [ "terraform.scaleway-small-gpu-sanitizer" ]
+fallbacks = ["terraform.scaleway-small-gpu-sanitizer"]
 
 [backend.hyperstack.single-h100]
 environment_name = "canada"
@@ -100,10 +102,7 @@ environment_name = "canada"
 image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100x1"
 user = "ubuntu"
-fallbacks = [
-    "terraform.scaleway-single-h100",
-    "terraform.scaleway-2-h100-sxm5",
-]
+fallbacks = ["terraform.scaleway-single-h100", "terraform.scaleway-2-h100-sxm5"]
 
 [backend.hyperstack.2-h100]
 environment_name = "canada"
@@ -225,15 +224,13 @@ user = "ubuntu"
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "H100-1-80G"
 user = "ubuntu"
-fallbacks = [
-    "hyperstack.single-h100",
-]
+fallbacks = ["hyperstack.single-h100"]
 
 [backend.terraform.scaleway-4-l40]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-4-48G"
 user = "ubuntu"
-fallbacks = [ "hyperstack.4-l40", "aws.4-l40" ]
+fallbacks = ["hyperstack.4-l40", "aws.4-l40"]
 
 [backend.terraform.scaleway-4-l40-tests]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
@@ -289,13 +286,13 @@ user = "ubuntu"
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-1-48G"
 user = "ubuntu"
-fallbacks = [ "hyperstack.gpu-test", "terraform.scaleway-2-l4" ]
+fallbacks = ["hyperstack.gpu-test", "terraform.scaleway-2-l4"]
 
 [backend.terraform.scaleway-small-gpu-noise-check]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-1-48G"
 user = "ubuntu"
-fallbacks = [ "hyperstack.gpu-test", "hyperstack.rtx-a6000" ]
+fallbacks = ["hyperstack.gpu-test", "hyperstack.rtx-a6000"]
 
 [backend.terraform.scaleway-small-gpu-classic-tests]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
@@ -311,7 +308,7 @@ fallbacks = [
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "L40S-1-48G"
 user = "ubuntu"
-fallbacks = [ "hyperstack.gpu-test-sanitizer" ]
+fallbacks = ["hyperstack.gpu-test-sanitizer"]
 
 [backend.terraform.nebius-single-h100]
 script_path = "ci/terraform_scripts/nebius/terraform_h100.tf"

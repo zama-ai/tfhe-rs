@@ -12,7 +12,7 @@ on:
         type: choice
         default: "aws::bench-hpc8 (hpc8a.96xlarge)"
         options:
-          - "aws::bench (hpc7a.96xlarge)"
+          - "aws::bench (m6i.4xlarge)"
           - "aws::bench-hpc8 (hpc8a.96xlarge)"
       command:
         description: "Benchmark command to run"
