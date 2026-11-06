@@ -427,30 +427,30 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
 template <typename Torus, typename params>
 __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer<uint64_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    pbs_buffer<uint64_t, MULTI_BIT> **buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
   cuda_set_device(gpu_index);
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
       supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
-          Torus>(polynomial_size, max_shared_memory);
+          Torus>(bsk_params.polynomial_size, max_shared_memory);
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t full_sm_tbc_accumulate =
       get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap<Torus>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t partial_sm_tbc_accumulate =
       get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap<Torus>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t minimum_sm_tbc_accumulate = 0;
   if (supports_dsm)
     minimum_sm_tbc_accumulate =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
-            polynomial_size);
+            bsk_params.polynomial_size);
 
   if (max_shared_memory < full_sm_keybundle) {
     check_cuda_error(cudaFuncSetAttribute(
@@ -497,7 +497,8 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
         cudaFuncCachePreferShared));
     check_cuda_error(cudaGetLastError());
   } else {
-    if (polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1) {
+    if (bsk_params.polynomial_size == 2048 && bsk_params.level_count == 1 &&
+        bsk_params.glwe_dimension == 1) {
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
               Torus, params, FULLSM>,
@@ -527,12 +528,10 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
   }
 
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
-      gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
-      level_count, full_sm_keybundle);
+      gpu_index, input_lwe_ciphertext_count, bsk_params, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
-      stream, gpu_index, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, lwe_chunk_size,
+      stream, gpu_index, bsk_params, input_lwe_ciphertext_count, lwe_chunk_size,
       pbs_variant_tag<PBS_VARIANT::TBC>{}, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
@@ -543,10 +542,9 @@ __host__ void execute_tbc_external_product_loop(
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, pbs_buffer<Torus, MULTI_BIT> *buffer,
-    uint32_t num_samples, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t grouping_factor, uint32_t base_log,
-    uint32_t level_count, uint32_t lwe_offset, uint32_t num_many_lut,
-    uint32_t lut_stride, MultiBitTbcLaunchMode launch_mode) {
+    uint32_t num_samples, const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t lwe_offset, uint32_t num_many_lut, uint32_t lut_stride,
+    MultiBitTbcLaunchMode launch_mode) {
 
   PANIC_IF_FALSE(
       sizeof(Torus) == 8,
@@ -559,35 +557,39 @@ __host__ void execute_tbc_external_product_loop(
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto supports_dsm =
       supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
-          Torus>(polynomial_size, max_shared_memory);
+          Torus>(bsk_params.polynomial_size, max_shared_memory);
 
   uint64_t full_dm =
       get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap<Torus>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t partial_dm =
       get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap<Torus>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t minimum_dm = 0;
   if (supports_dsm)
     minimum_dm =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
-            polynomial_size);
+            bsk_params.polynomial_size);
 
-  uint64_t keybundle_size_per_input =
-      lwe_chunk_size * level_count * (glwe_dimension + 1) *
-      (glwe_dimension + 1) * (polynomial_size / 2);
+  uint64_t keybundle_size_per_input = lwe_chunk_size * bsk_params.level_count *
+                                      (bsk_params.glwe_dimension + 1) *
+                                      (bsk_params.glwe_dimension + 1) *
+                                      (bsk_params.polynomial_size / 2);
 
   uint32_t chunk_size = (uint32_t)(std::min(
       lwe_chunk_size,
-      (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset));
+      (uint64_t)(bsk_params.input_lwe_dimension /
+                 bsk_params.pbs_params.multi_bit.grouping_factor) -
+          lwe_offset));
 
   auto d_mem = buffer->d_mem_acc_tbc;
   auto keybundle_fft = buffer->keybundle_fft;
   auto global_accumulator = buffer->global_accumulator;
   auto buffer_fft = buffer->global_join_buffer;
 
-  dim3 grid_accumulate(num_samples, glwe_dimension + 1, level_count);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+  dim3 grid_accumulate(num_samples, bsk_params.glwe_dimension + 1,
+                       bsk_params.level_count);
+  dim3 thds(bsk_params.polynomial_size / params::opt, 1, 1);
 
   cudaLaunchConfig_t config = {0};
   // The grid dimension is not affected by cluster launch, and is still
@@ -599,8 +601,9 @@ __host__ void execute_tbc_external_product_loop(
   cudaLaunchAttribute attribute[1];
   attribute[0].id = cudaLaunchAttributeClusterDimension;
   attribute[0].val.clusterDim.x = 1;
-  attribute[0].val.clusterDim.y = (glwe_dimension + 1);
-  attribute[0].val.clusterDim.z = level_count; // Cluster size in Z-dimension
+  attribute[0].val.clusterDim.y = (bsk_params.glwe_dimension + 1);
+  attribute[0].val.clusterDim.z =
+      bsk_params.level_count; // Cluster size in Z-dimension
   config.attrs = attribute;
   config.numAttrs = 1;
   config.stream = stream;
@@ -616,8 +619,10 @@ __host__ void execute_tbc_external_product_loop(
                                                                NOSM>,
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
-        global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
-        base_log, level_count, grouping_factor, lwe_offset, chunk_size,
+        global_accumulator, bsk_params.input_lwe_dimension,
+        bsk_params.glwe_dimension, bsk_params.polynomial_size,
+        bsk_params.base_log, bsk_params.level_count,
+        bsk_params.pbs_params.multi_bit.grouping_factor, lwe_offset, chunk_size,
         keybundle_size_per_input, d_mem, full_dm, supports_dsm, num_many_lut,
         lut_stride));
   } else if (max_shared_memory < full_dm + minimum_dm) {
@@ -631,15 +636,19 @@ __host__ void execute_tbc_external_product_loop(
                                                                PARTIALSM>,
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
-        global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
-        base_log, level_count, grouping_factor, lwe_offset, chunk_size,
+        global_accumulator, bsk_params.input_lwe_dimension,
+        bsk_params.glwe_dimension, bsk_params.polynomial_size,
+        bsk_params.base_log, bsk_params.level_count,
+        bsk_params.pbs_params.multi_bit.grouping_factor, lwe_offset, chunk_size,
         keybundle_size_per_input, d_mem, partial_dm, supports_dsm, num_many_lut,
         lut_stride));
   } else {
     config.dynamicSmemBytes = full_dm + minimum_dm;
-    bool can_use_specialized = polynomial_size == 2048 &&
-                               grouping_factor == 4 && level_count == 1 &&
-                               glwe_dimension == 1 && base_log == 22;
+    bool can_use_specialized =
+        bsk_params.polynomial_size == 2048 &&
+        bsk_params.pbs_params.multi_bit.grouping_factor == 4 &&
+        bsk_params.level_count == 1 && bsk_params.glwe_dimension == 1 &&
+        bsk_params.base_log == 22;
     if (launch_mode == MultiBitTbcLaunchMode::SPECIALIZED_2_2) {
       PANIC_IF_FALSE(
           can_use_specialized,
@@ -674,8 +683,8 @@ __host__ void execute_tbc_external_product_loop(
               Torus, params, FULLSM>,
           lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
           lwe_array_in, lwe_input_indexes, keybundle_fft, global_accumulator,
-          lwe_dimension, lwe_offset, chunk_size, keybundle_size_per_input,
-          num_many_lut, lut_stride));
+          bsk_params.input_lwe_dimension, lwe_offset, chunk_size,
+          keybundle_size_per_input, num_many_lut, lut_stride));
     } else {
       check_cuda_error(cudaLaunchKernelEx(
           &config,
@@ -683,10 +692,12 @@ __host__ void execute_tbc_external_product_loop(
                                                                  FULLSM>,
           lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
           lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
-          global_accumulator, lwe_dimension, glwe_dimension, polynomial_size,
-          base_log, level_count, grouping_factor, lwe_offset, chunk_size,
-          keybundle_size_per_input, d_mem, 0, supports_dsm, num_many_lut,
-          lut_stride));
+          global_accumulator, bsk_params.input_lwe_dimension,
+          bsk_params.glwe_dimension, bsk_params.polynomial_size,
+          bsk_params.base_log, bsk_params.level_count,
+          bsk_params.pbs_params.multi_bit.grouping_factor, lwe_offset,
+          chunk_size, keybundle_size_per_input, d_mem, 0, supports_dsm,
+          num_many_lut, lut_stride));
     }
   }
 }
@@ -697,15 +708,16 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
-    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<Torus, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride,
     MultiBitTbcLaunchMode launch_mode) {
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
-  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+  for (uint32_t lwe_offset = 0;
+       lwe_offset < (bsk_params.input_lwe_dimension /
+                     bsk_params.pbs_params.multi_bit.grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
@@ -713,21 +725,18 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     case MultiBitTbcLaunchMode::GENERIC:
       execute_compute_keybundle_generic<Torus, params>(
           stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, level_count, lwe_offset);
+          buffer, num_samples, bsk_params, lwe_offset);
       break;
     case MultiBitTbcLaunchMode::SPECIALIZED_2_2:
       execute_compute_keybundle_2_2_specialized<Torus, params>(
           stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, level_count, lwe_offset);
+          buffer, num_samples, bsk_params, lwe_offset);
       break;
     case MultiBitTbcLaunchMode::AUTO:
     default:
       execute_compute_keybundle<Torus, params>(
           stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-          grouping_factor, level_count, lwe_offset);
+          buffer, num_samples, bsk_params, lwe_offset);
       break;
     }
 
@@ -735,9 +744,8 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     execute_tbc_external_product_loop<Torus, params>(
         stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
-        num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
-        lut_stride, launch_mode);
+        num_samples, bsk_params, lwe_offset, num_many_lut, lut_stride,
+        launch_mode);
   }
 }
 
@@ -747,15 +755,13 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
-    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<Torus, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
   host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-      buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-      base_log, level_count, num_samples, num_many_lut, lut_stride,
+      buffer, bsk_params, num_samples, num_many_lut, lut_stride,
       MultiBitTbcLaunchMode::AUTO);
 }
 
@@ -765,15 +771,13 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap_generic(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
-    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<Torus, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
   host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-      buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-      base_log, level_count, num_samples, num_many_lut, lut_stride,
+      buffer, bsk_params, num_samples, num_many_lut, lut_stride,
       MultiBitTbcLaunchMode::GENERIC);
 }
 
@@ -783,15 +787,13 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap_2_2_specialized(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
-    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<Torus, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
   host_tbc_multi_bit_programmable_bootstrap<Torus, params>(
       stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
       lut_vector_indexes, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-      buffer, glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-      base_log, level_count, num_samples, num_many_lut, lut_stride,
+      buffer, bsk_params, num_samples, num_many_lut, lut_stride,
       MultiBitTbcLaunchMode::SPECIALIZED_2_2);
 }
 
@@ -803,29 +805,28 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap_noise_tests(
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
     Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
-    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<Torus, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
-  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+  for (uint32_t lwe_offset = 0;
+       lwe_offset < (bsk_params.input_lwe_dimension /
+                     bsk_params.pbs_params.multi_bit.grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
     // Keybundle with NOISE_TESTS mode; the TBC accumulate uses AUTO as usual
     execute_compute_keybundle_noise_tests<Torus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+        buffer, num_samples, bsk_params, lwe_offset);
 
     // Accumulate (unchanged from standard TBC path)
     execute_tbc_external_product_loop<Torus, params>(
         stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
         lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
-        num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
-        lut_stride, MultiBitTbcLaunchMode::AUTO);
+        num_samples, bsk_params, lwe_offset, num_many_lut, lut_stride,
+        MultiBitTbcLaunchMode::AUTO);
   }
 }
 
@@ -847,29 +848,30 @@ bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
 
 template <typename Torus, class params>
 __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
-    uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, uint32_t max_shared_memory) {
+    uint32_t num_samples, const CudaLweBootstrapKeyParamsFFI &bsk_params,
+    uint32_t max_shared_memory) {
 
   if (!cuda_check_support_thread_block_clusters())
     return false;
 
   uint64_t full_sm_tbc_accumulate =
       get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap<Torus>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t partial_sm_tbc_accumulate =
       get_buffer_size_partial_sm_tbc_multibit_programmable_bootstrap<Torus>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t minimum_sm_tbc_accumulate = 0;
   if (supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
-          Torus>(polynomial_size, max_shared_memory))
+          Torus>(bsk_params.polynomial_size, max_shared_memory))
     minimum_sm_tbc_accumulate =
         get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
-            polynomial_size);
+            bsk_params.polynomial_size);
 
   int cluster_size;
 
-  dim3 grid_accumulate(num_samples, glwe_dimension + 1, level_count);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+  dim3 grid_accumulate(num_samples, bsk_params.glwe_dimension + 1,
+                       bsk_params.level_count);
+  dim3 thds(bsk_params.polynomial_size / params::opt, 1, 1);
 
   cudaLaunchConfig_t config = {0};
   // The grid dimension is not affected by cluster launch, and is still
@@ -907,7 +909,8 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
                                                                PARTIALSM>,
         &config));
   } else {
-    if (polynomial_size == 2048 && level_count == 1 && glwe_dimension == 1) {
+    if (bsk_params.polynomial_size == 2048 && bsk_params.level_count == 1 &&
+        bsk_params.glwe_dimension == 1) {
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
               Torus, params, FULLSM>,
@@ -930,7 +933,8 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
     }
   }
 
-  return cluster_size >= level_count * (glwe_dimension + 1);
+  return cluster_size >=
+         bsk_params.level_count * (bsk_params.glwe_dimension + 1);
 }
 
 template bool

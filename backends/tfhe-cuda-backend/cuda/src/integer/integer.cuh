@@ -888,10 +888,6 @@ __host__ void integer_radix_apply_univariate_lookup_table(
   auto small_lwe_dimension = params.small_lwe_dimension;
   auto ks_level = params.ks_level;
   auto ks_base_log = params.ks_base_log;
-  auto pbs_level = params.pbs_level;
-  auto pbs_base_log = params.pbs_base_log;
-  auto glwe_dimension = params.glwe_dimension;
-  auto polynomial_size = params.polynomial_size;
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
@@ -953,9 +949,8 @@ __host__ void integer_radix_apply_univariate_lookup_table(
     execute_pbs_async<Torus, Torus>(
         streams.get_ith(0), (Torus *)lwe_array_out->ptr, lut->lwe_indexes_out,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
-        lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
-        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        num_radix_blocks, params.pbs_params(), num_many_lut, lut_stride);
+        lwe_trivial_indexes_vec[0], bsks, lut->buffer, params.bsk_params(),
+        num_radix_blocks, num_many_lut, lut_stride);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
     lut->multi_gpu_scatter_barrier.local_streams_wait_for_stream_0(
@@ -981,9 +976,8 @@ __host__ void integer_radix_apply_univariate_lookup_table(
     execute_pbs_async<Torus, Torus>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec,
-        lwe_trivial_indexes_vec, bsks, lut->buffer, glwe_dimension,
-        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        num_radix_blocks, params.pbs_params(), num_many_lut, lut_stride);
+        lwe_trivial_indexes_vec, bsks, lut->buffer, params.bsk_params(),
+        num_radix_blocks, num_many_lut, lut_stride);
 
     /// Copy data back to GPU 0 and release vecs
     PUSH_RANGE("gather")
@@ -1019,10 +1013,6 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
   auto small_lwe_dimension = params.small_lwe_dimension;
   auto ks_level = params.ks_level;
   auto ks_base_log = params.ks_base_log;
-  auto pbs_level = params.pbs_level;
-  auto pbs_base_log = params.pbs_base_log;
-  auto glwe_dimension = params.glwe_dimension;
-  auto polynomial_size = params.polynomial_size;
 
   if (lwe_array_out->num_radix_blocks <
       lwe_array_in->num_radix_blocks * num_many_lut)
@@ -1062,9 +1052,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     execute_pbs_async<Torus, Torus>(
         streams.get_ith(0), (Torus *)lwe_array_out->ptr, lut->lwe_indexes_out,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
-        lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
-        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        num_radix_blocks, params.pbs_params(), num_many_lut, lut_stride);
+        lwe_trivial_indexes_vec[0], bsks, lut->buffer, params.bsk_params(),
+        num_radix_blocks, num_many_lut, lut_stride);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
     lut->multi_gpu_scatter_barrier.local_streams_wait_for_stream_0(
@@ -1090,9 +1079,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     execute_pbs_async<Torus, Torus>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec,
-        lwe_trivial_indexes_vec, bsks, lut->buffer, glwe_dimension,
-        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        num_radix_blocks, params.pbs_params(), num_many_lut, lut_stride);
+        lwe_trivial_indexes_vec, bsks, lut->buffer, params.bsk_params(),
+        num_radix_blocks, num_many_lut, lut_stride);
 
     /// Copy data back to GPU 0 and release vecs
     PUSH_RANGE("gather")
@@ -1141,10 +1129,6 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
   auto small_lwe_dimension = params.small_lwe_dimension;
   auto ks_level = params.ks_level;
   auto ks_base_log = params.ks_base_log;
-  auto pbs_level = params.pbs_level;
-  auto pbs_base_log = params.pbs_base_log;
-  auto glwe_dimension = params.glwe_dimension;
-  auto polynomial_size = params.polynomial_size;
 
   if (!skip_input_noise_check) {
     for (uint32_t i = 0; i < num_radix_blocks; i++) {
@@ -1189,9 +1173,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     execute_pbs_async<Torus, Torus>(
         streams.get_ith(0), (Torus *)(lwe_array_out->ptr), lut->lwe_indexes_out,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec[0],
-        lwe_trivial_indexes_vec[0], bsks, lut->buffer, glwe_dimension,
-        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        num_radix_blocks, params.pbs_params(), num_many_lut, lut_stride);
+        lwe_trivial_indexes_vec[0], bsks, lut->buffer, params.bsk_params(),
+        num_radix_blocks, num_many_lut, lut_stride);
   } else {
     lut->multi_gpu_scatter_barrier.local_streams_wait_for_stream_0(
         active_streams);
@@ -1214,9 +1197,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     execute_pbs_async<Torus, Torus>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
         lut->lut_vec, lut->lut_indexes_vec, lwe_after_ks_vec,
-        lwe_trivial_indexes_vec, bsks, lut->buffer, glwe_dimension,
-        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        num_radix_blocks, params.pbs_params(), num_many_lut, lut_stride);
+        lwe_trivial_indexes_vec, bsks, lut->buffer, params.bsk_params(),
+        num_radix_blocks, num_many_lut, lut_stride);
 
     /// Copy data back to GPU 0 and release vecs
     PUSH_RANGE("gather")
@@ -1957,9 +1939,7 @@ void host_full_propagate_inplace(CudaStreams streams,
         mem_ptr->lut->lut_indexes_vec,
         (Torus *)mem_ptr->tmp_small_lwe_vector->ptr,
         mem_ptr->lut->lwe_trivial_indexes, bsks, mem_ptr->lut->buffer,
-        params.glwe_dimension, params.small_lwe_dimension,
-        params.polynomial_size, params.pbs_base_log, params.pbs_level, 2,
-        params.pbs_params(), num_many_lut, lut_stride);
+        params.bsk_params(), 2, num_many_lut, lut_stride);
 
     copy_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), &cur_input_block, 0, 1,
@@ -2791,10 +2771,6 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
   auto small_lwe_dimension = params.small_lwe_dimension;
   auto ks_level = params.ks_level;
   auto ks_base_log = params.ks_base_log;
-  auto pbs_level = params.pbs_level;
-  auto pbs_base_log = params.pbs_base_log;
-  auto glwe_dimension = params.glwe_dimension;
-  auto polynomial_size = params.polynomial_size;
 
   if (lwe_array_out->num_radix_blocks !=
       (lwe_array_in->num_radix_blocks + 1) / 2)
@@ -2837,8 +2813,7 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
         streams.get_ith(0), (__uint128_t *)lwe_array_out->ptr,
         lwe_trivial_indexes_vec[0], lut->lut_vec, lwe_trivial_indexes_vec,
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks, lut->buffer,
-        glwe_dimension, small_lwe_dimension, polynomial_size, pbs_base_log,
-        pbs_level, lwe_array_out->num_radix_blocks, params.pbs_params(), 0, 0);
+        params.bsk_params(), lwe_array_out->num_radix_blocks, 0, 0);
   } else {
     /// Make sure all data that should be on GPU 0 is indeed there
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
@@ -2863,9 +2838,8 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
     execute_pbs_async<uint64_t, __uint128_t>(
         active_streams, lwe_after_pbs_vec, lwe_trivial_indexes_vec,
         lut->lut_vec, lwe_trivial_indexes_vec, lwe_after_ks_vec,
-        lwe_trivial_indexes_vec, bsks, lut->buffer, glwe_dimension,
-        small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-        lwe_array_out->num_radix_blocks, params.pbs_params(), 0, 0);
+        lwe_trivial_indexes_vec, bsks, lut->buffer, params.bsk_params(),
+        lwe_array_out->num_radix_blocks, 0, 0);
 
     /// Copy data back to GPU 0 and release vecs
     /// In apply noise squashing we always use trivial indexes
