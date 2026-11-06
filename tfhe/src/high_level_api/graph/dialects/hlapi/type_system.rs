@@ -135,7 +135,10 @@ impl NonNanF64 {
 
 impl PartialEq for NonNanF64 {
     fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
+        let Self(value) = *self;
+        let Self(other_value) = *other;
+
+        value == other_value
     }
 }
 

@@ -535,7 +535,18 @@ pub(crate) mod zk {
             match (self, other) {
                 (Self::Cpu(a), Self::Cpu(b)) => a == b,
                 #[cfg(feature = "gpu")]
-                (Self::Cuda(a), Self::Cuda(b)) => a.h_proved_lists == b.h_proved_lists,
+                (Self::Cuda(a), Self::Cuda(b)) => {
+                    let crate::integer::gpu::zk::CudaProvenCompactCiphertextList {
+                        h_proved_lists,
+                        d_flattened_compact_lists: _,
+                    } = a;
+                    let crate::integer::gpu::zk::CudaProvenCompactCiphertextList {
+                        h_proved_lists: other_h_proved_lists,
+                        d_flattened_compact_lists: _,
+                    } = b;
+
+                    h_proved_lists == other_h_proved_lists
+                }
                 #[cfg(feature = "gpu")]
                 _ => self.on_cpu() == other.on_cpu(),
             }

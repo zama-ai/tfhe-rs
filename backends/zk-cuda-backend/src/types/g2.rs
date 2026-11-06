@@ -333,17 +333,27 @@ impl fmt::Debug for G2Projective {
 /// the same point but will compare as unequal. Use `to_affine()` for geometric equality.
 impl PartialEq for G2Projective {
     fn eq(&self, other: &Self) -> bool {
-        let self_inf = self.inner.Z == Fp2::default();
-        let other_inf = other.inner.Z == Fp2::default();
+        let Self {
+            inner: G2ProjectivePoint { X: x, Y: y, Z: z },
+        } = self;
+        let Self {
+            inner:
+                G2ProjectivePoint {
+                    X: other_x,
+                    Y: other_y,
+                    Z: other_z,
+                },
+        } = other;
+
+        let self_inf = *z == Fp2::default();
+        let other_inf = *other_z == Fp2::default();
         if self_inf && other_inf {
             return true;
         }
         if self_inf != other_inf {
             return false;
         }
-        self.inner.X == other.inner.X
-            && self.inner.Y == other.inner.Y
-            && self.inner.Z == other.inner.Z
+        x == other_x && y == other_y && z == other_z
     }
 }
 
