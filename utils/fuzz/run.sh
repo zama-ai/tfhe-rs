@@ -120,9 +120,10 @@ if [[ "$GPU_MODE" == 1 ]]; then
         echo "ERROR: No GPUs detected (nvidia-smi returned nothing)." >&2
         exit 1
     fi
+    # --compute-secondary controls the secondary count for every GPU harness.
     COMPUTE_SECONDARY="${COMPUTE_SECONDARY:-$(( 2 * NUM_GPUS - 1 ))}"
-    HARNESS_NAMES=(cuda_compute)
-    HARNESS_SECONDARY=("$COMPUTE_SECONDARY")
+    HARNESS_NAMES=( cuda_compute cuda_scalars )
+    HARNESS_SECONDARY=("$COMPUTE_SECONDARY" "$COMPUTE_SECONDARY")
     EXTRA_AFL_FLAGS=(-t 100000)
 else
     [[ -z "$TOTAL_CORES" ]] && TOTAL_CORES="$(nproc)"

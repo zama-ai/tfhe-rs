@@ -12,6 +12,10 @@ path = "src/main.rs"
 name = "gpu-corpusgen"
 path = "src/gpu_main.rs"
 
+[[bin]]
+name = "gpu-scalars-corpusgen"
+path = "src/gpu_scalars_main.rs"
+
 [dependencies]
 tfhe = { path = "../../../tfhe", features = ["zk-pok", "integer"] }
 fuzz-utils = { path = "../fuzz-utils" }
