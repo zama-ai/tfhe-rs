@@ -32,46 +32,6 @@ create_parameterized_test!(
         }
     }
 );
-create_parameterized_test!(
-    integer_default_rem {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Due to the use of comparison,
-            // this algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-create_parameterized_test!(
-    integer_default_div {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // Due to the use of comparison,
-            // this algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
 
 create_parameterized_test!(
     integer_extensive_trivial_div_rem {
@@ -103,22 +63,6 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::div_rem_parallelized);
     extensive_trivial_div_rem_tests(param, executor);
-}
-
-fn integer_default_div<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::div_parallelized);
-    default_div_test(param, executor);
-}
-
-fn integer_default_rem<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::rem_parallelized);
-    default_rem_test(param, executor);
 }
 
 pub(crate) fn default_div_rem_test<P, T>(param: P, mut executor: T)
@@ -191,6 +135,9 @@ where
     }
 }
 
+// On CPU, div_parallelized only discards the remainder of div_rem_parallelized, so
+// default_div_rem_test covers it
+#[cfg(feature = "gpu")]
 pub(crate) fn default_div_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,
@@ -292,6 +239,9 @@ where
     }
 }
 
+// On CPU, rem_parallelized only discards the quotient of div_rem_parallelized, so
+// default_div_rem_test covers it
+#[cfg(feature = "gpu")]
 pub(crate) fn default_rem_test<P, T>(param: P, mut executor: T)
 where
     P: Into<TestParameters>,

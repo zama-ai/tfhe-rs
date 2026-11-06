@@ -1,0 +1,30 @@
+# CPU integer tests of the tier 1 parameters (see CPU_INTEGER_TIERS in scripts/test_filtering.py).
+# Tier 0 (prod params) runs in aws_tfhe_integer_tests, on approval and on each merge to main.
+name: aws_tfhe_integer_tests_tier_1
+
+on:
+  # Run tier 1 on any branch
+  workflow_dispatch:
+  schedule:
+    # Tier 1, nightly after each work day
+    - cron: "0 2 * * MON-FRI"
+
+permissions:
+  contents: read
+
+jobs:
+  integer-tests:
+    name: aws_tfhe_integer_tests_tier_1/integer-tests
+    if: github.event_name == 'workflow_dispatch' || github.repository == 'zama-ai/tfhe-rs'
+    # Runs on main are not cancelled by the next one
+    concurrency:
+      group: ${{ github.workflow_ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+    uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
+    with:
+      tiers: "1"
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

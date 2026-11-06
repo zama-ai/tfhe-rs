@@ -5,3 +5,14 @@ failure-output = "final"
 fail-fast = false
 retries = 0
 slow-timeout = "5m"
+
+[[profile.ci.overrides]]
+# This makes CPU integer tests that are for multi-bit advertise that they
+# use 5 threads, such that nextest schedules the runs in a way that does
+# not exceed the --test-threads limit.
+#
+# We do this because multi-bit brings another layer of parallelism on top
+# of what each integer op does, so we need to run fewer of them in parallel
+# to avoid threads starving too much
+filter = "test(/^integer::/) and not test(/^integer::gpu::/) and test(~_multi_bit)"
+threads-required = 5
