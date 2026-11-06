@@ -102,7 +102,7 @@ macro_rules! implement {
                 self.floor()
             }
             fn to_bit_string(&self) -> String {
-                if Self::BITS == 32 {
+                if <Self as Numeric>::BITS == 32 {
                     let mut bit_string = format!("{:032b}", self.to_bits());
                     bit_string.insert(1, ' ');
                     bit_string.insert(10, ' ');

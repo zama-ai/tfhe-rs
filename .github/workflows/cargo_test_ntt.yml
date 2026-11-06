@@ -56,10 +56,21 @@ jobs:
     needs: should-run
     if: needs.should-run.outputs.ntt_test == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     outputs:
       matrix_os: ${{ steps.set-os-matrix.outputs.matrix_os }}
       runner-name: ${{ steps.start-remote-instance.outputs.label }}
     steps:
+      - name: Join tailnet
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Start remote instance
         id: start-remote-instance
         if: env.SECRETS_AVAILABLE == 'true'
@@ -142,7 +153,18 @@ jobs:
     if: ${{ always() && needs.setup-instance.result == 'success' }}
     needs: [setup-instance, cargo-tests-ntt-successful]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Needed to join the Slab tailnet via OIDC
     steps:
+      - name: Join tailnet
+        if: env.SECRETS_AVAILABLE == 'true'
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          oauth-client-id: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+          tags: tag:slab-ci
+
       - name: Stop remote instance
         id: stop-instance
         if: env.SECRETS_AVAILABLE == 'true'
