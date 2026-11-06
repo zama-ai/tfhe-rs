@@ -497,17 +497,26 @@ impl<C: Container<Element = u64>> ParameterSetConformant for GlweKeyswitchKey<C>
             ciphertext_modulus,
         } = self;
 
-        *ciphertext_modulus == parameter_set.ciphertext_modulus
+        let GlweKeyswitchKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            output_glwe_size: expected_output_glwe_size,
+            input_glwe_dimension: expected_input_glwe_dimension,
+            polynomial_size: expected_polynomial_size,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
+        ciphertext_modulus == expected_ciphertext_modulus
             && data.container_len()
-                == parameter_set.input_glwe_dimension.0
+                == expected_input_glwe_dimension.0
                     * glwe_keyswitch_key_input_key_element_encrypted_size(
-                        parameter_set.decomp_level_count,
-                        parameter_set.output_glwe_size,
-                        parameter_set.polynomial_size,
+                        *expected_decomp_level_count,
+                        *expected_output_glwe_size,
+                        *expected_polynomial_size,
                     )
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_glwe_size == parameter_set.output_glwe_size
-            && *poly_size == parameter_set.polynomial_size
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_glwe_size == expected_output_glwe_size
+            && poly_size == expected_polynomial_size
     }
 }

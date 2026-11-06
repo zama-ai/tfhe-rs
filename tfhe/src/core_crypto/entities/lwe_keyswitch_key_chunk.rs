@@ -386,15 +386,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             ciphertext_modulus,
         } = self;
 
-        *ciphertext_modulus == parameter_set.ciphertext_modulus
+        let LweKeyswitchKeyChunkConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            output_lwe_size: expected_output_lwe_size,
+            chunk_size: expected_chunk_size,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
+        ciphertext_modulus == expected_ciphertext_modulus
             && data.container_len()
-                == parameter_set.chunk_size.0
+                == expected_chunk_size.0
                     * lwe_keyswitch_key_input_key_element_encrypted_size(
-                        parameter_set.decomp_level_count,
-                        parameter_set.output_lwe_size,
+                        *expected_decomp_level_count,
+                        *expected_output_lwe_size,
                     )
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_lwe_size == parameter_set.output_lwe_size
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_lwe_size == expected_output_lwe_size
     }
 }

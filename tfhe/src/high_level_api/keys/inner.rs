@@ -1132,31 +1132,38 @@ impl ParameterSetConformant for IntegerServerKey {
             oprf_key,
             transciphering_key,
         } = self;
+        let &IntegerServerKeyConformanceParams {
+            sk_param,
+            cpk_param,
+            compression_param,
+            noise_squashing_param,
+            noise_squashing_compression_param,
+            cpk_re_randomization_params,
+            dedicated_oprf_key,
+            transciphering_parameters,
+        } = parameter_set;
 
-        let cpk_key_switching_key_material_is_ok = match (
-            parameter_set.cpk_param.as_ref(),
-            cpk_key_switching_key_material.as_ref(),
-        ) {
-            (None, None) => true,
-            (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
-                if let Ok(cpk_param) = (parameter_set.sk_param, *cpk_params, *ks_params).try_into()
-                {
-                    cpk_key_switching_key_material.is_conformant(&cpk_param)
-                } else {
-                    return false;
+        let cpk_key_switching_key_material_is_ok =
+            match (cpk_param.as_ref(), cpk_key_switching_key_material.as_ref()) {
+                (None, None) => true,
+                (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
+                    if let Ok(cpk_param) = (sk_param, *cpk_params, *ks_params).try_into() {
+                        cpk_key_switching_key_material.is_conformant(&cpk_param)
+                    } else {
+                        return false;
+                    }
                 }
-            }
-            _ => return false,
-        };
+                _ => return false,
+            };
 
         let compression_is_ok = match (
             compression_key.as_ref(),
             decompression_key.as_ref(),
-            parameter_set.compression_param.as_ref(),
+            compression_param.as_ref(),
         ) {
             (None, None, None) => true,
             (Some(compression_key), Some(decompression_key), Some(compression_param)) => {
-                let compression_param = (parameter_set.sk_param, *compression_param).into();
+                let compression_param = (sk_param, *compression_param).into();
 
                 compression_key.is_conformant(&compression_param)
                     && decompression_key.is_conformant(&compression_param)
@@ -1164,26 +1171,23 @@ impl ParameterSetConformant for IntegerServerKey {
             _ => return false,
         };
 
-        let noise_squashing_key_is_ok = match (
-            parameter_set.noise_squashing_param.as_ref(),
-            noise_squashing_key.as_ref(),
-        ) {
-            (None, None) => true,
-            (Some(noise_squashing_param), Some(noise_squashing_key)) => {
-                let noise_squashing_param =
-                    (parameter_set.sk_param, *noise_squashing_param).try_into();
-                if let Ok(noise_squashing_param) = noise_squashing_param {
-                    noise_squashing_key.is_conformant(&noise_squashing_param)
-                } else {
-                    return false;
+        let noise_squashing_key_is_ok =
+            match (noise_squashing_param.as_ref(), noise_squashing_key.as_ref()) {
+                (None, None) => true,
+                (Some(noise_squashing_param), Some(noise_squashing_key)) => {
+                    let noise_squashing_param = (sk_param, *noise_squashing_param).try_into();
+                    if let Ok(noise_squashing_param) = noise_squashing_param {
+                        noise_squashing_key.is_conformant(&noise_squashing_param)
+                    } else {
+                        return false;
+                    }
                 }
-            }
-            _ => return false,
-        };
+                _ => return false,
+            };
 
         let noise_squashing_compression_key_is_ok = match (
-            parameter_set.noise_squashing_param.as_ref(),
-            parameter_set.noise_squashing_compression_param.as_ref(),
+            noise_squashing_param.as_ref(),
+            noise_squashing_compression_param.as_ref(),
             noise_squashing_compression_key.as_ref(),
         ) {
             (None | Some(_), None, None) => true,
@@ -1205,7 +1209,7 @@ impl ParameterSetConformant for IntegerServerKey {
         let re_randomization_keys_are_ok = {
             match (
                 cpk_re_randomization_key.as_ref(),
-                parameter_set.cpk_re_randomization_params,
+                cpk_re_randomization_params,
             ) {
                 // Legacy case
                 (
@@ -1215,14 +1219,13 @@ impl ParameterSetConformant for IntegerServerKey {
                     }),
                 ) => {
                     // We need cpk_ksk, to be present when we have the legacy re-randomization key
-                    let (Some(cpk_ksk), Some((cpk_params, _cpk_ksk_params))) = (
-                        cpk_key_switching_key_material.as_ref(),
-                        parameter_set.cpk_param,
-                    ) else {
+                    let (Some(cpk_ksk), Some((cpk_params, _cpk_ksk_params))) =
+                        (cpk_key_switching_key_material.as_ref(), cpk_param)
+                    else {
                         return false;
                     };
 
-                    (parameter_set.sk_param, cpk_params, rerand_ksk_params)
+                    (sk_param, cpk_params, rerand_ksk_params)
                         .try_into()
                         .is_ok_and(|re_rand_param| {
                             let key_to_check = match re_rand_ksk {
@@ -1240,8 +1243,7 @@ impl ParameterSetConformant for IntegerServerKey {
                 ) => {
                     // The rerand CPK has parameters taken from the compute params (since they share
                     // a secret key)
-                    parameter_set
-                        .sk_param
+                    sk_param
                         .try_into()
                         .is_ok_and(|cpk_re_rand_params| cpk.is_conformant(&cpk_re_rand_params))
                 }
@@ -1251,12 +1253,12 @@ impl ParameterSetConformant for IntegerServerKey {
             }
         };
 
-        let oprf_is_ok = match (parameter_set.dedicated_oprf_key, oprf_key.as_ref()) {
+        let oprf_is_ok = match (dedicated_oprf_key, oprf_key.as_ref()) {
             // We have to have a dedicated oprf key
             // Make sure it's there and that it's conformant
-            (true, Some(key)) => key.is_conformant(&OprfKeyConformanceParams::same_as_compute(
-                parameter_set.sk_param,
-            )),
+            (true, Some(key)) => {
+                key.is_conformant(&OprfKeyConformanceParams::same_as_compute(sk_param))
+            }
             (true, None) => false,
             // The config says to not use a dedicated oprf key but we have one
             // while it works, it is not strictly conformant
@@ -1264,16 +1266,13 @@ impl ParameterSetConformant for IntegerServerKey {
             (false, None) => true,
         };
 
-        let transciphering_is_ok = match (
-            parameter_set.transciphering_parameters,
-            transciphering_key.as_ref(),
-        ) {
+        let transciphering_is_ok = match (transciphering_parameters, transciphering_key.as_ref()) {
             // The key bootstraps into the compute key, so it is checked against the compute
             // parameters, plus the oprf parameters it was generated with.
             (Some(transciphering_params), Some(key)) => {
                 key.is_conformant(&OprfKeyConformanceParams::new(
-                    parameter_set.sk_param,
-                    transciphering_params.oprf_parameters(parameter_set.sk_param),
+                    sk_param,
+                    transciphering_params.oprf_parameters(sk_param),
                 ))
             }
             (Some(_), None) => false,
@@ -1283,7 +1282,7 @@ impl ParameterSetConformant for IntegerServerKey {
             (None, None) => true,
         };
 
-        key.is_conformant(&parameter_set.sk_param)
+        key.is_conformant(&sk_param)
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
             && noise_squashing_key_is_ok
@@ -1309,31 +1308,38 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             oprf_key,
             transciphering_key,
         } = self;
+        let &IntegerServerKeyConformanceParams {
+            sk_param,
+            cpk_param,
+            compression_param,
+            noise_squashing_param,
+            noise_squashing_compression_param,
+            cpk_re_randomization_params,
+            dedicated_oprf_key,
+            transciphering_parameters,
+        } = parameter_set;
 
-        let cpk_key_switching_key_material_is_ok = match (
-            parameter_set.cpk_param.as_ref(),
-            cpk_key_switching_key_material.as_ref(),
-        ) {
-            (None, None) => true,
-            (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
-                if let Ok(cpk_param) = (parameter_set.sk_param, *cpk_params, *ks_params).try_into()
-                {
-                    cpk_key_switching_key_material.is_conformant(&cpk_param)
-                } else {
-                    return false;
+        let cpk_key_switching_key_material_is_ok =
+            match (cpk_param.as_ref(), cpk_key_switching_key_material.as_ref()) {
+                (None, None) => true,
+                (Some((cpk_params, ks_params)), Some(cpk_key_switching_key_material)) => {
+                    if let Ok(cpk_param) = (sk_param, *cpk_params, *ks_params).try_into() {
+                        cpk_key_switching_key_material.is_conformant(&cpk_param)
+                    } else {
+                        return false;
+                    }
                 }
-            }
-            _ => return false,
-        };
+                _ => return false,
+            };
 
         let compression_is_ok = match (
             compression_key.as_ref(),
             decompression_key.as_ref(),
-            parameter_set.compression_param.as_ref(),
+            compression_param.as_ref(),
         ) {
             (None, None, None) => true,
             (Some(compression_key), Some(decompression_key), Some(compression_param)) => {
-                let compression_param = (parameter_set.sk_param, *compression_param).into();
+                let compression_param = (sk_param, *compression_param).into();
 
                 compression_key.is_conformant(&compression_param)
                     && decompression_key.is_conformant(&compression_param)
@@ -1341,26 +1347,23 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             _ => return false,
         };
 
-        let noise_squashing_key_is_ok = match (
-            parameter_set.noise_squashing_param.as_ref(),
-            noise_squashing_key.as_ref(),
-        ) {
-            (None, None) => true,
-            (Some(noise_squashing_param), Some(noise_squashing_key)) => {
-                let noise_squashing_param =
-                    (parameter_set.sk_param, *noise_squashing_param).try_into();
-                if let Ok(noise_squashing_param) = noise_squashing_param {
-                    noise_squashing_key.is_conformant(&noise_squashing_param)
-                } else {
-                    return false;
+        let noise_squashing_key_is_ok =
+            match (noise_squashing_param.as_ref(), noise_squashing_key.as_ref()) {
+                (None, None) => true,
+                (Some(noise_squashing_param), Some(noise_squashing_key)) => {
+                    let noise_squashing_param = (sk_param, *noise_squashing_param).try_into();
+                    if let Ok(noise_squashing_param) = noise_squashing_param {
+                        noise_squashing_key.is_conformant(&noise_squashing_param)
+                    } else {
+                        return false;
+                    }
                 }
-            }
-            _ => return false,
-        };
+                _ => return false,
+            };
 
         let noise_squashing_compression_key_is_ok = match (
-            parameter_set.noise_squashing_param.as_ref(),
-            parameter_set.noise_squashing_compression_param.as_ref(),
+            noise_squashing_param.as_ref(),
+            noise_squashing_compression_param.as_ref(),
             noise_squashing_compression_key.as_ref(),
         ) {
             (None | Some(_), None, None) => true,
@@ -1382,7 +1385,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
         let re_randomization_keys_are_ok = {
             match (
                 cpk_re_randomization_key.as_ref(),
-                parameter_set.cpk_re_randomization_params,
+                cpk_re_randomization_params,
             ) {
                 // Legacy case
                 (
@@ -1392,14 +1395,13 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
                     }),
                 ) => {
                     // We need cpk_ksk, to be present when we have the legacy re-randomization key
-                    let (Some(cpk_ksk), Some((cpk_params, _cpk_ksk_params))) = (
-                        cpk_key_switching_key_material.as_ref(),
-                        parameter_set.cpk_param,
-                    ) else {
+                    let (Some(cpk_ksk), Some((cpk_params, _cpk_ksk_params))) =
+                        (cpk_key_switching_key_material.as_ref(), cpk_param)
+                    else {
                         return false;
                     };
 
-                    (parameter_set.sk_param, cpk_params, rerand_ksk_params)
+                    (sk_param, cpk_params, rerand_ksk_params)
                         .try_into()
                         .is_ok_and(|re_rand_param| {
                             let key_to_check = match re_rand_ksk {
@@ -1419,8 +1421,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
                 ) => {
                     // The rerand CPK has parameters taken from the compute params (since they share
                     // a secret key)
-                    parameter_set
-                        .sk_param
+                    sk_param
                         .try_into()
                         .is_ok_and(|cpk_re_rand_params| cpk.is_conformant(&cpk_re_rand_params))
                 }
@@ -1430,12 +1431,12 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             }
         };
 
-        let oprf_is_ok = match (parameter_set.dedicated_oprf_key, oprf_key.as_ref()) {
+        let oprf_is_ok = match (dedicated_oprf_key, oprf_key.as_ref()) {
             // We have to have a dedicated oprf key
             // Make sure it's there and that it's conformant
-            (true, Some(key)) => key.is_conformant(&OprfKeyConformanceParams::same_as_compute(
-                parameter_set.sk_param,
-            )),
+            (true, Some(key)) => {
+                key.is_conformant(&OprfKeyConformanceParams::same_as_compute(sk_param))
+            }
             (true, None) => false,
             // The config says to not use a dedicated oprf key but we have one
             // while it works, it is not strictly conformant
@@ -1443,16 +1444,13 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             (false, None) => true,
         };
 
-        let transciphering_is_ok = match (
-            parameter_set.transciphering_parameters,
-            transciphering_key.as_ref(),
-        ) {
+        let transciphering_is_ok = match (transciphering_parameters, transciphering_key.as_ref()) {
             // The key bootstraps into the compute key, so it is checked against the compute
             // parameters, plus the oprf parameters it was generated with.
             (Some(transciphering_params), Some(key)) => {
                 key.is_conformant(&OprfKeyConformanceParams::new(
-                    parameter_set.sk_param,
-                    transciphering_params.oprf_parameters(parameter_set.sk_param),
+                    sk_param,
+                    transciphering_params.oprf_parameters(sk_param),
                 ))
             }
             (Some(_), None) => false,
@@ -1462,7 +1460,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             (None, None) => true,
         };
 
-        key.is_conformant(&parameter_set.sk_param)
+        key.is_conformant(&sk_param)
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
             && noise_squashing_key_is_ok

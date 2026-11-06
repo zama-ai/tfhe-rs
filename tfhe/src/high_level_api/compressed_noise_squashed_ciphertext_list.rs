@@ -264,10 +264,9 @@ impl ParameterSetConformant for CompressedSquashedNoiseCiphertextList {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { inner, tag: _ } = self;
+        let CompressedSquashedNoiseCiphertextListConformanceParams { params } = parameter_set;
 
-        inner
-            .on_cpu()
-            .is_ok_and(|list| list.is_conformant(&parameter_set.params))
+        inner.on_cpu().is_ok_and(|list| list.is_conformant(params))
     }
 }
 

@@ -233,7 +233,7 @@ impl<C: Container<Element = f64>> ParameterSetConformant for Fourier128LweMultiB
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
             grouping_factor: expected_grouping_factor,
-            ciphertext_modulus: _expected_ciphertext_modulus,
+            ciphertext_modulus: _,
         } = parameter_set;
 
         let container_len = fourier_lwe_multi_bit_bootstrap_key_size(

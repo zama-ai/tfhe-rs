@@ -144,8 +144,12 @@ impl<Id: FheUintId> ParameterSetConformant for FheUint<Id> {
             tag: _,
             re_randomization_metadata: _,
         } = self;
+        let FheUintConformanceParams {
+            params: ct_params,
+            id: _,
+        } = params;
 
-        ciphertext.on_cpu().is_conformant(&params.params)
+        ciphertext.on_cpu().is_conformant(ct_params)
     }
 }
 

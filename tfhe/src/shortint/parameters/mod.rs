@@ -176,13 +176,23 @@ pub type CiphertextModulus32 = CoreCiphertextModulus<u32>;
 
 impl From<&PBSConformanceParams> for LweBootstrapKeyConformanceParams<u64> {
     fn from(value: &PBSConformanceParams) -> Self {
+        let PBSConformanceParams {
+            in_lwe_dimension,
+            out_glwe_dimension,
+            out_polynomial_size,
+            base_log,
+            level,
+            ciphertext_modulus,
+            pbs_type: _,
+        } = *value;
+
         Self {
-            decomp_base_log: value.base_log,
-            decomp_level_count: value.level,
-            input_lwe_dimension: value.in_lwe_dimension,
-            output_glwe_size: value.out_glwe_dimension.to_glwe_size(),
-            polynomial_size: value.out_polynomial_size,
-            ciphertext_modulus: value.ciphertext_modulus,
+            decomp_base_log: base_log,
+            decomp_level_count: level,
+            input_lwe_dimension: in_lwe_dimension,
+            output_glwe_size: out_glwe_dimension.to_glwe_size(),
+            polynomial_size: out_polynomial_size,
+            ciphertext_modulus,
         }
     }
 }

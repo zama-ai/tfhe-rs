@@ -59,12 +59,36 @@ impl<G: Curve> ParameterSetConformant for PublicParams<G> {
     type ParameterSet = CompactPkeCrsConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.d == parameter_set.lwe_dim
-            && self.k == parameter_set.max_num_message
-            && self.B_inf == parameter_set.noise_bound
-            && self.q == parameter_set.ciphertext_modulus
-            && self.t == parameter_set.plaintext_modulus
-            && self.msbs_zero_padding_bit_count == parameter_set.msbs_zero_padding_bit_count
+        let &Self {
+            d,
+            k,
+            B_inf,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            g_lists: _,
+            n: _,
+            B_bound_squared: _,
+            bound_type: _,
+            D: _,
+            sid: _,
+            domain_separators: _,
+        } = self;
+        let &CompactPkeCrsConformanceParams {
+            lwe_dim,
+            max_num_message,
+            noise_bound,
+            ciphertext_modulus,
+            plaintext_modulus,
+            msbs_zero_padding_bit_count: expected_msbs_zero_padding_bit_count,
+        } = parameter_set;
+
+        d == lwe_dim
+            && k == max_num_message
+            && B_inf == noise_bound
+            && q == ciphertext_modulus
+            && t == plaintext_modulus
+            && msbs_zero_padding_bit_count == expected_msbs_zero_padding_bit_count
             && self.is_usable()
     }
 }
@@ -682,12 +706,28 @@ impl<G: Curve> ParameterSetConformant for Proof<G> {
     type ParameterSet = CompactPkeV2ProofConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        parameter_set
-            .accepted_compute_load
-            .contains(self.compute_load())
-            && parameter_set
-                .accepted_hash_config
-                .contains(self.hash_config())
+        let &Self {
+            hash_config,
+            compute_load_proof_fields: _,
+            C_hat_e: _,
+            C_e: _,
+            C_r_tilde: _,
+            C_R: _,
+            C_hat_bin: _,
+            C_y: _,
+            C_h1: _,
+            C_h2: _,
+            C_hat_t: _,
+            pi: _,
+            pi_kzg: _,
+        } = self;
+        let &CompactPkeV2ProofConformanceParams {
+            accepted_compute_load,
+            accepted_hash_config,
+        } = parameter_set;
+
+        accepted_compute_load.contains(self.compute_load())
+            && accepted_hash_config.contains(hash_config)
             && self.is_usable()
     }
 }

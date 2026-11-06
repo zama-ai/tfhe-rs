@@ -166,21 +166,34 @@ impl ParameterSetConformant for CompressionKey {
             lwe_per_glwe,
             storage_log_modulus,
         } = self;
+        let CompressionKeyConformanceParams {
+            packing_ks_level,
+            packing_ks_base_log,
+            packing_ks_polynomial_size,
+            packing_ks_glwe_dimension,
+            lwe_per_glwe: expected_lwe_per_glwe,
+            storage_log_modulus: expected_storage_log_modulus,
+            uncompressed_polynomial_size,
+            uncompressed_glwe_dimension,
+            cipherext_modulus,
+            br_level: _,
+            br_base_log: _,
+            decompression_grouping_factor: _,
+        } = parameter_set;
 
         let params = LwePackingKeyswitchKeyConformanceParams {
-            decomp_base_log: parameter_set.packing_ks_base_log,
-            decomp_level_count: parameter_set.packing_ks_level,
-            input_lwe_dimension: parameter_set
-                .uncompressed_glwe_dimension
-                .to_equivalent_lwe_dimension(parameter_set.uncompressed_polynomial_size),
-            output_glwe_size: parameter_set.packing_ks_glwe_dimension.to_glwe_size(),
-            output_polynomial_size: parameter_set.packing_ks_polynomial_size,
-            ciphertext_modulus: parameter_set.cipherext_modulus,
+            decomp_base_log: *packing_ks_base_log,
+            decomp_level_count: *packing_ks_level,
+            input_lwe_dimension: uncompressed_glwe_dimension
+                .to_equivalent_lwe_dimension(*uncompressed_polynomial_size),
+            output_glwe_size: packing_ks_glwe_dimension.to_glwe_size(),
+            output_polynomial_size: *packing_ks_polynomial_size,
+            ciphertext_modulus: *cipherext_modulus,
         };
 
         packing_key_switching_key.is_conformant(&params)
-            && *lwe_per_glwe == parameter_set.lwe_per_glwe
-            && *storage_log_modulus == parameter_set.storage_log_modulus
+            && lwe_per_glwe == expected_lwe_per_glwe
+            && storage_log_modulus == expected_storage_log_modulus
     }
 }
 
@@ -189,10 +202,24 @@ impl ParameterSetConformant for DecompressionKey {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { bsk, lwe_per_glwe } = self;
+        let CompressionKeyConformanceParams {
+            lwe_per_glwe: expected_lwe_per_glwe,
+            br_level: _,
+            br_base_log: _,
+            packing_ks_polynomial_size: _,
+            packing_ks_glwe_dimension: _,
+            uncompressed_polynomial_size: _,
+            uncompressed_glwe_dimension: _,
+            decompression_grouping_factor: _,
+            cipherext_modulus: _,
+            packing_ks_level: _,
+            packing_ks_base_log: _,
+            storage_log_modulus: _,
+        } = parameter_set;
 
         let params = parameter_set.into();
 
-        *lwe_per_glwe == parameter_set.lwe_per_glwe && bsk.is_conformant(&params)
+        lwe_per_glwe == expected_lwe_per_glwe && bsk.is_conformant(&params)
     }
 }
 
@@ -206,7 +233,11 @@ impl From<&CompressionKeyConformanceParams> for PBSConformanceParams {
             uncompressed_polynomial_size,
             uncompressed_glwe_dimension,
             decompression_grouping_factor,
-            ..
+            cipherext_modulus,
+            packing_ks_level: _,
+            packing_ks_base_log: _,
+            lwe_per_glwe: _,
+            storage_log_modulus: _,
         } = value;
 
         #[allow(clippy::option_if_let_else)]
@@ -228,7 +259,7 @@ impl From<&CompressionKeyConformanceParams> for PBSConformanceParams {
             base_log: *br_base_log,
             level: *br_level,
             pbs_type,
-            ciphertext_modulus: value.cipherext_modulus,
+            ciphertext_modulus: *cipherext_modulus,
         }
     }
 }
@@ -366,15 +397,27 @@ impl
             NoiseSquashingCompressionParameters,
         ),
     ) -> Self {
+        let NoiseSquashingCompressionParameters {
+            packing_ks_level,
+            packing_ks_base_log,
+            packing_ks_polynomial_size,
+            packing_ks_glwe_dimension,
+            lwe_per_glwe,
+            ciphertext_modulus,
+            packing_ks_key_noise_distribution: _,
+            message_modulus: _,
+            carry_modulus: _,
+        } = compression_params;
+
         Self {
-            packing_ks_level: compression_params.packing_ks_level,
-            packing_ks_base_log: compression_params.packing_ks_base_log,
-            packing_ks_polynomial_size: compression_params.packing_ks_polynomial_size,
-            packing_ks_glwe_dimension: compression_params.packing_ks_glwe_dimension,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
+            packing_ks_level,
+            packing_ks_base_log,
+            packing_ks_polynomial_size,
+            packing_ks_glwe_dimension,
+            lwe_per_glwe,
             uncompressed_polynomial_size: squashing_params.polynomial_size(),
             uncompressed_glwe_dimension: squashing_params.glwe_dimension(),
-            cipherext_modulus: compression_params.ciphertext_modulus,
+            cipherext_modulus: ciphertext_modulus,
         }
     }
 }
@@ -387,19 +430,27 @@ impl ParameterSetConformant for NoiseSquashingCompressionKey {
             packing_key_switching_key,
             lwe_per_glwe,
         } = self;
+        let NoiseSquashingCompressionKeyConformanceParams {
+            packing_ks_level,
+            packing_ks_base_log,
+            packing_ks_polynomial_size,
+            packing_ks_glwe_dimension,
+            lwe_per_glwe: expected_lwe_per_glwe,
+            uncompressed_polynomial_size,
+            uncompressed_glwe_dimension,
+            cipherext_modulus,
+        } = parameter_set;
 
         let params = LwePackingKeyswitchKeyConformanceParams {
-            decomp_base_log: parameter_set.packing_ks_base_log,
-            decomp_level_count: parameter_set.packing_ks_level,
-            input_lwe_dimension: parameter_set
-                .uncompressed_glwe_dimension
-                .to_equivalent_lwe_dimension(parameter_set.uncompressed_polynomial_size),
-            output_glwe_size: parameter_set.packing_ks_glwe_dimension.to_glwe_size(),
-            output_polynomial_size: parameter_set.packing_ks_polynomial_size,
-            ciphertext_modulus: parameter_set.cipherext_modulus,
+            decomp_base_log: *packing_ks_base_log,
+            decomp_level_count: *packing_ks_level,
+            input_lwe_dimension: uncompressed_glwe_dimension
+                .to_equivalent_lwe_dimension(*uncompressed_polynomial_size),
+            output_glwe_size: packing_ks_glwe_dimension.to_glwe_size(),
+            output_polynomial_size: *packing_ks_polynomial_size,
+            ciphertext_modulus: *cipherext_modulus,
         };
 
-        packing_key_switching_key.is_conformant(&params)
-            && *lwe_per_glwe == parameter_set.lwe_per_glwe
+        packing_key_switching_key.is_conformant(&params) && lwe_per_glwe == expected_lwe_per_glwe
     }
 }

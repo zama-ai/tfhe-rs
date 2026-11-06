@@ -356,17 +356,22 @@ impl<T: UnsignedInteger> ParameterSetConformant for LweCompactCiphertextListOwne
             lwe_ciphertext_count,
             ciphertext_modulus,
         } = self;
-        param
-            .lwe_ciphertext_count_constraint
-            .is_valid(lwe_ciphertext_count.0)
+
+        let LweCiphertextListConformanceParams {
+            lwe_dim,
+            lwe_ciphertext_count_constraint,
+            ct_modulus,
+        } = param;
+
+        lwe_ciphertext_count_constraint.is_valid(lwe_ciphertext_count.0)
             && data.len()
                 == lwe_compact_ciphertext_list_size(
                     lwe_size.to_lwe_dimension(),
                     *lwe_ciphertext_count,
                 )
-            && check_encrypted_content_respects_mod(self, param.ct_modulus)
-            && *lwe_size == param.lwe_dim.to_lwe_size()
-            && *ciphertext_modulus == param.ct_modulus
+            && check_encrypted_content_respects_mod(self, *ct_modulus)
+            && *lwe_size == lwe_dim.to_lwe_size()
+            && ciphertext_modulus == ct_modulus
     }
 }
 

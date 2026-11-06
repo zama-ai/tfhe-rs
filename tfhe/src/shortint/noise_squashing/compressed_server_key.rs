@@ -269,7 +269,11 @@ where
                 modulus_switch_key_ok && bsk.is_conformant(expected_bootstrapping_key_params)
             }
             (
-                Self::MultiBit { bsk, .. },
+                Self::MultiBit {
+                    bsk,
+                    thread_count: _,
+                    deterministic_execution: _,
+                },
                 Shortint128BootstrappingKeyConformanceParams::MultiBit {
                     bootstrapping_key_params: expected_bootstrapping_key_params,
                 },
@@ -406,26 +410,31 @@ impl ParameterSetConformant for CompressedNoiseSquashingKey {
             carry_modulus,
             output_ciphertext_modulus,
         } = self;
+        let NoiseSquashingKeyConformanceParams {
+            pbs_params,
+            atomic_pattern: expected_atomic_pattern,
+            message_modulus: expected_message_modulus,
+            carry_modulus: expected_carry_modulus,
+            output_ciphertext_modulus: expected_output_ciphertext_modulus,
+        } = parameter_set;
 
-        let bsk_conformant = match (atomic_pattern, parameter_set.atomic_pattern) {
+        let bsk_conformant = match (atomic_pattern, expected_atomic_pattern) {
             (
                 CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std),
                 AtomicPatternKind::Standard(_),
-            ) => compressed_std
-                .bootstrapping_key()
-                .is_conformant(&parameter_set.pbs_params),
+            ) => compressed_std.bootstrapping_key().is_conformant(pbs_params),
             (
                 CompressedAtomicPatternNoiseSquashingKey::KeySwitch32(compressed_ks32),
                 AtomicPatternKind::KeySwitch32,
             ) => compressed_ks32
                 .bootstrapping_key()
-                .is_conformant(&parameter_set.pbs_params),
+                .is_conformant(pbs_params),
             _ => false,
         };
 
         bsk_conformant
-            && *output_ciphertext_modulus == parameter_set.output_ciphertext_modulus
-            && *message_modulus == parameter_set.message_modulus
-            && *carry_modulus == parameter_set.carry_modulus
+            && output_ciphertext_modulus == expected_output_ciphertext_modulus
+            && message_modulus == expected_message_modulus
+            && carry_modulus == expected_carry_modulus
     }
 }

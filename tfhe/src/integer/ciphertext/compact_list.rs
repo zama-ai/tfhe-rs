@@ -1142,12 +1142,22 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
         value: CompactPublicKeyEncryptionParameters,
         crs: &CompactPkeCrs,
     ) -> Self {
+        let CompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            expansion_kind,
+            encryption_noise_distribution: _,
+            zk_scheme: _,
+        } = value;
+
         Self {
-            encryption_lwe_dimension: value.encryption_lwe_dimension,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            ciphertext_modulus: value.ciphertext_modulus,
-            expansion_kind: value.expansion_kind,
+            encryption_lwe_dimension,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            expansion_kind,
             max_elements_per_compact_list: crs.max_num_messages().0,
             allow_unpacked: false,
             zk_conformance_params: CompactPkeProofConformanceParams::new(crs.scheme_version()),

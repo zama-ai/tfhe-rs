@@ -808,14 +808,17 @@ where
             ciphertext_modulus,
         } = self;
 
+        let GlweCiphertextConformanceParams {
+            glwe_dim,
+            polynomial_size: expected_polynomial_size,
+            ct_modulus,
+        } = glwe_ct_parameters;
+
         polynomial_size.0.is_power_of_two()
-            && check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
+            && check_encrypted_content_respects_mod(self, *ct_modulus)
             && data.container_len()
-                == glwe_ciphertext_size(
-                    glwe_ct_parameters.glwe_dim.to_glwe_size(),
-                    glwe_ct_parameters.polynomial_size,
-                )
-            && *polynomial_size == glwe_ct_parameters.polynomial_size
-            && *ciphertext_modulus == glwe_ct_parameters.ct_modulus
+                == glwe_ciphertext_size(glwe_dim.to_glwe_size(), *expected_polynomial_size)
+            && polynomial_size == expected_polynomial_size
+            && ciphertext_modulus == ct_modulus
     }
 }

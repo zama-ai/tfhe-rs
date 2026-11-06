@@ -442,14 +442,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             compression_seed: _,
         } = self;
 
-        *ciphertext_modulus == parameter_set.ciphertext_modulus
+        let LweKeyswitchKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            output_lwe_size: expected_output_lwe_size,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
+        ciphertext_modulus == expected_ciphertext_modulus
             && data.container_len()
-                == parameter_set.input_lwe_dimension.0
+                == expected_input_lwe_dimension.0
                     * seeded_lwe_keyswitch_key_input_key_element_encrypted_size(
-                        parameter_set.decomp_level_count,
+                        *expected_decomp_level_count,
                     )
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_lwe_size == parameter_set.output_lwe_size
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_lwe_size == expected_output_lwe_size
     }
 }

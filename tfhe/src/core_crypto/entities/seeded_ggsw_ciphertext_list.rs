@@ -490,16 +490,26 @@ impl<Scalar: UnsignedInteger> TryFrom<&MultiBitBootstrapKeyConformanceParams<Sca
     fn try_from(
         value: &MultiBitBootstrapKeyConformanceParams<Scalar>,
     ) -> Result<Self, &'static str> {
+        let MultiBitBootstrapKeyConformanceParams {
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_glwe_size,
+            polynomial_size,
+            grouping_factor,
+            ciphertext_modulus,
+        } = *value;
+
         let group_count =
-            equivalent_multi_bit_lwe_dimension(value.input_lwe_dimension, value.grouping_factor)?.0;
+            equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor)?.0;
 
         Ok(Self {
-            len: group_count * value.grouping_factor.ggsw_per_multi_bit_element().0,
-            glwe_size: value.output_glwe_size,
-            polynomial_size: value.polynomial_size,
-            decomp_base_log: value.decomp_base_log,
-            decomp_level_count: value.decomp_level_count,
-            ciphertext_modulus: value.ciphertext_modulus,
+            len: group_count * grouping_factor.ggsw_per_multi_bit_element().0,
+            glwe_size: output_glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
         })
     }
 }
@@ -508,13 +518,22 @@ impl<Scalar: UnsignedInteger> From<&LweBootstrapKeyConformanceParams<Scalar>>
     for GgswCiphertextListConformanceParams<Scalar>
 {
     fn from(value: &LweBootstrapKeyConformanceParams<Scalar>) -> Self {
+        let LweBootstrapKeyConformanceParams {
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        } = *value;
+
         Self {
-            len: value.input_lwe_dimension.0,
-            glwe_size: value.output_glwe_size,
-            polynomial_size: value.polynomial_size,
-            decomp_base_log: value.decomp_base_log,
-            decomp_level_count: value.decomp_level_count,
-            ciphertext_modulus: value.ciphertext_modulus,
+            len: input_lwe_dimension.0,
+            glwe_size: output_glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
         }
     }
 }
@@ -531,17 +550,26 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
-            compression_seed: _,
             ciphertext_modulus,
+            compression_seed: _,
         } = self;
 
+        let GgswCiphertextListConformanceParams {
+            len: expected_len,
+            glwe_size: expected_glwe_size,
+            polynomial_size: expected_polynomial_size,
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
         data.container_len()
-            == parameter_set.len
+            == expected_len
                 * seeded_ggsw_ciphertext_size(*glwe_size, *polynomial_size, *decomp_level_count)
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *glwe_size == parameter_set.glwe_size
-            && *polynomial_size == parameter_set.polynomial_size
-            && *ciphertext_modulus == parameter_set.ciphertext_modulus
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && glwe_size == expected_glwe_size
+            && polynomial_size == expected_polynomial_size
+            && ciphertext_modulus == expected_ciphertext_modulus
     }
 }

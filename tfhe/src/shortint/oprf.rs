@@ -257,8 +257,23 @@ impl ParameterSetConformant for OprfBootstrappingKeyOwned {
     type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, &parameter_set.pbs_type) {
-            (Self::Classic { bsk }, PbsTypeConformanceParams::Classic { .. }) => {
+        let PBSConformanceParams {
+            pbs_type,
+            in_lwe_dimension: _,
+            out_glwe_dimension: _,
+            out_polynomial_size: _,
+            base_log: _,
+            level: _,
+            ciphertext_modulus: _,
+        } = parameter_set;
+
+        match (self, pbs_type) {
+            (
+                Self::Classic { bsk },
+                PbsTypeConformanceParams::Classic {
+                    modulus_switch_noise_reduction: _,
+                },
+            ) => {
                 let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
                 bsk.is_conformant(&param)
             }
@@ -268,7 +283,9 @@ impl ParameterSetConformant for OprfBootstrappingKeyOwned {
                     thread_count: _,
                     deterministic_execution: _,
                 },
-                PbsTypeConformanceParams::MultiBit { .. },
+                PbsTypeConformanceParams::MultiBit {
+                    lwe_bsk_grouping_factor: _,
+                },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
                 .is_ok_and(|param| fourier_bsk.is_conformant(&param)),
             _ => false,
@@ -410,8 +427,23 @@ impl ParameterSetConformant for CompressedOprfBootstrappingKey {
     type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, &parameter_set.pbs_type) {
-            (Self::Classic { seeded_bsk }, PbsTypeConformanceParams::Classic { .. }) => {
+        let PBSConformanceParams {
+            pbs_type,
+            in_lwe_dimension: _,
+            out_glwe_dimension: _,
+            out_polynomial_size: _,
+            base_log: _,
+            level: _,
+            ciphertext_modulus: _,
+        } = parameter_set;
+
+        match (self, pbs_type) {
+            (
+                Self::Classic { seeded_bsk },
+                PbsTypeConformanceParams::Classic {
+                    modulus_switch_noise_reduction: _,
+                },
+            ) => {
                 let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
                 seeded_bsk.is_conformant(&param)
             }
@@ -420,7 +452,9 @@ impl ParameterSetConformant for CompressedOprfBootstrappingKey {
                     seeded_bsk,
                     deterministic_execution: _,
                 },
-                PbsTypeConformanceParams::MultiBit { .. },
+                PbsTypeConformanceParams::MultiBit {
+                    lwe_bsk_grouping_factor: _,
+                },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
                 .is_ok_and(|param| seeded_bsk.is_conformant(&param)),
             _ => false,
@@ -532,8 +566,9 @@ impl ParameterSetConformant for CompressedOprfServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.inner
-            .is_conformant(&parameter_set.to_pbs_conformance_params())
+        let Self { inner } = self;
+
+        inner.is_conformant(&parameter_set.to_pbs_conformance_params())
     }
 }
 
@@ -842,8 +877,9 @@ impl ParameterSetConformant for OprfServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.inner
-            .is_conformant(&parameter_set.to_pbs_conformance_params())
+        let Self { inner } = self;
+
+        inner.is_conformant(&parameter_set.to_pbs_conformance_params())
     }
 }
 

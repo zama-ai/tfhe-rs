@@ -66,7 +66,9 @@ impl ParameterSetConformant for StreamCiphertext {
     type ParameterSet = IntegerStreamCiphertextConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
-        self.inner.is_conformant(params)
+        let Self { inner } = self;
+
+        inner.is_conformant(params)
     }
 }
 

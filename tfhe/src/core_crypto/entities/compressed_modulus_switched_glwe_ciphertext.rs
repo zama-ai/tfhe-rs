@@ -272,11 +272,17 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
             uncompressed_ciphertext_modulus,
         } = self;
 
-        *glwe_dimension == params.glwe_dim
-            && *polynomial_size == params.polynomial_size
+        let GlweCiphertextConformanceParams {
+            glwe_dim,
+            polynomial_size: expected_polynomial_size,
+            ct_modulus,
+        } = params;
+
+        glwe_dimension == glwe_dim
+            && polynomial_size == expected_polynomial_size
             && bodies_count.0 <= polynomial_size.0
-            && *uncompressed_ciphertext_modulus == params.ct_modulus
-            && params.ct_modulus.is_power_of_two()
+            && uncompressed_ciphertext_modulus == ct_modulus
+            && ct_modulus.is_power_of_two()
             && packed_integers.is_conformant(&PackedIntegersConformanceParams::new::<Scalar>(
                 glwe_dimension.0 * polynomial_size.0 + bodies_count.0,
             ))

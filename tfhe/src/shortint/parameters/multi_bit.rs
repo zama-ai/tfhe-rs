@@ -152,13 +152,23 @@ impl TryFrom<&PBSConformanceParams> for MultiBitBootstrapKeyConformanceParams<u6
     type Error = ();
 
     fn try_from(value: &PBSConformanceParams) -> Result<Self, ()> {
+        let PBSConformanceParams {
+            in_lwe_dimension,
+            out_glwe_dimension,
+            out_polynomial_size,
+            base_log,
+            level,
+            ciphertext_modulus,
+            pbs_type,
+        } = *value;
+
         Ok(Self {
-            decomp_base_log: value.base_log,
-            decomp_level_count: value.level,
-            input_lwe_dimension: value.in_lwe_dimension,
-            output_glwe_size: value.out_glwe_dimension.to_glwe_size(),
-            polynomial_size: value.out_polynomial_size,
-            grouping_factor: match value.pbs_type {
+            decomp_base_log: base_log,
+            decomp_level_count: level,
+            input_lwe_dimension: in_lwe_dimension,
+            output_glwe_size: out_glwe_dimension.to_glwe_size(),
+            polynomial_size: out_polynomial_size,
+            grouping_factor: match pbs_type {
                 crate::shortint::server_key::PbsTypeConformanceParams::Classic { .. } => {
                     return Err(());
                 }
@@ -166,7 +176,7 @@ impl TryFrom<&PBSConformanceParams> for MultiBitBootstrapKeyConformanceParams<u6
                     lwe_bsk_grouping_factor,
                 } => lwe_bsk_grouping_factor,
             },
-            ciphertext_modulus: value.ciphertext_modulus,
+            ciphertext_modulus,
         })
     }
 }

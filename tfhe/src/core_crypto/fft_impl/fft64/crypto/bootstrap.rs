@@ -673,7 +673,7 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweBootstrap
             input_lwe_dimension: expected_input_lwe_dimension,
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
-            ciphertext_modulus: _expected_ciphertext_modulus,
+            ciphertext_modulus: _,
         } = parameter_set;
 
         data.container_len()

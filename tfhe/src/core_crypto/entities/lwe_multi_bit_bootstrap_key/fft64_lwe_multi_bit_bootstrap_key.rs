@@ -245,7 +245,7 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweMultiBitB
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
             grouping_factor: expected_grouping_factor,
-            ciphertext_modulus: _expected_ciphertext_modulus,
+            ciphertext_modulus: _,
         } = parameter_set;
 
         if input_lwe_dimension.0 % grouping_factor.0 != 0 {

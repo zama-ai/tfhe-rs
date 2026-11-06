@@ -517,21 +517,30 @@ where
             decomposition_level_count,
         } = self;
 
-        let expected_container_len = parameter_set.input_lwe_dimension.0
+        let LweBootstrapKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            output_glwe_size: expected_output_glwe_size,
+            polynomial_size: expected_polynomial_size,
+            ciphertext_modulus: _,
+        } = parameter_set;
+
+        let expected_container_len = expected_input_lwe_dimension.0
             * fourier_ggsw_ciphertext_size(
-                parameter_set.output_glwe_size,
-                parameter_set.polynomial_size.to_fourier_polynomial_size(),
-                parameter_set.decomp_level_count,
+                *expected_output_glwe_size,
+                expected_polynomial_size.to_fourier_polynomial_size(),
+                *expected_decomp_level_count,
             );
 
         data_re0.container_len() == expected_container_len
             && data_re1.container_len() == expected_container_len
             && data_im0.container_len() == expected_container_len
             && data_im1.container_len() == expected_container_len
-            && *polynomial_size == parameter_set.polynomial_size
-            && *input_lwe_dimension == parameter_set.input_lwe_dimension
-            && *glwe_size == parameter_set.output_glwe_size
-            && *decomposition_base_log == parameter_set.decomp_base_log
-            && *decomposition_level_count == parameter_set.decomp_level_count
+            && polynomial_size == expected_polynomial_size
+            && input_lwe_dimension == expected_input_lwe_dimension
+            && glwe_size == expected_output_glwe_size
+            && decomposition_base_log == expected_decomp_base_log
+            && decomposition_level_count == expected_decomp_level_count
     }
 }

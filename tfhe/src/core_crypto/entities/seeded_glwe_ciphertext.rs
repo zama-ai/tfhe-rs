@@ -310,16 +310,22 @@ where
         glwe_ct_parameters: &GlweCiphertextConformanceParams<C::Element>,
     ) -> bool {
         let Self {
-            compression_seed: _,
             data,
             ciphertext_modulus,
             glwe_size,
+            compression_seed: _,
         } = self;
 
-        glwe_ct_parameters.polynomial_size.0.is_power_of_two()
-            && check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
-            && data.container_len() == glwe_ct_parameters.polynomial_size.0
-            && *glwe_size == glwe_ct_parameters.glwe_dim.to_glwe_size()
-            && *ciphertext_modulus == glwe_ct_parameters.ct_modulus
+        let GlweCiphertextConformanceParams {
+            glwe_dim,
+            polynomial_size,
+            ct_modulus,
+        } = glwe_ct_parameters;
+
+        polynomial_size.0.is_power_of_two()
+            && check_encrypted_content_respects_mod(self, *ct_modulus)
+            && data.container_len() == polynomial_size.0
+            && *glwe_size == glwe_dim.to_glwe_size()
+            && ciphertext_modulus == ct_modulus
     }
 }

@@ -885,7 +885,9 @@ pub(crate) mod zk {
         type ParameterSet = IntegerProvenCompactCiphertextListConformanceParams;
 
         fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-            self.inner.on_cpu().is_conformant(parameter_set)
+            let Self { inner, tag: _ } = self;
+
+            inner.on_cpu().is_conformant(parameter_set)
         }
     }
 

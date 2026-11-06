@@ -54,13 +54,36 @@ impl<G: Curve> ParameterSetConformant for PublicParams<G> {
     type ParameterSet = CompactPkeCrsConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.k <= self.d
-            && self.d == parameter_set.lwe_dim
-            && self.k == parameter_set.max_num_message
-            && self.b == parameter_set.noise_bound
-            && self.q == parameter_set.ciphertext_modulus
-            && self.t == parameter_set.plaintext_modulus
-            && self.msbs_zero_padding_bit_count == parameter_set.msbs_zero_padding_bit_count
+        let &Self {
+            d,
+            k,
+            b,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            g_lists: _,
+            n: _,
+            big_d: _,
+            b_r: _,
+            sid: _,
+            domain_separators: _,
+        } = self;
+        let &CompactPkeCrsConformanceParams {
+            lwe_dim,
+            max_num_message,
+            noise_bound,
+            ciphertext_modulus,
+            plaintext_modulus,
+            msbs_zero_padding_bit_count: expected_msbs_zero_padding_bit_count,
+        } = parameter_set;
+
+        k <= d
+            && d == lwe_dim
+            && k == max_num_message
+            && b == noise_bound
+            && q == ciphertext_modulus
+            && t == plaintext_modulus
+            && msbs_zero_padding_bit_count == expected_msbs_zero_padding_bit_count
             && self.is_usable()
     }
 }
@@ -370,10 +393,17 @@ impl<G: Curve> ParameterSetConformant for Proof<G> {
     type ParameterSet = CompactPkeV1ProofConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        parameter_set
-            .accepted_compute_load
-            .contains(self.compute_load())
-            && self.is_usable()
+        let Self {
+            compute_load_proof_fields: _,
+            c_hat: _,
+            c_y: _,
+            pi: _,
+        } = self;
+        let &CompactPkeV1ProofConformanceParams {
+            accepted_compute_load,
+        } = parameter_set;
+
+        accepted_compute_load.contains(self.compute_load()) && self.is_usable()
     }
 }
 

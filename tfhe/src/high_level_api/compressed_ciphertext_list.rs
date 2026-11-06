@@ -549,27 +549,47 @@ impl TryFrom<&ServerKey> for CompressedCiphertextListConformanceParams {
     type Error = crate::Error;
 
     fn try_from(sks: &ServerKey) -> Result<Self, Self::Error> {
-        let compression_key = &sks
-            .key
+        let ServerKey { key, tag: _ } = sks;
+
+        let crate::integer::compression_keys::CompressionKey {
+            key:
+                crate::shortint::list_compression::CompressionKey {
+                    packing_key_switching_key,
+                    lwe_per_glwe,
+                    storage_log_modulus,
+                },
+        } = key
             .compression_key
             .as_ref()
-            .ok_or_else(|| crate::Error::new("Compression key not set in server key".to_owned()))?
-            .key;
-        let packing_ksk = &compression_key.packing_key_switching_key;
-        let compute_params = sks.key.pbs_key().key.conformance_params();
+            .ok_or_else(|| crate::Error::new("Compression key not set in server key".to_owned()))?;
+
+        let crate::shortint::parameters::CiphertextConformanceParams {
+            ct_params:
+                crate::core_crypto::prelude::LweCiphertextConformanceParams {
+                    ct_modulus,
+                    lwe_dim: _,
+                },
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            degree: _,
+            noise_level: _,
+        } = key.pbs_key().key.conformance_params();
 
         Ok(Self {
             params: ShortintCompressedCiphertextListConformanceParams {
                 ct_params: GlweCiphertextConformanceParams {
-                    glwe_dim: packing_ksk.output_glwe_size().to_glwe_dimension(),
-                    polynomial_size: packing_ksk.output_polynomial_size(),
-                    ct_modulus: compute_params.ct_params.ct_modulus,
+                    glwe_dim: packing_key_switching_key
+                        .output_glwe_size()
+                        .to_glwe_dimension(),
+                    polynomial_size: packing_key_switching_key.output_polynomial_size(),
+                    ct_modulus,
                 },
-                lwe_per_glwe: compression_key.lwe_per_glwe,
-                message_modulus: compute_params.message_modulus,
-                carry_modulus: compute_params.carry_modulus,
-                atomic_pattern: compute_params.atomic_pattern,
-                storage_log_modulus: compression_key.storage_log_modulus,
+                lwe_per_glwe: *lwe_per_glwe,
+                message_modulus,
+                carry_modulus,
+                atomic_pattern,
+                storage_log_modulus: *storage_log_modulus,
             },
         })
     }
@@ -581,14 +601,13 @@ impl ParameterSetConformant for CompressedCiphertextList {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
             inner,
-            tag: _,
             re_randomization_metadata,
+            tag: _,
         } = self;
+        let CompressedCiphertextListConformanceParams { params } = parameter_set;
 
         re_randomization_metadata.len() == inner.info().len()
-            && inner
-                .on_cpu()
-                .is_ok_and(|list| list.is_conformant(&parameter_set.params))
+            && inner.on_cpu().is_ok_and(|list| list.is_conformant(params))
     }
 }
 

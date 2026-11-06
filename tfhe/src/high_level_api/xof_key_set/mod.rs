@@ -518,9 +518,15 @@ impl ParameterSetConformant for CompressedXofKeySet {
     type ParameterSet = Config;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            compressed_public_key,
+            compressed_server_key,
+            seed: _,
+        } = self;
+
         let config = *parameter_set;
         if let Some((pke_params, _)) = &config.inner.dedicated_compact_public_key_parameters {
-            if !self.compressed_public_key.is_conformant(pke_params) {
+            if !compressed_public_key.is_conformant(pke_params) {
                 return false;
             }
         } else {
@@ -530,15 +536,14 @@ impl ParameterSetConformant for CompressedXofKeySet {
                 return false;
             };
 
-            if !self.compressed_public_key.is_conformant(&compact_pk_params) {
+            if !compressed_public_key.is_conformant(&compact_pk_params) {
                 return false;
             }
         }
 
         let sk_conformance_params = IntegerServerKeyConformanceParams::from(config);
 
-        self.compressed_server_key
-            .is_conformant(&sk_conformance_params)
+        compressed_server_key.is_conformant(&sk_conformance_params)
     }
 }
 

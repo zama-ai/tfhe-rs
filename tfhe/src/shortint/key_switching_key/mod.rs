@@ -1284,11 +1284,17 @@ impl ParameterSetConformant for KeySwitchingKeyMaterial {
             destination_key,
             destination_atomic_pattern,
         } = self;
+        let KeySwitchingKeyConformanceParams {
+            keyswitch_key_conformance_params,
+            cast_rshift: expected_cast_rshift,
+            destination_key: expected_destination_key,
+            destination_atomic_pattern: expected_destination_atomic_pattern,
+        } = parameter_set;
 
-        key_switching_key.is_conformant(&parameter_set.keyswitch_key_conformance_params)
-            && *cast_rshift == parameter_set.cast_rshift
-            && *destination_key == parameter_set.destination_key
-            && *destination_atomic_pattern == parameter_set.destination_atomic_pattern
+        key_switching_key.is_conformant(keyswitch_key_conformance_params)
+            && cast_rshift == expected_cast_rshift
+            && destination_key == expected_destination_key
+            && destination_atomic_pattern == expected_destination_atomic_pattern
     }
 }
 
@@ -1302,10 +1308,16 @@ impl ParameterSetConformant for CompressedKeySwitchingKeyMaterial {
             destination_key,
             destination_atomic_pattern,
         } = self;
+        let KeySwitchingKeyConformanceParams {
+            keyswitch_key_conformance_params,
+            cast_rshift: expected_cast_rshift,
+            destination_key: expected_destination_key,
+            destination_atomic_pattern: expected_destination_atomic_pattern,
+        } = parameter_set;
 
-        key_switching_key.is_conformant(&parameter_set.keyswitch_key_conformance_params)
-            && *cast_rshift == parameter_set.cast_rshift
-            && *destination_key == parameter_set.destination_key
-            && *destination_atomic_pattern == parameter_set.destination_atomic_pattern
+        key_switching_key.is_conformant(keyswitch_key_conformance_params)
+            && cast_rshift == expected_cast_rshift
+            && destination_key == expected_destination_key
+            && destination_atomic_pattern == expected_destination_atomic_pattern
     }
 }

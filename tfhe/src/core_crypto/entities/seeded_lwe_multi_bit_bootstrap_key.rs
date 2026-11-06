@@ -463,9 +463,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             ggsw_list,
             grouping_factor,
         } = self;
+        let &MultiBitBootstrapKeyConformanceParams {
+            grouping_factor: expected_grouping_factor,
+            decomp_base_log: _,
+            decomp_level_count: _,
+            input_lwe_dimension: _,
+            output_glwe_size: _,
+            polynomial_size: _,
+            ciphertext_modulus: _,
+        } = parameter_set;
 
         let params = parameter_set.try_into().unwrap();
 
-        ggsw_list.is_conformant(&params) && *grouping_factor == parameter_set.grouping_factor
+        ggsw_list.is_conformant(&params) && *grouping_factor == expected_grouping_factor
     }
 }

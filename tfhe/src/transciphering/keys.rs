@@ -71,7 +71,9 @@ impl ParameterSetConformant for TranscipheringServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.oprf_key.is_conformant(parameter_set)
+        let Self { oprf_key } = self;
+
+        oprf_key.is_conformant(parameter_set)
     }
 }
 
@@ -104,7 +106,9 @@ impl ParameterSetConformant for CompressedTranscipheringServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.oprf_key.is_conformant(parameter_set)
+        let Self { oprf_key } = self;
+
+        oprf_key.is_conformant(parameter_set)
     }
 }
 

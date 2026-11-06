@@ -67,7 +67,9 @@ impl CompressedOprfServerKey {
     }
 
     pub(crate) fn is_conformant(&self, params: &OprfKeyConformanceParams) -> bool {
-        self.0.is_conformant(params)
+        let Self(inner) = self;
+
+        inner.is_conformant(params)
     }
 }
 
@@ -719,7 +721,9 @@ impl ParameterSetConformant for OprfServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.key.is_conformant(parameter_set)
+        let Self { key } = self;
+
+        key.is_conformant(parameter_set)
     }
 }
 

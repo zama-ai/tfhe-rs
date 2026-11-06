@@ -536,15 +536,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             compression_seed: _,
         } = self;
 
+        let LwePackingKeyswitchKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            output_glwe_size: expected_output_glwe_size,
+            output_polynomial_size: expected_output_polynomial_size,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
         data.container_len()
             == seeded_lwe_packing_keyswitch_key_input_key_element_encrypted_size(
                 *decomp_level_count,
                 *output_polynomial_size,
-            ) * parameter_set.input_lwe_dimension.0
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_glwe_size == parameter_set.output_glwe_size
-            && *output_polynomial_size == parameter_set.output_polynomial_size
-            && *ciphertext_modulus == parameter_set.ciphertext_modulus
+            ) * expected_input_lwe_dimension.0
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_glwe_size == expected_output_glwe_size
+            && output_polynomial_size == expected_output_polynomial_size
+            && ciphertext_modulus == expected_ciphertext_modulus
     }
 }

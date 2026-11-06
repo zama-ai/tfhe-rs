@@ -144,9 +144,12 @@ impl ParameterSetConformant for CompressedFheBool {
     type ParameterSet = CompressedFheBoolConformanceParams;
 
     fn is_conformant(&self, params: &CompressedFheBoolConformanceParams) -> bool {
-        match &self.inner {
-            InnerCompressedFheBool::Seeded(seeded) => seeded.is_conformant(&params.0.into()),
-            InnerCompressedFheBool::ModulusSwitched(ct) => ct.is_conformant(&params.0),
+        let Self { inner, tag: _ } = self;
+        let &CompressedFheBoolConformanceParams(ct_params) = params;
+
+        match inner {
+            InnerCompressedFheBool::Seeded(seeded) => seeded.is_conformant(&ct_params.into()),
+            InnerCompressedFheBool::ModulusSwitched(ct) => ct.is_conformant(&ct_params),
         }
     }
 }

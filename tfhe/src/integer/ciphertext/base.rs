@@ -41,11 +41,15 @@ impl<T: ParameterSetConformant<ParameterSet = CiphertextConformanceParams>> Para
 
     fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
         let Self { blocks } = self;
+        let RadixCiphertextConformanceParams {
+            shortint_params,
+            num_blocks_per_integer,
+        } = params;
 
-        blocks.len() == params.num_blocks_per_integer
+        blocks.len() == *num_blocks_per_integer
             && blocks
                 .iter()
-                .all(|block| block.is_conformant(&params.shortint_params))
+                .all(|block| block.is_conformant(shortint_params))
     }
 }
 
@@ -159,11 +163,15 @@ impl<T: ParameterSetConformant<ParameterSet = CiphertextConformanceParams>> Para
 
     fn is_conformant(&self, params: &RadixCiphertextConformanceParams) -> bool {
         let Self { blocks } = self;
+        let RadixCiphertextConformanceParams {
+            shortint_params,
+            num_blocks_per_integer,
+        } = params;
 
-        blocks.len() == params.num_blocks_per_integer
+        blocks.len() == *num_blocks_per_integer
             && blocks
                 .iter()
-                .all(|block| block.is_conformant(&params.shortint_params))
+                .all(|block| block.is_conformant(shortint_params))
     }
 }
 

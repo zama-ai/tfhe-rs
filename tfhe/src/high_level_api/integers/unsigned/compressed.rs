@@ -202,8 +202,12 @@ impl<Id: FheUintId> ParameterSetConformant for CompressedFheUint<Id> {
             id: _,
             tag: _,
         } = self;
+        let CompressedFheUintConformanceParams {
+            params: ct_params,
+            id: _,
+        } = params;
 
-        ciphertext.is_conformant(&params.params)
+        ciphertext.is_conformant(ct_params)
     }
 }
 
@@ -226,9 +230,11 @@ pub struct CompressedRadixCiphertextConformanceParams(
 impl ParameterSetConformant for CompressedRadixCiphertext {
     type ParameterSet = CompressedRadixCiphertextConformanceParams;
     fn is_conformant(&self, params: &CompressedRadixCiphertextConformanceParams) -> bool {
+        let &CompressedRadixCiphertextConformanceParams(ct_params) = params;
+
         match self {
-            Self::Seeded(ct) => ct.is_conformant(&params.0.into()),
-            Self::ModulusSwitched(ct) => ct.is_conformant(&params.0),
+            Self::Seeded(ct) => ct.is_conformant(&ct_params.into()),
+            Self::ModulusSwitched(ct) => ct.is_conformant(&ct_params),
         }
     }
 }

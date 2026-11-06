@@ -1747,15 +1747,34 @@ impl From<&PBSParameters> for PBSConformanceParams {
 
 impl From<&KeySwitch32PBSParameters> for PBSConformanceParams {
     fn from(value: &KeySwitch32PBSParameters) -> Self {
+        let KeySwitch32PBSParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            pbs_base_log,
+            pbs_level,
+            ciphertext_modulus,
+            modulus_switch_noise_reduction_params,
+            ks_base_log: _,
+            ks_level: _,
+            post_keyswitch_ciphertext_modulus: _,
+            lwe_noise_distribution: _,
+            glwe_noise_distribution: _,
+            message_modulus: _,
+            carry_modulus: _,
+            max_noise_level: _,
+            log2_p_fail: _,
+        } = *value;
+
         Self {
-            in_lwe_dimension: value.lwe_dimension(),
-            out_glwe_dimension: value.glwe_dimension(),
-            out_polynomial_size: value.polynomial_size(),
-            base_log: value.pbs_base_log(),
-            level: value.pbs_level(),
-            ciphertext_modulus: value.ciphertext_modulus(),
+            in_lwe_dimension: lwe_dimension,
+            out_glwe_dimension: glwe_dimension,
+            out_polynomial_size: polynomial_size,
+            base_log: pbs_base_log,
+            level: pbs_level,
+            ciphertext_modulus,
             pbs_type: PbsTypeConformanceParams::Classic {
-                modulus_switch_noise_reduction: value.modulus_switch_noise_reduction_params,
+                modulus_switch_noise_reduction: modulus_switch_noise_reduction_params,
             },
         }
     }
@@ -1768,7 +1787,17 @@ where
     type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, &parameter_set.pbs_type) {
+        let PBSConformanceParams {
+            in_lwe_dimension,
+            pbs_type,
+            out_glwe_dimension: _,
+            out_polynomial_size: _,
+            base_log: _,
+            level: _,
+            ciphertext_modulus: _,
+        } = parameter_set;
+
+        match (self, pbs_type) {
             (
                 Self::Classic {
                     bsk,
@@ -1798,7 +1827,7 @@ where
                         let param = ModulusSwitchNoiseReductionKeyConformanceParams {
                             modulus_switch_noise_reduction_params:
                                 *modulus_switch_noise_reduction_params,
-                            lwe_dimension: parameter_set.in_lwe_dimension,
+                            lwe_dimension: *in_lwe_dimension,
                         };
 
                         modulus_switch_noise_reduction_key.is_conformant(&param)
@@ -1816,7 +1845,9 @@ where
                     thread_count: _,
                     deterministic_execution: _,
                 },
-                PbsTypeConformanceParams::MultiBit { .. },
+                PbsTypeConformanceParams::MultiBit {
+                    lwe_bsk_grouping_factor: _,
+                },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
                 .is_ok_and(|param| fourier_bsk.is_conformant(&param)),
             _ => false,

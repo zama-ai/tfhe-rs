@@ -60,13 +60,25 @@ pub struct CompressedModulusSwitchedCiphertextConformanceParams {
 
 impl From<CompressedModulusSwitchedCiphertextConformanceParams> for CiphertextConformanceParams {
     fn from(value: CompressedModulusSwitchedCiphertextConformanceParams) -> Self {
+        let CompressedModulusSwitchedCiphertextConformanceParams {
+            ct_params:
+                CompressedModulusSwitchedLweCiphertextConformanceParams {
+                    ct_params,
+                    ms_decompression_type: _,
+                },
+            message_modulus,
+            carry_modulus,
+            degree,
+            atomic_pattern,
+        } = value;
+
         Self {
-            ct_params: value.ct_params.ct_params,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            degree: DegreeConformance::Exact(value.degree),
+            ct_params,
+            message_modulus,
+            carry_modulus,
+            degree: DegreeConformance::Exact(degree),
             noise_level: NoiseLevelConformance::Exact(NoiseLevel::NOMINAL),
-            atomic_pattern: value.atomic_pattern,
+            atomic_pattern,
         }
     }
 }

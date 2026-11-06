@@ -122,9 +122,14 @@ impl From<CompressedModulusSwitchedRadixCiphertextConformanceParams>
     for RadixCiphertextConformanceParams
 {
     fn from(value: CompressedModulusSwitchedRadixCiphertextConformanceParams) -> Self {
+        let CompressedModulusSwitchedRadixCiphertextConformanceParams {
+            shortint_params,
+            num_blocks_per_integer,
+        } = value;
+
         Self {
-            shortint_params: value.shortint_params.into(),
-            num_blocks_per_integer: value.num_blocks_per_integer,
+            shortint_params: shortint_params.into(),
+            num_blocks_per_integer,
         }
     }
 }
@@ -140,8 +145,12 @@ impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertextGeneric 
             paired_blocks,
             last_block,
         } = self;
+        let &CompressedModulusSwitchedRadixCiphertextConformanceParams {
+            shortint_params: base_shortint_params,
+            num_blocks_per_integer,
+        } = params;
 
-        let mut shortint_params = params.shortint_params;
+        let mut shortint_params = base_shortint_params;
 
         shortint_params.degree = Degree::new(
             MaxDegree::from_msg_carry_modulus(
@@ -151,16 +160,16 @@ impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertextGeneric 
             .get(),
         );
 
-        let paired_blocks_len_ok = paired_blocks.len() == params.num_blocks_per_integer / 2;
+        let paired_blocks_len_ok = paired_blocks.len() == num_blocks_per_integer / 2;
 
         let paired_blocks_ok = paired_blocks
             .iter()
             .all(|block| block.is_conformant(&shortint_params));
 
-        let last_item_ok = if params.num_blocks_per_integer % 2 == 1 {
+        let last_item_ok = if num_blocks_per_integer % 2 == 1 {
             last_block
                 .as_ref()
-                .is_some_and(|last_block| last_block.is_conformant(&params.shortint_params))
+                .is_some_and(|last_block| last_block.is_conformant(&base_shortint_params))
         } else {
             last_block.is_none()
         };
