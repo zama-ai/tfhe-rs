@@ -566,6 +566,27 @@ create_parameterized_test!(
         }
     }
 );
+create_parameterized_test!(
+    integer_full_propagate_full_blocks {
+        coverage => {
+            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+            COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,  // Test case where carry_modulus > message_modulus
+            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+        },
+        no_coverage => {
+            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128,  // Test case where carry_modulus > message_modulus
+            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+        }
+    }
+);
 
 /// The function executor for cpu server key
 ///
@@ -956,6 +977,14 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate_parallelized);
     full_propagate_test(param, executor);
+}
+
+fn integer_full_propagate_full_blocks<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate_parallelized);
+    full_propagate_full_blocks_test(param, executor);
 }
 
 /// Test using smaller scalar type than the radix in order to make sure block decomposition is
