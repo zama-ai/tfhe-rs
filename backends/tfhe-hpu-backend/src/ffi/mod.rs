@@ -290,6 +290,22 @@ impl MemZone {
         let ofst_bytes = ofst * std::mem::size_of::<T>();
         self.write_bytes(ofst_bytes, data_bytes);
     }
+
+    /// Read each zone from its base, all reads in flight at once
+    pub fn read_batch<T: Sized + bytemuck::Pod>(reqs: &mut [(&MemZone, &mut [T])]) {
+        #[cfg(feature = "hw-v80")]
+        {
+            let mut reqs = reqs
+                .iter_mut()
+                .map(|(mz, data)| (&mz.0, bytemuck::cast_slice_mut::<T, u8>(data)))
+                .collect::<Vec<_>>();
+            v80::MemZone::read_batch(&mut reqs);
+        }
+        #[cfg(not(feature = "hw-v80"))]
+        for (mz, data) in reqs.iter_mut() {
+            mz.read(0, data);
+        }
+    }
 }
 
 #[cfg(feature = "hw-v80")]
