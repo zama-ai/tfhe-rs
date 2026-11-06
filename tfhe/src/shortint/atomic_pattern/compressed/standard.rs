@@ -131,16 +131,21 @@ impl CompressedStandardAtomicPatternServerKey {
 
     /// Expand to standard domain without Fourier conversion.
     pub fn expand(&self) -> ExpandedStandardAtomicPatternServerKey {
-        let key_switching_key = self
-            .key_switching_key()
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            pbs_order,
+        } = self;
+
+        let key_switching_key = key_switching_key
             .as_view()
             .par_decompress_into_lwe_keyswitch_key();
-        let bootstrapping_key = self.bootstrapping_key().expand();
+        let bootstrapping_key = bootstrapping_key.expand();
 
         ExpandedStandardAtomicPatternServerKey {
             key_switching_key,
             bootstrapping_key,
-            pbs_order: self.pbs_order(),
+            pbs_order: *pbs_order,
         }
     }
 

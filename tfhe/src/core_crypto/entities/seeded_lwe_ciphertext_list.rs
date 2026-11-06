@@ -158,11 +158,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            lwe_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_list = LweCiphertextList::new(
             Scalar::ZERO,
-            self.lwe_size(),
+            lwe_size,
             self.lwe_ciphertext_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         decompress_seeded_lwe_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
@@ -177,11 +184,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let &Self {
+            lwe_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_list = LweCiphertextList::new(
             Scalar::ZERO,
-            self.lwe_size(),
+            lwe_size,
             self.lwe_ciphertext_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         par_decompress_seeded_lwe_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
@@ -233,11 +247,17 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
+        let &Self {
+            lwe_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = self;
+
         let lwe_count = self.lwe_ciphertext_count().0;
         let lwe_mask_sample_count =
-            lwe_ciphertext_encryption_mask_sample_count(self.lwe_size().to_lwe_dimension());
+            lwe_ciphertext_encryption_mask_sample_count(lwe_size.to_lwe_dimension());
 
-        let ciphertext_modulus = self.ciphertext_modulus();
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(

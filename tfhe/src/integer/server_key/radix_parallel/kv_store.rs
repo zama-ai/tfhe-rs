@@ -451,13 +451,20 @@ where
     where
         Key: Copy + Display + Ord,
     {
-        if Value::IS_SIGNED != self.is_signed {
+        let &Self {
+            ref keys,
+            ref values,
+            is_signed,
+            _v: _,
+        } = self;
+
+        if Value::IS_SIGNED != is_signed {
             let requested = if Value::IS_SIGNED {
                 "signed"
             } else {
                 "unsigned"
             };
-            let stored = if self.is_signed { "signed" } else { "unsigned" };
+            let stored = if is_signed { "signed" } else { "unsigned" };
             return Err(crate::error!(
                 "Requested value signedness does not match stored data: \
                  requested {requested} values but stored values are {stored}"
@@ -466,9 +473,8 @@ where
 
         let mut block_count = None;
         let mut store = KVStore::new();
-        for (i, key) in self.keys.iter().enumerate() {
-            let value: Value = self
-                .values
+        for (i, key) in keys.iter().enumerate() {
+            let value: Value = values
                 .get(i, decompression_key)?
                 .ok_or_else(|| crate::error!("Missing value for key '{key}'"))?;
 

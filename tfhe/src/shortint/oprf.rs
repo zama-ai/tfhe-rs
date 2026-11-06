@@ -522,7 +522,9 @@ impl CompressedOprfServerKey {
     }
 
     pub fn expand(&self) -> ExpandedOprfServerKey {
-        ExpandedOprfServerKey(self.inner.expand())
+        let Self { inner } = self;
+
+        ExpandedOprfServerKey(inner.expand())
     }
 }
 

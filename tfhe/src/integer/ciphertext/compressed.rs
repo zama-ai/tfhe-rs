@@ -9,8 +9,10 @@ pub type CompressedRadixCiphertext = BaseRadixCiphertext<CompressedCiphertext>;
 
 impl CompressedRadixCiphertext {
     pub fn decompress(&self) -> RadixCiphertext {
+        let Self { blocks } = self;
+
         RadixCiphertext::from(
-            self.blocks
+            blocks
                 .iter()
                 .map(CompressedCiphertext::decompress)
                 .collect::<Vec<_>>(),
@@ -24,8 +26,10 @@ pub type CompressedSignedRadixCiphertext = BaseSignedRadixCiphertext<CompressedC
 
 impl CompressedSignedRadixCiphertext {
     pub fn decompress(&self) -> SignedRadixCiphertext {
+        let Self { blocks } = self;
+
         SignedRadixCiphertext::from(
-            self.blocks
+            blocks
                 .iter()
                 .map(CompressedCiphertext::decompress)
                 .collect::<Vec<_>>(),
@@ -38,12 +42,12 @@ pub type CompressedCrtCiphertext = BaseCrtCiphertext<CompressedCiphertext>;
 
 impl CompressedCrtCiphertext {
     pub fn decompress(&self) -> CrtCiphertext {
-        let blocks = self
-            .blocks
+        let Self { blocks, moduli } = self;
+
+        let blocks = blocks
             .iter()
             .map(CompressedCiphertext::decompress)
             .collect::<Vec<_>>();
-        let moduli = self.moduli.clone();
-        CrtCiphertext::from((blocks, moduli))
+        CrtCiphertext::from((blocks, moduli.clone()))
     }
 }

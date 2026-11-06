@@ -219,8 +219,10 @@ pub struct CompressedKeySwitchingKeyMaterial {
 
 impl CompressedKeySwitchingKeyMaterial {
     pub fn decompress(&self) -> KeySwitchingKeyMaterial {
+        let Self { material } = self;
+
         KeySwitchingKeyMaterial {
-            material: self.material.decompress(),
+            material: material.decompress(),
         }
     }
 
@@ -292,8 +294,10 @@ impl CompressedKeySwitchingKey {
     }
 
     pub fn decompress(&self) -> KeySwitchingKey {
+        let Self { key } = self;
+
         KeySwitchingKey {
-            key: self.key.decompress(),
+            key: key.decompress(),
         }
     }
 }

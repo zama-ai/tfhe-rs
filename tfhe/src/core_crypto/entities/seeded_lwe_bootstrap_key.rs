@@ -208,14 +208,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweBootstrap
     where
         Scalar: UnsignedTorus,
     {
+        let Self { ggsw_list } = &self;
+
         let mut decompressed_bsk = LweBootstrapKeyOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            ggsw_list.glwe_size(),
+            ggsw_list.polynomial_size(),
+            ggsw_list.decomposition_base_log(),
+            ggsw_list.decomposition_level_count(),
             self.input_lwe_dimension(),
-            self.ciphertext_modulus(),
+            ggsw_list.ciphertext_modulus(),
         );
         decompress_seeded_lwe_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
@@ -230,14 +232,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweBootstrap
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let Self { ggsw_list } = &self;
+
         let mut decompressed_bsk = LweBootstrapKeyOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            ggsw_list.glwe_size(),
+            ggsw_list.polynomial_size(),
+            ggsw_list.decomposition_base_log(),
+            ggsw_list.decomposition_level_count(),
             self.input_lwe_dimension(),
-            self.ciphertext_modulus(),
+            ggsw_list.ciphertext_modulus(),
         );
         par_decompress_seeded_lwe_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,

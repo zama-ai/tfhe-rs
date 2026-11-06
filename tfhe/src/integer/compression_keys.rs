@@ -67,8 +67,10 @@ impl Named for CompressedDecompressionKey {
 
 impl CompressedCompressionKey {
     pub fn decompress(&self) -> CompressionKey {
+        let Self { key } = self;
+
         CompressionKey {
-            key: self.key.decompress(),
+            key: key.decompress(),
         }
     }
 
@@ -86,8 +88,10 @@ impl CompressedCompressionKey {
 
 impl CompressedDecompressionKey {
     pub fn decompress(&self) -> DecompressionKey {
+        let Self { key } = self;
+
         DecompressionKey {
-            key: self.key.decompress(),
+            key: key.decompress(),
         }
     }
 

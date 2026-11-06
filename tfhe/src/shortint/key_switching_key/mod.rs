@@ -987,16 +987,22 @@ pub struct CompressedKeySwitchingKeyMaterial {
 
 impl CompressedKeySwitchingKeyMaterial {
     pub fn decompress(&self) -> KeySwitchingKeyMaterial {
-        let key_switching_key = self
-            .key_switching_key
+        let Self {
+            key_switching_key,
+            cast_rshift,
+            destination_key,
+            destination_atomic_pattern,
+        } = self;
+
+        let key_switching_key = key_switching_key
             .as_view()
             .par_decompress_into_lwe_keyswitch_key();
 
         KeySwitchingKeyMaterial {
             key_switching_key,
-            cast_rshift: self.cast_rshift,
-            destination_key: self.destination_key,
-            destination_atomic_pattern: self.destination_atomic_pattern,
+            cast_rshift: *cast_rshift,
+            destination_key: *destination_key,
+            destination_atomic_pattern: *destination_atomic_pattern,
         }
     }
 
@@ -1143,13 +1149,16 @@ impl CompressedKeySwitchingKey {
     }
 
     pub fn decompress(&self) -> KeySwitchingKey {
+        let Self {
+            key_switching_key_material,
+            dest_server_key,
+            src_server_key,
+        } = self;
+
         KeySwitchingKey {
-            key_switching_key_material: self.key_switching_key_material.decompress(),
-            dest_server_key: self.dest_server_key.decompress(),
-            src_server_key: self
-                .src_server_key
-                .as_ref()
-                .map(CompressedServerKey::decompress),
+            key_switching_key_material: key_switching_key_material.decompress(),
+            dest_server_key: dest_server_key.decompress(),
+            src_server_key: src_server_key.as_ref().map(CompressedServerKey::decompress),
         }
     }
 

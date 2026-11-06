@@ -379,11 +379,18 @@ impl CompressedNoiseSquashingKey {
     }
 
     pub fn decompress(&self) -> NoiseSquashingKey {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = self;
+
         NoiseSquashingKey::from_raw_parts(
-            self.atomic_pattern.decompress(),
-            self.message_modulus,
-            self.carry_modulus,
-            self.output_ciphertext_modulus,
+            atomic_pattern.decompress(),
+            *message_modulus,
+            *carry_modulus,
+            *output_ciphertext_modulus,
         )
     }
 

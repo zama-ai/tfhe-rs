@@ -844,35 +844,34 @@ impl CompactCiphertextList {
         &self,
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        let Self { ct_list, info } = self;
+
         if self.is_empty() {
             return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
         }
-        if self.ct_list.is_empty() {
+        if ct_list.is_empty() {
             return Err(crate::error!(
                 "Invalid compact ciphertext list: it holds no ciphertext but its metadata \
                 describes {} items",
-                self.info.len()
+                info.len()
             ));
         }
         let helper =
             IntegerUnpackingToShortintCastingModeHelper::from_expansion_mode(expansion_mode);
-        let functions =
-            helper.generate_expand_functions(&self.info, self.is_packed(), self.ct_list.len())?;
+        let functions = helper.generate_expand_functions(info, self.is_packed(), ct_list.len())?;
 
         let casted_blocks = match expansion_mode {
             IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
                 key_switching_key_view,
-            ) => self
-                .ct_list
-                .expand(key_switching_key_view.key, Some(functions.as_slice()))?,
-            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => self
-                .ct_list
-                .expand_without_casting_and_apply_functions(&sks.key, &functions)?,
+            ) => ct_list.expand(key_switching_key_view.key, Some(functions.as_slice()))?,
+            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
+                ct_list.expand_without_casting_and_apply_functions(&sks.key, &functions)?
+            }
         };
 
         Ok(CompactCiphertextListExpander::new(
             casted_blocks,
-            self.info.clone(),
+            info.clone(),
         ))
     }
 
@@ -884,14 +883,16 @@ impl CompactCiphertextList {
     ///
     /// Return an error if the list is packed or needs casting
     pub fn expand_without_key(&self) -> crate::Result<CompactCiphertextListExpander> {
+        let Self { ct_list, info } = self;
+
         if self.is_empty() {
             return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
         }
-        if self.ct_list.is_empty() {
+        if ct_list.is_empty() {
             return Err(crate::error!(
                 "Invalid compact ciphertext list: it holds no ciphertext but its metadata \
                 describes {} items",
-                self.info.len()
+                info.len()
             ));
         }
         if self.is_packed() {
@@ -909,12 +910,9 @@ impl CompactCiphertextList {
             ));
         }
 
-        let blocks = self.ct_list.expand_without_casting()?;
+        let blocks = ct_list.expand_without_casting()?;
 
-        Ok(CompactCiphertextListExpander::new(
-            blocks,
-            self.info.clone(),
-        ))
+        Ok(CompactCiphertextListExpander::new(blocks, info.clone()))
     }
 
     pub fn size_elements(&self) -> usize {
@@ -1020,40 +1018,39 @@ impl ProvenCompactCiphertextList {
         &self,
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        let Self { ct_list, info } = self;
+
         if self.is_empty() {
             return Ok(CompactCiphertextListExpander::new(Vec::new(), Vec::new()));
         }
-        if self.ct_list.ciphertext_count() == 0 {
+        if ct_list.ciphertext_count() == 0 {
             return Err(crate::error!(
                 "Invalid compact ciphertext list: it holds no ciphertext but its metadata \
                 describes {} items",
-                self.info.len()
+                info.len()
             ));
         }
 
         let helper =
             IntegerUnpackingToShortintCastingModeHelper::from_expansion_mode(expansion_mode);
-        let functions = helper.generate_expand_functions(
-            &self.info,
-            self.is_packed(),
-            self.ct_list.ciphertext_count(),
-        )?;
+        let functions =
+            helper.generate_expand_functions(info, self.is_packed(), ct_list.ciphertext_count())?;
 
         let casted_blocks = match expansion_mode {
             IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
                 key_switching_key_view,
-            ) => self.ct_list.expand_without_verification(
+            ) => ct_list.expand_without_verification(
                 key_switching_key_view.key,
                 Some(functions.as_slice()),
             )?,
-            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => self
-                .ct_list
-                .expand_without_verification_or_casting(&sks.key, &functions)?,
+            IntegerCompactCiphertextListExpansionMode::UnpackAndSanitizeIfNecessary(sks) => {
+                ct_list.expand_without_verification_or_casting(&sks.key, &functions)?
+            }
         };
 
         Ok(CompactCiphertextListExpander::new(
             casted_blocks,
-            self.info.clone(),
+            info.clone(),
         ))
     }
 

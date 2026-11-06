@@ -117,9 +117,11 @@ impl CompressedCompactPublicKey {
 
     /// Decompresses the key
     pub fn decompress(&self) -> CompactPublicKey {
+        let Self { key, tag } = self;
+
         CompactPublicKey {
-            key: self.key.decompress(),
-            tag: self.tag.clone(),
+            key: key.decompress(),
+            tag: tag.clone(),
         }
     }
 

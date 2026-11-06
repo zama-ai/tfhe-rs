@@ -342,22 +342,23 @@ impl CompactCiphertextList {
         &self,
         sks: impl Into<InternalServerKeyRef<'a>>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        let Self { inner, tag } = self;
         let sks = sks.into();
-        match (&self.inner, sks) {
+        match (inner, sks) {
             (InnerCompactCiphertextList::Cpu(cpu_inner), InternalServerKeyRef::Cpu(cpu_key)) => {
                 // CPU data, CPU key case
                 cpu_inner
                     .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
                     .map(|inner| CompactCiphertextListExpander {
                         inner: InnerCompactCiphertextListExpander::Cpu(inner),
-                        tag: self.tag.clone(),
+                        tag: tag.clone(),
                     })
             }
             #[cfg(feature = "gpu")]
             (InnerCompactCiphertextList::Cpu(cpu_inner), InternalServerKeyRef::Cuda(cuda_key)) => {
                 // An empty list cannot be moved to the GPU, expand it as the CPU does
                 if cpu_inner.is_empty() {
-                    return Ok(CompactCiphertextListExpander::empty(self.tag.clone()));
+                    return Ok(CompactCiphertextListExpander::empty(tag.clone()));
                 }
 
                 if !cpu_inner.is_packed() {
@@ -380,7 +381,7 @@ impl CompactCiphertextList {
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
-                    tag: self.tag.clone(),
+                    tag: tag.clone(),
                 })
             }
             #[cfg(feature = "gpu")]
@@ -396,7 +397,7 @@ impl CompactCiphertextList {
                     .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
                     .map(|inner| CompactCiphertextListExpander {
                         inner: InnerCompactCiphertextListExpander::Cpu(inner),
-                        tag: self.tag.clone(),
+                        tag: tag.clone(),
                     })
             }
             #[cfg(feature = "gpu")]
@@ -426,7 +427,7 @@ impl CompactCiphertextList {
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
-                    tag: self.tag.clone(),
+                    tag: tag.clone(),
                 })
             }
             #[cfg(feature = "hpu")]
@@ -458,12 +459,13 @@ impl CompactCiphertextList {
     /// Use [`expand`](Self::expand) if you need sanitization or unpacking.
     #[cfg(any(feature = "__wasm_api", test))]
     pub(crate) fn expand_without_key(&self) -> crate::Result<CompactCiphertextListExpander> {
-        match &self.inner {
+        let Self { inner, tag } = self;
+        match inner {
             InnerCompactCiphertextList::Cpu(inner) => {
                 let expanded = inner.expand_without_key()?;
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cpu(expanded),
-                    tag: self.tag.clone(),
+                    tag: tag.clone(),
                 })
             }
             #[cfg(feature = "gpu")]

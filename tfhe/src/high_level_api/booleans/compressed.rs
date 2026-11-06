@@ -75,7 +75,9 @@ impl CompressedFheBool {
     ///
     /// See [CompressedFheBool] example.
     pub fn decompress(&self) -> FheBool {
-        let ciphertext = BooleanBlock::new_unchecked(match &self.inner {
+        let Self { inner, tag } = self;
+
+        let ciphertext = BooleanBlock::new_unchecked(match inner {
             InnerCompressedFheBool::Seeded(seeded) => seeded.decompress(),
             InnerCompressedFheBool::ModulusSwitched(modulus_switched) => {
                 global_state::with_internal_keys(|keys| match keys {
@@ -93,11 +95,8 @@ impl CompressedFheBool {
                 })
             }
         });
-        let mut ciphertext = FheBool::new(
-            ciphertext,
-            self.tag.clone(),
-            ReRandomizationMetadata::default(),
-        );
+        let mut ciphertext =
+            FheBool::new(ciphertext, tag.clone(), ReRandomizationMetadata::default());
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         ciphertext
     }

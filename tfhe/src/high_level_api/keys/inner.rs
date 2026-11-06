@@ -1028,8 +1028,10 @@ impl IntegerCompressedCompactPublicKey {
     }
 
     pub(in crate::high_level_api) fn decompress(&self) -> IntegerCompactPublicKey {
+        let Self { key } = self;
+
         IntegerCompactPublicKey {
-            key: CompressedCompactPublicKey::decompress(&self.key),
+            key: CompressedCompactPublicKey::decompress(key),
         }
     }
 

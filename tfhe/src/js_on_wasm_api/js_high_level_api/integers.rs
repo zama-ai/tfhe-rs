@@ -36,11 +36,10 @@ impl ProvenCompactCiphertextList {
 
     #[wasm_bindgen]
     pub fn expand_without_verification(&self) -> Result<CompactCiphertextListExpander, JsError> {
+        let Self(list) = self;
+
         catch_panic_result(|| {
-            let inner = self
-                .0
-                .expand_without_verification()
-                .map_err(into_js_error)?;
+            let inner = list.expand_without_verification().map_err(into_js_error)?;
             Ok(CompactCiphertextListExpander(inner))
         })
     }
@@ -136,8 +135,10 @@ macro_rules! create_wrapper_type_non_native_type (
             pub fn decompress(
                 &self,
             ) -> Result<$type_name, JsError> {
+                let Self(compressed) = self;
+
                 catch_panic(||{
-                    $type_name(self.0.decompress())
+                    $type_name(compressed.decompress())
                 })
             }
 
@@ -599,8 +600,10 @@ macro_rules! create_wrapper_type_that_has_native_type (
             pub fn decompress(
                 &self,
             ) -> Result<$type_name, JsError> {
+                let Self(compressed) = self;
+
                 catch_panic(||{
-                    $type_name(self.0.decompress())
+                    $type_name(compressed.decompress())
                 })
             }
 
@@ -850,9 +853,10 @@ impl CompactCiphertextList {
 
     #[wasm_bindgen]
     pub fn expand(&self) -> Result<CompactCiphertextListExpander, JsError> {
+        let Self(list) = self;
+
         catch_panic_result(|| {
-            self.0
-                .expand()
+            list.expand()
                 .map_err(into_js_error)
                 .map(CompactCiphertextListExpander)
         })
@@ -860,9 +864,10 @@ impl CompactCiphertextList {
 
     #[wasm_bindgen]
     pub fn expand_without_key(&self) -> Result<CompactCiphertextListExpander, JsError> {
+        let Self(list) = self;
+
         catch_panic_result(|| {
-            self.0
-                .expand_without_key()
+            list.expand_without_key()
                 .map_err(into_js_error)
                 .map(CompactCiphertextListExpander)
         })

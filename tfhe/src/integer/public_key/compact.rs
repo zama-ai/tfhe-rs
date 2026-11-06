@@ -213,8 +213,10 @@ impl CompressedCompactPublicKey {
     }
 
     pub fn decompress(&self) -> CompactPublicKey {
+        let Self { key } = self;
+
         CompactPublicKey {
-            key: self.key.decompress(),
+            key: key.decompress(),
         }
     }
 

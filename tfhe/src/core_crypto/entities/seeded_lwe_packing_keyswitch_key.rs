@@ -292,14 +292,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_pksk = LwePackingKeyswitchKeyOwned::new(
             Scalar::ZERO,
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            decomp_base_log,
+            decomp_level_count,
             self.input_key_lwe_dimension(),
-            self.output_key_glwe_dimension(),
-            self.output_key_polynomial_size(),
-            self.ciphertext_modulus(),
+            output_glwe_size.to_glwe_dimension(),
+            output_polynomial_size,
+            ciphertext_modulus,
         );
         decompress_seeded_lwe_packing_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_pksk,
@@ -318,14 +328,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
         Scalar: UnsignedTorus,
         Gen: ByteRandomGenerator,
     {
+        let &Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = self;
+
         let mut decompressed_pksk = LwePackingKeyswitchKeyOwned::new(
             Scalar::ZERO,
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            decomp_base_log,
+            decomp_level_count,
             self.input_key_lwe_dimension(),
-            self.output_key_glwe_dimension(),
-            self.output_key_polynomial_size(),
-            self.ciphertext_modulus(),
+            output_glwe_size.to_glwe_dimension(),
+            output_polynomial_size,
+            ciphertext_modulus,
         );
 
         decompress_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator(
@@ -360,6 +380,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
+        let &Self {
+            ciphertext_modulus,
+            data: _,
+            output_glwe_size: _,
+            output_polynomial_size: _,
+            decomp_base_log: _,
+            decomp_level_count: _,
+            compression_seed: _,
+        } = self;
+
         let glwe_list = self.as_seeded_glwe_ciphertext_list();
         let per_glwe_mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
             glwe_list.glwe_size().to_glwe_dimension(),
@@ -369,9 +399,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
             glwe_list.glwe_ciphertext_count().0 * per_glwe_mask_sample_count.0,
         );
 
-        let modulus = self
-            .ciphertext_modulus()
-            .get_custom_modulus_as_optional_scalar();
+        let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(1, total_mask_sample_count, mask_distribution, modulus)
     }

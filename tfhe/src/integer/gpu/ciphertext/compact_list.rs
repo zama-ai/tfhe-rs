@@ -491,8 +491,26 @@ impl CudaFlattenedVecCompactCiphertextList {
         zk_type: crate::integer::gpu::ZKType,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
+        let Self {
+            d_flattened_vec,
+            num_lwe_per_compact_list,
+            data_info,
+            is_boolean,
+            lwe_dimension,
+            lwe_ciphertext_count,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            degree: _,
+            expansion_kind: _,
+        } = self;
+        let &CudaKeySwitchingKey {
+            key_switching_key_material: casting_key,
+            dest_server_key: sks,
+        } = key;
+
         // Already checked on construction, but `data_info` is mutable within the crate
-        check_data_info_is_supported_on_gpu(&self.data_info)?;
+        check_data_info_is_supported_on_gpu(data_info)?;
 
         // Casting unpacks the message and carry of each LWE into 2 blocks and sanitizes them using
         // `is_boolean`, whose flags are laid out per block: this only lines up for packed lists
@@ -502,26 +520,17 @@ impl CudaFlattenedVecCompactCiphertextList {
             ));
         }
 
-        let lwe_dimension = self.lwe_dimension;
-        let ciphertext_modulus = self.ciphertext_modulus;
-
-        let input_lwe_ciphertext_count = self.lwe_ciphertext_count;
-        let output_lwe_ciphertext_count = LweCiphertextCount(2 * input_lwe_ciphertext_count.0);
+        let output_lwe_ciphertext_count = LweCiphertextCount(2 * lwe_ciphertext_count.0);
 
         let d_expanded_blocks = unsafe {
             let mut d_output = CudaLweCiphertextList::new(
-                lwe_dimension,
+                *lwe_dimension,
                 output_lwe_ciphertext_count,
-                ciphertext_modulus,
+                *ciphertext_modulus,
                 streams,
             );
 
-            let d_input = &self.d_flattened_vec;
-            let casting_key = key.key_switching_key_material;
-            let sks = key.dest_server_key;
-
-            let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) =
-                &key.dest_server_key.key_switching_key
+            let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &sks.key_switching_key
             else {
                 panic!("Only the standard atomic pattern is supported on GPU")
             };
@@ -539,7 +548,7 @@ impl CudaFlattenedVecCompactCiphertextList {
             cuda_backend_expand(
                 streams,
                 &mut d_output,
-                d_input,
+                d_flattened_vec,
                 &computing_ks_key.d_vec,
                 &casting_key.lwe_keyswitch_key.d_vec,
                 &sks.bootstrapping_key,
@@ -548,18 +557,17 @@ impl CudaFlattenedVecCompactCiphertextList {
                 computing_ksk_params,
                 casting_ksk_params,
                 casting_key_type,
-                self.num_lwe_per_compact_list.as_slice(),
-                self.is_boolean.as_slice(),
-                self.is_boolean.len() as u32,
+                num_lwe_per_compact_list.as_slice(),
+                is_boolean.as_slice(),
+                is_boolean.len() as u32,
                 zk_type,
             );
             d_output
         };
 
-        let message_modulus = self.message_modulus;
-        let carry_modulus = self.carry_modulus;
-        let blocks_info = self
-            .data_info
+        let message_modulus = *message_modulus;
+        let carry_modulus = *carry_modulus;
+        let blocks_info = data_info
             .iter()
             .map(|data_kind| CudaCompactCiphertextListInfo {
                 info: CudaBlockInfo {
@@ -569,7 +577,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                     },
                     message_modulus,
                     carry_modulus,
-                    atomic_pattern: AtomicPatternKind::Standard(key.dest_server_key.pbs_order),
+                    atomic_pattern: AtomicPatternKind::Standard(sks.pbs_order),
                     noise_level: NoiseLevel::NOMINAL,
                 },
                 data_kind: *data_kind,

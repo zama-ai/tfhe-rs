@@ -265,15 +265,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     where
         Scalar: UnsignedTorus,
     {
+        let Self {
+            ggsw_list,
+            grouping_factor,
+        } = &self;
+
         let mut decompressed_bsk = LweMultiBitBootstrapKeyOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            ggsw_list.glwe_size(),
+            ggsw_list.polynomial_size(),
+            ggsw_list.decomposition_base_log(),
+            ggsw_list.decomposition_level_count(),
             self.input_lwe_dimension(),
-            self.grouping_factor(),
-            self.ciphertext_modulus(),
+            *grouping_factor,
+            ggsw_list.ciphertext_modulus(),
         );
         decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
@@ -290,15 +295,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let Self {
+            ggsw_list,
+            grouping_factor,
+        } = &self;
+
         let mut decompressed_bsk = LweMultiBitBootstrapKeyOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            ggsw_list.glwe_size(),
+            ggsw_list.polynomial_size(),
+            ggsw_list.decomposition_base_log(),
+            ggsw_list.decomposition_level_count(),
             self.input_lwe_dimension(),
-            self.grouping_factor(),
-            self.ciphertext_modulus(),
+            *grouping_factor,
+            ggsw_list.ciphertext_modulus(),
         );
         par_decompress_seeded_lwe_multi_bit_bootstrap_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_bsk,
@@ -353,18 +363,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
-        let ggsw_group_mask_sample_count = self.grouping_factor().ggsw_per_multi_bit_element().0
+        let Self {
+            ggsw_list,
+            grouping_factor,
+        } = self;
+
+        let ggsw_group_mask_sample_count = grouping_factor.ggsw_per_multi_bit_element().0
             * ggsw_ciphertext_encryption_mask_sample_count(
-                self.glwe_size(),
-                self.polynomial_size(),
-                self.decomposition_level_count(),
+                ggsw_list.glwe_size(),
+                ggsw_list.polynomial_size(),
+                ggsw_list.decomposition_level_count(),
             );
 
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let ciphertext_modulus = ggsw_list.ciphertext_modulus();
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(
-            equivalent_multi_bit_lwe_dimension(self.input_lwe_dimension(), self.grouping_factor())
+            equivalent_multi_bit_lwe_dimension(self.input_lwe_dimension(), *grouping_factor)
                 .unwrap()
                 .0,
             ggsw_group_mask_sample_count,

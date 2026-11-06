@@ -118,8 +118,10 @@ impl CompressedTranscipheringServerKey {
     }
 
     pub fn expand(&self) -> ExpandedTranscipheringServerKey {
+        let Self { oprf_key } = self;
+
         ExpandedTranscipheringServerKey {
-            oprf_key: self.oprf_key.expand(),
+            oprf_key: oprf_key.expand(),
         }
     }
 

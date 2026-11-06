@@ -28,15 +28,20 @@ pub struct CompressedCompressionKey {
 
 impl CompressedCompressionKey {
     pub fn decompress(&self) -> CompressionKey {
-        let packing_key_switching_key = self
-            .packing_key_switching_key
+        let Self {
+            packing_key_switching_key,
+            lwe_per_glwe,
+            storage_log_modulus,
+        } = self;
+
+        let packing_key_switching_key = packing_key_switching_key
             .as_view()
             .decompress_into_lwe_packing_keyswitch_key();
 
         CompressionKey {
             packing_key_switching_key,
-            lwe_per_glwe: self.lwe_per_glwe,
-            storage_log_modulus: self.storage_log_modulus,
+            lwe_per_glwe: *lwe_per_glwe,
+            storage_log_modulus: *storage_log_modulus,
         }
     }
 }
@@ -60,11 +65,13 @@ impl CompressedDecompressionKey {
     }
 
     pub fn decompress(&self) -> DecompressionKey {
-        let bsk = self.bsk.decompress();
+        let Self { bsk, lwe_per_glwe } = self;
+
+        let bsk = bsk.decompress();
 
         DecompressionKey {
             bsk,
-            lwe_per_glwe: self.lwe_per_glwe,
+            lwe_per_glwe: *lwe_per_glwe,
         }
     }
 
@@ -173,14 +180,18 @@ pub struct CompressedNoiseSquashingCompressionKey {
 
 impl CompressedNoiseSquashingCompressionKey {
     pub fn decompress(&self) -> NoiseSquashingCompressionKey {
-        let packing_key_switching_key = self
-            .packing_key_switching_key
+        let Self {
+            packing_key_switching_key,
+            lwe_per_glwe,
+        } = self;
+
+        let packing_key_switching_key = packing_key_switching_key
             .as_view()
             .decompress_into_lwe_packing_keyswitch_key();
 
         NoiseSquashingCompressionKey {
             packing_key_switching_key,
-            lwe_per_glwe: self.lwe_per_glwe,
+            lwe_per_glwe: *lwe_per_glwe,
         }
     }
 

@@ -235,14 +235,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_list = GgswCiphertextListOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
             self.ggsw_ciphertext_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         decompress_seeded_ggsw_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
@@ -257,14 +267,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_list = GgswCiphertextListOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
             self.ggsw_ciphertext_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         par_decompress_seeded_ggsw_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
@@ -303,14 +323,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            decomp_level_count,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+            decomp_base_log: _,
+        } = self;
+
         let ggsw_count = self.ggsw_ciphertext_count().0;
         let ggsw_mask_sample_count = ggsw_ciphertext_encryption_mask_sample_count(
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_level_count(),
+            glwe_size,
+            polynomial_size,
+            decomp_level_count,
         );
 
-        let ciphertext_modulus = self.ciphertext_modulus();
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(

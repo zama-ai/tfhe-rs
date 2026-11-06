@@ -1020,6 +1020,8 @@ where
         <Value::Id as IntegerId>::InnerCpu: Expandable,
         Key: Copy + Display + Ord,
     {
+        let Self { inner, tag: _ } = self;
+
         global_state::try_with_internal_keys(|key| match key {
             Some(InternalServerKey::Cpu(cpu_key)) => {
                 let decomp_key = cpu_key
@@ -1027,7 +1029,7 @@ where
                     .decompression_key
                     .as_ref()
                     .ok_or(crate::high_level_api::errors::UninitializedDecompressionKey)?;
-                let inner_kv_store = self.inner.decompress(decomp_key)?;
+                let inner_kv_store = inner.decompress(decomp_key)?;
 
                 let Some(actual_block_count) = inner_kv_store.blocks_per_radix() else {
                     return Ok(KVStore::new()); // The KVstore was empty
@@ -1052,7 +1054,7 @@ where
                     .as_ref()
                     .ok_or(crate::high_level_api::errors::UninitializedDecompressionKey)?;
                 let streams = &cuda_key.streams;
-                let inner_kv_store = self.inner.decompress_to_cuda(decomp_key, streams)?;
+                let inner_kv_store = inner.decompress_to_cuda(decomp_key, streams)?;
 
                 let Some(actual_block_count) = inner_kv_store.blocks_per_radix() else {
                     return Ok(KVStore::new());

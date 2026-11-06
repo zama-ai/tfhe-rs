@@ -230,10 +230,12 @@ impl ProvenCompactCiphertextList {
         &self,
         sks: impl Into<InternalServerKeyRef<'a>>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        let Self { inner, tag } = self;
+
         let sks = sks.into();
         match sks {
             InternalServerKeyRef::Cpu(cpu_key) => {
-                let cpu_inner = self.inner.on_cpu();
+                let cpu_inner = inner.on_cpu();
                 let shortint_lists_iter = cpu_inner
                     .ct_list
                     .proved_lists
@@ -249,7 +251,7 @@ impl ProvenCompactCiphertextList {
                             cpu_inner.info.clone(),
                         ),
                     ),
-                    tag: self.tag.clone(),
+                    tag: tag.clone(),
                 })
             }
             #[cfg(feature = "gpu")]

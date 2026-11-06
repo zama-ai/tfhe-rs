@@ -178,13 +178,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
-        let glwe = self.as_seeded_glwe_ciphertext();
+        let Self {
+            seeded_glwe_ciphertext,
+        } = self;
+
         let mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
-            glwe.glwe_size().to_glwe_dimension(),
-            glwe.polynomial_size(),
+            seeded_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+            seeded_glwe_ciphertext.polynomial_size(),
         );
 
-        let modulus = self
+        let modulus = seeded_glwe_ciphertext
             .ciphertext_modulus()
             .get_custom_modulus_as_optional_scalar();
 
@@ -199,10 +202,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
     where
         Scalar: UnsignedTorus,
     {
+        let Self {
+            seeded_glwe_ciphertext,
+        } = &self;
+
         let mut decompressed_cpk = LweCompactPublicKey::new(
             Scalar::ZERO,
             self.lwe_dimension(),
-            self.ciphertext_modulus(),
+            seeded_glwe_ciphertext.ciphertext_modulus(),
         );
         decompress_seeded_lwe_compact_public_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_cpk,

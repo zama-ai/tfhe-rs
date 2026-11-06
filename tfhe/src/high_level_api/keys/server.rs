@@ -557,9 +557,11 @@ impl CompressedServerKey {
     }
 
     pub fn decompress(&self) -> ServerKey {
+        let Self { integer_key, tag } = self;
+
         ServerKey {
-            key: Arc::new(self.integer_key.decompress()),
-            tag: self.tag.clone(),
+            key: Arc::new(integer_key.decompress()),
+            tag: tag.clone(),
         }
     }
 
@@ -573,15 +575,16 @@ impl CompressedServerKey {
         &self,
         gpu_choice: impl Into<crate::CudaGpuChoice>,
     ) -> CudaServerKey {
+        let Self { integer_key, tag } = self;
+
         let streams = gpu_choice.into().build_streams();
-        let key = self
-            .integer_key
+        let key = integer_key
             .expand()
             .convert_to_gpu(&streams)
             .expect("Unsupported configuration");
         CudaServerKey {
             key: Arc::new(key),
-            tag: self.tag.clone(),
+            tag: tag.clone(),
             streams,
         }
     }

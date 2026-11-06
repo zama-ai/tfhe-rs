@@ -111,7 +111,13 @@ where
     ///
     /// See [CompressedFheInt] example.
     pub fn decompress(&self) -> FheInt<Id> {
-        let ciphertext = match &self.ciphertext {
+        let Self {
+            ciphertext,
+            tag,
+            id: _,
+        } = self;
+
+        let ciphertext = match ciphertext {
             CompressedSignedRadixCiphertext::Seeded(ct) => ct.decompress(),
             CompressedSignedRadixCiphertext::ModulusSwitched(ct) => {
                 global_state::with_internal_keys(|keys| match keys {
@@ -129,11 +135,7 @@ where
                 })
             }
         };
-        FheInt::new(
-            ciphertext,
-            self.tag.clone(),
-            ReRandomizationMetadata::default(),
-        )
+        FheInt::new(ciphertext, tag.clone(), ReRandomizationMetadata::default())
     }
 }
 

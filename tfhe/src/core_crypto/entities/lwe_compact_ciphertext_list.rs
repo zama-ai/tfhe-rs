@@ -225,11 +225,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
     ///
     /// See [`LweCompactCiphertextList::from_container`] for usage.
     pub fn expand_into_lwe_ciphertext_list(self) -> LweCiphertextListOwned<Scalar> {
+        let &Self {
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
+            data: _,
+        } = &self;
+
         let mut lwe_ciphertext_list = LweCiphertextListOwned::new(
             Scalar::ZERO,
-            self.lwe_size(),
-            self.lwe_ciphertext_count(),
-            self.ciphertext_modulus(),
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
         );
 
         expand_lwe_compact_ciphertext_list(&mut lwe_ciphertext_list, &self);
@@ -241,11 +248,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
     where
         Scalar: UnsignedInteger + Send + Sync,
     {
+        let &Self {
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
+            data: _,
+        } = &self;
+
         let mut lwe_ciphertext_list = LweCiphertextListOwned::new(
             Scalar::ZERO,
-            self.lwe_size(),
-            self.lwe_ciphertext_count(),
-            self.ciphertext_modulus(),
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
         );
 
         par_expand_lwe_compact_ciphertext_list(&mut lwe_ciphertext_list, &self);

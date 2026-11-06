@@ -110,8 +110,12 @@ impl CudaProvenCompactCiphertextList {
         key: &CudaKeySwitchingKey,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        self.d_flattened_compact_lists
-            .expand(key, super::ZKType::Casting, streams)
+        let Self {
+            d_flattened_compact_lists,
+            h_proved_lists: _,
+        } = self;
+
+        d_flattened_compact_lists.expand(key, super::ZKType::Casting, streams)
     }
 
     /// # Safety

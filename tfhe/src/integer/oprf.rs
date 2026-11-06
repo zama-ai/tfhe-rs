@@ -63,7 +63,9 @@ impl CompressedOprfServerKey {
     }
 
     pub fn expand(&self) -> ExpandedOprfServerKey {
-        ExpandedOprfServerKey(self.0.expand())
+        let Self(inner) = self;
+
+        ExpandedOprfServerKey(inner.expand())
     }
 
     pub(crate) fn is_conformant(&self, params: &OprfKeyConformanceParams) -> bool {

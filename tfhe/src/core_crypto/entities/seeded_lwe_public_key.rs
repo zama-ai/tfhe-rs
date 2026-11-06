@@ -180,11 +180,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey
     where
         Scalar: UnsignedTorus,
     {
+        let Self { lwe_list } = &self;
+
         let mut decompressed_public_key = LwePublicKey::new(
             Scalar::ZERO,
-            self.lwe_size(),
+            lwe_list.lwe_size(),
             self.zero_encryption_count(),
-            self.ciphertext_modulus(),
+            lwe_list.ciphertext_modulus(),
         );
         decompress_seeded_lwe_public_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_public_key,
@@ -201,11 +203,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let Self { lwe_list } = &self;
+
         let mut decompressed_public_key = LwePublicKey::new(
             Scalar::ZERO,
-            self.lwe_size(),
+            lwe_list.lwe_size(),
             self.zero_encryption_count(),
-            self.ciphertext_modulus(),
+            lwe_list.ciphertext_modulus(),
         );
         par_decompress_seeded_lwe_public_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_public_key,

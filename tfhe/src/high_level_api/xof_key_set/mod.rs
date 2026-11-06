@@ -418,16 +418,19 @@ impl CompressedXofKeySet {
     }
 
     fn expand(&self) -> (CompactPublicKey, IntegerExpandedServerKey) {
-        let mut mask_generator =
-            MaskRandomGenerator::<DefaultRandomGenerator>::new(self.seed.clone());
+        let Self {
+            seed,
+            compressed_public_key,
+            compressed_server_key,
+        } = self;
 
-        let public_key = self
-            .compressed_public_key
-            .decompress_with_pre_seeded_generator(&mut mask_generator);
+        let mut mask_generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(seed.clone());
 
-        let expanded_server_key = self
-            .compressed_server_key
-            .decompress_with_pre_seeded_generator(&mut mask_generator);
+        let public_key =
+            compressed_public_key.decompress_with_pre_seeded_generator(&mut mask_generator);
+
+        let expanded_server_key =
+            compressed_server_key.decompress_with_pre_seeded_generator(&mut mask_generator);
 
         (public_key, expanded_server_key)
     }

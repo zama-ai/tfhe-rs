@@ -60,21 +60,29 @@ impl CompactCiphertextList {
     /// Expands a `CompactCiphertextList` by extracting the individual LWEs, but do not perform any
     /// operations (casting, sanitizing, ...)
     fn expand_raw(&self) -> ExpandedCiphertextList {
+        let Self {
+            ct_list,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind,
+        } = self;
+
         let mut output_lwe_ciphertext_list = LweCiphertextList::new(
             0u64,
-            self.ct_list.lwe_size(),
-            self.ct_list.lwe_ciphertext_count(),
-            self.ct_list.ciphertext_modulus(),
+            ct_list.lwe_size(),
+            ct_list.lwe_ciphertext_count(),
+            ct_list.ciphertext_modulus(),
         );
 
-        par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+        par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, ct_list);
 
         ExpandedCiphertextList {
             ct_list: output_lwe_ciphertext_list,
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            expansion_kind: self.expansion_kind,
+            degree: *degree,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            expansion_kind: *expansion_kind,
         }
     }
 

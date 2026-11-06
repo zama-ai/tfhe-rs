@@ -286,8 +286,10 @@ impl CompressedServerKey {
 
     /// Decompress a [`CompressedServerKey`] into a [`ServerKey`].
     pub fn decompress(&self) -> ServerKey {
+        let Self { key } = self;
+
         ServerKey {
-            key: self.key.decompress(),
+            key: key.decompress(),
         }
     }
 

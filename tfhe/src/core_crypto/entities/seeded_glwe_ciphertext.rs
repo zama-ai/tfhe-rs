@@ -195,11 +195,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            glwe_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_ct = GlweCiphertext::new(
             Scalar::ZERO,
-            self.glwe_size(),
+            glwe_size,
             self.polynomial_size(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         decompress_seeded_glwe_ciphertext::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ct,

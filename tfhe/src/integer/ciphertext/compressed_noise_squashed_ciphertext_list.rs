@@ -83,8 +83,11 @@ impl ParameterSetConformant for CompressedNoiseSquashingCompressionKey {
 
 impl CompressedNoiseSquashingCompressionKey {
     pub fn decompress(&self) -> NoiseSquashingCompressionKey {
-        let key = self.key.decompress();
-        NoiseSquashingCompressionKey { key }
+        let Self { key } = self;
+
+        NoiseSquashingCompressionKey {
+            key: key.decompress(),
+        }
     }
 
     #[cfg(feature = "gpu")]

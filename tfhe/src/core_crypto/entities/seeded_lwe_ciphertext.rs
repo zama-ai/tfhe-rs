@@ -174,8 +174,14 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
     where
         Scalar: UnsignedTorus,
     {
-        let mut decompressed_ct =
-            LweCiphertext::new(Scalar::ZERO, self.lwe_size(), self.ciphertext_modulus());
+        let &Self {
+            lwe_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
+        let mut decompressed_ct = LweCiphertext::new(Scalar::ZERO, lwe_size, ciphertext_modulus);
         decompress_seeded_lwe_ciphertext::<_, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
             &self,

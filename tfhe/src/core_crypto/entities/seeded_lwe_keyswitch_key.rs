@@ -245,13 +245,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_ksk = LweKeyswitchKeyOwned::new(
             Scalar::ZERO,
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            decomp_base_log,
+            decomp_level_count,
             self.input_key_lwe_dimension(),
-            self.output_key_lwe_dimension(),
-            self.ciphertext_modulus(),
+            output_lwe_size.to_lwe_dimension(),
+            ciphertext_modulus,
         );
         decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ksk,
@@ -266,13 +275,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let &Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_ksk = LweKeyswitchKeyOwned::new(
             Scalar::ZERO,
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            decomp_base_log,
+            decomp_level_count,
             self.input_key_lwe_dimension(),
-            self.output_key_lwe_dimension(),
-            self.ciphertext_modulus(),
+            output_lwe_size.to_lwe_dimension(),
+            ciphertext_modulus,
         );
         par_decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ksk,
