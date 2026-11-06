@@ -363,12 +363,8 @@ impl<'a> RHash<'a> {
     ) -> (Box<[i8]>, Self) {
         let (
             &PublicParams {
-                g_lists: _,
-                D: _,
                 n,
                 d,
-                k: _,
-                B_bound_squared: _,
                 B_inf,
                 q,
                 t: t_input,
@@ -376,6 +372,10 @@ impl<'a> RHash<'a> {
                 bound_type,
                 sid,
                 domain_separators: ref ds,
+                g_lists: _,
+                D: _,
+                k: _,
+                B_bound_squared: _,
             },
             PublicCommit {
                 a,

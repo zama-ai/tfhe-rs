@@ -1427,8 +1427,8 @@ pub(super) fn exec_dialect_op(
             outputs.push(RuntimeValue::FheBool(result));
         }
         HlInstructionSet::KVStoreCreate {
-            key_kind: _,
             value_kind,
+            key_kind: _,
         } => {
             let store = match value_kind {
                 FheIntKind::Uint(_) => RuntimeValue::FheUintKVStore(KVStore::new()),

@@ -121,9 +121,9 @@ impl IntegerConfig {
                 ReRandomizationParameters::DerivedCPKWithoutKeySwitch
                     | ReRandomizationParameters::LegacyDedicatedCPKWithKeySwitch {
                         rerand_ksk_params: ShortintKeySwitchingParameters {
+                            destination_key: EncryptionKeyChoice::Big,
                             ks_base_log: _,
                             ks_level: _,
-                            destination_key: EncryptionKeyChoice::Big
                         }
                     }
             ),

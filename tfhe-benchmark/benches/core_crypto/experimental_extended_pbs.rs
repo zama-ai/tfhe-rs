@@ -88,10 +88,10 @@ fn ks_extended_pbs(criterion: &mut Criterion) {
             ks_base_log,
             ks_level,
             precision_without_padding,
-            max_norm2: _,
-            log2_p_fail: _,
             ciphertext_modulus,
             encryption_key_choice,
+            max_norm2: _,
+            log2_p_fail: _,
         } = *params;
 
         let plaintext_modulus = 1 << precision_without_padding.0;

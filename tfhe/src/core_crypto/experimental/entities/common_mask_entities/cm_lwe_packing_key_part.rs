@@ -178,13 +178,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKeyPar
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLwePackingKeyPart<C> {
     pub fn as_mut_view(&mut self) -> CmLwePackingKeyPartMutView<'_, Scalar> {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            data: _,
         } = *self;
 
         CmLwePackingKeyPart::from_container(

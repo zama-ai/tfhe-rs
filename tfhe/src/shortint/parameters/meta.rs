@@ -100,9 +100,9 @@ impl MetaParameters {
             (
                 Some(ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch),
                 Some(DedicatedCompactPublicKeyParameters {
+                    re_randomization_parameters: Some(re_randomization_parameters),
                     pke_params: _,
                     ksk_params: _,
-                    re_randomization_parameters: Some(re_randomization_parameters),
                 }),
             ) => Some(ReRandomizationParameters::LegacyDedicatedCPKWithKeySwitch {
                 rerand_ksk_params: re_randomization_parameters,

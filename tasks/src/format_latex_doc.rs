@@ -234,9 +234,9 @@ fn escape_underscores_rewrite_equations(
 ) -> Result<(), LatexEscapeToolError> {
     let mut latex_equation_kind = LatexEquationKind::NotAnEquation;
     for CommentContent {
-        is_in_code_block: _,
         line_start,
         line_content,
+        is_in_code_block: _,
     } in comment_to_rewrite.iter()
     {
         rewritten_content.push_str(line_start);
@@ -328,9 +328,9 @@ fn process_doc_lines_until_impossible<'a>(
         // The current part is a code block
         if is_in_code_block {
             for CommentContent {
-                is_in_code_block: _,
                 line_start,
                 line_content,
+                is_in_code_block: _,
             } in current_part_content.iter()
             {
                 // We can just push the content unmodified

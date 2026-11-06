@@ -659,8 +659,8 @@ impl IntegerUnpackingToShortintCastingModeHelper {
                 DataKind::String { n_chars, .. } => {
                     let StringsUnpackingToShortintCastingModeHelper {
                         msg_extract_last_char_block,
-                        carry_extract_last_char_block: _,
                         blocks_per_char,
+                        carry_extract_last_char_block: _,
                     } = self.strings_helper()?;
                     for _ in 0..*n_chars {
                         push_functions(blocks_per_char.get() - 1, self.msg_extract.as_ref());

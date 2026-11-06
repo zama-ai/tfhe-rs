@@ -1152,8 +1152,8 @@ fn prove_impl<G: Curve>(
             t: t_input,
             msbs_zero_padding_bit_count,
             bound_type,
-            sid: _,
             domain_separators: ref ds,
+            sid: _,
         },
         PublicCommit {
             a,
@@ -2290,25 +2290,25 @@ pub fn verify_impl<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        pi: _,
-        pi_kzg: _,
         ref compute_load_proof_fields,
         hash_config,
+        pi: _,
+        pi_kzg: _,
     } = proof;
     let hash_config = hash_config.into();
 
     let &PublicParams {
-        g_lists: _,
         D: D_max,
         n,
         d,
         k: k_max,
-        B_bound_squared: _,
         B_inf,
         q,
         t: t_input,
         msbs_zero_padding_bit_count,
         bound_type,
+        g_lists: _,
+        B_bound_squared: _,
         sid: _,
         domain_separators: _,
     } = public.0;
@@ -2718,8 +2718,8 @@ fn pairing_check_two_steps<G: Curve>(
                 C_e.mul_scalar(delta_e),
                 match compute_load_proof_fields.as_ref() {
                     Some(&ComputeLoadProofFields {
-                        C_hat_h3: _,
                         C_hat_w,
+                        C_hat_h3: _,
                     }) => C_hat_w,
                     None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
                 },
@@ -2922,8 +2922,8 @@ fn pairing_check_batched<G: Curve>(
         });
         s.spawn(|_| match compute_load_proof_fields.as_ref() {
             Some(&ComputeLoadProofFields {
-                C_hat_h3: _,
                 C_hat_w,
+                C_hat_h3: _,
             }) => {
                 lhs4 = Some(pairing(
                     C_e.mul_scalar(delta_e) - g.mul_scalar(eta * chi4),
@@ -3719,9 +3719,9 @@ pub(crate) mod tests {
             d,
             k,
             B,
-            q: _,
             t,
             msbs_zero_padding_bit_count,
+            q: _,
         } = PKEV2_TEST_PARAMS;
 
         let B_squared = inf_norm_bound_to_euclidean_squared(B, d + k);

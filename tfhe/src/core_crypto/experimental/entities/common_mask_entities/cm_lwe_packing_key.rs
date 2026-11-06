@@ -140,13 +140,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKey<C>
 
     pub fn as_view(&self) -> CmLwePackingKeyView<'_, Scalar> {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            data: _,
         } = *self;
         CmLwePackingKey::from_container(
             self.as_ref(),
@@ -180,13 +180,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKey<C>
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLwePackingKey<C> {
     pub fn as_mut_view(&mut self) -> CmLwePackingKeyMutView<'_, Scalar> {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            data: _,
         } = *self;
         CmLwePackingKey::from_container(
             self.as_mut(),
@@ -308,13 +308,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            data: _,
         } = *self;
         CmLwePackingKeyPartCreationMetadata {
             decomp_base_log,
@@ -332,13 +332,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            data: _,
         } = *self;
         CmLwePackingKeyCreationMetadata {
             decomp_base_log,

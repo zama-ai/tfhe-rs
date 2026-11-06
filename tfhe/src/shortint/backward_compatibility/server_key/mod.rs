@@ -325,8 +325,8 @@ impl Upgrade<CompressedServerKey> for CompressedServerKeyV2 {
             carry_modulus,
             max_degree,
             max_noise_level,
-            ciphertext_modulus: _, // Ciphertext modulus is on the compressed bootstrapping_key
             pbs_order,
+            ciphertext_modulus: _, // Ciphertext modulus is on the compressed bootstrapping_key
         } = self;
 
         let compressed_ap_server_key = CompressedAtomicPatternServerKey::Standard(

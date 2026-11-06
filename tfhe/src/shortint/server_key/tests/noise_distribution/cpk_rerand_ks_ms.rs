@@ -791,7 +791,7 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_worst_case(
     let cpk_lwe_secret_key_dyn = cpk_private_key.lwe_secret_key_as_dyn();
     let small_lwe_secret_key_dyn = cks.small_lwe_secret_key_as_dyn();
 
-    let DynLweSecretKeyView::U64 { key: _, encoding } = cpk_lwe_secret_key_dyn else {
+    let DynLweSecretKeyView::U64 { encoding, key: _ } = cpk_lwe_secret_key_dyn else {
         panic!("Only U64 supported for CPK encryption")
     };
 

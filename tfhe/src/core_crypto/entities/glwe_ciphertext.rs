@@ -84,8 +84,8 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GlweCiphertextCreationMetadata {
-            polynomial_size: _,
             ciphertext_modulus,
+            polynomial_size: _,
         } = meta;
         Self::from_container(from, ciphertext_modulus)
     }

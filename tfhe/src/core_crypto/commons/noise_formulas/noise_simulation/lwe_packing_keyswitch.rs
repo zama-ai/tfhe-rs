@@ -59,8 +59,8 @@ impl NoiseSimulationLwePackingKeyswitchKey {
             decomp_level_count,
             output_glwe_dimension,
             output_polynomial_size,
-            noise_distribution: _,
             modulus,
+            noise_distribution: _,
         } = *self;
 
         let pksk_input_lwe_dimension = pksk.input_key_lwe_dimension();

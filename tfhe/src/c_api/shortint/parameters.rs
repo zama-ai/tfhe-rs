@@ -497,8 +497,8 @@ impl ShortintCompactPublicKeyEncryptionParameters {
             message_modulus,
             carry_modulus,
             ciphertext_modulus,
-            expansion_kind: _,
             zk_scheme,
+            expansion_kind: _,
         } = compact_pke_params;
 
         Self {

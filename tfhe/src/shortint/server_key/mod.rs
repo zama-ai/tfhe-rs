@@ -452,8 +452,8 @@ where
     pub fn modulus_switch_configuration(&self) -> Option<&ModulusSwitchConfiguration<InputScalar>> {
         match self {
             Self::Classic {
-                bsk: _,
                 modulus_switch_noise_reduction_key,
+                bsk: _,
             } => Some(modulus_switch_noise_reduction_key),
             Self::MultiBit { .. } => None,
         }

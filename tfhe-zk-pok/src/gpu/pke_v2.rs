@@ -99,8 +99,8 @@ fn prove_impl(
             t: t_input,
             msbs_zero_padding_bit_count,
             bound_type,
-            sid: _,
             domain_separators: ref ds,
+            sid: _,
         },
         PublicCommit { a, b, c1, c2, .. },
     ) = public;
@@ -1073,10 +1073,10 @@ fn verify_impl(
         C_h1,
         C_h2,
         C_hat_t,
-        pi: _,
-        pi_kzg: _,
         ref compute_load_proof_fields,
         hash_config,
+        pi: _,
+        pi_kzg: _,
     } = proof;
     if !public.0.has_valid_params() {
         return Err(());
@@ -1085,12 +1085,10 @@ fn verify_impl(
     let hash_config = hash_config.into();
 
     let &PublicParams {
-        g_lists: _,
         D: D_max,
         n,
         d,
         k: k_max,
-        B_bound_squared: _,
         B_inf,
         q,
         t: t_input,
@@ -1098,6 +1096,8 @@ fn verify_impl(
         bound_type,
         sid: _,
         domain_separators: _,
+        g_lists: _,
+        B_bound_squared: _,
     } = public.0;
 
     let decoded_q = decode_q(q);
@@ -1507,8 +1507,8 @@ fn pairing_check_two_steps(
                 C_e.mul_scalar(delta_e),
                 match compute_load_proof_fields.as_ref() {
                     Some(&ComputeLoadProofFields {
-                        C_hat_h3: _,
                         C_hat_w,
+                        C_hat_h3: _,
                     }) => C_hat_w,
                     // GPU MSM: C_hat_w on-the-fly during verify
                     None => super::g2_msm_gpu(
@@ -1721,8 +1721,8 @@ fn pairing_check_batched(
         });
         s.spawn(|_| match compute_load_proof_fields.as_ref() {
             Some(&ComputeLoadProofFields {
-                C_hat_h3: _,
                 C_hat_w,
+                C_hat_h3: _,
             }) => {
                 lhs4 = Some(pairing(
                     C_e.mul_scalar(delta_e) - g.mul_scalar(eta * chi4),

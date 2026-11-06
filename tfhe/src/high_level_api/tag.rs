@@ -179,7 +179,7 @@ impl SmallVec {
     /// Note that this method has no effect on the allocated capacity of the vector.
     pub fn clear(&mut self) {
         match self {
-            Self::Stack { bytes: _, len } => *len = 0,
+            Self::Stack { len, bytes: _ } => *len = 0,
             Self::Heap(items) => items.clear(),
         }
     }

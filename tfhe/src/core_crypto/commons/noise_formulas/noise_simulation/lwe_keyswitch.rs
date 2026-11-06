@@ -54,8 +54,8 @@ impl NoiseSimulationLweKeyswitchKey {
             output_lwe_dimension,
             decomposition_base_log,
             decomposition_level_count,
-            noise_distribution: _,
             output_modulus,
+            noise_distribution: _,
         } = *self;
 
         let ksk_input_lwe_dimension = lwe_ksk.input_key_lwe_dimension();

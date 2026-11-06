@@ -541,12 +541,12 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
         } = compressed_ct_parameters;
 
         let LweCiphertextConformanceParams {
+            ct_modulus,
             // The compressed mod switched ct use the lwe dim before the br, this one is kept to
             // build the params of the decompressed ct, in
             // `CompressedModulusSwitchedCiphertextConformanceParams`. This could be improved,
             // see #1513
             lwe_dim: _,
-            ct_modulus,
         } = ct_params;
 
         let MsDecompressionType::MultiBitPbs {

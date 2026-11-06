@@ -639,11 +639,11 @@ pub(crate) mod test {
         ) -> Vec<i64> {
             let PkeTestParameters {
                 d,
-                k: _,
                 B,
                 q,
-                t: _,
                 msbs_zero_padding_bit_count: _msbs_zero_padding_bit_count,
+                k: _,
+                t: _,
             } = params;
 
             let e = (rng.gen::<u64>() % (2 * B)) as i64 - B as i64;
