@@ -6,7 +6,8 @@ use crate::shortint::{Ciphertext, ClientKey, ServerKey};
 use crate::transciphering::backward_compatibility::SerializableKreyviumFheKeyVersions;
 use crate::transciphering::ciphers::shift_register::ShiftRegister;
 use crate::transciphering::{
-    FheKeyStream, InsufficientKeystream, StreamCipherKind, Transcipherer, TranscipheringServerKey,
+    FheKeyStream, FheKeyStreamError, InsufficientKeystream, KeyStreamLayout, StreamCipherKind,
+    Transcipherer, TranscipheringServerKey,
 };
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -31,20 +32,29 @@ pub struct KreyviumFheKey {
 }
 
 impl KreyviumFheKey {
+    /// # Panics
+    ///
+    /// Panics if a key ciphertext is not a fresh boolean encryption (degree <= 1, nominal noise,
+    /// not trivial).
     pub(super) fn new(cts: Box<[Ciphertext; 128]>) -> Self {
+        Self::try_new(cts).unwrap()
+    }
+
+    fn try_new(cts: Box<[Ciphertext; 128]>) -> crate::Result<Self> {
         for (i, ct) in cts.iter().enumerate() {
-            assert!(
-                ct.degree.get() <= 1,
-                "kreyvium key ciphertext {i} is not a single bit (degree {})",
-                ct.degree.get(),
-            );
-            assert!(
-                ct.noise_level() <= NoiseLevel::NOMINAL,
-                "kreyvium key ciphertext {i} exceeds nominal noise (level {:?})",
-                ct.noise_level(),
-            );
+            if ct.degree.get() > 1 {
+                return Err(crate::error!(
+                    "kreyvium key ciphertext {i} is not a single bit (degree {})",
+                    ct.degree.get(),
+                ));
+            }
+            if ct.noise_level() != NoiseLevel::NOMINAL {
+                return Err(crate::error!(
+                    "kreyvium key ciphertext {i} does not have nominal noise or is trivial"
+                ));
+            }
         }
-        Self { cts }
+        Ok(Self { cts })
     }
 
     pub fn new_random(
@@ -111,7 +121,7 @@ impl TryFrom<SerializableKreyviumFheKey> for KreyviumFheKey {
             value.cts.into_boxed_slice().try_into().map_err(|_| {
                 crate::error!("a kreyvium key must hold exactly 128 ciphertexts, got {len}")
             })?;
-        Ok(Self { cts })
+        Self::try_new(cts)
     }
 }
 
@@ -178,12 +188,12 @@ impl Transcipherer for KreyviumFheState {
         &mut self,
         sks: &ServerKey,
         n_bits: usize,
-    ) -> Result<FheKeyStream, InsufficientKeystream> {
+    ) -> Result<FheKeyStream, FheKeyStreamError> {
         self.current_counter()
             .checked_add(n_bits as u64)
             .ok_or(InsufficientKeystream)?;
 
-        Ok(FheKeyStream(self.next_n(sks, n_bits)))
+        FheKeyStream::try_new(self.next_n(sks, n_bits), KeyStreamLayout::single_bit())
     }
 
     fn seek(&mut self, sks: &ServerKey, target_counter: u64) {
