@@ -6,9 +6,10 @@ use crate::core_crypto::prelude::{
     Container, LweCompactPublicKeyOwned, LwePublicKeyOwned, SeededLweCompactPublicKeyOwned,
     SeededLwePublicKeyOwned,
 };
+use crate::shortint::backward_compatibility::parameters::ShortintParameterSet;
 use crate::shortint::{
     AtomicPatternKind, CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey,
-    CompressedPublicKey, PBSOrder, PublicKey, ShortintParameterSet,
+    CompressedPublicKey, PBSOrder, PublicKey,
 };
 
 #[derive(Version)]
@@ -18,22 +19,52 @@ pub struct PublicKeyV0 {
     pbs_order: PBSOrder,
 }
 
-impl Upgrade<PublicKey> for PublicKeyV0 {
+impl Upgrade<PublicKeyV1> for PublicKeyV0 {
     type Error = Infallible;
 
+    fn upgrade(self) -> Result<PublicKeyV1, Self::Error> {
+        Ok(PublicKeyV1 {
+            lwe_public_key: self.lwe_public_key,
+            parameters: self.parameters,
+            atomic_pattern: AtomicPatternKind::Standard(self.pbs_order),
+        })
+    }
+}
+
+#[derive(Version)]
+pub struct PublicKeyV1 {
+    lwe_public_key: LwePublicKeyOwned<u64>,
+    parameters: ShortintParameterSet,
+    atomic_pattern: AtomicPatternKind,
+}
+
+impl Upgrade<PublicKey> for PublicKeyV1 {
+    type Error = crate::Error;
+
     fn upgrade(self) -> Result<PublicKey, Self::Error> {
-        Ok(PublicKey::from_raw_parts(
-            self.lwe_public_key,
-            self.parameters,
-            AtomicPatternKind::Standard(self.pbs_order),
-        ))
+        let parameters = self.parameters.ap_parameters();
+
+        // Previous versions always stored a Standard atomic pattern, even for KS32 parameters
+        let expected_atomic_pattern =
+            AtomicPatternKind::Standard(parameters.encryption_key_choice().into());
+
+        if self.atomic_pattern != expected_atomic_pattern {
+            return Err(crate::Error::new(format!(
+                "Mismatch between the stored atomic pattern ({:?}) and the one expected from \
+                the parameters ({:?})",
+                self.atomic_pattern, expected_atomic_pattern,
+            )));
+        }
+
+        PublicKey::from_raw_parts(self.lwe_public_key, parameters)
     }
 }
 
 #[derive(VersionsDispatch)]
 pub enum PublicKeyVersions {
     V0(PublicKeyV0),
-    V1(PublicKey),
+    V1(PublicKeyV1),
+    V2(PublicKey),
 }
 
 #[derive(Version)]
@@ -45,7 +76,7 @@ pub struct CompactPublicKeyV0 {
 
 impl Upgrade<CompactPublicKey> for CompactPublicKeyV0 {
     fn upgrade(self) -> Result<CompactPublicKey, Self::Error> {
-        let parameters = self.parameters.try_into()?;
+        let parameters = self.parameters.ap_parameters().try_into()?;
         Ok(CompactPublicKey {
             key: self.key,
             parameters,
@@ -73,22 +104,52 @@ pub struct CompressedPublicKeyV0 {
     pbs_order: PBSOrder,
 }
 
-impl Upgrade<CompressedPublicKey> for CompressedPublicKeyV0 {
+impl Upgrade<CompressedPublicKeyV1> for CompressedPublicKeyV0 {
     type Error = Infallible;
 
+    fn upgrade(self) -> Result<CompressedPublicKeyV1, Self::Error> {
+        Ok(CompressedPublicKeyV1 {
+            lwe_public_key: self.lwe_public_key,
+            parameters: self.parameters,
+            atomic_pattern: AtomicPatternKind::Standard(self.pbs_order),
+        })
+    }
+}
+
+#[derive(Version)]
+pub struct CompressedPublicKeyV1 {
+    lwe_public_key: SeededLwePublicKeyOwned<u64>,
+    parameters: ShortintParameterSet,
+    atomic_pattern: AtomicPatternKind,
+}
+
+impl Upgrade<CompressedPublicKey> for CompressedPublicKeyV1 {
+    type Error = crate::Error;
+
     fn upgrade(self) -> Result<CompressedPublicKey, Self::Error> {
-        Ok(CompressedPublicKey::from_raw_parts(
-            self.lwe_public_key,
-            self.parameters,
-            AtomicPatternKind::Standard(self.pbs_order),
-        ))
+        let parameters = self.parameters.ap_parameters();
+
+        // Previous versions always stored a Standard atomic pattern, even for KS32 parameters
+        let expected_atomic_pattern =
+            AtomicPatternKind::Standard(parameters.encryption_key_choice().into());
+
+        if self.atomic_pattern != expected_atomic_pattern {
+            return Err(crate::Error::new(format!(
+                "Mismatch between the stored atomic pattern ({:?}) and the one expected from \
+                the parameters ({:?})",
+                self.atomic_pattern, expected_atomic_pattern,
+            )));
+        }
+
+        CompressedPublicKey::from_raw_parts(self.lwe_public_key, parameters)
     }
 }
 
 #[derive(VersionsDispatch)]
 pub enum CompressedPublicKeyVersions {
     V0(CompressedPublicKeyV0),
-    V1(CompressedPublicKey),
+    V1(CompressedPublicKeyV1),
+    V2(CompressedPublicKey),
 }
 
 #[derive(Version)]
@@ -100,7 +161,7 @@ pub struct CompressedCompactPublicKeyV0 {
 
 impl Upgrade<CompressedCompactPublicKey> for CompressedCompactPublicKeyV0 {
     fn upgrade(self) -> Result<CompressedCompactPublicKey, Self::Error> {
-        let parameters = self.parameters.try_into()?;
+        let parameters = self.parameters.ap_parameters().try_into()?;
         Ok(CompressedCompactPublicKey {
             key: self.key,
             parameters,
