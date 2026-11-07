@@ -7,14 +7,14 @@ use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
 use crate::shortint::client_key::ClientKey;
 use crate::transciphering::backward_compatibility::OneTimePadPlainSecretMaskVersions;
 use crate::transciphering::ciphers::one_time_pad::fhe::OneTimePadFheSecretMask;
-use crate::transciphering::ciphers::unpack_bits_lsb_first;
+use crate::transciphering::ciphers::{pack_bits_lsb_first, unpack_bits_lsb_first};
 use crate::transciphering::{
     InsufficientKeystream, KeyStreamLayout, StreamCipher, StreamCipherKind,
 };
 
 use super::fhe::MaskGenerationError;
 
-#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(OneTimePadPlainSecretMaskVersions)]
 pub struct OneTimePadPlainSecretMask {
     /// Collection of random u8, from which one can pull secret bits to hide sensitive values by
@@ -25,11 +25,17 @@ pub struct OneTimePadPlainSecretMask {
 }
 
 impl OneTimePadPlainSecretMask {
+    /// `secret_mask` must hold exactly `bit_count.div_ceil(8)` bytes, and the bits of the last
+    /// byte past `bit_count` must be zero.
     pub fn try_new(secret_mask: Vec<u8>, bit_count: usize) -> Result<Self, &'static str> {
         let expected_byte_count = bit_count.div_ceil(8);
 
         if secret_mask.len() != expected_byte_count {
             return Err("Invalid bit_count for provided secret_mask");
+        }
+
+        if !Self::is_canonical(&secret_mask, bit_count) {
+            return Err("The bits of secret_mask past bit_count must be zero");
         }
 
         Ok(Self {
@@ -38,9 +44,56 @@ impl OneTimePadPlainSecretMask {
         })
     }
 
+    /// Rebuild the plain mask from the decrypted values of a
+    /// [`SquashedNoiseOneTimePadFheSecretMask`].
+    ///
+    /// `values` must hold the decoded cleartext of each mask ciphertext.
+    ///
+    /// Returns an error if a value does not fit in `layout.bits_per_ct()` bits.
+    ///
+    /// [`SquashedNoiseOneTimePadFheSecretMask`]: super::SquashedNoiseOneTimePadFheSecretMask
+    pub fn from_squashed_noise_decrypted_values(
+        values: &[u128],
+        layout: &KeyStreamLayout,
+    ) -> crate::Result<Self> {
+        let bits_per_ct = usize::from(layout.bits_per_ct().get());
+
+        let max = layout.expected_degree().get();
+        let mut bits = Vec::with_capacity(values.len() * bits_per_ct);
+        for &val in values {
+            if val > u128::from(max) {
+                return Err(crate::error!(
+                    "Decrypted value {val} does not fit in the keystream layout ({bits_per_ct} \
+                    bits per ciphertext)"
+                ));
+            }
+            bits.extend((0..bits_per_ct).map(|i| (val >> i) & 1 != 0));
+        }
+
+        let mut bytes = vec![0u8; bits.len().div_ceil(8)];
+        pack_bits_lsb_first(&bits, &mut bytes);
+
+        Ok(Self::new(bytes, bits.len()))
+    }
+
+    /// Returns true if the bits of the last byte past `bit_count` are zero.
+    ///
+    /// Expects `secret_mask` to hold `bit_count.div_ceil(8)` bytes.
+    fn is_canonical(secret_mask: &[u8], bit_count: usize) -> bool {
+        let used_bits_in_last_byte = bit_count % 8;
+        if used_bits_in_last_byte == 0 {
+            return true;
+        }
+
+        secret_mask
+            .last()
+            .is_some_and(|last| last >> used_bits_in_last_byte == 0)
+    }
+
     /// # Panics
     ///
-    /// Panics if `secret_mask` does not have the expected length: `bit_count.div_ceil(8)`
+    /// Panics if `secret_mask` does not have the expected length: `bit_count.div_ceil(8)`, or if
+    /// the bits of its last byte past `bit_count` are not zero.
     pub fn new(secret_mask: Vec<u8>, bit_count: usize) -> Self {
         Self::try_new(secret_mask, bit_count).unwrap()
     }
@@ -102,7 +155,9 @@ impl ParameterSetConformant for OneTimePadPlainSecretMask {
     type ParameterSet = OneTimePadPlainSecretMaskConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
-        self.bit_count == params.n_bits && self.secret_mask.len() == self.bit_count.div_ceil(8)
+        self.bit_count == params.n_bits
+            && self.secret_mask.len() == self.bit_count.div_ceil(8)
+            && Self::is_canonical(&self.secret_mask, self.bit_count)
     }
 }
 
