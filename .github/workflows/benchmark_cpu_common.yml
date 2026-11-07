@@ -270,24 +270,6 @@ jobs:
           if-no-files-found: ignore
           overwrite: true
 
-      - name: Checkout Slab repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: zama-ai/slab
-          path: slab
-          ref: a0d3a61d593fc69bcdd13cb834323f8645258246
-          persist-credentials: "false"
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-      - name: Send data to Slab
-        shell: bash
-        run: |
-          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${JOB_SECRET}" \
-          --slab-url "${SLAB_URL}"
-        env:
-          JOB_SECRET: ${{ secrets.JOB_SECRET }}
-          SLAB_URL: ${{ secrets.SLAB_URL }}
-
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
@@ -295,6 +277,42 @@ jobs:
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "CPU benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+  send-data:
+    name: benchmark_cpu_common/send-data
+    needs: [prepare-matrix, integer-benchmarks]
+    if: ${{ !cancelled() && needs.integer-benchmarks.result != 'skipped' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        command: ${{ fromJSON(needs.prepare-matrix.outputs.command) }}
+        op_flavor: ${{ fromJSON(needs.prepare-matrix.outputs.op_flavor) }}
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
+        params_type: ${{ fromJSON(needs.prepare-matrix.outputs.params_type) }}
+    uses: ./.github/workflows/slab_send_data.yml
+    with:
+      artifact-name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+
+  send-data-notify:
+    name: benchmark_cpu_common/send-data-notify
+    needs: send-data
+    if: ${{ always() && needs.send-data.result == 'failure' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        env:
+          SLACK_COLOR: failure
+          SLACK_MESSAGE: "Sending CPU benchmark results to Slab failed. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: benchmark_cpu_common/teardown-instance

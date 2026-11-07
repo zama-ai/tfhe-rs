@@ -194,24 +194,6 @@ jobs:
           name: ${{ github.sha }}_wasm_${{ matrix.browser }}
           path: ${{ env.RESULTS_FILENAME }}
 
-      - name: Checkout Slab repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: zama-ai/slab
-          path: slab
-          ref: a0d3a61d593fc69bcdd13cb834323f8645258246
-          persist-credentials: "false"
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-      - name: Send data to Slab
-        shell: bash
-        run: |
-          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${JOB_SECRET}" \
-          --slab-url "${SLAB_URL}"
-        env:
-          JOB_SECRET: ${{ secrets.JOB_SECRET }}
-          SLAB_URL: ${{ secrets.SLAB_URL }}
-
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
@@ -219,6 +201,39 @@ jobs:
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "WASM benchmarks (${{ matrix.browser }}) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+  send-data:
+    name: benchmark_wasm_client_common/send-data
+    needs: [prepare-matrix, wasm-client-benchmarks]
+    if: ${{ !cancelled() && needs.wasm-client-benchmarks.result != 'skipped' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: ${{ fromJSON(needs.prepare-matrix.outputs.browser) }}
+    uses: ./.github/workflows/slab_send_data.yml
+    with:
+      artifact-name: ${{ github.sha }}_wasm_${{ matrix.browser }}
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+
+  send-data-notify:
+    name: benchmark_wasm_client_common/send-data-notify
+    needs: send-data
+    if: ${{ always() && needs.send-data.result == 'failure' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Send message
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        env:
+          SLACK_COLOR: failure
+          SLACK_MESSAGE: "Sending WASM benchmark results to Slab failed. (${{ env.ACTION_RUN_URL }})"
 
   teardown-instance:
     name: benchmark_wasm_client_common/teardown-instance
