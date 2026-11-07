@@ -3137,6 +3137,9 @@ unsafe extern "C" {
     pub fn cuda_pbs_golden_is_supported_async(gpu_index: u32) -> bool;
 }
 unsafe extern "C" {
+    pub fn cuda_multi_bit_pbs_golden_is_supported_async(gpu_index: u32) -> bool;
+}
+unsafe extern "C" {
     pub fn cuda_fft16x16x4_is_supported_async(gpu_index: u32) -> bool;
 }
 unsafe extern "C" {

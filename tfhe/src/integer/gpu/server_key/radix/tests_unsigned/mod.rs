@@ -1,4 +1,5 @@
 mod legacy_default_tests;
+mod sum_ciphertexts_golden;
 pub(crate) mod test_add;
 pub(crate) mod test_aes;
 pub(crate) mod test_aes256;
