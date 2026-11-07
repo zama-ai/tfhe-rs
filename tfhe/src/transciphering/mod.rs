@@ -60,6 +60,7 @@ mod keystream_application;
 
 use std::num::NonZeroU8;
 
+use backward_compatibility::KeyStreamLayoutVersions;
 use itertools::Itertools;
 pub use keys::{
     CompressedTranscipheringServerKey, ExpandedTranscipheringServerKey, TranscipheringPrivateKey,
@@ -81,6 +82,7 @@ pub use ciphers::one_time_pad::{
     OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
 };
 
+use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 use crate::conformance::ParameterSetConformant;
@@ -288,6 +290,7 @@ pub enum FheKeyStreamError {
         degree: Degree,
         noise_level: NoiseLevel,
     },
+    InvalidStreamCipherState,
 }
 
 impl std::fmt::Display for FheKeyStreamError {
@@ -304,6 +307,7 @@ impl std::fmt::Display for FheKeyStreamError {
                 degree does not match the layout ({degree:?}), or noise level is not nominal \
                 ({noise_level:?})"
             ),
+            Self::InvalidStreamCipherState => write!(f, "the stream cipher is in an invalid state"),
         }
     }
 }
@@ -592,7 +596,8 @@ impl<'a> IntoIterator for &'a FheKeyStream {
 ///
 /// The number of bits per ciphertext must divide 8, so that the bits of a keystream ciphertext
 /// never span two bytes of the input.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(KeyStreamLayoutVersions)]
 pub struct KeyStreamLayout {
     // For simplicity, only "continuous" layouts, where all bits up to a point are used, are
     // supported.
@@ -606,7 +611,9 @@ impl KeyStreamLayout {
     ///
     /// Returns `None` if `bits_per_ct` does not divide 8.
     pub fn try_new(bits_per_ct: NonZeroU8) -> Option<Self> {
-        (8u8.is_multiple_of(bits_per_ct.get())).then_some(Self { bits_per_ct })
+        u8::BITS
+            .is_multiple_of(u32::from(bits_per_ct.get()))
+            .then_some(Self { bits_per_ct })
     }
 
     /// A layout where only the least significant bit of each ct is used
@@ -654,6 +661,21 @@ impl KeyStreamLayout {
     /// Expected degree of a keystream ciphertext with this layout
     pub fn expected_degree(&self) -> Degree {
         Degree::new((1u64 << self.bits_per_ct().get()) - 1)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KeyStreamLayoutConformanceParams {
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+}
+
+impl ParameterSetConformant for KeyStreamLayout {
+    type ParameterSet = KeyStreamLayoutConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        u8::BITS.is_multiple_of(u32::from(self.bits_per_ct.get()))
+            && self.can_fit(params.message_modulus, params.carry_modulus)
     }
 }
 
