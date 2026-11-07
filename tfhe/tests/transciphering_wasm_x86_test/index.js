@@ -1,6 +1,7 @@
 const {
   OneTimePadPlainSecretMask,
   OneTimePadPlainState,
+  StreamCiphertextList,
   FheTypes,
 } = require("node-tfhe");
 
@@ -38,4 +39,21 @@ const transcipher_inputs = () => {
   );
 };
 
+const build_list = () => {
+  const padBuf = fs.readFileSync(`${__dirname}/list_pad.bin`);
+  const mask = OneTimePadPlainSecretMask.safe_deserialize(padBuf, SIZE_LIMIT);
+
+  const builder = StreamCiphertextList.builder();
+  builder.push(CLEAR_A, FheTypes.Uint64);
+  builder.push(CLEAR_B, FheTypes.Uint12);
+  builder.push(CLEAR_C, FheTypes.Bool);
+  const list = builder.build(new OneTimePadPlainState(mask));
+
+  fs.writeFileSync(
+    `${__dirname}/list.bin`,
+    Buffer.from(list.safe_serialize(SIZE_LIMIT)),
+  );
+};
+
 transcipher_inputs();
+build_list();
