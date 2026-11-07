@@ -413,8 +413,8 @@ mod test {
                     tfhe_csprng::seeders::SeedKind::Ctr(seed) => {
                         seed.0 = rng.gen::<u128>();
                     }
-                    tfhe_csprng::seeders::SeedKind::Xof(xof_seed) => {
-                        *xof_seed = tfhe_csprng::seeders::XofSeed::new_u128(
+                    tfhe_csprng::seeders::SeedKind::Xof { seed, aes: _ } => {
+                        *seed = tfhe_csprng::seeders::XofSeed::new_u128(
                             rng.gen::<u128>(),
                             *b"TFHEtest",
                         );

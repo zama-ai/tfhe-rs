@@ -30,8 +30,8 @@ use tfhe::{
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
     FheInt8, FheUint32, FheUint64, FheUint8, HlStreamCipher, HlTranscipherer, KreyviumFheKey,
     OneTimePadFheSecretMask, ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport,
-    Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
-    StreamCiphertext, TranscipherSession,
+    Seed, SeededEncryptionMode, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
+    SquashedNoiseFheUint, StreamCiphertext, TranscipherSession,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
@@ -382,6 +382,7 @@ fn test_hl_seeded_compact_list_core<T: TestWithClientKey>(
                     _proof_info.metadata.as_bytes(),
                     ZkComputeLoad::Proof,
                     seed,
+                    SeededEncryptionMode::Aes256,
                 )
                 .map_err(|e| test.failure(e, format))?;
 
@@ -401,7 +402,9 @@ fn test_hl_seeded_compact_list_core<T: TestWithClientKey>(
     } else {
         let pregenerated: CompactCiphertextList = load_and_unversionize(dir, test, format)?;
 
-        let rebuilt = builder.build_packed_seeded(seed).unwrap();
+        let rebuilt = builder
+            .build_packed_seeded(seed, SeededEncryptionMode::Aes256)
+            .unwrap();
 
         if pregenerated != rebuilt {
             return Err(test.failure(
@@ -437,7 +440,6 @@ pub fn test_hl_seeded_compact_ciphertext_list(
     )
 }
 
-/// Test seeded proven compact ciphertext list
 /// Test HL client key: loads the key and checks the parameters using the values stored in
 /// the test metadata.
 pub fn test_hl_clientkey(

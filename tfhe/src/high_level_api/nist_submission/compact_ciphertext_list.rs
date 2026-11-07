@@ -135,7 +135,7 @@ use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformancePar
 use crate::keys::InternalServerKeyRef;
 use crate::prelude::ParameterSetConformant;
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
-use crate::CompactCiphertextListExpander;
+use crate::{CompactCiphertextListExpander, SeededEncryptionMode};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -288,6 +288,15 @@ impl CompactCiphertextListBuilder {
         })
     }
 
+    /// Builds a proved list using the given seed, useful to have determinism for encryption
+    ///
+    /// The seed is expanded with [`SeededEncryptionMode::Aes256`], so it must be at least
+    /// [`SeededEncryptionMode::min_seed_len`] bytes long. Only its length is checked: making sure
+    /// it contains enough entropy is the caller's responsibility.
+    ///
+    /// # Warning
+    ///
+    /// The seed must be kept secure, if attackers gets the seed they can break the encryption
     pub fn build_with_proof_seeded(
         &self,
         crs: &CompactPkeCrs,
@@ -302,6 +311,7 @@ impl CompactCiphertextListBuilder {
             compute_load,
             self.0.inner.pk.parameters().message_modulus.0,
             seed,
+            SeededEncryptionMode::Aes256,
         )?;
 
         Ok(ProvenCompactCiphertextList {

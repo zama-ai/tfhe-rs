@@ -20,6 +20,7 @@ use crate::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, LweDimension,
 };
 use crate::shortint::parameters::{CiphertextListConformanceParams, ExpandFunctionsOwned};
+use crate::shortint::public_key::SeededEncryptionMode;
 use crate::shortint::{Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use crate::zk::{
@@ -208,7 +209,11 @@ impl CompactCiphertextListBuilder {
         })
     }
 
-    pub fn build_packed_seeded(&self, seed: &[u8]) -> crate::Result<CompactCiphertextList> {
+    pub fn build_packed_seeded(
+        &self,
+        seed: &[u8],
+        mode: SeededEncryptionMode,
+    ) -> crate::Result<CompactCiphertextList> {
         if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
             return Err(crate::Error::new("In order to build a packed compact ciphertext list, parameters must have CarryModulus >= MessageModulus".to_string()));
         }
@@ -222,6 +227,7 @@ impl CompactCiphertextListBuilder {
             packed_messaged_iter,
             msg_mod * msg_mod,
             seed,
+            mode,
         )?;
 
         Ok(CompactCiphertextList {
@@ -291,6 +297,7 @@ impl CompactCiphertextListBuilder {
         metadata: &[u8],
         load: ZkComputeLoad,
         seed: &[u8],
+        mode: SeededEncryptionMode,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         if self.pk.key.parameters.carry_modulus.0 < self.pk.key.parameters.message_modulus.0 {
             return Err(crate::Error::new(
@@ -313,6 +320,7 @@ impl CompactCiphertextListBuilder {
             load,
             msg_mod * msg_mod,
             seed,
+            mode,
         )?;
         Ok(ProvenCompactCiphertextList {
             ct_list,

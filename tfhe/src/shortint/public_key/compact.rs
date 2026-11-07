@@ -27,6 +27,7 @@ use crate::shortint::ShortintEncoding;
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::Error;
 use serde::{Deserialize, Serialize};
+use tfhe_csprng::seeders::SeedKind;
 use tfhe_versionable::Versionize;
 /// Private key from which a [`CompactPublicKey`] can be built.
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
@@ -37,6 +38,32 @@ pub struct CompactPrivateKey<KeyCont: Container<Element = u64>> {
 }
 
 pub const TFHE_PKE_DOMAIN_SEPARATOR: [u8; XofSeed::DOMAIN_SEP_LEN] = *b"TFHE_Enc";
+
+/// Selects how the seed given to seeded public key encryption is expanded into the encryption
+/// randomness.
+///
+/// Only the length of the seed is checked (see [`Self::min_seed_len`]). Making sure the seed
+/// contains enough entropy is the caller's responsibility, using a seed with less entropy than its
+/// length must be a conscious choice.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum SeededEncryptionMode {
+    /// The seed is expanded with the AES-256 based XOF of the Threshold (Fully) Homomorphic
+    /// Encryption document.
+    ///
+    /// Requires a seed of at least 32 bytes (256 bits): with less entropy than that, the security
+    /// is capped by the seed rather than by AES-256.
+    Aes256,
+}
+
+impl SeededEncryptionMode {
+    /// The minimum length, in bytes, of the seed this mode accepts.
+    pub const fn min_seed_len(self) -> usize {
+        match self {
+            Self::Aes256 => 32,
+        }
+    }
+}
 
 impl<C: Container<Element = u64>> CompactPrivateKey<C> {
     pub fn from_raw_parts(
@@ -335,18 +362,28 @@ impl CompactPublicKey {
         messages: impl Iterator<Item = u64>,
         encryption_modulus: u64,
     ) -> CompactCiphertextList {
-        let seed = new_seeder().seed();
-        self.encrypt_iter_with_modulus_seeded(messages, encryption_modulus, &seed.0.to_le_bytes())
-            .expect("internal error: seed from seeder is always 16 bytes")
+        let mode = SeededEncryptionMode::Aes256;
+        self.encrypt_iter_with_modulus_seeded(messages, encryption_modulus, &fresh_seed(mode), mode)
+            .expect("internal error: fresh seeds always have the mode's minimum length")
     }
 
+    /// Encrypts the messages using randomness derived from `seed`, which makes the encryption
+    /// deterministic.
+    ///
+    /// The seed must be at least [`SeededEncryptionMode::min_seed_len`] bytes long, see
+    /// [`SeededEncryptionMode`] for the entropy requirements.
+    ///
+    /// # Warning
+    ///
+    /// The seed must be kept secure, if attackers gets the seed they can break the encryption
     pub fn encrypt_iter_with_modulus_seeded(
         &self,
         messages: impl Iterator<Item = u64>,
         encryption_modulus: u64,
         seed: &[u8],
+        mode: SeededEncryptionMode,
     ) -> crate::Result<CompactCiphertextList> {
-        let mut noise_generator = noise_generator_from_seed(seed)?;
+        let mut noise_generator = noise_generator_from_seed(seed, mode)?;
         let plaintext_container =
             to_plaintext_iterator(messages, encryption_modulus, &self.parameters)
                 .map(|plaintext| plaintext.0)
@@ -390,17 +427,28 @@ impl CompactPublicKey {
         load: ZkComputeLoad,
         encryption_modulus: u64,
     ) -> crate::Result<ProvenCompactCiphertextList> {
-        let seed = new_seeder().seed();
+        let mode = SeededEncryptionMode::Aes256;
         self.encrypt_and_prove_slice_seeded(
             messages,
             crs,
             metadata,
             load,
             encryption_modulus,
-            &seed.0.to_le_bytes(),
+            &fresh_seed(mode),
+            mode,
         )
     }
 
+    /// Encrypts and proves the messages using randomness derived from `seed`, which makes both
+    /// the encryption and the proof deterministic.
+    ///
+    /// The seed must be at least [`SeededEncryptionMode::min_seed_len`] bytes long, see
+    /// [`SeededEncryptionMode`] for the entropy requirements.
+    ///
+    /// # Warning
+    ///
+    /// The seed must be kept secure, if attackers gets the seed they can break the encryption
+    #[allow(clippy::too_many_arguments)]
     #[cfg(feature = "zk-pok")]
     pub fn encrypt_and_prove_slice_seeded(
         &self,
@@ -410,6 +458,7 @@ impl CompactPublicKey {
         load: ZkComputeLoad,
         encryption_modulus: u64,
         seed: &[u8],
+        mode: SeededEncryptionMode,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         let plaintext_modulus = self.parameters.message_modulus.0 * self.parameters.carry_modulus.0;
         if encryption_modulus > plaintext_modulus {
@@ -419,7 +468,7 @@ impl CompactPublicKey {
             )));
         }
         let delta = self.encoding().delta();
-        let mut noise_generator = noise_generator_from_seed(seed)?;
+        let mut noise_generator = noise_generator_from_seed(seed, mode)?;
 
         // This is the maximum number of lwe that can share the same mask in lwe compact pk
         // encryption
@@ -489,17 +538,40 @@ impl CompactPublicKey {
     }
 }
 
-fn noise_generator_from_seed(
-    seed: &[u8],
-) -> crate::Result<NoiseRandomGenerator<DefaultRandomGenerator>> {
-    if seed.len() < 16 {
+/// The [`SeedKind`] that seeded public key encryption derives from a caller supplied seed.
+fn pke_seed_kind(seed: &[u8], mode: SeededEncryptionMode) -> crate::Result<SeedKind> {
+    let min_seed_len = mode.min_seed_len();
+    if seed.len() < min_seed_len {
         return Err(crate::Error::new(format!(
-            "seed must be at least 16 bytes, got {}",
+            "seed must be at least {min_seed_len} bytes for {mode:?}, got {}",
             seed.len()
         )));
     }
     let xof_seed = XofSeed::new(seed.to_vec(), TFHE_PKE_DOMAIN_SEPARATOR);
-    Ok(NoiseRandomGenerator::new_from_seed(xof_seed))
+    Ok(match mode {
+        SeededEncryptionMode::Aes256 => SeedKind::xof_aes256(xof_seed),
+    })
+}
+
+fn noise_generator_from_seed(
+    seed: &[u8],
+    mode: SeededEncryptionMode,
+) -> crate::Result<NoiseRandomGenerator<DefaultRandomGenerator>> {
+    Ok(NoiseRandomGenerator::new_from_seed(pke_seed_kind(
+        seed, mode,
+    )?))
+}
+
+/// Draws a seed of the minimum length `mode` accepts from a fresh seeder.
+fn fresh_seed(mode: SeededEncryptionMode) -> Vec<u8> {
+    let min_seed_len = mode.min_seed_len();
+    let mut seeder = new_seeder();
+    let mut seed = Vec::with_capacity(min_seed_len);
+    while seed.len() < min_seed_len {
+        seed.extend_from_slice(&seeder.seed().0.to_le_bytes());
+    }
+    seed.truncate(min_seed_len);
+    seed
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
