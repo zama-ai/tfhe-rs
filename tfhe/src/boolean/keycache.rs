@@ -13,8 +13,8 @@ named_params_impl!( BooleanParameters =>
     TFHE_LIB_PARAMETERS
 );
 
-impl From<BooleanParameters> for (ClientKey, ServerKey) {
-    fn from(param: BooleanParameters) -> Self {
+impl GenerateKeyFromParams<BooleanParameters> for (ClientKey, ServerKey) {
+    fn generate_key_from_params(param: BooleanParameters) -> Self {
         let cks = ClientKey::new(&param);
         let sks = ServerKey::new(&cks);
         (cks, sks)
