@@ -134,7 +134,7 @@ jobs:
       - name: Slack notification (hashes comparison)
         if: ${{ needs.package.outputs.hash != steps.published_hash.outputs.pub_hash }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
+        uses: rtCamp/action-slack-notify@06cc13f74fa8d4d2296c09455d91e9453e4025f4 # v2.4.1
         env:
           SLACK_COLOR: failure
           SLACK_MESSAGE: "SLSA ${{ inputs.package-name }} - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
@@ -142,7 +142,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
+        uses: rtCamp/action-slack-notify@06cc13f74fa8d4d2296c09455d91e9453e4025f4 # v2.4.1
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "${{ inputs.package-name }} release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

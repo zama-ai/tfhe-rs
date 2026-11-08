@@ -366,7 +366,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Send message
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        uses: rtCamp/action-slack-notify@06cc13f74fa8d4d2296c09455d91e9453e4025f4
         env:
           SLACK_COLOR: failure
           SLACK_MESSAGE: "Performance regression benchmarks failed. (${{ env.ACTION_RUN_URL }})"

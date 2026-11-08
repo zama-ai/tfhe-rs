@@ -58,7 +58,7 @@ jobs:
 
       - name: Slack Notification
         if: ${{ always() && !success() }}
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58
+        uses: rtCamp/action-slack-notify@06cc13f74fa8d4d2296c09455d91e9453e4025f4
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "sync_on_push finished with status: ${{ job.status }}. ([action run](${{ env.ACTION_RUN_URL }}))"
