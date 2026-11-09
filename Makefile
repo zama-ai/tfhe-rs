@@ -80,6 +80,7 @@ WORKFLOW_YAML_FILES='.github/**/*.{yml,yaml}'
 CARGO_SEMVER_CHECKS_VERSION=0.47.0
 CARGO_AFL_VERSION=0.18.2
 CARGO_AUDIT_VERSION=0.22.2
+CARGO_CROSS_VERSION=0.2.5
 CARGO_DENY_VERSION=0.20.2
 CARGO_TARPAULIN_VERSION=0.37.6
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
@@ -295,7 +296,7 @@ zizmor_version:
 
 .PHONY: install_cargo_cross # Install cross for big endian tests
 install_cargo_cross:
-	cargo install --locked cross
+	cargo install --locked --version $(CARGO_CROSS_VERSION) cross
 
 .PHONY: install_linelint_ci # Install Linelint newline linter at repository root for CI pipeline
 install_linelint_ci:
