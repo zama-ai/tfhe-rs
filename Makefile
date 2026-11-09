@@ -79,6 +79,12 @@ PRETTIER_VERSION=3.3.3
 WORKFLOW_YAML_FILES='.github/**/*.{yml,yaml}'
 CARGO_SEMVER_CHECKS_VERSION=0.47.0
 CARGO_AFL_VERSION=0.18.2
+CARGO_AUDIT_VERSION=0.22.2
+CARGO_CROSS_VERSION=0.2.5
+CARGO_DENY_VERSION=0.20.2
+CARGO_MLC_VERSION=1.3.0
+CARGO_NEXTEST_VERSION=0.9.151
+CARGO_TARPAULIN_VERSION=0.37.6
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -175,9 +181,7 @@ install_check_wasm32_target:
 
 .PHONY: install_cargo_nextest # Install cargo nextest used for shortint tests
 install_cargo_nextest:
-	@cargo nextest --version > /dev/null 2>&1 || \
-	cargo install cargo-nextest --locked || \
-	( echo "Unable to install cargo nextest, unknown error." && exit 1 )
+	cargo install --locked --version $(CARGO_NEXTEST_VERSION) cargo-nextest
 
 .PHONY: install_wasm_bindgen_cli # Install wasm-bindgen-cli to get access to the test runner
 install_wasm_bindgen_cli:
@@ -245,17 +249,15 @@ install_dieharder:
 
 .PHONY: install_tarpaulin # Install tarpaulin to perform code coverage
 install_tarpaulin:
-	@cargo tarpaulin --version > /dev/null 2>&1 || \
-	cargo install cargo-tarpaulin --locked || \
-	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
+	cargo install --locked --version $(CARGO_TARPAULIN_VERSION) cargo-tarpaulin
 
 .PHONY: install_cargo_audit # Check dependencies
 install_cargo_audit:
-	cargo install --locked cargo-audit
+	cargo install --locked --version $(CARGO_AUDIT_VERSION) cargo-audit
 
 .PHONY: install_cargo_deny # Install cargo-deny for license checks
 install_cargo_deny:
-	cargo install --locked cargo-deny
+	cargo install --locked --version $(CARGO_DENY_VERSION) cargo-deny
 
 .PHONY: install_cargo_afl # Install cargo-afl and build its AFL LLVM runtime for the active rustc
 install_cargo_afl: install_rs_msrv_toolchain
@@ -294,7 +296,7 @@ zizmor_version:
 
 .PHONY: install_cargo_cross # Install cross for big endian tests
 install_cargo_cross:
-	cargo install --locked cross
+	cargo install --locked --version $(CARGO_CROSS_VERSION) cross
 
 .PHONY: install_linelint_ci # Install Linelint newline linter at repository root for CI pipeline
 install_linelint_ci:
@@ -341,9 +343,7 @@ check_nvm_installed:
 
 .PHONY: install_mlc # Install mlc (Markup Link Checker)
 install_mlc:
-	@mlc --version > /dev/null 2>&1 || \
-	cargo install mlc --locked || \
-	( echo "Unable to install mlc, unknown error." && exit 1 )
+	cargo install --locked --version $(CARGO_MLC_VERSION) mlc
 
 fmt: FMT_CHECK =
 .PHONY: fmt # Format rust code
