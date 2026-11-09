@@ -54,7 +54,7 @@ jobs:
           version: ${{ steps.get_zizmor.outputs.version }}
 
       - name: Scan IaC with Trivy
-        uses: zama-ai/ci-templates/.github/actions/trivy-iac@86fee8d4853c023c411af7f085b358a82c185eee # v1.1.0
+        uses: zama-ai/ci-templates/.github/actions/trivy-iac@72a8075c290cfd91c3660ed61b193e94b503a588 # v1.2.0
         with:
           misconfig-scanners: "terraform"
 
