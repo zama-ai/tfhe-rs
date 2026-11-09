@@ -81,6 +81,7 @@ CARGO_SEMVER_CHECKS_VERSION=0.47.0
 CARGO_AFL_VERSION=0.18.2
 CARGO_AUDIT_VERSION=0.22.2
 CARGO_DENY_VERSION=0.20.2
+CARGO_TARPAULIN_VERSION=0.37.6
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -247,9 +248,7 @@ install_dieharder:
 
 .PHONY: install_tarpaulin # Install tarpaulin to perform code coverage
 install_tarpaulin:
-	@cargo tarpaulin --version > /dev/null 2>&1 || \
-	cargo install cargo-tarpaulin --locked || \
-	( echo "Unable to install cargo tarpaulin, unknown error." && exit 1 )
+	cargo install --locked --version $(CARGO_TARPAULIN_VERSION) cargo-tarpaulin
 
 .PHONY: install_cargo_audit # Check dependencies
 install_cargo_audit:
