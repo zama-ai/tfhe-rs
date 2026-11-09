@@ -83,8 +83,10 @@ impl HpuRadixCiphertext {
             cpu_ct.0.ct.as_view(),
             params.clone(),
         )];
+        // A boolean is a single block: its width is one block message, as for the booleans
+        // returned by IOps (c.f. `is_boolean`)
         let spec = zhc::builder::SpecInteger::new(
-            1,
+            params.pbs_params.message_width as u16,
             params.pbs_params.carry_width as u8,
             params.pbs_params.message_width as u8,
         );
