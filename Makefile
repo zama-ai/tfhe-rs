@@ -82,6 +82,7 @@ CARGO_AFL_VERSION=0.18.2
 CARGO_AUDIT_VERSION=0.22.2
 CARGO_CROSS_VERSION=0.2.5
 CARGO_DENY_VERSION=0.20.2
+CARGO_MLC_VERSION=1.3.0
 CARGO_TARPAULIN_VERSION=0.37.6
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
@@ -343,9 +344,7 @@ check_nvm_installed:
 
 .PHONY: install_mlc # Install mlc (Markup Link Checker)
 install_mlc:
-	@mlc --version > /dev/null 2>&1 || \
-	cargo install mlc --locked || \
-	( echo "Unable to install mlc, unknown error." && exit 1 )
+	cargo install --locked --version $(CARGO_MLC_VERSION) mlc
 
 fmt: FMT_CHECK =
 .PHONY: fmt # Format rust code
