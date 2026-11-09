@@ -168,23 +168,41 @@ host_bitnot(CudaStreams streams, CudaRadixCiphertextFFI *radix_ciphertext,
             uint32_t ct_message_modulus, uint32_t param_message_modulus,
             uint32_t param_carry_modulus) {
 
+  host_negation<Torus>(streams.stream(0), streams.gpu_index(0),
+                       radix_ciphertext, radix_ciphertext,
+                       radix_ciphertext->num_radix_blocks,
+                       param_message_modulus, param_carry_modulus);
+
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  // In batched-trivial mode every coefficient stores the raw block integer
+  // value (no delta encoding). host_negation already negated all coefficients
+  // to -v; we must add (ct_message_modulus - 1) to ALL coefficients uniformly
+  // to get (ct_message_modulus - 1 - v).  host_addition_plaintext_scalar adds
+  // only to the body, so we use a flat element-wise kernel instead.
+  {
+    int lwe_size = (int)(radix_ciphertext->lwe_dimension + 1);
+    int num_entries = (int)radix_ciphertext->num_radix_blocks * lwe_size;
+    int n_blocks = 0, n_threads = 0;
+    getNumBlocksAndThreads(num_entries, 512, n_blocks, n_threads);
+    Torus bt_scalar = (Torus)(ct_message_modulus - 1);
+    constant_addition_inplace<Torus>
+        <<<n_blocks, n_threads, 0, streams.stream(0)>>>(
+            (Torus *)radix_ciphertext->ptr, (uint32_t)num_entries, bt_scalar);
+    check_cuda_error(cudaGetLastError());
+  }
+#else
   constexpr Torus TORUS_ONE = (sizeof(Torus) == 4) ? 1U : 1ULL;
   const Torus encoded_scalar =
       (TORUS_ONE << ((sizeof(Torus) * 8 - 1) -
                      __builtin_ctz(param_message_modulus *
                                    param_carry_modulus))) *
       (ct_message_modulus - 1);
-
-  host_negation<Torus>(streams.stream(0), streams.gpu_index(0),
-                       radix_ciphertext, radix_ciphertext,
-                       radix_ciphertext->num_radix_blocks,
-                       param_message_modulus, param_carry_modulus);
-
   host_addition_plaintext_scalar<Torus>(
       streams.stream(0), streams.gpu_index(0), radix_ciphertext,
       radix_ciphertext, encoded_scalar, (uint64_t)(ct_message_modulus - 1),
       radix_ciphertext->lwe_dimension, radix_ciphertext->num_radix_blocks,
       param_message_modulus, param_carry_modulus);
+#endif
 
   for (size_t i = 0; i < radix_ciphertext->num_radix_blocks; ++i) {
     radix_ciphertext->degrees[i] = ct_message_modulus - 1;

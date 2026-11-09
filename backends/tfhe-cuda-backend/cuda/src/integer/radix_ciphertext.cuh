@@ -53,9 +53,16 @@ device_create_trivial_radix(Torus *lwe_array, Torus const *scalar_input,
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < num_blocks) {
     Torus scalar = scalar_input[tid];
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+    // In batched-trivial mode every coefficient carries a raw integer test
+    // vector, so fill all lwe_size positions with the unscaled scalar.
+    Torus *block = lwe_array + tid * (lwe_dimension + 1);
+    for (uint32_t j = 0; j <= lwe_dimension; j++)
+      block[j] = scalar;
+#else
     Torus *body = lwe_array + tid * (lwe_dimension + 1) + lwe_dimension;
-
     *body = scalar * delta;
+#endif
   }
 }
 
@@ -308,6 +315,13 @@ __host__ void set_single_scalar_trivial_radix_ciphertext_async(
   if (lwe_array_out->num_radix_blocks == 0)
     return;
 
+#ifdef TFHE_GPU_BATCHED_TRIVIAL
+  // In batched-trivial mode every coefficient carries a raw integer, so fill
+  // all lwe_size positions of block 0 with the unscaled scalar.
+  uint32_t lwe_size = lwe_array_out->lwe_dimension + 1;
+  cuda_set_value_async<Torus>(stream, gpu_index, (Torus *)lwe_array_out->ptr,
+                              scalar, lwe_size);
+#else
   // Value of the shift we multiply our messages by
   // If message_modulus and carry_modulus are always powers of 2 we can simplify
   // this
@@ -319,6 +333,7 @@ __host__ void set_single_scalar_trivial_radix_ciphertext_async(
                               (Torus *)lwe_array_out->ptr +
                                   lwe_array_out->lwe_dimension,
                               delta * scalar, 1);
+#endif
   check_cuda_error(cudaGetLastError());
   lwe_array_out->degrees[0] = scalar;
 }
