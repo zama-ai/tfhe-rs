@@ -80,6 +80,7 @@ WORKFLOW_YAML_FILES='.github/**/*.{yml,yaml}'
 CARGO_SEMVER_CHECKS_VERSION=0.47.0
 CARGO_AFL_VERSION=0.18.2
 CARGO_AUDIT_VERSION=0.22.2
+CARGO_DENY_VERSION=0.20.2
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -256,7 +257,7 @@ install_cargo_audit:
 
 .PHONY: install_cargo_deny # Install cargo-deny for license checks
 install_cargo_deny:
-	cargo install --locked cargo-deny
+	cargo install --locked --version $(CARGO_DENY_VERSION) cargo-deny
 
 .PHONY: install_cargo_afl # Install cargo-afl and build its AFL LLVM runtime for the active rustc
 install_cargo_afl: install_rs_msrv_toolchain
