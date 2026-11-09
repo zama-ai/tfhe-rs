@@ -12,7 +12,11 @@ use tfhe::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe::*;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 
+use std::collections::HashMap;
+use zhc::builder::IrKind;
 use zhc::config::multi_hpu::MultiHpuConfig;
+use zhc::ir::partitioning::{PartitionAnnotation, PartitionId, PartitionPlacement};
+use zhc::ir::OpMap;
 use zhc::PipelineExt;
 
 use rand::rngs::StdRng;
@@ -134,6 +138,58 @@ impl std::fmt::Display for Throughput {
     }
 }
 
+/// MhMul builder with its hand-grouped partitions, one group per Hpu.
+/// NB: zhc 0.12.0 `compat::Iop::MhMul` groups still use the 0.10 partition ids (shifted by one
+/// since `Inputs` is no longer a partition) and the multi-Hpu flow uses partition ids as Hpu ids.
+/// Both are fixed here until a zhc release does it: corrected groups, numbered by first appearance.
+fn mh_mul_hand_partitioned(
+    spec: zhc::builder::SpecInteger,
+    n_hpus: usize,
+) -> (zhc::builder::Builder, OpMap<PartitionAnnotation>) {
+    let groups: &[&[u16]] = match n_hpus {
+        2 => &[&[0, 1, 8], &[2, 3, 5, 6]],
+        4 => &[&[3, 5, 6, 8], &[1], &[2], &[0]],
+        8 => &[
+            &[0, 7, 23, 35],
+            &[1, 2, 22],
+            &[3, 4, 24, 26, 27],
+            &[5, 6, 28],
+            &[8, 9, 25],
+            &[10, 11, 29, 31, 33],
+            &[13, 18],
+            &[14, 15, 30, 32],
+        ],
+        _ => panic!("MhMul supports 2, 4 or 8 Hpu, not {n_hpus}"),
+    };
+    let builder = zhc::builder::mh_mul(spec, std::cmp::max(2, n_hpus / 2));
+    for group in groups {
+        builder.group_partitions_id(group);
+    }
+
+    let parts = builder.partitions(IrKind::Optimized);
+    let mut hpu_of: HashMap<PartitionId, PartitionId> = HashMap::new();
+    for (_, ann) in parts.iter() {
+        for pid in ann.placement.iter_pids() {
+            let next = PartitionId(hpu_of.len() as u16);
+            hpu_of.entry(pid).or_insert(next);
+        }
+    }
+    assert_eq!(
+        hpu_of.len(),
+        n_hpus,
+        "MhMul partitions don't match the Hpu count"
+    );
+    let parts = parts.map(|ann| PartitionAnnotation {
+        placement: ann
+            .placement
+            .iter_pids()
+            .map(|pid| hpu_of[&pid])
+            .collect::<PartitionPlacement>(),
+        metadata: ann.metadata,
+    });
+    (builder, parts)
+}
+
 pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Register tracing subscriber that use env-filter
     // Select verbosity with env_var: e.g. `RUST_LOG=Alu=trace`
@@ -205,13 +261,10 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                         hpu_config: zhc_config.clone(),
                     };
                     // Keep the hand-grouped MhMul partitions, zhc auto-partitions otherwise
+                    let (builder, partitions) = mh_mul_hand_partitioned(zhc_spec, *mh_factor);
                     zhc::prelude::Pipeline::new()
-                        .with_builder(
-                            zhc::compat::Iop::MhMul {
-                                par_n: *mh_factor as u8,
-                            }
-                            .to_builder(zhc_spec),
-                        )
+                        .with_builder(builder)
+                        .with_partitions(partitions)
                         .with_multi_hpu_config(mh_config)
                         .with_builder_partitions(true)
                 }
