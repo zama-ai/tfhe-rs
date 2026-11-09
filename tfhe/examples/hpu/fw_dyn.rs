@@ -13,6 +13,7 @@ use tfhe::*;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 
 use zhc::config::multi_hpu::MultiHpuConfig;
+use zhc::PipelineExt;
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -192,7 +193,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     for width in args.integer_w {
         // Define associated config and spec for Zhc
         let zhc_config = new_zhc_config(&hpu_config, hpu_device.params());
-        let zhc_spec = zhc::builder::CiphertextSpec::new(width as u16, 2, 2);
+        let zhc_spec = zhc::builder::SpecInteger::new(width as u16, 2, 2);
 
         for zhc_op in args.zhc_ops.iter() {
             // Build custom IOp Ir ----------------------------------------------------
@@ -203,7 +204,16 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                         n_hpus: *mh_factor as u8,
                         hpu_config: zhc_config.clone(),
                     };
-                    zhc::compat::mh_mul(zhc_spec, mh_config)
+                    // Keep the hand-grouped MhMul partitions, zhc auto-partitions otherwise
+                    zhc::prelude::Pipeline::new()
+                        .with_builder(
+                            zhc::compat::Iop::MhMul {
+                                par_n: *mh_factor as u8,
+                            }
+                            .to_builder(zhc_spec),
+                        )
+                        .with_multi_hpu_config(mh_config)
+                        .with_builder_partitions(true)
                 }
                 _ => unimplemented!("Current op not defined"),
             };
@@ -239,10 +249,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
                 .get_args()
                 .iter()
-                .filter_map(|ty| match ty {
-                    zhc::builder::Type::Ciphertext(spec) => Some(spec),
-                    zhc::builder::Type::Plaintext(_) => None,
-                })
+                .filter_map(hpu_asm::ct_spec)
                 .enumerate()
                 .map(|(pos, spec)| {
                     let bw = spec.int_size() as usize;
@@ -266,7 +273,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let imm_count = signature
                 .get_args()
                 .iter()
-                .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                .filter(|ty| matches!(ty, zhc::builder::Type::PlaintextInteger(_)))
                 .count();
             let imms = (0..imm_count)
                 .map(|pos| {

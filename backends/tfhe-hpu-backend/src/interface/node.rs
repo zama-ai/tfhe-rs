@@ -15,7 +15,7 @@ use zhc::ir::IR;
 use zhc::langs::doplang;
 use zhc::prelude::Fingerprint;
 
-use zhc::builder::CiphertextSpec;
+use zhc::builder::SpecInteger;
 
 use tracing::{debug, info, trace};
 
@@ -934,7 +934,7 @@ impl HpuNode {
                     // Get pipeline
                     let mut pipeline = iop.get_hpu_pipeline(
                         &new_zhc_config(config, &params),
-                        CiphertextSpec::new(*integer_w as u16, 2, 2),
+                        SpecInteger::new(*integer_w as u16, 2, 2),
                     );
                     // NB: Currently all StaticIOp target 1 node
                     // TODO get number of nodes from pipeline

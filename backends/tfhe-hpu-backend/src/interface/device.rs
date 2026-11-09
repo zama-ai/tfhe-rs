@@ -107,7 +107,7 @@ impl HpuDevice {
     pub fn new_var_from(
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
-        spec: zhc::builder::CiphertextSpec,
+        spec: zhc::builder::SpecInteger,
         pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
         self.cluster.new_var_from(ct, spec, pos)

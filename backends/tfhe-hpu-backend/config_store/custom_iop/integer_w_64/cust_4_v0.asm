@@ -2,7 +2,7 @@
 ; ------------------------------------------------------------------------------
 ; !preamble {
 ; [signature]
-; (Ciphertext<64, 2, 2>, Ciphertext<64, 2, 2>) -> Ciphertext<2, 2, 2>
+; (CiphertextInteger<64, 2, 2>, CiphertextInteger<64, 2, 2>) -> CiphertextInteger<2, 2, 2>
 ; [lut]
 ; GenPropAdd: [0,1,2,3,0,1,2,3,1,2,3,0,1,2,3,0]
 ; ManyGenProp: [0,0,0,1,2,2,2,3,0,1,2,3,0,1,2,3]

@@ -1,7 +1,7 @@
 ; ------------------------------------------------------------------------------
 ; !preamble {
 ; [signature]
-; (Ciphertext<32, 2, 2>, Ciphertext<32, 2, 2>) -> (Ciphertext<16, 2, 2>, Ciphertext<16, 2, 2>)
+; (CiphertextInteger<32, 2, 2>, CiphertextInteger<32, 2, 2>) -> (CiphertextInteger<16, 2, 2>, CiphertextInteger<16, 2, 2>)
 ; [lut]
 ; CarryInMsg: [0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3]
 ; MsgOnly: [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
