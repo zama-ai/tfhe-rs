@@ -83,6 +83,7 @@ CARGO_AUDIT_VERSION=0.22.2
 CARGO_CROSS_VERSION=0.2.5
 CARGO_DENY_VERSION=0.20.2
 CARGO_MLC_VERSION=1.3.0
+CARGO_NEXTEST_VERSION=0.9.151
 CARGO_TARPAULIN_VERSION=0.37.6
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
@@ -180,9 +181,7 @@ install_check_wasm32_target:
 
 .PHONY: install_cargo_nextest # Install cargo nextest used for shortint tests
 install_cargo_nextest:
-	@cargo nextest --version > /dev/null 2>&1 || \
-	cargo install cargo-nextest --locked || \
-	( echo "Unable to install cargo nextest, unknown error." && exit 1 )
+	cargo install --locked --version $(CARGO_NEXTEST_VERSION) cargo-nextest
 
 .PHONY: install_wasm_bindgen_cli # Install wasm-bindgen-cli to get access to the test runner
 install_wasm_bindgen_cli:
