@@ -17,7 +17,7 @@ use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use memory::ciphertext::SlotId;
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex, OnceLock};
-use zhc::builder::{CiphertextSpec, Type};
+use zhc::builder::{SpecInteger, Type};
 
 /// Copy-back buffers, reused so their pages stay resident for the DMA
 static C2H_BUFS: Mutex<Vec<&'static mut [u64]>> = Mutex::new(Vec::new());
@@ -324,7 +324,7 @@ pub struct HpuVarWrapped {
     /// Empty until the variable is dispatched. Shared by every clone so that a dispatch issued
     /// through one handle is immediately visible -- without locking -- through the others.
     pub(crate) position: Arc<OnceLock<(PhysId, SlotId)>>,
-    pub(crate) spec: CiphertextSpec,
+    pub(crate) spec: SpecInteger,
     /// Reference to associated cluster
     pub(crate) parent: HpuClusterWrapped,
 }
@@ -347,7 +347,7 @@ impl HpuVarWrapped {
     /// (c.f. [`crate::interface::HpuCmd::exec_raw`]).
     pub(crate) fn new(
         cluster: HpuClusterWrapped,
-        spec: CiphertextSpec,
+        spec: SpecInteger,
         pos: Option<PhysId>,
         from: Option<Vec<HpuLweCiphertextOwned<u64>>>,
     ) -> Self {
@@ -384,8 +384,9 @@ impl HpuVarWrapped {
     /// validate an assign-style IOp's rhs against its declared `Signature<Type>`).
     pub(crate) fn matches_type(&self, ty: &Type) -> bool {
         match ty {
-            Type::Ciphertext(spec) => spec.int_size() == self.bit_width(),
-            Type::Plaintext(_) => false,
+            Type::CiphertextInteger(spec) => spec.int_size() == self.bit_width(),
+            Type::CiphertextBool(blk) => blk.message_size() as u16 == self.bit_width(),
+            Type::PlaintextInteger(_) => false,
         }
     }
 }

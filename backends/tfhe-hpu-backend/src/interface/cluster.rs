@@ -535,7 +535,7 @@ impl HpuClusterWrapped {
     pub fn new_var_from(
         &self,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
-        spec: zhc::builder::CiphertextSpec,
+        spec: zhc::builder::SpecInteger,
         pos: Option<crate::asm::PhysId>,
     ) -> HpuVarWrapped {
         tracing::debug!("HpuVariable created with position {pos:?}");
