@@ -408,6 +408,10 @@ compare_radix_blocks(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
                      int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
                      KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
+  // Signed inputs of 2 blocks leave no block to compare after the sign block
+  // and the block before it are set aside
+  if (num_radix_blocks == 0)
+    return;
   if (lwe_array_out->lwe_dimension != lwe_array_left->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_right->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
