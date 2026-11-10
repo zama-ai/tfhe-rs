@@ -16,6 +16,8 @@ use std::ops::{Div, Mul};
 mod cpu;
 #[cfg(feature = "gpu")]
 pub(crate) mod gpu;
+#[cfg(feature = "gpu")]
+mod gpu_size_estimates;
 #[cfg(feature = "hpu")]
 mod hpu;
 

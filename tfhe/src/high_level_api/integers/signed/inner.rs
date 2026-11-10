@@ -8,9 +8,9 @@ use crate::high_level_api::global_state::cuda_clone;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
-#[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixShape};
 use crate::Device;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -96,6 +96,19 @@ impl SignedRadixCiphertext {
                     MaybeCloned::Cloned(cpu_ct)
                 })
             }
+        }
+    }
+
+    /// Returns the shape `self` has on the GPU, and whether [`Self::on_gpu`] borrows `self`,
+    /// without allocating anything on the GPU
+    #[cfg(feature = "gpu")]
+    pub(crate) fn gpu_shape(&self, streams: &CudaStreams) -> (CudaRadixShape, bool) {
+        match self {
+            Self::Cpu(ct) => (CudaRadixShape::of_cpu(ct), false),
+            Self::Cuda(ct) => (
+                CudaRadixShape::of_gpu(ct),
+                streams.is_on_first_gpu(ct.gpu_indexes()),
+            ),
         }
     }
 

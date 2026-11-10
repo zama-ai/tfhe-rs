@@ -19,6 +19,50 @@ use crate::GpuIndex;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 pub use compressed_noise_squashed_ciphertext_list::*;
 
+pub(crate) use shape::CudaRadixShape;
+
+// Private module: `CudaRadixShape` is `pub` so that the high-level API sealed traits can return it,
+// but it is not reachable from outside the crate
+mod shape {
+    /// What the GPU memory estimators need to know about a radix ciphertext. It can be read from a
+    /// ciphertext that is not on the GPU, without moving it there.
+    #[derive(Clone, Copy, Debug)]
+    pub struct CudaRadixShape {
+        pub(crate) num_blocks: usize,
+        /// Size in bytes of the LWE blocks once on the GPU
+        pub(crate) size_on_gpu: u64,
+        pub(crate) carries_are_empty: bool,
+    }
+
+    impl CudaRadixShape {
+        pub(crate) fn of_gpu<T: super::CudaIntegerRadixCiphertext>(ct: &T) -> Self {
+            let blocks = &ct.as_ref().d_blocks;
+            let num_blocks = blocks.lwe_ciphertext_count().0;
+            Self {
+                num_blocks,
+                // Each block stores lwe_dimension mask elements and the body
+                size_on_gpu: (num_blocks
+                    * blocks.lwe_dimension().to_lwe_size().0
+                    * std::mem::size_of::<u64>()) as u64,
+                carries_are_empty: ct.block_carries_are_empty(),
+            }
+        }
+
+        /// The blocks of `ct` keep their LWE size and degree when copied to the GPU
+        pub(crate) fn of_cpu<T: crate::integer::IntegerRadixCiphertext>(ct: &T) -> Self {
+            let blocks = ct.blocks();
+            Self {
+                num_blocks: blocks.len(),
+                size_on_gpu: blocks
+                    .iter()
+                    .map(|block| (block.ct.lwe_size().0 * std::mem::size_of::<u64>()) as u64)
+                    .sum(),
+                carries_are_empty: ct.block_carries_are_empty(),
+            }
+        }
+    }
+}
+
 pub trait CudaIntegerRadixCiphertext: Sized + Send {
     const IS_SIGNED: bool;
     fn as_ref(&self) -> &CudaRadixCiphertext;
