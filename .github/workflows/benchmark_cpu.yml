@@ -119,6 +119,8 @@ jobs:
       params_type: ${{ inputs.params_type }}
       precisions_set: ${{ inputs.precisions_set }}
       additional_file_to_parse: ${{ needs.parse-inputs.outputs.additional_file_to_parse }}
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -128,3 +130,5 @@ jobs:
       SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}

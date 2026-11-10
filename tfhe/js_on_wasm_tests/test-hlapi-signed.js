@@ -594,7 +594,12 @@ test("hlapi_compact_ciphertext_list_with_proof", (t) => {
   builder.push_i32(clear_i32);
   builder.push_boolean(clear_bool);
   builder.push_u256(clear_u256);
-  let list = builder.build_with_proof_packed(crs, ZkComputeLoad.Proof);
+  let metadata = new Uint8Array();
+  let list = builder.build_with_proof_packed(
+    crs,
+    metadata,
+    ZkComputeLoad.Proof,
+  );
 
   let serialized = list.safe_serialize(BigInt(10000000));
   let deserialized = ProvenCompactCiphertextList.safe_deserialize(
