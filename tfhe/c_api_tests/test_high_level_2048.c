@@ -49,17 +49,14 @@ int main(void) {
 
   ClientKey *client_key = NULL;
   ServerKey *server_key = NULL;
-  PublicKey *public_key = NULL;
 
   generate_keys(config, &client_key, &server_key);
-  public_key_new(client_key, &public_key);
 
   set_server_key(server_key);
 
   uint2048_client_key(client_key);
 
   client_key_destroy(client_key);
-  public_key_destroy(public_key);
   server_key_destroy(server_key);
   unset_server_key();
 

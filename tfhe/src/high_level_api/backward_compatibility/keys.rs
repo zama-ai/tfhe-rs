@@ -70,29 +70,6 @@ pub enum CompressedServerKeyVersions {
 }
 
 #[derive(Version)]
-pub struct PublicKeyV0 {
-    pub(in crate::high_level_api) key: crate::integer::PublicKey,
-}
-
-impl Upgrade<PublicKey> for PublicKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<PublicKey, Self::Error> {
-        let Self { key } = self;
-        Ok(PublicKey {
-            key,
-            tag: Tag::default(),
-        })
-    }
-}
-
-#[derive(VersionsDispatch)]
-pub enum PublicKeyVersions {
-    V0(PublicKeyV0),
-    V1(PublicKey),
-}
-
-#[derive(Version)]
 pub struct CompactPublicKeyV0 {
     pub(in crate::high_level_api) key: IntegerCompactPublicKey,
 }
@@ -113,29 +90,6 @@ impl Upgrade<CompactPublicKey> for CompactPublicKeyV0 {
 pub enum CompactPublicKeyVersions {
     V0(CompactPublicKeyV0),
     V1(CompactPublicKey),
-}
-
-#[derive(Version)]
-pub struct CompressedPublicKeyV0 {
-    pub(in crate::high_level_api) key: crate::integer::CompressedPublicKey,
-}
-
-impl Upgrade<CompressedPublicKey> for CompressedPublicKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<CompressedPublicKey, Self::Error> {
-        let Self { key } = self;
-        Ok(CompressedPublicKey {
-            key,
-            tag: Tag::default(),
-        })
-    }
-}
-
-#[derive(VersionsDispatch)]
-pub enum CompressedPublicKeyVersions {
-    V0(CompressedPublicKeyV0),
-    V1(CompressedPublicKey),
 }
 
 #[derive(Version)]

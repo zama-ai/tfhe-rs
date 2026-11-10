@@ -72,9 +72,9 @@ pub use integers::{
 #[cfg(feature = "gpu")]
 pub use keys::CudaServerKey;
 pub use keys::{
-    generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
+    generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey,
     CompressedReRandomizationKey, CompressedReRandomizationKeySwitchingKey, CompressedServerKey,
-    KeySwitchingKey, PublicKey, ReRandomizationKey, ReRandomizationKeySwitchingKey, ServerKey,
+    KeySwitchingKey, ReRandomizationKey, ReRandomizationKeySwitchingKey, ServerKey,
 };
 use strum::FromRepr;
 
