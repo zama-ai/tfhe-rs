@@ -78,24 +78,31 @@ static __global__ void radix_vec_to_columns(uint32_t *const *const columns,
                                             const uint32_t num_radix_blocks,
                                             const uint32_t num_radix_in_vec) {
 
-  const uint32_t idx = threadIdx.x;
-  size_t cnt = 0;
-  for (int i = 0; i < num_radix_in_vec; i++) {
-    size_t ct_id = i * num_radix_blocks + idx;
-    if (degrees[ct_id] != 0) {
-      columns[idx][cnt] = ct_id;
-      ++cnt;
+  const uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < num_radix_blocks) {
+    size_t cnt = 0;
+    for (int i = 0; i < num_radix_in_vec; i++) {
+      size_t ct_id = i * num_radix_blocks + idx;
+      if (degrees[ct_id] != 0) {
+        columns[idx][cnt] = ct_id;
+        ++cnt;
+      }
     }
+    columns_counter[idx] = cnt;
   }
-  columns_counter[idx] = cnt;
 }
 
+// Runs in a single CUDA block: all message PBS indexes must be assigned
+// (through the shared counter) before the carry ones. Each thread handles the
+// columns threadIdx.x, threadIdx.x + blockDim.x, ... so that more than 1024
+// columns are supported.
 template <typename Torus>
 static __global__ void prepare_new_columns_and_pbs_indexes(
     uint32_t *const *const new_columns, uint32_t *const new_columns_counter,
     Torus *const pbs_indexes_in, Torus *const pbs_indexes_out,
     Torus *const lut_indexes, const uint32_t *const *const columns,
-    const uint32_t *const columns_counter, const uint32_t chunk_size) {
+    const uint32_t *const columns_counter, const uint32_t chunk_size,
+    const uint32_t num_radix_blocks) {
   __shared__ uint32_t counter;
 
   if (threadIdx.x == 0) {
@@ -103,59 +110,68 @@ static __global__ void prepare_new_columns_and_pbs_indexes(
   }
   __syncthreads();
 
-  const uint32_t base_id = threadIdx.x;
-  const uint32_t column_len = columns_counter[base_id];
-
-  uint32_t ct_count = 0;
-  for (uint32_t i = 0; i + chunk_size <= column_len; i += chunk_size) {
-    // those indexes are for message ciphertexts
-    // for message ciphertexts in and out index should be same
-    const uint32_t in_index = columns[base_id][i];
-    new_columns[base_id][ct_count] = in_index;
-    const uint32_t pbs_index = atomicAdd(&counter, 1);
-    pbs_indexes_in[pbs_index] = in_index;
-    pbs_indexes_out[pbs_index] = in_index;
-    lut_indexes[pbs_index] = 0;
-    ++ct_count;
-  }
-  __syncthreads();
-
-  if (base_id > 0) {
-    const uint32_t prev_base_id = base_id - 1;
-    const uint32_t prev_column_len = columns_counter[prev_base_id];
-
-    for (uint32_t i = 0; i + chunk_size <= prev_column_len; i += chunk_size) {
-      // those indexes are for carry ciphertexts
-      // for carry ciphertexts input is same as for message
-      // output will be placed to next block in the column
-      const uint32_t in_index = columns[prev_base_id][i];
-      const uint32_t out_index = columns[prev_base_id][i + 1];
-      new_columns[base_id][ct_count] = out_index;
+  for (uint32_t base_id = threadIdx.x; base_id < num_radix_blocks;
+       base_id += blockDim.x) {
+    const uint32_t column_len = columns_counter[base_id];
+    uint32_t ct_count = 0;
+    for (uint32_t i = 0; i + chunk_size <= column_len; i += chunk_size) {
+      // those indexes are for message ciphertexts
+      // for message ciphertexts in and out index should be same
+      const uint32_t in_index = columns[base_id][i];
+      new_columns[base_id][ct_count] = in_index;
       const uint32_t pbs_index = atomicAdd(&counter, 1);
       pbs_indexes_in[pbs_index] = in_index;
-      pbs_indexes_out[pbs_index] = out_index;
-      lut_indexes[pbs_index] = 1;
+      pbs_indexes_out[pbs_index] = in_index;
+      lut_indexes[pbs_index] = 0;
       ++ct_count;
     }
   }
+  __syncthreads();
 
-  const uint32_t start_index = column_len - column_len % chunk_size;
-  for (uint32_t i = start_index; i < column_len; ++i) {
-    new_columns[base_id][ct_count] = columns[base_id][i];
-    ++ct_count;
+  for (uint32_t base_id = threadIdx.x; base_id < num_radix_blocks;
+       base_id += blockDim.x) {
+    const uint32_t column_len = columns_counter[base_id];
+    // number of message ciphertexts written to this column above
+    uint32_t ct_count = column_len / chunk_size;
+    if (base_id > 0) {
+      const uint32_t prev_base_id = base_id - 1;
+      const uint32_t prev_column_len = columns_counter[prev_base_id];
+
+      for (uint32_t i = 0; i + chunk_size <= prev_column_len; i += chunk_size) {
+        // those indexes are for carry ciphertexts
+        // for carry ciphertexts input is same as for message
+        // output will be placed to next block in the column
+        const uint32_t in_index = columns[prev_base_id][i];
+        const uint32_t out_index = columns[prev_base_id][i + 1];
+        new_columns[base_id][ct_count] = out_index;
+        const uint32_t pbs_index = atomicAdd(&counter, 1);
+        pbs_indexes_in[pbs_index] = in_index;
+        pbs_indexes_out[pbs_index] = out_index;
+        lut_indexes[pbs_index] = 1;
+        ++ct_count;
+      }
+    }
+
+    const uint32_t start_index = column_len - column_len % chunk_size;
+    for (uint32_t i = start_index; i < column_len; ++i) {
+      new_columns[base_id][ct_count] = columns[base_id][i];
+      ++ct_count;
+    }
+
+    new_columns_counter[base_id] = ct_count;
   }
-
-  new_columns_counter[base_id] = ct_count;
 }
 
 template <typename Torus>
 static __global__ void prepare_final_pbs_indexes(
     Torus *const pbs_indexes_in, Torus *const pbs_indexes_out,
     Torus *const lut_indexes, const uint32_t num_radix_blocks) {
-  int idx = threadIdx.x;
-  pbs_indexes_in[idx] = idx % num_radix_blocks;
-  pbs_indexes_out[idx] = idx + idx / num_radix_blocks;
-  lut_indexes[idx] = idx / num_radix_blocks;
+  const uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < 2 * num_radix_blocks) {
+    pbs_indexes_in[idx] = idx % num_radix_blocks;
+    pbs_indexes_out[idx] = idx + idx / num_radix_blocks;
+    lut_indexes[idx] = idx / num_radix_blocks;
+  }
 }
 
 template <typename Torus>
@@ -289,6 +305,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
     CudaRadixCiphertextFFI *terms, void *const *bsks, uint64_t *const *ksks,
     int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec) {
+  constexpr uint32_t MAX_THREADS_PER_BLOCK = 1024;
+  constexpr uint32_t THREADS_PER_WARP = 32;
   auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
   auto big_lwe_size = big_lwe_dimension + 1;
 
@@ -351,9 +369,15 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
                            streams.stream(0), streams.gpu_index(0));
 
   cuda_set_device(streams.gpu_index(0));
-  radix_vec_to_columns<<<1, num_radix_blocks, 0, streams.stream(0)>>>(
-      d_columns, d_columns_counter, d_degrees, num_radix_blocks,
-      num_radix_in_vec);
+  int num_blocks_columns = 0, num_threads_columns = 0;
+  getNumBlocksAndThreads(static_cast<int>(num_radix_blocks),
+                         static_cast<int>(MAX_THREADS_PER_BLOCK),
+                         num_blocks_columns, num_threads_columns);
+  radix_vec_to_columns<<<num_blocks_columns, num_threads_columns, 0,
+                         streams.stream(0)>>>(d_columns, d_columns_counter,
+                                              d_degrees, num_radix_blocks,
+                                              num_radix_in_vec);
+  check_cuda_error(cudaGetLastError());
 
   bool needs_processing = false;
   radix_columns current_columns(current_blocks->degrees, num_radix_blocks,
@@ -361,6 +385,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
   int number_of_threads = std::min(256, (int)mem_ptr->params.polynomial_size);
   int part_count = CEIL_DIV(big_lwe_size, number_of_threads);
   const dim3 number_of_blocks_2d(num_radix_blocks, part_count, 1);
+  // Round up to a full warp: the kernel's loop bounds guard the extra threads
+  const uint32_t num_threads_new_columns =
+      std::min(CEIL_DIV(num_radix_blocks, THREADS_PER_WARP) * THREADS_PER_WARP,
+               MAX_THREADS_PER_BLOCK);
 
   mem_ptr->setup_lookup_tables(streams, num_radix_in_vec,
                                current_blocks->degrees);
@@ -373,12 +401,14 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
         <<<number_of_blocks_2d, number_of_threads, 0, streams.stream(0)>>>(
             (Torus *)(current_blocks->ptr), d_columns, d_columns_counter,
             chunk_size, big_lwe_size);
+    check_cuda_error(cudaGetLastError());
 
-    prepare_new_columns_and_pbs_indexes<<<1, num_radix_blocks, 0,
+    prepare_new_columns_and_pbs_indexes<<<1, num_threads_new_columns, 0,
                                           streams.stream(0)>>>(
         d_new_columns, d_new_columns_counter, d_pbs_indexes_in,
         d_pbs_indexes_out, luts_message_carry->get_lut_indexes(0, 0), d_columns,
-        d_columns_counter, chunk_size);
+        d_columns_counter, chunk_size, num_radix_blocks);
+    check_cuda_error(cudaGetLastError());
 
     uint32_t total_ciphertexts;
     uint32_t total_messages;
@@ -422,15 +452,21 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
       <<<number_of_blocks_2d, number_of_threads, 0, streams.stream(0)>>>(
           (Torus *)(radix_lwe_out->ptr), (Torus *)(current_blocks->ptr),
           d_columns, d_columns_counter, chunk_size, big_lwe_size);
+  check_cuda_error(cudaGetLastError());
 
   if (mem_ptr->reduce_degrees_for_single_carry_propagation) {
     auto luts_message_carry = mem_ptr->luts_message_carry;
     auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
     auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
+    int num_blocks_final = 0, num_threads_final = 0;
+    getNumBlocksAndThreads(static_cast<int>(2 * num_radix_blocks),
+                           static_cast<int>(MAX_THREADS_PER_BLOCK),
+                           num_blocks_final, num_threads_final);
     prepare_final_pbs_indexes<Torus>
-        <<<1, 2 * num_radix_blocks, 0, streams.stream(0)>>>(
+        <<<num_blocks_final, num_threads_final, 0, streams.stream(0)>>>(
             d_pbs_indexes_in, d_pbs_indexes_out,
             luts_message_carry->get_lut_indexes(0, 0), num_radix_blocks);
+    check_cuda_error(cudaGetLastError());
 
     set_zero_radix_ciphertext_slice_async<Torus>(
         streams.stream(0), streams.gpu_index(0), current_blocks,
