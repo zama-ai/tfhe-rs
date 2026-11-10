@@ -65,17 +65,23 @@ template <typename Torus> struct int_scalar_mul_buffer {
           anticipated_drop_mem);
 
     uint64_t last_step_mem = 0;
+    uint64_t lazy_mem = 0;
     if (num_ciphertext_bits > 0) {
       sum_ciphertexts_vec_mem = new int_sum_ciphertexts_vec_memory<Torus>(
           streams, params, num_radix_blocks, num_ciphertext_bits, true,
           allocate_gpu_memory, last_step_mem);
+      lazy_mem = sum_ciphertexts_vec_mem->lazy_lut_size;
     }
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
         streams, params, num_radix_blocks, requested_flag, allocate_gpu_memory,
         last_step_mem);
     if (anticipated_buffer_drop) {
-      size_tracker += std::max(anticipated_drop_mem, last_step_mem);
+      // The sum and carry propagation buffers are allocated here, alongside the
+      // buffers dropped by release_buffers(). Only the sum's lookup table is
+      // allocated after the drop, so it alone can reuse the dropped memory.
+      uint64_t resident_mem = last_step_mem - lazy_mem;
+      size_tracker += resident_mem + std::max(anticipated_drop_mem, lazy_mem);
     } else {
       size_tracker += anticipated_drop_mem + last_step_mem;
     }

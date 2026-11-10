@@ -9,6 +9,8 @@ use crate::integer::gpu::{
     cuda_backend_add_and_propagate_single_carry_assign,
     cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu,
     cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_partial_sum_ciphertexts_vec_size_on_gpu,
+    cuda_backend_get_propagate_single_carry_assign_size_on_gpu,
     cuda_backend_unchecked_partial_sum_ciphertexts_assign,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
@@ -78,7 +80,9 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_add_assign_size_on_gpu(ct_left, ct_right, streams)
+        // add duplicates ct_left into the output, then runs add_assign on it
+        self.get_ciphertext_size_on_gpu(ct_left)
+            + self.get_add_assign_size_on_gpu(ct_left, ct_right, streams)
     }
 
     pub fn add_assign<T: CudaIntegerRadixCiphertext>(
@@ -139,27 +143,30 @@ impl CudaServerKey {
             self.message_modulus,
             self.carry_modulus,
         );
-        let actual_full_prop_mem = match (
+        // A dirty lhs is propagated in place; a dirty rhs is duplicated first and the copy stays
+        // alive during the addition
+        let (rhs_copy, actual_full_prop_mem) = match (
             ct_left.block_carries_are_empty(),
             ct_right.block_carries_are_empty(),
         ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
+            (true, true) => (0, 0),
+            (_, false) => (self.get_ciphertext_size_on_gpu(ct_right), full_prop_mem),
+            (false, true) => (0, full_prop_mem),
         };
 
-        let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0;
+        // add_and_propagate_single_carry_assign allocates a carry-out and an input-carry block
+        let carry_blocks = 2 * self.get_ciphertext_size_on_gpu(ct_right) / num_blocks.max(1) as u64;
         let add_assign_mem = cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu(
             streams,
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
-            num_blocks,
+            num_blocks as u32,
             self.message_modulus,
             self.carry_modulus,
             OutputFlag::None,
         );
-        actual_full_prop_mem.max(add_assign_mem)
+        rhs_copy + actual_full_prop_mem.max(carry_blocks + add_assign_mem)
     }
 
     #[cfg(test)]
@@ -336,6 +343,97 @@ impl CudaServerKey {
             });
 
         Some(self.unchecked_sum_ciphertexts(&ciphertexts, streams))
+    }
+
+    /// Returns the GPU memory (in bytes) that [`Self::sum_ciphertexts`] allocates on these
+    /// ciphertexts, without allocating anything on the GPU. The vector `sum_ciphertexts` consumes
+    /// is the caller's and is not counted.
+    ///
+    /// It covers the full propagation of the inputs that are not clean, the result (a copy of
+    /// the first ciphertext), then the larger of the partial sum (for 3 or more ciphertexts, a
+    /// concatenated copy of all of them and the partial-sum scratch; for 2, the addition) and of
+    /// the final single carry propagation (its scratch and two carry blocks, plus what the
+    /// partial sum freed just before it).
+    pub fn get_sum_ciphertexts_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ciphertexts: &[&T],
+        streams: &CudaStreams,
+    ) -> u64 {
+        let Some(first) = ciphertexts.first() else {
+            return 0;
+        };
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        let num_radixes = ciphertexts.len();
+        let num_blocks = first.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let ct_size = self.get_ciphertext_size_on_gpu(*first);
+        let carry_blocks = 2 * ct_size / num_blocks.max(1) as u64;
+
+        let full_prop_mem = if ciphertexts.iter().all(|ct| ct.is_clean()) {
+            0
+        } else {
+            cuda_backend_get_full_propagate_assign_size_on_gpu(
+                streams,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                num_blocks as u32,
+                self.message_modulus,
+                self.carry_modulus,
+            )
+        };
+
+        let partial_sum_mem = match num_radixes {
+            1 => 0,
+            2 => {
+                carry_blocks
+                    + cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu(
+                        streams,
+                        &self.bootstrapping_key,
+                        computing_ks_key.params_ffi(),
+                        num_blocks as u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        OutputFlag::None,
+                    )
+            }
+            _ => {
+                num_radixes as u64 * ct_size
+                    + cuda_backend_get_partial_sum_ciphertexts_vec_size_on_gpu(
+                        streams,
+                        &self.bootstrapping_key,
+                        computing_ks_key.params_ffi(),
+                        num_blocks as u32,
+                        num_radixes as u32,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        true,
+                    )
+            }
+        };
+        // What the partial sum frees just before the final propagation (the concatenated copy of
+        // the inputs, or the carry blocks of the addition) is still counted by the memory pool
+        // when the propagation allocates: the frees are stream-ordered, the pool grows instead of
+        // reusing them (measured on the CUDA default pool)
+        let freed_before_carry = match num_radixes {
+            1 => 0,
+            2 => carry_blocks,
+            _ => num_radixes as u64 * ct_size,
+        };
+        let carry_mem = freed_before_carry
+            + carry_blocks
+            + cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
+                streams,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                num_blocks as u32,
+                self.message_modulus,
+                self.carry_modulus,
+                OutputFlag::None,
+            );
+
+        full_prop_mem.max(ct_size + partial_sum_mem.max(carry_mem))
     }
 
     /// ```rust

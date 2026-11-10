@@ -261,6 +261,14 @@ fn test_uint32_div_rem_gpu() {
 }
 
 #[test]
+fn test_uint32_scalar_rem_power_of_two_gpu() {
+    for setup_fn in GPU_SETUP_FN {
+        let client_key = setup_fn();
+        super::test_case_uint32_scalar_rem_power_of_two(&client_key);
+    }
+}
+
+#[test]
 fn test_small_uint128_gpu() {
     for setup_fn in GPU_SETUP_FN {
         let cks = setup_fn();
@@ -782,9 +790,10 @@ fn test_gpu_get_add_and_sub_size_on_gpu() {
         check_valid_cuda_malloc_assert_oom(sub_tmp_buffer_size, GpuIndex::new(0));
         check_valid_cuda_malloc_assert_oom(scalar_add_tmp_buffer_size, GpuIndex::new(0));
         check_valid_cuda_malloc_assert_oom(scalar_sub_tmp_buffer_size, GpuIndex::new(0));
-        assert_eq!(add_tmp_buffer_size, sub_tmp_buffer_size);
-        assert_eq!(add_tmp_buffer_size, scalar_add_tmp_buffer_size);
-        assert_eq!(add_tmp_buffer_size, scalar_sub_tmp_buffer_size);
+        // sub also needs the negated rhs, and returns a new radix (as does `scalar - b`)
+        assert!(sub_tmp_buffer_size > add_tmp_buffer_size);
+        // add and scalar add use different scratch (scalar blocks, carry propagation): no equality
+        assert!(scalar_sub_tmp_buffer_size > add_tmp_buffer_size);
         let neg_tmp_buffer_size = a.get_neg_size_on_gpu();
         check_valid_cuda_malloc_assert_oom(neg_tmp_buffer_size, GpuIndex::new(0));
     }

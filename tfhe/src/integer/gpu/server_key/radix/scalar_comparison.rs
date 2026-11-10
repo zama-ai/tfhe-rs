@@ -7,7 +7,11 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
-use crate::integer::gpu::{cuda_backend_unchecked_scalar_comparison, ComparisonType};
+use crate::integer::gpu::{
+    cuda_backend_get_comparison_size_on_gpu, cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_scalar_comparison_size_on_gpu, cuda_backend_unchecked_scalar_comparison,
+    ComparisonType,
+};
 use crate::shortint::ciphertext::Degree;
 
 enum ScalarDispatch<T> {
@@ -653,12 +657,93 @@ impl CudaServerKey {
         self.unchecked_scalar_le(lhs, scalar, streams)
     }
 
+    /// Returns the GPU memory (in bytes) needed by the scalar comparison `op` (EQ, NE, GT, GE,
+    /// LT or LE) of `ct` with any scalar, without allocating anything on the GPU.
+    ///
+    /// It covers the copy and the full propagation of a dirty `ct`, the output block, the scalar
+    /// blocks and the scratch of the scalar comparison. For signed ciphertexts, a negative scalar
+    /// is compared as a trivial radix with the encrypted comparison, which is also covered.
+    pub(crate) fn get_scalar_comparison_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        op: ComparisonType,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+        assert_eq!(
+            computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+            self.bootstrapping_key.input_lwe_dimension(),
+            "KS key output LWE dimension mismatch with BSK input LWE dimension"
+        );
+        assert_eq!(
+            computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+            self.bootstrapping_key.output_lwe_dimension(),
+            "KS key input LWE dimension mismatch with BSK big LWE dimension"
+        );
+
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let ct_size = self.get_ciphertext_size_on_gpu(ct);
+        let block_size = ct_size / num_blocks.max(1) as u64;
+
+        let (lhs_copy, full_prop_mem) = if ct.block_carries_are_empty() {
+            (0, 0)
+        } else {
+            (
+                ct_size,
+                cuda_backend_get_full_propagate_assign_size_on_gpu(
+                    streams,
+                    &self.bootstrapping_key,
+                    computing_ks_key.params_ffi(),
+                    num_blocks as u32,
+                    self.message_modulus,
+                    self.carry_modulus,
+                ),
+            )
+        };
+
+        // Output block + scalar blocks (at most one u64 per block) + scalar comparison scratch
+        let scalar_comparison_mem = block_size
+            + (num_blocks * size_of::<u64>()) as u64
+            + cuda_backend_get_scalar_comparison_size_on_gpu(
+                streams,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                num_blocks as u32,
+                op,
+                T::IS_SIGNED,
+            );
+        let op_mem = if T::IS_SIGNED {
+            // Negative scalar: trivial radix + output block + encrypted comparison scratch
+            let encrypted_comparison_mem = ct_size
+                + block_size
+                + cuda_backend_get_comparison_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    &self.bootstrapping_key,
+                    computing_ks_key.params_ffi(),
+                    num_blocks as u32,
+                    op,
+                    true,
+                );
+            scalar_comparison_mem.max(encrypted_comparison_mem)
+        } else {
+            scalar_comparison_mem
+        };
+
+        lhs_copy + full_prop_mem.max(op_mem)
+    }
+
     pub fn get_scalar_eq_size_on_gpu<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::EQ, streams)
+        self.get_scalar_comparison_size_on_gpu(ct_left, ComparisonType::EQ, streams)
     }
 
     pub fn get_scalar_ne_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -666,7 +751,7 @@ impl CudaServerKey {
         ct_left: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::NE, streams)
+        self.get_scalar_comparison_size_on_gpu(ct_left, ComparisonType::NE, streams)
     }
 
     pub fn get_scalar_gt_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -674,7 +759,7 @@ impl CudaServerKey {
         ct_left: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::GT, streams)
+        self.get_scalar_comparison_size_on_gpu(ct_left, ComparisonType::GT, streams)
     }
 
     pub fn get_scalar_ge_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -682,7 +767,7 @@ impl CudaServerKey {
         ct_left: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::GE, streams)
+        self.get_scalar_comparison_size_on_gpu(ct_left, ComparisonType::GE, streams)
     }
 
     pub fn get_scalar_lt_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -690,7 +775,7 @@ impl CudaServerKey {
         ct_left: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::LT, streams)
+        self.get_scalar_comparison_size_on_gpu(ct_left, ComparisonType::LT, streams)
     }
 
     pub fn get_scalar_le_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -698,7 +783,7 @@ impl CudaServerKey {
         ct_left: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::LE, streams)
+        self.get_scalar_comparison_size_on_gpu(ct_left, ComparisonType::LE, streams)
     }
 
     pub(crate) fn unchecked_scalar_max<Scalar, T>(
@@ -761,12 +846,89 @@ impl CudaServerKey {
         self.unchecked_scalar_min(lhs, scalar, streams)
     }
 
+    /// Returns the GPU memory (in bytes) needed by `scalar_max` / `scalar_min` (`op`) on `ct` with
+    /// any scalar, without allocating anything on the GPU.
+    ///
+    /// It covers the copy and the full propagation of a dirty `ct`, the output radix, the scalar
+    /// blocks and the scratch of the scalar comparison. For signed ciphertexts, a negative scalar
+    /// is used as a trivial radix with the encrypted max / min, which is also covered. A scalar
+    /// out of the range of `ct` only allocates the output radix.
+    fn get_scalar_minmax_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        op: ComparisonType,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+        assert_eq!(
+            computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
+            self.bootstrapping_key.input_lwe_dimension(),
+            "KS key output LWE dimension mismatch with BSK input LWE dimension"
+        );
+        assert_eq!(
+            computing_ks_key.input_key_lwe_size().to_lwe_dimension(),
+            self.bootstrapping_key.output_lwe_dimension(),
+            "KS key input LWE dimension mismatch with BSK big LWE dimension"
+        );
+
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let ct_size = self.get_ciphertext_size_on_gpu(ct);
+        let (lhs_copy, full_prop_mem) = if ct.block_carries_are_empty() {
+            (0, 0)
+        } else {
+            (
+                ct_size,
+                cuda_backend_get_full_propagate_assign_size_on_gpu(
+                    streams,
+                    &self.bootstrapping_key,
+                    computing_ks_key.params_ffi(),
+                    num_blocks as u32,
+                    self.message_modulus,
+                    self.carry_modulus,
+                ),
+            )
+        };
+        // Output radix + scalar blocks (at most one u64 per block) + scalar comparison scratch
+        let scalar_minmax_mem = ct_size
+            + (num_blocks * size_of::<u64>()) as u64
+            + cuda_backend_get_scalar_comparison_size_on_gpu(
+                streams,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                num_blocks as u32,
+                op,
+                T::IS_SIGNED,
+            );
+        let op_mem = if T::IS_SIGNED {
+            // Negative scalar: trivial radix + output radix + encrypted max / min scratch
+            let encrypted_minmax_mem = 2 * ct_size
+                + cuda_backend_get_comparison_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    &self.bootstrapping_key,
+                    computing_ks_key.params_ffi(),
+                    num_blocks as u32,
+                    op,
+                    true,
+                );
+            scalar_minmax_mem.max(encrypted_minmax_mem)
+        } else {
+            scalar_minmax_mem
+        };
+        lhs_copy + full_prop_mem.max(op_mem)
+    }
+
     pub fn get_scalar_max_size_on_gpu<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::MAX, streams)
+        self.get_scalar_minmax_size_on_gpu(ct_left, ComparisonType::MAX, streams)
     }
 
     pub fn get_scalar_min_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -774,6 +936,6 @@ impl CudaServerKey {
         ct_left: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::MIN, streams)
+        self.get_scalar_minmax_size_on_gpu(ct_left, ComparisonType::MIN, streams)
     }
 }
