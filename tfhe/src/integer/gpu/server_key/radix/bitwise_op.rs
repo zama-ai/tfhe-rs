@@ -426,13 +426,25 @@ impl CudaServerKey {
         op: BitOpType,
         streams: &CudaStreams,
     ) -> u64 {
+        self.get_boolean_bitop_size_on_gpu_from_radix(&ct_left.0, &ct_right.0, op, streams)
+    }
+
+    /// Same as [`Self::get_boolean_bitop_size_on_gpu`], for boolean blocks held in radix
+    /// ciphertexts of one block (no GPU allocation is needed to build the boolean blocks).
+    pub(crate) fn get_boolean_bitop_size_on_gpu_from_radix<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        op: BitOpType,
+        streams: &CudaStreams,
+    ) -> u64 {
         assert_eq!(
-            ct_left.0.as_ref().d_blocks.lwe_dimension(),
-            ct_right.0.as_ref().d_blocks.lwe_dimension()
+            ct_left.as_ref().d_blocks.lwe_dimension(),
+            ct_right.as_ref().d_blocks.lwe_dimension()
         );
         assert_eq!(
-            ct_left.0.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.0.as_ref().d_blocks.lwe_ciphertext_count()
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -448,16 +460,19 @@ impl CudaServerKey {
             self.bootstrapping_key.output_lwe_dimension(),
             "KS key input LWE dimension mismatch with BSK big LWE dimension"
         );
-        cuda_backend_get_boolean_bitop_size_on_gpu(
-            streams,
-            self.message_modulus,
-            self.carry_modulus,
-            &self.bootstrapping_key,
-            computing_ks_key.params_ffi(),
-            op,
-            false,
-            1u32,
-        )
+        // The boolean_bit* functions return a new block, duplicated from ct_left
+        let output_size = self.get_ciphertext_size_on_gpu(ct_left);
+        output_size
+            + cuda_backend_get_boolean_bitop_size_on_gpu(
+                streams,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                op,
+                false,
+                1u32,
+            )
     }
 
     pub fn get_bitop_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -486,14 +501,17 @@ impl CudaServerKey {
             self.message_modulus,
             self.carry_modulus,
         );
-        let actual_full_prop_mem = match (
+        // The bit* functions duplicate ct_left into the output, then propagate it in place; a dirty
+        // ct_right is duplicated and propagated. The output and the rhs copy stay alive during the
+        // propagation and the bitop.
+        let output_size = self.get_ciphertext_size_on_gpu(ct_left);
+        let (rhs_copy, actual_full_prop_mem) = match (
             ct_left.block_carries_are_empty(),
             ct_right.block_carries_are_empty(),
         ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
+            (true, true) => (0, 0),
+            (true | false, false) => (self.get_ciphertext_size_on_gpu(ct_right), full_prop_mem),
+            (false, true) => (0, full_prop_mem),
         };
 
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
@@ -517,7 +535,7 @@ impl CudaServerKey {
             op,
             lwe_ciphertext_count.0 as u32,
         );
-        actual_full_prop_mem.max(bitop_mem)
+        output_size + rhs_copy + actual_full_prop_mem.max(bitop_mem)
     }
 
     #[cfg(test)]
@@ -959,9 +977,21 @@ impl CudaServerKey {
 
     pub fn get_boolean_bitnot_size_on_gpu(
         &self,
-        _ct: &CudaBooleanBlock,
+        ct: &CudaBooleanBlock,
         streams: &CudaStreams,
     ) -> u64 {
+        self.get_boolean_bitnot_size_on_gpu_from_radix(&ct.0, streams)
+    }
+
+    /// Same as [`Self::get_boolean_bitnot_size_on_gpu`], for a boolean block held in a radix
+    /// ciphertext of one block (no GPU allocation is needed to build the boolean block).
+    pub(crate) fn get_boolean_bitnot_size_on_gpu_from_radix<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        // boolean_bitnot duplicates ct into the output block
+        let output_size = self.get_ciphertext_size_on_gpu(ct);
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -976,15 +1006,16 @@ impl CudaServerKey {
             self.bootstrapping_key.output_lwe_dimension(),
             "KS key input LWE dimension mismatch with BSK big LWE dimension"
         );
-        cuda_backend_get_boolean_bitnot_size_on_gpu(
-            streams,
-            self.message_modulus,
-            self.carry_modulus,
-            &self.bootstrapping_key,
-            computing_ks_key.params_ffi(),
-            false,
-            1u32,
-        )
+        output_size
+            + cuda_backend_get_boolean_bitnot_size_on_gpu(
+                streams,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                false,
+                1u32,
+            )
     }
 
     pub fn get_bitnot_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -1010,6 +1041,8 @@ impl CudaServerKey {
 
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         let bitnot_mem = (lwe_ciphertext_count.0 * size_of::<u64>()) as u64;
-        full_prop_mem.max(bitnot_mem)
+        // bitnot duplicates ct into the output, then propagates it in place
+        let output_size = self.get_ciphertext_size_on_gpu(ct);
+        output_size + full_prop_mem.max(bitnot_mem)
     }
 }

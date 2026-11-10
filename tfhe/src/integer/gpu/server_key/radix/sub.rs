@@ -7,6 +7,8 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 
 use crate::integer::gpu::{
+    cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_sub_and_propagate_single_carry_assign_size_on_gpu,
     cuda_backend_sub_and_propagate_single_carry_assign,
     cuda_backend_unchecked_unsigned_overflowing_sub_assign,
 };
@@ -112,7 +114,9 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_sub_assign_size_on_gpu(ct_left, ct_right, streams)
+        // sub duplicates ct_left into the output, then runs sub_assign on it
+        self.get_ciphertext_size_on_gpu(ct_left)
+            + self.get_sub_assign_size_on_gpu(ct_left, ct_right, streams)
     }
 
     pub fn sub_assign<T: CudaIntegerRadixCiphertext>(
@@ -156,7 +160,70 @@ impl CudaServerKey {
         ct_right: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_add_assign_size_on_gpu(ct_left, ct_right, streams)
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0
+        );
+        self.get_sub_assign_size_on_gpu_with_clean_lhs(
+            ct_left.block_carries_are_empty(),
+            ct_right,
+            streams,
+        )
+    }
+
+    /// Size on the GPU of `sub_assign(lhs, ct_right)` where `lhs` has the shape of `ct_right` and
+    /// empty carries when `lhs_is_clean`: the copy of a dirty `ct_right`, the full propagation,
+    /// the carry blocks and the scratch of sub_and_propagate_single_carry (which includes the
+    /// negated rhs).
+    pub(crate) fn get_sub_assign_size_on_gpu_with_clean_lhs<T: CudaIntegerRadixCiphertext>(
+        &self,
+        lhs_is_clean: bool,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        let full_prop_mem = cuda_backend_get_full_propagate_assign_size_on_gpu(
+            streams,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+            self.message_modulus,
+            self.carry_modulus,
+        );
+        // A dirty lhs is propagated in place, a dirty rhs is duplicated first
+        let (rhs_copy, actual_full_prop_mem) =
+            match (lhs_is_clean, ct_right.block_carries_are_empty()) {
+                (true, true) => (0, 0),
+                (_, false) => (self.get_ciphertext_size_on_gpu(ct_right), full_prop_mem),
+                (false, true) => (0, full_prop_mem),
+            };
+
+        let num_blocks = ct_right.as_ref().d_blocks.lwe_ciphertext_count().0;
+        // sub_and_propagate_single_carry_assign allocates a carry-out and an input-carry block
+        let carry_blocks = 2 * self.get_ciphertext_size_on_gpu(ct_right) / num_blocks.max(1) as u64;
+        let sub_mem = cuda_backend_get_sub_and_propagate_single_carry_assign_size_on_gpu(
+            streams,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+            num_blocks as u32,
+            self.message_modulus,
+            self.carry_modulus,
+            OutputFlag::None,
+        );
+        rhs_copy + actual_full_prop_mem.max(carry_blocks + sub_mem)
+    }
+
+    /// Returns the GPU memory (in bytes) needed by `scalar - ct_right` as computed by the high
+    /// level API: a trivial radix of the scalar (the output), then `sub_assign` on it.
+    pub fn get_left_scalar_sub_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_ciphertext_size_on_gpu(ct_right)
+            + self.get_sub_assign_size_on_gpu_with_clean_lhs(true, ct_right, streams)
     }
 
     pub fn unsigned_overflowing_sub(

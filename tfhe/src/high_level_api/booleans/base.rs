@@ -1427,23 +1427,18 @@ where
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
-                let inner_left_block = self.ciphertext.on_gpu(streams).as_ref().duplicate(streams);
-                let inner_right_block = rhs
-                    .borrow()
-                    .ciphertext
-                    .on_gpu(streams)
-                    .as_ref()
-                    .duplicate(streams);
-                let boolean_block_left =
-                    CudaBooleanBlock::from_cuda_radix_ciphertext(inner_left_block);
-                let boolean_block_right =
-                    CudaBooleanBlock::from_cuda_radix_ciphertext(inner_right_block);
-
-                cuda_key.key.key.get_boolean_bitand_size_on_gpu(
-                    &boolean_block_left,
-                    &boolean_block_right,
-                    streams,
-                )
+                let inner_left = self.ciphertext.on_gpu(streams);
+                let inner_right = rhs.borrow().ciphertext.on_gpu(streams);
+                // `&` duplicates both blocks into CudaBooleanBlocks, then boolean_bitand
+                // duplicates the left one into the output
+                cuda_key.key.key.get_ciphertext_size_on_gpu(&*inner_left)
+                    + cuda_key.key.key.get_ciphertext_size_on_gpu(&*inner_right)
+                    + cuda_key.key.key.get_boolean_bitop_size_on_gpu_from_radix(
+                        &*inner_left,
+                        &*inner_right,
+                        crate::integer::gpu::BitOpType::And,
+                        streams,
+                    )
             } else {
                 0
             }
@@ -2591,13 +2586,14 @@ impl BitNotSizeOnGpu for FheBool {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
                 let streams = &cuda_key.streams;
-                let inner_block = self.ciphertext.on_gpu(streams).as_ref().duplicate(streams);
-                let boolean_block = CudaBooleanBlock::from_cuda_radix_ciphertext(inner_block);
-
-                cuda_key
-                    .key
-                    .key
-                    .get_boolean_bitnot_size_on_gpu(&boolean_block, streams)
+                let inner = self.ciphertext.on_gpu(streams);
+                // `!` duplicates the block into a CudaBooleanBlock, then boolean_bitnot
+                // duplicates it again into the output
+                cuda_key.key.key.get_ciphertext_size_on_gpu(&*inner)
+                    + cuda_key
+                        .key
+                        .key
+                        .get_boolean_bitnot_size_on_gpu_from_radix(&*inner, streams)
             } else {
                 0
             }

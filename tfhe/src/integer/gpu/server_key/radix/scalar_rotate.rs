@@ -218,7 +218,8 @@ impl CudaServerKey {
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
         );
-        full_prop_mem.max(scalar_shift_mem)
+        // The output is duplicated from ct, then propagated in place
+        self.get_ciphertext_size_on_gpu(ct) + full_prop_mem.max(scalar_shift_mem)
     }
 
     pub fn get_scalar_rotate_right_size_on_gpu<T>(&self, ct: &T, streams: &CudaStreams) -> u64
@@ -259,6 +260,7 @@ impl CudaServerKey {
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
         );
-        full_prop_mem.max(scalar_shift_mem)
+        // The output is duplicated from ct, then propagated in place
+        self.get_ciphertext_size_on_gpu(ct) + full_prop_mem.max(scalar_shift_mem)
     }
 }

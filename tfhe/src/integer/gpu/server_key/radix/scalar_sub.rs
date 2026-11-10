@@ -3,7 +3,11 @@ use crate::core_crypto::prelude::{Numeric, SignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext};
-use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
+use crate::integer::gpu::{
+    cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_propagate_single_carry_assign_size_on_gpu,
+};
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::server_key::TwosComplementNegation;
 use crate::prelude::CastInto;
@@ -96,7 +100,8 @@ impl CudaServerKey {
         ct: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_scalar_sub_assign_size_on_gpu(ct, streams)
+        // scalar_sub duplicates ct into the output, then runs scalar_sub_assign on it
+        self.get_ciphertext_size_on_gpu(ct) + self.get_scalar_sub_assign_size_on_gpu(ct, streams)
     }
 
     pub fn scalar_sub_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
@@ -117,7 +122,38 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
-        self.get_scalar_add_assign_size_on_gpu(ct, streams)
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        // A dirty ct is propagated in place
+        let full_prop_mem = if ct.block_carries_are_empty() {
+            0
+        } else {
+            cuda_backend_get_full_propagate_assign_size_on_gpu(
+                streams,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                self.message_modulus,
+                self.carry_modulus,
+            )
+        };
+
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        // Decomposed scalar (at most one u64 per block), carry-out and input-carry blocks of
+        // propagate_single_carry_assign, and its scratch
+        let scalar_blocks = (num_blocks * size_of::<u64>()) as u64;
+        let carry_blocks = 2 * self.get_ciphertext_size_on_gpu(ct) / num_blocks.max(1) as u64;
+        let single_carry_mem = cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
+            streams,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+            num_blocks as u32,
+            self.message_modulus,
+            self.carry_modulus,
+            OutputFlag::None,
+        );
+        full_prop_mem.max(scalar_blocks + carry_blocks + single_carry_mem)
     }
 
     /// ```rust

@@ -22,8 +22,11 @@ impl CudaServerKey {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
         let message_modulus = self.message_modulus.0;
 
+        // Blocks of the scalar above the ciphertext's last block are ignored (like the CPU, which
+        // zips the blocks); the backend must not be given more clear blocks than radix blocks.
         let h_clear_blocks = BlockDecomposer::with_early_stop_at_zero(rhs, message_modulus.ilog2())
             .iter_as::<u8>()
+            .take(lwe_ciphertext_count.0)
             .map(|x| x as u64)
             .collect::<Vec<_>>();
 
@@ -167,7 +170,9 @@ impl CudaServerKey {
             op,
             lwe_ciphertext_count.0 as u32,
         );
-        full_prop_mem.max(scalar_bitop_mem + clear_blocks_mem)
+        // The scalar_bit* functions duplicate ct into the output, then propagate it in place
+        let output_size = self.get_ciphertext_size_on_gpu(ct);
+        output_size + full_prop_mem.max(scalar_bitop_mem + clear_blocks_mem)
     }
 
     pub fn get_scalar_bitand_size_on_gpu<T>(&self, ct: &T, streams: &CudaStreams) -> u64
