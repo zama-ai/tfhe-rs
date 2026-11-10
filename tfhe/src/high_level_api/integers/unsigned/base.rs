@@ -1268,6 +1268,11 @@ where
                 );
                 let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
                 if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
+                    let result =
+                        cuda_key
+                            .key
+                            .key
+                            .cast_to_unsigned(result, target_num_blocks, streams);
                     Ok((
                         FheUint::new(
                             result,
@@ -1419,6 +1424,11 @@ where
                 );
                 let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
                 if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
+                    let result =
+                        cuda_key
+                            .key
+                            .key
+                            .cast_to_unsigned(result, target_num_blocks, streams);
                     Ok(FheUint::new(
                         result,
                         cuda_key.tag.clone(),
