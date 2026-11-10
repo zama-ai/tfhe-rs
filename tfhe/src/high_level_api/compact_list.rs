@@ -374,9 +374,9 @@ impl CompactCiphertextList {
                         cpu_inner, streams,
                     )?;
 
-                let ksk = cuda_key.cpk_key_switching_key();
-                let expander =
-                    gpu_inner.expand(&ksk, crate::integer::gpu::ZKType::Casting, streams)?;
+                let expander = cuda_key.with_compact_list_expansion_key(|key| {
+                    gpu_inner.expand_with_key(key, streams)
+                })?;
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
@@ -408,12 +408,6 @@ impl CompactCiphertextList {
                 }
 
                 // CUDA data, CUDA key case
-                assert!(
-                    cuda_key.key.cpk_key_switching_key_material.is_some(),
-                    "cpk_key_switching_key_material must not be None"
-                );
-
-                let ksk = cuda_key.cpk_key_switching_key();
                 let streams = &cuda_key.streams;
                 // The list may be on another GPU than the key, e.g. if the key changed
                 let gpu_inner = if streams.is_on_first_gpu(gpu_inner.gpu_indexes()) {
@@ -421,8 +415,9 @@ impl CompactCiphertextList {
                 } else {
                     MaybeCloned::Cloned(gpu_inner.duplicate(streams))
                 };
-                let expander =
-                    gpu_inner.expand(&ksk, crate::integer::gpu::ZKType::Casting, streams)?;
+                let expander = cuda_key.with_compact_list_expansion_key(|key| {
+                    gpu_inner.expand_with_key(key, streams)
+                })?;
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
@@ -843,30 +838,25 @@ pub(crate) mod zk {
                         }
                     };
 
-                    let ksk = gpu_key.cpk_key_switching_key();
-                    let expander = match (verification_materials, re_randomization_materials) {
-                        (Some((crs, pk, metadata)), Some((_, seed))) => proven_ct
-                            .verify_re_randomize_and_expand(
-                                crs,
-                                &pk.key.key,
-                                metadata,
-                                &ksk,
-                                seed,
-                                streams,
-                            ),
-                        (Some((crs, pk, metadata)), None) => {
-                            proven_ct.verify_and_expand(crs, &pk.key.key, metadata, &ksk, streams)
-                        }
-
-                        (None, Some((pk, seed))) => proven_ct
-                            .re_randomize_and_expand_without_verification(
-                                &ksk,
-                                &pk.key.key,
-                                seed,
-                                streams,
-                            ),
-                        (None, None) => proven_ct.expand_without_verification(&ksk, streams),
-                    }?;
+                    let verification = verification_materials
+                        .map(|(crs, pk, metadata)| (crs, &pk.key.key, metadata));
+                    // As on the CPU, the verification public key is also used for the
+                    // re-randomization when both are given
+                    let re_randomization =
+                        match (verification_materials, re_randomization_materials) {
+                            (Some((_, pk, _)), Some((_, seed))) | (None, Some((pk, seed))) => {
+                                Some((&pk.key.key, seed))
+                            }
+                            (_, None) => None,
+                        };
+                    let expander = gpu_key.with_compact_list_expansion_key(|key| {
+                        proven_ct.maybe_verify_maybe_re_randomize_and_expand(
+                            verification,
+                            re_randomization,
+                            key,
+                            streams,
+                        )
+                    })?;
 
                     Ok(CompactCiphertextListExpander {
                         inner: InnerCompactCiphertextListExpander::Cuda(expander),
