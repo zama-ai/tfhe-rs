@@ -6,6 +6,7 @@ use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
+use crate::integer::gpu::server_key::radix::comparison::needs_lsb_padding_block;
 use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 use crate::integer::gpu::{cuda_backend_unchecked_scalar_comparison, ComparisonType};
 use crate::shortint::ciphertext::Degree;
@@ -147,6 +148,18 @@ impl CudaServerKey {
         // as we will handle them separately.
         scalar_blocks.truncate(ct.as_ref().d_blocks.lwe_ciphertext_count().0);
 
+        let padded_ct;
+        let ct = if needs_lsb_padding_block(ct, &op) {
+            padded_ct = self.extend_radix_with_trivial_zero_blocks_lsb(ct, 1, streams);
+            // An empty scalar (zero) takes a faster backend path and stays empty
+            if !scalar_blocks.is_empty() {
+                scalar_blocks.insert(0, 0);
+            }
+            &padded_ct
+        } else {
+            ct
+        };
+
         let d_scalar_blocks: CudaVec<u64> =
             unsafe { CudaVec::from_cpu_async(&scalar_blocks, streams, 0) };
 
@@ -271,10 +284,23 @@ impl CudaServerKey {
     {
         let message_modulus = self.message_modulus.0;
 
-        let scalar_blocks =
+        let mut scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(scalar, message_modulus.ilog2())
                 .iter_as::<u64>()
                 .collect::<Vec<_>>();
+
+        let is_padded = needs_lsb_padding_block(ct, &op);
+        let padded_ct;
+        let ct = if is_padded {
+            padded_ct = self.extend_radix_with_trivial_zero_blocks_lsb(ct, 1, streams);
+            // An empty scalar (zero) takes a faster backend path and stays empty
+            if !scalar_blocks.is_empty() {
+                scalar_blocks.insert(0, 0);
+            }
+            &padded_ct
+        } else {
+            ct
+        };
 
         let d_scalar_blocks: CudaVec<u64> =
             unsafe { CudaVec::from_cpu_async(&scalar_blocks, streams, 0) };
@@ -310,6 +336,9 @@ impl CudaServerKey {
                 op,
                 T::IS_SIGNED,
             );
+        }
+        if is_padded {
+            return self.trim_radix_blocks_lsb(&result, 1, streams);
         }
         result
     }

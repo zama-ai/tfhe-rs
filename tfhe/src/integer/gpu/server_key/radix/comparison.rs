@@ -11,6 +11,21 @@ use crate::integer::gpu::{
 };
 use crate::shortint::ciphertext::Degree;
 
+/// Returns true if `op` on `ct` must be computed on `ct` extended with one trivial zero block
+/// in the least significant position.
+///
+/// The CUDA backend computes ordering comparisons, max and min on pairs of packed blocks, so
+/// it needs an even number of blocks. The padding block multiplies both operands by the
+/// message modulus, which keeps their order, signed or unsigned. The padding block is packed
+/// with the original least significant block, so the comparison does not need an extra PBS.
+pub(crate) fn needs_lsb_padding_block<T: CudaIntegerRadixCiphertext>(
+    ct: &T,
+    op: &ComparisonType,
+) -> bool {
+    ct.as_ref().d_blocks.lwe_ciphertext_count().0 % 2 == 1
+        && !matches!(op, ComparisonType::EQ | ComparisonType::NE)
+}
+
 impl CudaServerKey {
     pub(crate) fn unchecked_comparison<T>(
         &self,
@@ -30,6 +45,12 @@ impl CudaServerKey {
             ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
             ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
+
+        if needs_lsb_padding_block(ct_left, &op) {
+            let lhs = self.extend_radix_with_trivial_zero_blocks_lsb(ct_left, 1, streams);
+            let rhs = self.extend_radix_with_trivial_zero_blocks_lsb(ct_right, 1, streams);
+            return self.unchecked_comparison(&lhs, &rhs, op, streams);
+        }
 
         let block = CudaLweCiphertextList::new(
             ct_left.as_ref().d_blocks.lwe_dimension(),
@@ -214,7 +235,21 @@ impl CudaServerKey {
             (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
         };
 
-        let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
+        // With padding, the two padded inputs, and for max and min the padded result, are alive
+        // during the comparison
+        let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let (backend_num_blocks, padding_mem) = if needs_lsb_padding_block(ct_left, &op) {
+            let padded_ct_mem = self.get_ciphertext_size_on_gpu(ct_left) / num_blocks as u64
+                * (num_blocks + 1) as u64;
+            let num_padded_cts = if matches!(op, ComparisonType::MAX | ComparisonType::MIN) {
+                3
+            } else {
+                2
+            };
+            (num_blocks + 1, num_padded_cts * padded_ct_mem)
+        } else {
+            (num_blocks, 0)
+        };
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -235,11 +270,11 @@ impl CudaServerKey {
             self.carry_modulus,
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
-            lwe_ciphertext_count.0 as u32,
+            backend_num_blocks as u32,
             op,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(comparison_mem)
+        actual_full_prop_mem.max(comparison_mem + padding_mem)
     }
 
     /// Compares for non equality 2 ciphertexts
@@ -735,6 +770,13 @@ impl CudaServerKey {
             ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
 
+        if needs_lsb_padding_block(ct_left, &ComparisonType::MAX) {
+            let lhs = self.extend_radix_with_trivial_zero_blocks_lsb(ct_left, 1, streams);
+            let rhs = self.extend_radix_with_trivial_zero_blocks_lsb(ct_right, 1, streams);
+            let result = self.unchecked_max(&lhs, &rhs, streams);
+            return self.trim_radix_blocks_lsb(&result, 1, streams);
+        }
+
         let mut result = ct_left.duplicate(streams);
 
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
@@ -781,6 +823,13 @@ impl CudaServerKey {
             ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
             ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
+
+        if needs_lsb_padding_block(ct_left, &ComparisonType::MIN) {
+            let lhs = self.extend_radix_with_trivial_zero_blocks_lsb(ct_left, 1, streams);
+            let rhs = self.extend_radix_with_trivial_zero_blocks_lsb(ct_right, 1, streams);
+            let result = self.unchecked_min(&lhs, &rhs, streams);
+            return self.trim_radix_blocks_lsb(&result, 1, streams);
+        }
 
         let mut result = ct_left.duplicate(streams);
 
