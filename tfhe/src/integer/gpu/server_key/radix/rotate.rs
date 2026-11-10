@@ -213,7 +213,6 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -227,17 +226,15 @@ impl CudaServerKey {
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, rotate)
+                self.full_propagate_assign(ct, streams);
+                (ct, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(ct, streams);
                 self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
+                (ct, &tmp_rhs)
             }
         };
 
@@ -333,7 +330,6 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -347,17 +343,15 @@ impl CudaServerKey {
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, rotate)
+                self.full_propagate_assign(ct, streams);
+                (ct, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(ct, streams);
                 self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
+                (ct, &tmp_rhs)
             }
         };
 
