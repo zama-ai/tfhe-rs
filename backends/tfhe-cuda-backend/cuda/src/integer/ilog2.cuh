@@ -194,21 +194,6 @@ host_integer_ilog2(CudaStreams streams, CudaRadixCiphertextFFI *output_ct,
       streams, output_ct, mem_ptr->sum_input_cts, bsks, ksks, mem_ptr->sum_mem,
       mem_ptr->counter_num_blocks, 3);
 
-  // With at most max_degree terms per block, the partial sum is a plain
-  // addition, which leaves the output degrees and noise levels untouched. The
-  // full propagation relies on them: set them to their sums over the 3 terms.
-  PANIC_IF_FALSE(3 <= mem_ptr->params.max_degree(),
-                 "Cuda error: ilog2 final sum expects a plain addition");
-  for (uint32_t i = 0; i < mem_ptr->counter_num_blocks; ++i) {
-    output_ct->degrees[i] = 0;
-    output_ct->noise_levels[i] = 0;
-    for (uint32_t term = 0; term < 3; ++term) {
-      uint32_t block = term * mem_ptr->counter_num_blocks + i;
-      output_ct->degrees[i] += mem_ptr->sum_input_cts->degrees[block];
-      output_ct->noise_levels[i] += mem_ptr->sum_input_cts->noise_levels[block];
-    }
-  }
-
   host_full_propagate_inplace<Torus>(streams, output_ct,
                                      mem_ptr->final_propagate_mem, ksks, bsks,
                                      mem_ptr->counter_num_blocks);

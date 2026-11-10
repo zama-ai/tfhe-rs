@@ -8,6 +8,7 @@
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include "utils/helper_multi_gpu.cuh"
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <optional>
@@ -361,6 +362,78 @@ inline void calculate_final_degrees(uint64_t *const out_degrees,
 
   for (int i = 0; i < num_blocks; i++) {
     out_degrees[i] = (columns[i].empty()) ? 0 : columns[i].front();
+  }
+}
+
+/// @brief Computes the output degrees and noise levels of a partial sum that
+/// does not reduce its result to message blocks: each output block is the
+/// plain sum of the blocks left in its column once every column holds at most
+/// chunk_size blocks.
+///
+/// Mirrors the column accumulation of host_integer_partial_sum_ciphertexts_vec,
+/// where terms of degree 0 belong to no column. While some column holds more
+/// than chunk_size blocks, every full chunk of every column is summed and
+/// bootstrapped into a message block, which stays in its column, and a carry
+/// block, which moves to the next column (the last column drops it). A new
+/// column holds its message blocks, then the carry blocks of the previous
+/// column, then its blocks that were not part of a full chunk.
+inline void calculate_final_metadata_without_reduction(
+    uint64_t *const out_degrees, uint64_t *const out_noise_levels,
+    const uint64_t *const input_degrees,
+    const uint64_t *const input_noise_levels, uint32_t num_blocks,
+    uint32_t num_radix_in_vec, uint32_t chunk_size, uint64_t message_modulus) {
+  struct block_metadata {
+    uint64_t degree;
+    uint64_t noise_level;
+  };
+  std::vector<std::vector<block_metadata>> columns(num_blocks);
+  for (uint32_t i = 0; i < num_radix_in_vec; ++i) {
+    for (uint32_t j = 0; j < num_blocks; ++j) {
+      uint32_t block = i * num_blocks + j;
+      if (input_degrees[block])
+        columns[j].push_back({input_degrees[block], input_noise_levels[block]});
+    }
+  }
+
+  auto needs_processing = [&columns, chunk_size]() {
+    return std::any_of(columns.begin(), columns.end(),
+                       [chunk_size](const std::vector<block_metadata> &column) {
+                         return column.size() > chunk_size;
+                       });
+  };
+  while (needs_processing()) {
+    std::vector<std::vector<block_metadata>> messages(num_blocks);
+    std::vector<std::vector<block_metadata>> carries(num_blocks);
+    for (uint32_t j = 0; j < num_blocks; ++j) {
+      uint32_t num_chunks = columns[j].size() / chunk_size;
+      for (uint32_t chunk = 0; chunk < num_chunks; ++chunk) {
+        uint64_t chunk_degree = 0;
+        for (uint32_t k = 0; k < chunk_size; ++k)
+          chunk_degree += columns[j][chunk * chunk_size + k].degree;
+        messages[j].push_back(
+            {std::min(message_modulus - 1, chunk_degree), NoiseLevel::NOMINAL});
+        if (j + 1 < num_blocks)
+          carries[j + 1].push_back(
+              {chunk_degree / message_modulus, NoiseLevel::NOMINAL});
+      }
+    }
+    for (uint32_t j = 0; j < num_blocks; ++j) {
+      auto remaining_begin =
+          columns[j].begin() + (columns[j].size() / chunk_size) * chunk_size;
+      std::vector<block_metadata> new_column = std::move(messages[j]);
+      new_column.insert(new_column.end(), carries[j].begin(), carries[j].end());
+      new_column.insert(new_column.end(), remaining_begin, columns[j].end());
+      columns[j] = std::move(new_column);
+    }
+  }
+
+  for (uint32_t j = 0; j < num_blocks; ++j) {
+    out_degrees[j] = 0;
+    out_noise_levels[j] = 0;
+    for (const auto &block : columns[j]) {
+      out_degrees[j] += block.degree;
+      out_noise_levels[j] += block.noise_level;
+    }
   }
 }
 
