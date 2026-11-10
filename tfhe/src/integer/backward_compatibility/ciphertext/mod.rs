@@ -1,5 +1,7 @@
+#[cfg(feature = "experimental")]
+use crate::integer::ciphertext::BaseCrtCiphertext;
 use crate::integer::ciphertext::{
-    BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
+    BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
     CompressedCiphertextList, CompressedModulusSwitchedRadixCiphertext,
     CompressedModulusSwitchedRadixCiphertextGeneric,
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind, SquashedNoiseBooleanBlock,
@@ -24,6 +26,7 @@ pub enum BaseSignedRadixCiphertextVersions<Block> {
     V0(BaseSignedRadixCiphertext<Block>),
 }
 
+#[cfg(feature = "experimental")]
 #[derive(VersionsDispatch)]
 pub enum BaseCrtCiphertextVersions<Block> {
     V0(BaseCrtCiphertext<Block>),

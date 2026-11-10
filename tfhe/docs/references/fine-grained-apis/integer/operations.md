@@ -8,14 +8,9 @@ In `integer`, the encrypted data is split amongst many ciphertexts encrypted wit
 
 ![](../../../.gitbook/assets/integer-ciphertext.png)
 
-This crate implements two ways to represent an integer:
-
-* the Radix representation
-* the CRT (Chinese Remainder Theorem) representation
-
 ### Radix-based integers.
 
-The first possibility to represent a large integer is to use a Radix-based decomposition on the plaintexts. Let $$B \in \mathbb{N}$$ be a basis such that the size of $$B$$ is smaller than (or equal to) 4 bits. Then, an integer $$m \in \mathbb{N}$$ can be written as $$m = m_0 + m_1*B + m_2*B^2 + ...$$, where each $$m_i$$ is strictly smaller than $$B$$. Each $$m_i$$ is then independently encrypted. In the end, an Integer ciphertext is defined as a set of shortint ciphertexts.
+Large integers are represented using a Radix-based decomposition on the plaintexts. Let $$B \in \mathbb{N}$$ be a basis such that the size of $$B$$ is smaller than (or equal to) 4 bits. Then, an integer $$m \in \mathbb{N}$$ can be written as $$m = m_0 + m_1*B + m_2*B^2 + ...$$, where each $$m_i$$ is strictly smaller than $$B$$. Each $$m_i$$ is then independently encrypted. In the end, an Integer ciphertext is defined as a set of shortint ciphertexts.
 
 The definition of an integer requires a basis and a number of blocks. These parameters are chosen at key generation. Below, the keys are dedicated to integers encrypting messages over 8 bits, using a basis over 2 bits (i.e., $$B=2^2$$) and 4 blocks.
 
@@ -32,44 +27,22 @@ fn main() {
 
 In this representation, the correctness of operations requires the carries to be propagated throughout the ciphertext. This operation is costly, since it relies on the computation of many programmable bootstrapping operations over shortints.
 
-### CRT-based integers.
-
-The second approach to represent large integers is based on the Chinese Remainder Theorem. In this case, the basis $$B$$ is composed of several integers $$b_i$$, such that there are pairwise coprime, and each $$b\_i$$ has a size smaller than 4 bits. The CRT-based integer are defined modulus $$\prod b_i$$. For an integer $$m$$, its CRT decomposition is simply defined as $$m \bmod{b_0}, m \bmod{b_1}, ...$$. Each part is then encrypted as a shortint ciphertext. In the end, an Integer ciphertext is defined as a set of shortint ciphertexts.
-
-In the following example, the chosen basis is $$B = [2, 3, 5]$$. The integer is defined modulus $$2*3*5 = 30$$. There is no need to pre-size the number of blocks since it is determined from the number of values composing the basis. Here, the integer is split over three blocks.
-
-```rust
-use tfhe::integer::CrtClientKey;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-
-fn main() {
-    let basis = vec![2, 3, 5];
-    let cks = CrtClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS, basis);
-}
-```
-
-This representation has many advantages: no carry propagation is required, cleaning the carry buffer of each ciphertext block is enough. This implies that operations can easily be parallelized. It also allows the efficient computation of PBS in the case where the function is CRT-compliant.
-
-A variant of the CRT is proposed where each block might be associated to a different key couple. Here, a keychain to the computations is required, but this may result in a performance improvement.
-
 ## List of available operations
 
-The list of operations available in `integer` depends on the type of representation:
+The list of operations available in `integer` is:
 
-| Operation name                 | Radix-based          | CRT-based                  |
-| ------------------------------ | -------------------- | -------------------------- |
-| Negation                       | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Addition                       | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Scalar Addition                | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Subtraction                    | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Scalar Subtraction             | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Multiplication                 | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Scalar Multiplication          | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Bitwise OR, AND, XOR           | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Equality                       | :heavy\_check\_mark: | :heavy\_check\_mark:       |
-| Left/Right Shift               | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
-| Comparisons `<`,`<=`,`>`, `>=` | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
-| Min, Max                       | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+* Negation
+* Addition
+* Scalar Addition
+* Subtraction
+* Scalar Subtraction
+* Multiplication
+* Scalar Multiplication
+* Bitwise OR, AND, XOR
+* Equality
+* Left/Right Shift
+* Comparisons `<`,`<=`,`>`, `>=`
+* Min, Max
 
 ## Types of operations
 
