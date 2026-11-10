@@ -1,7 +1,7 @@
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::radix_parallel::bit_extractor::BitExtractor;
 use crate::integer::{BooleanBlock, ServerKey};
-use crate::shortint::ciphertext::Degree;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
 
@@ -407,6 +407,7 @@ impl ServerKey {
                         dirty_shift
                             .blocks_mut()
                             .par_iter_mut()
+                            .filter(|block| block.noise_level() > NoiseLevel::NOMINAL)
                             .for_each(|block| self.key.message_extract_assign(block));
                     },
                     || self.key.unchecked_bitand(&is_ge.0, &is_neg.0),
@@ -454,6 +455,7 @@ impl ServerKey {
                 dirty_shift
                     .blocks_mut()
                     .par_iter_mut()
+                    .filter(|block| block.noise_level() > NoiseLevel::NOMINAL)
                     .for_each(|block| self.key.message_extract_assign(block));
 
                 self.zero_out_if(&mut dirty_shift, &overshifted.0, |overshifted| {
@@ -475,6 +477,7 @@ impl ServerKey {
                 dirty_output
                     .blocks_mut()
                     .par_iter_mut()
+                    .filter(|block| block.noise_level() > NoiseLevel::NOMINAL)
                     .for_each(|block| self.key.message_extract_assign(block));
 
                 dirty_output
@@ -946,6 +949,7 @@ impl ServerKey {
                 dirty_output
                     .blocks_mut()
                     .par_iter_mut()
+                    .filter(|block| block.noise_level() > NoiseLevel::NOMINAL)
                     .for_each(|block| self.key.message_extract_assign(block));
 
                 dirty_output
