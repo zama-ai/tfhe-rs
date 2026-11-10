@@ -173,14 +173,16 @@ impl CudaServerKey {
             self.message_modulus,
             self.carry_modulus,
         );
-        let actual_full_prop_mem = match (
+        // mul duplicates ct_left into the output; in mul_assign a dirty lhs is propagated in place
+        // and a dirty rhs is duplicated first, the copy staying alive during the multiplication
+        let output = self.get_ciphertext_size_on_gpu(ct_left);
+        let (rhs_copy, actual_full_prop_mem) = match (
             ct_left.block_carries_are_empty(),
             ct_right.block_carries_are_empty(),
         ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
+            (true, true) => (0, 0),
+            (_, false) => (self.get_ciphertext_size_on_gpu(ct_right), full_prop_mem),
+            (false, true) => (0, full_prop_mem),
         };
 
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
@@ -202,6 +204,6 @@ impl CudaServerKey {
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
         );
-        actual_full_prop_mem.max(mul_mem)
+        output + rhs_copy + actual_full_prop_mem.max(mul_mem)
     }
 }

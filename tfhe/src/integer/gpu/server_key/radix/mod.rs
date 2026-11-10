@@ -17,8 +17,9 @@ use crate::integer::gpu::{
     cuda_backend_apply_many_univariate_lut, cuda_backend_apply_univariate_lut,
     cuda_backend_cast_to_signed, cuda_backend_cast_to_unsigned,
     cuda_backend_extend_radix_with_trivial_zero_blocks_msb, cuda_backend_full_propagate_assign,
-    cuda_backend_noise_squashing, cuda_backend_propagate_single_carry_assign,
-    cuda_backend_trim_radix_blocks_lsb, cuda_backend_trim_radix_blocks_msb, CudaServerKey,
+    cuda_backend_get_cast_to_unsigned_size_on_gpu, cuda_backend_noise_squashing,
+    cuda_backend_propagate_single_carry_assign, cuda_backend_trim_radix_blocks_lsb,
+    cuda_backend_trim_radix_blocks_msb, CudaServerKey,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -904,6 +905,33 @@ impl CudaServerKey {
         result
     }
 
+    /// Returns the GPU memory (in bytes) that [`Self::cast_to_unsigned`] allocates to cast
+    /// `source` to `target_num_blocks` blocks, without allocating anything on the GPU: the output
+    /// radix and the cast scratch (which includes the full propagation of a dirty source).
+    /// `cast_to_unsigned` consumes `source`: a copy the caller makes to keep it is not counted.
+    pub fn get_cast_to_unsigned_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        source: &T,
+        target_num_blocks: usize,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+        let cast_mem = cuda_backend_get_cast_to_unsigned_size_on_gpu(
+            streams,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+            source.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
+            target_num_blocks as u32,
+            T::IS_SIGNED,
+            !source.block_carries_are_empty(),
+            self.message_modulus,
+            self.carry_modulus,
+        );
+        self.get_radix_size_on_gpu(target_num_blocks) + cast_mem
+    }
+
     /// Cast a `CudaUnsignedRadixCiphertext` or `CudaSignedRadixCiphertext` to a
     /// `CudaSignedRadixCiphertext` with a possibly different number of blocks
     ///
@@ -979,11 +1007,22 @@ impl CudaServerKey {
 
         output_ct
     }
+    /// Returns the memory space a radix ciphertext of `num_blocks` blocks created with this key
+    /// (e.g. by [`Self::create_trivial_zero_radix`]) occupies on GPU
+    pub(crate) fn get_radix_size_on_gpu(&self, num_blocks: usize) -> u64 {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+        let lwe_size = match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => computing_ks_key.input_key_lwe_size(),
+            PBSOrder::BootstrapKeyswitch => computing_ks_key.output_key_lwe_size(),
+        };
+        (num_blocks * lwe_size.0 * size_of::<u64>()) as u64
+    }
+
     /// Returns the memory space occupied by a radix ciphertext on GPU
     pub fn get_ciphertext_size_on_gpu<T: CudaIntegerRadixCiphertext>(&self, ct: &T) -> u64 {
-        (ct.as_ref().d_blocks.lwe_ciphertext_count().0
-            * size_of::<u64>()
-            * ct.as_ref().d_blocks.lwe_dimension().0) as u64
+        crate::integer::gpu::ciphertext::CudaRadixShape::of_gpu(ct).size_on_gpu
     }
 
     /// Applies the lookup table on the range of ciphertexts

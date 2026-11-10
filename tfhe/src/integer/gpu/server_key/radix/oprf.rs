@@ -1002,56 +1002,103 @@ where
         );
     }
 
-    /// Getter for the GPU memory usage of OPRF.
-    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
+    /// GPU memory of the generation of `random_bits_count` random bits into a radix of
+    /// `num_blocks` blocks: the output radix, the seeded LWEs copied to the GPU (one per active
+    /// block) and the grouped OPRF scratch for the active blocks.
+    fn get_oprf_size_on_gpu(
         &self,
+        num_blocks: u64,
+        random_bits_count: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> u64 {
-        let message_bits = target_sks.message_modulus.0.ilog2();
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
         else {
             panic!("Only the standard atomic pattern is supported");
         };
+        let output = target_sks.get_radix_size_on_gpu(num_blocks as usize);
 
-        cuda_backend_get_grouped_oprf_size_on_gpu(
+        let message_bits_count = u64::from(target_sks.message_modulus.0.ilog2());
+        let num_active_blocks = random_bits_count.div_ceil(message_bits_count);
+        if num_active_blocks == 0 {
+            return output;
+        }
+
+        let bootstrapping_key = self.bootstrapping_key.borrow();
+        let seeded_lwes = num_active_blocks
+            * bootstrapping_key.input_lwe_dimension().to_lwe_size().0 as u64
+            * size_of::<u64>() as u64;
+        let oprf_mem = cuda_backend_get_grouped_oprf_size_on_gpu(
             streams,
-            1,
-            self.bootstrapping_key.borrow(),
+            num_active_blocks as u32,
+            bootstrapping_key,
             computing_ks_key.params_ffi(),
             target_sks.message_modulus,
             target_sks.carry_modulus,
-            message_bits,
-        )
+            random_bits_count as u32,
+        );
+        output + seeded_lwes + oprf_mem
     }
 
-    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+    /// Getter for the GPU memory usage of OPRF on `num_blocks` blocks, all their bits random
+    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
         &self,
+        num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
-            target_sks, streams,
+        let message_bits_count = u64::from(target_sks.message_modulus.0.ilog2());
+        self.get_oprf_size_on_gpu(
+            num_blocks,
+            num_blocks * message_bits_count,
+            target_sks,
+            streams,
         )
+    }
+
+    /// Getter for the GPU memory usage of bounded OPRF on `num_blocks` blocks, for any number of
+    /// random bits: the largest size over the possible numbers of active blocks. It is not the
+    /// all-bits size: the multi-bit PBS sizes its keybundle from the number of inputs (the chunk
+    /// size grows when there are fewer), so fewer active blocks can use more memory.
+    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+        &self,
+        num_blocks: u64,
+        target_sks: &CudaServerKey,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let message_bits_count = u64::from(target_sks.message_modulus.0.ilog2());
+        (0..=num_blocks)
+            .map(|active_blocks| {
+                self.get_oprf_size_on_gpu(
+                    num_blocks,
+                    active_blocks * message_bits_count,
+                    target_sks,
+                    streams,
+                )
+            })
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(
         &self,
+        num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> u64 {
         self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
-            target_sks, streams,
+            num_blocks, target_sks, streams,
         )
     }
 
     pub fn get_par_generate_oblivious_pseudo_random_signed_integer_bounded_size_on_gpu(
         &self,
+        num_blocks: u64,
         target_sks: &CudaServerKey,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
-            target_sks, streams,
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+            num_blocks, target_sks, streams,
         )
     }
 }
