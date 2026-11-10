@@ -501,6 +501,47 @@ where
     })
 }
 
+/// Returns the GPU memory (in bytes) that [`fhe_array_contains`] allocates, or 0 when the
+/// current server key is not a GPU key.
+///
+/// It covers the copy of every element made by [`fhe_array_contains`], the copy of `value` when
+/// it is not on the GPU, and the memory needed by the GPU `contains`. Ciphertexts that are not on
+/// the GPU are not moved there to compute it.
+#[cfg(feature = "gpu")]
+pub fn fhe_array_contains_size_on_gpu<T>(data: &[T], value: &T) -> u64
+where
+    T: FheIntegerType,
+{
+    global_state::with_internal_keys(|sks| match sks {
+        InternalServerKey::Cuda(gpu_key) => {
+            let streams = &gpu_key.streams;
+            let elements = data
+                .iter()
+                .map(|element| element.gpu_shape(streams).0)
+                .collect::<Vec<_>>();
+            let (value_shape, value_is_borrowed) = value.gpu_shape(streams);
+            // fhe_array_contains copies every element to the GPU (or duplicates it when it is
+            // already there), and copies `value` when it is not on the GPU
+            let elements_size = elements.iter().map(|shape| shape.size_on_gpu).sum::<u64>();
+            let value_copy = if value_is_borrowed {
+                0
+            } else {
+                value_shape.size_on_gpu
+            };
+            elements_size
+                + value_copy
+                + gpu_key.pbs_key().get_contains_size_on_gpu_from_shapes(
+                    &elements,
+                    value_shape,
+                    streams,
+                )
+        }
+        InternalServerKey::Cpu(_) => 0,
+        #[cfg(feature = "hpu")]
+        InternalServerKey::Hpu(_) => 0,
+    })
+}
+
 /// Small helper to reduce code
 ///
 /// * num_bits: num bits of the FheType

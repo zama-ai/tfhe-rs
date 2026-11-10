@@ -68,11 +68,37 @@ pub trait IntegerId: FheId + 'static {
 }
 
 mod private {
-    pub trait Sealed {}
+    #[cfg(feature = "gpu")]
+    use crate::core_crypto::gpu::CudaStreams;
+    #[cfg(feature = "gpu")]
+    use crate::integer::gpu::ciphertext::CudaRadixShape;
 
-    impl<Id> Sealed for crate::high_level_api::FheUint<Id> where Id: super::FheUintId {}
+    pub trait Sealed {
+        /// Returns the shape `self` has on the GPU, and whether `on_gpu(streams)` borrows `self`
+        /// (instead of returning a copy), without moving `self` to the GPU
+        #[cfg(feature = "gpu")]
+        fn gpu_shape(&self, streams: &CudaStreams) -> (CudaRadixShape, bool);
+    }
 
-    impl<Id> Sealed for crate::high_level_api::FheInt<Id> where Id: super::FheIntId {}
+    impl<Id> Sealed for crate::high_level_api::FheUint<Id>
+    where
+        Id: super::FheUintId,
+    {
+        #[cfg(feature = "gpu")]
+        fn gpu_shape(&self, streams: &CudaStreams) -> (CudaRadixShape, bool) {
+            self.ciphertext.gpu_shape(streams)
+        }
+    }
+
+    impl<Id> Sealed for crate::high_level_api::FheInt<Id>
+    where
+        Id: super::FheIntId,
+    {
+        #[cfg(feature = "gpu")]
+        fn gpu_shape(&self, streams: &CudaStreams) -> (CudaRadixShape, bool) {
+            self.ciphertext.gpu_shape(streams)
+        }
+    }
 }
 
 pub trait FheIntegerType: Tagged + private::Sealed {

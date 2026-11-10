@@ -129,7 +129,8 @@ impl CudaServerKey {
         ct: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_scalar_add_assign_size_on_gpu(ct, streams)
+        // scalar_add duplicates ct into the output, then runs scalar_add_assign on it
+        self.get_ciphertext_size_on_gpu(ct) + self.get_scalar_add_assign_size_on_gpu(ct, streams)
     }
 
     pub fn scalar_add_assign<Scalar, T>(&self, ct: &mut T, scalar: Scalar, streams: &CudaStreams)
@@ -167,17 +168,21 @@ impl CudaServerKey {
             )
         };
 
-        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        // The decomposed scalar (one u64 per block) is copied to the GPU, then
+        // propagate_single_carry_assign allocates a carry-out and an input-carry block
+        let scalar_blocks = (num_blocks * std::mem::size_of::<u64>()) as u64;
+        let carry_blocks = 2 * self.get_ciphertext_size_on_gpu(ct) / num_blocks.max(1) as u64;
         let single_carry_mem = cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
             streams,
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
-            num_blocks,
+            num_blocks as u32,
             self.message_modulus,
             self.carry_modulus,
             OutputFlag::None,
         );
-        full_prop_mem.max(single_carry_mem)
+        full_prop_mem.max(scalar_blocks + carry_blocks + single_carry_mem)
     }
 
     pub fn unsigned_overflowing_scalar_add<Scalar>(

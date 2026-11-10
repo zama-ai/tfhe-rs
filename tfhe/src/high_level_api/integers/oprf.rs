@@ -95,6 +95,7 @@ impl<Id: FheUintId> FheUint<Id> {
                 cuda_key
                     .oprf_key()
                     .get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
                         cuda_key.pbs_key(),
                         streams,
                     )
@@ -445,6 +446,7 @@ impl<Id: FheUintId> FheUint<Id> {
                 cuda_key
                     .oprf_key()
                     .get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
                         cuda_key.pbs_key(),
                         streams,
                     )
@@ -647,6 +649,7 @@ impl<Id: FheIntId> FheInt<Id> {
                 cuda_key
                     .oprf_key()
                     .get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
                         cuda_key.pbs_key(),
                         streams,
                     )
@@ -877,6 +880,7 @@ impl<Id: FheIntId> FheInt<Id> {
                 cuda_key
                     .oprf_key()
                     .get_par_generate_oblivious_pseudo_random_signed_integer_bounded_size_on_gpu(
+                        Id::num_blocks(cuda_key.message_modulus()) as u64,
                         cuda_key.pbs_key(),
                         streams,
                     )

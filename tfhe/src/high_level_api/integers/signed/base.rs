@@ -262,6 +262,13 @@ where
         crate::high_level_api::array::fhe_array_contains(cts, value)
     }
 
+    /// Returns the GPU memory (in bytes) that [`Self::contains`] allocates for these inputs,
+    /// or 0 when the current server key is not a GPU key.
+    #[cfg(feature = "gpu")]
+    pub fn get_contains_size_on_gpu(cts: &[Self], value: &Self) -> u64 {
+        crate::high_level_api::array::fhe_array_contains_size_on_gpu(cts, value)
+    }
+
     /// Returns the absolute value
     ///
     /// # Example

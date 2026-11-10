@@ -2030,6 +2030,10 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
   bool mem_reuse = false;
   bool allocated_luts_message_carry;
+  /// @brief Part of the tracked size that is not allocated by the constructor
+  /// but later, by setup_lookup_tables (luts_message_carry). Callers that free
+  /// memory before running the sum can overlap it with that memory.
+  uint64_t lazy_lut_size = 0;
 
   void setup_index_buffers(CudaStreams streams, uint64_t &size_tracker) {
 
@@ -2153,10 +2157,11 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     if (max_pbs_count > 0) {
       int_radix_lut<Torus> *luts_message_carry_dry_run =
           new int_radix_lut<Torus>(streams, params, 2, max_pbs_count, false,
-                                   size_tracker);
+                                   lazy_lut_size);
       luts_message_carry_dry_run->release(streams);
       delete luts_message_carry_dry_run;
     }
+    size_tracker += lazy_lut_size;
 
     // create and allocate intermediate buffers
     current_blocks = new CudaRadixCiphertextFFI;
