@@ -282,6 +282,28 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
+        // As on the CPU, a scalar outside the range of the ciphertext selects one operand without
+        // computation, and a selected scalar is taken at the width of the ciphertext.
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let is_max = matches!(op, ComparisonType::MAX);
+        if let Some(ordering) = self.is_scalar_out_of_bounds(ct, scalar) {
+            return if (ordering == std::cmp::Ordering::Greater) == is_max {
+                self.create_trivial_radix(scalar, num_blocks, streams)
+            } else {
+                ct.duplicate(streams)
+            };
+        }
+        // The backend takes a non-negative scalar. A negative scalar in range (signed ciphertexts
+        // only) is used as a trivial ciphertext, as in unchecked_scalar_comparison.
+        if scalar < Scalar::ZERO {
+            let scalar_as_trivial: T = self.create_trivial_radix(scalar, num_blocks, streams);
+            return if is_max {
+                self.unchecked_max(ct, &scalar_as_trivial, streams)
+            } else {
+                self.unchecked_min(ct, &scalar_as_trivial, streams)
+            };
+        }
+
         let message_modulus = self.message_modulus.0;
 
         let mut scalar_blocks =
