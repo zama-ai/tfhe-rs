@@ -296,25 +296,17 @@ __host__ void goldschmidt_normalize(CudaStreams streams,
       streams, &mem->d_is_zero, denominator, mem->d_zero_scalar,
       mem->is_zero_mem, bsks, ksks, num_blocks, num_blocks);
 
-  // The barrel shifter wants the amount at the same width as the value, so the
-  // counter is zero extended for each of the two shifts.
-  CudaRadixCiphertextFFI narrow_amount;
-  as_radix_ciphertext_slice<Torus>(&narrow_amount, &mem->shift_amount, 0,
-                                   num_blocks);
-  goldschmidt_blockshift<Torus>(streams, &narrow_amount, &mem->leading_zeros,
-                                0);
   copy_radix_ciphertext_async<Torus>(stream, gpu_index, &mem->shifted_d,
                                      denominator);
-  host_shift_and_rotate_inplace<Torus, KSTorus>(
-      streams, &mem->shifted_d, &narrow_amount, mem->shift_d_mem, bsks, ksks);
+  host_shift_and_rotate_inplace<Torus, KSTorus>(streams, &mem->shifted_d,
+                                                &mem->leading_zeros,
+                                                mem->shift_d_mem, bsks, ksks);
   goldschmidt_blockshift<Torus>(streams, &mem->current_d, &mem->shifted_d,
                                 (int32_t)(fp_blocks - num_blocks));
 
   goldschmidt_blockshift<Torus>(streams, &mem->wide_n, numerator, 0);
-  goldschmidt_blockshift<Torus>(streams, &mem->shift_amount,
-                                &mem->leading_zeros, 0);
   host_shift_and_rotate_inplace<Torus, KSTorus>(
-      streams, &mem->wide_n, &mem->shift_amount, mem->shift_n_mem, bsks, ksks);
+      streams, &mem->wide_n, &mem->leading_zeros, mem->shift_n_mem, bsks, ksks);
   goldschmidt_blockshift<Torus>(streams, &mem->current_n, &mem->wide_n,
                                 (int32_t)fp_blocks - 2 * (int32_t)num_blocks);
   POP_RANGE()
