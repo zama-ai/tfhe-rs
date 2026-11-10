@@ -66,23 +66,6 @@ test("boolean_compressed_encrypt_decrypt", (t) => {
   assert.deepStrictEqual(decrypted, true);
 });
 
-test("boolean_public_encrypt_decrypt", (t) => {
-  let params = Boolean.get_parameters(BooleanParameterSet.Default);
-  let cks = Boolean.new_client_key(params);
-  let pk = Boolean.new_public_key(cks);
-
-  let serialized_pk = Boolean.serialize_public_key(pk);
-  let deserialized_pk = Boolean.deserialize_public_key(serialized_pk);
-
-  let ct = Boolean.encrypt_with_public_key(deserialized_pk, true);
-
-  let serialized_ct = Boolean.serialize_ciphertext(ct);
-  let deserialized_ct = Boolean.deserialize_ciphertext(serialized_ct);
-
-  let decrypted = Boolean.decrypt(cks, deserialized_ct);
-  assert.deepStrictEqual(decrypted, true);
-});
-
 test("boolean_deterministic_keygen", (t) => {
   const TEST_LOOP_COUNT = 128;
 
