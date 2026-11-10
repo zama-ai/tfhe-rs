@@ -224,39 +224,18 @@ impl CudaServerKey {
         let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
         if T::IS_SIGNED {
-            match self.is_scalar_out_of_bounds(ct, scalar) {
-                Some(std::cmp::Ordering::Greater) => {
-                    // Scalar is greater than the bounds, so ciphertext is smaller
-                    let result: T = match op {
-                        ComparisonType::LT | ComparisonType::LE => {
-                            self.create_trivial_radix(1, num_blocks, streams)
-                        }
-                        _ => self.create_trivial_radix(
-                            0,
-                            ct.as_ref().d_blocks.lwe_ciphertext_count().0,
-                            streams,
-                        ),
-                    };
-                    return CudaBooleanBlock::from_cuda_radix_ciphertext(result.into_inner());
-                }
-                Some(std::cmp::Ordering::Less) => {
-                    // Scalar is smaller than the bounds, so ciphertext is bigger
-                    let result: T = match op {
-                        ComparisonType::GT | ComparisonType::GE => {
-                            self.create_trivial_radix(1, num_blocks, streams)
-                        }
-                        _ => self.create_trivial_radix(
-                            0,
-                            ct.as_ref().d_blocks.lwe_ciphertext_count().0,
-                            streams,
-                        ),
-                    };
-                    return CudaBooleanBlock::from_cuda_radix_ciphertext(result.into_inner());
-                }
-                Some(std::cmp::Ordering::Equal) => unreachable!("Internal error: invalid value"),
-                None => {
-                    // scalar is in range, fallthrough
-                }
+            if let Some(ordering) = self.is_scalar_out_of_bounds(ct, scalar) {
+                // The scalar is outside the range of the ciphertext, so they are never equal
+                let value = match op {
+                    ComparisonType::GT | ComparisonType::GE => ordering == std::cmp::Ordering::Less,
+                    ComparisonType::LT | ComparisonType::LE => {
+                        ordering == std::cmp::Ordering::Greater
+                    }
+                    ComparisonType::NE => true,
+                    _ => false,
+                };
+                let result: T = self.create_trivial_radix(u64::from(value), 1, streams);
+                return CudaBooleanBlock::from_cuda_radix_ciphertext(result.into_inner());
             }
 
             if scalar >= Scalar::ZERO {
