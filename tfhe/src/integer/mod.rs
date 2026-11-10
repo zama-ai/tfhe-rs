@@ -88,9 +88,7 @@ pub use ciphertext::{
     SignedRadixCiphertext,
 };
 pub use client_key::{ClientKey, CrtClientKey, RadixClientKey};
-pub use public_key::{
-    CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
-};
+pub use public_key::{CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
 /// Enum to indicate which kind of computations the [`ServerKey`] will be performing, this changes
