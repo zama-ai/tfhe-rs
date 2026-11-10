@@ -126,6 +126,27 @@ where
     P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>,
     E: Into<crate::Error>,
 {
+    // CRS created from shortint params have 1 MSB 0bit
+    new_compact_pke_crs_conformance_params_with_msbs_zero_padding_bit_count(
+        value,
+        max_num_message,
+        ZkMSBZeroPaddingBitCount(1),
+    )
+}
+
+/// Conformance parameters of a CRS created from shortint params whose proofs guarantee that the
+/// `msbs_zero_padding_bit_count` most significant bits of each plaintext (padding bit included)
+/// are 0.
+#[cfg(feature = "shortint")]
+pub(crate) fn new_compact_pke_crs_conformance_params_with_msbs_zero_padding_bit_count<E, P>(
+    value: P,
+    max_num_message: LweCiphertextCount,
+    msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
+) -> Result<CompactPkeCrsConformanceParams, crate::Error>
+where
+    P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>,
+    E: Into<crate::Error>,
+{
     let params: CompactPublicKeyEncryptionParameters = value.try_into().map_err(|e| e.into())?;
 
     let mut plaintext_modulus = params.message_modulus.0 * params.carry_modulus.0;
@@ -148,8 +169,7 @@ where
         noise_bound,
         ciphertext_modulus,
         plaintext_modulus,
-        // CRS created from shortint params have 1 MSB 0bit
-        1,
+        msbs_zero_padding_bit_count.0,
     ))
 }
 
