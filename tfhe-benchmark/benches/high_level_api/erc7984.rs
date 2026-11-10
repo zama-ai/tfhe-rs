@@ -706,6 +706,7 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     tag: TypeTag,
     erc7984_bench_spec: Erc7984,
     transfer_func: F,
+    hpu_nodes: usize,
 ) where
     FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
     FheType: FheWait,
@@ -723,7 +724,10 @@ fn hpu_bench_transfer_throughput_simd<FheType, F>(
     // There is no memory release throughout the test. This enable to play with
     // number of operation while prevent memory alloaction issue
     // Number of times the operand set is reissued before the pipeline is drained
-    let input_set = 24;
+    // NB: Inputs stay allocated during the whole test. A set holds 3*hpu_simd_n FheUint64, i.e.
+    // 1152 ciphertexts, and a node only has `user_size` (12288) of them: use 3 sets per node to
+    // keep room for the results in flight.
+    let input_set = 3 * hpu_nodes as u64;
 
     let mut group = group.benchmark_group(tag.to_string());
     for rounds in [10, 50, 100] {
@@ -1024,7 +1028,7 @@ fn main() {
 }
 #[cfg(feature = "hpu")]
 fn main() {
-    let cks = {
+    let (cks, hpu_nodes) = {
         // Hpu is enable, start benchmark on Hpu hw accelerator
         use tfhe::tfhe_hpu_backend::prelude::*;
         use tfhe::Config;
@@ -1040,12 +1044,13 @@ fn main() {
         )
         .expect("Error with HpuDevice");
 
+        let hpu_nodes = hpu_device.config().fpga.node_id.len();
         let config = Config::from_hpu_device(&hpu_device);
         let cks = ClientKey::generate(config);
         let compressed_sks = CompressedServerKey::new(&cks);
 
         set_server_key((hpu_device, compressed_sks));
-        cks
+        (cks, hpu_nodes)
     };
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
@@ -1100,6 +1105,7 @@ fn main() {
                 FheUint64::type_tag(),
                 Erc7984::Transfer(TransferFlavor::HpuSimd),
                 transfer_hpu_simd::<FheUint64>,
+                hpu_nodes,
             );
         }
     };
