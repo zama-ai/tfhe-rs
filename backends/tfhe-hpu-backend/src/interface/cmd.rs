@@ -3,7 +3,6 @@
 use super::*;
 use crate::asm::{FwMode, IOp, IOpId, IOpMapping, IOpcode, Immediate, Operand, OperandKind};
 use variable::HpuVarWrapped;
-use zhc::builder::Type;
 
 use std::sync::atomic;
 
@@ -48,8 +47,9 @@ impl HpuCmd {
                     .get_args()
                     .iter()
                     .fold((0_usize, 0_usize), |(src, imm), ty| match ty {
-                        Type::CiphertextInteger(_) | Type::CiphertextBool(_) => (src + 1, imm),
-                        Type::PlaintextInteger(_) => (src, imm + 1),
+                        zhc::builder::Type::CiphertextInteger(_)
+                        | zhc::builder::Type::CiphertextBool(_) => (src + 1, imm),
+                        zhc::builder::Type::PlaintextInteger(_) => (src, imm + 1),
                     });
             assert_eq!(
                 dst.len(),
