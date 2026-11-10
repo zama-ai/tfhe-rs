@@ -1,4 +1,4 @@
-use super::scalar_add::ScalarOverflowFlagSource;
+use super::ScalarOverflowFlagSource;
 use crate::core_crypto::prelude::{Cleartext, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;

@@ -55,6 +55,7 @@ use crate::shortint::ciphertext::{Ciphertext, MaxDegree, NoiseLevel};
 pub(crate) use add::OutputFlag;
 pub use bitonic_shuffle::{AttackerAdvantage, BitonicShuffleKeySize, CollisionProbability};
 use rayon::prelude::*;
+pub(crate) use scalar_add::ScalarOverflowFlagSource;
 pub use scalar_div_mod::{MiniUnsignedInteger, Reciprocable};
 pub use vector_find::MatchValues;
 

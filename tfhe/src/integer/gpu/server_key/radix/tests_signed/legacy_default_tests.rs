@@ -4,11 +4,8 @@
 //! (see `radix_parallel::tests_signed::test_scalar_shift`, `test_scalar_rotate`,
 //! `test_scalar_add`, `test_scalar_sub`, `test_neg` and `test_comparison`), which also
 //! exercises inputs at the maximum degree and noise level. The GPU full propagation cannot
-//! take blocks at the maximum degree yet. The overflowing scalar tests also cover scalars
-//! that fit the radix blocks but not the signed range, for which the GPU implementations
-//! return the opposite overflow flag: the CPU fix is `ScalarOverflowFlagSource` in
-//! `radix_parallel::scalar_add`, which the GPU can reuse. Once both are addressed point the
-//! GPU wrappers at the harness tests and delete this file.
+//! take blocks at the maximum degree yet. Once this is addressed point the GPU wrappers at the
+//! harness tests and delete this file.
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 use crate::integer::keycache::KEY_CACHE;

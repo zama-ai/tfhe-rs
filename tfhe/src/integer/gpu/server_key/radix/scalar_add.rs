@@ -12,7 +12,7 @@ use crate::integer::gpu::{
     cuda_backend_get_propagate_single_carry_assign_size_on_gpu,
     cuda_backend_scalar_addition_assign,
 };
-use crate::integer::server_key::radix_parallel::OutputFlag;
+use crate::integer::server_key::radix_parallel::{OutputFlag, ScalarOverflowFlagSource};
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NoiseLevel;
 
@@ -281,7 +281,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock)
     where
-        Scalar: SignedNumeric + DecomposableInto<u64> + CastInto<u64>,
+        Scalar: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8> + CastInto<u64>,
     {
         let mut tmp_lhs;
         tmp_lhs = ct_left.duplicate(streams);
@@ -296,28 +296,36 @@ impl CudaServerKey {
             streams,
         );
         let (result, overflowed) = self.signed_overflowing_add(&tmp_lhs, &trivial, streams);
+        let overflowed = self.signed_scalar_overflow_flag(
+            scalar,
+            ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0,
+            overflowed,
+            streams,
+        );
+        (result, overflowed)
+    }
 
-        let mut extra_scalar_block_iter =
-            BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
-                .iter_as::<u64>()
-                .skip(ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0);
-
-        // FIXME(gpu): use `ScalarOverflowFlagSource`
-        let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
-            extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 - 1))
-        } else {
-            extra_scalar_block_iter.all(|block| block == 0)
-        };
-
-        if extra_blocks_have_correct_value {
-            (result, overflowed)
-        } else {
-            let trivial_one: CudaSignedRadixCiphertext = self.create_trivial_radix(1, 1, streams);
-            // Scalar has more blocks so addition counts as overflowing
-            (
-                result,
-                CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_one.ciphertext),
-            )
+    /// Returns the overflow flag of a signed overflowing scalar addition or subtraction
+    /// between a radix of `num_blocks` blocks and `scalar`, from the flag `fhe_flag` that the
+    /// FHE operation computed. See [`ScalarOverflowFlagSource::for_signed_radix`].
+    pub(crate) fn signed_scalar_overflow_flag<Scalar>(
+        &self,
+        scalar: Scalar,
+        num_blocks: usize,
+        fhe_flag: CudaBooleanBlock,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock
+    where
+        Scalar: DecomposableInto<u8>,
+    {
+        match ScalarOverflowFlagSource::for_signed_radix(scalar, num_blocks, self.message_modulus) {
+            ScalarOverflowFlagSource::Fhe => fhe_flag,
+            ScalarOverflowFlagSource::InvertedFhe => self.boolean_bitnot(&fhe_flag, streams),
+            ScalarOverflowFlagSource::TriviallyTrue => {
+                let trivial_one: CudaSignedRadixCiphertext =
+                    self.create_trivial_radix(1, 1, streams);
+                CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_one.ciphertext)
+            }
         }
     }
 }

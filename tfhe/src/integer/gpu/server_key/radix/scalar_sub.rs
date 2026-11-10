@@ -1,6 +1,6 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{Numeric, SignedNumeric};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaServerKey;
@@ -162,7 +162,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock)
     where
-        Scalar: SignedNumeric + DecomposableInto<u64> + CastInto<u64>,
+        Scalar: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8> + CastInto<u64>,
     {
         let mut tmp_lhs;
         tmp_lhs = ct_left.duplicate(streams);
@@ -177,28 +177,12 @@ impl CudaServerKey {
             streams,
         );
         let (result, overflowed) = self.signed_overflowing_sub(&tmp_lhs, &trivial, streams);
-
-        let mut extra_scalar_block_iter =
-            BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
-                .iter_as::<u64>()
-                .skip(ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0);
-
-        // FIXME(gpu): use `ScalarOverflowFlagSource`
-        let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
-            extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 - 1))
-        } else {
-            extra_scalar_block_iter.all(|block| block == 0)
-        };
-
-        if extra_blocks_have_correct_value {
-            (result, overflowed)
-        } else {
-            let trivial_one: CudaSignedRadixCiphertext = self.create_trivial_radix(1, 1, streams);
-            // Scalar has more blocks so addition counts as overflowing
-            (
-                result,
-                CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_one.ciphertext),
-            )
-        }
+        let overflowed = self.signed_scalar_overflow_flag(
+            scalar,
+            ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0,
+            overflowed,
+            streams,
+        );
+        (result, overflowed)
     }
 }
