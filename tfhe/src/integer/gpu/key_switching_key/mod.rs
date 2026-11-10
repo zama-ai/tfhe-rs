@@ -11,6 +11,7 @@ pub struct CudaKeySwitchingKeyMaterial {
 }
 
 #[allow(dead_code)]
+#[derive(Clone, Copy)]
 pub struct CudaKeySwitchingKey<'key> {
     pub(crate) key_switching_key_material: &'key CudaKeySwitchingKeyMaterial,
     pub(crate) dest_server_key: &'key CudaServerKey,
