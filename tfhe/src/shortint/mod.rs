@@ -72,9 +72,7 @@ pub use parameters::{
     ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,
     MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
 };
-pub use public_key::{
-    CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
-};
+pub use public_key::{CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
 /// Generate a couple of client and server keys.

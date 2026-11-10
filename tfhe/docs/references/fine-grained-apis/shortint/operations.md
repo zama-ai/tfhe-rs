@@ -134,23 +134,40 @@ The list of implemented operations for shortint is:
 
 ### Public key encryption.
 
-TFHE-rs supports both private and public key encryption methods. The only difference between both lies in the encryption step: in this case, the encryption method is called using `public_key` instead of `client_key`.
+TFHE-rs supports both private and public key encryption methods. The only difference between both lies in the encryption step: in this case, messages are encrypted using a `CompactPublicKey` instead of the `client_key`. Encryption with a `CompactPublicKey` produces a `CompactCiphertextList`, which is expanded into ciphertexts usable with the `ServerKey` thanks to a `KeySwitchingKey`.
 
 Here is a small example on how to use public encryption:
 
 ```rust
+use tfhe::shortint::parameters::{
+    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 use tfhe::shortint::prelude::*;
+use tfhe::shortint::CompactPrivateKey;
 
 fn main() {
     // Generate the client key and the server key:
-    let (cks, _) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    let pks = PublicKey::new(&cks);
+    let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+
+    // Generate the compact public key from its own private key:
+    let cpk_private_key = CompactPrivateKey::new(PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let cpk = CompactPublicKey::new(&cpk_private_key);
+
+    // The casting key converts ciphertexts encrypted under the compact public key
+    // into ciphertexts usable with the server key:
+    let casting_key = KeySwitchingKey::new(
+        (&cpk_private_key, None),
+        (&cks, &sks),
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
 
     let msg = 2;
     // Encryption of one message:
-    let ct = pks.encrypt(msg);
+    let compact_list = cpk.encrypt_slice(&[msg]);
+    let cts = compact_list.expand(casting_key.as_view(), None).unwrap();
     // Decryption:
-    let dec = cks.decrypt(&ct);
+    let dec = cks.decrypt(&cts[0]);
     assert_eq!(dec, msg);
 }
 ```
