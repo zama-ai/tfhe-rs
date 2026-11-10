@@ -132,29 +132,6 @@ The list of implemented operations for shortint is:
 * division between two ciphertexts (\*)
 * MSB multiplication between two ciphertexts returning the part overflowing the `message buffer` (\*)
 
-### Public key encryption.
-
-TFHE-rs supports both private and public key encryption methods. The only difference between both lies in the encryption step: in this case, the encryption method is called using `public_key` instead of `client_key`.
-
-Here is a small example on how to use public encryption:
-
-```rust
-use tfhe::shortint::prelude::*;
-
-fn main() {
-    // Generate the client key and the server key:
-    let (cks, _) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    let pks = PublicKey::new(&cks);
-
-    let msg = 2;
-    // Encryption of one message:
-    let ct = pks.encrypt(msg);
-    // Decryption:
-    let dec = cks.decrypt(&ct);
-    assert_eq!(dec, msg);
-}
-```
-
 ### Arithmetic operations.
 
 Classical arithmetic operations are supported by shortint:
