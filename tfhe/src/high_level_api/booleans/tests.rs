@@ -6,8 +6,7 @@
 
 use crate::prelude::*;
 use crate::{
-    generate_keys, set_server_key, ClientKey, CompressedFheBool, CompressedPublicKey,
-    ConfigBuilder, Device, FheBool,
+    generate_keys, set_server_key, ClientKey, CompressedFheBool, ConfigBuilder, Device, FheBool,
 };
 
 #[inline(always)]
@@ -642,35 +641,6 @@ mod cpu {
 
         assert!(a.decrypt(&keys));
         assert!(!b.decrypt(&keys));
-    }
-
-    #[test]
-    fn test_compressed_public_key_encrypt() {
-        let config = ConfigBuilder::default().build();
-        let (keys, _) = generate_keys(config);
-
-        let public_key = CompressedPublicKey::new(&keys);
-
-        let a = FheBool::try_encrypt(true, &public_key).unwrap();
-        assert_degree_is_ok(&a);
-
-        let clear: bool = a.decrypt(&keys);
-        assert!(clear);
-    }
-
-    #[test]
-    fn test_decompressed_public_key_encrypt() {
-        let config = ConfigBuilder::default().build();
-        let (keys, _) = generate_keys(config);
-
-        let compressed_public_key = CompressedPublicKey::new(&keys);
-        let public_key = compressed_public_key.decompress();
-
-        let a = FheBool::try_encrypt(true, &public_key).unwrap();
-        assert_degree_is_ok(&a);
-
-        let clear: bool = a.decrypt(&keys);
-        assert!(clear);
     }
 
     #[test]

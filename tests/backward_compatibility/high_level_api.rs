@@ -26,12 +26,12 @@ use tfhe::{
     set_server_key, AesFheKey, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
     CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
-    CompressedKVStore, CompressedPublicKey, CompressedServerKey,
-    CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder, FheBool,
-    FheInt8, FheUint32, FheUint64, FheUint8, HlStreamCipher, HlTranscipherer, KreyviumFheKey,
-    OneTimePadFheSecretMask, ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport,
-    Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
-    StreamCiphertext, TranscipherSession,
+    CompressedKVStore, CompressedServerKey, CompressedSquashedNoiseCiphertextList,
+    CompressedSquashedNoiseCiphertextListBuilder, FheBool, FheInt8, FheUint32, FheUint64, FheUint8,
+    HlStreamCipher, HlTranscipherer, KreyviumFheKey, OneTimePadFheSecretMask,
+    ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport, Seed, ServerKey,
+    SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, StreamCiphertext,
+    TranscipherSession,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
@@ -473,28 +473,18 @@ pub fn test_hl_pubkey(
 
     let value = 113u8;
 
-    let encrypted = if test.compact {
-        let public_key = if test.compressed {
-            let compressed: CompressedCompactPublicKey = load_and_unversionize(dir, test, format)?;
-            compressed.decompress()
-        } else {
-            load_and_unversionize(dir, test, format)?
-        };
-        set_server_key(client_key.generate_server_key());
-
-        let ct_list = CompactCiphertextList::builder(&public_key)
-            .push(value)
-            .build();
-        ct_list.expand().unwrap().get(0).unwrap().unwrap()
+    let public_key = if test.compressed {
+        let compressed: CompressedCompactPublicKey = load_and_unversionize(dir, test, format)?;
+        compressed.decompress()
     } else {
-        let public_key = if test.compressed {
-            let compressed: CompressedPublicKey = load_and_unversionize(dir, test, format)?;
-            compressed.decompress()
-        } else {
-            load_and_unversionize(dir, test, format)?
-        };
-        FheUint8::encrypt(value, &public_key)
+        load_and_unversionize(dir, test, format)?
     };
+    set_server_key(client_key.generate_server_key());
+
+    let ct_list = CompactCiphertextList::builder(&public_key)
+        .push(value)
+        .build();
+    let encrypted: FheUint8 = ct_list.expand().unwrap().get(0).unwrap().unwrap();
 
     let decrypted: u8 = encrypted.decrypt(&client_key);
 
@@ -1272,6 +1262,10 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlClientKey(test) => {
                 test_hl_clientkey(test_dir.as_ref(), test, format).into()
+            }
+            // Only compact public keys can be loaded by this version of TFHE-rs
+            TestMetadata::HlPublicKey(test) if !test.compact => {
+                TestResult::Skipped(testcase.skip())
             }
             TestMetadata::HlPublicKey(test) => {
                 test_hl_pubkey(test_dir.as_ref(), test, format).into()

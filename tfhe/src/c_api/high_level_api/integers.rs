@@ -327,8 +327,6 @@ macro_rules! create_integer_wrapper_type {
 
         impl_try_encrypt_with_client_key_on_type!($name{crate::high_level_api::$name}, $clear_scalar_type);
 
-        impl_try_encrypt_with_public_key_on_type!($name{crate::high_level_api::$name}, $clear_scalar_type);
-
         impl_decrypt_on_type!($name, $clear_scalar_type);
 
         impl_try_decrypt_trivial_on_type!($name, $clear_scalar_type);

@@ -3,7 +3,6 @@ use crate::c_api::utils::*;
 use std::os::raw::c_int;
 
 pub struct ClientKey(pub(crate) crate::high_level_api::ClientKey);
-pub struct PublicKey(pub(crate) crate::high_level_api::PublicKey);
 pub struct CompactPublicKey(pub(crate) crate::high_level_api::CompactPublicKey);
 pub struct CompressedCompactPublicKey(pub(crate) crate::high_level_api::CompressedCompactPublicKey);
 
@@ -27,7 +26,6 @@ pub struct CompressedServerKey(pub(crate) crate::high_level_api::CompressedServe
 pub struct CudaServerKey(pub(crate) crate::high_level_api::CudaServerKey);
 
 impl_destroy_on_type!(ClientKey);
-impl_destroy_on_type!(PublicKey);
 impl_destroy_on_type!(CompactPublicKey);
 impl_destroy_on_type!(CompressedCompactPublicKey);
 impl_destroy_on_type!(ServerKey);
@@ -36,14 +34,12 @@ impl_destroy_on_type!(CompressedServerKey);
 impl_destroy_on_type!(CudaServerKey);
 
 impl_safe_serialize_on_type!(ClientKey);
-impl_safe_serialize_on_type!(PublicKey);
 impl_safe_serialize_on_type!(CompactPublicKey);
 impl_safe_serialize_on_type!(CompressedCompactPublicKey);
 impl_safe_serialize_on_type!(ServerKey);
 impl_safe_serialize_on_type!(CompressedServerKey);
 
 impl_safe_deserialize_on_type!(ClientKey);
-impl_safe_deserialize_on_type!(PublicKey);
 impl_safe_deserialize_on_type!(CompactPublicKey);
 impl_safe_deserialize_on_type!(CompressedCompactPublicKey);
 impl_safe_deserialize_on_type!(ServerKey);
@@ -192,19 +188,6 @@ pub unsafe extern "C" fn client_key_generate(
         let cks = crate::high_level_api::ClientKey::generate(config.0);
 
         *result_client_key = Box::into_raw(Box::new(ClientKey(cks)));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn public_key_new(
-    client_key: *const ClientKey,
-    result_public_key: *mut *mut PublicKey,
-) -> c_int {
-    catch_panic(|| {
-        let client_key = get_ref_checked(client_key).unwrap();
-        let inner = crate::high_level_api::PublicKey::new(&client_key.0);
-
-        *result_public_key = Box::into_raw(Box::new(PublicKey(inner)));
     })
 }
 

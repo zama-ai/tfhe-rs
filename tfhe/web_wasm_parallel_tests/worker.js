@@ -6,9 +6,7 @@ import init, {
   ShortintParametersName,
   ShortintParameters,
   TfheClientKey,
-  TfhePublicKey,
   TfheServerKey,
-  TfheCompressedPublicKey,
   TfheCompressedServerKey,
   TfheCompressedCompactPublicKey,
   TfheCompactPublicKey,
@@ -65,67 +63,6 @@ function get_tfhe_config_with_casting(block_params_name, casting_params_name) {
     .use_custom_parameters(block_params)
     .use_dedicated_compact_public_key_parameters(casting_params)
     .build();
-}
-
-async function compressedPublicKeyTest() {
-  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
-  // This test is from the legacy public key
-  // It has size issues on WASM with only 32 bits of address space and requires PBS_KS params
-  let config = get_tfhe_config(
-    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
-  );
-
-  console.time("ClientKey Gen");
-  let clientKey = TfheClientKey.generate(config);
-  console.timeEnd("ClientKey Gen");
-
-  console.time("CompressedPublicKey Gen");
-  let compressedPublicKey = TfheCompressedPublicKey.new(clientKey);
-  console.timeEnd("CompressedPublicKey Gen");
-
-  let data = compressedPublicKey.safe_serialize(BigInt(10000000));
-  console.log("CompressedPublicKey size:", data.length);
-
-  console.time("CompressedPublicKey Decompression");
-  let publicKey = compressedPublicKey.decompress();
-  console.timeEnd("CompressedPublicKey Decompression");
-
-  console.time("FheUint8 encrypt with CompressedPublicKey");
-  let encrypted = FheUint8.encrypt_with_public_key(255, publicKey);
-  console.timeEnd("FheUint8 encrypt with CompressedPublicKey");
-
-  let ser = encrypted.safe_serialize(BigInt(10000000));
-  console.log("Ciphertext Size", ser.length);
-
-  let decrypted = encrypted.decrypt(clientKey);
-  assert_eq(decrypted, 255);
-}
-
-async function publicKeyTest() {
-  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
-  // This test is from the legacy public key
-  // It has size issues on WASM with only 32 bits of address space and requires PBS_KS params
-  let config = get_tfhe_config(
-    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
-  );
-
-  console.time("ClientKey Gen");
-  let clientKey = TfheClientKey.generate(config);
-  console.timeEnd("ClientKey Gen");
-
-  console.time("PublicKey Gen");
-  let publicKey = TfhePublicKey.new(clientKey);
-  console.timeEnd("PublicKey Gen");
-
-  console.time("FheUint8 encrypt with PublicKey");
-  let encrypted = FheUint8.encrypt_with_public_key(255, publicKey);
-  console.timeEnd("FheUint8 encrypt with PublicKey");
-
-  let ser = encrypted.safe_serialize(BigInt(10000000));
-  console.log("Ciphertext Size", ser.length);
-
-  let decrypted = encrypted.decrypt(clientKey);
-  assert_eq(decrypted, 255);
 }
 
 async function compactPublicKeyBench32Bit(params_name) {
@@ -748,8 +685,6 @@ async function main() {
   // Use Comlink.proxy() to ensure the object is proxied, not copied
   // This allows functions to be called across the worker boundary
   return Comlink.proxy({
-    publicKeyTest,
-    compressedPublicKeyTest,
     compressedCompactPublicKeyTest256BitSmall,
     compressedCompactPublicKeyTest256BitBig,
     compactPublicKeyZeroKnowledgeTest,

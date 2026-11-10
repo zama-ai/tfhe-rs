@@ -3,133 +3,24 @@
 //! Public keys are keys that can only be used to encrypt data,
 //! they are meant to be shared publicly.
 //!
-//! There are currently 2 types of public key:
-//! - [PublicKey], Classical public key, works for any parameters, but its size can get large very
-//!   rapidly.
-//! - [CompactPublicKey], This key uses significantly less memory/disk space. It it however, not
-//!   compatible with all parameters.
-//!
-//! Each of these two keys have a compressed variant that allows to reduce
-//! transfer sizes.
-//! - [CompressedPublicKey]
-//! - [CompressedCompactPublicKey]
+//! - [CompactPublicKey], a public key that is not compatible with all parameters.
+//! - [CompressedCompactPublicKey], its compressed variant that allows to reduce transfer sizes.
 use tfhe_versionable::Versionize;
 
 use super::ClientKey;
 use crate::backward_compatibility::keys::{
-    CompactPublicKeyVersions, CompressedCompactPublicKeyVersions, CompressedPublicKeyVersions,
-    PublicKeyVersions,
+    CompactPublicKeyVersions, CompressedCompactPublicKeyVersions,
 };
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::keys::{IntegerCompactPublicKey, IntegerCompressedCompactPublicKey};
 use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::parameters::CompactPublicKeyEncryptionParameters;
-use crate::shortint::MessageModulus;
 use crate::{Error, Tag};
 
-/// Classical public key.
+/// A compact public key
 ///
-/// Works for any parameters, but uses a lot of memory / disk space
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
-#[versionize(PublicKeyVersions)]
-pub struct PublicKey {
-    pub(in crate::high_level_api) key: crate::integer::PublicKey,
-    pub(crate) tag: Tag,
-}
-
-impl PublicKey {
-    /// Creates a PublicKey, derived from the given client key
-    pub fn new(client_key: &ClientKey) -> Self {
-        let base_integer_key = crate::integer::PublicKey::new(&client_key.key.key);
-        Self {
-            key: base_integer_key,
-            tag: client_key.tag.clone(),
-        }
-    }
-
-    pub fn into_raw_parts(self) -> (crate::integer::PublicKey, Tag) {
-        (self.key, self.tag)
-    }
-
-    pub fn from_raw_parts(key: crate::integer::PublicKey, tag: Tag) -> Self {
-        Self { key, tag }
-    }
-
-    pub(crate) fn message_modulus(&self) -> MessageModulus {
-        self.key.parameters().message_modulus()
-    }
-}
-
-impl Tagged for PublicKey {
-    fn tag(&self) -> &Tag {
-        &self.tag
-    }
-
-    fn tag_mut(&mut self) -> &mut Tag {
-        &mut self.tag
-    }
-}
-
-impl Named for PublicKey {
-    const NAME: &'static str = "high_level_api::PublicKey";
-}
-
-/// Compressed classical public key.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
-#[versionize(CompressedPublicKeyVersions)]
-pub struct CompressedPublicKey {
-    pub(in crate::high_level_api) key: crate::integer::CompressedPublicKey,
-    pub(crate) tag: Tag,
-}
-
-impl CompressedPublicKey {
-    pub fn new(client_key: &ClientKey) -> Self {
-        let base_integer_key = crate::integer::CompressedPublicKey::new(&client_key.key.key);
-        Self {
-            key: base_integer_key,
-            tag: client_key.tag.clone(),
-        }
-    }
-
-    pub fn into_raw_parts(self) -> (crate::integer::CompressedPublicKey, Tag) {
-        (self.key, self.tag)
-    }
-
-    pub fn from_raw_parts(key: crate::integer::CompressedPublicKey, tag: Tag) -> Self {
-        Self { key, tag }
-    }
-
-    pub fn decompress(&self) -> PublicKey {
-        PublicKey {
-            key: self.key.decompress(),
-            tag: self.tag.clone(),
-        }
-    }
-
-    pub(crate) fn message_modulus(&self) -> MessageModulus {
-        self.key.parameters().message_modulus()
-    }
-}
-
-impl Tagged for CompressedPublicKey {
-    fn tag(&self) -> &Tag {
-        &self.tag
-    }
-
-    fn tag_mut(&mut self) -> &mut Tag {
-        &mut self.tag
-    }
-}
-
-impl Named for CompressedPublicKey {
-    const NAME: &'static str = "high_level_api::CompressedPublicKey";
-}
-
-/// A more compact public key
-///
-/// Compared to the  [PublicKey], this one is much smaller
-/// however it supports less parameters.
+/// It does not support all parameters.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompactPublicKeyVersions)]
 pub struct CompactPublicKey {

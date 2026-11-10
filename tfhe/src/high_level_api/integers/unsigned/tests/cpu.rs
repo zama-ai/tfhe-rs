@@ -9,8 +9,8 @@ use crate::shortint::parameters::*;
 use crate::{
     ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams, CompactPublicKey,
     CompressedCompactPublicKey, CompressedFheUint16, CompressedFheUint256, CompressedFheUint32,
-    CompressedFheUint32ConformanceParams, CompressedPublicKey, CompressedServerKey, FheInt16,
-    FheInt32, FheInt8, FheUint128, FheUint16, FheUint256, FheUint32, FheUint32ConformanceParams,
+    CompressedFheUint32ConformanceParams, CompressedServerKey, FheInt16, FheInt32, FheInt8,
+    FheUint128, FheUint16, FheUint256, FheUint32, FheUint32ConformanceParams,
 };
 use rand::prelude::*;
 
@@ -201,31 +201,6 @@ fn test_small_uint128() {
 
     let decrypted: u128 = c.decrypt(&cks);
     assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
-}
-
-#[test]
-fn test_integer_compressed_public_key() {
-    let config = ConfigBuilder::default().build();
-    let (client_key, _) = generate_keys(config);
-
-    let public_key = CompressedPublicKey::new(&client_key);
-
-    let a = FheUint8::try_encrypt(213u8, &public_key).unwrap();
-    let clear: u8 = a.decrypt(&client_key);
-    assert_eq!(clear, 213u8);
-}
-
-#[test]
-fn test_decompressed_public_key_encrypt() {
-    let config = ConfigBuilder::default().build();
-    let (client_key, _) = generate_keys(config);
-
-    let compressed_public_key = CompressedPublicKey::new(&client_key);
-    let public_key = compressed_public_key.decompress();
-
-    let a = FheUint8::try_encrypt(255u8, &public_key).unwrap();
-    let clear: u8 = a.decrypt(&client_key);
-    assert_eq!(clear, 255u8);
 }
 
 #[test]
