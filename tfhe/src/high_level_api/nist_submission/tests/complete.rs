@@ -1,13 +1,13 @@
 use rand::{thread_rng, Rng};
 
-use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
 use crate::nist_submission::parameters::{
     NIST_META_PARAMS_2_2, NIST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::nist_submission::{
-    preproc_eval, set_server_key, ClientKey, CompactCiphertextListBuilder, CompactPkeCrs,
-    CompactPublicKey, CompressedXofKeySet, Config, FheUint32, NormalizedHammingWeightBound,
-    ProvenCompactCiphertextList, SquashedNoiseFheUint, Tag, ZkComputeLoad,
+    new_compact_pke_crs, new_compact_pke_crs_conformance_params, preproc_eval, set_server_key,
+    ClientKey, CompactCiphertextListBuilder, CompactPublicKey, CompressedXofKeySet, Config,
+    FheUint32, NormalizedHammingWeightBound, ProvenCompactCiphertextList,
+    ProvenCompactCiphertextListConformanceParams, SquashedNoiseFheUint, Tag, ZkComputeLoad,
 };
 
 use crate::nist_submission::prelude::*;
@@ -113,7 +113,10 @@ fn complete_test_zk() {
     let clear_c: u32 = rng.gen();
 
     // Intentionally low max_num_bits to test multi-list proofs
-    let crs = CompactPkeCrs::from_config(config, 32).expect("Failed to create CRS");
+    let crs = new_compact_pke_crs(config, 32).expect("Failed to create CRS");
+    let crs_conformance_params = new_compact_pke_crs_conformance_params(config, 32)
+        .expect("Failed to create CRS conformance params");
+    assert!(crs.is_conformant(&crs_conformance_params));
 
     let mut builder = CompactCiphertextListBuilder::new(&pk);
     builder.push(clear_a).push(clear_b).push(clear_c);
@@ -121,12 +124,10 @@ fn complete_test_zk() {
         .build_with_proof(&crs, b"nist_zk_test", ZkComputeLoad::Proof)
         .expect("Failed to build proven compact list");
 
-    let conformance_params =
-        IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
-            NIST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            &crs,
-        )
-        .allow_unpacked();
+    let conformance_params = ProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+        NIST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        &crs,
+    );
     assert!(proven_list.is_conformant(&conformance_params));
 
     set_server_key(sks);
