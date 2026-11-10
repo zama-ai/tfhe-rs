@@ -2,9 +2,9 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
-    cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_rotate_left_size_on_gpu,
-    cuda_backend_get_rotate_right_size_on_gpu, cuda_backend_unchecked_rotate_left_assign,
-    cuda_backend_unchecked_rotate_right_assign, CudaServerKey,
+    cuda_backend_get_rotate_left_size_on_gpu, cuda_backend_get_rotate_right_size_on_gpu,
+    cuda_backend_unchecked_rotate_left_assign, cuda_backend_unchecked_rotate_right_assign,
+    CudaServerKey,
 };
 
 impl CudaServerKey {
@@ -362,30 +362,8 @@ impl CudaServerKey {
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
         );
-        assert_eq!(
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
-        );
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
-        };
-
-        let full_prop_mem = cuda_backend_get_full_propagate_assign_size_on_gpu(
-            streams,
-            &self.bootstrapping_key,
-            computing_ks_key.params_ffi(),
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
-            self.message_modulus,
-            self.carry_modulus,
-        );
-        let actual_full_prop_mem = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
         };
 
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
@@ -407,9 +385,12 @@ impl CudaServerKey {
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(rotate_mem)
+        self.get_shift_or_rotate_with_propagation_size_on_gpu(
+            ct_left, ct_right, rotate_mem, streams,
+        )
     }
 
     pub fn get_rotate_right_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -422,30 +403,8 @@ impl CudaServerKey {
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
         );
-        assert_eq!(
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
-        );
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
-        };
-
-        let full_prop_mem = cuda_backend_get_full_propagate_assign_size_on_gpu(
-            streams,
-            &self.bootstrapping_key,
-            computing_ks_key.params_ffi(),
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
-            self.message_modulus,
-            self.carry_modulus,
-        );
-        let actual_full_prop_mem = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
         };
 
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
@@ -467,8 +426,11 @@ impl CudaServerKey {
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(rotate_mem)
+        self.get_shift_or_rotate_with_propagation_size_on_gpu(
+            ct_left, ct_right, rotate_mem, streams,
+        )
     }
 }

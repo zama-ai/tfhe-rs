@@ -305,11 +305,11 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
     // Two shifters: the denominator stays at operand width, the numerator is
     // widened first so that shifting it left cannot lose its top bits.
     shift_d_mem = new int_shift_and_rotate_buffer<Torus>(
-        streams, LEFT_SHIFT, false, params, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        streams, LEFT_SHIFT, false, params, num_blocks, num_blocks,
+        allocate_gpu_memory, size_tracker);
     shift_n_mem = new int_shift_and_rotate_buffer<Torus>(
-        streams, LEFT_SHIFT, false, params, 2 * num_blocks, allocate_gpu_memory,
-        size_tracker);
+        streams, LEFT_SHIFT, false, params, 2 * num_blocks, 2 * num_blocks,
+        allocate_gpu_memory, size_tracker);
 
     // Seed table: for d's top (lut_precision + 1) bits, x0 such that
     // (1 + x0) * d < 1 and 1 + x0 approximates 1/d to lut_precision bits.

@@ -296,8 +296,7 @@ __host__ void goldschmidt_normalize(CudaStreams streams,
       streams, &mem->d_is_zero, denominator, mem->d_zero_scalar,
       mem->is_zero_mem, bsks, ksks, num_blocks, num_blocks);
 
-  // The barrel shifter wants the amount at the same width as the value, so the
-  // counter is zero extended for each of the two shifts.
+  // The counter is zero extended to the width of each of the two shifts.
   CudaRadixCiphertextFFI narrow_amount;
   as_radix_ciphertext_slice<Torus>(&narrow_amount, &mem->shift_amount, 0,
                                    num_blocks);
