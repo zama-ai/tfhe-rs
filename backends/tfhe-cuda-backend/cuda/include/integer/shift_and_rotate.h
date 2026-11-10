@@ -166,11 +166,15 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
   /// @brief One-block ct reused by the fixup: first the boolean predicate,
   /// then the per-block condition packed into the carry.
   CudaRadixCiphertextFFI *tmp_overshift;
-  /// @brief Zero-padded copy of the shift amount, used when the block count is
-  /// odd (the comparison needs an even count, or one). Null when not padding.
+  /// @brief Zero-padded copy of the shift amount, used when the amount has
+  /// fewer blocks than the value (both paths read as many amount blocks as the
+  /// value has) or than the comparison needs (an even count, or one). Null
+  /// when not padding.
   CudaRadixCiphertextFFI *tmp_padded_shift;
-  /// @brief Number of blocks the comparison runs on: the input block count
-  /// rounded up to even (or 1).
+  /// @brief Number of blocks of the encrypted shift amount.
+  uint32_t num_shift_blocks;
+  /// @brief Number of blocks the comparison runs on: the larger of the value
+  /// and amount block counts, rounded up to even (or 1).
   uint32_t overshift_compare_num_blocks;
   /// @brief Constant the shift amount is compared against: total_nb_bits split
   /// into blocks, on the host.
@@ -197,11 +201,13 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
                               SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
                               int_radix_params params,
                               uint32_t num_radix_blocks,
+                              uint32_t num_shift_blocks,
                               bool allocate_gpu_memory,
                               uint64_t &size_tracker) {
     this->shift_type = shift_type;
     this->is_signed = is_signed;
     this->params = params;
+    this->num_shift_blocks = num_shift_blocks;
     gpu_memory_allocated = allocate_gpu_memory;
 
     uint32_t bits_per_block = std::log2(params.message_modulus);
@@ -255,6 +261,17 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
     // ---- Overshift handling (shifts only, not rotations) ----
     setup_handle_overshift(streams, num_radix_blocks, total_nb_bits,
                            allocate_gpu_memory, size_tracker);
+
+    uint32_t padded_shift_num_blocks =
+        handle_overshift ? overshift_compare_num_blocks : num_radix_blocks;
+    tmp_padded_shift = nullptr;
+    if (padded_shift_num_blocks > num_shift_blocks) {
+      tmp_padded_shift = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), tmp_padded_shift,
+          padded_shift_num_blocks, params.big_lwe_dimension, size_tracker,
+          allocate_gpu_memory);
+    }
   }
 
   /// @brief Allocates and initializes the buffers and LUTs used to fix up the
@@ -269,7 +286,6 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
     handle_overshift = (shift_type == LEFT_SHIFT || shift_type == RIGHT_SHIFT);
     overshift_compare_mem = nullptr;
     tmp_overshift = nullptr;
-    tmp_padded_shift = nullptr;
     overshift_compare_num_blocks = 0;
     d_overshift_scalar_blocks = nullptr;
     h_overshift_scalar_blocks = nullptr;
@@ -280,11 +296,14 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
     if (handle_overshift) {
       auto message_modulus = params.message_modulus;
 
-      // The unsigned scalar comparison requires an even number of blocks (or
-      // exactly 1), so pad the comparison block count when needed.
-      overshift_compare_num_blocks = num_radix_blocks;
-      if (num_radix_blocks > 1 && (num_radix_blocks % 2 != 0))
-        overshift_compare_num_blocks = num_radix_blocks + 1;
+      // The comparison reads the whole amount. The unsigned scalar comparison
+      // requires an even number of blocks (or exactly 1), so pad the
+      // comparison block count when needed.
+      overshift_compare_num_blocks =
+          std::max(num_radix_blocks, num_shift_blocks);
+      if (overshift_compare_num_blocks > 1 &&
+          (overshift_compare_num_blocks % 2 != 0))
+        overshift_compare_num_blocks += 1;
 
       overshift_compare_mem = new int_comparison_buffer<Torus>(
           streams, COMPARISON_TYPE::GE, params, overshift_compare_num_blocks,
@@ -294,14 +313,6 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
       create_zero_radix_ciphertext_async<Torus>(
           streams.stream(0), streams.gpu_index(0), tmp_overshift, 1,
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-
-      if (overshift_compare_num_blocks != num_radix_blocks) {
-        tmp_padded_shift = new CudaRadixCiphertextFFI;
-        create_zero_radix_ciphertext_async<Torus>(
-            streams.stream(0), streams.gpu_index(0), tmp_padded_shift,
-            overshift_compare_num_blocks, params.big_lwe_dimension,
-            size_tracker, allocate_gpu_memory);
-      }
 
       // Decompose total_nb_bits into base-message_modulus digits
       // (little-endian)
@@ -392,6 +403,12 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
     if (handle_overshift)
       release_handle_overshift(streams);
 
+    if (tmp_padded_shift) {
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     tmp_padded_shift, gpu_memory_allocated);
+      delete tmp_padded_shift;
+    }
+
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
   }
 
@@ -408,11 +425,6 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
       release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
                                      tmp_overshift, gpu_memory_allocated);
       delete tmp_overshift;
-    }
-    if (tmp_padded_shift) {
-      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
-                                     tmp_padded_shift, gpu_memory_allocated);
-      delete tmp_padded_shift;
     }
     if (overshift_pack_lut) {
       overshift_pack_lut->release(streams);

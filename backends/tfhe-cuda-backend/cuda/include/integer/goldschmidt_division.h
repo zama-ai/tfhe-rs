@@ -103,8 +103,6 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
   CudaRadixCiphertextFFI wide_n;
   /// @brief Leading-zero count of the denominator, counter_blocks.
   CudaRadixCiphertextFFI leading_zeros;
-  /// @brief leading_zeros zero-extended to the width of the value it shifts.
-  CudaRadixCiphertextFFI shift_amount;
   /// @brief Boolean block set when the denominator is zero.
   CudaRadixCiphertextFFI d_is_zero;
 
@@ -244,7 +242,6 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
     new_ct(shifted_d, num_blocks);
     new_ct(wide_n, 2 * num_blocks);
     new_ct(leading_zeros, counter_blocks);
-    new_ct(shift_amount, 2 * num_blocks);
     new_ct(d_is_zero, 1);
     new_ct(seed_factor, x0_blocks);
     new_ct(seed_found, 1);
@@ -305,11 +302,11 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
     // Two shifters: the denominator stays at operand width, the numerator is
     // widened first so that shifting it left cannot lose its top bits.
     shift_d_mem = new int_shift_and_rotate_buffer<Torus>(
-        streams, LEFT_SHIFT, false, params, num_blocks, allocate_gpu_memory,
-        size_tracker);
+        streams, LEFT_SHIFT, false, params, num_blocks, counter_blocks,
+        allocate_gpu_memory, size_tracker);
     shift_n_mem = new int_shift_and_rotate_buffer<Torus>(
-        streams, LEFT_SHIFT, false, params, 2 * num_blocks, allocate_gpu_memory,
-        size_tracker);
+        streams, LEFT_SHIFT, false, params, 2 * num_blocks, counter_blocks,
+        allocate_gpu_memory, size_tracker);
 
     // Seed table: for d's top (lut_precision + 1) bits, x0 such that
     // (1 + x0) * d < 1 and 1 + x0 approximates 1/d to lut_precision bits.
@@ -407,7 +404,6 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
     drop_ct(shifted_d);
     drop_ct(wide_n);
     drop_ct(leading_zeros);
-    drop_ct(shift_amount);
     drop_ct(d_is_zero);
     drop_ct(seed_factor);
     drop_ct(seed_found);

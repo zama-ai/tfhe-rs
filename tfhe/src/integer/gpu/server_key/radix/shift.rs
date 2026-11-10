@@ -8,6 +8,52 @@ use crate::integer::gpu::{
 };
 
 impl CudaServerKey {
+    /// Peak memory of a shift or rotation that needs `operation_mem` in the backend, after the
+    /// propagation of the operands that have carries. The non-assign functions propagate copies
+    /// of both operands, the assign functions a copy of the amount only. The copies stay alive
+    /// until the end of the operation.
+    pub(crate) fn get_shift_or_rotate_with_propagation_size_on_gpu<
+        T: CudaIntegerRadixCiphertext,
+    >(
+        &self,
+        ct_left: &T,
+        ct_right: &CudaUnsignedRadixCiphertext,
+        operation_mem: u64,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+        let full_prop_mem = |num_blocks: usize| {
+            cuda_backend_get_full_propagate_assign_size_on_gpu(
+                streams,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                u32::try_from(num_blocks).unwrap(),
+                self.message_modulus,
+                self.carry_modulus,
+            )
+        };
+        let (lhs_copy_mem, lhs_prop_mem) = if ct_left.block_carries_are_empty() {
+            (0, 0)
+        } else {
+            (
+                self.get_ciphertext_size_on_gpu(ct_left),
+                full_prop_mem(ct_left.as_ref().d_blocks.lwe_ciphertext_count().0),
+            )
+        };
+        let (rhs_copy_mem, rhs_prop_mem) = if ct_right.block_carries_are_empty() {
+            (0, 0)
+        } else {
+            (
+                self.get_ciphertext_size_on_gpu(ct_right),
+                full_prop_mem(ct_right.as_ref().d_blocks.lwe_ciphertext_count().0),
+            )
+        };
+        let copies_mem = lhs_copy_mem + rhs_copy_mem;
+        (copies_mem + lhs_prop_mem.max(rhs_prop_mem)).max(copies_mem + operation_mem)
+    }
+
     pub(crate) fn unchecked_right_shift_assign<T>(
         &self,
         ct: &mut T,
@@ -360,32 +406,6 @@ impl CudaServerKey {
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
         );
-        assert_eq!(
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
-        );
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
-
-        let full_prop_mem = cuda_backend_get_full_propagate_assign_size_on_gpu(
-            streams,
-            &self.bootstrapping_key,
-            computing_ks_key.params_ffi(),
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
-            self.message_modulus,
-            self.carry_modulus,
-        );
-        let actual_full_prop_mem = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-        };
-
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -408,9 +428,10 @@ impl CudaServerKey {
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(shift_mem)
+        self.get_shift_or_rotate_with_propagation_size_on_gpu(ct_left, ct_right, shift_mem, streams)
     }
 
     pub fn get_right_shift_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -423,32 +444,6 @@ impl CudaServerKey {
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
         );
-        assert_eq!(
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
-        );
-        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
-            panic!("Only the standard atomic pattern is supported on GPU")
-        };
-
-        let full_prop_mem = cuda_backend_get_full_propagate_assign_size_on_gpu(
-            streams,
-            &self.bootstrapping_key,
-            computing_ks_key.params_ffi(),
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
-            self.message_modulus,
-            self.carry_modulus,
-        );
-        let actual_full_prop_mem = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-        };
-
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -471,8 +466,9 @@ impl CudaServerKey {
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(shift_mem)
+        self.get_shift_or_rotate_with_propagation_size_on_gpu(ct_left, ct_right, shift_mem, streams)
     }
 }

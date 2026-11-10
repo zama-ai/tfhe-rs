@@ -789,6 +789,7 @@ unsafe extern "C" {
         bsk_params: CudaLweBootstrapKeyParamsFFI,
         ksk_params: CudaLweKeyswitchKeyParamsFFI,
         num_blocks: u32,
+        num_shift_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
         shift_type: SHIFT_OR_ROTATE_TYPE,
