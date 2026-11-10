@@ -17,6 +17,7 @@
 #include "polynomial/functions.cuh"
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
+#include "verification/trace.h"
 #include <algorithm>
 #include <functional>
 
@@ -63,6 +64,9 @@ host_addition(cudaStream_t stream, uint32_t gpu_index,
         input_1->noise_levels[i] + input_2->noise_levels[i];
     CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
   }
+  VERIFICATION_TRACE_HOOK(verification::record_elementwise<T>(
+      __func__, verification::Kernel::ADDITION, output, {input_1, input_2},
+      num_radix_blocks));
 }
 
 /** @brief Adds a single-block radix-ciphertext to every block of a multi-block
@@ -405,6 +409,9 @@ __host__ void host_radix_cumulative_sum_in_groups(cudaStream_t stream,
           (Torus *)dest->ptr, (Torus *)src->ptr, num_radix_blocks, lwe_size,
           group_size);
   check_cuda_error(cudaGetLastError());
+  VERIFICATION_TRACE_HOOK(
+      verification::record_radix_cumulative_sum_in_groups<Torus>(
+          __func__, dest, src, num_radix_blocks, group_size));
 }
 
 template <typename Torus>
@@ -478,6 +485,10 @@ __host__ void host_radix_split_simulators_and_grouping_pgns(
           (Torus *)simulators->ptr, (Torus *)grouping_pgns->ptr,
           (Torus *)src->ptr, num_radix_blocks, lwe_size, group_size, delta);
   check_cuda_error(cudaGetLastError());
+  VERIFICATION_TRACE_HOOK(
+      verification::record_split_simulators_and_grouping_pgns<Torus>(
+          __func__, simulators, grouping_pgns, src, num_radix_blocks,
+          group_size, delta));
 }
 
 // If group_size = 4, the first group of 4 elements will be transformed as
@@ -531,6 +542,8 @@ __host__ void host_radix_sum_in_groups(cudaStream_t stream, uint32_t gpu_index,
       (Torus *)dest->ptr, (Torus *)src1->ptr, (Torus *)src2->ptr,
       num_radix_blocks, lwe_size, group_size);
   check_cuda_error(cudaGetLastError());
+  VERIFICATION_TRACE_HOOK(verification::record_radix_sum_in_groups<Torus>(
+      __func__, dest, src1, src2, num_radix_blocks, group_size));
 }
 
 // polynomial_size threads
@@ -597,6 +610,10 @@ __host__ void host_pack_bivariate_blocks(
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], message_modulus,
                       carry_modulus);
   }
+  VERIFICATION_TRACE_HOOK(verification::record_pack_bivariate<Torus>(
+      __func__, streams.stream(0), streams.gpu_index(0), false, lwe_array_out,
+      lwe_indexes_out, lwe_array_1, lwe_array_2, lwe_indexes_in, shift,
+      num_radix_blocks));
 }
 
 // polynomial_size threads
@@ -996,6 +1013,10 @@ __host__ void integer_radix_apply_univariate_lookup_table(
     lut->multi_gpu_gather_barrier.stream_0_wait_for_local_streams(
         active_streams);
   }
+  // Input claims, taken before an in-place PBS overwrites them below.
+  VERIFICATION_TRACE_HOOK(auto vt_meta_in = verification::pbs_meta_in<Torus>(
+                              streams.stream(0), streams.gpu_index(0),
+                              lwe_array_in, lut, num_radix_blocks));
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
@@ -1003,6 +1024,10 @@ __host__ void integer_radix_apply_univariate_lookup_table(
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
                       params.carry_modulus);
   }
+  VERIFICATION_TRACE_HOOK(verification::record_programmable_bootstrap<Torus>(
+      __func__, streams.stream(0), streams.gpu_index(0), lwe_array_out,
+      lwe_array_in, lut, num_radix_blocks, num_many_lut, lut_stride,
+      std::move(vt_meta_in)));
   POP_RANGE()
 }
 
@@ -1105,6 +1130,10 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     lut->multi_gpu_gather_barrier.stream_0_wait_for_local_streams(
         active_streams);
   }
+  // Input claims, taken before an in-place PBS overwrites them below.
+  VERIFICATION_TRACE_HOOK(auto vt_meta_in = verification::pbs_meta_in<Torus>(
+                              streams.stream(0), streams.gpu_index(0),
+                              lwe_array_in, lut, num_radix_blocks));
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
@@ -1112,6 +1141,10 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
                       params.carry_modulus);
   }
+  VERIFICATION_TRACE_HOOK(verification::record_programmable_bootstrap<Torus>(
+      __func__, streams.stream(0), streams.gpu_index(0), lwe_array_out,
+      lwe_array_in, lut, num_radix_blocks, num_many_lut, lut_stride,
+      std::move(vt_meta_in)));
   POP_RANGE()
 }
 
@@ -1229,6 +1262,10 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     lut->multi_gpu_gather_barrier.stream_0_wait_for_local_streams(
         active_streams);
   }
+  // Input claims, taken before an in-place PBS overwrites them below.
+  VERIFICATION_TRACE_HOOK(auto vt_meta_in = verification::pbs_meta_in<Torus>(
+                              streams.stream(0), streams.gpu_index(0),
+                              lwe_array_pbs_in, lut, num_radix_blocks));
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
@@ -1236,6 +1273,11 @@ __host__ void integer_radix_apply_bivariate_lookup_table(
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
                       params.carry_modulus);
   }
+  // The keyswitch reads the packed blocks, recorded by the pack leaf.
+  VERIFICATION_TRACE_HOOK(verification::record_programmable_bootstrap<Torus>(
+      __func__, streams.stream(0), streams.gpu_index(0), lwe_array_out,
+      lwe_array_pbs_in, lut, num_radix_blocks, num_many_lut, lut_stride,
+      std::move(vt_meta_in)));
   POP_RANGE()
 }
 
@@ -1402,6 +1444,10 @@ void generate_device_accumulator_no_encoding(
 
   *degree = (uint64_t)message_modulus * (uint64_t)carry_modulus * 2;
 
+  VERIFICATION_TRACE_HOOK(verification::record_lut_def<Torus>(
+      __func__, acc, h_lut, glwe_dimension, polynomial_size, message_modulus,
+      carry_modulus, message_modulus, carry_modulus, false,
+      gpu_memory_allocated));
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size),
       stream, gpu_index, gpu_memory_allocated);
@@ -1473,6 +1519,10 @@ void generate_device_accumulator_bivariate(
       f);
 
   // copy host lut and lut_indexes_vec to device
+  VERIFICATION_TRACE_HOOK(verification::record_lut_def<Torus>(
+      __func__, acc_bivariate, h_lut, glwe_dimension, polynomial_size,
+      message_modulus, carry_modulus, message_modulus, carry_modulus, true,
+      gpu_memory_allocated));
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc_bivariate, h_lut,
       safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
@@ -1509,6 +1559,10 @@ void generate_device_accumulator_bivariate_with_factor(
       factor);
 
   //  copy host lut and lut_indexes_vec to device
+  VERIFICATION_TRACE_HOOK(verification::record_lut_def<Torus>(
+      __func__, acc_bivariate, h_lut, glwe_dimension, polynomial_size,
+      message_modulus, carry_modulus, message_modulus, carry_modulus, true,
+      gpu_memory_allocated));
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc_bivariate, h_lut,
       safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
@@ -1546,6 +1600,10 @@ void generate_device_accumulator_bivariate_with_cpu_prealloc(
       f);
 
   // copy host lut and lut_indexes_vec to device
+  VERIFICATION_TRACE_HOOK(verification::record_lut_def<Torus>(
+      __func__, acc_bivariate, h_lut, glwe_dimension, polynomial_size,
+      message_modulus, carry_modulus, message_modulus, carry_modulus, true,
+      gpu_memory_allocated));
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc_bivariate, h_lut,
       safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
@@ -1572,6 +1630,10 @@ void generate_device_accumulator_with_encoding(
       input_carry_modulus, output_message_modulus, output_carry_modulus, f);
 
   // copy host lut and lut_indexes_vec to device
+  VERIFICATION_TRACE_HOOK(verification::record_lut_def<Torus>(
+      __func__, acc, h_lut, glwe_dimension, polynomial_size,
+      input_message_modulus, input_carry_modulus, output_message_modulus,
+      output_carry_modulus, true, gpu_memory_allocated));
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size),
       stream, gpu_index, gpu_memory_allocated);
@@ -1595,6 +1657,10 @@ void generate_device_accumulator_with_encoding_with_cpu_prealloc(
       output_carry_modulus, f);
 
   // copy host lut and lut_indexes_vec to device
+  VERIFICATION_TRACE_HOOK(verification::record_lut_def<Torus>(
+      __func__, acc, preallocated_h_lut, glwe_dimension, polynomial_size,
+      input_message_modulus, input_carry_modulus, output_message_modulus,
+      output_carry_modulus, true, gpu_memory_allocated));
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, preallocated_h_lut,
       safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size), stream,
@@ -1676,6 +1742,10 @@ void generate_many_lut_device_accumulator(
       carry_modulus, functions);
 
   // copy host lut and lut_indexes_vec to device
+  VERIFICATION_TRACE_HOOK(verification::record_lut_def<Torus>(
+      __func__, acc, h_lut, glwe_dimension, polynomial_size, message_modulus,
+      carry_modulus, message_modulus, carry_modulus, true,
+      gpu_memory_allocated));
   cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, safe_mul_sizeof<Torus>(glwe_dimension + 1, polynomial_size),
       stream, gpu_index, gpu_memory_allocated);
@@ -2512,7 +2582,7 @@ void host_add_and_propagate_single_carry(
                          lhs_array, input_carries, 1, params.message_modulus,
                          params.carry_modulus);
   }
-  // Step 1
+  // Step 1xx`
   host_compute_shifted_blocks_and_states<Torus>(
       streams, lhs_array, mem->shifted_blocks_state_mem, bsks, ksks, lut_stride,
       num_many_lut);

@@ -8,6 +8,8 @@ void release_radix_ciphertext_async(cudaStream_t stream,
                                     uint32_t const gpu_index,
                                     CudaRadixCiphertextFFI *data,
                                     const bool gpu_memory_allocated) {
+  VERIFICATION_TRACE_HOOK(
+      verification::record_free(__func__, data->ptr, gpu_memory_allocated));
   cuda_drop_with_size_tracking_async(data->ptr, stream, gpu_index,
                                      gpu_memory_allocated);
   free(data->degrees);

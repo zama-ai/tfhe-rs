@@ -8,6 +8,7 @@
 #include "integer/radix_ciphertext.h"
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
+#include "verification/trace.h"
 
 inline CudaLweCiphertextListFFI
 to_lwe_ciphertext_list(CudaRadixCiphertextFFI *radix) {
@@ -42,6 +43,8 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
   if (radix->degrees == NULL || radix->noise_levels == NULL) {
     PANIC("Cuda error: degrees / noise levels not allocated correctly")
   }
+  VERIFICATION_TRACE_HOOK(
+      verification::record_alloc<Torus>(__func__, radix, allocate_gpu_memory));
   POP_RANGE();
 }
 
@@ -141,6 +144,9 @@ void copy_radix_ciphertext_slice_async(
     output_radix->noise_levels[i + output_start_lwe_index] =
         input_radix->noise_levels[i + input_start_lwe_index];
   }
+  VERIFICATION_TRACE_HOOK(verification::record_memcpy_blocks<Torus>(
+      __func__, output_radix, output_start_lwe_index, output_end_lwe_index,
+      input_radix, input_start_lwe_index, input_end_lwe_index));
   POP_RANGE();
 }
 

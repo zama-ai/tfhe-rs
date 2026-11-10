@@ -27,3 +27,6 @@ debug-fake-multi-gpu = []
 # Test-only: Goldschmidt division writes its fixed-point iterates to a CSV
 # (trivial ciphertexts only), for the golden trace test.
 goldschmidt-trace = []
+# Test-only: integer leaf host functions record the kernels they launch, so
+# integer ops can be replayed on plaintexts (see cuda/include/verification).
+verification-trace = []

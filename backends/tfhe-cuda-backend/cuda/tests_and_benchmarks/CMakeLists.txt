@@ -1,3 +1,4 @@
+
 option(TFHE_CUDA_BACKEND_BUILD_TESTS "Build the test tool" OFF)
 option(TFHE_CUDA_BACKEND_BUILD_BENCHMARKS "Build the benchmark tool" OFF)
 
@@ -9,4 +10,9 @@ endif()
 if(TFHE_CUDA_BACKEND_BUILD_BENCHMARKS)
   message(STATUS "Building the benchmark tool")
   add_subdirectory(benchmarks)
+endif()
+
+if(VERIFICATION_TRACE)
+  message(STATUS "Building the verification trace driver")
+  add_subdirectory(verification)
 endif()
