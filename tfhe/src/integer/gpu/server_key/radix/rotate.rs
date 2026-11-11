@@ -1,5 +1,6 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::server_key::radix::shift::assert_amount_has_value_width;
 use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_rotate_left_size_on_gpu,
@@ -166,6 +167,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), rotate.as_ref());
         let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
@@ -207,6 +209,7 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), rotate.as_ref());
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -283,6 +286,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), rotate.as_ref());
         let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
@@ -324,6 +328,7 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), rotate.as_ref());
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (

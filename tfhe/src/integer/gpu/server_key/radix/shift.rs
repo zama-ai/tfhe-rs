@@ -1,5 +1,7 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::{
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaUnsignedRadixCiphertext,
+};
 use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_left_shift_size_on_gpu,
@@ -165,6 +167,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), shift.as_ref());
         let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
@@ -206,6 +209,7 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), shift.as_ref());
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -281,6 +285,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), shift.as_ref());
         let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
@@ -322,6 +327,7 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), shift.as_ref());
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -491,4 +497,23 @@ impl CudaServerKey {
         );
         lhs_copy + rhs_copy + actual_full_prop_mem.max(output_size + shift_mem)
     }
+}
+
+/// Panics unless the encrypted shift/rotate amount has the number of blocks of the value.
+///
+/// The integer and high-level APIs allow an amount with a different number of blocks, which the
+/// CPU supports; the GPU backend does not and aborts the process. Fail with a catchable panic
+/// until the GPU supports it.
+pub(super) fn assert_amount_has_value_width(
+    ct: &CudaRadixCiphertext,
+    amount: &CudaRadixCiphertext,
+) {
+    let ct_blocks = ct.d_blocks.lwe_ciphertext_count().0;
+    let amount_blocks = amount.d_blocks.lwe_ciphertext_count().0;
+    assert_eq!(
+        ct_blocks, amount_blocks,
+        "On GPU, the encrypted shift/rotate amount must have the number of blocks of the value \
+        (narrower or wider amounts are not supported yet): value {ct_blocks} blocks, \
+        amount {amount_blocks} blocks"
+    );
 }
