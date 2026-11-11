@@ -1,5 +1,6 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::server_key::radix::shift::assert_amount_has_value_width;
 use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_rotate_left_size_on_gpu,
@@ -166,6 +167,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), rotate.as_ref());
         let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
@@ -207,7 +209,7 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
+        assert_amount_has_value_width(ct.as_ref(), rotate.as_ref());
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -221,17 +223,15 @@ impl CudaServerKey {
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, rotate)
+                self.full_propagate_assign(ct, streams);
+                (ct, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(ct, streams);
                 self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
+                (ct, &tmp_rhs)
             }
         };
 
@@ -286,6 +286,7 @@ impl CudaServerKey {
     where
         T: CudaIntegerRadixCiphertext,
     {
+        assert_amount_has_value_width(ct.as_ref(), rotate.as_ref());
         let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
@@ -327,7 +328,7 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
+        assert_amount_has_value_width(ct.as_ref(), rotate.as_ref());
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -341,17 +342,15 @@ impl CudaServerKey {
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, rotate)
+                self.full_propagate_assign(ct, streams);
+                (ct, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(ct, streams);
                 self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
+                (ct, &tmp_rhs)
             }
         };
 

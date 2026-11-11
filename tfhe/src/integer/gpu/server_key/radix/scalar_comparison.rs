@@ -274,6 +274,34 @@ impl CudaServerKey {
         Scalar: DecomposableInto<u64>,
     {
         let message_modulus = self.message_modulus.0;
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+
+        // A scalar outside the range of the ciphertext type decides the comparison on its own
+        // (as in `unchecked_scalar_comparison`): the result is `ct` or the scalar wrapped to
+        // `num_blocks` blocks, which is what the CPU computes. The backend only accepts up to
+        // `num_blocks` scalar blocks.
+        if let Some(ordering) = self.is_scalar_out_of_bounds(ct, scalar) {
+            let scalar_wins = match op {
+                ComparisonType::MAX => ordering == std::cmp::Ordering::Greater,
+                ComparisonType::MIN => ordering == std::cmp::Ordering::Less,
+                _ => unreachable!("scalar min/max only"),
+            };
+            return if scalar_wins {
+                self.create_trivial_radix(scalar, num_blocks, streams)
+            } else {
+                ct.duplicate(streams)
+            };
+        }
+
+        // In range and negative: its decomposition has more sign blocks than the ciphertext,
+        // compare with a trivial ciphertext instead (as `unchecked_scalar_comparison` does)
+        if T::IS_SIGNED && scalar < Scalar::ZERO {
+            let scalar_as_trivial: T = self.create_trivial_radix(scalar, num_blocks, streams);
+            return match op {
+                ComparisonType::MAX => self.unchecked_max(ct, &scalar_as_trivial, streams),
+                _ => self.unchecked_min(ct, &scalar_as_trivial, streams),
+            };
+        }
 
         let scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(scalar, message_modulus.ilog2())
@@ -799,7 +827,8 @@ impl CudaServerKey {
     /// Returns the GPU memory (in bytes) needed by `scalar_max` / `scalar_min` (`op`) on `ct` with
     /// a scalar that fits in `ct`, without allocating anything on the GPU: the copy and the full
     /// propagation of a dirty `ct`, the output radix, the scalar blocks and the scalar comparison
-    /// scratch.
+    /// scratch, or for a signed `ct` the trivial radix and the encrypted max / min used for a
+    /// negative scalar if larger.
     fn get_scalar_minmax_size_on_gpu<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &T,
@@ -839,6 +868,25 @@ impl CudaServerKey {
                 op,
                 T::IS_SIGNED,
             );
+        // A negative scalar on a signed ciphertext is compared as a trivial ciphertext with the
+        // encrypted max / min (see `unchecked_scalar_minmax`): trivial radix + output radix +
+        // comparison scratch
+        let minmax_mem = if T::IS_SIGNED {
+            let encrypted_minmax_mem = 2 * ct_size
+                + cuda_backend_get_comparison_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    &self.bootstrapping_key,
+                    computing_ks_key.params_ffi(),
+                    num_blocks as u32,
+                    op,
+                    true,
+                );
+            minmax_mem.max(encrypted_minmax_mem)
+        } else {
+            minmax_mem
+        };
         lhs_copy + full_prop_mem.max(minmax_mem)
     }
 

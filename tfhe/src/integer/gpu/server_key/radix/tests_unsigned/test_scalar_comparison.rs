@@ -354,3 +354,44 @@ create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge_one_blo
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
+
+/// Scalar min/max with a scalar outside the range of the ciphertext (or negative, for signed
+/// ciphertexts) must not abort; the result is the exact min/max wrapped to the ciphertext width,
+/// as on the CPU.
+#[test]
+fn test_gpu_integer_scalar_minmax_out_of_range_scalar() {
+    use crate::core_crypto::gpu::vec::GpuIndex;
+    use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
+
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(0));
+    let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    let num_blocks = 4; // 8 bits
+
+    let x = 0x5Ai64;
+    let d_x = CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+        &cks.encrypt_radix(x as u64, num_blocks),
+        &streams,
+    );
+    for scalar in [1i64 << 40, 300, 256, 64, 240, -1] {
+        let r = sks.scalar_max(&d_x, scalar, &streams);
+        let got: u64 = cks.decrypt_radix(&r.to_radix_ciphertext(&streams));
+        assert_eq!(got, (x.max(scalar) & 0xFF) as u64, "max(0x5A, {scalar})");
+        let r = sks.scalar_min(&d_x, scalar, &streams);
+        let got: u64 = cks.decrypt_radix(&r.to_radix_ciphertext(&streams));
+        assert_eq!(got, (x.min(scalar) & 0xFF) as u64, "min(0x5A, {scalar})");
+    }
+
+    let x = -5i64;
+    let d_x = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+        &cks.encrypt_signed_radix(x, num_blocks),
+        &streams,
+    );
+    for scalar in [-1i64, -100, 100, -128, 300, -200, 1 << 40, -(1 << 40)] {
+        let r = sks.scalar_max(&d_x, scalar, &streams);
+        let got: i64 = cks.decrypt_signed_radix(&r.to_signed_radix_ciphertext(&streams));
+        assert_eq!(got, i64::from(x.max(scalar) as i8), "max(-5, {scalar})");
+        let r = sks.scalar_min(&d_x, scalar, &streams);
+        let got: i64 = cks.decrypt_signed_radix(&r.to_signed_radix_ciphertext(&streams));
+        assert_eq!(got, i64::from(x.min(scalar) as i8), "min(-5, {scalar})");
+    }
+}
