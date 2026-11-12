@@ -58,6 +58,7 @@ use rand::{Rng, SeedableRng};
 /// Message modulus used to build plans in the clear tests, large enough for all the block widths
 /// used in these tests
 const TEST_PLAN_MSG_MOD: MessageModulus = MessageModulus(1 << 8);
+const TEST_PLAN_CARRY_MOD: CarryModulus = CarryModulus(1);
 
 fn nz(v: u8) -> NonZeroU8 {
     NonZeroU8::new(v).unwrap()
@@ -313,6 +314,7 @@ fn test_plan_errors() {
     // 8 input bits, with 4 bits per keystream ct
     let input = stream_ciphertext(vec![0], 8);
     let msg_mod = MessageModulus(4);
+    let carry_mod = CarryModulus(4);
     let max_noise_level = MaxNoiseLevel::new(5);
 
     assert!(StreamApplicationPlan::try_new(
@@ -321,6 +323,7 @@ fn test_plan_errors() {
         &input,
         &output_layout(&[2; 4]),
         msg_mod,
+        carry_mod,
         max_noise_level,
     )
     .is_ok());
@@ -334,6 +337,7 @@ fn test_plan_errors() {
                 &input,
                 &output_layout(&[2; 4]),
                 msg_mod,
+                carry_mod,
                 max_noise_level,
             ),
             Err(TranscipherError::InvalidKeystream)
@@ -349,6 +353,7 @@ fn test_plan_errors() {
                 &input,
                 &output_layout(widths),
                 msg_mod,
+                carry_mod,
                 max_noise_level,
             ),
             Err(TranscipherError::InvalidOutputLayout)
@@ -363,6 +368,7 @@ fn test_plan_errors() {
             &input,
             &output_layout(&[4, 4]),
             msg_mod,
+            carry_mod,
             max_noise_level,
         ),
         Err(TranscipherError::InvalidOutputLayout)
@@ -378,6 +384,7 @@ fn test_plan_errors() {
             &input,
             &output_layout(&[1, 2, 2, 2, 1]),
             msg_mod,
+            carry_mod,
             max_noise_level,
         ),
         Err(TranscipherError::InvalidOutputLayout)
@@ -390,6 +397,7 @@ fn test_plan_errors() {
         &input,
         &output_layout(&[2; 4]),
         msg_mod,
+        carry_mod,
         MaxNoiseLevel::new(3),
     )
     .is_ok());
@@ -400,6 +408,7 @@ fn test_plan_errors() {
             &input,
             &output_layout(&[2; 4]),
             msg_mod,
+            carry_mod,
             MaxNoiseLevel::new(2),
         ),
         Err(TranscipherError::InvalidOutputLayout)
@@ -427,6 +436,7 @@ fn test_plan_known_layouts() {
             &stream_ciphertext(vec![0b1011_0110], 8),
             &layout,
             TEST_PLAN_MSG_MOD,
+            TEST_PLAN_CARRY_MOD,
             max_noise_level,
         ),
         Ok(StreamApplicationPlan {
@@ -472,6 +482,7 @@ fn test_plan_known_layouts() {
             &stream_ciphertext(vec![0b1_0110], 5),
             &layout,
             TEST_PLAN_MSG_MOD,
+            TEST_PLAN_CARRY_MOD,
             max_noise_level,
         ),
         Ok(StreamApplicationPlan {
@@ -527,6 +538,7 @@ fn test_plan_known_layouts() {
             &stream_ciphertext(vec![0b1001], 4),
             &output_layout(&[4]),
             TEST_PLAN_MSG_MOD,
+            TEST_PLAN_CARRY_MOD,
             max_noise_level,
         ),
         Ok(StreamApplicationPlan {
@@ -557,6 +569,7 @@ fn test_plan_known_layouts() {
             &stream_ciphertext(vec![0b10_0111], 6),
             &output_layout(&[2, 2, 2]),
             TEST_PLAN_MSG_MOD,
+            TEST_PLAN_CARRY_MOD,
             max_noise_level,
         ),
         Ok(StreamApplicationPlan {
@@ -623,6 +636,7 @@ fn test_plan_random_layouts() {
             &input,
             &output_layout,
             TEST_PLAN_MSG_MOD,
+            TEST_PLAN_CARRY_MOD,
             max_noise_level,
         );
 
@@ -724,6 +738,7 @@ fn test_linear_combination_choice() {
             &input,
             output_layout,
             TEST_PLAN_MSG_MOD,
+            TEST_PLAN_CARRY_MOD,
             // The plans are built without noise limit to check the linear combination below
             MaxNoiseLevel::new(u64::MAX),
         )
