@@ -640,6 +640,7 @@ pub struct IntegerCudaServerKey {
     >,
     pub(crate) cpk_re_randomization_key: Option<CudaReRandomizationKey>,
     pub(crate) oprf_key: Option<crate::integer::gpu::CudaOprfServerKey>,
+    pub(crate) transciphering_key: Option<crate::integer::gpu::CudaOprfServerKey>,
 }
 
 #[cfg(feature = "gpu")]

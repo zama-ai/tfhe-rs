@@ -33,6 +33,29 @@ void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output,
   cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
 }
 
+/**
+ * @brief Like trim_radix_blocks_lsb/msb, but the copied range can start
+ * anywhere in the input.
+ *
+ * @param output            Its number of blocks sets the length of the copy
+ * @param input             Distinct from output
+ * @param input_start_block First input block copied
+ */
+void copy_radix_ciphertext_slice_64(CudaRadixCiphertextFFI *output,
+                                    CudaRadixCiphertextFFI const *input,
+                                    uint32_t input_start_block,
+                                    CudaStreamsFFI streams) {
+  PANIC_IF_FALSE(output != input, "Output and input pointers must be different "
+                                  "for out-of-place operations");
+
+  auto cuda_streams = CudaStreams(streams);
+  copy_radix_ciphertext_slice_async<uint64_t>(
+      cuda_streams.stream(0), cuda_streams.gpu_index(0), output, 0,
+      output->num_radix_blocks, input, input_start_block,
+      input_start_block + output->num_radix_blocks);
+  cuda_synchronize_stream(cuda_streams.stream(0), cuda_streams.gpu_index(0));
+}
+
 uint64_t scratch_cuda_cast_to_unsigned_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params,

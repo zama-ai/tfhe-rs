@@ -239,6 +239,22 @@ impl IntegerStreamCiphertextList {
             acc.checked_add(part.checked_aligned_n_bits()?)
         })
     }
+
+    /// Layout of the whole list and kind of each value, shared by the CPU and GPU
+    /// transcipher_list
+    pub(crate) fn output_layout_and_kinds(
+        &self,
+        message_modulus: MessageModulus,
+    ) -> Result<(TranscipheringOutputLayout, Vec<DataKind>), IntegerTranscipherError> {
+        let mut layout = TranscipheringOutputLayout::new();
+        let mut kinds = Vec::with_capacity(self.info.len());
+        for part in &self.info {
+            let (part_layout, data_kind) = part.expansion_info(message_modulus)?;
+            layout.push_aligned(part_layout, STREAM_LIST_PART_ALIGNMENT);
+            kinds.push(data_kind);
+        }
+        Ok((layout, kinds))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -650,13 +666,7 @@ impl<T: Transcipherer> IntegerTranscipherer for T {
         sks: &ServerKey,
         input: &IntegerStreamCiphertextList,
     ) -> Result<CompactCiphertextListExpander, IntegerTranscipherError> {
-        let mut layout = TranscipheringOutputLayout::new();
-        let mut info = Vec::with_capacity(input.info.len());
-        for part in &input.info {
-            let (part_layout, data_kind) = part.expansion_info(sks.message_modulus())?;
-            layout.push_aligned(part_layout, STREAM_LIST_PART_ALIGNMENT);
-            info.push(data_kind);
-        }
+        let (layout, info) = input.output_layout_and_kinds(sks.message_modulus())?;
 
         let blocks = self.transcipher(&sks.key, &input.inner, &layout)?;
         Ok(CompactCiphertextListExpander::new(blocks, info))

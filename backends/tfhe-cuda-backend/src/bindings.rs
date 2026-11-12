@@ -1483,6 +1483,14 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn copy_radix_ciphertext_slice_64(
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        input_start_block: u32,
+        streams: CudaStreamsFFI,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_apply_noise_squashing_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
@@ -1743,6 +1751,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         allocate_gpu_memory: bool,
         total_random_bits: u32,
+        random_bits_per_block: u32,
     ) -> u64;
 }
 unsafe extern "C" {

@@ -192,8 +192,7 @@ impl IntegerExpandedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
-            // The GPU has no transciphering support, so this key has nowhere to go
-            transciphering_key: _,
+            transciphering_key,
         } = self;
 
         let key = CudaServerKey::from_expanded_server_key(compute_key, streams)?;
@@ -262,6 +261,13 @@ impl IntegerExpandedServerKey {
             crate::integer::gpu::CudaOprfServerKey::from_expanded_cpu(expanded_oprf_key, streams)
         });
 
+        let transciphering_key = transciphering_key.as_ref().map(|expanded_key| {
+            crate::integer::gpu::CudaOprfServerKey::from_expanded_shortint_cpu(
+                expanded_key.oprf_key(),
+                streams,
+            )
+        });
+
         Ok(crate::high_level_api::keys::inner::IntegerCudaServerKey {
             key,
             cpk_key_switching_key_material,
@@ -271,6 +277,7 @@ impl IntegerExpandedServerKey {
             noise_squashing_compression_key,
             cpk_re_randomization_key,
             oprf_key,
+            transciphering_key,
         })
     }
 }

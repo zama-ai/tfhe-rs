@@ -627,6 +627,18 @@ impl CudaServerKey {
         }
     }
 
+    /// GPU counterpart of the CPU transciphering_key, without fallback on another key either
+    pub(in crate::high_level_api) fn transciphering_key(
+        &self,
+    ) -> crate::Result<&crate::integer::gpu::CudaOprfServerKey> {
+        self.key.transciphering_key.as_ref().ok_or_else(|| {
+            crate::error!(
+                "no transciphering key in this server key, \
+                the config it was built from needs `enable_transciphering`"
+            )
+        })
+    }
+
     pub(crate) fn oprf_key(&self) -> crate::integer::gpu::CudaOprfServerKeyView<'_> {
         self.key.oprf_key.as_ref().map_or_else(
             || {

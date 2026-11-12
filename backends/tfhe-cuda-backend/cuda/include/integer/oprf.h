@@ -18,16 +18,22 @@ template <typename Torus> struct int_grouped_oprf_memory {
 
   int_grouped_oprf_memory(CudaStreams streams, int_radix_params params,
                           uint32_t num_blocks_to_process,
-                          uint64_t total_random_bits, bool allocate_gpu_memory,
-                          uint64_t &size_tracker) {
+                          uint64_t total_random_bits,
+                          uint32_t random_bits_per_block,
+                          bool allocate_gpu_memory, uint64_t &size_tracker) {
 
-    uint32_t message_bits_per_block =
-        (uint32_t)std::log2(params.message_modulus);
+    uint64_t message_modulus_log2 = (uint64_t)std::log2(params.message_modulus);
+    uint64_t carry_modulus_log2 = (uint64_t)std::log2(params.carry_modulus);
+    uint64_t full_bits_count = 1 + carry_modulus_log2 + message_modulus_log2;
+    PANIC_IF_FALSE(random_bits_per_block >= 1 &&
+                       random_bits_per_block <= full_bits_count,
+                   "Cuda error (oprf): random_bits_per_block must be between 1 "
+                   "and the number of bits of a block");
 
     uint32_t calculated_active_blocks =
         total_random_bits == 0
             ? 0
-            : CEIL_DIV(total_random_bits, message_bits_per_block);
+            : CEIL_DIV(total_random_bits, random_bits_per_block);
     if (num_blocks_to_process != calculated_active_blocks) {
       PANIC(
           "num_blocks_to_process should be equal to calculated_active_blocks");
@@ -37,7 +43,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     this->allocate_gpu_memory = allocate_gpu_memory;
 
     this->luts = new int_radix_lut<Torus>(
-        streams, params, message_bits_per_block, num_blocks_to_process,
+        streams, params, random_bits_per_block, num_blocks_to_process,
         allocate_gpu_memory, size_tracker);
 
     this->plaintext_corrections = new CudaRadixCiphertextFFI;
@@ -46,8 +52,6 @@ template <typename Torus> struct int_grouped_oprf_memory {
         num_blocks_to_process, params.big_lwe_dimension, size_tracker,
         allocate_gpu_memory);
 
-    uint64_t carry_modulus_log2 = (uint64_t)std::log2(params.carry_modulus);
-    uint64_t full_bits_count = 1 + carry_modulus_log2 + message_bits_per_block;
     uint64_t delta = 1ULL << (64 - full_bits_count);
     size_t lwe_size = params.big_lwe_dimension + 1;
 
@@ -57,7 +61,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
     std::vector<uint32_t> lut_indices;
     std::vector<uint64_t> lut_degrees;
 
-    for (uint32_t random_bit = 1; random_bit <= message_bits_per_block;
+    for (uint32_t random_bit = 1; random_bit <= random_bits_per_block;
          ++random_bit) {
       uint64_t p = 1ULL << random_bit;
       uint64_t poly_delta =
@@ -100,7 +104,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
       }
       uint64_t bits_remaining = total_random_bits - bits_processed;
       uint32_t bits_for_this_block =
-          std::min((uint64_t)message_bits_per_block, bits_remaining);
+          std::min((uint64_t)random_bits_per_block, bits_remaining);
 
       uint64_t p = 1ULL << bits_for_this_block;
       Torus plaintext_to_add = (p - 1) * delta / 2;
@@ -126,7 +130,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
         streams.active_gpu_subset(num_blocks_to_process, params.pbs_type());
     // No encoding for these LUTS. Generate LUT also sets LUT degrees to default
     // values
-    auto luts_index_generator = [total_random_bits, message_bits_per_block](
+    auto luts_index_generator = [total_random_bits, random_bits_per_block](
                                     Torus *h_lut_indexes, uint32_t num_blocks) {
       uint64_t bits_processed = 0;
       for (uint32_t i = 0; i < num_blocks; ++i) {
@@ -135,7 +139,7 @@ template <typename Torus> struct int_grouped_oprf_memory {
         }
         uint64_t bits_remaining = total_random_bits - bits_processed;
         uint32_t bits_for_this_block =
-            std::min((uint64_t)message_bits_per_block, bits_remaining);
+            std::min((uint64_t)random_bits_per_block, bits_remaining);
         if (bits_for_this_block < 1) {
           PANIC("bits_for_this_block should be greater than 1");
         }
@@ -216,7 +220,7 @@ template <typename Torus> struct int_grouped_oprf_custom_range_memory {
 
     this->grouped_oprf_memory = new int_grouped_oprf_memory<Torus>(
         streams, params, this->num_random_input_blocks, num_input_random_bits,
-        allocate_gpu_memory, size_tracker);
+        message_bits_per_block, allocate_gpu_memory, size_tracker);
 
     this->scalar_mul_buffer = new int_scalar_mul_buffer<Torus>(
         streams, params, num_blocks_intermediate, num_scalar_bits,

@@ -5,18 +5,22 @@ use crate::high_level_api::backward_compatibility::transciphering::{
 };
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::{UninitializedNoiseSquashing, UninitializedServerKey};
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::cuda_clone;
 use crate::high_level_api::global_state::try_with_internal_keys;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::{
+    cuda_clone, with_thread_local_cuda_streams_for_gpu_indexes,
+};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{SquashNoise, Tagged};
 use crate::high_level_api::{
     CompressedSquashedNoiseCiphertextListConformanceParams, SquashedNoiseCiphertextState,
 };
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+use crate::integer::gpu::transciphering::ciphers::one_time_pad::{
+    CudaOneTimePadFheSecretMask, CudaOneTimePadState,
+};
 #[cfg(feature = "gpu")]
-use crate::integer::RadixCiphertext;
+use crate::integer::gpu::transciphering::CudaTranscipherSession;
 use crate::named::Named;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use crate::shortint::oprf::OprfSeed;
@@ -50,7 +54,7 @@ pub struct OneTimePadFheSecretMask {
 enum InnerOneTimePadFheSecretMask {
     Cpu(TranscipheringOneTimePadFheSecretMask),
     #[cfg(feature = "gpu")]
-    Cuda(CudaUnsignedRadixCiphertext),
+    Cuda(CudaOneTimePadFheSecretMask),
 }
 
 impl Clone for InnerOneTimePadFheSecretMask {
@@ -69,23 +73,28 @@ impl InnerOneTimePadFheSecretMask {
     fn on_cpu(&self) -> MaybeCloned<'_, TranscipheringOneTimePadFheSecretMask> {
         match self {
             Self::Cpu(mask) => MaybeCloned::Borrowed(mask),
+            // No server key at hand when decrypting or serializing, so the streams are those of
+            // the GPUs holding the mask
             #[cfg(feature = "gpu")]
-            Self::Cuda(_) => {
-                // Requires the implementation of the KeyStreamLayout on the GPU
-                unimplemented!("moving a GPU-resident OTP mask to the CPU is not supported yet")
+            Self::Cuda(mask) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(mask.gpu_indexes(), |streams| {
+                    MaybeCloned::Cloned(mask.to_cpu(streams))
+                })
             }
         }
     }
 }
 
-#[allow(clippy::fallible_impl_from)]
+/// Serialization only knows the CPU mask
 impl From<InnerOneTimePadFheSecretMask> for TranscipheringOneTimePadFheSecretMask {
     fn from(value: InnerOneTimePadFheSecretMask) -> Self {
         match value {
             InnerOneTimePadFheSecretMask::Cpu(k) => k,
             #[cfg(feature = "gpu")]
-            InnerOneTimePadFheSecretMask::Cuda(_) => {
-                panic!("serialization of a GPU-resident OTP mask is not supported yet")
+            InnerOneTimePadFheSecretMask::Cuda(mask) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(mask.gpu_indexes(), |streams| {
+                    mask.to_cpu(streams)
+                })
             }
         }
     }
@@ -139,9 +148,20 @@ impl OneTimePadFheSecretMask {
                 ))
             }
             #[cfg(feature = "gpu")]
-            Some(InternalServerKey::Cuda(_)) => Err(crate::Error::new(
-                "OneTimePadFheSecretMask::new_random is not yet supported on GPU".to_owned(),
-            )),
+            Some(InternalServerKey::Cuda(cuda_key)) => {
+                let mask = CudaOneTimePadFheSecretMask::new_random(
+                    seed,
+                    cuda_key.transciphering_key()?,
+                    cuda_key.pbs_key(),
+                    n_bits,
+                    &cuda_key.streams,
+                )
+                .map_err(|e| format!("{e}"))?;
+                Ok(Self {
+                    inner: InnerOneTimePadFheSecretMask::Cuda(mask),
+                    tag: cuda_key.tag.clone(),
+                })
+            }
             #[cfg(feature = "hpu")]
             Some(InternalServerKey::Hpu(_)) => Err(crate::Error::new(
                 "OneTimePadFheSecretMask::new_random is not supported on HPU".to_owned(),
@@ -171,19 +191,13 @@ impl FheTryEncrypt<OneTimePadPlainSecretMask, ClientKey> for OneTimePadFheSecret
         let tag = key.tag.clone();
         try_with_internal_keys(|keys| match keys {
             #[cfg(feature = "gpu")]
-            Some(InternalServerKey::Cuda(cuda_key)) => {
-                let blocks: Vec<_> = cpu_mask.ciphertexts().to_vec();
-                let radix = RadixCiphertext::from(blocks);
-                Ok(Self {
-                    inner: InnerOneTimePadFheSecretMask::Cuda(
-                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                            &radix,
-                            &cuda_key.streams,
-                        ),
-                    ),
-                    tag,
-                })
-            }
+            Some(InternalServerKey::Cuda(cuda_key)) => Ok(Self {
+                inner: InnerOneTimePadFheSecretMask::Cuda(CudaOneTimePadFheSecretMask::from_cpu(
+                    &cpu_mask,
+                    &cuda_key.streams,
+                )),
+                tag,
+            }),
             _ => Ok(Self::new_cpu(cpu_mask, tag)),
         })
     }
@@ -191,13 +205,7 @@ impl FheTryEncrypt<OneTimePadPlainSecretMask, ClientKey> for OneTimePadFheSecret
 
 impl FheDecrypt<OneTimePadPlainSecretMask> for OneTimePadFheSecretMask {
     fn decrypt(&self, cks: &ClientKey) -> OneTimePadPlainSecretMask {
-        match &self.inner {
-            InnerOneTimePadFheSecretMask::Cpu(mask) => mask.decrypt(&cks.key.key.key),
-            #[cfg(feature = "gpu")]
-            InnerOneTimePadFheSecretMask::Cuda(_) => {
-                panic!("decryption of a GPU-resident OTP mask is not supported yet")
-            }
-        }
+        self.inner.on_cpu().decrypt(&cks.key.key.key)
     }
 }
 
@@ -207,9 +215,6 @@ impl TranscipherSession {
     ///
     /// `mask` must match the current server key device. There is no IV: the pad
     /// itself is the keystream, consumed from bit 0 onwards.
-    ///
-    /// GPU is not yet supported (no `CudaIntegerTranscipherer` impl for the
-    /// one-time pad).
     pub fn one_time_pad(mask: OneTimePadFheSecretMask) -> crate::Result<Self> {
         try_with_internal_keys(|keys| match (mask.inner, keys) {
             (InnerOneTimePadFheSecretMask::Cpu(m), Some(InternalServerKey::Cpu(_))) => {
@@ -219,10 +224,9 @@ impl TranscipherSession {
                 ))
             }
             #[cfg(feature = "gpu")]
-            (InnerOneTimePadFheSecretMask::Cuda(_), Some(InternalServerKey::Cuda(_))) => {
-                Err(crate::Error::new(
-                    "One-time pad on GPU is not yet available as a Transcipherer".to_owned(),
-                ))
+            (InnerOneTimePadFheSecretMask::Cuda(m), Some(InternalServerKey::Cuda(_))) => {
+                let state = CudaOneTimePadState::new(m);
+                Ok(Self::new_gpu(CudaTranscipherSession::OneTimePad(state)))
             }
             (_, None) => Err(UninitializedServerKey.into()),
             #[cfg(any(feature = "gpu", feature = "hpu"))]

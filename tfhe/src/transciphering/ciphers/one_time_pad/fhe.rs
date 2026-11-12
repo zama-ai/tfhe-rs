@@ -18,6 +18,7 @@ use crate::shortint::parameters::{
     CiphertextConformanceParams, CompressedSquashedNoiseCiphertextListConformanceParams,
 };
 use crate::shortint::server_key::ServerKey;
+use crate::shortint::{CarryModulus, MessageModulus};
 use crate::transciphering::backward_compatibility::{
     CompressedSquashedNoiseOneTimePadFheSecretMaskVersions, OneTimePadFheSecretMaskVersions,
 };
@@ -124,28 +125,18 @@ impl OneTimePadFheSecretMask {
         layout: KeyStreamLayout,
     ) -> Result<Self, MaskGenerationError> {
         let bits_per_ct = u64::from(layout.bits_per_ct.get());
-
-        if !layout.can_fit(sks.message_modulus, sks.carry_modulus) {
-            return Err(MaskGenerationError::IncompatibleParameters);
-        }
-
-        if !n_bits.is_multiple_of(bits_per_ct) {
-            return Err(MaskGenerationError::InvalidMaskSize);
-        }
-
-        let seed = seed.into_vec();
+        let block_seeds = Self::block_seeds(
+            seed,
+            n_bits,
+            &layout,
+            sks.message_modulus,
+            sks.carry_modulus,
+        )?;
         let oprf_key = transciphering_key.oprf_key();
 
-        // Generate mask bits following RFC030:
-        // Each call to the prf generates only 1 ciphertext, and the seed is suffixed
-        // by the ciphertext index stored on 32bits.
-        let n_blocks = u32::try_from(n_bits / bits_per_ct)
-            .map_err(|_| MaskGenerationError::InvalidMaskSize)?;
-        let secret_mask = (0..n_blocks)
+        let secret_mask = block_seeds
             .into_par_iter()
-            .map(|i| {
-                let mut block_seed = seed.clone();
-                block_seed.extend_from_slice(&(i).to_le_bytes());
+            .map(|block_seed| {
                 oprf_key
                     .inner
                     .generate_pseudo_random_bits_chunks(
@@ -162,6 +153,39 @@ impl OneTimePadFheSecretMask {
             .collect();
 
         Ok(Self::new(secret_mask, layout))
+    }
+
+    /// Seed of each mask ciphertext, seed || i with i as a little endian u32 (RFC030), after the
+    /// checks of the mask generation. Shared with the GPU, so that both devices draw the same mask
+    /// and fail the same way.
+    pub(crate) fn block_seeds(
+        seed: impl OprfSeed,
+        n_bits: u64,
+        layout: &KeyStreamLayout,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Result<Vec<Vec<u8>>, MaskGenerationError> {
+        let bits_per_ct = u64::from(layout.bits_per_ct.get());
+
+        if !layout.can_fit(message_modulus, carry_modulus) {
+            return Err(MaskGenerationError::IncompatibleParameters);
+        }
+
+        if !n_bits.is_multiple_of(bits_per_ct) {
+            return Err(MaskGenerationError::InvalidMaskSize);
+        }
+
+        let seed = seed.into_vec();
+        let n_blocks = u32::try_from(n_bits / bits_per_ct)
+            .map_err(|_| MaskGenerationError::InvalidMaskSize)?;
+
+        Ok((0..n_blocks)
+            .map(|i| {
+                let mut block_seed = seed.clone();
+                block_seed.extend_from_slice(&i.to_le_bytes());
+                block_seed
+            })
+            .collect())
     }
 
     /// Number of input bits this mask can encrypt
