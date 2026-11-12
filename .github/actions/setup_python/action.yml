@@ -1,0 +1,16 @@
+name: Setup Python
+description: Install the minimum Python version supported by the python tooling of the repository, see PYTHON_MIN_VERSION in make/python.mk
+
+runs:
+  using: composite
+  steps:
+    - name: Get minimum Python version
+      id: get_python_min_version
+      shell: bash
+      run: |
+        echo "version=$(make python_min_version)" >> "${GITHUB_OUTPUT}"
+
+    - name: Install Python
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      with:
+        python-version: ${{ steps.get_python_min_version.outputs.version }}

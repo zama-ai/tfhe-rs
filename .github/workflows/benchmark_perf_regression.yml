@@ -55,6 +55,9 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
       - name: Acknowledge issue comment
         if: github.event_name == 'issue_comment'
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
@@ -83,14 +86,18 @@ jobs:
 
       # TODO add support for HPU backend
 
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
       - name: Install Python requirements
         run: |
-          python3 -m pip install -r ci/perf_regression/requirements.txt
+          make perf_regression_setup_venv
 
       - name: Generate cargo commands and env from label
         if: github.event_name == 'pull_request'
         run: |
-          python3 ci/perf_regression/perf_regression.py parse_profile --issue-comment "/bench ${DEFAULT_BENCH_OPTIONS}"
+          venv_perf_regression/bin/python ci/perf_regression/perf_regression.py parse_profile --issue-comment "/bench ${DEFAULT_BENCH_OPTIONS}"
           echo "COMMANDS=$(cat ci/perf_regression/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
 
       - name: Dump issue comment into file # To avoid possible code-injection
@@ -103,7 +110,7 @@ jobs:
       - name: Generate cargo commands and env
         if: github.event_name == 'issue_comment'
         run: |
-          python3 ci/perf_regression/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
+          venv_perf_regression/bin/python ci/perf_regression/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
           echo "COMMANDS=$(cat ci/perf_regression/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
 
       - name: Set commands output
@@ -121,7 +128,7 @@ jobs:
         id: get_hardware_name
         run:
           | # zizmor: ignore[template-injection] these interpolations are safe
-          HARDWARE_NAME=$(python3 ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
+          HARDWARE_NAME=$(venv_perf_regression/bin/python ci/hardware_finder.py "${{ steps.set_slab_details.outputs.backend }}" "${{ steps.set_slab_details.outputs.profile }}");
           echo "name=${HARDWARE_NAME}" >> "${GITHUB_OUTPUT}"
 
       - name: Set regression details outputs
@@ -290,19 +297,20 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-      - name: Install recent Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
 
       - name: Install requirements
         run: |
-          python3.12 -m venv venv
-          venv/bin/pip3 install -r ci/data_extractor/requirements.txt -r ci/perf_regression/requirements.txt
+          make perf_regression_setup_venv PYTHON_EXE=python3.12
 
       - name: Fetch data
         run: |
-          venv/bin/python3 ci/data_extractor/src/data_extractor.py regression_data \
+          venv_perf_regression/bin/python3 ci/data_extractor/src/data_extractor.py regression_data \
           --generate-regression-json \
           --regression-profiles ci/regression.toml \
           --regression-selected-profile "${REGRESSION_PROFILE}" \
@@ -320,7 +328,7 @@ jobs:
 
       - name: Generate regression report
         run: |
-          venv/bin/python3 ci/perf_regression/perf_regression.py check_regression \
+          venv_perf_regression/bin/python3 ci/perf_regression/perf_regression.py check_regression \
           --results-file regression_data.json \
           --generate-report
 

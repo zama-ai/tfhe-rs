@@ -57,6 +57,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
       - name: Check the crate is ready to release
         env:
           PACKAGE: ${{ inputs.package-name }}

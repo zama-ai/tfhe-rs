@@ -61,6 +61,9 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
       - name: Get benchmark details
         run: |
           COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict "${SHA}");
@@ -81,9 +84,13 @@ jobs:
         run: |
           make bench_fft
 
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
       - name: Parse AVX512 results
         run: |
-          python3 ./ci/fft_benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+          venv/bin/python ./ci/fft_benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database concrete_fft \
           --hardware "hpc8a.96xlarge" \
           --project-version "${COMMIT_HASH}" \

@@ -86,6 +86,10 @@ jobs:
           token: ${{ env.CHECKOUT_TOKEN }}
 
       # GitHub has been causing issues with unauthenticated HTTPS traffic breaking several software
+
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
       - name: Authenticate all github.com git traffic
         run: |
           # single quotes expected to avoid replacing the token inline to not have it saved on disk

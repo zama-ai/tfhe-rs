@@ -53,11 +53,18 @@ jobs:
         with:
           persist-credentials: "false"
 
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
       - name: Produce table from database
         if: inputs.backend_comparison == false
         run: |
-          python3 -m pip install -r ci/data_extractor/requirements.txt
-          python3 ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
+          make data_extractor_setup_venv
+          venv_data_extractor/bin/python ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
           --generate-svg \
           --branch "${REF_NAME}" \
           --backend "${BACKEND}" \
@@ -97,8 +104,8 @@ jobs:
       - name: Produce backends comparison table from database
         if: inputs.backend_comparison == true
         run: |
-          python3 -m pip install -r ci/data_extractor/requirements.txt
-          python3 ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
+          make data_extractor_setup_venv
+          venv_data_extractor/bin/python ci/data_extractor/src/data_extractor.py "${OUTPUT_FILENAME}" \
           --generate-svg \
           --backends-comparison \
           --time-span-days "${TIME_SPAN}"
