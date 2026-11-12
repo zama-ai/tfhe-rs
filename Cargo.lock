@@ -3860,7 +3860,7 @@ dependencies = [
 
 [[package]]
 name = "tfhe-versionable"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "aligned-vec",
  "bincode",
@@ -3877,7 +3877,7 @@ dependencies = [
 
 [[package]]
 name = "tfhe-versionable-derive"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "proc-macro2",
  "quote",
