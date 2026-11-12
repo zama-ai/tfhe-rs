@@ -343,6 +343,18 @@ pub struct CompressedSquashedNoiseOneTimePadFheSecretMask {
 }
 
 impl CompressedSquashedNoiseOneTimePadFheSecretMask {
+    /// For the GPU, which compresses the mask into the same list as the CPU
+    #[cfg(feature = "gpu")]
+    pub(crate) fn from_compressed_list(
+        secret_mask: CompressedSquashedNoiseCiphertextList,
+        layout: KeyStreamLayout,
+    ) -> Self {
+        Self {
+            secret_mask,
+            layout,
+        }
+    }
+
     /// Extracts the squashed mask, which is encrypted under the noise squashing compression key.
     pub fn decompress(&self) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
         let secret_mask = (0..self.secret_mask.len())
