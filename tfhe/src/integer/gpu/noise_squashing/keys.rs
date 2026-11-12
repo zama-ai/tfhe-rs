@@ -28,6 +28,57 @@ impl CudaNoiseSquashingKey {
         src_server_key: &CudaServerKey,
         streams: &CudaStreams,
     ) -> crate::Result<CudaSquashedNoiseRadixCiphertext> {
+        self.check_squash_input(ciphertext, src_server_key)?;
+
+        Ok(self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key, streams))
+    }
+
+    /// Squashes each block alone, with the checks of checked_squash_ciphertext_noise. Packing
+    /// blocks by pairs needs clean carries, the one time pad mask uses its carry space. As on CPU,
+    /// each output block keeps the degree of its input block.
+    pub(crate) fn checked_squash_blocks_noise(
+        &self,
+        ciphertext: &CudaRadixCiphertext,
+        src_server_key: &CudaServerKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaSquashedNoiseRadixCiphertext> {
+        self.check_squash_input(ciphertext, src_server_key)?;
+
+        let block_count = ciphertext.d_blocks.lwe_ciphertext_count().0;
+        let mut squashed_output = CudaSquashedNoiseRadixCiphertext::new_zero(
+            self.bootstrapping_key.output_lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(block_count),
+            self.output_ciphertext_modulus,
+            self.message_modulus,
+            self.carry_modulus,
+            block_count,
+            streams,
+        );
+        if block_count == 0 {
+            return Ok(squashed_output);
+        }
+
+        // As many output blocks as input blocks, so the backend does not pack
+        src_server_key.apply_noise_squashing(&mut squashed_output, ciphertext, self, streams);
+
+        // The backend sets the degree of its identity LUT, the largest value of the block
+        for (output, input) in squashed_output
+            .info
+            .blocks
+            .iter_mut()
+            .zip(&ciphertext.info.blocks)
+        {
+            output.degree = input.degree;
+        }
+
+        Ok(squashed_output)
+    }
+
+    fn check_squash_input(
+        &self,
+        ciphertext: &CudaRadixCiphertext,
+        src_server_key: &CudaServerKey,
+    ) -> crate::Result<()> {
         for block in ciphertext.info.blocks.iter() {
             if src_server_key
                 .max_noise_level
@@ -57,7 +108,7 @@ impl CudaNoiseSquashingKey {
             }
         }
 
-        Ok(self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key, streams))
+        Ok(())
     }
 
     pub(crate) fn unchecked_squash_ciphertext_noise(
