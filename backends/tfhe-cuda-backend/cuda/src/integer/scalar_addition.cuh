@@ -9,6 +9,7 @@
 #include "device.h"
 #include "helper_multi_gpu.h"
 #include "utils/helper.cuh"
+#include "verification/trace.h"
 #include <stdio.h>
 
 template <typename Torus>
@@ -53,6 +54,13 @@ __host__ void host_scalar_addition_inplace(
   for (uint i = 0; i < num_scalars; i++) {
     lwe_array->degrees[i] = lwe_array->degrees[i] + h_scalar_input[i];
   }
+  // The scalars the kernel added are read back from the GPU, not taken from
+  // the host mirror used for the degrees.
+  VERIFICATION_TRACE_HOOK(verification::record_inplace_scalar<Torus>(
+      __func__, verification::Kernel::SCALAR_ADDITION_INPLACE, lwe_array,
+      num_scalars,
+      verification::read_device_array(streams.stream(0), streams.gpu_index(0),
+                                      scalar_input, num_scalars)));
 }
 
 template <typename Torus>
