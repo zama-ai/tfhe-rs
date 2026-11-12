@@ -24,6 +24,7 @@ use crate::integer::{ClientKey, RadixClientKey};
 use crate::prelude::{CastFrom, CastInto};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::{CarryModulus, MessageModulus};
+use crate::transciphering::StreamApplicationPlan;
 use crate::MatchValues;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -6245,6 +6246,120 @@ pub(crate) unsafe fn cuda_backend_unchecked_negate(
         u32::try_from(radix_lwe_in.d_blocks.lwe_ciphertext_count().0).unwrap(),
     );
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
+}
+
+/// Shared with the size getter, which must give the scratch the same LUTs as the apply
+fn keystream_contributions_ffi(plan: &StreamApplicationPlan) -> Vec<CudaKeystreamContributionFFI> {
+    plan.contribs
+        .iter()
+        .enumerate()
+        .flat_map(|(output_block_index, block_contribs)| {
+            block_contribs
+                .iter()
+                .map(move |c| CudaKeystreamContributionFFI {
+                    input_bits: c.input_bits,
+                    output_block_index: u32::try_from(output_block_index).unwrap(),
+                    keystream_block_index: u32::try_from(c.stream_ct_idx).unwrap(),
+                    src_bit_pos: u32::try_from(c.src_bit_pos).unwrap(),
+                    dst_bit_pos: u32::try_from(c.dst_bit_pos).unwrap(),
+                    len: u32::try_from(c.len).unwrap(),
+                })
+        })
+        .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+/// The LUTs of the scratch hold the input bits, so a scratch serves a single input.
+///
+/// # Safety
+///
+/// - The data must stay alive and in place while the CUDA kernels use it.
+/// - The caller must have exclusive access to the data, otherwise the behavior is undefined.
+pub(crate) unsafe fn cuda_backend_apply_keystream<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    output: &mut CudaRadixCiphertext,
+    keystream: &CudaRadixCiphertext,
+    plan: &StreamApplicationPlan,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+) {
+    let contributions = keystream_contributions_ffi(plan);
+
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+    let mut keystream_degrees = keystream.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut keystream_noise_levels = keystream
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_keystream = prepare_cuda_radix_ffi(
+        keystream,
+        &mut keystream_degrees,
+        &mut keystream_noise_levels,
+    );
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    scratch_cuda_apply_keystream_64_async(
+        streams.ffi(),
+        std::ptr::addr_of_mut!(mem_ptr),
+        bsk.params_ffi(),
+        ksk_params,
+        contributions.as_ptr(),
+        u32::try_from(contributions.len()).unwrap(),
+        u32::try_from(plan.contribs.len()).unwrap(),
+        u32::try_from(message_modulus.0).unwrap(),
+        u32::try_from(carry_modulus.0).unwrap(),
+        true,
+    );
+    cuda_apply_keystream_64_async(
+        streams.ffi(),
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_keystream,
+        mem_ptr,
+        bsk.ptrs().as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+    );
+    cleanup_cuda_apply_keystream_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    update_noise_degree(output, &cuda_ffi_output);
+}
+
+/// Size of the scratch of cuda_backend_apply_keystream, measured without allocating. It depends
+/// on the input bits, which give the number of distinct LUTs.
+pub(crate) fn cuda_backend_get_apply_keystream_size_on_gpu(
+    streams: &CudaStreams,
+    plan: &StreamApplicationPlan,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+) -> u64 {
+    let contributions = keystream_contributions_ffi(plan);
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_apply_keystream_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk.params_ffi(),
+            ksk_params,
+            contributions.as_ptr(),
+            u32::try_from(contributions.len()).unwrap(),
+            u32::try_from(plan.contribs.len()).unwrap(),
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+        )
+    };
+    unsafe { cleanup_cuda_apply_keystream_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr)) };
+
+    size_tracker
 }
 
 /// # Safety
