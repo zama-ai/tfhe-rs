@@ -12,6 +12,7 @@ use crate::integer::gpu::server_key::{
     CudaBootstrappingKey, CudaDynamicKeyswitchingKey, CudaServerKey,
 };
 use itertools::Itertools;
+use rayon::prelude::*;
 
 use crate::shortint::oprf::{
     create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe, RandomBitsRleLeBytes,
@@ -55,8 +56,16 @@ impl CudaOprfServerKey {
         expanded: &crate::integer::oprf::ExpandedOprfServerKey,
         streams: &CudaStreams,
     ) -> Self {
-        let bsk = &expanded.0 .0;
-        let bootstrapping_key = CudaBootstrappingKey::from_expanded_oprf_server_key(bsk, streams);
+        Self::from_expanded_shortint_cpu(&expanded.0, streams)
+    }
+
+    /// The transciphering key holds a shortint OPRF key
+    pub(crate) fn from_expanded_shortint_cpu(
+        expanded: &crate::shortint::oprf::ExpandedOprfServerKey,
+        streams: &CudaStreams,
+    ) -> Self {
+        let bootstrapping_key =
+            CudaBootstrappingKey::from_expanded_oprf_server_key(&expanded.0, streams);
         Self { bootstrapping_key }
     }
 }
@@ -73,10 +82,28 @@ impl<K> GenericCudaOprfServerKey<K>
 where
     K: Borrow<CudaBootstrappingKey<u64>>,
 {
+    /// For backend calls that chain other PBS after the OPRF with the parameters of this key
+    /// (custom range, rerandomization, shuffle). They need the input dimension of the compute key,
+    /// so DedicatedOprf is not supported there.
     pub(crate) fn assert_compatible_with_target_bsk(&self, target_bsk: &CudaBootstrappingKey<u64>) {
         assert_eq!(
             target_bsk.input_lwe_dimension(),
             self.bootstrapping_key.borrow().input_lwe_dimension()
+        );
+        self.assert_oprf_output_compatible_with_target_bsk(target_bsk);
+    }
+
+    /// For backend calls that only run the OPRF, the same check as on CPU. A DedicatedOprf key may
+    /// have a smaller input dimension.
+    fn assert_oprf_output_compatible_with_target_bsk(
+        &self,
+        target_bsk: &CudaBootstrappingKey<u64>,
+    ) {
+        // If the oprf has a dedicated lwe dimension, it should be smaller than the one used
+        // for the compute bsk to guarantee output noise correctness
+        assert!(
+            target_bsk.input_lwe_dimension()
+                >= self.bootstrapping_key.borrow().input_lwe_dimension()
         );
         assert_eq!(
             target_bsk.output_lwe_dimension(),
@@ -665,10 +692,85 @@ where
                 target_sks.message_modulus,
                 target_sks.carry_modulus,
                 total_random_bits as u32,
+                message_bits_count,
             );
         }
 
         rle_info
+    }
+
+    /// One block per seed, each holding random_bits_per_block bits. Block i is the one the CPU
+    /// generates from block_seeds[i], so the one time pad mask is the same on both devices.
+    ///
+    /// The seeded LWEs are derived on CPU (SHA3 and XOF have no GPU version), in parallel since
+    /// the seeds are independent. A single backend call then runs all the PBS.
+    pub(crate) fn generate_oblivious_pseudo_random_blocks(
+        &self,
+        block_seeds: &[Vec<u8>],
+        random_bits_per_block: u64,
+        target_sks: &CudaServerKey,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &target_sks.key_switching_key
+        else {
+            panic!("Only the standard atomic pattern is supported");
+        };
+
+        self.assert_oprf_output_compatible_with_target_bsk(&target_sks.bootstrapping_key);
+
+        let bootstrapping_key = self.bootstrapping_key.borrow();
+        let in_lwe_size = bootstrapping_key.input_lwe_dimension().to_lwe_size();
+        let polynomial_size = bootstrapping_key.polynomial_size();
+        let message_bits_count = target_sks.message_modulus.0.ilog2();
+        let carry_bits_count = target_sks.carry_modulus.0.ilog2();
+        let bits_per_block = message_bits_count + carry_bits_count + 1;
+
+        let h_seeded_lwe_list: Vec<u64> = block_seeds
+            .par_iter()
+            .flat_map_iter(|block_seed| {
+                let (seeded, _rle_info) = create_random_from_seed_modulus_switched(
+                    block_seed,
+                    in_lwe_size,
+                    polynomial_size,
+                    &[random_bits_per_block],
+                    random_bits_per_block,
+                    bits_per_block.into(),
+                );
+                seeded.into_iter().flat_map(|(seeded, _bits)| {
+                    raw_seeded_msed_to_lwe(&seeded, target_sks.ciphertext_modulus).into_container()
+                })
+            })
+            .collect();
+
+        let num_blocks = block_seeds.len();
+        let total_random_bits = u32::try_from(num_blocks as u64 * random_bits_per_block)
+            .expect("the number of random bits should fit in a u32");
+
+        let mut result: CudaUnsignedRadixCiphertext =
+            target_sks.create_trivial_zero_radix(num_blocks, streams);
+        if num_blocks == 0 {
+            return result;
+        }
+
+        let mut d_seeded_lwe_input =
+            unsafe { CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0) };
+        unsafe {
+            d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0);
+            cuda_backend_grouped_oprf(
+                streams,
+                result.as_mut(),
+                &d_seeded_lwe_input,
+                num_blocks as u32,
+                bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                target_sks.message_modulus,
+                target_sks.carry_modulus,
+                total_random_bits,
+                random_bits_per_block as u32,
+            );
+        }
+
+        result
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1021,6 +1123,7 @@ where
             computing_ks_key.params_ffi(),
             target_sks.message_modulus,
             target_sks.carry_modulus,
+            message_bits,
             message_bits,
         )
     }

@@ -2465,6 +2465,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf(
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     total_random_bits: u32,
+    random_bits_per_block: u32,
 ) {
     let bsk_params = bsk.params_ffi();
     assert_eq!(
@@ -2501,6 +2502,7 @@ pub(crate) unsafe fn cuda_backend_grouped_oprf(
         u32::try_from(carry_modulus.0).unwrap(),
         true,
         total_random_bits,
+        random_bits_per_block,
     );
 
     cuda_integer_grouped_oprf_64_async(
@@ -2672,6 +2674,7 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     total_random_bits: u32,
+    random_bits_per_block: u32,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
 
@@ -2688,6 +2691,7 @@ pub(crate) fn cuda_backend_get_grouped_oprf_size_on_gpu(
             u32::try_from(carry_modulus.0).unwrap(),
             false,
             total_random_bits,
+            random_bits_per_block,
         )
     };
 
@@ -6413,6 +6417,38 @@ pub(crate) unsafe fn cuda_backend_trim_radix_blocks_msb(
     trim_radix_blocks_msb_64(
         &raw mut cuda_ffi_output,
         &raw const cuda_ffi_input,
+        streams.ffi(),
+    );
+    update_noise_degree(output, &cuda_ffi_output);
+}
+
+/// Copies as many blocks as output holds, from input_start_block in input, with their degrees and
+/// noise levels.
+///
+/// # Safety
+///
+/// - The data must stay alive and in place while the CUDA kernels use it.
+/// - The caller must have exclusive access to the data, otherwise the behavior is undefined.
+pub(crate) unsafe fn cuda_backend_copy_radix_ciphertext_slice(
+    output: &mut CudaRadixCiphertext,
+    input: &CudaRadixCiphertext,
+    input_start_block: u32,
+    streams: &CudaStreams,
+) {
+    let mut input_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let cuda_ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    copy_radix_ciphertext_slice_64(
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_input,
+        input_start_block,
         streams.ffi(),
     );
     update_noise_degree(output, &cuda_ffi_output);

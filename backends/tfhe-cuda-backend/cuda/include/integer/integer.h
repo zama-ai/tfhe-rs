@@ -616,6 +616,11 @@ void trim_radix_blocks_msb_64(CudaRadixCiphertextFFI *output,
                               CudaRadixCiphertextFFI const *input,
                               CudaStreamsFFI streams);
 
+void copy_radix_ciphertext_slice_64(CudaRadixCiphertextFFI *output,
+                                    CudaRadixCiphertextFFI const *input,
+                                    uint32_t input_start_block,
+                                    CudaStreamsFFI streams);
+
 uint64_t scratch_cuda_apply_noise_squashing_async(
     CudaStreamsFFI streams, int8_t **mem_ptr,
     CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t input_glwe_dimension,
@@ -753,7 +758,7 @@ uint64_t scratch_cuda_integer_grouped_oprf_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_to_process,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    uint32_t total_random_bits);
+    uint32_t total_random_bits, uint32_t random_bits_per_block);
 
 void cuda_integer_grouped_oprf_64_async(CudaStreamsFFI streams,
                                         CudaRadixCiphertextFFI *radix_lwe_out,

@@ -4,13 +4,19 @@ mod test;
 
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::compact_list::{
+    CudaCompactCiphertextListExpander, CudaCompactCiphertextListInfo,
+};
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::server_key::radix::CudaKreyviumStream;
 use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
+use crate::integer::gpu::transciphering::ciphers::one_time_pad::CudaOneTimePadState;
 use crate::integer::gpu::{
     cuda_backend_apply_keystream, cuda_backend_get_apply_keystream_size_on_gpu, CudaServerKey,
 };
 use crate::integer::transciphering::{
-    check_kind, IntegerStreamCiphertext, IntegerStreamCiphertextKind, IntegerTranscipherError,
+    check_kind, IntegerStreamCiphertext, IntegerStreamCiphertextKind, IntegerStreamCiphertextList,
+    IntegerTranscipherError,
 };
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::transciphering::{
@@ -56,7 +62,7 @@ pub trait CudaIntegerTranscipherer {
 
     /// Produce the next `n_bits` of FHE-encrypted keystream and advance the
     /// internal counter. The layout of the result is up to the implementor, 1 bit per
-    /// ciphertext for Kreyvium.
+    /// ciphertext for Kreyvium, the mask layout for the one time pad.
     fn next_keystream_bits(
         &mut self,
         sks: &CudaServerKey,
@@ -127,10 +133,103 @@ pub trait CudaIntegerTranscipherer {
         Ok(CudaBooleanBlock::from_cuda_radix_ciphertext(blocks))
     }
 
+    /// GPU counterpart of the CPU transcipher_list, the whole list takes one transcipher call
+    fn transcipher_list(
+        &mut self,
+        sks: &CudaServerKey,
+        input: &IntegerStreamCiphertextList,
+        streams: &CudaStreams,
+    ) -> Result<CudaCompactCiphertextListExpander, IntegerTranscipherError> {
+        let (layout, kinds) = input.output_layout_and_kinds(sks.message_modulus)?;
+        let blocks = self.transcipher(sks, input.inner(), &layout, streams)?;
+
+        // The expander keeps one info per value, the blocks of a transciphered value share theirs
+        let mut first_block = 0;
+        let info = kinds
+            .into_iter()
+            .map(|data_kind| {
+                let value_info = CudaCompactCiphertextListInfo {
+                    info: blocks.info.blocks[first_block],
+                    data_kind,
+                };
+                first_block += data_kind
+                    .num_blocks(sks.message_modulus)
+                    .expect("a transciphered value is never a string");
+                value_info
+            })
+            .collect();
+
+        Ok(CudaCompactCiphertextListExpander::new(
+            blocks.d_blocks,
+            info,
+        ))
+    }
+
     /// Advance the keystream position by `n_bits` without emitting them.
     fn skip(&mut self, sks: &CudaServerKey, n_bits: usize, streams: &CudaStreams);
 
     fn current_counter(&self) -> u64;
+}
+
+/// GPU counterpart of [crate::transciphering::TranscipherSession], without AES which has no GPU
+/// transcipherer
+pub enum CudaTranscipherSession {
+    Dynamic(Box<dyn CudaIntegerTranscipherer + Send + Sync>),
+    Kreyvium(Box<CudaKreyviumStream>),
+    OneTimePad(CudaOneTimePadState),
+}
+
+impl CudaIntegerTranscipherer for CudaTranscipherSession {
+    fn kind(&self) -> StreamCipherKind {
+        match self {
+            Self::Dynamic(t) => t.kind(),
+            Self::Kreyvium(t) => t.kind(),
+            Self::OneTimePad(t) => t.kind(),
+        }
+    }
+
+    fn next_keystream_bits(
+        &mut self,
+        sks: &CudaServerKey,
+        n_bits: usize,
+        streams: &CudaStreams,
+    ) -> Result<CudaFheKeyStream, FheKeyStreamError> {
+        match self {
+            Self::Dynamic(t) => t.next_keystream_bits(sks, n_bits, streams),
+            Self::Kreyvium(t) => t.next_keystream_bits(sks, n_bits, streams),
+            Self::OneTimePad(t) => t.next_keystream_bits(sks, n_bits, streams),
+        }
+    }
+
+    fn transcipher(
+        &mut self,
+        sks: &CudaServerKey,
+        input: &StreamCiphertext,
+        output_layout: &TranscipheringOutputLayout,
+        streams: &CudaStreams,
+    ) -> Result<CudaRadixCiphertext, TranscipherError> {
+        match self {
+            Self::Dynamic(t) => t.transcipher(sks, input, output_layout, streams),
+            Self::Kreyvium(t) => t.transcipher(sks, input, output_layout, streams),
+            Self::OneTimePad(t) => t.transcipher(sks, input, output_layout, streams),
+        }
+    }
+
+    fn skip(&mut self, sks: &CudaServerKey, n_bits: usize, streams: &CudaStreams) {
+        match self {
+            Self::Dynamic(t) => t.skip(sks, n_bits, streams),
+            Self::Kreyvium(t) => t.skip(sks, n_bits, streams),
+            Self::OneTimePad(t) => t.skip(sks, n_bits, streams),
+        }
+    }
+
+    fn current_counter(&self) -> u64 {
+        match self {
+            Self::Dynamic(t) => t.current_counter(),
+            Self::Kreyvium(t) => t.current_counter(),
+            Self::OneTimePad(t) => t.current_counter(),
+        }
+    }
 }
 
 /// XOR an FHE-encrypted keystream with a clear symmetric ciphertext.

@@ -13,8 +13,8 @@ mod test;
 
 pub use fhe::{
     CompressedSquashedNoiseOneTimePadFheSecretMask,
-    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
-    OneTimePadFheState, SquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, MaskGenerationError,
+    OneTimePadFheSecretMask, OneTimePadFheState, SquashedNoiseOneTimePadFheSecretMask,
 };
 pub use plain::{
     OneTimePadPlainSecretMask, OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,

@@ -11,12 +11,13 @@ template <typename Torus>
 uint64_t scratch_cuda_integer_grouped_oprf_async(
     CudaStreams streams, int_grouped_oprf_memory<Torus> **mem_ptr,
     int_radix_params params, uint32_t num_blocks_to_process,
-    uint64_t total_random_bits, bool allocate_gpu_memory) {
+    uint64_t total_random_bits, uint32_t random_bits_per_block,
+    bool allocate_gpu_memory) {
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_grouped_oprf_memory<Torus>(
       streams, params, num_blocks_to_process, total_random_bits,
-      allocate_gpu_memory, size_tracker);
+      random_bits_per_block, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }

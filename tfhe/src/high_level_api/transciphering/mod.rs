@@ -14,7 +14,7 @@ use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::server_key::radix::CudaKreyviumStream;
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::transciphering::CudaIntegerTranscipherer;
+use crate::integer::gpu::transciphering::{CudaIntegerTranscipherer, CudaTranscipherSession};
 use crate::integer::transciphering::{
     IntegerStreamCipher, IntegerStreamCiphertext, IntegerStreamCiphertextKind,
     IntegerStreamCiphertextList, IntegerTranscipherer,
@@ -297,13 +297,20 @@ pub struct TranscipherSession {
 enum InnerTranscipherSession {
     Cpu(crate::transciphering::TranscipherSession),
     #[cfg(feature = "gpu")]
-    Gpu(Box<CudaKreyviumStream>),
+    Gpu(CudaTranscipherSession),
 }
 
 impl TranscipherSession {
     fn new_cpu(inner: crate::transciphering::TranscipherSession) -> Self {
         Self {
             inner: InnerTranscipherSession::Cpu(inner),
+        }
+    }
+
+    #[cfg(feature = "gpu")]
+    fn new_gpu(inner: CudaTranscipherSession) -> Self {
+        Self {
+            inner: InnerTranscipherSession::Gpu(inner),
         }
     }
 }
@@ -315,11 +322,16 @@ impl From<crate::transciphering::TranscipherSession> for TranscipherSession {
 }
 
 #[cfg(feature = "gpu")]
+impl From<CudaTranscipherSession> for TranscipherSession {
+    fn from(inner: CudaTranscipherSession) -> Self {
+        Self::new_gpu(inner)
+    }
+}
+
+#[cfg(feature = "gpu")]
 impl From<CudaKreyviumStream> for TranscipherSession {
     fn from(inner: CudaKreyviumStream) -> Self {
-        Self {
-            inner: InnerTranscipherSession::Gpu(Box::new(inner)),
-        }
+        Self::new_gpu(CudaTranscipherSession::Kreyvium(Box::new(inner)))
     }
 }
 
@@ -334,7 +346,7 @@ impl HlTranscipherer for TranscipherSession {
             }
             #[cfg(feature = "gpu")]
             (InnerTranscipherSession::Gpu(inner), Some(InternalServerKey::Cuda(cuda_key))) => {
-                gpu_transcipher::<T>(inner, input.integer(), cuda_key)
+                gpu_transcipher(inner, input.integer(), cuda_key)
             }
             (_, None) => Err(UninitializedServerKey.into()),
             #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -353,10 +365,8 @@ impl HlTranscipherer for TranscipherSession {
                 cpu_transcipher_list(inner, input.integer(), cpu_key)
             }
             #[cfg(feature = "gpu")]
-            (InnerTranscipherSession::Gpu(_), Some(InternalServerKey::Cuda(_))) => {
-                Err(crate::Error::new(
-                    "Transciphering a StreamCiphertextList is not yet supported on GPU".to_owned(),
-                ))
+            (InnerTranscipherSession::Gpu(inner), Some(InternalServerKey::Cuda(cuda_key))) => {
+                gpu_transcipher_list(inner, input.integer(), cuda_key)
             }
             (_, None) => Err(UninitializedServerKey.into()),
             #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -405,12 +415,13 @@ where
 }
 
 #[cfg(feature = "gpu")]
-fn gpu_transcipher<T>(
-    session: &mut CudaKreyviumStream,
+fn gpu_transcipher<X, T>(
+    session: &mut X,
     input: &IntegerStreamCiphertext,
     cuda_key: &crate::high_level_api::CudaServerKey,
 ) -> crate::Result<T>
 where
+    X: CudaIntegerTranscipherer + ?Sized,
     T: CudaExpandable + Tagged,
 {
     let layout = input
@@ -431,6 +442,24 @@ where
     Ok(out)
 }
 
+#[cfg(feature = "gpu")]
+fn gpu_transcipher_list<X>(
+    session: &mut X,
+    input: &IntegerStreamCiphertextList,
+    cuda_key: &crate::high_level_api::CudaServerKey,
+) -> crate::Result<CompactCiphertextListExpander>
+where
+    X: CudaIntegerTranscipherer,
+{
+    let expander = session
+        .transcipher_list(cuda_key.pbs_key(), input, &cuda_key.streams)
+        .map_err(|e| crate::error!("{e}"))?;
+    Ok(CompactCiphertextListExpander {
+        inner: InnerCompactCiphertextListExpander::Cuda(expander),
+        tag: cuda_key.tag.clone(),
+    })
+}
+
 #[cfg(test)]
 mod test {
     use tfhe_safe_serialize::{safe_deserialize, safe_serialize};
@@ -440,6 +469,13 @@ mod test {
     use crate::{FheUint64, HlStreamCipher};
 
     const SIZE_LIMIT: u64 = 1024 * 1024 * 1024;
+
+    #[cfg(feature = "gpu")]
+    fn gpu_config() -> crate::ConfigBuilder {
+        crate::ConfigBuilder::with_custom_parameters(
+            crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+    }
 
     #[test]
     fn test_kreyvium() {
@@ -980,5 +1016,214 @@ mod test {
 
         let recovered: u64 = transciphered.decrypt(&client_key);
         assert_eq!(recovered, input);
+    }
+
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_one_time_pad_using_oprf() {
+        for params in [
+            TranscipheringParameters::SameAsCompute,
+            TranscipheringParameters::DedicatedOprf(OprfParameters {
+                lwe_dimension: LweDimension(600),
+            }),
+        ] {
+            test_gpu_one_time_pad_using_oprf_impl(params)
+        }
+    }
+
+    /// The CPU scenario with a server key on GPU. The pad also goes through each conversion of
+    /// its GPU variant: decryption, serialization (which clones it), encryption. The pad sent to
+    /// the client and the one used to transcipher may come from different devices, so a seed must
+    /// give the same pad on CPU and on GPU.
+    #[cfg(feature = "gpu")]
+    fn test_gpu_one_time_pad_using_oprf_impl(params: TranscipheringParameters) {
+        use super::{HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession};
+        use crate::prelude::*;
+        use crate::transciphering::{OneTimePadPlainSecretMask, OneTimePadPlainState};
+        use crate::{set_server_key, ClientKey, CompressedServerKey, Seed};
+        use rand::Rng;
+
+        const KEY_SET: u64 = 0x00C0_FFEE;
+
+        let mut rng = rand::thread_rng();
+
+        let mut client_key = ClientKey::generate(gpu_config().enable_transciphering(params));
+        client_key.tag_mut().set_u64(KEY_SET);
+        let compressed_server_key = CompressedServerKey::new(&client_key);
+
+        // Server: generate a random FHE pad on CPU, then on GPU with the same seed
+        let seed = rng.gen();
+        set_server_key(compressed_server_key.decompress());
+        let cpu_mask = OneTimePadFheSecretMask::new_random(Seed(seed), 64).unwrap();
+        set_server_key(compressed_server_key.decompress_to_gpu());
+        let fhe_mask = OneTimePadFheSecretMask::new_random(Seed(seed), 64).unwrap();
+        assert_eq!(fhe_mask.tag().as_u64(), KEY_SET);
+
+        let plain_mask: OneTimePadPlainSecretMask = fhe_mask.decrypt(&client_key);
+        assert!(cpu_mask.decrypt(&client_key) == plain_mask);
+
+        // Serialization brings the pad back to the CPU
+        let mut serialized = vec![];
+        safe_serialize(&fhe_mask, &mut serialized, SIZE_LIMIT).unwrap();
+        let deserialized: OneTimePadFheSecretMask =
+            safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
+        assert!(deserialized.decrypt(&client_key) == plain_mask);
+        assert_eq!(deserialized.tag().as_u64(), KEY_SET);
+
+        // With a server key on GPU, an encrypted pad goes to the GPU
+        let encrypted =
+            OneTimePadFheSecretMask::try_encrypt(plain_mask.clone(), &client_key).unwrap();
+        assert!(encrypted.decrypt(&client_key) == plain_mask);
+
+        // Client: encrypt with the pad
+        let mut sym = OneTimePadPlainState::new(plain_mask);
+        let input: u64 = rng.gen();
+        let sym_cipher = sym.try_encrypt(input).unwrap();
+
+        // Server: re-generate the pad using the same seed and transcipher, on GPU
+        let fhe_mask = OneTimePadFheSecretMask::new_random(Seed(seed), 64).unwrap();
+        let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
+        let transciphered: FheUint64 = fhe_stream.transcipher(&sym_cipher).unwrap();
+        assert_eq!(transciphered.tag().as_u64(), KEY_SET);
+
+        let recovered: u64 = transciphered.decrypt(&client_key);
+        assert_eq!(recovered, input);
+    }
+
+    /// The server side errors of the CPU tests, with a server key on GPU. Each input is rejected
+    /// before drawing any pad bit, so the honest input at the end still gets the start of the pad.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_one_time_pad_rejected_inputs() {
+        use super::{
+            HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, StreamCiphertext,
+            TranscipherSession,
+        };
+        use crate::integer::transciphering::{
+            IntegerStreamCiphertext, IntegerStreamCiphertextKind,
+        };
+        use crate::prelude::*;
+        use crate::transciphering::{
+            KreyviumPlainKey, KreyviumPlainState, OneTimePadPlainSecretMask, OneTimePadPlainState,
+            StreamCipher,
+        };
+        use crate::{
+            set_server_key, ClientKey, CompressedServerKey, FheBool, FheInt14, FheUint16,
+            FheUint32, FheUint8,
+        };
+        use rand::Rng;
+
+        let client_key = ClientKey::generate(gpu_config());
+        set_server_key(CompressedServerKey::new(&client_key).decompress_to_gpu());
+
+        let mut rng = rand::thread_rng();
+        let pad_bytes: Vec<u8> = (0..2).map(|_| rng.gen()).collect();
+        let new_pad = || OneTimePadPlainSecretMask::new(pad_bytes.clone(), 16);
+
+        let fhe_mask = OneTimePadFheSecretMask::try_encrypt(new_pad(), &client_key).unwrap();
+        let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
+
+        // 2 bits tagged as a Boolean
+        let forged = OneTimePadPlainState::new(new_pad())
+            .encrypt_bits(&[0b11], 2)
+            .unwrap();
+        let forged = StreamCiphertext::from_raw_parts(IntegerStreamCiphertext::from_raw_parts(
+            forged,
+            IntegerStreamCiphertextKind::Boolean,
+        ));
+        assert!(fhe_stream.transcipher::<FheBool>(&forged).is_err());
+
+        // 13 bits do not fill whole 2 bit blocks
+        let partial = OneTimePadPlainState::new(new_pad())
+            .try_encrypt_with_num_bits(-1i16, 13)
+            .unwrap();
+        assert!(fhe_stream.transcipher::<FheInt14>(&partial).is_err());
+
+        // Encrypted by another cipher
+        let kreyvium = KreyviumPlainState::new(KreyviumPlainKey::from([7u8; 16]), [3u8; 16])
+            .try_encrypt(42u16)
+            .unwrap();
+        assert!(fhe_stream.transcipher::<FheUint16>(&kreyvium).is_err());
+
+        // Encrypted after the counter of the session
+        let mut sym = OneTimePadPlainState::new(new_pad());
+        sym.try_encrypt(0u8).unwrap();
+        let ahead = sym.try_encrypt(1u8).unwrap();
+        assert!(fhe_stream.transcipher::<FheUint8>(&ahead).is_err());
+
+        // Longer than the pad of the session
+        let mut longer_pad_bytes = pad_bytes.clone();
+        longer_pad_bytes.extend([rng.gen::<u8>(), rng.gen()]);
+        let long = OneTimePadPlainState::new(OneTimePadPlainSecretMask::new(longer_pad_bytes, 32))
+            .try_encrypt(rng.gen::<u32>())
+            .unwrap();
+        assert!(fhe_stream.transcipher::<FheUint32>(&long).is_err());
+
+        let input: u16 = rng.gen();
+        let honest = OneTimePadPlainState::new(new_pad())
+            .try_encrypt(input)
+            .unwrap();
+        let transciphered: FheUint16 = fhe_stream.transcipher(&honest).unwrap();
+        let recovered: u16 = transciphered.decrypt(&client_key);
+        assert_eq!(recovered, input);
+    }
+
+    /// The CPU test with a server key on GPU, plus an empty list. The backend cannot take one, it
+    /// must still give an empty expander as on CPU.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_stream_ciphertext_list() {
+        use super::{
+            HlTranscipherer, OneTimePadFheSecretMask, StreamCiphertextList, TranscipherSession,
+        };
+        use crate::prelude::*;
+        use crate::transciphering::{OneTimePadPlainSecretMask, OneTimePadPlainState};
+        use crate::{set_server_key, ClientKey, CompressedServerKey, FheBool, FheInt8, FheUint4};
+        use rand::Rng;
+
+        let client_key = ClientKey::generate(gpu_config());
+        set_server_key(CompressedServerKey::new(&client_key).decompress_to_gpu());
+
+        let mut rng = rand::thread_rng();
+        let input_a: u64 = rng.gen();
+        let input_b: bool = rng.gen();
+        let input_c: i8 = rng.gen();
+        let input_d: u8 = rng.gen_range(0..16);
+
+        let mut builder = StreamCiphertextList::builder();
+        builder
+            .push(input_a)
+            .push(input_b)
+            .push(input_c)
+            .push_with_num_bits(input_d, 4);
+        let n_bits = builder.n_bits();
+
+        let pad_bytes: Vec<u8> = (0..n_bits / 8).map(|_| rng.gen()).collect();
+        let pad = OneTimePadPlainSecretMask::new(pad_bytes, n_bits);
+
+        // Client: encrypt the values with the pad, then an empty list with what remains of it
+        let mut sym = OneTimePadPlainState::new(pad.clone());
+        let list = builder.build(&mut sym).unwrap();
+        let empty_list = StreamCiphertextList::builder().build(&mut sym).unwrap();
+
+        // Server: transcipher both lists with the FHE pad, on GPU
+        let fhe_mask = OneTimePadFheSecretMask::try_encrypt(pad, &client_key).unwrap();
+        let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
+        let expander = fhe_stream.transcipher_list(&list).unwrap();
+        assert_eq!(expander.len(), 4);
+
+        let a: FheUint64 = expander.get(0).unwrap().unwrap();
+        let b: FheBool = expander.get(1).unwrap().unwrap();
+        let c: FheInt8 = expander.get(2).unwrap().unwrap();
+        let d: FheUint4 = expander.get(3).unwrap().unwrap();
+
+        let a: u64 = a.decrypt(&client_key);
+        let b: bool = b.decrypt(&client_key);
+        let c: i8 = c.decrypt(&client_key);
+        let d: u8 = d.decrypt(&client_key);
+        assert_eq!((a, b, c, d), (input_a, input_b, input_c, input_d));
+
+        let empty_expander = fhe_stream.transcipher_list(&empty_list).unwrap();
+        assert_eq!(empty_expander.len(), 0);
     }
 }
