@@ -5,13 +5,14 @@ uint64_t scratch_cuda_integer_grouped_oprf_64_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks_to_process,
     uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory,
-    uint32_t total_random_bits) {
+    uint32_t total_random_bits, uint32_t random_bits_per_block) {
   int_radix_params params(bsk_params, ksk_params, message_modulus,
                           carry_modulus);
 
   return scratch_cuda_integer_grouped_oprf_async<uint64_t>(
       CudaStreams(streams), (int_grouped_oprf_memory<uint64_t> **)mem_ptr,
-      params, num_blocks_to_process, total_random_bits, allocate_gpu_memory);
+      params, num_blocks_to_process, total_random_bits, random_bits_per_block,
+      allocate_gpu_memory);
 }
 
 void cuda_integer_grouped_oprf_64_async(CudaStreamsFFI streams,

@@ -99,3 +99,19 @@ bench_kreyvium_keystream:
 .PHONY: bench_kreyvium_transcipher # Kreyvium: end-to-end transcipher over 64 bits
 bench_kreyvium_transcipher:
 	$(MAKE) bench_kreyvium_transciphering BENCH_FILTER=transcipher_64bits
+
+.PHONY: bench_one_time_pad_transciphering # Run criterion benches for the server side of the one time pad on CPU
+bench_one_time_pad_transciphering:
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo bench \
+		--bench transciphering-one-time-pad \
+		--features=integer,internal-keycache \
+		-p tfhe-benchmark -- $(BENCH_FILTER)
+
+.PHONY: bench_one_time_pad_transciphering_gpu # Run criterion benches for the server side of the one time pad on GPU
+bench_one_time_pad_transciphering_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+		--bench transciphering-one-time-pad \
+		--features=integer,internal-keycache,gpu \
+		-p tfhe-benchmark --profile release_lto_off -- $(BENCH_FILTER)
