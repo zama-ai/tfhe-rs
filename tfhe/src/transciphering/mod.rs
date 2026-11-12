@@ -68,6 +68,8 @@ pub use keys::{
 };
 
 pub use keystream_application::apply_keystream;
+#[cfg(feature = "gpu")]
+pub(crate) use keystream_application::StreamApplicationPlan;
 
 pub use ciphers::aes::{
     AesFheKey, AesFheRoundKeys, AesFheState, AesIv, AesPlainKey, AesPlainState,

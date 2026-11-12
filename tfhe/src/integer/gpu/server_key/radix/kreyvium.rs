@@ -6,7 +6,7 @@ use crate::integer::gpu::{
     cuda_backend_fast_kreyvium_init, cuda_backend_fast_kreyvium_step, cuda_backend_kreyvium_init,
     cuda_backend_kreyvium_step,
 };
-use crate::transciphering::StreamCipherKind;
+use crate::transciphering::{FheKeyStreamError, KeyStreamLayout, StreamCipherKind};
 
 pub(crate) const KREYVIUM_KEY_BITS: usize = 128;
 pub(crate) const KREYVIUM_IV_BITS: usize = 128;
@@ -336,14 +336,17 @@ impl CudaIntegerTranscipherer for CudaKreyviumStream {
         sks: &CudaServerKey,
         n_bits: usize,
         streams: &CudaStreams,
-    ) -> CudaFheKeyStream {
+    ) -> Result<CudaFheKeyStream, FheKeyStreamError> {
         assert!(
             n_bits.is_multiple_of(BATCH_SIZE),
             "GPU Kreyvium requires n_bits to be a multiple of {BATCH_SIZE} (got {n_bits})"
         );
         let keystream = sks.kreyvium_next(&mut self.state, n_bits, streams).unwrap();
         self.counter += n_bits as u64;
-        CudaFheKeyStream::from_raw_parts(keystream)
+        Ok(CudaFheKeyStream::from_raw_parts(
+            keystream,
+            KeyStreamLayout::single_bit(),
+        ))
     }
 
     fn skip(&mut self, sks: &CudaServerKey, n_bits: usize, streams: &CudaStreams) {
