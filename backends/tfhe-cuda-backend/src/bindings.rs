@@ -579,6 +579,42 @@ const _: () = {
     ["Offset of field: CudaLweBootstrapKeyParamsFFI::pbs_params"]
         [::std::mem::offset_of!(CudaLweBootstrapKeyParamsFFI, pbs_params) - 28usize];
 };
+#[doc = " @brief One row of the CPU StreamApplicationPlan, flattened so that the plan\n and its checks stay in Rust. int_apply_keystream_buffer::block_function\n shows how the bits move."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaKeystreamContributionFFI {
+    #[doc = " The len clear input bits xored with the keystream bits, from bit 0"]
+    pub input_bits: u64,
+    #[doc = " The scratch wants the contributions sorted on it"]
+    pub output_block_index: u32,
+    #[doc = " A keystream block can feed several output blocks, with different\n src_bit_pos"]
+    pub keystream_block_index: u32,
+    #[doc = " First bit taken in the keystream block"]
+    pub src_bit_pos: u32,
+    #[doc = " Where these bits go in the output block"]
+    pub dst_bit_pos: u32,
+    #[doc = " Number of bits taken from the keystream block"]
+    pub len: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaKeystreamContributionFFI"]
+        [::std::mem::size_of::<CudaKeystreamContributionFFI>() - 32usize];
+    ["Alignment of CudaKeystreamContributionFFI"]
+        [::std::mem::align_of::<CudaKeystreamContributionFFI>() - 8usize];
+    ["Offset of field: CudaKeystreamContributionFFI::input_bits"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, input_bits) - 0usize];
+    ["Offset of field: CudaKeystreamContributionFFI::output_block_index"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, output_block_index) - 8usize];
+    ["Offset of field: CudaKeystreamContributionFFI::keystream_block_index"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, keystream_block_index) - 12usize];
+    ["Offset of field: CudaKeystreamContributionFFI::src_bit_pos"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, src_bit_pos) - 16usize];
+    ["Offset of field: CudaKeystreamContributionFFI::dst_bit_pos"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, dst_bit_pos) - 20usize];
+    ["Offset of field: CudaKeystreamContributionFFI::len"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, len) - 24usize];
+};
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_64_async(
         streams: CudaStreamsFFI,
@@ -2366,6 +2402,33 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_apply_keystream_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        contributions: *const CudaKeystreamContributionFFI,
+        num_contributions: u32,
+        num_output_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_apply_keystream_64_async(
+        streams: CudaStreamsFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        keystream: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_apply_keystream_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64_async(
