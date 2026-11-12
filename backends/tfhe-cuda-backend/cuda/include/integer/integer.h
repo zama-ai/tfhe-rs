@@ -139,6 +139,25 @@ typedef struct {
   CudaPbsTypeParamsFFI pbs_params;
 } CudaLweBootstrapKeyParamsFFI;
 
+/// @brief One row of the CPU StreamApplicationPlan, flattened so that the plan
+/// and its checks stay in Rust. int_apply_keystream_buffer::block_function
+/// shows how the bits move.
+typedef struct {
+  /// The len clear input bits xored with the keystream bits, from bit 0
+  uint64_t input_bits;
+  /// The scratch wants the contributions sorted on it
+  uint32_t output_block_index;
+  /// A keystream block can feed several output blocks, with different
+  /// src_bit_pos
+  uint32_t keystream_block_index;
+  /// First bit taken in the keystream block
+  uint32_t src_bit_pos;
+  /// Where these bits go in the output block
+  uint32_t dst_bit_pos;
+  /// Number of bits taken from the keystream block
+  uint32_t len;
+} CudaKeystreamContributionFFI;
+
 uint64_t scratch_cuda_apply_univariate_lut_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
     CudaLweBootstrapKeyParamsFFI bsk_params,
@@ -1081,6 +1100,23 @@ void cuda_integer_oprf_bitonic_shuffle_64_async(
 
 void cleanup_cuda_integer_oprf_bitonic_shuffle_64(CudaStreamsFFI streams,
                                                   int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_apply_keystream_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params,
+    CudaKeystreamContributionFFI const *contributions,
+    uint32_t num_contributions, uint32_t num_output_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory);
+
+void cuda_apply_keystream_64_async(CudaStreamsFFI streams,
+                                   CudaRadixCiphertextFFI *output,
+                                   CudaRadixCiphertextFFI const *keystream,
+                                   int8_t *mem_ptr, void *const *bsks,
+                                   void *const *ksks);
+
+void cleanup_cuda_apply_keystream_64(CudaStreamsFFI streams,
+                                     int8_t **mem_ptr_void);
 } // extern C
 
 #endif // CUDA_INTEGER_H
