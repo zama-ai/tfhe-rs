@@ -173,6 +173,7 @@ mod errors;
 mod global_state;
 mod integers;
 pub(crate) mod keys;
+#[cfg(feature = "experimental")]
 pub mod nist_submission;
 mod re_randomization;
 #[cfg(feature = "strings")]

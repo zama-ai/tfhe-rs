@@ -215,6 +215,7 @@ required-features = [
     "integer",
     "internal-keycache",
     "hpu",
+    "experimental",
 ]
 
 [[example]]
