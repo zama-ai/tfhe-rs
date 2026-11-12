@@ -1,4 +1,4 @@
-mod cpk_re_randomization;
+pub(crate) mod cpk_re_randomization;
 #[cfg(feature = "gpu")]
 mod gpu;
 #[cfg(feature = "gpu")]

@@ -35,7 +35,7 @@ use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::{Cleartext, Plaintext, PlaintextList};
 use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingCompressionParameters;
-#[cfg(feature = "integer")]
+#[cfg(all(feature = "integer", feature = "experimental"))]
 use crate::shortint::parameters::NoiseSquashingParameters;
 use crate::shortint::parameters::{
     AtomicPatternParameters, CarryModulus, MessageModulus, PBSParameters,
@@ -386,8 +386,8 @@ pub fn post_squashing_and_packing_noise_check(
     )
 }
 
-// Only used by the high level api noise checks
-#[cfg(feature = "integer")]
+// Only used by the NIST submission noise checks
+#[cfg(all(feature = "integer", feature = "experimental"))]
 #[track_caller]
 pub fn post_squashing_noise_check(
     noise_samples_after_noise_squashing: &[f64],
