@@ -146,6 +146,10 @@ impl ExpandedTranscipheringServerKey {
         }
     }
 
+    pub fn oprf_key(&self) -> &ExpandedOprfServerKey {
+        &self.oprf_key
+    }
+
     pub fn from_raw_parts(oprf_key: ExpandedOprfServerKey) -> Self {
         Self { oprf_key }
     }

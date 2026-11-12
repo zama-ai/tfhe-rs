@@ -16,8 +16,8 @@ pub(crate) use fhe::packed_squashed_layout;
 pub use fhe::{
     CompressedOneTimePadFheSecretMask, CompressedOneTimePadFheSecretMaskConformanceParams,
     CompressedSquashedNoiseOneTimePadFheSecretMask,
-    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
-    OneTimePadFheState, SquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, MaskGenerationError,
+    OneTimePadFheSecretMask, OneTimePadFheState, SquashedNoiseOneTimePadFheSecretMask,
 };
 pub use plain::{
     OneTimePadPlainSecretMask, OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
