@@ -51,9 +51,12 @@ impl ServerKey {
     ///     actually the bit at index 2
     /// operation: The operation to perform
     ///
-    /// The values returned is not fully clean:
+    /// The values returned are not fully clean:
     /// - blocks have no carries
-    /// - blocks have noise_level = 2
+    /// - blocks have noise_level <= 2
+    ///
+    /// When there is no round to do (`d_range` is empty, or the extractor has no bit left)
+    /// `ct` is returned with its noisy blocks cleaned (noise_level <= NOMINAL)
     pub(super) fn block_barrel_shifter_impl<T>(
         &self,
         ct: &T,
@@ -286,6 +289,7 @@ impl ServerKey {
         dirty_result
             .blocks_mut()
             .par_iter_mut()
+            .filter(|block| block.noise_level() > NoiseLevel::NOMINAL)
             .for_each(|block| self.key.message_extract_assign(block));
         dirty_result
     }
