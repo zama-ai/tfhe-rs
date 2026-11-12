@@ -52,18 +52,18 @@ pub fn apply_keystream(
 
 /// Contribution of one keystream ct to one output ct
 #[derive(Clone, Debug, PartialEq)]
-struct Contribution {
+pub(crate) struct Contribution {
     /// The index of the stream ct of this contribution in the keystream
-    stream_ct_idx: usize,
+    pub(crate) stream_ct_idx: usize,
     /// The starting bit position of this contribution in the keystream ct
-    src_bit_pos: usize,
+    pub(crate) src_bit_pos: usize,
     /// The starting bit position of this contribution in the output ct
-    dst_bit_pos: usize,
+    pub(crate) dst_bit_pos: usize,
     /// The number of bits that will be applied by this contribution
-    len: usize,
+    pub(crate) len: usize,
     /// The "FHE clear" user input bits for this contribution, that will be
     /// xor'ed with the keystream.
-    input_bits: u64,
+    pub(crate) input_bits: u64,
 }
 
 impl Contribution {
@@ -114,8 +114,8 @@ impl Contribution {
 /// - several contributions: pack the keystream cts with a linear combination, then xor with the
 ///   user input
 #[derive(Debug, PartialEq)]
-struct StreamApplicationPlan {
-    contribs: Vec<Vec<Contribution>>,
+pub(crate) struct StreamApplicationPlan {
+    pub(crate) contribs: Vec<Vec<Contribution>>,
 }
 
 impl StreamApplicationPlan {
@@ -182,7 +182,7 @@ impl StreamApplicationPlan {
     //     - keystream_bit_pos = 4:
     //       - stream_ct_idx = 4, src_bit_pos = 0, dst_bit_pos = 1, len = 1
     //     => the block is built from c3 bits 0..1 and c4 bits 0..1 (2 Contributions)
-    fn try_new(
+    pub(crate) fn try_new(
         stream_layout: &KeyStreamLayout,
         ct_count: usize,
         user_input: &StreamCiphertext,
