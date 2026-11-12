@@ -1452,9 +1452,9 @@ test_integer_long_run: install_cargo_nextest
 test_noise_check:
 	@# First run the sanity checks to make sure the atomic patterns are correct
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer -p tfhe -- sanity_check
+		--features=boolean,shortint,integer,experimental -p tfhe -- sanity_check
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer -p tfhe -- noise_check \
+		--features=boolean,shortint,integer,experimental -p tfhe -- noise_check \
 		--test-threads=1 --nocapture
 
 .PHONY: test_noise_check_gpu # Run dedicated noise and pfail check tests on gpu backend
@@ -1499,18 +1499,18 @@ test_graph_api:
 .PHONY: test_high_level_api # Run all the tests for high_level_api, including the Graph API
 test_high_level_api: test_graph_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental -p tfhe \
 		-- high_level_api:: --skip test_noise_check
 
 test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for high_level_api except test_uniformity for oprf which is too long
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
-		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
+		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok,experimental -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/) and not test(/uniformity/) and not test(/long_run/)"
 
 
 test_high_level_api_gpu: install_cargo_nextest # Run all the GPU tests for high_level_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
-		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
+		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok,experimental -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/)"
 
 .PHONY: test_high_level_api_noise_squash_relaxed_pbs128_gpu # Run the GPU noise squashing tests of high_level_api with the experimental relaxed 128-bit PBS
@@ -1522,7 +1522,7 @@ test_high_level_api_noise_squash_relaxed_pbs128_gpu: install_cargo_nextest
 .PHONY: test_high_level_api_fake_multi_gpu # Run the classical (non-multi-bit) subset of the GPU HLAPI tests with fake multi-gpu emulation
 test_high_level_api_fake_multi_gpu: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
-		--test-threads=4 --features=integer,internal-keycache,gpu-debug-fake-multi-gpu,zk-pok -p tfhe \
+		--test-threads=4 --features=integer,internal-keycache,gpu-debug-fake-multi-gpu,zk-pok,experimental -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/) and not test(/long_run/) and not test(/multi_?bit/)"
 
 .PHONY: test_protocol_long_run_gpu # Run the long run protocol workflow test on the gpu backend
@@ -2639,7 +2639,7 @@ parse_integer_benches:
 .PHONY: write_params_to_file # Gather all crypto parameters into a file with a Sage readable format.
 write_params_to_file: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
-	--example write_params_to_file --features=boolean,shortint,integer,hpu,internal-keycache -p tfhe
+	--example write_params_to_file --features=boolean,shortint,integer,hpu,internal-keycache,experimental -p tfhe
 
 .PHONY: pull_backward_compat_data # Pull the data files needed for backward compatibility tests
 pull_backward_compat_data:
