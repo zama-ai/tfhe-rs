@@ -1166,7 +1166,7 @@ test_integer_short_run_gpu: install_cargo_nextest
 test_integer_batched_trivial_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --release \
 		--features=integer,gpu-nofhe-testing-batched-trivial -p tfhe -- \
-		integer::gpu::server_key::radix::tests_batched_trivial:: --test-threads=1 --nocapture
+		integer::gpu::server_key::radix::tests_batched_trivial::test_gpu_integer_kv_store_get_batched_trivial --test-threads=1 --nocapture
 
 .PHONY: build_debug_integer_short_run_gpu # Run the long run integer tests on the gpu backend
 build_debug_integer_short_run_gpu: install_cargo_nextest

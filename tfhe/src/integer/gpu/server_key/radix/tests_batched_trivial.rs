@@ -1,6 +1,7 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+use crate::integer::gpu::server_key::CudaKVStore;
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::{ClientKey, IntegerKeyKind, RadixClientKey};
@@ -682,4 +683,186 @@ fn test_gpu_integer_if_then_else_batched_trivial() {
             ],
         );
     }
+}
+
+#[test]
+fn test_gpu_integer_scalar_div_rem_batched_trivial() {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear_num = rng.gen::<u64>() % modulus;
+        let scalar_denom = rng.gen_range(1u64..modulus);
+
+        let expected_q_body = clear_num / scalar_denom;
+        let expected_r_body = clear_num % scalar_denom;
+
+        let (ct_num, tv_num) = cks.encrypt_radix_batched_trivial(clear_num, num_blocks, &mut rng);
+        let d_num = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_num, &streams);
+
+        let (d_q, d_r) = sks.scalar_div_rem(&d_num, scalar_denom, &streams);
+        let q = d_q.to_radix_ciphertext(&streams);
+        let r = d_r.to_radix_ciphertext(&streams);
+
+        let expected_q_slots: Vec<u64> = tv_num.iter().map(|&n| n / scalar_denom).collect();
+        let expected_r_slots: Vec<u64> = tv_num.iter().map(|&n| n % scalar_denom).collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &q,
+            expected_q_body,
+            &expected_q_slots,
+            &[("n", clear_num), ("d", scalar_denom)],
+            &[("n", &tv_num)],
+        );
+        cks.decrypt_and_check_radix_batched_trivial(
+            &r,
+            expected_r_body,
+            &expected_r_slots,
+            &[("n", clear_num), ("d", scalar_denom)],
+            &[("n", &tv_num)],
+        );
+    }
+}
+
+/// kv_store_get: builds a map with batched-trivial values and queries with a
+/// batched-trivial key. Each slot j of the result must look up the stored value
+/// whose clear key equals the j-th slot of the query key (and return 0 if
+/// nothing matches).
+///
+/// `num_entries` picks which selector path is exercised:
+/// `<= KV_STORE_EQ_SELECTORS_SMALL_MAP_MAX_ENTRIES` (256) uses
+/// `host_kv_store_compute_eq_selectors_small_map`; above that the large-map
+/// path (`ct_vs_clears` sequential scan) runs.
+fn run_kv_store_get_batched_trivial<Key>(
+    num_entries: usize,
+    num_key_blocks: usize,
+    key_from_u64: fn(u64) -> Key,
+) where
+    Key: crate::integer::block_decomposition::DecomposableInto<u64>
+        + crate::prelude::CastInto<usize>
+        + Ord
+        + Copy
+        + Sync
+        + Into<u64>,
+{
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_value_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let value_modulus = p.pow(num_value_blocks as u32);
+    let key_modulus = p.pow(num_key_blocks as u32);
+    assert!(
+        num_entries as u64 <= key_modulus,
+        "requested {num_entries} unique keys but key space holds only {key_modulus}"
+    );
+
+    let mut clear_keys: Vec<Key> = Vec::with_capacity(num_entries);
+    let mut stored_values: Vec<(u64, Vec<u64>)> = Vec::with_capacity(num_entries);
+    let mut gpu_kv_store: CudaKVStore<Key, CudaUnsignedRadixCiphertext> = CudaKVStore::new();
+
+    while clear_keys.len() < num_entries {
+        let k_raw = rng.gen::<u64>() % key_modulus;
+        let k = key_from_u64(k_raw);
+        if clear_keys.contains(&k) {
+            continue;
+        }
+        let v_body = rng.gen::<u64>() % value_modulus;
+        let (ct_v, tv_v) =
+            cks.encrypt_radix_batched_trivial(v_body, num_value_blocks, &mut rng);
+        let d_v = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_v, &streams);
+        gpu_kv_store.insert(k, d_v);
+        clear_keys.push(k);
+        stored_values.push((v_body, tv_v));
+    }
+
+    let find = |q: u64| -> Option<usize> {
+        clear_keys.iter().position(|&k| k.into() == q)
+    };
+    let lookup_body = |q: u64| -> u64 {
+        find(q).map(|idx| stored_values[idx].0).unwrap_or(0)
+    };
+    let lookup_slot = |q: u64, j: usize| -> u64 {
+        find(q).map(|idx| stored_values[idx].1[j]).unwrap_or(0)
+    };
+    let lookup_hit = |q: u64| -> u64 { u64::from(find(q).is_some()) };
+
+    for _ in 0..batched_trivial_num_iterations() {
+        // Half the time pick a known-stored body so the body-match path fires.
+        let query_body: u64 = if rng.gen_bool(0.5) {
+            clear_keys[rng.gen_range(0..clear_keys.len())].into()
+        } else {
+            rng.gen::<u64>() % key_modulus
+        };
+
+        let (ct_key, tv_key) =
+            cks.encrypt_radix_batched_trivial(query_body, num_key_blocks, &mut rng);
+        let d_key = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_key, &streams);
+
+        let (d_result, d_found) = sks.kv_store_get(&gpu_kv_store, &d_key, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+        let found = d_found.0.to_radix_ciphertext(&streams);
+
+        let expected_value_body = lookup_body(query_body);
+        let expected_value_slots: Vec<u64> = tv_key
+            .iter()
+            .enumerate()
+            .map(|(j, &qj)| lookup_slot(qj, j))
+            .collect();
+
+        let expected_found_body = lookup_hit(query_body);
+        let expected_found_slots: Vec<u64> =
+            tv_key.iter().map(|&qj| lookup_hit(qj)).collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_value_body,
+            &expected_value_slots,
+            &[("q", query_body)],
+            &[("q", &tv_key)],
+        );
+        cks.decrypt_and_check_radix_batched_trivial(
+            &found,
+            expected_found_body,
+            &expected_found_slots,
+            &[("q", query_body)],
+            &[("q", &tv_key)],
+        );
+    }
+}
+
+/// Small-map selector path: `num_entries <= 256` goes through
+/// `host_kv_store_compute_eq_selectors_small_map`. 8-bit key ciphertexts
+/// (`num_key_blocks = 4`), 32 unique `u8` keys → random slot keys hit ~12% of
+/// the time, enough to cover both hit and miss branches each iteration.
+#[test]
+fn test_gpu_integer_kv_store_get_batched_trivial() {
+    run_kv_store_get_batched_trivial::<u8>(32, 4, |raw| raw as u8);
+}
+
+/// Large-map selector path: `num_entries > 256` falls back to `ct_vs_clears`
+/// (sequential scan + row-wise AND-reduce). 10-bit key ciphertexts
+/// (`num_key_blocks = 5`, key space of 1024), 300 unique `u16` keys → ~29%
+/// per-slot hit rate.
+#[test]
+fn test_gpu_integer_kv_store_get_batched_trivial_large_map() {
+    run_kv_store_get_batched_trivial::<u16>(300, 5, |raw| raw as u16);
 }
