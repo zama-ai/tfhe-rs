@@ -122,6 +122,7 @@ impl IntegerConfig {
                     | ReRandomizationParameters::LegacyDedicatedCPKWithKeySwitch {
                         rerand_ksk_params: ShortintKeySwitchingParameters {
                             destination_key: EncryptionKeyChoice::Big,
+                            // Only the destination key is restricted
                             ks_base_log: _,
                             ks_level: _,
                         }
@@ -465,6 +466,7 @@ impl IntegerServerKey {
             noise_squashing_compression_private_key,
             dedicated_oprf_private_key,
             transciphering_private_key,
+            // Read through `re_randomization_key_gen_info`
             cpk_re_randomization_params: _,
         } = client_key;
 
@@ -604,6 +606,7 @@ impl IntegerServerKey {
                     Ok(key_switching_key_material.as_view())
                 }
             },
+            // This variant has no keyswitching key
             ReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: _ } => Err(crate::error!(
                 "Tried to get keyswitching key for legacy rerand API \
                     while ServerKey is setup for new rerand API."
@@ -675,6 +678,7 @@ impl IntegerCudaServerKey {
                     Ok(key_switching_key_material)
                 }
             },
+            // This variant has no keyswitching key
             CudaReRandomizationKey::DerivedCPKWithoutKeySwitch { cpk: _ } => Err(crate::error!(
                 "Tried to get keyswitching key for legacy rerand API \
                     while ServerKey is setup for new rerand API."
@@ -725,6 +729,7 @@ impl IntegerCompressedServerKey {
             noise_squashing_compression_private_key,
             dedicated_oprf_private_key,
             transciphering_private_key,
+            // Read through `re_randomization_key_gen_info`
             cpk_re_randomization_params: _,
         } = client_key;
 

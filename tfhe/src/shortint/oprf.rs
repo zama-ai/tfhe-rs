@@ -261,11 +261,13 @@ impl ParameterSetConformant for OprfBootstrappingKeyOwned {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let PBSConformanceParams {
             pbs_type,
+            // Checked through the conversion to the bootstrapping key conformance params
             in_lwe_dimension: _,
             out_glwe_dimension: _,
             out_polynomial_size: _,
             base_log: _,
             level: _,
+            // Fourier bootstrapping keys don't store a ciphertext modulus
             ciphertext_modulus: _,
         } = parameter_set;
 
@@ -273,6 +275,7 @@ impl ParameterSetConformant for OprfBootstrappingKeyOwned {
             (
                 Self::Classic { bsk },
                 PbsTypeConformanceParams::Classic {
+                    // The OPRF key has no modulus switch configuration
                     modulus_switch_noise_reduction: _,
                 },
             ) => {
@@ -282,10 +285,12 @@ impl ParameterSetConformant for OprfBootstrappingKeyOwned {
             (
                 Self::MultiBit {
                     fourier_bsk,
+                    // Execution settings, taken from the serialized key without validation
                     thread_count: _,
                     deterministic_execution: _,
                 },
                 PbsTypeConformanceParams::MultiBit {
+                    // Checked through the conversion to `MultiBitBootstrapKeyConformanceParams`
                     lwe_bsk_grouping_factor: _,
                 },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
@@ -433,6 +438,7 @@ impl ParameterSetConformant for CompressedOprfBootstrappingKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let PBSConformanceParams {
             pbs_type,
+            // Checked through the conversion to the bootstrapping key conformance params
             in_lwe_dimension: _,
             out_glwe_dimension: _,
             out_polynomial_size: _,
@@ -445,6 +451,7 @@ impl ParameterSetConformant for CompressedOprfBootstrappingKey {
             (
                 Self::Classic { seeded_bsk },
                 PbsTypeConformanceParams::Classic {
+                    // The OPRF key has no modulus switch configuration
                     modulus_switch_noise_reduction: _,
                 },
             ) => {
@@ -454,9 +461,11 @@ impl ParameterSetConformant for CompressedOprfBootstrappingKey {
             (
                 Self::MultiBit {
                     seeded_bsk,
+                    // Execution setting, not part of the key material
                     deterministic_execution: _,
                 },
                 PbsTypeConformanceParams::MultiBit {
+                    // Checked through the conversion to `MultiBitBootstrapKeyConformanceParams`
                     lwe_bsk_grouping_factor: _,
                 },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)

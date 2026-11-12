@@ -187,6 +187,7 @@ impl ParameterSetConformant for StreamCiphertext {
             kind,
             n_bits,
             bytes,
+            // Any counter value is valid
             encryption_counter: _,
         } = self;
         let StreamCiphertextConformanceParams {

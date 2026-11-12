@@ -56,6 +56,7 @@ impl CudaCompressedSquashedNoiseCiphertextList {
             message_modulus,
             carry_modulus,
             lwe_per_glwe,
+            // Carried by the GLWE list extracted above
             glwe_dimension: _,
             polynomial_size: _,
             ciphertext_modulus: _,

@@ -101,6 +101,7 @@ impl MetaParameters {
                 Some(ReRandomizationConfiguration::LegacyDedicatedCompactPublicKeyWithKeySwitch),
                 Some(DedicatedCompactPublicKeyParameters {
                     re_randomization_parameters: Some(re_randomization_parameters),
+                    // Only the re-randomization parameters describe the rerand key
                     pke_params: _,
                     ksk_params: _,
                 }),
@@ -710,6 +711,7 @@ impl MetaParametersFinder {
             use_compression,
             noise_squashing_choice,
             re_randomization_choice,
+            // Parameters are only looked up in the list of the requested version
             version: _,
         } = self;
 

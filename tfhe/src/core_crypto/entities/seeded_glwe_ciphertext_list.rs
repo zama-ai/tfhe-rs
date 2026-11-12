@@ -185,6 +185,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
             glwe_size,
             polynomial_size,
             ciphertext_modulus,
+            // Read by `decompress_seeded_glwe_ciphertext_list`
             data: _,
             compression_seed: _,
         } = &self;
@@ -340,7 +341,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             glwe_size,
             ref compression_seed,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             polynomial_size: _,
         } = *self;
 

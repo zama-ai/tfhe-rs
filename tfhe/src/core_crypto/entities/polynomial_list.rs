@@ -192,6 +192,7 @@ impl<C: Container> ContiguousEntityContainer for PolynomialList<C> {
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
         let Self {
             polynomial_size,
+            // The container is split by the caller
             data: _,
         } = *self;
 

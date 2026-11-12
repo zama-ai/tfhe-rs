@@ -197,6 +197,7 @@ fn fn_ptr<const FWD: bool, N: RecursiveFft, c64xN: Pod, Simd: FftSimd<c64xN>>(
                     scratch,
                     w_init,
                     w,
+                    // Type marker, holds no data
                     __marker: _,
                 } = self;
                 let n = 1 << (N::VALUE + 1);

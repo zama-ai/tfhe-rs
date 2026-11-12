@@ -524,6 +524,7 @@ impl ParameterSetConformant for CompressedXofKeySet {
         let Self {
             compressed_public_key,
             compressed_server_key,
+            // Any seed is valid
             seed: _,
         } = self;
 

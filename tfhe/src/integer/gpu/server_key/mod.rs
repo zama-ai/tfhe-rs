@@ -78,6 +78,7 @@ where
             }
             ShortintExpandedBootstrappingKey::MultiBit {
                 bsk,
+                // CPU execution settings, not used by the CUDA backend
                 thread_count: _,
                 deterministic_execution: _,
             } => {
@@ -155,6 +156,7 @@ impl CudaBootstrappingKey<u64> {
             }
             ExpandedOprfBootstrappingKey::MultiBit {
                 bsk,
+                // CPU execution settings, not used by the CUDA backend
                 thread_count: _,
                 deterministic_execution: _,
             } => {

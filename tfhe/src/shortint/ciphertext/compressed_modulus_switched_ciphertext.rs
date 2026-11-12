@@ -64,6 +64,7 @@ impl From<CompressedModulusSwitchedCiphertextConformanceParams> for CiphertextCo
             ct_params:
                 CompressedModulusSwitchedLweCiphertextConformanceParams {
                     ct_params,
+                    // Only relevant to the compressed form
                     ms_decompression_type: _,
                 },
             message_modulus,

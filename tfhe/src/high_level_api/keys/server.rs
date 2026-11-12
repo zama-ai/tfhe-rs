@@ -851,6 +851,7 @@ impl ParameterSetConformant for ServerKey {
     type ParameterSet = IntegerServerKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        // Any tag is valid
         let Self { key, tag: _ } = self;
 
         key.is_conformant(parameter_set)
@@ -863,6 +864,7 @@ impl ParameterSetConformant for CompressedServerKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
             integer_key,
+            // Any tag is valid
             tag: _,
         } = self;
 

@@ -258,6 +258,7 @@ impl ParameterSetConformant for OneTimePadFheSecretMask {
     type ParameterSet = OneTimePadFheSecretMaskConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        // Any tag is valid
         let Self { inner, tag: _ } = self;
 
         inner.on_cpu().is_conformant(&params.0)
@@ -453,6 +454,7 @@ impl ParameterSetConformant for CompressedSquashedNoiseOneTimePadFheSecretMask {
     type ParameterSet = CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        // Any tag is valid
         let Self { inner, tag: _ } = self;
 
         inner.is_conformant(&params.0)

@@ -85,6 +85,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GlweCiphertextCreationMetadata {
             ciphertext_modulus,
+            // A body is a single polynomial, sized by its container
             polynomial_size: _,
         } = meta;
         Self::from_container(from, ciphertext_modulus)
@@ -218,6 +219,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         let Self {
             polynomial_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 
@@ -235,6 +237,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         let Self {
             polynomial_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 

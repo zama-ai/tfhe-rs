@@ -317,7 +317,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         let Self {
             polynomial_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             glwe_size: _,
         } = *self;
 
@@ -336,6 +338,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             glwe_size,
             polynomial_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 

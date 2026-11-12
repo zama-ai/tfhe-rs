@@ -29,6 +29,7 @@ impl<T: UnsignedInteger> ParameterSetConformant for SeededLweCiphertext<T> {
             data,
             lwe_size,
             ciphertext_modulus,
+            // Only used to regenerate the mask on decompression, any value is accepted
             compression_seed: _,
         } = self;
 
@@ -177,6 +178,7 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
         let &Self {
             lwe_size,
             ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_ciphertext`
             data: _,
             compression_seed: _,
         } = &self;

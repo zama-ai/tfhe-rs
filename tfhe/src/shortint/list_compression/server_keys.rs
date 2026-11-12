@@ -150,6 +150,7 @@ impl From<(AtomicPatternParameters, CompressionParameters)> for CompressionKeyCo
                 packing_ks_glwe_dimension,
                 lwe_per_glwe,
                 storage_log_modulus,
+                // Only used to generate the key
                 packing_ks_key_noise_distribution: _,
             }) => Self {
                 br_level,
@@ -175,6 +176,7 @@ impl From<(AtomicPatternParameters, CompressionParameters)> for CompressionKeyCo
                 lwe_per_glwe,
                 storage_log_modulus,
                 decompression_grouping_factor,
+                // Only used to generate the key
                 packing_ks_key_noise_distribution: _,
             }) => Self {
                 br_level,
@@ -213,6 +215,7 @@ impl ParameterSetConformant for CompressionKey {
             uncompressed_polynomial_size,
             uncompressed_glwe_dimension,
             cipherext_modulus,
+            // Only used by the decompression key
             br_level: _,
             br_base_log: _,
             decompression_grouping_factor: _,
@@ -241,6 +244,7 @@ impl ParameterSetConformant for DecompressionKey {
         let Self { bsk, lwe_per_glwe } = self;
         let CompressionKeyConformanceParams {
             lwe_per_glwe: expected_lwe_per_glwe,
+            // Checked through the conversion to `PBSConformanceParams`
             br_level: _,
             br_base_log: _,
             packing_ks_polynomial_size: _,
@@ -248,7 +252,9 @@ impl ParameterSetConformant for DecompressionKey {
             uncompressed_polynomial_size: _,
             uncompressed_glwe_dimension: _,
             decompression_grouping_factor: _,
+            // Fourier bootstrapping keys don't store a ciphertext modulus
             cipherext_modulus: _,
+            // Only used by the compression key
             packing_ks_level: _,
             packing_ks_base_log: _,
             storage_log_modulus: _,
@@ -271,6 +277,7 @@ impl From<&CompressionKeyConformanceParams> for PBSConformanceParams {
             uncompressed_glwe_dimension,
             decompression_grouping_factor,
             cipherext_modulus,
+            // Not part of the PBS parameters
             packing_ks_level: _,
             packing_ks_base_log: _,
             lwe_per_glwe: _,
@@ -441,7 +448,9 @@ impl
             packing_ks_glwe_dimension,
             lwe_per_glwe,
             ciphertext_modulus,
+            // Only used to generate the key
             packing_ks_key_noise_distribution: _,
+            // Not stored in the key
             message_modulus: _,
             carry_modulus: _,
         } = compression_params;

@@ -199,6 +199,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             cm_dimension,
             polynomial_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 
@@ -224,6 +225,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             cm_dimension,
             polynomial_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 

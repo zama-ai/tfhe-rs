@@ -144,6 +144,7 @@ fn prepare_cuda_packed_glwe_ct_ffi<T: UnsignedInteger>(
         storage_log_modulus,
         lwe_per_glwe,
         total_lwe_bodies_count,
+        // Not needed by the backend to (de)compress
         message_modulus: _,
         carry_modulus: _,
         ciphertext_modulus: _,

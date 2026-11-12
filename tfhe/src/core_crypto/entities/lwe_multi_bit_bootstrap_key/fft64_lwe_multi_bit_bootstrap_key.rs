@@ -263,6 +263,7 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweMultiBitB
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
             grouping_factor: expected_grouping_factor,
+            // Fourier keys don't store a ciphertext modulus
             ciphertext_modulus: _,
         } = parameter_set;
 

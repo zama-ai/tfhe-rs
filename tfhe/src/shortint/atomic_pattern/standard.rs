@@ -145,6 +145,7 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
         match &self.bootstrapping_key {
             ShortintBootstrappingKey::Classic {
                 bsk,
+                // Only used when compressing
                 modulus_switch_noise_reduction_key: _,
             } => MsDecompressionType::ClassicPbs {
                 br_input_modulus_log: bsk.polynomial_size().to_blind_rotation_input_modulus_log(),
@@ -152,6 +153,7 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
             },
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
+                // Execution settings, not part of the decompression method
                 thread_count: _,
                 deterministic_execution: _,
             } => MsDecompressionType::MultiBitPbs {

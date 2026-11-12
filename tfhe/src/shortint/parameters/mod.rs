@@ -183,6 +183,7 @@ impl From<&PBSConformanceParams> for LweBootstrapKeyConformanceParams<u64> {
             base_log,
             level,
             ciphertext_modulus,
+            // Matched by the callers, which only convert for classic keys
             pbs_type: _,
         } = *value;
 

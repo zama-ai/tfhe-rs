@@ -345,7 +345,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         let Self {
             output_lwe_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             decomp_base_log: _,
             decomp_level_count: _,
         } = *self;
@@ -366,6 +368,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             decomp_level_count,
             output_lwe_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 

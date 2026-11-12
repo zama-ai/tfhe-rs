@@ -59,6 +59,7 @@ impl<Scalar: UnsignedInteger> Upgrade<CompressedModulusSwitchedLweCiphertext<Sca
         let Self {
             packed_integers,
             lwe_dimension,
+            // Decompression does not depend on the uncompressed ciphertext modulus
             uncompressed_ciphertext_modulus: _,
         } = self;
 

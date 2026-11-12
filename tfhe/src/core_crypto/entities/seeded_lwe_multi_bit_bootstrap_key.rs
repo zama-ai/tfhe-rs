@@ -489,6 +489,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
         } = self;
         let &MultiBitBootstrapKeyConformanceParams {
             grouping_factor: expected_grouping_factor,
+            // Checked through the conversion to `GgswCiphertextListConformanceParams`
             decomp_base_log: _,
             decomp_level_count: _,
             input_lwe_dimension: _,

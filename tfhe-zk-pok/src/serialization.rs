@@ -102,6 +102,7 @@ pub struct SerializableFp {
 
 impl<P: FpConfig<N>, const N: usize> From<Fp<P, N>> for SerializableFp {
     fn from(value: Fp<P, N>) -> Self {
+        // The second field is a type marker, holding no data
         let Fp(BigInt(limbs), _) = value;
 
         Self {

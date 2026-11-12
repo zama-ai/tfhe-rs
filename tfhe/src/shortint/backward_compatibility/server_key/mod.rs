@@ -147,6 +147,7 @@ impl<AP: 'static> Upgrade<GenericServerKey<AP>> for GenericServerKeyV1 {
             max_degree,
             max_noise_level,
             pbs_order,
+            // Read from the key switching key
             ciphertext_modulus: _,
         } = self;
 
@@ -326,7 +327,8 @@ impl Upgrade<CompressedServerKey> for CompressedServerKeyV2 {
             max_degree,
             max_noise_level,
             pbs_order,
-            ciphertext_modulus: _, // Ciphertext modulus is on the compressed bootstrapping_key
+            // Read from the bootstrapping key
+            ciphertext_modulus: _,
         } = self;
 
         let compressed_ap_server_key = CompressedAtomicPatternServerKey::Standard(

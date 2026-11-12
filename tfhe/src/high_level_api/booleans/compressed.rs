@@ -143,6 +143,7 @@ impl ParameterSetConformant for CompressedFheBool {
     type ParameterSet = CompressedFheBoolConformanceParams;
 
     fn is_conformant(&self, params: &CompressedFheBoolConformanceParams) -> bool {
+        // Any tag is valid
         let Self { inner, tag: _ } = self;
         let &CompressedFheBoolConformanceParams(ct_params) = params;
 

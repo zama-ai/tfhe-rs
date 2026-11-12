@@ -382,7 +382,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             output_glwe_size,
             output_polynomial_size,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             decomp_base_log: _,
             decomp_level_count: _,
         } = *self;

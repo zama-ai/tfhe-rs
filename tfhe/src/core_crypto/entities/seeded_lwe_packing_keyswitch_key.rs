@@ -308,6 +308,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
             output_glwe_size,
             output_polynomial_size,
             ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_packing_keyswitch_key`
             data: _,
             compression_seed: _,
         } = &self;
@@ -344,7 +345,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
             output_glwe_size,
             output_polynomial_size,
             ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator`
             data: _,
+            // The mask comes from the caller's pre-seeded generator
             compression_seed: _,
         } = self;
 
@@ -392,9 +395,11 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
     {
         let &Self {
             ciphertext_modulus,
+            // Only used through `as_seeded_glwe_ciphertext_list`
             data: _,
             output_glwe_size: _,
             output_polynomial_size: _,
+            // The fork config only depends on the shape of the key
             decomp_base_log: _,
             decomp_level_count: _,
             compression_seed: _,
@@ -530,7 +535,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             output_polynomial_size,
             ref compression_seed,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             decomp_base_log: _,
             decomp_level_count: _,
         } = *self;
@@ -586,6 +593,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             output_glwe_size,
             output_polynomial_size,
             ciphertext_modulus,
+            // Only used to regenerate the mask on decompression, any value is accepted
             compression_seed: _,
         } = self;
 

@@ -109,6 +109,7 @@ where
             lwe_in,
             body_correction_to_add_before_switching,
             log_modulus,
+            // Type marker, holds no data
             phantom: _,
         } = self;
 
@@ -139,6 +140,7 @@ where
             ref lwe_in,
             body_correction_to_add_before_switching,
             log_modulus,
+            // Type marker, holds no data
             phantom: _,
         } = *self;
 

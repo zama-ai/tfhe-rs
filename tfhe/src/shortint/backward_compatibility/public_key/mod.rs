@@ -18,6 +18,7 @@ impl Upgrade<CompactPublicKey> for CompactPublicKeyV0 {
         let Self {
             key,
             parameters,
+            // Derived from the atomic pattern of `parameters`
             pbs_order: _,
         } = self;
 
@@ -51,6 +52,7 @@ impl Upgrade<CompressedCompactPublicKey> for CompressedCompactPublicKeyV0 {
         let Self {
             key,
             parameters,
+            // Derived from the atomic pattern of `parameters`
             pbs_order: _,
         } = self;
 

@@ -60,6 +60,7 @@ impl NoiseSimulationLwePackingKeyswitchKey {
             output_glwe_dimension,
             output_polynomial_size,
             modulus,
+            // The noise distribution cannot be read back from a key
             noise_distribution: _,
         } = *self;
 

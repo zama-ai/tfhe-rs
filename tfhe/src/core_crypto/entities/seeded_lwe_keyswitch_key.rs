@@ -259,6 +259,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             decomp_level_count,
             output_lwe_size,
             ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_keyswitch_key`
             data: _,
             compression_seed: _,
         } = &self;
@@ -289,6 +290,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
             decomp_level_count,
             output_lwe_size,
             ciphertext_modulus,
+            // Read by `par_decompress_seeded_lwe_keyswitch_key`
             data: _,
             compression_seed: _,
         } = &self;
@@ -426,7 +428,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             output_lwe_size,
             ref compression_seed,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             decomp_base_log: _,
             decomp_level_count: _,
         } = *self;
@@ -480,6 +484,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             decomp_level_count,
             output_lwe_size,
             ciphertext_modulus,
+            // Only used to regenerate the mask on decompression, any value is accepted
             compression_seed: _,
         } = self;
 

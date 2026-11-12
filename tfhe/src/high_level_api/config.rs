@@ -172,7 +172,9 @@ impl From<MetaParameters> for Config {
             compression_parameters,
             noise_squashing_parameters,
             transciphering_parameters,
+            // The config is backend agnostic, the backend is picked when creating the server key
             backend: _,
+            // Read through `MetaParameters::rerandomization_parameters`
             rerand_configuration: _,
         } = meta_params;
 
@@ -180,6 +182,7 @@ impl From<MetaParameters> for Config {
             |DedicatedCompactPublicKeyParameters {
                  pke_params,
                  ksk_params,
+                 // Read through `MetaParameters::rerandomization_parameters`
                  re_randomization_parameters: _,
              }| (pke_params, ksk_params),
         );

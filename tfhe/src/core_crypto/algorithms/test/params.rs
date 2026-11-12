@@ -109,6 +109,7 @@ impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
             message_modulus_log,
             ciphertext_modulus,
             grouping_factor,
+            // Excluded from the comparison, see above
             thread_count: _,
         } = *self;
         let Self {
@@ -122,6 +123,7 @@ impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
             message_modulus_log: other_message_modulus_log,
             ciphertext_modulus: other_ciphertext_modulus,
             grouping_factor: other_grouping_factor,
+            // Excluded from the comparison, see above
             thread_count: _,
         } = *other;
 

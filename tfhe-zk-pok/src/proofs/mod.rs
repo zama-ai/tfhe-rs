@@ -642,7 +642,9 @@ pub(crate) mod test {
                 B,
                 q,
                 msbs_zero_padding_bit_count: _msbs_zero_padding_bit_count,
+                // Encrypts a single zero, not a list of `k` messages
                 k: _,
+                // The message is zero, so it needs no encoding
                 t: _,
             } = params;
 

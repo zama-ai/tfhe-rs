@@ -86,6 +86,7 @@ impl<C: Container<Element = f64>> Fourier128LweMultiBitBootstrapKey<C> {
             decomposition_base_log,
             decomposition_level_count,
             grouping_factor,
+            // Read through `multi_bit_input_lwe_dimension`
             input_lwe_dimension: _,
         } = self;
         let ggsw_count = multi_bit_lwe_dim.0 * grouping_factor.ggsw_per_multi_bit_element().0;
@@ -271,6 +272,7 @@ impl<C: Container<Element = f64>> ParameterSetConformant for Fourier128LweMultiB
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
             grouping_factor: expected_grouping_factor,
+            // Fourier keys don't store a ciphertext modulus
             ciphertext_modulus: _,
         } = parameter_set;
 

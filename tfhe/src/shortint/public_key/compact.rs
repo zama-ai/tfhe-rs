@@ -602,6 +602,7 @@ impl ParameterSetConformant for CompactPublicKey {
         let CompactPublicKeyEncryptionParameters {
             encryption_lwe_dimension,
             ciphertext_modulus,
+            // Checked by `parameters == parameter_set`
             encryption_noise_distribution: _,
             message_modulus: _,
             carry_modulus: _,
@@ -626,6 +627,7 @@ impl ParameterSetConformant for CompressedCompactPublicKey {
         let CompactPublicKeyEncryptionParameters {
             encryption_lwe_dimension,
             ciphertext_modulus,
+            // Checked by `parameters == parameter_set`
             encryption_noise_distribution: _,
             message_modulus: _,
             carry_modulus: _,

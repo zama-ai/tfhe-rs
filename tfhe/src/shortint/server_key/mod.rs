@@ -220,6 +220,7 @@ where
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
+                // Recomputed from the key parameters on deserialization
                 thread_count: _,
             } => Self::MultiBit {
                 fourier_bsk: bsk.as_view(),
@@ -246,6 +247,7 @@ where
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
+                // Recomputed from the key parameters on deserialization
                 thread_count: _,
             } => Self::MultiBit {
                 fourier_bsk,
@@ -453,6 +455,7 @@ where
         match self {
             Self::Classic {
                 modulus_switch_noise_reduction_key,
+                // Not needed to get the modulus switch configuration
                 bsk: _,
             } => Some(modulus_switch_noise_reduction_key),
             Self::MultiBit { .. } => None,
@@ -723,6 +726,7 @@ impl ServerKey {
             match bsk {
                 ShortintBootstrappingKey::Classic {
                     bsk,
+                    // Not used by the OPRF
                     modulus_switch_noise_reduction_key: _,
                 } => OprfBootstrappingKeyView::Classic { bsk: bsk.as_view() },
                 ShortintBootstrappingKey::MultiBit {
@@ -781,6 +785,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             carry_modulus,
             max_degree,
             max_noise_level,
+            // Recovered from the atomic pattern key in `from_raw_parts`
             ciphertext_modulus: _,
         } = self;
 
@@ -1810,11 +1815,16 @@ impl From<&KeySwitch32PBSParameters> for PBSConformanceParams {
             pbs_level,
             ciphertext_modulus,
             modulus_switch_noise_reduction_params,
+            // Only used by the keyswitch key
             ks_base_log: _,
             ks_level: _,
+            // Also expected to be the modulus of the drift key encryptions of zero, which
+            // conformance does not check
             post_keyswitch_ciphertext_modulus: _,
+            // Only used to generate the keys
             lwe_noise_distribution: _,
             glwe_noise_distribution: _,
+            // Not part of the bootstrapping key
             message_modulus: _,
             carry_modulus: _,
             max_noise_level: _,
@@ -1845,10 +1855,12 @@ where
         let PBSConformanceParams {
             in_lwe_dimension,
             pbs_type,
+            // Checked through the conversion to the bootstrapping key conformance params
             out_glwe_dimension: _,
             out_polynomial_size: _,
             base_log: _,
             level: _,
+            // Fourier bootstrapping keys don't store a ciphertext modulus
             ciphertext_modulus: _,
         } = parameter_set;
 
@@ -1897,10 +1909,12 @@ where
             (
                 Self::MultiBit {
                     fourier_bsk,
+                    // Execution settings, not part of the key material
                     thread_count: _,
                     deterministic_execution: _,
                 },
                 PbsTypeConformanceParams::MultiBit {
+                    // Checked through the conversion to `MultiBitBootstrapKeyConformanceParams`
                     lwe_bsk_grouping_factor: _,
                 },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)

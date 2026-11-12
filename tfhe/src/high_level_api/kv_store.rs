@@ -1020,7 +1020,11 @@ where
         <Value::Id as IntegerId>::InnerCpu: Expandable,
         Key: Copy + Display + Ord,
     {
-        let Self { inner, tag: _ } = self;
+        let Self {
+            inner,
+            // The decompressed store takes the tag of the decompressing server key
+            tag: _,
+        } = self;
 
         global_state::try_with_internal_keys(|key| match key {
             Some(InternalServerKey::Cpu(cpu_key)) => {

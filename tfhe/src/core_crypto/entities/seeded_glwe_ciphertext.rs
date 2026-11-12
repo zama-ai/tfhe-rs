@@ -198,6 +198,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
         let &Self {
             glwe_size,
             ciphertext_modulus,
+            // Read by `decompress_seeded_glwe_ciphertext`
             data: _,
             compression_seed: _,
         } = &self;
@@ -334,6 +335,7 @@ where
             data,
             ciphertext_modulus,
             glwe_size,
+            // Only used to regenerate the mask on decompression, any value is accepted
             compression_seed: _,
         } = self;
 

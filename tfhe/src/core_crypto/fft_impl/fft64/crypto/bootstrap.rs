@@ -697,6 +697,7 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweBootstrap
             input_lwe_dimension: expected_input_lwe_dimension,
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
+            // Fourier keys don't store a ciphertext modulus
             ciphertext_modulus: _,
         } = parameter_set;
 

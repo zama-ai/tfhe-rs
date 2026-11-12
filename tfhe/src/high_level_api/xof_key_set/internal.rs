@@ -508,6 +508,7 @@ impl crate::CompressedServerKey {
                     oprf_key,
                     transciphering_key,
                 },
+            // The caller attaches the tag to the decompressed key
             tag: _,
         } = self;
 
@@ -852,6 +853,7 @@ impl crate::shortint::oprf::CompressedOprfServerKey {
             }
             CompressedOprfBootstrappingKey::MultiBit {
                 seeded_bsk,
+                // Expanded keys always use deterministic execution
                 deterministic_execution: _,
             } => {
                 let bsk =
@@ -889,6 +891,7 @@ impl crate::shortint::oprf::CompressedOprfServerKey {
             }
             CompressedOprfBootstrappingKey::MultiBit {
                 seeded_bsk,
+                // Execution setting, not generated from the seed
                 deterministic_execution: _,
             } => {
                 generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
@@ -1476,6 +1479,7 @@ where
             }
             Self::MultiBit {
                 seeded_bsk,
+                // Expanded keys always use deterministic execution
                 deterministic_execution: _,
             } => {
                 let core_bsk = par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_new_with_pre_seeded_generator(
@@ -1516,6 +1520,7 @@ where
             }
             Self::MultiBit {
                 seeded_bsk,
+                // Execution setting, not generated from the seed
                 deterministic_execution: _,
             } => {
                 mask_generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
@@ -1554,6 +1559,7 @@ where
             Self::MultiBit {
                 bsk,
                 thread_count,
+                // Expanded keys always use deterministic execution
                 deterministic_execution: _,
             } => {
                 let core_bsk = par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_new_with_pre_seeded_generator(
@@ -1584,6 +1590,7 @@ where
             }
             Self::MultiBit {
                 bsk,
+                // Execution settings, not part of the key material
                 thread_count: _,
                 deterministic_execution: _,
             } => {

@@ -372,9 +372,13 @@ impl<'a> RHash<'a> {
                 bound_type,
                 sid,
                 domain_separators: ref ds,
+                // Group elements are not part of the hashed statement
                 g_lists: _,
+                // Recomputed for the actual `k` by `compute_crs_params`
                 D: _,
+                // The actual number of messages is `c2.len()`
                 k: _,
+                // The hashed bound is derived from `B_inf`
                 B_bound_squared: _,
             },
             PublicCommit {
@@ -382,6 +386,7 @@ impl<'a> RHash<'a> {
                 b,
                 c1,
                 c2,
+                // Type marker, holds no data
                 __marker: _,
             },
         ) = public;

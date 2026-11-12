@@ -237,6 +237,7 @@ where
             (
                 Self::MultiBit {
                     bsk,
+                    // Execution settings, taken from the serialized key without validation
                     thread_count: _,
                     deterministic_execution: _,
                 },
@@ -510,7 +511,9 @@ impl TryFrom<(PBSParameters, NoiseSquashingParameters)>
                 decomp_level_count,
                 modulus_switch_noise_reduction_params,
                 ciphertext_modulus,
+                // Only used to generate the key
                 glwe_noise_distribution: _,
+                // Checked against the PBS parameters above
                 message_modulus: _,
                 carry_modulus: _,
             }) => Self::Classic {
@@ -531,9 +534,12 @@ impl TryFrom<(PBSParameters, NoiseSquashingParameters)>
                 decomp_level_count,
                 grouping_factor,
                 ciphertext_modulus,
+                // Only used to generate the key
                 glwe_noise_distribution: _,
+                // Checked against the PBS parameters above
                 message_modulus: _,
                 carry_modulus: _,
+                // Execution setting, not part of the key material
                 deterministic_execution: _,
             }) => Self::MultiBit {
                 bootstrapping_key_params: MultiBitBootstrapKeyConformanceParams {
@@ -580,7 +586,9 @@ impl TryFrom<(KeySwitch32PBSParameters, NoiseSquashingParameters)>
                 decomp_level_count,
                 modulus_switch_noise_reduction_params,
                 ciphertext_modulus,
+                // Only used to generate the key
                 glwe_noise_distribution: _,
+                // Checked against the PBS parameters above
                 message_modulus: _,
                 carry_modulus: _,
             }) => Self::Classic {
@@ -601,9 +609,12 @@ impl TryFrom<(KeySwitch32PBSParameters, NoiseSquashingParameters)>
                 decomp_level_count,
                 grouping_factor,
                 ciphertext_modulus,
+                // Only used to generate the key
                 glwe_noise_distribution: _,
+                // Checked against the PBS parameters above
                 message_modulus: _,
                 carry_modulus: _,
+                // Execution setting, not part of the key material
                 deterministic_execution: _,
             }) => Self::MultiBit {
                 bootstrapping_key_params: MultiBitBootstrapKeyConformanceParams {

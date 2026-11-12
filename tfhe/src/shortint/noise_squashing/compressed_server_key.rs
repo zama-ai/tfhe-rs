@@ -271,6 +271,7 @@ where
             (
                 Self::MultiBit {
                     bsk,
+                    // Execution settings, taken from the serialized key without validation
                     thread_count: _,
                     deterministic_execution: _,
                 },

@@ -233,6 +233,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertextL
             glwe_size,
             decomposition_level_count,
             decomposition_base_log,
+            // Not stored in the NTT GGSW ciphertexts
             ciphertext_modulus: _,
         } = self;
         data.split_into(ggsw_ciphertext_count.0).map(move |slice| {

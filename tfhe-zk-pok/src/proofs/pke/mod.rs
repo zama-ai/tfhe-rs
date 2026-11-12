@@ -61,8 +61,11 @@ impl<G: Curve> ParameterSetConformant for PublicParams<G> {
             q,
             t,
             msbs_zero_padding_bit_count,
+            // Checked by `is_usable`
             g_lists: _,
+            // Only used by `is_usable` as the length of `g_lists`
             n: _,
+            // Not constrained by the conformance parameters
             big_d: _,
             b_r: _,
             sid: _,
@@ -394,7 +397,9 @@ impl<G: Curve> ParameterSetConformant for Proof<G> {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
+            // Presence checked through `compute_load`, points by `is_usable`
             compute_load_proof_fields: _,
+            // Checked by `is_usable`
             c_hat: _,
             c_y: _,
             pi: _,
@@ -737,6 +742,7 @@ fn prove_impl<G: Curve>(
         b,
         c1,
         c2,
+        // Type marker, holds no data
         __marker: _,
     } = public.1;
     let PrivateCommit {
@@ -744,6 +750,7 @@ fn prove_impl<G: Curve>(
         e1,
         m,
         e2,
+        // Type marker, holds no data
         __marker: _,
     } = private_commit;
 
@@ -1245,6 +1252,7 @@ pub fn verify<G: Curve>(
         b,
         c1,
         c2,
+        // Type marker, holds no data
         __marker: _,
     } = public.1;
     let k = c2.len();

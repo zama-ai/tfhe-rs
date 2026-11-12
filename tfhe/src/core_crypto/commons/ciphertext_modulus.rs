@@ -80,7 +80,11 @@ impl std::error::Error for CiphertextModulusDeserializationError {}
 
 impl<Scalar: UnsignedInteger> From<CiphertextModulus<Scalar>> for SerializableCiphertextModulus {
     fn from(value: CiphertextModulus<Scalar>) -> Self {
-        let CiphertextModulus { inner, _scalar: _ } = value;
+        let CiphertextModulus {
+            inner,
+            // Type marker, its bit width is serialized from `Scalar::BITS`
+            _scalar: _,
+        } = value;
 
         let modulus = match inner {
             CiphertextModulusInner::Native => 0,

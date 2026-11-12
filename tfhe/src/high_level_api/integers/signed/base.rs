@@ -90,12 +90,16 @@ impl<Id: FheIntId> ParameterSetConformant for FheInt<Id> {
     fn is_conformant(&self, params: &FheIntConformanceParams<Id>) -> bool {
         let Self {
             ciphertext,
+            // Type marker, holds no data
             id: _,
+            // Any tag is valid
             tag: _,
+            // Arbitrary user data, any value is valid
             re_randomization_metadata: _,
         } = self;
         let FheIntConformanceParams {
             params: ct_params,
+            // Type marker, holds no data
             id: _,
         } = params;
 

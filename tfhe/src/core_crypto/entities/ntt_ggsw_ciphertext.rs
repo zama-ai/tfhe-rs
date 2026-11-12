@@ -189,6 +189,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertext<
             polynomial_size,
             glwe_size,
             decomposition_level_count,
+            // Not part of the level matrices
             decomposition_base_log: _,
         } = *self;
 

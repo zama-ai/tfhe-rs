@@ -126,6 +126,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKey<C>
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
+            // The part size only depends on the level count and the dimensions
             data: _,
             decomp_base_log: _,
             ciphertext_modulus: _,
@@ -146,6 +147,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKey<C>
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // Borrowed through `as_ref`
             data: _,
         } = *self;
         CmLwePackingKey::from_container(
@@ -186,6 +188,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLwePackingKey
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // Borrowed mutably through `as_mut`
             data: _,
         } = *self;
         CmLwePackingKey::from_container(
@@ -204,7 +207,9 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLwePackingKey
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // Borrowed mutably through `as_mut`
             data: _,
+            // Viewed as a flat list of ciphertexts whose count is deduced from the data
             decomp_base_log: _,
             decomp_level_count: _,
             input_lwe_dimension: _,
@@ -314,6 +319,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
         CmLwePackingKeyPartCreationMetadata {
@@ -338,6 +344,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
         CmLwePackingKeyCreationMetadata {

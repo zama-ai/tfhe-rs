@@ -55,6 +55,7 @@ impl NoiseSimulationLweKeyswitchKey {
             decomposition_base_log,
             decomposition_level_count,
             output_modulus,
+            // The noise distribution cannot be read back from a key
             noise_distribution: _,
         } = *self;
 

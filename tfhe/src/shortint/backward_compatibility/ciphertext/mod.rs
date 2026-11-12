@@ -128,6 +128,7 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV1 {
             message_modulus,
             carry_modulus,
             expansion_kind,
+            // Expansion sets the noise level of the blocks
             noise_level: _,
         } = self;
 
@@ -331,6 +332,7 @@ impl Upgrade<CompressedCiphertextList> for CompressedCiphertextListV1 {
             carry_modulus,
             atomic_pattern,
             lwe_per_glwe,
+            // Derived from the GLWE bodies count
             count: _,
         } = self;
 

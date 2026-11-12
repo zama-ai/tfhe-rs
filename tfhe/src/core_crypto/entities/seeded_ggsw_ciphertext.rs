@@ -288,6 +288,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
+            // Read by `decompress_seeded_ggsw_ciphertext`
             data: _,
             compression_seed: _,
         } = &self;
@@ -318,6 +319,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
+            // Read by `par_decompress_seeded_ggsw_ciphertext`
             data: _,
             compression_seed: _,
         } = &self;
@@ -377,7 +379,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             glwe_size,
             polynomial_size,
             ciphertext_modulus,
+            // Only used through `decomposition_level_count`
             data: _,
+            // The fork config only depends on the shape of the ciphertext
             compression_seed: _,
             decomp_base_log: _,
         } = self;
@@ -660,6 +664,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswLevelMat
             glwe_size,
             polynomial_size,
             ciphertext_modulus,
+            // The fork config only depends on the shape of the level matrix
             data: _,
             compression_seed: _,
         } = self;
@@ -750,7 +755,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             polynomial_size,
             ref compression_seed,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             decomp_base_log: _,
         } = *self;
 

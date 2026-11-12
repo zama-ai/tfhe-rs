@@ -453,6 +453,7 @@ impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
             carry_modulus,
             modulus_power_of_2_exponent,
             zk_scheme,
+            // Converted separately to the casting key switching parameters
             casting_parameters: _,
         } = c_params;
 
@@ -498,6 +499,7 @@ impl ShortintCompactPublicKeyEncryptionParameters {
             carry_modulus,
             ciphertext_modulus,
             zk_scheme,
+            // The C API parameters always require casting
             expansion_kind: _,
         } = compact_pke_params;
 

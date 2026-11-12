@@ -549,7 +549,11 @@ impl TryFrom<&ServerKey> for CompressedCiphertextListConformanceParams {
     type Error = crate::Error;
 
     fn try_from(sks: &ServerKey) -> Result<Self, Self::Error> {
-        let ServerKey { key, tag: _ } = sks;
+        let ServerKey {
+            key,
+            // Conformance doesn't depend on the tag
+            tag: _,
+        } = sks;
 
         let crate::integer::compression_keys::CompressionKey {
             key:
@@ -567,11 +571,13 @@ impl TryFrom<&ServerKey> for CompressedCiphertextListConformanceParams {
             ct_params:
                 crate::core_crypto::prelude::LweCiphertextConformanceParams {
                     ct_modulus,
+                    // The list stores GLWEs, their dimensions come from the packing key
                     lwe_dim: _,
                 },
             message_modulus,
             carry_modulus,
             atomic_pattern,
+            // Not stored in compressed lists
             degree: _,
             noise_level: _,
         } = key.pbs_key().key.conformance_params();
@@ -602,6 +608,7 @@ impl ParameterSetConformant for CompressedCiphertextList {
         let Self {
             inner,
             re_randomization_metadata,
+            // Any tag is valid
             tag: _,
         } = self;
         let CompressedCiphertextListConformanceParams { params } = parameter_set;

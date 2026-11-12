@@ -886,6 +886,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                     }
                     CastCiphertext::WrongKeyRequiresPBS {
                         ct: wrong_key_ct,
+                        // The output degree comes from the lookup table
                         degree: _,
                     } => {
                         output_cts

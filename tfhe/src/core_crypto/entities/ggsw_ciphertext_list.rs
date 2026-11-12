@@ -391,7 +391,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             polynomial_size,
             decomp_base_log,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             decomp_level_count: _,
         } = *self;
 
@@ -418,6 +420,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             decomp_base_log,
             decomp_level_count,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 

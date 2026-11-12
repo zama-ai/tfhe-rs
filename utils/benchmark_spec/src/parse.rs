@@ -262,6 +262,7 @@ mod tests {
                 type_tag: got_type_tag,
                 metric: got_metric,
                 num_elements: got_num_elements,
+                // Covered by `bench_path::tests::roundtrip_all_bench_paths`
                 bench_path: _,
             } = spec;
             let fs = &mut failures;

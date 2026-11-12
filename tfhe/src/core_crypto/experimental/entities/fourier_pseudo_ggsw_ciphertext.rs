@@ -189,6 +189,7 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
             glwe_size_out,
             polynomial_size,
             decomposition_level,
+            // Read through `row_count`
             glwe_size_in: _,
         } = self;
         data.split_into(row_count)
@@ -271,6 +272,7 @@ impl<'a> PseudoFourierGgswCiphertextView<'a> {
             glwe_size_in,
             glwe_size_out,
             decomposition_level_count,
+            // Not part of the level matrices
             decomposition_base_log: _,
         } = self;
 

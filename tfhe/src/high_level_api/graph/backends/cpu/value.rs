@@ -230,10 +230,12 @@ impl RuntimeValueConformanceParams {
             ValueKind::FheInt(bits) => Self::FheInt(radix(bits)),
             ValueKind::KVStore {
                 value: FheIntKind::Uint(bits),
+                // Keys are clear, only values have conformance params
                 key: _,
             } => Self::FheUintKVStore(radix(bits)),
             ValueKind::KVStore {
                 value: FheIntKind::Int(bits),
+                // Keys are clear, only values have conformance params
                 key: _,
             } => Self::FheIntKVStore(radix(bits)),
             ValueKind::Bool | ValueKind::Uint(_) | ValueKind::Int(_) | ValueKind::Seed => {

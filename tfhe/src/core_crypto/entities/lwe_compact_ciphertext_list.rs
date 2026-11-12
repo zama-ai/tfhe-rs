@@ -229,6 +229,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
             lwe_size,
             lwe_ciphertext_count,
             ciphertext_modulus,
+            // Read by `expand_lwe_compact_ciphertext_list`
             data: _,
         } = &self;
 
@@ -252,6 +253,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
             lwe_size,
             lwe_ciphertext_count,
             ciphertext_modulus,
+            // Read by `par_expand_lwe_compact_ciphertext_list`
             data: _,
         } = &self;
 

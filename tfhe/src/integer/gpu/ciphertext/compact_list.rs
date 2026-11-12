@@ -427,8 +427,11 @@ impl CudaFlattenedVecCompactCiphertextList {
             carry_modulus,
             expansion_kind,
             ciphertext_modulus,
+            // Integer level metadata, see `to_integer_compact_ciphertext_list`
             data_info: _,
+            // Derived from `data_info`, only used by the backend to expand the lists
             is_boolean: _,
+            // Sum of `num_lwe_per_compact_list`
             lwe_ciphertext_count: _,
         } = self;
 
@@ -519,7 +522,9 @@ impl CudaFlattenedVecCompactCiphertextList {
             message_modulus,
             carry_modulus,
             ciphertext_modulus,
+            // Only read through `is_packed`
             degree: _,
+            // Not checked, `zk_type` alone selects whether the list is cast
             expansion_kind: _,
         } = self;
         let &CudaKeySwitchingKey {

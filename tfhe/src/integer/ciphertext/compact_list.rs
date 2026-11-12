@@ -660,6 +660,7 @@ impl IntegerUnpackingToShortintCastingModeHelper {
                     let StringsUnpackingToShortintCastingModeHelper {
                         msg_extract_last_char_block,
                         blocks_per_char,
+                        // No carry to extract when not unpacking
                         carry_extract_last_char_block: _,
                     } = self.strings_helper()?;
                     for _ in 0..*n_chars {
@@ -1145,7 +1146,9 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
             carry_modulus,
             ciphertext_modulus,
             expansion_kind,
+            // Only used to encrypt
             encryption_noise_distribution: _,
+            // The accepted proof scheme is given by the CRS
             zk_scheme: _,
         } = value;
 

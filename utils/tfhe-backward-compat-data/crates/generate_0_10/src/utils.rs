@@ -74,6 +74,7 @@ impl ConvertParams<ClassicPBSParameters> for TestClassicParameterSet {
             max_noise_level,
             log2_p_fail,
             encryption_key_choice,
+            // Not supported by this TFHE-rs version
             modulus_switch_noise_reduction_params: _,
         } = self;
 

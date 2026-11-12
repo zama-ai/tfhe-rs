@@ -241,6 +241,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             decomp_base_log,
             decomp_level_count,
             ciphertext_modulus,
+            // Read by `decompress_seeded_ggsw_ciphertext_list`
             data: _,
             compression_seed: _,
         } = &self;
@@ -273,6 +274,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             decomp_base_log,
             decomp_level_count,
             ciphertext_modulus,
+            // Read by `par_decompress_seeded_ggsw_ciphertext_list`
             data: _,
             compression_seed: _,
         } = &self;
@@ -328,7 +330,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
             polynomial_size,
             decomp_level_count,
             ciphertext_modulus,
+            // Only used through `ggsw_ciphertext_count`
             data: _,
+            // The fork config only depends on the shape of the list
             compression_seed: _,
             decomp_base_log: _,
         } = self;
@@ -463,7 +467,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             decomp_base_log,
             ref compression_seed,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             decomp_level_count: _,
         } = *self;
 
@@ -494,6 +500,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             decomp_level_count,
             ref compression_seed,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 
@@ -600,6 +607,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             decomp_base_log,
             decomp_level_count,
             ciphertext_modulus,
+            // Only used to regenerate the mask on decompression, any value is accepted
             compression_seed: _,
         } = self;
 

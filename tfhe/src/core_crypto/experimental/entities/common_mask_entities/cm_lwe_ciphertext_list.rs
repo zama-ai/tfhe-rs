@@ -181,7 +181,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         let Self {
             lwe_dimension,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             cm_dimension: _,
         } = *self;
 
@@ -200,6 +202,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             lwe_dimension,
             cm_dimension,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 

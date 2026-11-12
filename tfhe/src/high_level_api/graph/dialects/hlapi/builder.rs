@@ -584,6 +584,7 @@ impl ExecutionGraphBuilder {
             | ValueKind::FheInt(n)
             | ValueKind::Uint(n)
             | ValueKind::Int(n) => Self::check_bits(n, op),
+            // Key kinds are fixed-width (U32/U64), there is no bit width to check
             ValueKind::KVStore { key: _, value } => Self::check_fhe_int_kind_bits(value, op),
             _ => Ok(()),
         }

@@ -259,6 +259,7 @@ impl CudaCompressedCiphertextList {
             message_modulus,
             carry_modulus,
             lwe_per_glwe,
+            // Carried by the GLWE list extracted below
             glwe_dimension: _,
             polynomial_size: _,
             storage_log_modulus: _,
@@ -402,6 +403,7 @@ impl CompressedCiphertextList {
                 message_modulus,
                 carry_modulus,
                 lwe_per_glwe,
+                // Not checked, the GPU assumes the standard atomic pattern
                 atomic_pattern: _,
             } = cpu_meta;
 

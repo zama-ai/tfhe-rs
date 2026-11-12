@@ -114,6 +114,7 @@ where
         let Self {
             ciphertext,
             tag,
+            // Marker type, carried by the output type
             id: _,
         } = self;
 
@@ -204,11 +205,14 @@ impl<Id: FheIntId> ParameterSetConformant for CompressedFheInt<Id> {
     fn is_conformant(&self, params: &CompressedFheIntConformanceParams<Id>) -> bool {
         let Self {
             ciphertext,
+            // Type marker, holds no data
             id: _,
+            // Any tag is valid
             tag: _,
         } = self;
         let CompressedFheIntConformanceParams {
             params: ct_params,
+            // Type marker, holds no data
             id: _,
         } = params;
 

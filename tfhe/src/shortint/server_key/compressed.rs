@@ -429,6 +429,7 @@ where
         let PBSConformanceParams {
             in_lwe_dimension,
             pbs_type,
+            // Checked through the conversion to the bootstrapping key conformance params
             out_glwe_dimension: _,
             out_polynomial_size: _,
             base_log: _,
@@ -484,9 +485,11 @@ where
             (
                 Self::MultiBit {
                     seeded_bsk,
+                    // Execution setting, not part of the key material
                     deterministic_execution: _,
                 },
                 PbsTypeConformanceParams::MultiBit {
+                    // Checked through the conversion to `MultiBitBootstrapKeyConformanceParams`
                     lwe_bsk_grouping_factor: _,
                 },
             ) => {

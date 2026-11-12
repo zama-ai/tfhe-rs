@@ -61,7 +61,9 @@ impl NoiseSimulationLweFourierBsk {
             output_polynomial_size: polynomial_size,
             decomp_base_log,
             decomp_level_count,
+            // The noise distribution cannot be read back from a key
             noise_distribution: _,
+            // Fourier keys don't store a ciphertext modulus
             modulus: _,
         } = *self;
 
@@ -208,7 +210,9 @@ impl NoiseSimulationLweFourier128Bsk {
             output_polynomial_size: polynomial_size,
             decomp_base_log,
             decomp_level_count,
+            // The noise distribution cannot be read back from a key
             noise_distribution: _,
+            // Fourier keys don't store a ciphertext modulus
             modulus: _,
         } = *self;
 

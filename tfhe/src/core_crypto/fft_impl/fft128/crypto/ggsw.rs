@@ -216,6 +216,7 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
             polynomial_size,
             glwe_size,
             decomposition_level_count,
+            // Not part of the level matrices
             decomposition_base_log: _,
         } = self;
 

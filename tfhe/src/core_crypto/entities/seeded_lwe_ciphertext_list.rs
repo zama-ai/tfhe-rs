@@ -161,6 +161,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
         let &Self {
             lwe_size,
             ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_ciphertext_list`
             data: _,
             compression_seed: _,
         } = &self;
@@ -187,6 +188,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
         let &Self {
             lwe_size,
             ciphertext_modulus,
+            // Read by `par_decompress_seeded_lwe_ciphertext_list`
             data: _,
             compression_seed: _,
         } = &self;
@@ -257,7 +259,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
         let &Self {
             lwe_size,
             ciphertext_modulus,
+            // Only used through `lwe_ciphertext_count`
             data: _,
+            // The fork config only depends on the shape of the list
             compression_seed: _,
         } = self;
 
@@ -379,7 +383,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         let Self {
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             lwe_size: _,
             compression_seed: _,
         } = *self;

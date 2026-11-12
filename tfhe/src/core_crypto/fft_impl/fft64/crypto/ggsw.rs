@@ -256,6 +256,7 @@ impl<'a> FourierGgswCiphertextView<'a> {
             fourier,
             glwe_size,
             decomposition_level_count,
+            // Not part of the level matrices
             decomposition_base_log: _,
         } = self;
 

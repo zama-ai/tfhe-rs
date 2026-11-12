@@ -66,10 +66,12 @@ impl<G: Curve> ParameterSetConformant for PublicParams<G> {
             q,
             t,
             msbs_zero_padding_bit_count,
+            // Checked by `is_usable`
             g_lists: _,
             n: _,
             B_bound_squared: _,
             bound_type: _,
+            // Not constrained by the conformance parameters
             D: _,
             sid: _,
             domain_separators: _,
@@ -555,6 +557,7 @@ impl<G: Curve> Proof<G> {
             pi,
             pi_kzg,
             ref compute_load_proof_fields,
+            // Checked by `is_conformant`
             hash_config: _,
         } = self;
 
@@ -603,6 +606,7 @@ impl<G: Curve> Proof<G> {
             pi,
             pi_kzg,
             compute_load_proof_fields,
+            // Not a group element, only the proof points are written
             hash_config: _,
         } = self;
 
@@ -708,7 +712,9 @@ impl<G: Curve> ParameterSetConformant for Proof<G> {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let &Self {
             hash_config,
+            // Presence checked through `compute_load`, points by `is_usable`
             compute_load_proof_fields: _,
+            // Checked by `is_usable`
             C_hat_e: _,
             C_e: _,
             C_r_tilde: _,
@@ -1153,6 +1159,7 @@ fn prove_impl<G: Curve>(
             msbs_zero_padding_bit_count,
             bound_type,
             domain_separators: ref ds,
+            // Hashed by `RHash::new`, which takes the whole public params
             sid: _,
         },
         PublicCommit {
@@ -1160,6 +1167,7 @@ fn prove_impl<G: Curve>(
             b,
             c1,
             c2,
+            // Type marker, holds no data
             __marker: _,
         },
     ) = public;
@@ -1174,6 +1182,7 @@ fn prove_impl<G: Curve>(
         e1,
         m,
         e2,
+        // Type marker, holds no data
         __marker: _,
     } = private_commit;
 
@@ -2292,6 +2301,7 @@ pub fn verify_impl<G: Curve>(
         C_hat_t,
         ref compute_load_proof_fields,
         hash_config,
+        // Read by the pairing checks, which take the whole proof
         pi: _,
         pi_kzg: _,
     } = proof;
@@ -2307,8 +2317,11 @@ pub fn verify_impl<G: Curve>(
         t: t_input,
         msbs_zero_padding_bit_count,
         bound_type,
+        // Read by the pairing checks through `public.0`
         g_lists: _,
+        // Not used by the verifier, which uses `B_squared` derived from `B_inf` and the actual `k`
         B_bound_squared: _,
+        // Used by the hash chain started by `RHash::new`, which takes the whole public params
         sid: _,
         domain_separators: _,
     } = public.0;
@@ -2326,6 +2339,7 @@ pub fn verify_impl<G: Curve>(
         b,
         c1,
         c2,
+        // Type marker, holds no data
         __marker: _,
     } = public.1;
     let k = c2.len();
@@ -2622,6 +2636,7 @@ fn pairing_check_two_steps<G: Curve>(
         pi,
         pi_kzg,
         ref compute_load_proof_fields,
+        // Already used to generate `scalars`
         hash_config: _,
     } = proof;
 
@@ -2678,6 +2693,7 @@ fn pairing_check_two_steps<G: Curve>(
                 match compute_load_proof_fields.as_ref() {
                     Some(&ComputeLoadProofFields {
                         C_hat_h3,
+                        // Paired with `C_e` in `lhs4`
                         C_hat_w: _,
                     }) => C_hat_h3,
                     None => G::G2::multi_mul_scalar(
@@ -2719,6 +2735,7 @@ fn pairing_check_two_steps<G: Curve>(
                 match compute_load_proof_fields.as_ref() {
                     Some(&ComputeLoadProofFields {
                         C_hat_w,
+                        // Paired with `C_r_tilde` in `lhs2`
                         C_hat_h3: _,
                     }) => C_hat_w,
                     None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
@@ -2820,6 +2837,7 @@ fn pairing_check_batched<G: Curve>(
         pi,
         pi_kzg,
         ref compute_load_proof_fields,
+        // Already used to generate `scalars`
         hash_config: _,
     } = proof;
 
@@ -2882,6 +2900,7 @@ fn pairing_check_batched<G: Curve>(
         s.spawn(|_| match compute_load_proof_fields.as_ref() {
             Some(&ComputeLoadProofFields {
                 C_hat_h3,
+                // Paired with `C_e` in `lhs4`
                 C_hat_w: _,
             }) => lhs2 = Some(pairing(C_r_tilde + g.mul_scalar(eta * chi3), C_hat_h3)),
             None => {
@@ -2923,6 +2942,7 @@ fn pairing_check_batched<G: Curve>(
         s.spawn(|_| match compute_load_proof_fields.as_ref() {
             Some(&ComputeLoadProofFields {
                 C_hat_w,
+                // Paired with `C_r_tilde` in `lhs2`
                 C_hat_h3: _,
             }) => {
                 lhs4 = Some(pairing(
@@ -3721,6 +3741,7 @@ pub(crate) mod tests {
             B,
             t,
             msbs_zero_padding_bit_count,
+            // Not an input of `compute_crs_params`
             q: _,
         } = PKEV2_TEST_PARAMS;
 

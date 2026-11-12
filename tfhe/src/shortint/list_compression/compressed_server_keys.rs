@@ -124,6 +124,7 @@ impl ParameterSetConformant for CompressedCompressionKey {
             uncompressed_polynomial_size,
             uncompressed_glwe_dimension,
             cipherext_modulus,
+            // Only used by the decompression key
             br_level: _,
             br_base_log: _,
             decompression_grouping_factor: _,
@@ -152,6 +153,7 @@ impl ParameterSetConformant for CompressedDecompressionKey {
         let Self { bsk, lwe_per_glwe } = self;
         let CompressionKeyConformanceParams {
             lwe_per_glwe: expected_lwe_per_glwe,
+            // Checked through the conversion to `PBSConformanceParams`
             br_level: _,
             br_base_log: _,
             packing_ks_polynomial_size: _,
@@ -160,6 +162,7 @@ impl ParameterSetConformant for CompressedDecompressionKey {
             uncompressed_glwe_dimension: _,
             decompression_grouping_factor: _,
             cipherext_modulus: _,
+            // Only used by the compression key
             packing_ks_level: _,
             packing_ks_base_log: _,
             storage_log_modulus: _,

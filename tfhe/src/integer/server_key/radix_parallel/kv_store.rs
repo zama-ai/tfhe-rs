@@ -455,6 +455,7 @@ where
             ref keys,
             ref values,
             is_signed,
+            // Type marker, holds no data
             _v: _,
         } = self;
 

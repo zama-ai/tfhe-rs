@@ -197,6 +197,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         let Self {
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 
@@ -210,6 +211,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
         let Self {
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 
@@ -462,7 +464,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         let Self {
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
+            // Not needed to create the element views
             lwe_dimension: _,
         } = *self;
 
@@ -477,6 +481,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         let Self {
             lwe_dimension,
             ciphertext_modulus,
+            // The container is split by the caller
             data: _,
         } = *self;
 

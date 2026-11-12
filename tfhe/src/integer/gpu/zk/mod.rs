@@ -117,6 +117,7 @@ impl CudaProvenCompactCiphertextList {
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
         let Self {
             d_flattened_compact_lists,
+            // Only needed to verify the proofs
             h_proved_lists: _,
         } = self;
 

@@ -280,6 +280,7 @@ impl<Id: FheUintId> Upgrade<CompressedFheUint<Id>> for CompressedFheUintV0<Id> {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedFheUint<Id>, Self::Error> {
+        // Type marker, holds no data
         let Self { ciphertext, id: _ } = self;
 
         Ok(CompressedFheUint::new(ciphertext, Tag::default()))
