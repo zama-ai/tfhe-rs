@@ -14,12 +14,18 @@ use crate::shortint::ciphertext::{
     CompressedCiphertextList as ShortintCompressedCiphertextList, CompressedCiphertextListMeta,
 };
 use crate::shortint::parameters::AtomicPatternKind;
-use crate::shortint::PBSOrder;
+use crate::shortint::{MessageModulus, PBSOrder};
 use itertools::Itertools;
 use std::num::NonZeroUsize;
 use std::ops::Range;
 
 pub trait CudaExpandable: Sized {
+    /// Rejects an item of `kind` that cannot be expanded into `Self`, before paying for its
+    /// decompression
+    fn check_kind(_kind: DataKind, _message_modulus: MessageModulus) -> crate::Result<()> {
+        Ok(())
+    }
+
     fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self>;
 }
 
@@ -108,7 +114,7 @@ impl CudaCompressedCiphertextList {
         Ok(Some((kind, range)))
     }
 
-    fn blocks_of(
+    fn blocks_of<T: CudaExpandable>(
         &self,
         index: usize,
         decomp_key: &CudaDecompressionKey,
@@ -117,6 +123,13 @@ impl CudaCompressedCiphertextList {
         let Some((current_info, block_range)) = self.block_range(index)? else {
             return Ok(None);
         };
+
+        let message_modulus = self
+            .packed_list
+            .message_modulus()
+            .ok_or_else(|| crate::error!("Missing metadata for list"))?;
+        T::check_kind(current_info, message_modulus)?;
+
         if block_range.is_empty() {
             return Err(crate::error!(
                 "Items stored without blocks are not supported on GPU"
@@ -164,7 +177,7 @@ impl CudaCompressedCiphertextList {
     where
         T: CudaExpandable,
     {
-        self.blocks_of(index, decomp_key, streams)?
+        self.blocks_of::<T>(index, decomp_key, streams)?
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
             .transpose()
     }

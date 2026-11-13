@@ -169,7 +169,7 @@ impl CompressedCiphertextList {
         Ok(Some((kind, range)))
     }
 
-    fn blocks_of(
+    fn blocks_of<T: Expandable>(
         &self,
         index: usize,
         decomp_key: &DecompressionKey,
@@ -177,6 +177,13 @@ impl CompressedCiphertextList {
         let Some((current_info, block_range)) = self.block_range(index)? else {
             return Ok(None);
         };
+
+        // If the list has at least one block, it should have a message modulus
+        let message_modulus = self
+            .packed_list
+            .message_modulus()
+            .ok_or_else(|| crate::error!("Missing metadata for list"))?;
+        T::check_kind(current_info, message_modulus)?;
 
         let blocks = block_range
             .into_par_iter()
@@ -194,7 +201,7 @@ impl CompressedCiphertextList {
     where
         T: Expandable,
     {
-        self.blocks_of(index, decomp_key)?
+        self.blocks_of::<T>(index, decomp_key)?
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
             .transpose()
     }

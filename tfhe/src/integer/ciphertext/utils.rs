@@ -21,6 +21,28 @@ pub enum DataKind {
 }
 
 impl DataKind {
+    /// Bit width of a radix item, or None if the item is not a radix, if the modulus is invalid
+    /// or on overflow
+    pub(crate) fn radix_num_bits(self, message_modulus: MessageModulus) -> Option<usize> {
+        let (Self::Unsigned(num_blocks) | Self::Signed(num_blocks)) = self else {
+            return None;
+        };
+        let bits_per_block = message_modulus.0.checked_ilog2()?;
+        num_blocks.get().checked_mul(bits_per_block as usize)
+    }
+
+    pub(crate) fn is_unsigned_radix(
+        self,
+        message_modulus: MessageModulus,
+        num_bits: usize,
+    ) -> bool {
+        matches!(self, Self::Unsigned(_)) && self.radix_num_bits(message_modulus) == Some(num_bits)
+    }
+
+    pub(crate) fn is_signed_radix(self, message_modulus: MessageModulus, num_bits: usize) -> bool {
+        matches!(self, Self::Signed(_)) && self.radix_num_bits(message_modulus) == Some(num_bits)
+    }
+
     pub fn num_blocks(self, message_modulus: MessageModulus) -> crate::Result<usize> {
         match self {
             Self::Unsigned(n) | Self::Signed(n) => Ok(n.get()),
@@ -129,6 +151,12 @@ impl DataKind {
 type BlocksCounter = fn(DataKind, MessageModulus) -> crate::Result<usize>;
 
 pub trait Expandable: Sized {
+    /// Rejects an item of `kind` that cannot be expanded into `Self`, before paying for its
+    /// decompression
+    fn check_kind(_kind: DataKind, _message_modulus: MessageModulus) -> crate::Result<()> {
+        Ok(())
+    }
+
     fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self>;
 }
 
