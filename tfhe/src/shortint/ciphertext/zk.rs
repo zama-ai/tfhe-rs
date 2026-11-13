@@ -35,6 +35,26 @@ impl CompactPkeCrs {
         P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>,
         crate::Error: From<E>,
     {
+        // 1 padding bit for the PBS, the carry bits are not constrained by the proof
+        Self::from_shortint_params_and_msbs_zero_padding_bit_count(
+            params,
+            max_num_message,
+            ZkMSBZeroPaddingBitCount(1),
+        )
+    }
+
+    /// Construct the CRS that corresponds to the given parameters, whose proofs guarantee that
+    /// the `msbs_zero_padding_bit_count` most significant bits of each plaintext (padding bit
+    /// included) are 0.
+    pub(crate) fn from_shortint_params_and_msbs_zero_padding_bit_count<P, E>(
+        params: P,
+        max_num_message: LweCiphertextCount,
+        msbs_zero_padding_bit_count: ZkMSBZeroPaddingBitCount,
+    ) -> crate::Result<Self>
+    where
+        P: TryInto<CompactPublicKeyEncryptionParameters, Error = E>,
+        crate::Error: From<E>,
+    {
         let params: CompactPublicKeyEncryptionParameters = params.try_into()?;
         let (size, noise_distribution) = (
             params.encryption_lwe_dimension,
@@ -45,8 +65,6 @@ impl CompactPkeCrs {
         // Our plaintext modulus does not take into account the bit of padding
         plaintext_modulus *= 2;
 
-        // 1 padding bit for the PBS
-        // Note that if we want to we can prove carry bits are 0 should we need it
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
             match params.zk_scheme {
                 SupportedCompactPkeZkScheme::V1 => Self::new_legacy_v1(
@@ -55,7 +73,7 @@ impl CompactPkeCrs {
                     noise_distribution,
                     params.ciphertext_modulus,
                     plaintext_modulus,
-                    ZkMSBZeroPaddingBitCount(1),
+                    msbs_zero_padding_bit_count,
                     &mut engine.random_generator,
                 ),
                 SupportedCompactPkeZkScheme::V2 => Self::new(
@@ -64,7 +82,7 @@ impl CompactPkeCrs {
                     noise_distribution,
                     params.ciphertext_modulus,
                     plaintext_modulus,
-                    ZkMSBZeroPaddingBitCount(1),
+                    msbs_zero_padding_bit_count,
                     &mut engine.random_generator,
                 ),
                 SupportedCompactPkeZkScheme::ZkNotSupported => {
