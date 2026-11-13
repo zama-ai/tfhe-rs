@@ -353,7 +353,7 @@ fn format_golden_const(name: &str, blocks: &[Vec<u64>]) -> String {
 /// can overwrite the committed data. To refresh the golden data, temporarily
 /// annotate it with `#[test]` `#[ignore]`, run it on an H100 (sm_90) with
 /// `cargo test --profile release --features=integer,internal-keycache,gpu -p tfhe --lib --
-/// sum_ciphertexts_golden::generate_sum_ciphertexts_golden --ignored --exact`,
+/// sum_ciphertexts_golden::generate_sum_ciphertexts_golden --ignored`,
 /// then commit the regenerated file and remove the annotations again.
 #[allow(dead_code)]
 fn generate_sum_ciphertexts_golden() {
