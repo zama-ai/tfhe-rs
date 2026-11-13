@@ -537,6 +537,15 @@ check_iac_security:
 	fi; \
 	MISCONFIG_SCANNERS=terraform "$$dir/.github/actions/trivy-iac/scan.sh"
 
+DEPENDABOT_COVERAGE_VENV=venv_dependabot_coverage
+.PHONY: dependabot_coverage_setup_venv # Create venv with the python requirements of the dependabot coverage check
+dependabot_coverage_setup_venv:
+	$(call create_python_venv_with_requirements,$(DEPENDABOT_COVERAGE_VENV),scripts/dependabot-coverage-requirements.txt)
+
+.PHONY: check_dependabot_coverage # Check that the dependabot configuration tracks all the dependency manifests
+check_dependabot_coverage: dependabot_coverage_setup_venv
+	$(DEPENDABOT_COVERAGE_VENV)/bin/python scripts/check_dependabot_coverage.py
+
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
