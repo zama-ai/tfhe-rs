@@ -5207,54 +5207,54 @@ dependencies = [
 
 [[package]]
 name = "zhc"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e72cbb30966f76991fc8b9a5153fe8bd1fbd2bf529d82d709d0df86d346f09b7"
+checksum = "e24f0cd7f830ddb5b84e5a39e4387a3457436cdae59c73f24217c8a5f24d8069"
 dependencies = [
  "zhc_builder",
  "zhc_config",
  "zhc_crypto",
- "zhc_ir 0.12.1",
+ "zhc_ir 0.12.3",
  "zhc_langs",
  "zhc_pipeline",
  "zhc_sim",
- "zhc_utils 0.12.1",
+ "zhc_utils 0.12.3",
 ]
 
 [[package]]
 name = "zhc_builder"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "442da6c4d43caf31b51094cdedc48ef587a002807b9137024e3af179a985fee2"
+checksum = "43d7db9e72691b7eafdf9004b9f1fbb934be3f3b174b52ee37539f95cba50559"
 dependencies = [
  "zhc_crypto",
- "zhc_ir 0.12.1",
+ "zhc_ir 0.12.3",
  "zhc_langs",
- "zhc_utils 0.12.1",
+ "zhc_utils 0.12.3",
 ]
 
 [[package]]
 name = "zhc_config"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eca48a8a780f95f65083ef248675914c746ff30edeb1f7884114c0eab6022a80"
+checksum = "eda1022fb35aa38233abe66e64ede8aa1153081ea8ed5420d79d77514c5e1475"
 dependencies = [
  "serde",
  "serde_json",
  "toml 0.9.12+spec-1.1.0",
- "zhc_utils 0.12.1",
+ "zhc_utils 0.12.3",
 ]
 
 [[package]]
 name = "zhc_crypto"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2da847f8d122b1a96a36395c382da4b302d34561ab555e1829fb7c318a26fb36"
+checksum = "d56ac702b018535e9e4506d6f177e4657a5b2012e4cc599bc08c69a5b3d5c0e8"
 dependencies = [
  "paste",
  "rand 0.10.1",
  "serde",
- "zhc_utils 0.12.1",
+ "zhc_utils 0.12.3",
 ]
 
 [[package]]
@@ -5270,33 +5270,33 @@ dependencies = [
 
 [[package]]
 name = "zhc_ir"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c95403c8a7297c0c19b60cb79dc43079818e1d1af0ace99014cadac80a70442"
+checksum = "c9da579d097564370e66110273daba2a31ce6aeaf628d78b40fa167c03ef9bb8"
 dependencies = [
  "serde",
- "zhc_utils 0.12.1",
- "zhc_utils_macro 0.12.1",
+ "zhc_utils 0.12.3",
+ "zhc_utils_macro 0.12.3",
 ]
 
 [[package]]
 name = "zhc_langs"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d3f9c35a7ddcc11fc642d56837a3db9b8f7849b940a9380766ecfc111937ec9"
+checksum = "7f9295e4ac29674029e0f1bdb85045e4b128fe3e6de9f3a7260e131ba3bc8bca"
 dependencies = [
  "serde",
  "zhc_crypto",
- "zhc_ir 0.12.1",
+ "zhc_ir 0.12.3",
  "zhc_langs_macro",
- "zhc_utils 0.12.1",
+ "zhc_utils 0.12.3",
 ]
 
 [[package]]
 name = "zhc_langs_macro"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "589f1245c058c25f65e6af6a07e59832bad71009edfffe2833cf8f815cd60681"
+checksum = "60c38b640c7b0b8ba88dd2664595b3e5d1d5ef7d1136a1bcc4731cca98428ad5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5305,40 +5305,40 @@ dependencies = [
 
 [[package]]
 name = "zhc_pipeline"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c0ab577e6c6a06d3994e5e3bbe55c0d9ffb2d8c325db5b23bdf5a05ebbed850"
+checksum = "4724523b1cc3b00fb60c57f8732ed0bc2b2d494da2a08eccd6fe441774ed66e5"
 dependencies = [
  "bitfield-struct 0.10.1",
  "rand 0.10.1",
  "serde",
  "zhc_config",
  "zhc_crypto",
- "zhc_ir 0.12.1",
+ "zhc_ir 0.12.3",
  "zhc_langs",
  "zhc_profiling",
  "zhc_sim",
- "zhc_utils 0.12.1",
+ "zhc_utils 0.12.3",
 ]
 
 [[package]]
 name = "zhc_profiling"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abad0e10d29e06486529256a28e37b0150ae565dfc0e26ff2ab2b90e3c6be745"
+checksum = "903eb89d85b3f41fe023336add1f41cb197fe3f55b4388bd8c0687ca15e5574f"
 
 [[package]]
 name = "zhc_sim"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc465215efeb643a0972519b748a35f0fb2c2497cfe32228e7344d80e79ee95d"
+checksum = "dd6356f5b2203999bd6aaabaaee78288b9947c123b10184451e0b2e7897a3a94"
 dependencies = [
  "serde",
  "serde_json",
  "toml 0.9.12+spec-1.1.0",
  "zhc_config",
  "zhc_langs",
- "zhc_utils 0.12.1",
+ "zhc_utils 0.12.3",
 ]
 
 [[package]]
@@ -5355,9 +5355,9 @@ dependencies = [
 
 [[package]]
 name = "zhc_utils"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef0e3b8fa8503a306c0c83f1a37e8e208bdd0136b6c2a00097a280aee6dc6ad0"
+checksum = "535336dcca0b62b80c0d85676f1164e6ee0684bb437ca99b572d52862d2df473"
 dependencies = [
  "libc",
  "paste",
@@ -5365,7 +5365,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "zhc_utils_macro 0.12.1",
+ "zhc_utils_macro 0.12.3",
 ]
 
 [[package]]
@@ -5381,9 +5381,9 @@ dependencies = [
 
 [[package]]
 name = "zhc_utils_macro"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78fa0a51b30c130945876595e18355c1019ddf903a2f2216ed58e0aeba691ca7"
+checksum = "94fdea7c981fd3d19441662c1792801622bb7c7d059eb51c10eda5d25aa8a387"
 dependencies = [
  "proc-macro2",
  "quote",
