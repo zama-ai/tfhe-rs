@@ -1,3 +1,6 @@
+# The ci_lint workflow checks with 'make check_dependabot_coverage' that the directories
+# listed below track all the manifests of their ecosystem, a manifest added elsewhere
+# has to be listed here, see scripts/check_dependabot_coverage.py
 version: 2
 
 updates:
@@ -50,6 +53,25 @@ updates:
       default-days: 7
     groups:
       npm-minor-patch:
+        applies-to: version-updates
+        group-by: dependency-name
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "pip"
+    directories:
+      - "/ci/"
+      - "/ci/data_extractor/"
+      - "/ci/perf_regression/"
+      - "/backends/tfhe-hpu-backend/python/"
+      - "/scripts/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    groups:
+      pip-minor-patch:
         applies-to: version-updates
         group-by: dependency-name
         update-types:
