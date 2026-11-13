@@ -831,12 +831,14 @@ impl CompressedCiphertextList {
 pub mod gpu {
     use crate::core_crypto::gpu::CudaStreams;
     use crate::high_level_api::integers::{FheIntId, FheUintId};
+    use crate::high_level_api::utils::kind_mismatch_error;
     use crate::integer::ciphertext::DataKind;
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
         CudaCompressible, CudaExpandable,
     };
     use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+    use crate::shortint::MessageModulus;
     use crate::{FheBool, FheInt, FheUint, ReRandomizationMetadata, Tag};
 
     impl<Id: FheUintId> CudaCompressible for FheUint<Id> {
@@ -885,6 +887,17 @@ pub mod gpu {
     }
 
     impl<Id: FheUintId> CudaExpandable for FheUint<Id> {
+        fn check_kind(kind: DataKind, message_modulus: MessageModulus) -> crate::Result<()> {
+            if kind.is_unsigned_radix(message_modulus, Id::num_bits()) {
+                return Ok(());
+            }
+            Err(kind_mismatch_error(
+                &format!("FheUint{}", Id::num_bits()),
+                kind,
+                message_modulus,
+            ))
+        }
+
         fn from_expanded_blocks(
             blocks: CudaRadixCiphertext,
             kind: DataKind,
@@ -930,6 +943,17 @@ pub mod gpu {
     }
 
     impl<Id: FheIntId> CudaExpandable for FheInt<Id> {
+        fn check_kind(kind: DataKind, message_modulus: MessageModulus) -> crate::Result<()> {
+            if kind.is_signed_radix(message_modulus, Id::num_bits()) {
+                return Ok(());
+            }
+            Err(kind_mismatch_error(
+                &format!("FheInt{}", Id::num_bits()),
+                kind,
+                message_modulus,
+            ))
+        }
+
         fn from_expanded_blocks(
             blocks: CudaRadixCiphertext,
             kind: DataKind,
@@ -975,6 +999,13 @@ pub mod gpu {
     }
 
     impl CudaExpandable for FheBool {
+        fn check_kind(kind: DataKind, message_modulus: MessageModulus) -> crate::Result<()> {
+            if kind == DataKind::Boolean {
+                return Ok(());
+            }
+            Err(kind_mismatch_error("FheBool", kind, message_modulus))
+        }
+
         fn from_expanded_blocks(
             blocks: CudaRadixCiphertext,
             kind: DataKind,

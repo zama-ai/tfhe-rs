@@ -14,10 +14,12 @@ use crate::high_level_api::errors::UninitializedServerKey;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::re_randomization::ReRandomizationMetadata;
+use crate::high_level_api::utils::kind_mismatch_error;
 use crate::integer::ciphertext::{Compressible, DataKind, Expandable};
 use crate::named::Named;
 use crate::prelude::{FheDecrypt, FheTryEncrypt, FheTryTrivialEncrypt, Tagged};
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
+use crate::shortint::MessageModulus;
 use crate::strings::ciphertext::FheString;
 use crate::{ClientKey, HlExpandable, Tag};
 pub use no_pattern::{FheStringIsEmpty, FheStringLen};
@@ -380,6 +382,13 @@ impl FheDecrypt<String> for FheAsciiString {
 }
 
 impl Expandable for FheAsciiString {
+    fn check_kind(kind: DataKind, message_modulus: MessageModulus) -> crate::Result<()> {
+        if matches!(kind, DataKind::String { .. }) {
+            return Ok(());
+        }
+        Err(kind_mismatch_error("FheAsciiString", kind, message_modulus))
+    }
+
     fn from_expanded_blocks(
         blocks: Vec<crate::shortint::Ciphertext>,
         kind: DataKind,
