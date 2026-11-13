@@ -5,6 +5,16 @@ name: aws_tfhe_integer_tests_tier_2
 on:
   # Run tier 2 on any branch, e.g. before merging a change to multi-bit
   workflow_dispatch:
+    inputs:
+      profile:
+        description: "Test profile of the radix test harness"
+        type: choice
+        options:
+          - cpu_light
+          - cpu_baseline
+          - cpu_extensive
+          - cpu_fhevm
+        default: cpu_baseline
   schedule:
     # Tier 2, every other day
     - cron: "0 3 * * MON,WED,FRI"
@@ -23,6 +33,8 @@ jobs:
     uses: ./.github/workflows/aws_tfhe_integer_tests_common.yml
     with:
       tiers: "2"
+      # Scheduled runs have no inputs
+      profile: ${{ inputs.profile || 'cpu_baseline' }}
     secrets:
       REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

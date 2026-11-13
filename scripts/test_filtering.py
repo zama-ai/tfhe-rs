@@ -64,7 +64,8 @@ parser.add_argument(
     "--fast-tests",
     dest="fast_tests",
     action="store_true",
-    help="Run only a small subset of test suite",
+    help="Run only a small subset of test suite (with --tier: only the default operations of "
+    "the tiers)",
 )
 parser.add_argument(
     "--long-tests",
@@ -279,6 +280,10 @@ def filter_cpu_integer_tests_by_tier(input_args):
     if input_args.unsigned_only:
         filter_expression.append("not test(~_signed)")
 
+    if input_args.fast_tests:
+        # Only the default operations
+        filter_expression.append("test(/_default_/)")
+
     filter_expression.append(f"not test(/{INTEGER_LONG_RUN_TESTS}/)")
 
     return " and ".join(filter_expression)
@@ -386,16 +391,15 @@ if __name__ == "__main__":
     if (args.tiers or args.check) and (args.layer != "integer" or args.backend != "cpu"):
         parser.error("--tier and --check only apply to the integer layer on the cpu backend")
     if args.tiers and (
-        args.fast_tests
-        or args.nightly_tests
+        args.nightly_tests
         or args.long_tests
         or args.no_big_params
         or args.all_but_noise
         or args.multi_bit
     ):
         parser.error(
-            "--tier replaces --fast-tests, --nightly-tests, --long-tests, --no-big-params, "
-            "--all-but-noise and --multi-bit (multi-bit params belong to tiers like any param)"
+            "--tier replaces --nightly-tests, --long-tests, --no-big-params, --all-but-noise "
+            "and --multi-bit (multi-bit params belong to tiers like any param)"
         )
 
     if args.check:

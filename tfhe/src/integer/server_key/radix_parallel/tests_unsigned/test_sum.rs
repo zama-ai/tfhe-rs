@@ -83,6 +83,8 @@ pub(crate) fn default_unsigned_overflowing_sum_ciphertexts_vec_test<E>(
 {
     // Same lengths as `default_sum_ciphertexts_vec_test`
     TestBuilder::new(ctx)
+        // TODO: the profiles do not cover vector operations yet, their sizes and number of
+        // random cases are set here until we know how to parameterize them
         .size_requirements(vec_size_requirements(ctx, VEC_LENS))
         .n_random(2)
         .fixed_cases(sum_boundary_fixed_cases)
@@ -119,6 +121,8 @@ where
     E: ExecuteOn<(Vec<RadixCiphertext>,), Option<RadixCiphertext>>,
 {
     TestBuilder::new(ctx)
+        // TODO: the profiles do not cover vector operations yet, their sizes and number of
+        // random cases are set here until we know how to parameterize them
         .size_requirements(vec_size_requirements(ctx, VEC_LENS))
         .n_random(2)
         .fixed_cases(sum_boundary_fixed_cases)

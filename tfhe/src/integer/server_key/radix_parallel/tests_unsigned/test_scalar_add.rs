@@ -35,7 +35,6 @@ where
     E: ExecuteOn<(RadixCiphertext, u64), RadixCiphertext>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(default_scalar_fixed_cases::<u64>)
         .execute(executor, |(lhs, rhs): (Uint, TestScalar<u64>)| {
             // The scalar is reduced to the radix width
@@ -106,7 +105,6 @@ where
     E: ExecuteOn<(RadixCiphertext, i64), (RadixCiphertext, BooleanBlock)>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(signed_scalar_on_unsigned_radix_cases)
         .execute(executor, |(lhs, rhs): (Uint, TestScalar<i64>)| {
             // Adding a negative scalar is subtracting its magnitude
@@ -143,7 +141,9 @@ where
                 .map(SizeRequirements::new_scalar)
                 .to_vec(),
         )
-        .n_random(0)
+        // Only fixed_cases: default_overflowing_scalar_add_test already draws random inputs,
+        // this test only adds the edges of a scalar narrower than the radix
+        .fixed_cases_only()
         .fixed_cases(narrow_scalar_cases)
         .execute(executor, |(lhs, rhs): (Uint, TestScalar<u8>)| {
             lhs.overflowing_scalar_add(rhs.clear())

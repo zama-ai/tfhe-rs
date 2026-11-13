@@ -48,7 +48,6 @@ where
     E: ExecuteOn<(SignedRadixCiphertext, ShiftAmountOperand<u128>), SignedRadixCiphertext>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(scalar_shift_amount_fixed_cases::<Int, u128>)
         .execute(executor, |(lhs, amount): (Int, ShiftAmount<u128>)| {
             lhs.rotate_left(amount.value())
@@ -78,7 +77,6 @@ where
     E: ExecuteOn<(SignedRadixCiphertext, ShiftAmountOperand<u128>), SignedRadixCiphertext>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(scalar_shift_amount_fixed_cases::<Int, u128>)
         .execute(executor, |(lhs, amount): (Int, ShiftAmount<u128>)| {
             lhs.rotate_right(amount.value())
