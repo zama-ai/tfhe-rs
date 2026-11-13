@@ -772,6 +772,10 @@ fuzz_postcampaign: install_cargo_afl
 fuzz_clean:
 	rm -rf utils/fuzz/sync_dir utils/fuzz/stored_corpus utils/fuzz/stored_crashes utils/fuzz/summary.md
 
+.PHONY: fuzz_clean_all # Also wipe seed corpus and generated aux data (keys/CRS); next run must re-seed
+fuzz_clean_all: fuzz_clean
+	rm -rf utils/fuzz/corpus utils/fuzz/aux_data
+
 .PHONY: fuzz_gpu_postcampaign # Postprocess a finished GPU campaign: save crashes, minimize corpus, write summary.md
 fuzz_gpu_postcampaign: install_cargo_afl
 	cd utils/fuzz && ./postcampaign.sh --gpu
@@ -784,29 +788,39 @@ fuzz_gpu_precampaign: install_cargo_afl
 fuzz_gpu_build: install_cargo_afl
 	cd utils/fuzz && ./build.sh --gpu
 
-.PHONY: fuzz_gpu_run # Run GPU AFL harness: 2 instances per GPU, auto-detected via nvidia-smi
+.PHONY: fuzz_gpu_run # Run GPU AFL harness: 2 instances per GPU, auto-detected via nvidia-smi (restrict to one with FUZZ_GPU_HARNESS={cuda_compute|cuda_scalars})
 fuzz_gpu_run: check_fuzz_system_config
-	cd utils/fuzz && ./run.sh --gpu $(if $(FUZZ_DURATION_SECONDS),--duration-seconds $(FUZZ_DURATION_SECONDS))
+	cd utils/fuzz && ./run.sh --gpu $(if $(FUZZ_DURATION_SECONDS),--duration-seconds $(FUZZ_DURATION_SECONDS)) \
+		$(if $(FUZZ_GPU_HARNESS),--gpu-harness $(FUZZ_GPU_HARNESS))
 
 .PHONY: fuzz_gpu_reproduce # Reproduce GPU crashes from a CI artifact: GPU_FUZZ_ARTIFACT=<unpacked-artifact-dir>
 fuzz_gpu_reproduce:
 	$(if $(GPU_FUZZ_ARTIFACT),,$(error GPU_FUZZ_ARTIFACT is not set. Usage: make fuzz_gpu_reproduce GPU_FUZZ_ARTIFACT=<unpacked-artifact-dir>))
-	TFHE_CUDA_FUZZING=1 cargo build -p harness-cuda-compute --features gpu
-	@crashes="$(GPU_FUZZ_ARTIFACT)/stored_crashes/cuda-compute"; \
-	if [ ! -d "$$crashes" ]; then echo "ERROR: no crashes dir at $$crashes" >&2; exit 1; fi; \
-	total=$$(ls "$$crashes" | wc -l); \
-	echo "==> Reproducing $$total crash(es) from $$crashes"; \
-	failed=0; \
-	for f in "$$crashes"/*; do \
-		echo "--- $$(basename $$f)"; \
-		if RUST_BACKTRACE=1 TFHE_FUZZ_AUX_DIR="$(GPU_FUZZ_ARTIFACT)/aux_data" \
-				./target/debug/harness-cuda-compute < "$$f"; then \
-			echo "    (no crash)"; \
-		else \
-			failed=$$((failed + 1)); \
+	TFHE_CUDA_FUZZING=1 cargo build -p harness-cuda-compute -p harness-cuda-scalars --features gpu
+	@overall_failed=0; overall_total=0; \
+	for harness in cuda-compute cuda-scalars; do \
+		crashes="$(GPU_FUZZ_ARTIFACT)/stored_crashes/$$harness"; \
+		if [ ! -d "$$crashes" ]; then \
+			echo "==> $$harness: no crashes dir at $$crashes, skipping"; \
+			continue; \
 		fi; \
+		total=$$(ls "$$crashes" | wc -l); \
+		echo "==> $$harness: reproducing $$total crash(es) from $$crashes"; \
+		failed=0; \
+		for f in "$$crashes"/*; do \
+			echo "--- $$(basename $$f)"; \
+			if RUST_BACKTRACE=1 TFHE_FUZZ_AUX_DIR="$(GPU_FUZZ_ARTIFACT)/aux_data" \
+					./target/debug/harness-$$harness < "$$f"; then \
+				echo "    (no crash)"; \
+			else \
+				failed=$$((failed + 1)); \
+			fi; \
+		done; \
+		echo "==> $$harness: $$failed/$$total inputs crashed"; \
+		overall_failed=$$((overall_failed + failed)); \
+		overall_total=$$((overall_total + total)); \
 	done; \
-	echo "==> $$failed/$$total inputs crashed"
+	echo "==> total $$overall_failed/$$overall_total inputs crashed"
 
 .PHONY: clippy_wasm_par_mq # Run clippy lints on wasm-par-mq and its examples
 clippy_wasm_par_mq: install_rs_check_toolchain

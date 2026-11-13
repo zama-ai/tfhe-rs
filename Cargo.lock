@@ -1582,6 +1582,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "harness-cuda-scalars"
+version = "0.1.0"
+dependencies = [
+ "fuzz-utils",
+ "tfhe",
+]
+
+[[package]]
 name = "harness-deser"
 version = "0.1.0"
 dependencies = [
