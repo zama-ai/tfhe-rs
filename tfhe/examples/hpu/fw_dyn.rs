@@ -3,8 +3,8 @@
 //!
 //! Operations (`--zhc-ops`, `<n>` = number of Hpu, 1 to 8):
 //!  * `MhMulF<n>`: multiplication with hand-grouped partitions (n = 2, 4 or 8)
-//!  * `MhDivF<n>`, `AddF<n>`, `CmpGtF<n>`, `ShiftRF<n>`, `Erc7984F<n>`: zhc automatic
-//!    partitioning. `Erc7984F<n>` is the latency-optimised (non-SIMD) ERC7984 transfer
+//!  * `MhDivF<n>`, `AddF<n>`, `CmpGtF<n>`, `ShiftRF<n>`, `Erc7984F<n>`: zhc automatic partitioning.
+//!    `Erc7984F<n>` is the latency-optimised (non-SIMD) ERC7984 transfer
 //!
 //! With `--check`, every iteration uses new inputs and its result is checked against the clear
 //! computation.
