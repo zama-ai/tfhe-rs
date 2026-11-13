@@ -2443,13 +2443,13 @@ mod hpu {
     /// Splits a zhc `Signature`'s argument types into (ciphertext specs, immediate count).
     fn split_signature_args(
         signature: &zhc::ir::Signature<zhc::builder::Type>,
-    ) -> (Vec<zhc::builder::CiphertextSpec>, usize) {
+    ) -> (Vec<zhc::builder::SpecInteger>, usize) {
         let mut ct_specs = Vec::new();
         let mut imm_count = 0;
         for ty in signature.get_args() {
-            match ty {
-                zhc::builder::Type::Ciphertext(spec) => ct_specs.push(*spec),
-                zhc::builder::Type::Plaintext(_) => imm_count += 1,
+            match hpu_asm::ct_spec(ty) {
+                Some(spec) => ct_specs.push(spec),
+                None => imm_count += 1,
             }
         }
         (ct_specs, imm_count)

@@ -188,10 +188,7 @@ mod hpu_test {
                 let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
                     .get_args()
                     .iter()
-                    .filter_map(|ty| match ty {
-                        zhc::builder::Type::Ciphertext(spec) => Some(spec),
-                        zhc::builder::Type::Plaintext(_) => None,
-                    })
+                    .filter_map(hpu_asm::ct_spec)
                     .map(|spec| {
                         let bw = spec.int_size() as usize;
                         let block = bw / device.params().pbs_params.message_width;
@@ -214,7 +211,7 @@ mod hpu_test {
                 let imm_count = signature
                     .get_args()
                     .iter()
-                    .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                    .filter(|ty| matches!(ty, zhc::builder::Type::PlaintextInteger(_)))
                     .count();
                 let imms_u128 = (0..imm_count)
                     .map(|_pos| rng.gen_range(0_u128..max_val))
@@ -850,10 +847,7 @@ mod hpu_test {
                 let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
                     .get_args()
                     .iter()
-                    .filter_map(|ty| match ty {
-                        zhc::builder::Type::Ciphertext(spec) => Some(spec),
-                        zhc::builder::Type::Plaintext(_) => None,
-                    })
+                    .filter_map(hpu_asm::ct_spec)
                     .map(|spec| {
                         let bw = spec.int_size() as usize;
                         let block = bw / device.params().pbs_params.message_width;
@@ -876,7 +870,7 @@ mod hpu_test {
                 let imm_count = signature
                     .get_args()
                     .iter()
-                    .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                    .filter(|ty| matches!(ty, zhc::builder::Type::PlaintextInteger(_)))
                     .count();
                 let imms = (0..imm_count)
                     .map(|_pos| rng.gen_range(0..u128::MAX) as u128)

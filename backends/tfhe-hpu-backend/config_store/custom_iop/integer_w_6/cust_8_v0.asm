@@ -3,7 +3,7 @@
 ; ------------------------------------------------------------------------------
 ; !preamble {
 ; [signature]
-; (Ciphertext<6, 2, 2>, Ciphertext<6, 2, 2>) -> Ciphertext<6, 2, 2>
+; (CiphertextInteger<6, 2, 2>, CiphertextInteger<6, 2, 2>) -> CiphertextInteger<6, 2, 2>
 ; [lut]
 ; } ----------------------------------------------------------------------------
 
