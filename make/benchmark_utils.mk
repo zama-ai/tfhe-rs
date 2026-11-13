@@ -16,12 +16,12 @@ clippy_benchmark_parser: install_rs_check_toolchain
 DATA_EXTRACTOR_VENV=venv_data_extractor
 .PHONY: data_extractor_setup_venv # Create venv with the python requirements of the data extractor
 data_extractor_setup_venv:
-	$(call create_python_venv_with_requirements,$(DATA_EXTRACTOR_VENV),ci/data_extractor/requirements.txt)
+	$(call create_python_venv_with_requirements,$(DATA_EXTRACTOR_VENV),ci/data_extractor_requirements.txt)
 
 PERF_REGRESSION_VENV=venv_perf_regression
 .PHONY: perf_regression_setup_venv # Create venv with the python requirements of the performance regression checks, data extractor included
 perf_regression_setup_venv:
-	$(call create_python_venv_with_requirements,$(PERF_REGRESSION_VENV),ci/perf_regression/requirements.txt ci/data_extractor/requirements.txt)
+	$(call create_python_venv_with_requirements,$(PERF_REGRESSION_VENV),ci/perf_regression_requirements.txt ci/data_extractor_requirements.txt)
 
 SLAB_SEND_DATA_VENV=venv_slab_send_data
 .PHONY: slab_send_data_setup_venv # Create venv with the python requirements of the slab data sender script

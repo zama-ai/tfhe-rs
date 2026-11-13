@@ -1,3 +1,6 @@
+# The ci_lint workflow checks with 'make check_dependabot_coverage' that the directories
+# listed below track all the manifests of their ecosystem, a manifest added elsewhere
+# has to be listed here, see scripts/check_dependabot_coverage.py
 version: 2
 
 updates:
@@ -50,6 +53,37 @@ updates:
       default-days: 7
     groups:
       npm-minor-patch:
+        applies-to: version-updates
+        group-by: dependency-name
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Python requirements lock files (*requirements.txt) are generated from their
+  # *requirements.in sources by uv, see scripts/python_requirements.sh, hence the uv
+  # ecosystem: the pip one runs pip-tools, which cannot generate lock files valid on all
+  # platforms. Dependabot runs 'uv pip compile' itself, from the listed directory, with
+  # the options it finds in the header of the lock file, and its pull requests have to
+  # pass 'make check_python_requirements'.
+  # Requirements files must not be in a directory directly below a listed one:
+  # Dependabot reads those from the listed directory as well, under another path, which
+  # ends up in the lock file, see scripts/check_dependabot_coverage.py.
+  # Security updates are another matter: for requirements files, Dependabot generates
+  # them with pip-tools, as the pip ecosystem does, even with this entry. This is not
+  # documented but observed. When such a pull request fails the lock files check, run
+  # 'make compile_python_requirements' on its branch: it repairs the lock files and
+  # keeps the versions Dependabot selected.
+  - package-ecosystem: "uv"
+    directories:
+      - "/ci/"
+      - "/backends/tfhe-hpu-backend/python/"
+      - "/scripts/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    groups:
+      python-minor-patch:
         applies-to: version-updates
         group-by: dependency-name
         update-types:
