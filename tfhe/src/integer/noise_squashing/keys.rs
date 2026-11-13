@@ -301,15 +301,12 @@ impl NoiseSquashingKey {
         Self { key }
     }
 
-    pub fn squash_radix_ciphertext_noise(
+    fn pack_and_squash_ct_blocks(
         &self,
+        blocks: &[crate::shortint::Ciphertext],
         src_server_key: &ServerKey,
-        ciphertext: &RadixCiphertext,
-    ) -> crate::Result<SquashedNoiseRadixCiphertext> {
-        let original_block_count = ciphertext.blocks.len();
-
-        let packed_blocks = ciphertext
-            .blocks
+    ) -> crate::Result<Vec<crate::shortint::ciphertext::SquashedNoiseCiphertext>> {
+        blocks
             .par_chunks(2)
             .map(|two_values| {
                 let packed = src_server_key
@@ -319,7 +316,17 @@ impl NoiseSquashingKey {
                 self.key
                     .checked_squash_ciphertext_noise(&packed, &src_server_key.key)
             })
-            .collect::<crate::Result<Vec<_>>>()?;
+            .collect::<crate::Result<Vec<_>>>()
+    }
+
+    pub fn squash_radix_ciphertext_noise(
+        &self,
+        src_server_key: &ServerKey,
+        ciphertext: &RadixCiphertext,
+    ) -> crate::Result<SquashedNoiseRadixCiphertext> {
+        let original_block_count = ciphertext.blocks.len();
+
+        let packed_blocks = self.pack_and_squash_ct_blocks(&ciphertext.blocks, src_server_key)?;
 
         Ok(SquashedNoiseRadixCiphertext {
             packed_blocks,
@@ -334,16 +341,7 @@ impl NoiseSquashingKey {
     ) -> crate::Result<SquashedNoiseSignedRadixCiphertext> {
         let original_block_count = ciphertext.blocks.len();
 
-        let packed_blocks = ciphertext
-            .blocks
-            .par_chunks(2)
-            .map(|two_values| {
-                let packed = src_server_key.pack_block_chunk(two_values);
-
-                self.key
-                    .checked_squash_ciphertext_noise(&packed, &src_server_key.key)
-            })
-            .collect::<crate::Result<Vec<_>>>()?;
+        let packed_blocks = self.pack_and_squash_ct_blocks(&ciphertext.blocks, src_server_key)?;
 
         Ok(SquashedNoiseSignedRadixCiphertext {
             packed_blocks,
