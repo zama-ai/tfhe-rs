@@ -75,6 +75,31 @@ where
     )))
 }
 
+fn push_dispatch(
+    builder: &mut hlapi::StreamCiphertextListBuilder,
+    value: JsValue,
+    kind: FheTypes,
+) -> Result<(), JsError> {
+    let (stream_kind, natural_bits) = classify(kind)?;
+    match stream_kind {
+        IntegerStreamCiphertextKind::Boolean => {
+            let b = value
+                .as_bool()
+                .ok_or_else(|| JsError::new("expected a boolean value"))?;
+            builder.push(b);
+        }
+        IntegerStreamCiphertextKind::Unsigned => {
+            let v: BigUnsigned = value.try_into()?;
+            builder.push_with_num_bits(v, natural_bits as usize);
+        }
+        IntegerStreamCiphertextKind::Signed => {
+            let v: BigSigned = value.try_into()?;
+            builder.push_with_num_bits(v, natural_bits as usize);
+        }
+    }
+    Ok(())
+}
+
 fn bytes_to_16_array(bytes: &[u8], name: &str) -> Result<[u8; 16], JsError> {
     <[u8; 16]>::try_from(bytes).map_err(|_| {
         JsError::new(&format!(
@@ -531,6 +556,86 @@ impl StreamCiphertext {
     #[wasm_bindgen]
     pub fn cipher_kind(&self) -> StreamCipherKind {
         self.0.cipher_kind().into()
+    }
+
+    #[wasm_bindgen]
+    pub fn safe_serialize(&self, serialized_size_limit: u64) -> Result<Vec<u8>, JsError> {
+        let mut buffer = vec![];
+        catch_panic_result(|| {
+            crate::safe_serialization::SerializationConfig::new(serialized_size_limit)
+                .serialize_into(&self.0, &mut buffer)
+                .map_err(into_js_error)
+        })?;
+
+        Ok(buffer)
+    }
+
+    #[wasm_bindgen]
+    pub fn safe_deserialize(buffer: &[u8], serialized_size_limit: u64) -> Result<Self, JsError> {
+        catch_panic_result(|| {
+            crate::safe_serialization::DeserializationConfig::new(serialized_size_limit)
+                .disable_conformance()
+                .deserialize_from(buffer)
+                .map(Self)
+                .map_err(into_js_error)
+        })
+    }
+}
+
+// -- StreamCiphertextList -----------------------------------------------------
+
+#[wasm_bindgen]
+pub struct StreamCiphertextListBuilder(hlapi::StreamCiphertextListBuilder);
+
+#[wasm_bindgen]
+impl StreamCiphertextListBuilder {
+    /// Push `value` as a `kind`: a JS `boolean` for `Bool`, a number or `BigInt` otherwise.
+    #[wasm_bindgen]
+    pub fn push(&mut self, value: JsValue, kind: FheTypes) -> Result<(), JsError> {
+        catch_panic_result(|| push_dispatch(&mut self.0, value, kind))
+    }
+
+    /// Number of pad bits needed to build the list
+    #[wasm_bindgen]
+    pub fn n_bits(&self) -> usize {
+        self.0.n_bits()
+    }
+
+    /// Encrypts the pushed values with the next [`Self::n_bits`] bits of the pad
+    #[wasm_bindgen]
+    pub fn build(&self, state: &mut OneTimePadPlainState) -> Result<StreamCiphertextList, JsError> {
+        catch_panic_result(|| {
+            self.0
+                .build(&mut state.0)
+                .map(StreamCiphertextList)
+                .map_err(into_js_error)
+        })
+    }
+}
+
+#[wasm_bindgen]
+pub struct StreamCiphertextList(pub(crate) hlapi::StreamCiphertextList);
+
+#[wasm_bindgen]
+impl StreamCiphertextList {
+    #[wasm_bindgen]
+    pub fn builder() -> StreamCiphertextListBuilder {
+        StreamCiphertextListBuilder(hlapi::StreamCiphertextList::builder())
+    }
+
+    #[wasm_bindgen]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[wasm_bindgen]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[wasm_bindgen]
+    pub fn n_bits(&self) -> usize {
+        self.0.n_bits()
     }
 
     #[wasm_bindgen]
