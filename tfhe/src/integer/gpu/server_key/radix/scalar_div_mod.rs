@@ -1,18 +1,18 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
-    cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_scalar_bitop_size_on_gpu,
     cuda_backend_get_scalar_div_rem_size_on_gpu, cuda_backend_get_scalar_div_size_on_gpu,
     cuda_backend_get_signed_scalar_div_rem_size_on_gpu,
     cuda_backend_get_signed_scalar_div_size_on_gpu,
     cuda_backend_unchecked_signed_scalar_div_assign,
     cuda_backend_unchecked_signed_scalar_div_rem_assign,
     cuda_backend_unchecked_unsigned_scalar_div_assign,
-    cuda_backend_unchecked_unsigned_scalar_div_rem, CudaServerKey,
+    cuda_backend_unchecked_unsigned_scalar_div_rem, BitOpType, CudaServerKey,
 };
 use crate::integer::server_key::radix_parallel::scalar_div_mod::SignedReciprocable;
 use crate::integer::server_key::radix_parallel::OutputFlag;
@@ -243,6 +243,11 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
+        if MiniUnsignedInteger::is_power_of_two(divisor) {
+            // The remainder is simply the bits that would get 'shifted out' (same as the CPU)
+            return self.scalar_bitand(numerator, divisor - Scalar::ONE, streams);
+        }
+
         self.unchecked_scalar_div_rem(numerator, divisor, streams).1
     }
 
@@ -673,11 +678,60 @@ encrypted bits: {numerator_bits}, scalar bits: {}
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        if MiniUnsignedInteger::is_power_of_two(divisor) {
-            return self.get_scalar_bitand_size_on_gpu(numerator, streams);
-        }
+        assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
-        self.get_scalar_div_rem_size_on_gpu(numerator, divisor, streams)
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        let ct_size = self.get_ciphertext_size_on_gpu(numerator);
+        // A dirty numerator is duplicated, then propagated
+        let (numerator_copy, full_prop_mem) = if numerator.block_carries_are_empty() {
+            (0, 0)
+        } else {
+            (
+                ct_size,
+                cuda_backend_get_full_propagate_assign_size_on_gpu(
+                    streams,
+                    &self.bootstrapping_key,
+                    computing_ks_key.params_ffi(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                ),
+            )
+        };
+
+        // Both paths copy the blocks of `divisor - 1` to the GPU
+        let clear_blocks_size = (BlockDecomposer::with_early_stop_at_zero(
+            divisor - Scalar::ONE,
+            self.message_modulus.0.ilog2(),
+        )
+        .iter_as::<u64>()
+        .count()
+            * size_of::<u64>()) as u64;
+
+        let rem_mem = if MiniUnsignedInteger::is_power_of_two(divisor) {
+            // unchecked_scalar_rem: scalar_bitand(numerator, divisor - 1), into a new radix
+            let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+            ct_size
+                + clear_blocks_size
+                + cuda_backend_get_scalar_bitop_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    &self.bootstrapping_key,
+                    computing_ks_key.params_ffi(),
+                    BitOpType::ScalarAnd,
+                    num_blocks,
+                )
+        } else {
+            // unchecked_scalar_div_rem: quotient and remainder radix + div_rem scratch
+            2 * ct_size
+                + clear_blocks_size
+                + self.get_scalar_div_rem_size_on_gpu(numerator, divisor, streams)
+        };
+
+        numerator_copy + full_prop_mem.max(rem_mem)
     }
 
     pub fn get_signed_scalar_div_size_on_gpu<Scalar>(

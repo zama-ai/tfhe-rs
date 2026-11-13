@@ -501,6 +501,59 @@ where
     })
 }
 
+/// Returns the GPU memory (in bytes) that [`fhe_array_contains`] allocates, or 0 when the
+/// current server key is not a GPU key.
+///
+/// It covers the copy of every element made by [`fhe_array_contains`], the copy of `value` when
+/// it is not on the GPU, and the memory needed by the GPU `contains`.
+#[cfg(feature = "gpu")]
+pub fn fhe_array_contains_size_on_gpu<T>(data: &[T], value: &T) -> u64
+where
+    T: FheIntegerType,
+{
+    use crate::high_level_api::details::MaybeCloned;
+
+    global_state::with_internal_keys(|sks| match sks {
+        InternalServerKey::Cuda(gpu_key) => {
+            let streams = &gpu_key.streams;
+            let key = gpu_key.pbs_key();
+            let mut elements_size = 0u64;
+            let mut elements_are_clean = true;
+            for element in data {
+                let element = element.on_gpu(streams);
+                elements_size += radix_size_on_gpu(&*element);
+                elements_are_clean &= element.block_carries_are_empty();
+            }
+            let gpu_value = value.on_gpu(streams);
+            let value_copy = match &gpu_value {
+                MaybeCloned::Borrowed(_) => 0,
+                MaybeCloned::Cloned(ct) => radix_size_on_gpu(ct),
+            };
+            // fhe_array_contains duplicates every element before calling contains
+            elements_size
+                + value_copy
+                + key.get_contains_size_on_gpu_from_parts(
+                    data.len(),
+                    elements_size,
+                    elements_are_clean,
+                    &*gpu_value,
+                    streams,
+                )
+        }
+        InternalServerKey::Cpu(_) => 0,
+        #[cfg(feature = "hpu")]
+        InternalServerKey::Hpu(_) => 0,
+    })
+}
+
+#[cfg(feature = "gpu")]
+fn radix_size_on_gpu<C: CudaIntegerRadixCiphertext>(ct: &C) -> u64 {
+    let blocks = &ct.as_ref().d_blocks;
+    (blocks.lwe_ciphertext_count().0
+        * blocks.lwe_dimension().to_lwe_size().0
+        * std::mem::size_of::<u64>()) as u64
+}
+
 /// Small helper to reduce code
 ///
 /// * num_bits: num bits of the FheType

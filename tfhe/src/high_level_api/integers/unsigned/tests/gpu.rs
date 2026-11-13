@@ -765,9 +765,10 @@ fn test_gpu_get_add_and_sub_size_on_gpu() {
         check_valid_cuda_malloc_assert_oom(sub_tmp_buffer_size, GpuIndex::new(0));
         check_valid_cuda_malloc_assert_oom(scalar_add_tmp_buffer_size, GpuIndex::new(0));
         check_valid_cuda_malloc_assert_oom(scalar_sub_tmp_buffer_size, GpuIndex::new(0));
-        assert_eq!(add_tmp_buffer_size, sub_tmp_buffer_size);
+        // sub also needs the negated rhs, and returns a new radix (as does `scalar - b`)
+        assert!(sub_tmp_buffer_size > add_tmp_buffer_size);
         assert_eq!(add_tmp_buffer_size, scalar_add_tmp_buffer_size);
-        assert_eq!(add_tmp_buffer_size, scalar_sub_tmp_buffer_size);
+        assert!(scalar_sub_tmp_buffer_size > add_tmp_buffer_size);
         let neg_tmp_buffer_size = a.get_neg_size_on_gpu();
         check_valid_cuda_malloc_assert_oom(neg_tmp_buffer_size, GpuIndex::new(0));
     }

@@ -1666,7 +1666,7 @@ macro_rules! define_scalar_ops {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
                             let streams = &cuda_key.streams;
-                                cuda_key.key.key.get_scalar_sub_size_on_gpu(
+                                cuda_key.key.key.get_left_scalar_sub_size_on_gpu(
                                     &*rhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )

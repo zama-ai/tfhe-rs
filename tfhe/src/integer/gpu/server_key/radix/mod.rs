@@ -979,9 +979,10 @@ impl CudaServerKey {
     }
     /// Returns the memory space occupied by a radix ciphertext on GPU
     pub fn get_ciphertext_size_on_gpu<T: CudaIntegerRadixCiphertext>(&self, ct: &T) -> u64 {
+        // Each block stores lwe_dimension mask elements and the body
         (ct.as_ref().d_blocks.lwe_ciphertext_count().0
             * size_of::<u64>()
-            * ct.as_ref().d_blocks.lwe_dimension().0) as u64
+            * ct.as_ref().d_blocks.lwe_dimension().to_lwe_size().0) as u64
     }
 
     /// Applies the lookup table on the range of ciphertexts

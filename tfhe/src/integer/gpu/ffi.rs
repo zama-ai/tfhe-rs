@@ -57,6 +57,7 @@ pub enum ShiftRotateType {
     RightRotate = 3,
 }
 
+#[derive(Clone, Copy)]
 #[repr(u32)]
 pub enum ComparisonType {
     EQ = 0,
@@ -1747,6 +1748,42 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Returns the size of the scratch buffer allocated by `cuda_backend_unchecked_scalar_comparison`
+/// (nothing is allocated on the GPU).
+pub(crate) fn cuda_backend_get_scalar_comparison_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    op: ComparisonType,
+    is_signed: bool,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_integer_scalar_comparison_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            num_blocks,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            op as u32,
+            is_signed,
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_integer_scalar_comparison_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
+#[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
@@ -2149,6 +2186,42 @@ pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu
     };
     unsafe {
         cleanup_cuda_add_and_propagate_single_carry_64_inplace(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+    size_tracker
+}
+
+/// Returns the size of the scratch buffer allocated by
+/// `cuda_backend_sub_and_propagate_single_carry_assign` (nothing is allocated on the GPU).
+pub(crate) fn cuda_backend_get_sub_and_propagate_single_carry_assign_size_on_gpu(
+    streams: &CudaStreams,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    requested_flag: OutputFlag,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            num_blocks,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            requested_flag as u32,
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_sub_and_propagate_single_carry_64_inplace(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
         );
@@ -8369,6 +8442,39 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
     cleanup_cuda_unchecked_contains_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
     update_noise_degree(&mut output.0.ciphertext, &ffi_output);
+}
+
+/// Returns the size of the scratch buffer allocated by `cuda_backend_unchecked_contains`
+/// (nothing is allocated on the GPU).
+pub(crate) fn cuda_backend_get_unchecked_contains_size_on_gpu(
+    streams: &CudaStreams,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_inputs: u32,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let size_tracker = unsafe {
+        scratch_cuda_unchecked_contains_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            num_inputs,
+            num_blocks,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+        )
+    };
+
+    unsafe { cleanup_cuda_unchecked_contains_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr)) };
+
+    size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -204,17 +204,29 @@ impl CudaServerKey {
             self.message_modulus,
             self.carry_modulus,
         );
-        let actual_full_prop_mem = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
+        // Dirty operands are duplicated then propagated; the copies stay alive until the end
+        let lhs_copy = if ct_left.block_carries_are_empty() {
+            0
+        } else {
+            self.get_ciphertext_size_on_gpu(ct_left)
+        };
+        let rhs_copy = if ct_right.block_carries_are_empty() {
+            0
+        } else {
+            self.get_ciphertext_size_on_gpu(ct_right)
+        };
+        let actual_full_prop_mem = if lhs_copy + rhs_copy == 0 {
+            0
+        } else {
+            full_prop_mem
         };
 
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
+        // max / min return a radix, the other comparisons a single block
+        let output_size = match op {
+            ComparisonType::MAX | ComparisonType::MIN => self.get_ciphertext_size_on_gpu(ct_left),
+            _ => self.get_ciphertext_size_on_gpu(ct_left) / lwe_ciphertext_count.0.max(1) as u64,
+        };
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -239,7 +251,7 @@ impl CudaServerKey {
             op,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(comparison_mem)
+        lhs_copy + rhs_copy + actual_full_prop_mem.max(output_size + comparison_mem)
     }
 
     /// Compares for non equality 2 ciphertexts
