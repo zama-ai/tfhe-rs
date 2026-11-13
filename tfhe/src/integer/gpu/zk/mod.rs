@@ -3,7 +3,8 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{CiphertextModulus, LweCiphertextCount};
 use crate::integer::ciphertext::ReRandomizationSeed;
 use crate::integer::gpu::ciphertext::compact_list::{
-    CudaCompactCiphertextListExpander, CudaFlattenedVecCompactCiphertextList,
+    CudaCompactCiphertextListExpander, CudaCompactCiphertextListExpansionKey,
+    CudaFlattenedVecCompactCiphertextList,
 };
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
 use crate::integer::parameters::LweDimension;
@@ -38,31 +39,12 @@ impl CudaProvenCompactCiphertextList {
         key: &CudaKeySwitchingKey,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        let (all_valid, r) = rayon::join(
-            || {
-                self.h_proved_lists
-                    .ct_list
-                    .proved_lists
-                    .par_iter()
-                    .all(|(ct_list, proof)| {
-                        verify_lwe_compact_ciphertext_list(
-                            &ct_list.ct_list,
-                            &public_key.key.key,
-                            proof,
-                            crs,
-                            metadata,
-                        )
-                        .is_valid()
-                    })
-            },
-            || self.expand_without_verification(key, streams),
-        );
-
-        if all_valid {
-            return r;
-        }
-
-        Err(crate::ErrorKind::InvalidZkProof.into())
+        self.maybe_verify_maybe_re_randomize_and_expand(
+            Some((crs, public_key, metadata)),
+            None,
+            &CudaCompactCiphertextListExpansionKey::CastAndUnpack(*key),
+            streams,
+        )
     }
 
     pub fn verify_re_randomize_and_expand(
@@ -74,31 +56,12 @@ impl CudaProvenCompactCiphertextList {
         seed: ReRandomizationSeed,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        let (all_valid, r) = rayon::join(
-            || {
-                self.h_proved_lists
-                    .ct_list
-                    .proved_lists
-                    .par_iter()
-                    .all(|(ct_list, proof)| {
-                        verify_lwe_compact_ciphertext_list(
-                            &ct_list.ct_list,
-                            &public_key.key.key,
-                            proof,
-                            crs,
-                            metadata,
-                        )
-                        .is_valid()
-                    })
-            },
-            || self.re_randomize_and_expand_without_verification(key, public_key, seed, streams),
-        );
-
-        if all_valid {
-            return r;
-        }
-
-        Err(crate::ErrorKind::InvalidZkProof.into())
+        self.maybe_verify_maybe_re_randomize_and_expand(
+            Some((crs, public_key, metadata)),
+            Some((public_key, seed)),
+            &CudaCompactCiphertextListExpansionKey::CastAndUnpack(*key),
+            streams,
+        )
     }
 
     /// # Safety
@@ -110,8 +73,12 @@ impl CudaProvenCompactCiphertextList {
         key: &CudaKeySwitchingKey,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        self.d_flattened_compact_lists
-            .expand(key, super::ZKType::Casting, streams)
+        self.maybe_verify_maybe_re_randomize_and_expand(
+            None,
+            None,
+            &CudaCompactCiphertextListExpansionKey::CastAndUnpack(*key),
+            streams,
+        )
     }
 
     /// # Safety
@@ -125,10 +92,66 @@ impl CudaProvenCompactCiphertextList {
         seed: ReRandomizationSeed,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        let mut rerandomized = self.duplicate(streams);
-        rerandomized.re_randomize(public_key, seed, streams)?;
+        self.maybe_verify_maybe_re_randomize_and_expand(
+            None,
+            Some((public_key, seed)),
+            &CudaCompactCiphertextListExpansionKey::CastAndUnpack(*key),
+            streams,
+        )
+    }
 
-        rerandomized.expand_without_verification(key, streams)
+    /// Verifies the proofs if `verification` is given, re-randomizes the lists if
+    /// `re_randomization` is given, and expands them with `key`.
+    ///
+    /// The verification runs in parallel with the expansion. The expansion result is only
+    /// returned if all the proofs are valid.
+    pub(crate) fn maybe_verify_maybe_re_randomize_and_expand(
+        &self,
+        verification: Option<(&CompactPkeCrs, &CompactPublicKey, &[u8])>,
+        re_randomization: Option<(&CompactPublicKey, ReRandomizationSeed)>,
+        key: &CudaCompactCiphertextListExpansionKey<'_>,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaCompactCiphertextListExpander> {
+        let expand = move || match re_randomization {
+            Some((public_key, seed)) => {
+                let mut rerandomized = self.duplicate(streams);
+                rerandomized.re_randomize(public_key, seed, streams)?;
+                rerandomized
+                    .d_flattened_compact_lists
+                    .expand_with_key(key, streams)
+            }
+            None => self.d_flattened_compact_lists.expand_with_key(key, streams),
+        };
+
+        let Some((crs, public_key, metadata)) = verification else {
+            return expand();
+        };
+
+        let (all_valid, r) = rayon::join(
+            || {
+                self.h_proved_lists
+                    .ct_list
+                    .proved_lists
+                    .par_iter()
+                    .all(|(ct_list, proof)| {
+                        verify_lwe_compact_ciphertext_list(
+                            &ct_list.ct_list,
+                            &public_key.key.key,
+                            proof,
+                            crs,
+                            metadata,
+                        )
+                        .is_valid()
+                    })
+            },
+            expand,
+        );
+
+        if all_valid {
+            return r;
+        }
+
+        Err(crate::ErrorKind::InvalidZkProof.into())
     }
 
     pub fn re_randomize(
