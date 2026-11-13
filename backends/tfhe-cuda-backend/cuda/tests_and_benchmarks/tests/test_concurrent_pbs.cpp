@@ -37,6 +37,13 @@ constexpr int CONCURRENT_ITERATIONS = 2000;
 
 namespace {
 
+CudaLweBootstrapKeyParamsFFI concurrent_bsk_params(int lwe_dimension) {
+  return make_bsk_params_ffi(
+      lwe_dimension, CONCURRENT_GLWE_DIMENSION, CONCURRENT_POLYNOMIAL_SIZE,
+      CONCURRENT_PBS_BASE_LOG, CONCURRENT_PBS_LEVEL,
+      classical_pbs_params{PBS_MS_REDUCTION_T::NO_REDUCTION});
+}
+
 // Keys, lut and input for one LWE dimension, shared read-only by the threads
 // running it.
 struct ConcurrentPbsKeys {
@@ -107,10 +114,8 @@ struct ConcurrentPbsWorker {
                                   1);
     d_lwe_ct_out = (uint64_t *)cuda_malloc_async(out_size, stream, gpu_index);
     scratch_cuda_programmable_bootstrap_2_2_specialized_64_async(
-        stream, gpu_index, &pbs_buffer, keys.lwe_dimension,
-        CONCURRENT_GLWE_DIMENSION, CONCURRENT_POLYNOMIAL_SIZE,
-        CONCURRENT_PBS_BASE_LOG, CONCURRENT_PBS_LEVEL, 1, true,
-        PBS_MS_REDUCTION_T::NO_REDUCTION);
+        stream, gpu_index, &pbs_buffer,
+        concurrent_bsk_params(keys.lwe_dimension), 1, true);
     cuda_synchronize_stream(stream, gpu_index);
   }
 
@@ -121,9 +126,7 @@ struct ConcurrentPbsWorker {
         (void *)keys.d_lwe_output_indexes, (void *)keys.d_lut_pbs_identity,
         (void *)keys.d_lut_pbs_indexes, (void *)keys.d_lwe_ct_in_array,
         (void *)keys.d_lwe_input_indexes, (void *)keys.d_fourier_bsk_array,
-        pbs_buffer, keys.lwe_dimension, CONCURRENT_GLWE_DIMENSION,
-        CONCURRENT_POLYNOMIAL_SIZE, CONCURRENT_PBS_BASE_LOG,
-        CONCURRENT_PBS_LEVEL, 1, 1, 0);
+        pbs_buffer, concurrent_bsk_params(keys.lwe_dimension), 1, 1, 0);
   }
 
   // Checks the last result decrypts to the expected message.
@@ -157,9 +160,7 @@ TEST(ConcurrentSpecialized2_2ProgrammableBootstrap, DistinctLweDimensions) {
   uint32_t gpu_index = 0;
   for (int n : CONCURRENT_LWE_DIMENSIONS)
     if (!pbs_2_2_specialized_params_checker<uint64_t>(
-            CONCURRENT_POLYNOMIAL_SIZE, CONCURRENT_GLWE_DIMENSION,
-            CONCURRENT_PBS_LEVEL, n, CONCURRENT_PBS_BASE_LOG,
-            cuda_get_max_shared_memory(gpu_index))) {
+            concurrent_bsk_params(n), cuda_get_max_shared_memory(gpu_index))) {
       GTEST_SKIP()
           << "The 2_2 specialized classical PBS is not supported here.";
     }

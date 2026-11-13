@@ -564,21 +564,24 @@ __host__ void execute_compute_keybundle_128(
     cudaStream_t stream, uint32_t gpu_index, InputTorus const *lwe_array_in,
     InputTorus const *lwe_input_indexes, __uint128_t const *bootstrapping_key,
     pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t lwe_offset) {
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
-  uint64_t chunk_size = std::min(
-      lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
+  uint64_t chunk_size =
+      std::min(lwe_chunk_size,
+               (uint64_t)(bsk_params.input_lwe_dimension /
+                          bsk_params.pbs_params.multi_bit.grouping_factor) -
+                   lwe_offset);
 
-  uint64_t keybundle_size_per_input =
-      lwe_chunk_size * level_count * (glwe_dimension + 1) *
-      (glwe_dimension + 1) * (polynomial_size / 2) * 4;
+  uint64_t keybundle_size_per_input = lwe_chunk_size * bsk_params.level_count *
+                                      (bsk_params.glwe_dimension + 1) *
+                                      (bsk_params.glwe_dimension + 1) *
+                                      (bsk_params.polynomial_size / 2) * 4;
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   auto d_mem = buffer->d_mem_keybundle;
@@ -586,24 +589,30 @@ __host__ void execute_compute_keybundle_128(
 
   // Compute a keybundle
   dim3 grid_keybundle(num_samples * chunk_size,
-                      (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+                      (bsk_params.glwe_dimension + 1) *
+                          (bsk_params.glwe_dimension + 1),
+                      bsk_params.level_count);
+  dim3 thds(bsk_params.polynomial_size / params::opt, 1, 1);
   if (max_shared_memory < full_sm_keybundle)
     device_multi_bit_programmable_bootstrap_keybundle_128<InputTorus, params,
                                                           NOSM>
         <<<grid_keybundle, thds, 0, stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
-            d_mem, full_sm_keybundle);
+            bsk_params.input_lwe_dimension, bsk_params.glwe_dimension,
+            bsk_params.polynomial_size,
+            bsk_params.pbs_params.multi_bit.grouping_factor,
+            bsk_params.level_count, lwe_offset, chunk_size,
+            keybundle_size_per_input, d_mem, full_sm_keybundle);
   else
     device_multi_bit_programmable_bootstrap_keybundle_128<InputTorus, params,
                                                           FULLSM>
         <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
-            d_mem, 0);
+            bsk_params.input_lwe_dimension, bsk_params.glwe_dimension,
+            bsk_params.polynomial_size,
+            bsk_params.pbs_params.multi_bit.grouping_factor,
+            bsk_params.level_count, lwe_offset, chunk_size,
+            keybundle_size_per_input, d_mem, 0);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -615,29 +624,34 @@ __host__ void execute_compute_keybundle_noise_tests_128(
     cudaStream_t stream, uint32_t gpu_index, InputTorus const *lwe_array_in,
     InputTorus const *lwe_input_indexes, __uint128_t const *bootstrapping_key,
     pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t lwe_offset) {
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
-  uint64_t chunk_size = std::min(
-      lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
+  uint64_t chunk_size =
+      std::min(lwe_chunk_size,
+               (uint64_t)(bsk_params.input_lwe_dimension /
+                          bsk_params.pbs_params.multi_bit.grouping_factor) -
+                   lwe_offset);
 
-  uint64_t keybundle_size_per_input =
-      lwe_chunk_size * level_count * (glwe_dimension + 1) *
-      (glwe_dimension + 1) * (polynomial_size / 2) * 4;
+  uint64_t keybundle_size_per_input = lwe_chunk_size * bsk_params.level_count *
+                                      (bsk_params.glwe_dimension + 1) *
+                                      (bsk_params.glwe_dimension + 1) *
+                                      (bsk_params.polynomial_size / 2) * 4;
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   auto d_mem = buffer->d_mem_keybundle;
   auto keybundle_fft = buffer->keybundle_fft;
 
   dim3 grid_keybundle(num_samples * chunk_size,
-                      (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+                      (bsk_params.glwe_dimension + 1) *
+                          (bsk_params.glwe_dimension + 1),
+                      bsk_params.level_count);
+  dim3 thds(bsk_params.polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < full_sm_keybundle) {
     check_cuda_error(cudaFuncSetAttribute(
@@ -652,9 +666,11 @@ __host__ void execute_compute_keybundle_noise_tests_128(
                                                           NOSM, true>
         <<<grid_keybundle, thds, 0, stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
-            d_mem, full_sm_keybundle);
+            bsk_params.input_lwe_dimension, bsk_params.glwe_dimension,
+            bsk_params.polynomial_size,
+            bsk_params.pbs_params.multi_bit.grouping_factor,
+            bsk_params.level_count, lwe_offset, chunk_size,
+            keybundle_size_per_input, d_mem, full_sm_keybundle);
   } else {
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_keybundle_128<
@@ -668,9 +684,11 @@ __host__ void execute_compute_keybundle_noise_tests_128(
                                                           FULLSM, true>
         <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
-            d_mem, 0);
+            bsk_params.input_lwe_dimension, bsk_params.glwe_dimension,
+            bsk_params.polynomial_size,
+            bsk_params.pbs_params.multi_bit.grouping_factor,
+            bsk_params.level_count, lwe_offset, chunk_size,
+            keybundle_size_per_input, d_mem, 0);
   }
   check_cuda_error(cudaGetLastError());
 }
@@ -680,16 +698,15 @@ __host__ void execute_step_one_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t base_log, uint32_t level_count) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params) {
   cuda_set_device(gpu_index);
 
   uint64_t full_sm_accumulate_step_one =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   uint64_t partial_sm_accumulate_step_one =
       get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   //
@@ -697,33 +714,38 @@ __host__ void execute_step_one_128(
   auto global_accumulator = buffer->global_accumulator;
   auto global_accumulator_fft = buffer->global_join_buffer;
 
-  dim3 grid_accumulate_step_one(num_samples, glwe_dimension + 1, level_count);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+  dim3 grid_accumulate_step_one(num_samples, bsk_params.glwe_dimension + 1,
+                                bsk_params.level_count);
+  dim3 thds(bsk_params.polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < partial_sm_accumulate_step_one)
     device_multi_bit_programmable_bootstrap_accumulate_step_one_128<
         InputTorus, params, NOSM, is_first_iter>
         <<<grid_accumulate_step_one, thds, 0, stream>>>(
             lwe_array_in, lwe_input_indexes, lut_vector, global_accumulator,
-            global_accumulator_fft, lwe_dimension, glwe_dimension,
-            polynomial_size, base_log, level_count, d_mem,
+            global_accumulator_fft, bsk_params.input_lwe_dimension,
+            bsk_params.glwe_dimension, bsk_params.polynomial_size,
+            bsk_params.base_log, bsk_params.level_count, d_mem,
             full_sm_accumulate_step_one);
   else if (max_shared_memory < full_sm_accumulate_step_one)
     device_multi_bit_programmable_bootstrap_accumulate_step_one_128<
         InputTorus, params, PARTIALSM, is_first_iter>
         <<<grid_accumulate_step_one, thds, partial_sm_accumulate_step_one,
            stream>>>(lwe_array_in, lwe_input_indexes, lut_vector,
-                     global_accumulator, global_accumulator_fft, lwe_dimension,
-                     glwe_dimension, polynomial_size, base_log, level_count,
-                     d_mem, partial_sm_accumulate_step_one);
+                     global_accumulator, global_accumulator_fft,
+                     bsk_params.input_lwe_dimension, bsk_params.glwe_dimension,
+                     bsk_params.polynomial_size, bsk_params.base_log,
+                     bsk_params.level_count, d_mem,
+                     partial_sm_accumulate_step_one);
   else
     device_multi_bit_programmable_bootstrap_accumulate_step_one_128<
         InputTorus, params, FULLSM, is_first_iter>
         <<<grid_accumulate_step_one, thds, full_sm_accumulate_step_one,
            stream>>>(lwe_array_in, lwe_input_indexes, lut_vector,
-                     global_accumulator, global_accumulator_fft, lwe_dimension,
-                     glwe_dimension, polynomial_size, base_log, level_count,
-                     d_mem, 0);
+                     global_accumulator, global_accumulator_fft,
+                     bsk_params.input_lwe_dimension, bsk_params.glwe_dimension,
+                     bsk_params.polynomial_size, bsk_params.base_log,
+                     bsk_params.level_count, d_mem, 0);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -732,14 +754,14 @@ __host__ void execute_step_two_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     InputTorus const *lwe_output_indexes,
     pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t j, uint32_t num_many_lut, uint32_t lut_stride) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t j,
+    uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   uint64_t full_sm_accumulate_step_two =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   auto d_mem = buffer->d_mem_acc_step_two;
@@ -747,24 +769,26 @@ __host__ void execute_step_two_128(
   auto global_accumulator = buffer->global_accumulator;
   auto global_accumulator_fft = buffer->global_join_buffer;
 
-  dim3 grid_accumulate_step_two(num_samples, glwe_dimension + 1);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+  dim3 grid_accumulate_step_two(num_samples, bsk_params.glwe_dimension + 1);
+  dim3 thds(bsk_params.polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < full_sm_accumulate_step_two)
     device_multi_bit_programmable_bootstrap_accumulate_step_two_128<
         InputTorus, params, NOSM, is_last_iter>
         <<<grid_accumulate_step_two, thds, 0, stream>>>(
             lwe_array_out, lwe_output_indexes, keybundle_fft,
-            global_accumulator, global_accumulator_fft, glwe_dimension,
-            polynomial_size, level_count, j, lwe_chunk_size, d_mem,
+            global_accumulator, global_accumulator_fft,
+            bsk_params.glwe_dimension, bsk_params.polynomial_size,
+            bsk_params.level_count, j, lwe_chunk_size, d_mem,
             full_sm_accumulate_step_two, num_many_lut, lut_stride);
   else
     device_multi_bit_programmable_bootstrap_accumulate_step_two_128<
         InputTorus, params, FULLSM, is_last_iter>
         <<<grid_accumulate_step_two, thds, full_sm_accumulate_step_two,
            stream>>>(lwe_array_out, lwe_output_indexes, keybundle_fft,
-                     global_accumulator, global_accumulator_fft, glwe_dimension,
-                     polynomial_size, level_count, j, lwe_chunk_size, d_mem, 0,
+                     global_accumulator, global_accumulator_fft,
+                     bsk_params.glwe_dimension, bsk_params.polynomial_size,
+                     bsk_params.level_count, j, lwe_chunk_size, d_mem, 0,
                      num_many_lut, lut_stride);
   check_cuda_error(cudaGetLastError());
 }
@@ -778,51 +802,50 @@ __host__ void host_multi_bit_programmable_bootstrap_128(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
-  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+  for (uint32_t lwe_offset = 0;
+       lwe_offset < (bsk_params.input_lwe_dimension /
+                     bsk_params.pbs_params.multi_bit.grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
     execute_compute_keybundle_128<InputTorus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+        buffer, num_samples, bsk_params, lwe_offset);
     // Accumulate
     uint64_t chunk_size =
         std::min((uint32_t)lwe_chunk_size,
-                 (lwe_dimension / grouping_factor) - lwe_offset);
+                 (bsk_params.input_lwe_dimension /
+                  bsk_params.pbs_params.multi_bit.grouping_factor) -
+                     lwe_offset);
     for (uint32_t j = 0; j < chunk_size; j++) {
       bool is_first_iter = (j + lwe_offset) == 0;
-      bool is_last_iter =
-          (j + lwe_offset) + 1 == (lwe_dimension / grouping_factor);
+      bool is_last_iter = (j + lwe_offset) + 1 ==
+                          (bsk_params.input_lwe_dimension /
+                           bsk_params.pbs_params.multi_bit.grouping_factor);
       if (is_first_iter) {
         execute_step_one_128<InputTorus, params, true>(
             stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
-            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-            base_log, level_count);
+            buffer, num_samples, bsk_params);
       } else {
         execute_step_one_128<InputTorus, params, false>(
             stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
-            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-            base_log, level_count);
+            buffer, num_samples, bsk_params);
       }
 
       if (is_last_iter) {
         execute_step_two_128<InputTorus, params, true>(
             stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
-            num_samples, glwe_dimension, polynomial_size, level_count, j,
-            num_many_lut, lut_stride);
+            num_samples, bsk_params, j, num_many_lut, lut_stride);
       } else {
         execute_step_two_128<InputTorus, params, false>(
             stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
-            num_samples, glwe_dimension, polynomial_size, level_count, j,
-            num_many_lut, lut_stride);
+            num_samples, bsk_params, j, num_many_lut, lut_stride);
       }
     }
   }
@@ -834,17 +857,16 @@ __host__ void execute_cg_external_product_loop_128(
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t *lwe_array_out, InputTorus const *lwe_output_indexes,
     pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t num_samples,
-    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t grouping_factor, uint32_t base_log, uint32_t level_count,
-    uint32_t lwe_offset, uint32_t num_many_lut, uint32_t lut_stride) {
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t lwe_offset,
+    uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
 
   const uint64_t full_sm =
       get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   const uint64_t partial_sm =
       get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
 
   auto full_dm = full_sm;
   auto partial_dm = full_sm - partial_sm;
@@ -853,17 +875,28 @@ __host__ void execute_cg_external_product_loop_128(
   auto lwe_chunk_size = buffer->lwe_chunk_size;
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
-  uint64_t keybundle_size_per_input =
-      lwe_chunk_size * level_count * (glwe_dimension + 1) *
-      (glwe_dimension + 1) * (polynomial_size / 2) * 4;
+  uint64_t keybundle_size_per_input = lwe_chunk_size * bsk_params.level_count *
+                                      (bsk_params.glwe_dimension + 1) *
+                                      (bsk_params.glwe_dimension + 1) *
+                                      (bsk_params.polynomial_size / 2) * 4;
 
-  uint64_t chunk_size = std::min(
-      lwe_chunk_size, (uint64_t)(lwe_dimension / grouping_factor) - lwe_offset);
+  uint64_t chunk_size =
+      std::min(lwe_chunk_size,
+               (uint64_t)(bsk_params.input_lwe_dimension /
+                          bsk_params.pbs_params.multi_bit.grouping_factor) -
+                   lwe_offset);
 
   auto d_mem = buffer->d_mem_acc_cg;
   auto keybundle_fft = buffer->keybundle_fft;
   auto global_accumulator = buffer->global_accumulator;
   auto join_buffer = buffer->global_join_buffer;
+
+  uint32_t lwe_dimension = bsk_params.input_lwe_dimension;
+  uint32_t glwe_dimension = bsk_params.glwe_dimension;
+  uint32_t polynomial_size = bsk_params.polynomial_size;
+  uint32_t base_log = bsk_params.base_log;
+  uint32_t level_count = bsk_params.level_count;
+  uint32_t grouping_factor = bsk_params.pbs_params.multi_bit.grouping_factor;
 
   void *kernel_args[21];
   kernel_args[0] = &lwe_array_out;
@@ -887,8 +920,9 @@ __host__ void execute_cg_external_product_loop_128(
   kernel_args[19] = &num_many_lut;
   kernel_args[20] = &lut_stride;
 
-  dim3 grid_accumulate(num_samples, glwe_dimension + 1, level_count);
-  dim3 thds(polynomial_size / params::opt, 1, 1);
+  dim3 grid_accumulate(num_samples, bsk_params.glwe_dimension + 1,
+                       bsk_params.level_count);
+  dim3 thds(bsk_params.polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < partial_dm) {
     kernel_args[18] = &full_dm;
@@ -917,27 +951,26 @@ __host__ void host_cg_multi_bit_programmable_bootstrap_128(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
-  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+  for (uint32_t lwe_offset = 0;
+       lwe_offset < (bsk_params.input_lwe_dimension /
+                     bsk_params.pbs_params.multi_bit.grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
     execute_compute_keybundle_128<InputTorus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+        buffer, num_samples, bsk_params, lwe_offset);
 
     // Accumulate
     execute_cg_external_product_loop_128<InputTorus, params>(
         stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
-        lwe_array_out, lwe_output_indexes, buffer, num_samples, lwe_dimension,
-        glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        lwe_array_out, lwe_output_indexes, buffer, num_samples, bsk_params,
         lwe_offset, num_many_lut, lut_stride);
   }
 }
@@ -945,24 +978,24 @@ __host__ void host_cg_multi_bit_programmable_bootstrap_128(
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_multi_bit_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer<__uint128_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    pbs_buffer<__uint128_t, MULTI_BIT> **buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   cuda_set_device(gpu_index);
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   uint64_t full_sm_accumulate_step_one =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   uint64_t full_sm_accumulate_step_two =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   uint64_t partial_sm_accumulate_step_one =
       get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   if (max_shared_memory < full_sm_keybundle) {
@@ -1086,12 +1119,10 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap_128(
   }
 
   auto lwe_chunk_size = get_lwe_chunk_size_128<InputTorus, params>(
-      gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
-      level_count, full_sm_keybundle);
+      gpu_index, input_lwe_ciphertext_count, bsk_params, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<__uint128_t, MULTI_BIT>(
-      stream, gpu_index, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, lwe_chunk_size,
+      stream, gpu_index, bsk_params, input_lwe_ciphertext_count, lwe_chunk_size,
       pbs_variant_tag<PBS_VARIANT::DEFAULT>{}, allocate_gpu_memory,
       size_tracker);
   return size_tracker;
@@ -1100,21 +1131,21 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap_128(
 template <typename InputTorus, typename params>
 __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index,
-    pbs_buffer<__uint128_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    pbs_buffer<__uint128_t, MULTI_BIT> **buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   cuda_set_device(gpu_index);
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
   uint64_t full_sm_cg_accumulate =
       get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<__uint128_t>(
-          polynomial_size);
+          bsk_params.polynomial_size);
   uint64_t partial_sm_cg_accumulate =
       get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<
-          __uint128_t>(polynomial_size);
+          __uint128_t>(bsk_params.polynomial_size);
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   if (max_shared_memory < full_sm_keybundle) {
@@ -1172,12 +1203,10 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
   }
 
   auto lwe_chunk_size = get_lwe_chunk_size_128<InputTorus, params>(
-      gpu_index, input_lwe_ciphertext_count, polynomial_size, glwe_dimension,
-      level_count, full_sm_keybundle);
+      gpu_index, input_lwe_ciphertext_count, bsk_params, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<__uint128_t, MULTI_BIT>(
-      stream, gpu_index, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, lwe_chunk_size,
+      stream, gpu_index, bsk_params, input_lwe_ciphertext_count, lwe_chunk_size,
       pbs_variant_tag<PBS_VARIANT::CG>{}, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
@@ -1185,7 +1214,7 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
 // Verify if the grid size satisfies the cooperative group constraints
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128(
-    int glwe_dimension, int level_count, int num_samples,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, int num_samples,
     uint32_t max_shared_memory) {
 
   // If Cooperative Groups is not supported, no need to check anything else
@@ -1203,7 +1232,8 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128(
   int thds = params::degree / params::opt;
 
   // Get the maximum number of active blocks per streaming multiprocessors
-  int number_of_blocks = level_count * (glwe_dimension + 1) * num_samples;
+  int number_of_blocks =
+      bsk_params.level_count * (bsk_params.glwe_dimension + 1) * num_samples;
   int max_active_blocks_per_sm;
 
   if (max_shared_memory < partial_sm_cg_accumulate) {
@@ -1256,14 +1286,13 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128(
 template <typename Torus>
 __host__ bool
 supports_cooperative_groups_on_multibit_programmable_bootstrap_128(
-    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, int num_samples,
     uint32_t max_shared_memory) {
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
   DISPATCH_POLY_SIZE(
-      polynomial_size, Multibit128DegreePolicy,
+      bsk_params.polynomial_size, Multibit128DegreePolicy,
       return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size_128<
-          Torus, Params>(glwe_dimension, level_count, num_samples,
-                         max_shared_memory));
+          Torus, Params>(bsk_params, num_samples, max_shared_memory));
 }
 
 // Noise tests variant: identical to
@@ -1275,27 +1304,26 @@ __host__ void host_cg_multi_bit_programmable_bootstrap_noise_tests_128(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
-  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+  for (uint32_t lwe_offset = 0;
+       lwe_offset < (bsk_params.input_lwe_dimension /
+                     bsk_params.pbs_params.multi_bit.grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle with the noise-test kernel variant
     // (runs_noise_test=true) to read precomputed modswitched values
     execute_compute_keybundle_noise_tests_128<InputTorus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+        buffer, num_samples, bsk_params, lwe_offset);
 
     execute_cg_external_product_loop_128<InputTorus, params>(
         stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
-        lwe_array_out, lwe_output_indexes, buffer, num_samples, lwe_dimension,
-        glwe_dimension, polynomial_size, grouping_factor, base_log, level_count,
+        lwe_array_out, lwe_output_indexes, buffer, num_samples, bsk_params,
         lwe_offset, num_many_lut, lut_stride);
   }
 }
@@ -1306,53 +1334,52 @@ __host__ void host_multi_bit_programmable_bootstrap_noise_tests_128(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer<__uint128_t, MULTI_BIT> *buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
-  for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
+  for (uint32_t lwe_offset = 0;
+       lwe_offset < (bsk_params.input_lwe_dimension /
+                     bsk_params.pbs_params.multi_bit.grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle with the noise-test kernel variant
     // (runs_noise_test=true) to read precomputed modswitched values
     execute_compute_keybundle_noise_tests_128<InputTorus, params>(
         stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+        buffer, num_samples, bsk_params, lwe_offset);
 
     // Accumulate (same as standard path)
     uint64_t chunk_size =
         std::min((uint32_t)lwe_chunk_size,
-                 (lwe_dimension / grouping_factor) - lwe_offset);
+                 (bsk_params.input_lwe_dimension /
+                  bsk_params.pbs_params.multi_bit.grouping_factor) -
+                     lwe_offset);
     for (uint32_t j = 0; j < chunk_size; j++) {
       bool is_first_iter = (j + lwe_offset) == 0;
-      bool is_last_iter =
-          (j + lwe_offset) + 1 == (lwe_dimension / grouping_factor);
+      bool is_last_iter = (j + lwe_offset) + 1 ==
+                          (bsk_params.input_lwe_dimension /
+                           bsk_params.pbs_params.multi_bit.grouping_factor);
       if (is_first_iter) {
         execute_step_one_128<InputTorus, params, true>(
             stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
-            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-            base_log, level_count);
+            buffer, num_samples, bsk_params);
       } else {
         execute_step_one_128<InputTorus, params, false>(
             stream, gpu_index, lut_vector, lwe_array_in, lwe_input_indexes,
-            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-            base_log, level_count);
+            buffer, num_samples, bsk_params);
       }
 
       if (is_last_iter) {
         execute_step_two_128<InputTorus, params, true>(
             stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
-            num_samples, glwe_dimension, polynomial_size, level_count, j,
-            num_many_lut, lut_stride);
+            num_samples, bsk_params, j, num_many_lut, lut_stride);
       } else {
         execute_step_two_128<InputTorus, params, false>(
             stream, gpu_index, lwe_array_out, lwe_output_indexes, buffer,
-            num_samples, glwe_dimension, polynomial_size, level_count, j,
-            num_many_lut, lut_stride);
+            num_samples, bsk_params, j, num_many_lut, lut_stride);
       }
     }
   }

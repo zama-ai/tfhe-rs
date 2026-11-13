@@ -5,59 +5,58 @@
 template <typename InputTorus>
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index,
-    pbs_buffer<__uint128_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    pbs_buffer<__uint128_t, MULTI_BIT> **buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
   DISPATCH_POLY_SIZE(
-      polynomial_size, Multibit128DegreePolicy,
+      bsk_params.polynomial_size, Multibit128DegreePolicy,
       return scratch_multi_bit_programmable_bootstrap_128<InputTorus, Params>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-          polynomial_size, level_count, input_lwe_ciphertext_count,
-          allocate_gpu_memory));
+          static_cast<cudaStream_t>(stream), gpu_index, buffer, bsk_params,
+          input_lwe_ciphertext_count, allocate_gpu_memory));
 }
 
 template <typename InputTorus>
 uint64_t scratch_cuda_cg_multi_bit_programmable_bootstrap_128(
     void *stream, uint32_t gpu_index,
-    pbs_buffer<__uint128_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    pbs_buffer<__uint128_t, MULTI_BIT> **buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
   DISPATCH_POLY_SIZE(
-      polynomial_size, Multibit128DegreePolicy,
+      bsk_params.polynomial_size, Multibit128DegreePolicy,
       return scratch_cg_multi_bit_programmable_bootstrap_128<InputTorus,
                                                              Params>(
-          static_cast<cudaStream_t>(stream), gpu_index, buffer, glwe_dimension,
-          polynomial_size, level_count, input_lwe_ciphertext_count,
-          allocate_gpu_memory));
+          static_cast<cudaStream_t>(stream), gpu_index, buffer, bsk_params,
+          input_lwe_ciphertext_count, allocate_gpu_memory));
 }
 
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_128_async(
-    void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t level_count,
+    void *stream, uint32_t gpu_index, int8_t **buffer,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
 
   bool supports_cg =
       supports_cooperative_groups_on_multibit_programmable_bootstrap_128<
-          __uint128_t>(glwe_dimension, polynomial_size, level_count,
-                       input_lwe_ciphertext_count,
+          __uint128_t>(bsk_params, input_lwe_ciphertext_count,
                        cuda_get_max_shared_memory(gpu_index));
 
   if (supports_cg)
     return scratch_cuda_cg_multi_bit_programmable_bootstrap_128<uint64_t>(
         stream, gpu_index,
         reinterpret_cast<pbs_buffer<__uint128_t, MULTI_BIT> **>(buffer),
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory);
+        bsk_params, input_lwe_ciphertext_count, allocate_gpu_memory);
   else
     return scratch_cuda_multi_bit_programmable_bootstrap_128_async<uint64_t>(
         stream, gpu_index,
         reinterpret_cast<pbs_buffer<__uint128_t, MULTI_BIT> **>(buffer),
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory);
+        bsk_params, input_lwe_ciphertext_count, allocate_gpu_memory);
 }
 
 template <typename InputTorus>
@@ -66,20 +65,18 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer<__uint128_t, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *pbs_buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
   DISPATCH_POLY_SIZE(
-      polynomial_size, Multibit128DegreePolicy,
+      bsk_params.polynomial_size, Multibit128DegreePolicy,
       host_multi_bit_programmable_bootstrap_128<InputTorus, Params>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-          polynomial_size, grouping_factor, base_log, level_count, num_samples,
-          num_many_lut, lut_stride));
+          bootstrapping_key, pbs_buffer, bsk_params, num_samples, num_many_lut,
+          lut_stride));
 }
 
 template <typename InputTorus>
@@ -88,32 +85,33 @@ void cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128_async(
     InputTorus const *lwe_output_indexes, __uint128_t const *lut_vector,
     InputTorus const *lwe_array_in, InputTorus const *lwe_input_indexes,
     __uint128_t const *bootstrapping_key,
-    pbs_buffer<__uint128_t, MULTI_BIT> *pbs_buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    pbs_buffer<__uint128_t, MULTI_BIT> *pbs_buffer,
+    const CudaLweBootstrapKeyParamsFFI &bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
   // AmortizedDegree for 4096 avoids register exhaustion in 128-bit multibit PBS
   DISPATCH_POLY_SIZE(
-      polynomial_size, Multibit128DegreePolicy,
+      bsk_params.polynomial_size, Multibit128DegreePolicy,
       host_cg_multi_bit_programmable_bootstrap_128<InputTorus, Params>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lwe_array_in, lwe_input_indexes,
-          bootstrapping_key, pbs_buffer, glwe_dimension, lwe_dimension,
-          polynomial_size, grouping_factor, base_log, level_count, num_samples,
-          num_many_lut, lut_stride));
+          bootstrapping_key, pbs_buffer, bsk_params, num_samples, num_many_lut,
+          lut_stride));
 }
 
 void cuda_multi_bit_programmable_bootstrap_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lwe_array_in, void const *lwe_input_indexes,
-    void const *bootstrapping_key, int8_t *mem_ptr, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    void const *bootstrapping_key, int8_t *mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
 
-  if (base_log > 64)
+  if (bsk_params.base_log > 64)
     PANIC("Cuda error (multi-bit PBS): base log should be <= 64")
 
   auto *buffer =
@@ -127,9 +125,7 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
                   static_cast<const uint64_t *>(lwe_array_in),
                   static_cast<const uint64_t *>(lwe_input_indexes),
                   static_cast<const __uint128_t *>(bootstrapping_key), buffer,
-                  lwe_dimension, glwe_dimension, polynomial_size,
-                  grouping_factor, base_log, level_count, num_samples,
-                  num_many_lut, lut_stride);
+                  bsk_params, num_samples, num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
     cuda_multi_bit_programmable_bootstrap_128_async<uint64_t>(
@@ -138,9 +134,8 @@ void cuda_multi_bit_programmable_bootstrap_128_async(
         static_cast<const __uint128_t *>(lut_vector),
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
-        static_cast<const __uint128_t *>(bootstrapping_key), buffer,
-        lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-        base_log, level_count, num_samples, num_many_lut, lut_stride);
+        static_cast<const __uint128_t *>(bootstrapping_key), buffer, bsk_params,
+        num_samples, num_many_lut, lut_stride);
     break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported implementation variant.")
@@ -161,11 +156,15 @@ void cleanup_cuda_multi_bit_programmable_bootstrap_128(void *stream,
 // that callers using the noise-tests PBS128 variant have a consistent API.
 uint64_t scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
   return scratch_cuda_multi_bit_programmable_bootstrap_128_async(
-      stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
-      level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
+      stream, gpu_index, pbs_buffer, bsk_params, input_lwe_ciphertext_count,
+      allocate_gpu_memory);
 }
 
 void cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_128(
@@ -182,21 +181,24 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lwe_array_in, void const *lwe_input_indexes,
-    void const *bootstrapping_key, int8_t *buffer, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
-    uint32_t base_log, uint32_t level_count, uint32_t num_samples,
+    void const *bootstrapping_key, int8_t *buffer,
+    CudaLweBootstrapKeyParamsFFI bsk_params, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
+  if (bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
+    PANIC("Cuda error (multi-bit PBS): the bootstrap key parameters are not "
+          "multi-bit (pbs_type %u).",
+          bsk_params.pbs_type)
 
   PANIC_IF_FALSE(num_samples == 1,
                  "Cuda error (multi-bit PBS): num_samples (%d) should be 1",
                  num_samples);
-  PANIC_IF_FALSE(base_log <= 64,
+  PANIC_IF_FALSE(bsk_params.base_log <= 64,
                  "Cuda error (multi-bit PBS): base log (%d) should be <= 64",
-                 base_log);
-  PANIC_IF_FALSE(polynomial_size == 2048,
+                 bsk_params.base_log);
+  PANIC_IF_FALSE(bsk_params.polynomial_size == 2048,
                  "Cuda error (multi-bit PBS128 noise tests): only polynomial "
                  "size 2048 is supported, got %d.",
-                 polynomial_size);
+                 bsk_params.polynomial_size);
 
   auto *pbs_buf =
       reinterpret_cast<pbs_buffer<__uint128_t, MULTI_BIT> *>(buffer);
@@ -211,8 +213,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
         static_cast<const __uint128_t *>(bootstrapping_key), pbs_buf,
-        glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-        base_log, level_count, num_samples, num_many_lut, lut_stride);
+        bsk_params, num_samples, num_many_lut, lut_stride);
     break;
   case PBS_VARIANT::DEFAULT:
     host_multi_bit_programmable_bootstrap_noise_tests_128<uint64_t,
@@ -224,8 +225,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
         static_cast<const uint64_t *>(lwe_array_in),
         static_cast<const uint64_t *>(lwe_input_indexes),
         static_cast<const __uint128_t *>(bootstrapping_key), pbs_buf,
-        glwe_dimension, lwe_dimension, polynomial_size, grouping_factor,
-        base_log, level_count, num_samples, num_many_lut, lut_stride);
+        bsk_params, num_samples, num_many_lut, lut_stride);
     break;
   default:
     PANIC("Cuda error (multi-bit PBS): unsupported implementation variant.")
@@ -245,8 +245,7 @@ void cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
  */
 template <typename Torus, class params>
 uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
-                                uint32_t polynomial_size,
-                                uint32_t glwe_dimension, uint32_t level_count,
+                                const CudaLweBootstrapKeyParamsFFI &bsk_params,
                                 uint64_t full_sm_keybundle) {
 
   int max_blocks_per_sm;
@@ -257,13 +256,13 @@ uint64_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
         &max_blocks_per_sm,
         device_multi_bit_programmable_bootstrap_keybundle_128<Torus, params,
                                                               NOSM>,
-        polynomial_size / params::opt, full_sm_keybundle));
+        bsk_params.polynomial_size / params::opt, full_sm_keybundle));
   } else {
     check_cuda_error(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_blocks_per_sm,
         device_multi_bit_programmable_bootstrap_keybundle_128<Torus, params,
                                                               FULLSM>,
-        polynomial_size / params::opt, 0));
+        bsk_params.polynomial_size / params::opt, 0));
   }
 
   int num_sms = 0;
