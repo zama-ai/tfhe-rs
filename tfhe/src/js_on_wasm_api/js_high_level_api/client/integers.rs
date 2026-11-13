@@ -390,6 +390,22 @@ impl ProvenCompactCiphertextList {
     }
 }
 
+/// Selects how the seed given to seeded encryption is expanded, see
+/// [`crate::SeededEncryptionMode`].
+#[derive(Copy, Clone, Eq, PartialEq)]
+#[wasm_bindgen]
+pub enum SeededEncryptionMode {
+    Aes256,
+}
+
+impl From<SeededEncryptionMode> for crate::SeededEncryptionMode {
+    fn from(value: SeededEncryptionMode) -> Self {
+        match value {
+            SeededEncryptionMode::Aes256 => Self::Aes256,
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub struct CompactCiphertextListBuilder(
     pub(crate) crate::high_level_api::CompactCiphertextListBuilder,
@@ -602,9 +618,16 @@ impl CompactCiphertextListBuilder {
     }
 
     #[wasm_bindgen]
-    pub fn build_packed_seeded(&self, seed: &[u8]) -> Result<CompactCiphertextList, JsError> {
+    pub fn build_packed_seeded(
+        &self,
+        seed: &[u8],
+        mode: SeededEncryptionMode,
+    ) -> Result<CompactCiphertextList, JsError> {
         catch_panic_result(|| {
-            let inner = self.0.build_packed_seeded(seed).map_err(into_js_error)?;
+            let inner = self
+                .0
+                .build_packed_seeded(seed, mode.into())
+                .map_err(into_js_error)?;
             Ok(CompactCiphertextList(inner))
         })
     }
@@ -632,10 +655,17 @@ impl CompactCiphertextListBuilder {
         metadata: &[u8],
         compute_load: ZkComputeLoad,
         seed: &[u8],
+        mode: SeededEncryptionMode,
     ) -> Result<ProvenCompactCiphertextList, JsError> {
         catch_panic_result(|| {
             self.0
-                .build_with_proof_packed_seeded(&crs.0, metadata, compute_load.into(), seed)
+                .build_with_proof_packed_seeded(
+                    &crs.0,
+                    metadata,
+                    compute_load.into(),
+                    seed,
+                    mode.into(),
+                )
                 .map_err(into_js_error)
                 .map(ProvenCompactCiphertextList)
         })

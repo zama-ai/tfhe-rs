@@ -12,6 +12,7 @@ use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::parameters::CompactCiphertextListConformanceParams;
 use crate::named::Named;
 use crate::prelude::CiphertextList;
+pub use crate::shortint::public_key::SeededEncryptionMode;
 use crate::shortint::MessageModulus;
 use crate::HlExpandable;
 use serde::{Deserialize, Serialize};
@@ -1121,12 +1122,20 @@ impl CompactCiphertextListBuilder {
 
     /// Builds the list using the given seed, useful to have determinism for encryption
     ///
+    /// `mode` selects how the seed is expanded into the encryption randomness. The seed must be
+    /// at least [`SeededEncryptionMode::min_seed_len`] bytes long, only its length is checked:
+    /// making sure it contains enough entropy is the caller's responsibility.
+    ///
     /// # Warning
     ///
     /// The seed must be kept secure, if attackers gets the seed they can break the encryption
-    pub fn build_packed_seeded(&self, seed: &[u8]) -> crate::Result<CompactCiphertextList> {
+    pub fn build_packed_seeded(
+        &self,
+        seed: &[u8],
+        mode: SeededEncryptionMode,
+    ) -> crate::Result<CompactCiphertextList> {
         self.inner
-            .build_packed_seeded(seed)
+            .build_packed_seeded(seed, mode)
             .map(|list| CompactCiphertextList {
                 inner: crate::high_level_api::compact_list::InnerCompactCiphertextList::Cpu(list),
                 tag: self.tag.clone(),
@@ -1153,6 +1162,10 @@ impl CompactCiphertextListBuilder {
 
     /// Builds a proved list using the given seed, useful to have determinism for encryption
     ///
+    /// The proof is also derived from the seed. `mode` selects how the seed is expanded, the seed
+    /// must be at least [`SeededEncryptionMode::min_seed_len`] bytes long, only its length is
+    /// checked: making sure it contains enough entropy is the caller's responsibility.
+    ///
     /// # Warning
     ///
     /// The seed must be kept secure, if attackers gets the seed they can break the encryption
@@ -1163,9 +1176,10 @@ impl CompactCiphertextListBuilder {
         metadata: &[u8],
         compute_load: ZkComputeLoad,
         seed: &[u8],
+        mode: SeededEncryptionMode,
     ) -> crate::Result<ProvenCompactCiphertextList> {
         self.inner
-            .build_with_proof_packed_seeded(crs, metadata, compute_load, seed)
+            .build_with_proof_packed_seeded(crs, metadata, compute_load, seed, mode)
             .map(|proved_list| ProvenCompactCiphertextList {
                 inner:
                     crate::high_level_api::compact_list::zk::InnerProvenCompactCiphertextList::Cpu(
@@ -1299,8 +1313,8 @@ mod tests {
         set_server_key(sk);
 
         let mut rng = thread_rng();
-        let seed_a: [u8; 16] = rng.gen();
-        let seed_b: [u8; 16] = rng.gen();
+        let seed_a: [u8; 32] = rng.gen();
+        let seed_b: [u8; 32] = rng.gen();
         println!("seeded test — seed_a: {seed_a:?}, seed_b: {seed_b:?}");
 
         let build = |seed: &[u8]| {
@@ -1308,13 +1322,12 @@ mod tests {
                 .push(17u32)
                 .push(-1i64)
                 .push(false)
-                .build_packed_seeded(seed)
-                .unwrap()
+                .build_packed_seeded(seed, SeededEncryptionMode::Aes256)
         };
 
-        let list_a1 = build(&seed_a);
-        let list_a2 = build(&seed_a);
-        let list_b = build(&seed_b);
+        let list_a1 = build(&seed_a).unwrap();
+        let list_a2 = build(&seed_a).unwrap();
+        let list_b = build(&seed_b).unwrap();
 
         assert!(
             list_a1 == list_a2,
@@ -1323,6 +1336,12 @@ mod tests {
         assert!(
             list_a1 != list_b,
             "different seeds must produce different output"
+        );
+
+        let min_seed_len = SeededEncryptionMode::Aes256.min_seed_len();
+        assert!(
+            build(&seed_a[..min_seed_len - 1]).is_err(),
+            "seeds shorter than the minimum length must be rejected"
         );
 
         let expander = list_a1.expand().unwrap();
@@ -1821,8 +1840,8 @@ mod tests {
         let metadata = b"seed";
 
         let mut rng = thread_rng();
-        let seed_a: [u8; 16] = rng.gen();
-        let seed_b: [u8; 16] = rng.gen();
+        let seed_a: [u8; 32] = rng.gen();
+        let seed_b: [u8; 32] = rng.gen();
         println!("proven seeded test — seed_a: {seed_a:?}, seed_b: {seed_b:?}");
 
         let build = |seed: &[u8]| {
@@ -1830,13 +1849,18 @@ mod tests {
                 .push(17u32)
                 .push(-1i64)
                 .push(false)
-                .build_with_proof_packed_seeded(&crs, metadata, ZkComputeLoad::Proof, seed)
-                .unwrap()
+                .build_with_proof_packed_seeded(
+                    &crs,
+                    metadata,
+                    ZkComputeLoad::Proof,
+                    seed,
+                    SeededEncryptionMode::Aes256,
+                )
         };
 
-        let list_a1 = build(&seed_a);
-        let list_a2 = build(&seed_a);
-        let list_b = build(&seed_b);
+        let list_a1 = build(&seed_a).unwrap();
+        let list_a2 = build(&seed_a).unwrap();
+        let list_b = build(&seed_b).unwrap();
 
         assert!(
             list_a1 == list_a2,
@@ -1845,6 +1869,12 @@ mod tests {
         assert!(
             list_a1 != list_b,
             "different seeds must produce different output"
+        );
+
+        let min_seed_len = SeededEncryptionMode::Aes256.min_seed_len();
+        assert!(
+            build(&seed_a[..min_seed_len - 1]).is_err(),
+            "seeds shorter than the minimum length must be rejected"
         );
 
         let expander = list_a1.verify_and_expand(&crs, &pk, metadata).unwrap();

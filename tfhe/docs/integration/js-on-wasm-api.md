@@ -30,6 +30,7 @@ The client package (the `build_*_client` targets) keeps only what a client needs
 **Compact encryption**
 
 * `CompactCiphertextListBuilder`: push clear values (`push_u2` to `push_u2048`, `push_i2` to `push_i2048`, `push_boolean`), then call `build`, `build_packed` or `build_packed_seeded`.
+* `SeededEncryptionMode`: how `build_packed_seeded` expands its seed. `Aes256` requires a seed of at least 32 bytes; only the length is checked, so making sure the seed has enough entropy is up to the caller.
 * `CompactCiphertextList`: the built list, obtained from `CompactCiphertextList.builder(publicKey)`.
 * `FheTypes`: enum identifying the type of each element.
 

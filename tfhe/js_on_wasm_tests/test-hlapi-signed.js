@@ -25,6 +25,7 @@ const {
   ProvenCompactCiphertextList,
   CompactPkeCrs,
   ZkComputeLoad,
+  SeededEncryptionMode,
   Shortint,
   ShortintEncryptionKeyChoice,
 } = require("../pkg/tfhe.js");
@@ -551,8 +552,8 @@ test("hlapi_proven_compact_ciphertext_list_seeded", (t) => {
   let crs = CompactPkeCrs.from_config(config, 2 + 32 + 1);
   let metadata = new Uint8Array([0x73, 0x65, 0x65, 0x64]);
 
-  let seed_a = randomBytes(16);
-  let seed_b = randomBytes(16);
+  let seed_a = randomBytes(32);
+  let seed_b = randomBytes(32);
   console.log(
     `proven seeded test — seed_a: [${Array.from(seed_a).join(", ")}], seed_b: [${Array.from(seed_b).join(", ")}]`,
   );
@@ -567,6 +568,7 @@ test("hlapi_proven_compact_ciphertext_list_seeded", (t) => {
       metadata,
       ZkComputeLoad.Proof,
       seed,
+      SeededEncryptionMode.Aes256,
     );
   };
 
@@ -602,8 +604,8 @@ test("hlapi_compact_ciphertext_list_seeded", (t) => {
   let clientKey = TfheClientKey.generate(config);
   let publicKey = TfheCompactPublicKey.new(clientKey);
 
-  let seed_a = randomBytes(16);
-  let seed_b = randomBytes(16);
+  let seed_a = randomBytes(32);
+  let seed_b = randomBytes(32);
   console.log(
     `seeded test — seed_a: [${Array.from(seed_a).join(", ")}], seed_b: [${Array.from(seed_b).join(", ")}]`,
   );
@@ -613,7 +615,7 @@ test("hlapi_compact_ciphertext_list_seeded", (t) => {
     builder.push_u32(17);
     builder.push_i32(-1);
     builder.push_boolean(false);
-    return builder.build_packed_seeded(seed);
+    return builder.build_packed_seeded(seed, SeededEncryptionMode.Aes256);
   };
 
   let list_a1 = buildSeeded(seed_a);
