@@ -9,7 +9,6 @@ use crate::integer::gpu::{
     cuda_backend_get_aes_key_expansion_size_on_gpu, cuda_backend_unchecked_aes_ctr_encrypt,
 };
 use crate::integer::{RadixCiphertext, RadixClientKey};
-use crate::shortint::Ciphertext;
 
 const NUM_BITS: usize = 128;
 
@@ -43,12 +42,7 @@ impl RadixClientKey {
     /// // OUTPUT: A RadixCiphertext
     /// ```
     pub fn encrypt_u128_for_aes_ctr(&self, data: u128) -> RadixCiphertext {
-        let mut blocks: Vec<Ciphertext> = Vec::with_capacity(NUM_BITS);
-        for i in 0..NUM_BITS {
-            let bit = ((data >> (NUM_BITS - 1 - i)) & 1) as u64;
-            blocks.extend(self.encrypt(bit).blocks);
-        }
-        RadixCiphertext::from(blocks)
+        self.encrypt_word_msb_first(data, 1, NUM_BITS)
     }
 
     /// Decrypts a `RadixCiphertext` containing one or more 128-bit blocks
@@ -84,24 +78,33 @@ impl RadixClientKey {
         encrypted_result: &RadixCiphertext,
         num_aes_inputs: usize,
     ) -> Vec<u128> {
-        let mut plaintext_results = Vec::with_capacity(num_aes_inputs);
-        for i in 0..num_aes_inputs {
-            let mut current_block_plaintext: u128 = 0;
-            let block_start_index = i * NUM_BITS;
-            for j in 0..NUM_BITS {
-                let block_slice =
-                    &encrypted_result.blocks[block_start_index + j..block_start_index + j + 1];
-                let block_radix_ct = RadixCiphertext::from(block_slice.to_vec());
-                let decrypted_bit: u128 = self.decrypt(&block_radix_ct);
-                current_block_plaintext = (current_block_plaintext << 1) | decrypted_bit;
-            }
-            plaintext_results.push(current_block_plaintext);
-        }
-        plaintext_results
+        self.decrypt_words_msb_first(encrypted_result, num_aes_inputs, 1, NUM_BITS)
     }
 }
 
 impl CudaServerKey {
+    /// The AES circuit is tuned for 2_2, some levelled chains use the whole
+    /// noise budget. Checked at the entry points so a wrong key fails early and
+    /// not deep in the backend.
+    pub(crate) fn assert_aes_2_2_params(&self) {
+        assert!(
+            self.message_modulus.0 == 4 && self.carry_modulus.0 == 4,
+            "AES requires 2_2 parameters (message_modulus == 4, \
+             carry_modulus == 4), got {} and {}",
+            self.message_modulus.0,
+            self.carry_modulus.0
+        );
+    }
+
+    /// The S-box does sbox_parallelism of the 16 state bytes per call, so it has
+    /// to divide 16.
+    pub(crate) fn assert_aes_sbox_parallelism(sbox_parallelism: usize) {
+        assert!(
+            [1, 2, 4, 8, 16].contains(&sbox_parallelism),
+            "Invalid S-Box parallelism: must be one of [1, 2, 4, 8, 16], got {sbox_parallelism}"
+        );
+    }
+
     /// Computes homomorphically AES-128 encryption in CTR mode.
     ///
     /// This function performs AES-128 encryption on an encrypted 128-bit IV
@@ -163,6 +166,8 @@ impl CudaServerKey {
         num_aes_inputs: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        self.assert_aes_2_2_params();
+
         let gpu_index = streams.gpu_indexes[0];
 
         let key_expansion_size = self.get_key_expansion_size_on_gpu(streams);
@@ -210,10 +215,8 @@ impl CudaServerKey {
         sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        assert!(
-            [1, 2, 4, 8, 16].contains(&sbox_parallelism),
-            "Invalid S-Box parallelism: must be one of [1, 2, 4, 8, 16], got {sbox_parallelism}"
-        );
+        self.assert_aes_2_2_params();
+        Self::assert_aes_sbox_parallelism(sbox_parallelism);
 
         let gpu_index = streams.gpu_indexes[0];
 
@@ -244,6 +247,9 @@ impl CudaServerKey {
         sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        self.assert_aes_2_2_params();
+        Self::assert_aes_sbox_parallelism(sbox_parallelism);
+
         let mut result: CudaUnsignedRadixCiphertext =
             self.create_trivial_zero_radix(num_aes_inputs * 128, streams);
 
@@ -268,6 +274,24 @@ impl CudaServerKey {
             num_aes_inputs * 128,
             result.as_ref().d_blocks.lwe_ciphertext_count().0
         );
+
+        let clean_iv;
+        let iv = if iv.is_clean() {
+            iv
+        } else {
+            let mut flushed_iv: CudaUnsignedRadixCiphertext =
+                self.create_trivial_zero_radix(NUM_BITS, streams);
+            let flush_lut = self.generate_lookup_table(|x| x & 1);
+            self.apply_lookup_table(
+                flushed_iv.as_mut(),
+                iv.as_ref(),
+                &flush_lut,
+                0..NUM_BITS,
+                streams,
+            );
+            clean_iv = flushed_iv;
+            &clean_iv
+        };
 
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -298,6 +322,8 @@ impl CudaServerKey {
         sbox_parallelism: usize,
         streams: &CudaStreams,
     ) -> u64 {
+        self.assert_aes_2_2_params();
+
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -318,6 +344,8 @@ impl CudaServerKey {
         key: &CudaUnsignedRadixCiphertext,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
+        self.assert_aes_2_2_params();
+
         let num_round_keys = 11;
         let num_key_bits = 128;
         let mut expanded_keys: CudaUnsignedRadixCiphertext =
@@ -351,6 +379,8 @@ impl CudaServerKey {
     }
 
     pub fn get_key_expansion_size_on_gpu(&self, streams: &CudaStreams) -> u64 {
+        self.assert_aes_2_2_params();
+
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
