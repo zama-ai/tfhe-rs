@@ -4,7 +4,7 @@ use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
     cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_rotate_left_size_on_gpu,
     cuda_backend_get_rotate_right_size_on_gpu, cuda_backend_unchecked_rotate_left_assign,
-    cuda_backend_unchecked_rotate_right_assign, CudaServerKey,
+    cuda_backend_unchecked_rotate_right_assign, CudaServerKey, ShiftRotateType,
 };
 
 impl CudaServerKey {
@@ -17,6 +17,9 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        let adapted_rotate =
+            self.shift_amount_with_num_blocks_of(ct, rotate, ShiftRotateType::RightRotate, streams);
+        let rotate = adapted_rotate.as_ref().unwrap_or(rotate);
         let is_signed = T::IS_SIGNED;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -72,6 +75,9 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        let adapted_rotate =
+            self.shift_amount_with_num_blocks_of(ct, rotate, ShiftRotateType::LeftRotate, streams);
+        let rotate = adapted_rotate.as_ref().unwrap_or(rotate);
         let is_signed = T::IS_SIGNED;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -207,7 +213,6 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -221,17 +226,15 @@ impl CudaServerKey {
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, rotate)
+                self.full_propagate_assign(ct, streams);
+                (ct, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(ct, streams);
                 self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
+                (ct, &tmp_rhs)
             }
         };
 
@@ -327,7 +330,6 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -341,17 +343,15 @@ impl CudaServerKey {
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, rotate)
+                self.full_propagate_assign(ct, streams);
+                (ct, rotate)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = rotate.duplicate(streams);
 
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(ct, streams);
                 self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
+                (ct, &tmp_rhs)
             }
         };
 
@@ -367,10 +367,6 @@ impl CudaServerKey {
         assert_eq!(
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
-        );
-        assert_eq!(
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -414,7 +410,13 @@ impl CudaServerKey {
             lwe_ciphertext_count.0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(rotate_mem)
+        actual_full_prop_mem.max(self.get_size_with_shift_amount_adaptation_on_gpu(
+            ct_left,
+            ct_right,
+            ShiftRotateType::LeftRotate,
+            rotate_mem,
+            streams,
+        ))
     }
 
     pub fn get_rotate_right_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -426,10 +428,6 @@ impl CudaServerKey {
         assert_eq!(
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
-        );
-        assert_eq!(
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -473,6 +471,12 @@ impl CudaServerKey {
             lwe_ciphertext_count.0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(rotate_mem)
+        actual_full_prop_mem.max(self.get_size_with_shift_amount_adaptation_on_gpu(
+            ct_left,
+            ct_right,
+            ShiftRotateType::RightRotate,
+            rotate_mem,
+            streams,
+        ))
     }
 }
