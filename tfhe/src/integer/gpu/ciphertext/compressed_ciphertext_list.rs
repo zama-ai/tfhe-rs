@@ -14,45 +14,56 @@ use crate::shortint::ciphertext::{
     CompressedCiphertextList as ShortintCompressedCiphertextList, CompressedCiphertextListMeta,
 };
 use crate::shortint::parameters::AtomicPatternKind;
-use crate::shortint::PBSOrder;
+use crate::shortint::{MessageModulus, PBSOrder};
 use itertools::Itertools;
 use std::num::NonZeroUsize;
 use std::ops::Range;
 
 pub trait CudaExpandable: Sized {
+    /// Rejects an item of `kind` that cannot be expanded into `Self`, before paying for its
+    /// decompression
+    fn check_kind(kind: DataKind, message_modulus: MessageModulus) -> crate::Result<()>;
+
     fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self>;
+}
+
+/// Checks that an item of `kind` holds a radix with the signedness of `T`
+fn check_radix_kind<T: CudaIntegerRadixCiphertext>(kind: DataKind) -> crate::Result<()> {
+    match (kind, T::IS_SIGNED) {
+        (DataKind::Unsigned(_), false) | (DataKind::Signed(_), true) => Ok(()),
+        (_, signed) => {
+            let signedness = if signed { "signed" } else { "unsigned" };
+            Err(crate::error!(
+                "Tried to expand a {signedness} radix while a {kind:?} is stored"
+            ))
+        }
+    }
 }
 
 impl<T> CudaExpandable for T
 where
     T: CudaIntegerRadixCiphertext,
 {
+    fn check_kind(kind: DataKind, _message_modulus: MessageModulus) -> crate::Result<()> {
+        check_radix_kind::<T>(kind)
+    }
+
     fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self> {
-        match (kind, T::IS_SIGNED) {
-            (DataKind::Unsigned(_), false) | (DataKind::Signed(_), true) => Ok(T::from(blocks)),
-            (DataKind::Boolean, _) => {
-                let signed_or_unsigned_str = if T::IS_SIGNED { "signed" } else { "unsigned" };
-                Err(crate::Error::new(format!(
-                    "Tried to expand a {signed_or_unsigned_str} radix while boolean is stored"
-                )))
-            }
-            (DataKind::Unsigned(_), true) => Err(crate::Error::new(
-                "Tried to expand a signed radix while an unsigned radix is stored".to_string(),
-            )),
-            (DataKind::Signed(_), false) => Err(crate::Error::new(
-                "Tried to expand an unsigned radix while a signed radix is stored".to_string(),
-            )),
-            (DataKind::String { .. }, signed) => {
-                let signedness = if signed { "signed" } else { "unsigned" };
-                Err(crate::error!(
-                    "Tried to expand a {signedness} radix while a string is stored"
-                ))
-            }
-        }
+        check_radix_kind::<T>(kind)?;
+        Ok(T::from(blocks))
     }
 }
 
 impl CudaExpandable for CudaBooleanBlock {
+    fn check_kind(kind: DataKind, _message_modulus: MessageModulus) -> crate::Result<()> {
+        if kind == DataKind::Boolean {
+            return Ok(());
+        }
+        Err(crate::error!(
+            "Tried to expand a boolean block while a {kind:?} is stored"
+        ))
+    }
+
     fn from_expanded_blocks(blocks: CudaRadixCiphertext, kind: DataKind) -> crate::Result<Self> {
         match kind {
             DataKind::Unsigned(_) => Err(crate::Error::new(
@@ -108,7 +119,7 @@ impl CudaCompressedCiphertextList {
         Ok(Some((kind, range)))
     }
 
-    fn blocks_of(
+    fn blocks_of<T: CudaExpandable>(
         &self,
         index: usize,
         decomp_key: &CudaDecompressionKey,
@@ -117,6 +128,13 @@ impl CudaCompressedCiphertextList {
         let Some((current_info, block_range)) = self.block_range(index)? else {
             return Ok(None);
         };
+
+        let message_modulus = self
+            .packed_list
+            .message_modulus()
+            .ok_or_else(|| crate::error!("Missing metadata for list"))?;
+        T::check_kind(current_info, message_modulus)?;
+
         if block_range.is_empty() {
             return Err(crate::error!(
                 "Items stored without blocks are not supported on GPU"
@@ -164,7 +182,7 @@ impl CudaCompressedCiphertextList {
     where
         T: CudaExpandable,
     {
-        self.blocks_of(index, decomp_key, streams)?
+        self.blocks_of::<T>(index, decomp_key, streams)?
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
             .transpose()
     }
