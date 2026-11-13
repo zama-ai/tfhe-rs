@@ -80,3 +80,7 @@ jobs:
       - name: Check python is only run from a venv
         run: |
           make check_python_venv_usage
+
+      - name: Check dependency manifests are tracked by Dependabot
+        run: |
+          make check_dependabot_coverage

@@ -3,6 +3,9 @@
 # 'make audit_python_requirements'. To update a tool, change its version below and run
 # 'make compile_python_requirements', the generated files may need a second run if their format
 # changed between uv versions.
+# Dependabot generates the lock files with its own version of uv, see .github/dependabot.yaml: if
+# its pull requests fail 'make check_python_requirements' on formatting alone, the two versions
+# disagree and the uv pinned here probably needs an update.
 # pip-audit depends on pip, keep the one installed in the tooling venv aligned with the pip pinned
 # for every venv
 -c pip_requirements.in
