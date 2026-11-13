@@ -1,13 +1,18 @@
 use super::TranscipherSession;
 use crate::conformance::ParameterSetConformant;
-use crate::high_level_api::backward_compatibility::transciphering::OneTimePadFheSecretMaskVersions;
+use crate::high_level_api::backward_compatibility::transciphering::{
+    CompressedSquashedNoiseOneTimePadFheSecretMaskVersions, OneTimePadFheSecretMaskVersions,
+};
 use crate::high_level_api::details::MaybeCloned;
-use crate::high_level_api::errors::UninitializedServerKey;
+use crate::high_level_api::errors::{UninitializedNoiseSquashing, UninitializedServerKey};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::cuda_clone;
 use crate::high_level_api::global_state::try_with_internal_keys;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::Tagged;
+use crate::high_level_api::traits::{SquashNoise, Tagged};
+use crate::high_level_api::{
+    CompressedSquashedNoiseCiphertextListConformanceParams, SquashedNoiseCiphertextState,
+};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 #[cfg(feature = "gpu")]
@@ -18,8 +23,11 @@ use crate::shortint::oprf::OprfSeed;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::AtomicPatternParameters;
 use crate::transciphering::{
-    OneTimePadFheSecretMask as TranscipheringOneTimePadFheSecretMask, OneTimePadFheState,
-    OneTimePadPlainSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMask as TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams as TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams,
+    KeyStreamLayout, OneTimePadFheSecretMask as TranscipheringOneTimePadFheSecretMask,
+    OneTimePadFheState, OneTimePadPlainSecretMask,
+    SquashedNoiseOneTimePadFheSecretMask as TranscipheringSquashedNoiseOneTimePadFheSecretMask,
 };
 use crate::{ClientKey, ServerKey, Tag};
 use serde::{Deserialize, Serialize};
@@ -256,4 +264,199 @@ impl ParameterSetConformant for OneTimePadFheSecretMask {
 
 impl Named for OneTimePadFheSecretMask {
     const NAME: &'static str = "high_level_api::OneTimePadFheSecretMask";
+}
+
+/// FHE-encrypted pad whose noise has been squashed, so that it can be decrypted with the noise
+/// squashing key.
+///
+/// It is obtained with [`SquashNoise::squash_noise`] on a [`OneTimePadFheSecretMask`].
+/// Use [`Self::compress`] to get a [`CompressedSquashedNoiseOneTimePadFheSecretMask`] that
+/// can be serialized.
+pub struct SquashedNoiseOneTimePadFheSecretMask {
+    inner: TranscipheringSquashedNoiseOneTimePadFheSecretMask,
+    state: SquashedNoiseCiphertextState,
+    tag: Tag,
+}
+
+impl SquashedNoiseOneTimePadFheSecretMask {
+    pub fn into_raw_parts(self) -> (TranscipheringSquashedNoiseOneTimePadFheSecretMask, Tag) {
+        (self.inner, self.tag)
+    }
+
+    /// Compress the squashed mask using the noise squashing compression key of the current
+    /// server key.
+    ///
+    /// Returns an error if the mask comes from a decompression.
+    pub fn compress(&self) -> crate::Result<CompressedSquashedNoiseOneTimePadFheSecretMask> {
+        if !matches!(self.state, SquashedNoiseCiphertextState::Normal) {
+            return Err(crate::Error::new(
+                "A decompressed SquashedNoiseOneTimePadFheSecretMask cannot be compressed again"
+                    .to_owned(),
+            ));
+        }
+
+        try_with_internal_keys(|keys| match keys {
+            Some(InternalServerKey::Cpu(cpu_key)) => {
+                let compression_key = cpu_key
+                    .key
+                    .noise_squashing_compression_key
+                    .as_ref()
+                    .ok_or_else(|| {
+                        crate::Error::new(
+                            "Compression key for squashed noise data not set in server key"
+                                .to_owned(),
+                        )
+                    })?;
+
+                Ok(CompressedSquashedNoiseOneTimePadFheSecretMask {
+                    inner: self.inner.compress(&compression_key.key),
+                    tag: cpu_key.tag.clone(),
+                })
+            }
+            #[cfg(feature = "gpu")]
+            Some(InternalServerKey::Cuda(_)) => Err(crate::Error::new(
+                "SquashedNoiseOneTimePadFheSecretMask::compress is not yet supported on GPU"
+                    .to_owned(),
+            )),
+            #[cfg(feature = "hpu")]
+            Some(InternalServerKey::Hpu(_)) => Err(crate::Error::new(
+                "SquashedNoiseOneTimePadFheSecretMask::compress is not supported on HPU".to_owned(),
+            )),
+            None => Err(UninitializedServerKey.into()),
+        })
+    }
+}
+
+impl SquashNoise for OneTimePadFheSecretMask {
+    type Output = SquashedNoiseOneTimePadFheSecretMask;
+
+    fn squash_noise(&self) -> crate::Result<Self::Output> {
+        try_with_internal_keys(|keys| match (&self.inner, keys) {
+            (InnerOneTimePadFheSecretMask::Cpu(mask), Some(InternalServerKey::Cpu(cpu_key))) => {
+                let noise_squashing_key = cpu_key
+                    .key
+                    .noise_squashing_key
+                    .as_ref()
+                    .ok_or(UninitializedNoiseSquashing)?;
+
+                Ok(SquashedNoiseOneTimePadFheSecretMask {
+                    inner: mask.squash_noise(&noise_squashing_key.key, &cpu_key.key.key.key)?,
+                    state: SquashedNoiseCiphertextState::Normal,
+                    tag: cpu_key.tag.clone(),
+                })
+            }
+            (_, None) => Err(UninitializedServerKey.into()),
+            #[cfg(any(feature = "gpu", feature = "hpu"))]
+            _ => Err(crate::Error::new(
+                "OneTimePadFheSecretMask::squash_noise is only supported on CPU".to_owned(),
+            )),
+        })
+    }
+}
+
+impl FheDecrypt<OneTimePadPlainSecretMask> for SquashedNoiseOneTimePadFheSecretMask {
+    fn decrypt(&self, key: &ClientKey) -> OneTimePadPlainSecretMask {
+        let decryption_key = key.private_noise_squashing_decryption_key(self.state);
+        self.inner.decrypt_with_key_view(&decryption_key.key)
+    }
+}
+
+impl Tagged for SquashedNoiseOneTimePadFheSecretMask {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
+}
+
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(CompressedSquashedNoiseOneTimePadFheSecretMaskVersions)]
+pub struct CompressedSquashedNoiseOneTimePadFheSecretMask {
+    inner: TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMask,
+    tag: Tag,
+}
+
+impl CompressedSquashedNoiseOneTimePadFheSecretMask {
+    /// Extracts the squashed mask from the compressed one. This does not require any key.
+    pub fn decompress(&self) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
+        Ok(SquashedNoiseOneTimePadFheSecretMask {
+            inner: self.inner.decompress()?,
+            state: SquashedNoiseCiphertextState::PostDecompression,
+            tag: self.tag.clone(),
+        })
+    }
+}
+
+impl FheDecrypt<OneTimePadPlainSecretMask> for CompressedSquashedNoiseOneTimePadFheSecretMask {
+    fn decrypt(&self, key: &ClientKey) -> OneTimePadPlainSecretMask {
+        self.decompress()
+            .expect("Invalid CompressedSquashedNoiseOneTimePadFheSecretMask")
+            .decrypt(key)
+    }
+}
+
+impl Tagged for CompressedSquashedNoiseOneTimePadFheSecretMask {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams(
+    pub(crate) TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams,
+);
+
+impl CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
+    pub fn new(
+        list_params: CompressedSquashedNoiseCiphertextListConformanceParams,
+        layout: KeyStreamLayout,
+    ) -> Self {
+        Self(
+            TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
+                list_params: list_params.params,
+                layout,
+            },
+        )
+    }
+}
+
+/// Conformance params for a mask generated with the full plaintext space of the server key
+/// parameters, which is the layout used by [`OneTimePadFheSecretMask::new_random`].
+impl TryFrom<&ServerKey> for CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
+    type Error = crate::Error;
+
+    fn try_from(sks: &ServerKey) -> Result<Self, Self::Error> {
+        let list_params = CompressedSquashedNoiseCiphertextListConformanceParams::try_from(sks)?;
+        let layout = KeyStreamLayout::full_space(
+            list_params.params.message_modulus,
+            list_params.params.carry_modulus,
+        )
+        .ok_or_else(|| {
+            crate::Error::new(
+                "The server key parameters are not compatible with otp mask generation".to_owned(),
+            )
+        })?;
+
+        Ok(Self::new(list_params, layout))
+    }
+}
+
+impl ParameterSetConformant for CompressedSquashedNoiseOneTimePadFheSecretMask {
+    type ParameterSet = CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        let Self { inner, tag: _ } = self;
+
+        inner.is_conformant(&params.0)
+    }
+}
+
+impl Named for CompressedSquashedNoiseOneTimePadFheSecretMask {
+    const NAME: &'static str = "high_level_api::CompressedSquashedNoiseOneTimePadFheSecretMask";
 }

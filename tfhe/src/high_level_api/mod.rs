@@ -158,9 +158,11 @@ pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, Fh
 pub use tag::Tag;
 pub use traits::FheId;
 pub use transciphering::{
-    AesFheKey, HlStreamCipher, HlStreamDecryptable, HlStreamEncryptable, HlTranscipherer,
-    KreyviumFheKey, OneTimePadFheSecretMask, OneTimePadFheSecretMaskConformanceParams,
-    StreamCiphertext, TranscipherSession,
+    AesFheKey, CompressedSquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, HlStreamCipher,
+    HlStreamDecryptable, HlStreamEncryptable, HlTranscipherer, KreyviumFheKey,
+    OneTimePadFheSecretMask, OneTimePadFheSecretMaskConformanceParams,
+    SquashedNoiseOneTimePadFheSecretMask, StreamCiphertext, TranscipherSession,
 };
 pub mod xof_key_set;
 

@@ -925,6 +925,34 @@ impl TestWithClientKey for HlOneTimePadFheSecretMaskTest {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HlCompressedSquashedNoiseOneTimePadFheSecretMaskTest {
+    pub test_filename: Cow<'static, str>,
+    pub key_filename: Cow<'static, str>,
+    pub pad: Cow<'static, [u8]>,
+    pub n_bits: u64,
+}
+
+impl TestType for HlCompressedSquashedNoiseOneTimePadFheSecretMaskTest {
+    fn module(&self) -> String {
+        HL_MODULE_NAME.to_string()
+    }
+
+    fn target_type(&self) -> String {
+        "CompressedSquashedNoiseOneTimePadFheSecretMask".to_string()
+    }
+
+    fn test_filename(&self) -> String {
+        self.test_filename.to_string()
+    }
+}
+
+impl TestWithClientKey for HlCompressedSquashedNoiseOneTimePadFheSecretMaskTest {
+    fn client_key_filename(&self) -> String {
+        self.key_filename.to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct HlStreamCiphertextTest {
     pub test_filename: Cow<'static, str>,
     pub plain_key: Cow<'static, [u8]>,
@@ -974,6 +1002,9 @@ pub enum TestMetadata {
     HlAesFheKey(HlAesFheKeyTest),
     HlOneTimePadFheSecretMask(HlOneTimePadFheSecretMaskTest),
     HlStreamCiphertext(HlStreamCiphertextTest),
+    HlCompressedSquashedNoiseOneTimePadFheSecretMask(
+        HlCompressedSquashedNoiseOneTimePadFheSecretMaskTest,
+    ),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

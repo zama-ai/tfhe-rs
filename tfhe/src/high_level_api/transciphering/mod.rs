@@ -24,7 +24,11 @@ mod stream_ciphertext;
 
 pub use aes::AesFheKey;
 pub use kreyvium::KreyviumFheKey;
-pub use one_time_pad::{OneTimePadFheSecretMask, OneTimePadFheSecretMaskConformanceParams};
+pub use one_time_pad::{
+    CompressedSquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
+    OneTimePadFheSecretMaskConformanceParams, SquashedNoiseOneTimePadFheSecretMask,
+};
 pub use stream_ciphertext::StreamCiphertext;
 
 /// Types encryptable by [`HlStreamCipher`].
@@ -456,6 +460,79 @@ mod test {
         assert!(sym.try_encrypt(1u8).is_err());
     }
 
+    /// Squash the noise of a pad and compress it, so that it can be decrypted by the KMS.
+    #[test]
+    fn test_one_time_pad_squashed_noise() {
+        use super::{
+            CompressedSquashedNoiseOneTimePadFheSecretMask,
+            CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams,
+            OneTimePadFheSecretMask,
+        };
+        use crate::conformance::ParameterSetConformant;
+        use crate::prelude::*;
+        use crate::shortint::parameters::current_params::{
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
+        use crate::transciphering::{KeyStreamLayout, OneTimePadPlainSecretMask};
+        use crate::{
+            generate_keys, set_server_key, CompressedSquashedNoiseCiphertextListConformanceParams,
+            ConfigBuilder,
+        };
+        use rand::Rng;
+
+        let config = ConfigBuilder::with_custom_parameters(
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .enable_noise_squashing(V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+        .enable_noise_squashing_compression(
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .build();
+        let (client_key, server_key) = generate_keys(config);
+        let conformance_params =
+            CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams::try_from(&server_key)
+                .unwrap();
+        // The pad is generated with the full space layout, so another layout is refused
+        let single_bit_params =
+            CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams::new(
+                CompressedSquashedNoiseCiphertextListConformanceParams::try_from(&server_key)
+                    .unwrap(),
+                KeyStreamLayout::single_bit(),
+            );
+        set_server_key(server_key);
+
+        let mut rng = rand::thread_rng();
+        let n_bits = 64;
+        let pad_bytes: Vec<u8> = (0..n_bits / 8).map(|_| rng.gen()).collect();
+        let plain_mask = OneTimePadPlainSecretMask::new(pad_bytes, n_bits);
+
+        let squashed = OneTimePadFheSecretMask::try_encrypt(plain_mask.clone(), &client_key)
+            .unwrap()
+            .squash_noise()
+            .unwrap();
+        assert!(squashed.decrypt(&client_key) == plain_mask);
+
+        let compressed = squashed.compress().unwrap();
+
+        // The compressed pad crosses the wire to the KMS
+        let mut serialized = vec![];
+        safe_serialize(&compressed, &mut serialized, SIZE_LIMIT).unwrap();
+        let compressed: CompressedSquashedNoiseOneTimePadFheSecretMask =
+            safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
+        assert!(compressed.is_conformant(&conformance_params));
+        assert!(!compressed.is_conformant(&single_bit_params));
+        assert!(compressed.decrypt(&client_key) == plain_mask);
+
+        // Decompression requires no key, and the result is decrypted with the compression key
+        let decompressed = compressed.decompress().unwrap();
+        assert!(decompressed.decrypt(&client_key) == plain_mask);
+
+        // A decompressed mask is under the compression key, so it cannot be compressed again
+        assert!(decompressed.compress().is_err());
+    }
+
     #[test]
     fn test_stream_ciphertext_conformance() {
         use super::HlStreamCipher;
@@ -612,17 +689,31 @@ mod test {
     /// wire, and what it transciphers is tagged like any other ciphertext of that key set.
     #[test]
     fn test_tag_propagation() {
-        use super::{HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession};
+        use super::{
+            CompressedSquashedNoiseOneTimePadFheSecretMask, HlStreamCipher, HlTranscipherer,
+            OneTimePadFheSecretMask, TranscipherSession,
+        };
         use crate::prelude::*;
         use crate::safe_serialization::{safe_deserialize, safe_serialize};
+        use crate::shortint::parameters::current_params::{
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
         use crate::shortint::parameters::TranscipheringParameters;
         use crate::transciphering::OneTimePadPlainState;
         use crate::{set_server_key, ClientKey, ConfigBuilder, Seed, ServerKey};
 
         const KEY_SET: u64 = 0x00C0_FFEE;
 
-        let config =
-            ConfigBuilder::default().enable_transciphering(TranscipheringParameters::SameAsCompute);
+        let config = ConfigBuilder::with_custom_parameters(
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .enable_noise_squashing(V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+        .enable_noise_squashing_compression(
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .enable_transciphering(TranscipheringParameters::SameAsCompute);
         let mut client_key = ClientKey::generate(config);
         client_key.tag_mut().set_u64(KEY_SET);
         let server_key = ServerKey::new(&client_key);
@@ -640,6 +731,22 @@ mod test {
         let fhe_mask: OneTimePadFheSecretMask =
             safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
         assert_eq!(fhe_mask.tag().as_u64(), KEY_SET);
+
+        // Check that the tag survives noise squashing, compression and decompression
+        let squashed = fhe_mask.squash_noise().unwrap();
+        assert_eq!(squashed.tag().as_u64(), KEY_SET);
+
+        let compressed = squashed.compress().unwrap();
+        assert_eq!(compressed.tag().as_u64(), KEY_SET);
+
+        let mut serialized = vec![];
+        safe_serialize(&compressed, &mut serialized, SIZE_LIMIT).unwrap();
+        let compressed: CompressedSquashedNoiseOneTimePadFheSecretMask =
+            safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
+        assert_eq!(compressed.tag().as_u64(), KEY_SET);
+
+        let decompressed = compressed.decompress().unwrap();
+        assert_eq!(decompressed.tag().as_u64(), KEY_SET);
 
         let mut sym = OneTimePadPlainState::new(fhe_mask.decrypt(&client_key));
         let sym_cipher = sym.try_encrypt(42u64).unwrap();
