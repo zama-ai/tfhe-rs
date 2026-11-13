@@ -23,6 +23,11 @@ PERF_REGRESSION_VENV=venv_perf_regression
 perf_regression_setup_venv:
 	$(call create_python_venv_with_requirements,$(PERF_REGRESSION_VENV),ci/perf_regression/requirements.txt ci/data_extractor/requirements.txt)
 
+SLAB_SEND_DATA_VENV=venv_slab_send_data
+.PHONY: slab_send_data_setup_venv # Create venv with the python requirements of the slab data sender script
+slab_send_data_setup_venv:
+	$(call create_python_venv_with_requirements,$(SLAB_SEND_DATA_VENV),ci/slab_send_data_requirements.txt)
+
 .PHONY: clippy_data_extractor # Run clippy lints on tfhe-data-extractor
 clippy_data_extractor: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
