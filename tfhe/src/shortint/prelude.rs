@@ -14,5 +14,5 @@ pub use super::parameters::{
     MessageModulus, ModulusSwitchType, PolynomialSize, StandardDev, PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
 };
-pub use super::public_key::{CompactPublicKey, PublicKey};
+pub use super::public_key::CompactPublicKey;
 pub use super::server_key::ServerKey;

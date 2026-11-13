@@ -136,93 +136,9 @@ void test_custom_keygen(void) {
   shortint_destroy_server_key(sks);
 }
 
-void test_public_keygen(ShortintPBSParameters params) {
-  ShortintClientKey *cks = NULL;
-  ShortintPublicKey *pks = NULL;
-  ShortintPublicKey *pks_deser = NULL;
-  ShortintCiphertext *ct = NULL;
-  DynamicBuffer pks_ser_buff = {.pointer = NULL, .length = 0, .destructor = NULL};
-
-  int gen_keys_ok = shortint_gen_client_key(params, &cks);
-  assert(gen_keys_ok == 0);
-
-  int gen_pks = shortint_gen_public_key(cks, &pks);
-  assert(gen_pks == 0);
-
-  int pks_ser = shortint_serialize_public_key(pks, &pks_ser_buff);
-  assert(pks_ser == 0);
-
-  DynamicBufferView pks_ser_buff_view = {.pointer = pks_ser_buff.pointer,
-                                         .length = pks_ser_buff.length};
-  int pks_deser_ok = shortint_deserialize_public_key(pks_ser_buff_view, &pks_deser);
-  assert(pks_deser_ok == 0);
-
-  uint64_t msg = 2;
-
-  int encrypt_ok = shortint_public_key_encrypt(pks_deser, msg, &ct);
-  assert(encrypt_ok == 0);
-
-  uint64_t result = -1;
-  int decrypt_ok = shortint_client_key_decrypt(cks, ct, &result);
-  assert(decrypt_ok == 0);
-
-  assert(result == 2);
-
-  shortint_destroy_client_key(cks);
-  shortint_destroy_public_key(pks);
-  shortint_destroy_public_key(pks_deser);
-  destroy_dynamic_buffer(&pks_ser_buff);
-  shortint_destroy_ciphertext(ct);
-}
-
-void test_compressed_public_keygen(ShortintPBSParameters params) {
-  ShortintClientKey *cks = NULL;
-  ShortintCompressedPublicKey *cpks = NULL;
-  ShortintPublicKey *pks = NULL;
-  ShortintCiphertext *ct = NULL;
-
-  int gen_keys_ok = shortint_gen_client_key(params, &cks);
-  assert(gen_keys_ok == 0);
-
-  int gen_cpks = shortint_gen_compressed_public_key(cks, &cpks);
-  assert(gen_cpks == 0);
-
-  uint64_t msg = 2;
-
-  int encrypt_compressed_ok = shortint_compressed_public_key_encrypt(cpks, msg, &ct);
-  assert(encrypt_compressed_ok == 0);
-
-  uint64_t result_compressed = -1;
-  int decrypt_compressed_ok = shortint_client_key_decrypt(cks, ct, &result_compressed);
-  assert(decrypt_compressed_ok == 0);
-
-  assert(result_compressed == 2);
-
-  int decompress_ok = shortint_decompress_public_key(cpks, &pks);
-  assert(decompress_ok == 0);
-
-  int encrypt_ok = shortint_public_key_encrypt(pks, msg, &ct);
-  assert(encrypt_ok == 0);
-
-  uint64_t result = -1;
-  int decrypt_ok = shortint_client_key_decrypt(cks, ct, &result);
-  assert(decrypt_ok == 0);
-
-  assert(result == 2);
-
-  shortint_destroy_client_key(cks);
-  shortint_destroy_compressed_public_key(cpks);
-  shortint_destroy_public_key(pks);
-  shortint_destroy_ciphertext(ct);
-}
-
 int main(void) {
   test_predefined_keygen_w_serde();
   test_custom_keygen();
-  test_public_keygen(SHORTINT_V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-  test_public_keygen(SHORTINT_V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
-  test_compressed_public_keygen(SHORTINT_V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-  test_compressed_public_keygen(SHORTINT_V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
   test_server_key_trivial_encrypt();
   return EXIT_SUCCESS;
 }

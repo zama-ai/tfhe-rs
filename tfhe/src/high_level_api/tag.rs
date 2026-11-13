@@ -286,7 +286,7 @@ impl<'de> serde::Deserialize<'de> for SmallVec {
 /// The rules for how the Tag is passed around are:
 /// * When encrypted, a ciphertext gets the tag of the key used to encrypt it.
 /// * Ciphertexts resulting from operations (add, sub, etc.) get the tag from the ServerKey used
-/// * PublicKey gets its tag from the ClientKey that was used to create it
+/// * CompactPublicKey gets its tag from the ClientKey that was used to create it
 /// * ServerKey gets its tag from the ClientKey that was used to create it
 ///
 /// User can change the tag of any entities at any point.

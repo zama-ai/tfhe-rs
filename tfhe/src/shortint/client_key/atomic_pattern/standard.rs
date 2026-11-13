@@ -19,7 +19,7 @@ use crate::shortint::parameters::{
     CompressionParameters, DynamicDistribution, ShortintKeySwitchingParameters,
 };
 use crate::shortint::{
-    AtomicPatternKind, EncryptionKeyChoice, PBSParameters, ShortintParameterSet,
+    AtomicPatternKind, AtomicPatternParameters, EncryptionKeyChoice, PBSParameters,
 };
 
 use super::EncryptionAtomicPattern;
@@ -352,7 +352,7 @@ impl StandardAtomicPatternClientKey {
 }
 
 impl EncryptionAtomicPattern for StandardAtomicPatternClientKey {
-    fn parameters(&self) -> ShortintParameterSet {
+    fn parameters(&self) -> AtomicPatternParameters {
         self.parameters.into()
     }
 
@@ -371,6 +371,6 @@ impl EncryptionAtomicPattern for StandardAtomicPatternClientKey {
     }
 
     fn kind(&self) -> AtomicPatternKind {
-        AtomicPatternKind::Standard(self.parameters().encryption_key_choice().into())
+        self.parameters.atomic_pattern()
     }
 }

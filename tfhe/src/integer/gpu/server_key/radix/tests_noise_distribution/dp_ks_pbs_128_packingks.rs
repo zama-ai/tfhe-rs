@@ -39,7 +39,7 @@ use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, noise_check, post_squashing_and_packing_noise_check,
     DecryptionAndNoiseResult, NoiseSample,
 };
-use crate::shortint::{PaddingBit, ShortintEncoding, ShortintParameterSet};
+use crate::shortint::{PaddingBit, ShortintEncoding};
 use crate::{this_function_name, GpuIndex};
 use rayon::prelude::*;
 
@@ -66,8 +66,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = atomic_params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(atomic_params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
@@ -232,8 +231,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
@@ -452,8 +450,7 @@ fn encrypt_dp_ks_standard_pbs128_packing_ks_inner_helper_gpu(
             single_cuda_noise_squashing_compression_key,
         )
     } else {
-        let block_params: ShortintParameterSet = params.into();
-        thread_cks = crate::integer::ClientKey::new(block_params);
+        thread_cks = crate::integer::ClientKey::new(params);
         let thread_compressed_server_key =
             CompressedServerKey::new_radix_compressed_server_key(&thread_cks);
         thread_cuda_sks =
@@ -764,8 +761,7 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = atomic_params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(atomic_params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 

@@ -14,9 +14,6 @@ pub struct BooleanCompressedCiphertext(pub(crate) crate::boolean::ciphertext::Co
 pub struct BooleanClientKey(pub(crate) crate::boolean::client_key::ClientKey);
 
 #[wasm_bindgen]
-pub struct BooleanPublicKey(pub(crate) crate::boolean::public_key::PublicKey);
-
-#[wasm_bindgen]
 pub struct BooleanCompressedServerKey(pub(crate) crate::boolean::server_key::CompressedServerKey);
 
 #[wasm_bindgen]
@@ -165,13 +162,6 @@ impl Boolean {
     }
 
     #[wasm_bindgen]
-    pub fn new_public_key(client_key: &BooleanClientKey) -> BooleanPublicKey {
-        set_hook(Box::new(console_error_panic_hook::hook));
-
-        BooleanPublicKey(crate::boolean::public_key::PublicKey::new(&client_key.0))
-    }
-
-    #[wasm_bindgen]
     pub fn new_compressed_server_key(client_key: &BooleanClientKey) -> BooleanCompressedServerKey {
         set_hook(Box::new(console_error_panic_hook::hook));
 
@@ -201,16 +191,6 @@ impl Boolean {
     ) -> BooleanCiphertext {
         set_hook(Box::new(console_error_panic_hook::hook));
         BooleanCiphertext(compressed_ciphertext.0.decompress())
-    }
-
-    #[wasm_bindgen]
-    pub fn encrypt_with_public_key(
-        public_key: &BooleanPublicKey,
-        message: bool,
-    ) -> BooleanCiphertext {
-        set_hook(Box::new(console_error_panic_hook::hook));
-
-        BooleanCiphertext(public_key.0.encrypt(message))
     }
 
     #[wasm_bindgen]
@@ -272,21 +252,6 @@ impl Boolean {
         bincode::deserialize(buffer)
             .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
             .map(BooleanClientKey)
-    }
-
-    #[wasm_bindgen]
-    pub fn serialize_public_key(public_key: &BooleanPublicKey) -> Result<Vec<u8>, JsError> {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        bincode::serialize(&public_key.0)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
-    }
-
-    #[wasm_bindgen]
-    pub fn deserialize_public_key(buffer: &[u8]) -> Result<BooleanPublicKey, JsError> {
-        set_hook(Box::new(console_error_panic_hook::hook));
-        bincode::deserialize(buffer)
-            .map_err(|e| wasm_bindgen::JsError::new(format!("{e:?}").as_str()))
-            .map(BooleanPublicKey)
     }
 
     #[wasm_bindgen]

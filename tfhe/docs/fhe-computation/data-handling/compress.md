@@ -171,39 +171,6 @@ fn main() {
 
 ```
 
-## Compressed public keys
-
-This example shows how to compress the classical public keys:
-
-{% hint style="warning" %}
-It is not currently recommended to use the `CompressedPublicKey` to encrypt ciphertexts without first decompressing them. If the resulting PublicKey is too large to fit in memory, it may result in significant slowdowns.
-
-This issue has been identified and will be addressed in future releases.
-{% endhint %}
-
-```rust
-use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, generate_keys, FheUint8, CompressedPublicKey};
-
-fn main() {
-    let config = ConfigBuilder::default().build();
-    let (client_key, _) = generate_keys(config);
-
-    let compressed_public_key = CompressedPublicKey::new(&client_key);
-
-    println!("compressed size  : {}", bincode::serialize(&compressed_public_key).unwrap().len());
-
-    let public_key = compressed_public_key.decompress();
-
-    println!("decompressed size: {}", bincode::serialize(&public_key).unwrap().len());
-
-
-    let a = FheUint8::try_encrypt(213u8, &public_key).unwrap();
-    let clear: u8 = a.decrypt(&client_key);
-    assert_eq!(clear, 213u8);
-}
-```
-
 ## Compressed compact public key
 
 This example shows how to use compressed compact public keys:

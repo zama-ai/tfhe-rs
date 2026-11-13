@@ -21,7 +21,6 @@ use tfhe::shortint::parameters::{
 use tfhe::shortint::{
     AtomicPatternParameters, CarryModulus, Ciphertext, CiphertextModulus, ClassicPBSParameters,
     ClientKey, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus, MultiBitPBSParameters,
-    ShortintParameterSet,
 };
 
 use crate::{load_and_unversionize, load_client_key, TestedModule};
@@ -204,10 +203,6 @@ fn convert_distribution<T: UnsignedInteger>(value: &TestDistribution) -> Dynamic
     }
 }
 
-fn load_shortint_params(test_params: &TestParameterSet) -> ShortintParameterSet {
-    load_params(test_params).into()
-}
-
 pub fn test_shortint_ciphertext(
     dir: &Path,
     test: &ShortintCiphertextTest,
@@ -236,7 +231,7 @@ pub fn test_shortint_clientkey(
     test: &ShortintClientKeyTest,
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
-    let test_params = load_shortint_params(&test.parameters);
+    let test_params = load_params(&test.parameters);
 
     let key: ClientKey = load_and_unversionize(dir, test, format)?;
 

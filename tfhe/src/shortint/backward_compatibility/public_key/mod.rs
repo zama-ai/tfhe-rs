@@ -1,40 +1,10 @@
-use std::convert::Infallible;
-
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::core_crypto::prelude::{
-    Container, LweCompactPublicKeyOwned, LwePublicKeyOwned, SeededLweCompactPublicKeyOwned,
-    SeededLwePublicKeyOwned,
+    Container, LweCompactPublicKeyOwned, SeededLweCompactPublicKeyOwned,
 };
-use crate::shortint::{
-    AtomicPatternKind, CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey,
-    CompressedPublicKey, PBSOrder, PublicKey, ShortintParameterSet,
-};
-
-#[derive(Version)]
-pub struct PublicKeyV0 {
-    lwe_public_key: LwePublicKeyOwned<u64>,
-    parameters: ShortintParameterSet,
-    pbs_order: PBSOrder,
-}
-
-impl Upgrade<PublicKey> for PublicKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<PublicKey, Self::Error> {
-        Ok(PublicKey::from_raw_parts(
-            self.lwe_public_key,
-            self.parameters,
-            AtomicPatternKind::Standard(self.pbs_order),
-        ))
-    }
-}
-
-#[derive(VersionsDispatch)]
-pub enum PublicKeyVersions {
-    V0(PublicKeyV0),
-    V1(PublicKey),
-}
+use crate::shortint::backward_compatibility::parameters::ShortintParameterSet;
+use crate::shortint::{CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, PBSOrder};
 
 #[derive(Version)]
 pub struct CompactPublicKeyV0 {
@@ -45,7 +15,7 @@ pub struct CompactPublicKeyV0 {
 
 impl Upgrade<CompactPublicKey> for CompactPublicKeyV0 {
     fn upgrade(self) -> Result<CompactPublicKey, Self::Error> {
-        let parameters = self.parameters.try_into()?;
+        let parameters = self.parameters.ap_parameters().try_into()?;
         Ok(CompactPublicKey {
             key: self.key,
             parameters,
@@ -67,31 +37,6 @@ pub enum CompactPrivateKeyVersions<KeyCont: Container<Element = u64>> {
 }
 
 #[derive(Version)]
-pub struct CompressedPublicKeyV0 {
-    lwe_public_key: SeededLwePublicKeyOwned<u64>,
-    parameters: ShortintParameterSet,
-    pbs_order: PBSOrder,
-}
-
-impl Upgrade<CompressedPublicKey> for CompressedPublicKeyV0 {
-    type Error = Infallible;
-
-    fn upgrade(self) -> Result<CompressedPublicKey, Self::Error> {
-        Ok(CompressedPublicKey::from_raw_parts(
-            self.lwe_public_key,
-            self.parameters,
-            AtomicPatternKind::Standard(self.pbs_order),
-        ))
-    }
-}
-
-#[derive(VersionsDispatch)]
-pub enum CompressedPublicKeyVersions {
-    V0(CompressedPublicKeyV0),
-    V1(CompressedPublicKey),
-}
-
-#[derive(Version)]
 pub struct CompressedCompactPublicKeyV0 {
     key: SeededLweCompactPublicKeyOwned<u64>,
     parameters: ShortintParameterSet,
@@ -100,7 +45,7 @@ pub struct CompressedCompactPublicKeyV0 {
 
 impl Upgrade<CompressedCompactPublicKey> for CompressedCompactPublicKeyV0 {
     fn upgrade(self) -> Result<CompressedCompactPublicKey, Self::Error> {
-        let parameters = self.parameters.try_into()?;
+        let parameters = self.parameters.ap_parameters().try_into()?;
         Ok(CompressedCompactPublicKey {
             key: self.key,
             parameters,

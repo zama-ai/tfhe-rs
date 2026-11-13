@@ -51,7 +51,6 @@
 
 use crate::boolean::client_key::ClientKey;
 use crate::boolean::parameters::DEFAULT_PARAMETERS;
-use crate::boolean::public_key::{CompressedPublicKey, PublicKey};
 use crate::boolean::server_key::ServerKey;
 #[cfg(test)]
 use rand::Rng;
@@ -65,7 +64,6 @@ pub mod key_switching_key;
 pub mod keycache;
 pub mod parameters;
 pub mod prelude;
-pub mod public_key;
 pub mod server_key;
 
 /// The scaling factor used for the plaintext

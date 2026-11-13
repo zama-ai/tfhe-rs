@@ -25,17 +25,13 @@ use super::OprfParameters;
 /// ciphertext`)[`crate::shortint::ciphertext::Ciphertext`].
 ///
 /// * The `Big` choice means the big LWE key derived from the GLWE key is used to encrypt the input
-///   ciphertext. This offers better performance but the (`public
-///   key`)[`crate::shortint::public_key::PublicKey`] can be extremely large and in some cases may
-///   not fit in memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch
-///   is computed first followed by a PBS, the keyswitch goes from the large key to the small key
-///   and the PBS goes from the small key to the large key.
+///   ciphertext. This offers better performance. When refreshing a ciphertext and/or evaluating a
+///   table lookup the keyswitch is computed first followed by a PBS, the keyswitch goes from the
+///   large key to the small key and the PBS goes from the small key to the large key.
 /// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
-///   Performance is not as good as in the `Big` case but (`public
-///   key`)[`crate::shortint::public_key::PublicKey`] sizes are much more manageable and should
-///   always fit in memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is
-///   computed first followed by a keyswitch, the PBS goes from the small key to the large key and
-///   the keyswitch goes from the large key to the small key.
+///   Performance is not as good as in the `Big` case. When refreshing a ciphertext and/or
+///   evaluating a table lookup the PBS is computed first followed by a keyswitch, the PBS goes from
+///   the small key to the large key and the keyswitch goes from the large key to the small key.
 #[derive(Serialize, Copy, Clone, Deserialize, Debug, PartialEq, Versionize)]
 #[versionize(ClassicPBSParametersVersions)]
 pub struct ClassicPBSParameters {
