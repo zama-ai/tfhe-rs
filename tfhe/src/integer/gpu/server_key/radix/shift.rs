@@ -2,12 +2,157 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
 use crate::integer::gpu::{
-    cuda_backend_get_full_propagate_assign_size_on_gpu, cuda_backend_get_left_shift_size_on_gpu,
-    cuda_backend_get_right_shift_size_on_gpu, cuda_backend_unchecked_left_shift_assign,
-    cuda_backend_unchecked_right_shift_assign, CudaServerKey,
+    cuda_backend_get_cmux_size_on_gpu, cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_left_shift_size_on_gpu, cuda_backend_get_right_shift_size_on_gpu,
+    cuda_backend_unchecked_left_shift_assign, cuda_backend_unchecked_right_shift_assign,
+    CudaServerKey, ShiftRotateType,
 };
 
 impl CudaServerKey {
+    /// The CUDA backend needs the shift or rotation amount to have as many blocks as the value.
+    /// Returns the amount adapted to the block count of `ct`, or None if it already matches:
+    /// - a narrower amount is extended with trivial zero blocks.
+    /// - a wider amount for a rotation is cut to the block count of `ct`. A rotation only uses the
+    ///   low bits of the amount.
+    /// - a wider amount for a shift keeps a value that is at least the number of bits of `ct` if
+    ///   and only if the full amount is at least that number of bits. The backend then applies the
+    ///   overshift result (0, or all bits equal to the sign bit for a signed right shift) by
+    ///   itself.
+    pub(crate) fn shift_amount_with_num_blocks_of<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        amount: &CudaUnsignedRadixCiphertext,
+        operation: ShiftRotateType,
+        streams: &CudaStreams,
+    ) -> Option<CudaUnsignedRadixCiphertext> {
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let amount_num_blocks = amount.as_ref().d_blocks.lwe_ciphertext_count().0;
+        match amount_num_blocks.cmp(&num_blocks) {
+            std::cmp::Ordering::Equal => None,
+            std::cmp::Ordering::Less => Some(self.extend_radix_with_trivial_zero_blocks_msb(
+                amount,
+                num_blocks - amount_num_blocks,
+                streams,
+            )),
+            std::cmp::Ordering::Greater => match operation {
+                ShiftRotateType::LeftRotate | ShiftRotateType::RightRotate => Some(
+                    self.trim_radix_blocks_msb(amount, amount_num_blocks - num_blocks, streams),
+                ),
+                ShiftRotateType::LeftShift | ShiftRotateType::RightShift if num_blocks == 1 => {
+                    // `ct` has one block. The bound n * b <= message_modulus^(n - 1) is false for
+                    // n == 1, thus a one-block cmux selects the adapted amount. If the high part
+                    // is not zero, the adapted amount is the number of bits of `ct`, which is
+                    // less than the message modulus.
+                    let low_amount =
+                        self.trim_radix_blocks_msb(amount, amount_num_blocks - 1, streams);
+                    let high_amount = self.trim_radix_blocks_lsb(amount, 1, streams);
+                    let is_overshift = self.unchecked_scalar_ne(&high_amount, 0u64, streams);
+                    let num_bits = u64::from(self.message_modulus.0.ilog2());
+                    let overshift_amount: CudaUnsignedRadixCiphertext =
+                        self.create_trivial_radix(num_bits, 1, streams);
+                    Some(self.unchecked_if_then_else(
+                        &is_overshift,
+                        &overshift_amount,
+                        &low_amount,
+                        streams,
+                    ))
+                }
+                ShiftRotateType::LeftShift | ShiftRotateType::RightShift => {
+                    // With 2 blocks or more, the number of bits of `ct` is at most the weight of
+                    // the top block (message_modulus^(num_blocks - 1)): for n blocks of b bits,
+                    // n * b <= 2^(b * (n - 1)) when n >= 2 and b >= 1. Thus the amount is less
+                    // than the number of bits only if all its blocks from the top block of `ct`
+                    // upwards are zero. The adapted amount keeps the low blocks and replaces the
+                    // top block by the boolean "these blocks are not zero":
+                    // - all zero: the adapted amount is equal to the amount.
+                    // - not all zero: the adapted amount is at least the weight of the top block,
+                    //   and the backend detects an overshift.
+                    let num_low_blocks = num_blocks - 1;
+                    let high_amount = self.trim_radix_blocks_lsb(amount, num_low_blocks, streams);
+                    let is_overshift = self.unchecked_scalar_ne(&high_amount, 0u64, streams);
+                    let mut adapted_amount: CudaUnsignedRadixCiphertext = self
+                        .extend_radix_with_trivial_zero_blocks_lsb(
+                            &is_overshift.0,
+                            num_low_blocks,
+                            streams,
+                        );
+                    let lwe_size = amount.as_ref().d_blocks.lwe_dimension().to_lwe_size().0;
+                    // SAFETY: The source has amount_num_blocks blocks and the destination has
+                    // num_blocks blocks. Both are more than num_low_blocks, so the copied range
+                    // is in both buffers. The copy ends before the synchronization returns, thus
+                    // before the caller can drop or change `amount`.
+                    unsafe {
+                        adapted_amount
+                            .as_mut()
+                            .d_blocks
+                            .0
+                            .d_vec
+                            .copy_src_range_gpu_to_gpu_async(
+                                ..num_low_blocks * lwe_size,
+                                &amount.as_ref().d_blocks.0.d_vec,
+                                streams,
+                                0,
+                            );
+                        streams.synchronize();
+                    }
+                    adapted_amount.as_mut().info.blocks[..num_low_blocks]
+                        .copy_from_slice(&amount.as_ref().info.blocks[..num_low_blocks]);
+                    Some(adapted_amount)
+                }
+            },
+        }
+    }
+
+    /// Memory used by `shift_amount_with_num_blocks_of` followed by the shift or rotation, which
+    /// needs `operation_mem`. The adapted amount is alive during the shift or rotation. The
+    /// temporaries of the adaptation are freed before the shift or rotation starts.
+    pub(crate) fn get_size_with_shift_amount_adaptation_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        amount: &CudaUnsignedRadixCiphertext,
+        operation: ShiftRotateType,
+        operation_mem: u64,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let amount_num_blocks = amount.as_ref().d_blocks.lwe_ciphertext_count().0;
+        if amount_num_blocks == num_blocks {
+            return operation_mem;
+        }
+        let ct_mem = self.get_ciphertext_size_on_gpu(ct);
+        let operation_with_amount_mem = operation_mem + ct_mem;
+        let is_rotation = matches!(
+            operation,
+            ShiftRotateType::LeftRotate | ShiftRotateType::RightRotate
+        );
+        if amount_num_blocks < num_blocks || is_rotation {
+            return operation_with_amount_mem;
+        }
+        // Upper bound: all the blocks cut from `amount` and the scalar comparison scratch, plus
+        // the boolean block and the adapted amount (num_blocks >= 2), or the boolean block, the
+        // trivial amount, the result and the scratch of a one-block cmux (num_blocks == 1).
+        let amount_mem = self.get_ciphertext_size_on_gpu(amount);
+        let ne_mem = self.get_scalar_ne_size_on_gpu(amount, streams);
+        let adaptation_mem = if num_blocks == 1 {
+            let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key
+            else {
+                panic!("Only the standard atomic pattern is supported on GPU")
+            };
+            let cmux_mem = cuda_backend_get_cmux_size_on_gpu(
+                streams,
+                self.message_modulus,
+                self.carry_modulus,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                1,
+            );
+            amount_mem + 3 * ct_mem + ne_mem.max(cmux_mem)
+        } else {
+            amount_mem + 2 * ct_mem + ne_mem
+        };
+        operation_with_amount_mem.max(adaptation_mem)
+    }
+
     pub(crate) fn unchecked_right_shift_assign<T>(
         &self,
         ct: &mut T,
@@ -17,6 +162,9 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        let adapted_shift =
+            self.shift_amount_with_num_blocks_of(ct, shift, ShiftRotateType::RightShift, streams);
+        let shift = adapted_shift.as_ref().unwrap_or(shift);
         let is_signed = T::IS_SIGNED;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -72,6 +220,9 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
+        let adapted_shift =
+            self.shift_amount_with_num_blocks_of(ct, shift, ShiftRotateType::LeftShift, streams);
+        let shift = adapted_shift.as_ref().unwrap_or(shift);
         let is_signed = T::IS_SIGNED;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -206,7 +357,6 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -220,17 +370,15 @@ impl CudaServerKey {
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, shift)
+                self.full_propagate_assign(ct, streams);
+                (ct, shift)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = shift.duplicate(streams);
 
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(ct, streams);
                 self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
+                (ct, &tmp_rhs)
             }
         };
 
@@ -325,7 +473,6 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        let mut tmp_lhs: T;
         let mut tmp_rhs: CudaUnsignedRadixCiphertext;
 
         let (lhs, rhs) = match (
@@ -339,17 +486,15 @@ impl CudaServerKey {
                 (ct, &tmp_rhs)
             }
             (false, true) => {
-                tmp_lhs = ct.duplicate(streams);
-                self.full_propagate_assign(&mut tmp_lhs, streams);
-                (&mut tmp_lhs, shift)
+                self.full_propagate_assign(ct, streams);
+                (ct, shift)
             }
             (false, false) => {
-                tmp_lhs = ct.duplicate(streams);
                 tmp_rhs = shift.duplicate(streams);
 
-                self.full_propagate_assign(&mut tmp_lhs, streams);
+                self.full_propagate_assign(ct, streams);
                 self.full_propagate_assign(&mut tmp_rhs, streams);
-                (&mut tmp_lhs, &tmp_rhs)
+                (ct, &tmp_rhs)
             }
         };
 
@@ -365,10 +510,6 @@ impl CudaServerKey {
         assert_eq!(
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
-        );
-        assert_eq!(
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -415,7 +556,13 @@ impl CudaServerKey {
             lwe_ciphertext_count.0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(shift_mem)
+        actual_full_prop_mem.max(self.get_size_with_shift_amount_adaptation_on_gpu(
+            ct_left,
+            ct_right,
+            ShiftRotateType::LeftShift,
+            shift_mem,
+            streams,
+        ))
     }
 
     pub fn get_right_shift_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -427,10 +574,6 @@ impl CudaServerKey {
         assert_eq!(
             ct_left.as_ref().d_blocks.lwe_dimension(),
             ct_right.as_ref().d_blocks.lwe_dimension()
-        );
-        assert_eq!(
-            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
-            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
         );
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -477,6 +620,12 @@ impl CudaServerKey {
             lwe_ciphertext_count.0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(shift_mem)
+        actual_full_prop_mem.max(self.get_size_with_shift_amount_adaptation_on_gpu(
+            ct_left,
+            ct_right,
+            ShiftRotateType::RightShift,
+            shift_mem,
+            streams,
+        ))
     }
 }

@@ -1,6 +1,7 @@
 use crate::core_crypto::commons::traits::contiguous_entity_container::ContiguousEntityContainer;
 use crate::core_crypto::entities::LweCompactCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
     lwe_compact_ciphertext_list_size, CiphertextModulus, LweCiphertext, LweCiphertextCount,
@@ -11,10 +12,10 @@ use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextIn
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaVec, KsType, LweDimension};
 use crate::integer::gpu::cuda_backend_expand;
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
-use crate::integer::gpu::server_key::CudaDynamicKeyswitchingKey;
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{CompactCiphertextListExpansionKind, Degree, NoiseLevel};
-use crate::shortint::{AtomicPatternKind, CarryModulus, Ciphertext, MessageModulus};
+use crate::shortint::{AtomicPatternKind, CarryModulus, Ciphertext, MessageModulus, PBSOrder};
 use crate::GpuIndex;
 use itertools::Itertools;
 use std::ops::Range;
@@ -34,6 +35,15 @@ impl CudaCompactCiphertextListInfo {
                 })
         })
     }
+}
+
+/// The key used to expand a compact ciphertext list, as `IntegerCompactCiphertextListExpansionMode`
+/// on the CPU
+pub(crate) enum CudaCompactCiphertextListExpansionKey<'key> {
+    /// The list is cast with a dedicated casting key, then unpacked
+    CastAndUnpack(CudaKeySwitchingKey<'key>),
+    /// The list is encrypted under the computing parameters and is unpacked with the server key
+    UnpackAndSanitize(&'key CudaServerKey),
 }
 
 pub struct CudaCompactCiphertextListExpander {
@@ -252,6 +262,18 @@ fn check_data_info_is_supported_on_gpu(data_info: &[DataKind]) -> crate::Result<
                  be expanded with a CUDA server key"
             ))
         })
+}
+
+/// Returns the computing keyswitch key of `sks`, the GPU expansion only supports the standard
+/// atomic pattern
+fn standard_computing_ks_key(sks: &CudaServerKey) -> crate::Result<&CudaLweKeyswitchKey<u64>> {
+    match &sks.key_switching_key {
+        CudaDynamicKeyswitchingKey::Standard(computing_ks_key) => Ok(computing_ks_key),
+        CudaDynamicKeyswitchingKey::KeySwitch32(_) => Err(crate::error!(
+            "Only the standard atomic pattern is supported to expand compact ciphertext lists on \
+             GPU"
+        )),
+    }
 }
 
 impl CudaFlattenedVecCompactCiphertextList {
@@ -491,6 +513,87 @@ impl CudaFlattenedVecCompactCiphertextList {
         zk_type: crate::integer::gpu::ZKType,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
+        let casting_key = key.key_switching_key_material;
+        self.expand_with_casting_ksk(
+            &casting_key.lwe_keyswitch_key,
+            casting_key.destination_key.into(),
+            key.dest_server_key,
+            zk_type,
+            streams,
+        )
+    }
+
+    /// Expands the list with the casting key or the computing key in `key`. See
+    /// `expand_without_casting` for the errors of the computing-key path.
+    pub(crate) fn expand_with_key(
+        &self,
+        key: &CudaCompactCiphertextListExpansionKey<'_>,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaCompactCiphertextListExpander> {
+        match key {
+            CudaCompactCiphertextListExpansionKey::CastAndUnpack(ksk) => {
+                self.expand(ksk, crate::integer::gpu::ZKType::Casting, streams)
+            }
+            CudaCompactCiphertextListExpansionKey::UnpackAndSanitize(sks) => {
+                self.expand_without_casting(sks, streams)
+            }
+        }
+    }
+
+    /// Expands a list encrypted under the big key of a KS-PBS server key: the computing keyswitch
+    /// key is given to the backend as a big to small casting key, so the expansion is the
+    /// keyswitch and PBS of the CPU `UnpackAndSanitizeIfNecessary` mode.
+    ///
+    /// # Errors
+    ///
+    /// - the list expansion kind is not `NoCasting` for the standard KS-PBS atomic pattern
+    /// - the server key PBS order is not KS-PBS, or its atomic pattern is not the standard one
+    /// - the errors of the shared expansion: unsupported data kinds, unpacked list, LWE dimension
+    ///   or moduli that do not match the server key, carry modulus different from the message
+    ///   modulus
+    pub(crate) fn expand_without_casting(
+        &self,
+        sks: &CudaServerKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaCompactCiphertextListExpander> {
+        let expected_kind = CompactCiphertextListExpansionKind::NoCasting(
+            AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
+        );
+        if self.expansion_kind != expected_kind {
+            return Err(crate::error!(
+                "Cannot expand a compact ciphertext list without a casting key on GPU: expected \
+                 expansion kind {expected_kind:?}, got {:?}",
+                self.expansion_kind,
+            ));
+        }
+        if sks.pbs_order != PBSOrder::KeyswitchBootstrap {
+            return Err(crate::error!(
+                "Cannot expand a compact ciphertext list without a casting key on GPU: expected \
+                 a server key with PBS order {:?}, got {:?}",
+                PBSOrder::KeyswitchBootstrap,
+                sks.pbs_order,
+            ));
+        }
+
+        let computing_ks_key = standard_computing_ks_key(sks)?;
+
+        self.expand_with_casting_ksk(
+            computing_ks_key,
+            KsType::BigToSmall,
+            sks,
+            crate::integer::gpu::ZKType::Casting,
+            streams,
+        )
+    }
+
+    fn expand_with_casting_ksk(
+        &self,
+        casting_ksk: &CudaLweKeyswitchKey<u64>,
+        casting_key_type: KsType,
+        sks: &CudaServerKey,
+        zk_type: crate::integer::gpu::ZKType,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaCompactCiphertextListExpander> {
         // Already checked on construction, but `data_info` is mutable within the crate
         check_data_info_is_supported_on_gpu(&self.data_info)?;
 
@@ -502,11 +605,44 @@ impl CudaFlattenedVecCompactCiphertextList {
             ));
         }
 
+        // The backend reads the list with the input dimension of the casting key
+        let ksk_input_lwe_dimension = casting_ksk.input_key_lwe_size().to_lwe_dimension();
+        if self.lwe_dimension != ksk_input_lwe_dimension {
+            return Err(crate::error!(
+                "Compact ciphertext list LWE dimension {:?} does not match the key switching key \
+                 input LWE dimension {ksk_input_lwe_dimension:?}",
+                self.lwe_dimension,
+            ));
+        }
+
+        // The backend only supports these moduli
+        if sks.carry_modulus.0 != sks.message_modulus.0 {
+            return Err(crate::error!(
+                "Expanding compact ciphertext lists on GPU requires the carry modulus to equal \
+                 the message modulus"
+            ));
+        }
+
+        // The degrees of the expanded blocks come from the list moduli and the lookup tables from
+        // the server key moduli: they must be the same
+        if self.message_modulus != sks.message_modulus || self.carry_modulus != sks.carry_modulus {
+            return Err(crate::error!(
+                "Compact ciphertext list moduli (message {:?}, carry {:?}) do not match the server \
+                 key moduli (message {:?}, carry {:?})",
+                self.message_modulus,
+                self.carry_modulus,
+                sks.message_modulus,
+                sks.carry_modulus,
+            ));
+        }
+
         let lwe_dimension = self.lwe_dimension;
         let ciphertext_modulus = self.ciphertext_modulus;
 
         let input_lwe_ciphertext_count = self.lwe_ciphertext_count;
         let output_lwe_ciphertext_count = LweCiphertextCount(2 * input_lwe_ciphertext_count.0);
+
+        let computing_ks_key = standard_computing_ks_key(sks)?;
 
         let d_expanded_blocks = unsafe {
             let mut d_output = CudaLweCiphertextList::new(
@@ -517,19 +653,9 @@ impl CudaFlattenedVecCompactCiphertextList {
             );
 
             let d_input = &self.d_flattened_vec;
-            let casting_key = key.key_switching_key_material;
-            let sks = key.dest_server_key;
-
-            let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) =
-                &key.dest_server_key.key_switching_key
-            else {
-                panic!("Only the standard atomic pattern is supported on GPU")
-            };
-
-            let casting_key_type: KsType = casting_key.destination_key.into();
 
             let computing_ksk_params = computing_ks_key.params_ffi();
-            let casting_ksk_params = casting_key.lwe_keyswitch_key.params_ffi();
+            let casting_ksk_params = casting_ksk.params_ffi();
 
             assert_eq!(
                 sks.bootstrapping_key.input_lwe_dimension().0 as u32,
@@ -541,7 +667,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                 &mut d_output,
                 d_input,
                 &computing_ks_key.d_vec,
-                &casting_key.lwe_keyswitch_key.d_vec,
+                &casting_ksk.d_vec,
                 &sks.bootstrapping_key,
                 sks.message_modulus,
                 sks.carry_modulus,
@@ -569,7 +695,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                     },
                     message_modulus,
                     carry_modulus,
-                    atomic_pattern: AtomicPatternKind::Standard(key.dest_server_key.pbs_order),
+                    atomic_pattern: AtomicPatternKind::Standard(sks.pbs_order),
                     noise_level: NoiseLevel::NOMINAL,
                 },
                 data_kind: *data_kind,

@@ -50,6 +50,7 @@ pub enum PBSType {
 }
 
 #[repr(u32)]
+#[derive(Clone, Copy)]
 pub enum ShiftRotateType {
     LeftShift = 0,
     RightShift = 1,
