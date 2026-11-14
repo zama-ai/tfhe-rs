@@ -1,3 +1,5 @@
+use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::math::random::DefaultRandomGenerator;
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
     CudaBootstrapKey, CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
 };
@@ -214,22 +216,36 @@ impl CudaServerKey {
     where
         C: AsRef<ClientKey>,
     {
+        let mut engine = ShortintEngine::new();
+        Self::new_with_encryption_generator(cks, &mut engine.encryption_generator, streams)
+    }
+
+    /// Same as [`Self::new`], but draws every random value of the bootstrapping and key
+    /// switching keys from `encryption_generator`, so a caller holding a seeded generator gets
+    /// reproducible keys (e.g. the golden-value tests).
+    pub(crate) fn new_with_encryption_generator<C>(
+        cks: C,
+        encryption_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+        streams: &CudaStreams,
+    ) -> Self
+    where
+        C: AsRef<ClientKey>,
+    {
         // It should remain just enough space to add a carry
         let client_key = cks.as_ref();
         let max_degree = MaxDegree::integer_radix_server_key(
             client_key.key.parameters().message_modulus(),
             client_key.key.parameters().carry_modulus(),
         );
-        Self::new_server_key_with_max_degree(client_key, max_degree, streams)
+        Self::new_server_key_with_max_degree(client_key, max_degree, encryption_generator, streams)
     }
 
     pub(crate) fn new_server_key_with_max_degree(
         cks: &ClientKey,
         max_degree: MaxDegree,
+        encryption_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
         streams: &CudaStreams,
     ) -> Self {
-        let mut engine = ShortintEngine::new();
-
         // Generate a regular keyset and convert to the GPU
         let AtomicPatternClientKey::Standard(std_cks) = &cks.key.atomic_pattern else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -247,7 +263,7 @@ impl CudaServerKey {
                         pbs_params.pbs_level,
                         pbs_params.glwe_noise_distribution,
                         pbs_params.ciphertext_modulus,
-                        &mut engine.encryption_generator,
+                        encryption_generator,
                     );
                 let modulus_switch_noise_reduction_configuration =
                     match pbs_params.modulus_switch_noise_reduction_params {
@@ -280,7 +296,7 @@ impl CudaServerKey {
                         pbs_params.grouping_factor,
                         pbs_params.glwe_noise_distribution,
                         pbs_params.ciphertext_modulus,
-                        &mut engine.encryption_generator,
+                        encryption_generator,
                     );
 
                 let d_bootstrap_key = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
@@ -300,7 +316,7 @@ impl CudaServerKey {
             std_cks.parameters.ks_level(),
             std_cks.parameters.lwe_noise_distribution(),
             std_cks.parameters.ciphertext_modulus(),
-            &mut engine.encryption_generator,
+            encryption_generator,
         );
 
         let d_key_switching_key =
