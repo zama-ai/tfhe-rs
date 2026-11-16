@@ -525,6 +525,13 @@ void execute_pbs_async(CudaStreams streams,
                    streams.gpu_index(i));
     int num_inputs_on_gpu =
         get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, streams.count());
+    // The PBS buffer is sized for a number of inputs: a PBS on more inputs
+    // would write past it.
+    GPU_ASSERT((uint32_t)num_inputs_on_gpu <= pbs_buffer[i]->max_num_inputs(),
+               "Cuda error: the PBS buffer on GPU %u was allocated for %u "
+               "inputs, but the PBS is applied to %d inputs on this GPU.",
+               streams.gpu_index(i), pbs_buffer[i]->max_num_inputs(),
+               num_inputs_on_gpu);
 
     // Use the macro to get the correct elements for the current
     // iteration. Handles the case when the input/output are

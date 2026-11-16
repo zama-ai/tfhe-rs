@@ -132,6 +132,9 @@ struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> : public pbs_buffer_base {
   uint32_t level_count;
   uint32_t input_lwe_ciphertext_count;
   uint32_t max_shared_memory;
+  uint32_t max_num_inputs() const override {
+    return input_lwe_ciphertext_count;
+  }
 
 private:
   // Variant-free part: shared fields plus the buffers every multi-bit variant
