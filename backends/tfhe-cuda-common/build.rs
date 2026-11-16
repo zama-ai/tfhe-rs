@@ -24,7 +24,13 @@ fn main() {
     println!("cargo::rerun-if-changed=cuda/include");
     println!("cargo::rerun-if-changed=cuda/src");
     println!("cargo::rerun-if-changed=cuda/CMakeLists.txt");
-    println!("cargo::rerun-if-changed=src");
+    // Automatically generated files are excluded from `cargo::rerun-if-changed`
+    for entry in std::fs::read_dir("src").unwrap() {
+        let path = entry.unwrap().path();
+        if path.file_name().is_some_and(|name| name != "cuda_bind.rs") {
+            println!("cargo::rerun-if-changed={}", path.display());
+        }
+    }
 
     if std::env::consts::OS == "linux" {
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
