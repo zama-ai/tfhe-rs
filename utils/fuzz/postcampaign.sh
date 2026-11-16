@@ -63,7 +63,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-(( GPU )) && HARNESSES=(harness-cuda-compute)
+(( GPU )) && HARNESSES=(harness-cuda-compute harness-cuda-scalars)
 
 cd "$REPO_ROOT"
 

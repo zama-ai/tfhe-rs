@@ -39,8 +39,15 @@ template <uint32_t N> struct AmortizedDegreePolicy128 {
 // Classic PBS policy: Degree<2048> for N=2048 (measured to outperform
 // AmortizedDegree there), AmortizedDegree for all other sizes 256-16384.
 // Used by non-CG classic PBS and TBC classic PBS.
+// TFHE_CUDA_FUZZING extends support down to 32 to match AmortizedDegreePolicy,
+// so the fuzz dispatch (TBC → CG → plain classic) never falls off the bottom
+// into a PANIC for the small synthetic params used by the GPU fuzz harness.
 template <uint32_t N> struct ClassicPBSDegreePolicy {
+#ifdef TFHE_CUDA_FUZZING
+  static constexpr bool supported = (N >= 32 && N <= 16384);
+#else
   static constexpr bool supported = (N >= 256 && N <= 16384);
+#endif
   using type = std::conditional_t<(N == 2048), Degree<N>, AmortizedDegree<N>>;
 };
 

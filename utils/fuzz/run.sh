@@ -12,9 +12,10 @@
 #   ./run.sh --total-cores 16         # simulate a 16-core machine
 #
 # Usage (GPU):
-#   ./run.sh --gpu                         # auto-detect GPUs, 24h
-#   ./run.sh --gpu --duration-seconds 3600 # 1-hour GPU run
-#   ./run.sh --gpu --compute-secondary 5   # force secondary count (overrides 2*NUM_GPUS-1)
+#   ./run.sh --gpu                              # auto-detect GPUs, 24h, both harnesses
+#   ./run.sh --gpu --duration-seconds 3600      # 1-hour GPU run
+#   ./run.sh --gpu --compute-secondary 5        # force secondary count (overrides 2*NUM_GPUS-1)
+#   ./run.sh --gpu --gpu-harness cuda_compute   # run a single GPU harness instead of both
 #
 # CPU sizing model:
 #   3 masters (one per harness: deser, verify, compute), nproc-3 secondaries
@@ -43,6 +44,9 @@ DURATION_SECONDS=86400  # 24 hours
 # real-life campaigns.
 LOG_MODE=masters
 GPU_MODE=0
+# GPU-only: which harness(es) to run. 'both' launches cuda_compute and cuda_scalars
+# (historical default); a specific name restricts the campaign to that single harness.
+GPU_HARNESS=both
 
 # ── CPU-specific defaults ────────────────────────────────────────────────────
 TOTAL_CORES=""  # empty = auto-detect via nproc
@@ -60,6 +64,8 @@ usage() {
     echo ""
     echo "Mode:"
     echo "  --gpu                    GPU mode: fuzz the cuda_compute harness (default: CPU)"
+    echo "  --gpu-harness NAME       GPU-only: restrict the campaign to a single harness."
+    echo "                           Values: cuda_compute | cuda_scalars | both (default: both)"
     echo ""
     echo "CPU sizing options (ignored in --gpu mode):"
     echo "  --total-cores N          Override auto-detected core count (default: nproc)"
@@ -85,6 +91,7 @@ usage() {
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --gpu)               GPU_MODE=1; shift ;;
+        --gpu-harness)       GPU_HARNESS="$2"; shift 2 ;;
         --corpus-dir)        CORPUS_DIR="$2"; shift 2 ;;
         --sync-dir)          SYNC_DIR="$2"; shift 2 ;;
         --duration-seconds)  DURATION_SECONDS="$2"; shift 2 ;;
@@ -120,9 +127,22 @@ if [[ "$GPU_MODE" == 1 ]]; then
         echo "ERROR: No GPUs detected (nvidia-smi returned nothing)." >&2
         exit 1
     fi
+    # --compute-secondary controls the secondary count for every GPU harness.
     COMPUTE_SECONDARY="${COMPUTE_SECONDARY:-$(( 2 * NUM_GPUS - 1 ))}"
-    HARNESS_NAMES=(cuda_compute)
-    HARNESS_SECONDARY=("$COMPUTE_SECONDARY")
+    case "$GPU_HARNESS" in
+        both)
+            HARNESS_NAMES=( cuda_compute cuda_scalars )
+            HARNESS_SECONDARY=("$COMPUTE_SECONDARY" "$COMPUTE_SECONDARY")
+            ;;
+        cuda_compute|cuda_scalars)
+            HARNESS_NAMES=( "$GPU_HARNESS" )
+            HARNESS_SECONDARY=( "$COMPUTE_SECONDARY" )
+            ;;
+        *)
+            echo "ERROR: --gpu-harness must be cuda_compute|cuda_scalars|both; got '$GPU_HARNESS'" >&2
+            exit 1
+            ;;
+    esac
     EXTRA_AFL_FLAGS=(-t 100000)
 else
     [[ -z "$TOTAL_CORES" ]] && TOTAL_CORES="$(nproc)"
