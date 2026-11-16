@@ -42,10 +42,6 @@ jobs:
     timeout-minutes: 720
 
     steps:
-      - name: Override NVM_DIR for proper node detection on this runner
-        run: |
-          echo "NVM_DIR=${HOME}/.nvm" >> "${GITHUB_ENV}"
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: "false"
@@ -61,6 +57,36 @@ jobs:
         run: |
           version="$(make python_min_version)"
           echo "PYTHON_EXE=python${version}" >> "${GITHUB_ENV}"
+
+      - name: Node setup
+        run: |
+          # Resolve the Node major pinned in the Makefile to its most recent release: the cache key
+          # below and all the make recipes of this job then use that exact release, so a new Node
+          # release invalidates the cache instead of being shadowed by a cached older one.
+          echo "NODE_VERSION=$(make node_latest_version)" >> "${GITHUB_ENV}"
+
+      - name: Node cache restoration
+        id: node-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        with:
+          path: |
+            .nvm
+            .npm
+          key: node-${{ runner.os }}-${{ runner.arch }}-${{ env.NODE_VERSION }}
+
+      - name: Install Node
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: |
+          make install_node
+
+      - name: Node cache save
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            .nvm
+            .npm
+          key: node-${{ runner.os }}-${{ runner.arch }}-${{ env.NODE_VERSION }}
 
       - name: Install Safe-Chain
         run: |
