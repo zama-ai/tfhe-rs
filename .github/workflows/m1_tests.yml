@@ -51,13 +51,16 @@ jobs:
           persist-credentials: "false"
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Setup Python
-        uses: ./.github/actions/setup_python
-
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
+
+      # Indicate which python3 binary to use
+      - name: Set python executable for macOS
+        run: |
+          version="$(make python_min_version)"
+          echo "PYTHON_EXE=python${version}" >> "${GITHUB_ENV}"
 
       - name: Install Safe-Chain
         run: |
