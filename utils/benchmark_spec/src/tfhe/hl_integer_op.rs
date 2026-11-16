@@ -15,6 +15,8 @@ pub enum HlIntegerOp {
     CountZeros,
     Div,
     DivRem,
+    DotProduct,
+    DotProductParallel,
     Eq,
     Flip,
     Ge,
