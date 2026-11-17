@@ -108,7 +108,7 @@ Serialized data from past releases must stay readable. This is the most common s
 
 ## Security rules
 
-- **Deserialized data is untrusted.** Data coming from outside is expected to go through `safe_deserialize_conformant` (size limit plus conformance check against the expected parameters; `safe_deserialize` only applies the size limit) before use. Code that runs on deserialized data before conformance (custom `Deserialize` impls, `Upgrade` impls) and conformance itself must not panic or allocate based on attacker-controlled sizes.
+- **Deserialized data is untrusted.** Data coming from outside is expected to go through `safe_deserialize_conformant` (size limit plus conformance check against the expected parameters) before use; `safe_deserialize` skips the conformance check. Code that runs on deserialized data before conformance (custom `Deserialize` impls, `Upgrade` impls) and conformance itself must not panic or allocate based on attacker-controlled sizes.
 - Avoid `unwrap`, `expect` and indexing on values derived from external input; return errors instead.
 
 ## Code style
