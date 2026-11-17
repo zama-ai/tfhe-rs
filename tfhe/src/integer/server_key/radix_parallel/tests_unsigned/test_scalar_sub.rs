@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    default_scalar_fixed_cases, ExecuteOn, SizeRequirements, TestBuilder, TestContext, TestScalar,
+    default_scalar_fixed_cases, ExecuteOn, RadixInputSize, TestBuilder, TestContext, TestScalar,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_scalar_sub_test, FunctionExecutor,
@@ -92,9 +92,9 @@ where
 {
     let scalar_width = u8::BITS.div_ceil(ctx.bits_per_block());
     TestBuilder::new(ctx)
-        .size_requirements(
+        .input_sizes(
             [1, scalar_width, scalar_width + 1, 2 * scalar_width]
-                .map(SizeRequirements::new_scalar)
+                .map(RadixInputSize::new)
                 .to_vec(),
         )
         // Only fixed_cases: default_overflowing_scalar_sub_test already draws random inputs,

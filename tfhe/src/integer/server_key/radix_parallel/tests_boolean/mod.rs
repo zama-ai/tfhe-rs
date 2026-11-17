@@ -1,6 +1,6 @@
 use crate::integer::prelude::*;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    ExecuteOn, SizeRequirements, TestBuilder, TestContext,
+    ExecuteOn, RadixInputSize, TestBuilder, TestContext,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -16,12 +16,12 @@ where
     E: ExecuteOn<(BooleanBlock, BooleanBlock, BooleanBlock), (BooleanBlock, BooleanBlock)>,
 {
     TestBuilder::new(ctxt)
-        .size_requirements(vec![SizeRequirements::new_scalar(1)])
+        .input_sizes(vec![RadixInputSize::new(1)])
         // Only fixed_cases because we test the whole truth table
         .fixed_cases_only()
-        .fixed_cases(move |size_req, _ctx| {
+        .fixed_cases(move |input_size, _ctx| {
             assert_eq!(
-                size_req.n_blocks, 1,
+                input_size.n_blocks, 1,
                 "BooleanBlock tests should only be 1-block"
             );
             vec![

@@ -31,7 +31,7 @@ pub(crate) mod test_vector_comparisons;
 use crate::core_crypto::prelude::SignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    SizeRequirements, TestContext, TestScalar,
+    RadixInputSize, TestContext, TestScalar,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, MAX_NB_CTXT, NB_CTXT,
@@ -643,10 +643,10 @@ pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: i64) -> i64 {
 /// `-1i8` into `255` on any radix wider than 8 bits. The overflowing scalar tests with an
 /// `i64` scalar never see this, the radix is at most as wide as the scalar there.
 pub(crate) fn narrow_scalar_cases(
-    size_requirements: SizeRequirements,
+    input_size: RadixInputSize,
     ctx: &TestContext,
 ) -> Vec<(Int, TestScalar<i8>)> {
-    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
     let scalars = [i8::MIN, -1, 1, i8::MAX];
     [
         Int::min(radix_bits),
