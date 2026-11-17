@@ -81,14 +81,20 @@ impl CudaNoiseSquashingKey {
         src_server_key.apply_noise_squashing(&mut squashed_output, ciphertext, self, streams);
 
         let mut new_block_info = Vec::<CudaBlockInfo>::with_capacity(packed_size);
-        for (i, block) in squashed_output.info.blocks.iter().enumerate() {
-            let block_info = squashed_output.info.blocks[i];
+        for &CudaBlockInfo {
+            degree,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            noise_level,
+        } in squashed_output.info.blocks.iter()
+        {
             new_block_info.push(CudaBlockInfo {
-                degree: block.degree,
-                message_modulus: block_info.message_modulus,
-                carry_modulus: block_info.carry_modulus,
-                atomic_pattern: block_info.atomic_pattern,
-                noise_level: block_info.noise_level,
+                degree,
+                message_modulus,
+                carry_modulus,
+                atomic_pattern,
+                noise_level,
             });
         }
         CudaSquashedNoiseRadixCiphertext {
