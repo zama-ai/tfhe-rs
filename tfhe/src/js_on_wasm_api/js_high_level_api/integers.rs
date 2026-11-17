@@ -977,24 +977,37 @@ mod sync_executor {
 
     impl From<&crate::CompactCiphertextListBuilder> for SerializableCompactCiphertextListBuilder {
         fn from(value: &crate::CompactCiphertextListBuilder) -> Self {
+            let crate::CompactCiphertextListBuilder {
+                inner:
+                    crate::integer::ciphertext::CompactCiphertextListBuilder { messages, info, pk },
+                tag,
+            } = value;
+
             Self {
-                messages: value.inner.messages.clone(),
-                info: value.inner.info.clone(),
-                pk: value.inner.pk.clone(),
-                tag: value.tag.clone(),
+                messages: messages.clone(),
+                info: info.clone(),
+                pk: pk.clone(),
+                tag: tag.clone(),
             }
         }
     }
 
     impl From<SerializableCompactCiphertextListBuilder> for crate::CompactCiphertextListBuilder {
         fn from(value: SerializableCompactCiphertextListBuilder) -> Self {
+            let SerializableCompactCiphertextListBuilder {
+                messages,
+                info,
+                pk,
+                tag,
+            } = value;
+
             Self {
                 inner: crate::integer::ciphertext::CompactCiphertextListBuilder {
-                    messages: value.messages,
-                    info: value.info,
-                    pk: value.pk,
+                    messages,
+                    info,
+                    pk,
                 },
-                tag: value.tag,
+                tag,
             }
         }
     }

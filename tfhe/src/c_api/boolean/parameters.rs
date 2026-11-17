@@ -55,17 +55,30 @@ impl TryFrom<BooleanParameters> for crate::boolean::parameters::BooleanParameter
     type Error = &'static str;
 
     fn try_from(c_params: BooleanParameters) -> Result<Self, Self::Error> {
+        let BooleanParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            encryption_key_choice,
+        } = c_params;
+
         Ok(Self {
-            lwe_dimension: LweDimension(c_params.lwe_dimension),
-            glwe_dimension: GlweDimension(c_params.glwe_dimension),
-            polynomial_size: PolynomialSize(c_params.polynomial_size),
-            lwe_noise_distribution: c_params.lwe_noise_distribution.try_into()?,
-            glwe_noise_distribution: c_params.glwe_noise_distribution.try_into()?,
-            pbs_base_log: DecompositionBaseLog(c_params.pbs_base_log),
-            pbs_level: DecompositionLevelCount(c_params.pbs_level),
-            ks_base_log: DecompositionBaseLog(c_params.ks_base_log),
-            ks_level: DecompositionLevelCount(c_params.ks_level),
-            encryption_key_choice: c_params.encryption_key_choice.into(),
+            lwe_dimension: LweDimension(lwe_dimension),
+            glwe_dimension: GlweDimension(glwe_dimension),
+            polynomial_size: PolynomialSize(polynomial_size),
+            lwe_noise_distribution: lwe_noise_distribution.try_into()?,
+            glwe_noise_distribution: glwe_noise_distribution.try_into()?,
+            pbs_base_log: DecompositionBaseLog(pbs_base_log),
+            pbs_level: DecompositionLevelCount(pbs_level),
+            ks_base_log: DecompositionBaseLog(ks_base_log),
+            ks_level: DecompositionLevelCount(ks_level),
+            encryption_key_choice: encryption_key_choice.into(),
         })
     }
 }
@@ -78,19 +91,30 @@ impl From<crate::boolean::parameters::BooleanParameters> for BooleanParameters {
 
 impl BooleanParameters {
     const fn convert(rust_params: crate::boolean::parameters::BooleanParameters) -> Self {
+        let crate::boolean::parameters::BooleanParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            encryption_key_choice,
+        } = rust_params;
+
         Self {
-            lwe_dimension: rust_params.lwe_dimension.0,
-            glwe_dimension: rust_params.glwe_dimension.0,
-            polynomial_size: rust_params.polynomial_size.0,
-            lwe_noise_distribution: rust_params.lwe_noise_distribution.convert_to_c(),
-            glwe_noise_distribution: rust_params.glwe_noise_distribution.convert_to_c(),
-            pbs_base_log: rust_params.pbs_base_log.0,
-            pbs_level: rust_params.pbs_level.0,
-            ks_base_log: rust_params.ks_base_log.0,
-            ks_level: rust_params.ks_level.0,
-            encryption_key_choice: BooleanEncryptionKeyChoice::convert(
-                rust_params.encryption_key_choice,
-            ),
+            lwe_dimension: lwe_dimension.0,
+            glwe_dimension: glwe_dimension.0,
+            polynomial_size: polynomial_size.0,
+            lwe_noise_distribution: lwe_noise_distribution.convert_to_c(),
+            glwe_noise_distribution: glwe_noise_distribution.convert_to_c(),
+            pbs_base_log: pbs_base_log.0,
+            pbs_level: pbs_level.0,
+            ks_base_log: ks_base_log.0,
+            ks_level: ks_level.0,
+            encryption_key_choice: BooleanEncryptionKeyChoice::convert(encryption_key_choice),
         }
     }
 }

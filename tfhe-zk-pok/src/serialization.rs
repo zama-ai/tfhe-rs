@@ -102,8 +102,10 @@ pub struct SerializableFp {
 
 impl<P: FpConfig<N>, const N: usize> From<Fp<P, N>> for SerializableFp {
     fn from(value: Fp<P, N>) -> Self {
+        let Fp(BigInt(limbs), _) = value;
+
         Self {
-            val: value.0 .0.to_vec(),
+            val: limbs.to_vec(),
         }
     }
 }
@@ -112,7 +114,9 @@ impl<P: FpConfig<N>, const N: usize> TryFrom<SerializableFp> for Fp<P, N> {
     type Error = InvalidFpError;
 
     fn try_from(value: SerializableFp) -> Result<Self, Self::Error> {
-        let fp = BigInt(try_vec_to_array(value.val)?);
+        let SerializableFp { val } = value;
+
+        let fp = BigInt(try_vec_to_array(val)?);
         if fp >= Fp::<P, N>::MODULUS {
             return Err(InvalidFpError::GreaterThanModulus);
         }
@@ -251,9 +255,11 @@ where
     F: From<P::BaseField>,
 {
     fn from(value: QuadExtField<P>) -> Self {
+        let QuadExtField { c0, c1 } = value;
+
         Self {
-            c0: value.c0.into(),
-            c1: value.c1.into(),
+            c0: c0.into(),
+            c1: c1.into(),
         }
     }
 }
@@ -265,9 +271,11 @@ where
     type Error = InvalidFpError;
 
     fn try_from(value: SerializableQuadExtField<F>) -> Result<Self, Self::Error> {
+        let SerializableQuadExtField { c0, c1 } = value;
+
         Ok(QuadExtField {
-            c0: value.c0.try_into()?,
-            c1: value.c1.try_into()?,
+            c0: c0.try_into()?,
+            c1: c1.try_into()?,
         })
     }
 }
@@ -287,10 +295,12 @@ where
     F: From<Fp2<P6::Fp2Config>>,
 {
     fn from(value: Fp6<P6>) -> Self {
+        let Fp6 { c0, c1, c2 } = value;
+
         Self {
-            c0: value.c0.into(),
-            c1: value.c1.into(),
-            c2: value.c2.into(),
+            c0: c0.into(),
+            c1: c1.into(),
+            c2: c2.into(),
         }
     }
 }
@@ -302,10 +312,12 @@ where
     type Error = InvalidFpError;
 
     fn try_from(value: SerializableCubicExtField<F>) -> Result<Self, Self::Error> {
+        let SerializableCubicExtField { c0, c1, c2 } = value;
+
         Ok(Fp6 {
-            c0: value.c0.try_into()?,
-            c1: value.c1.try_into()?,
-            c2: value.c2.try_into()?,
+            c0: c0.try_into()?,
+            c1: c1.try_into()?,
+            c2: c2.try_into()?,
         })
     }
 }
@@ -366,12 +378,18 @@ where
     <G::G2 as CurveGroupOps<G::Zp>>::Affine: Into<SerializableG2Affine>,
 {
     fn from(value: GroupElements<G>) -> Self {
+        let GroupElements {
+            g_list: src_g_list,
+            g_hat_list: src_g_hat_list,
+            message_len,
+        } = value;
+
         let mut g_list = Vec::new();
         let mut g_hat_list = Vec::new();
-        for idx in 0..value.message_len {
-            g_list.push(value.g_list[(idx * 2) + 1].into());
-            g_list.push(value.g_list[(idx * 2) + 2].into());
-            g_hat_list.push(value.g_hat_list[idx + 1].into())
+        for idx in 0..message_len {
+            g_list.push(src_g_list[(idx * 2) + 1].into());
+            g_list.push(src_g_list[(idx * 2) + 2].into());
+            g_hat_list.push(src_g_hat_list[idx + 1].into())
         }
 
         Self { g_list, g_hat_list }
@@ -388,22 +406,22 @@ where
     type Error = InvalidSerializedGroupElementsError;
 
     fn try_from(value: SerializableGroupElements) -> Result<Self, Self::Error> {
-        if value.g_list.len() != value.g_hat_list.len() * 2 {
+        let SerializableGroupElements { g_list, g_hat_list } = value;
+
+        if g_list.len() != g_hat_list.len() * 2 {
             return Err(InvalidSerializedGroupElementsError::InvalidGlistDimension(
                 InvalidArraySizeError {
-                    expected_len: value.g_hat_list.len() * 2,
-                    found_len: value.g_list.len(),
+                    expected_len: g_hat_list.len() * 2,
+                    found_len: g_list.len(),
                 },
             ));
         }
 
-        let g_list = value
-            .g_list
+        let g_list = g_list
             .into_iter()
             .map(<G::G1 as CurveGroupOps<G::Zp>>::Affine::try_from)
             .collect::<Result<_, InvalidSerializedAffineError>>()?;
-        let g_hat_list = value
-            .g_hat_list
+        let g_hat_list = g_hat_list
             .into_iter()
             .map(<G::G2 as CurveGroupOps<G::Zp>>::Affine::try_from)
             .collect::<Result<_, InvalidSerializedAffineError>>()?;
@@ -885,10 +903,12 @@ where
     C::BaseField: Into<F>,
 {
     fn from(value: Projective<C>) -> Self {
+        let Projective { x, y, z } = value;
+
         Self {
-            x: value.x.into(),
-            y: value.y.into(),
-            z: value.z.into(),
+            x: x.into(),
+            y: y.into(),
+            z: z.into(),
         }
     }
 }
@@ -900,10 +920,12 @@ where
     type Error = InvalidFpError;
 
     fn try_from(value: SerializableProjective<F>) -> Result<Self, Self::Error> {
+        let SerializableProjective { x, y, z } = value;
+
         Ok(Self {
-            x: value.x.try_into()?,
-            y: value.y.try_into()?,
-            z: value.z.try_into()?,
+            x: x.try_into()?,
+            y: y.try_into()?,
+            z: z.try_into()?,
         })
     }
 }

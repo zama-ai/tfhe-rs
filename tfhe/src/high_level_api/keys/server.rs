@@ -416,9 +416,11 @@ impl serde::Serialize for ServerKey {
     where
         S: serde::Serializer,
     {
+        let Self { key, tag } = self;
+
         SerializableServerKey {
-            integer_key: &self.key,
-            tag: &self.tag,
+            integer_key: key,
+            tag,
         }
         .serialize(serializer)
     }
@@ -435,10 +437,12 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
     where
         D: serde::Deserializer<'de>,
     {
-        DeserializableServerKey::deserialize(deserializer).map(|deserialized| Self {
-            key: Arc::new(deserialized.integer_key),
-            tag: deserialized.tag,
-        })
+        DeserializableServerKey::deserialize(deserializer).map(
+            |DeserializableServerKey { integer_key, tag }| Self {
+                key: Arc::new(integer_key),
+                tag,
+            },
+        )
     }
 }
 

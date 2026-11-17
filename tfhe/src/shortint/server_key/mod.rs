@@ -220,7 +220,7 @@ where
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
-                ..
+                thread_count: _,
             } => Self::MultiBit {
                 fourier_bsk: bsk.as_view(),
                 deterministic_execution: *deterministic_execution,
@@ -246,7 +246,7 @@ where
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
-                ..
+                thread_count: _,
             } => Self::MultiBit {
                 fourier_bsk,
                 deterministic_execution,

@@ -80,7 +80,9 @@ impl std::error::Error for CiphertextModulusDeserializationError {}
 
 impl<Scalar: UnsignedInteger> From<CiphertextModulus<Scalar>> for SerializableCiphertextModulus {
     fn from(value: CiphertextModulus<Scalar>) -> Self {
-        let modulus = match value.inner {
+        let CiphertextModulus { inner, _scalar: _ } = value;
+
+        let modulus = match inner {
             CiphertextModulusInner::Native => 0,
             CiphertextModulusInner::Custom(modulus) => modulus.get(),
         };
@@ -96,14 +98,19 @@ impl<Scalar: UnsignedInteger> TryFrom<SerializableCiphertextModulus> for Ciphert
     type Error = CiphertextModulusDeserializationError;
 
     fn try_from(value: SerializableCiphertextModulus) -> Result<Self, Self::Error> {
-        if value.scalar_bits != Scalar::BITS {
+        let SerializableCiphertextModulus {
+            modulus,
+            scalar_bits,
+        } = value;
+
+        if scalar_bits != Scalar::BITS {
             return Err(CiphertextModulusDeserializationError::InvalidBitWidth {
                 expected: Scalar::BITS,
-                found: value.scalar_bits,
+                found: scalar_bits,
             });
         }
 
-        let res = if value.modulus == 0 {
+        let res = if modulus == 0 {
             Self {
                 inner: CiphertextModulusInner::Native,
                 _scalar: PhantomData,
@@ -111,7 +118,7 @@ impl<Scalar: UnsignedInteger> TryFrom<SerializableCiphertextModulus> for Ciphert
         } else {
             Self {
                 inner: CiphertextModulusInner::Custom(
-                    NonZeroU128::new(value.modulus)
+                    NonZeroU128::new(modulus)
                         .ok_or(CiphertextModulusDeserializationError::ZeroCustomModulus)?,
                 ),
                 _scalar: PhantomData,

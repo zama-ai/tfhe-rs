@@ -105,7 +105,9 @@ pub struct SerializableKreyviumFheKey {
 
 impl From<KreyviumFheKey> for SerializableKreyviumFheKey {
     fn from(value: KreyviumFheKey) -> Self {
-        let cts: Box<[Ciphertext]> = value.cts;
+        let KreyviumFheKey { cts } = value;
+
+        let cts: Box<[Ciphertext]> = cts;
         Self {
             cts: cts.into_vec(),
         }
@@ -116,11 +118,12 @@ impl TryFrom<SerializableKreyviumFheKey> for KreyviumFheKey {
     type Error = crate::Error;
 
     fn try_from(value: SerializableKreyviumFheKey) -> Result<Self, Self::Error> {
-        let len = value.cts.len();
-        let cts: Box<[Ciphertext; 128]> =
-            value.cts.into_boxed_slice().try_into().map_err(|_| {
-                crate::error!("a kreyvium key must hold exactly 128 ciphertexts, got {len}")
-            })?;
+        let SerializableKreyviumFheKey { cts } = value;
+
+        let len = cts.len();
+        let cts: Box<[Ciphertext; 128]> = cts.into_boxed_slice().try_into().map_err(|_| {
+            crate::error!("a kreyvium key must hold exactly 128 ciphertexts, got {len}")
+        })?;
         Self::try_new(cts)
     }
 }

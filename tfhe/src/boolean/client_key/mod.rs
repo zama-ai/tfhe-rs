@@ -50,10 +50,16 @@ impl PartialEq for ClientKey {
 
 impl Debug for ClientKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            lwe_secret_key,
+            glwe_secret_key,
+            parameters,
+        } = self;
+
         write!(f, "ClientKey {{ ")?;
-        write!(f, "lwe_secret_key: {:?}, ", self.lwe_secret_key)?;
-        write!(f, "glwe_secret_key: {:?}, ", self.glwe_secret_key)?;
-        write!(f, "parameters: {:?}, ", self.parameters)?;
+        write!(f, "lwe_secret_key: {lwe_secret_key:?}, ")?;
+        write!(f, "glwe_secret_key: {glwe_secret_key:?}, ")?;
+        write!(f, "parameters: {parameters:?}, ")?;
         write!(f, "engine: CoreEngine, ")?;
         write!(f, "}}")?;
         Ok(())
