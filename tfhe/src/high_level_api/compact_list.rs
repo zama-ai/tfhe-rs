@@ -1529,6 +1529,114 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "gpu")]
+    fn check_expander_without_casting_key(
+        expander: &CompactCiphertextListExpander,
+        ck: &crate::ClientKey,
+    ) {
+        let a: FheUint32 = expander.get(0).unwrap().unwrap();
+        let b: FheInt64 = expander.get(1).unwrap().unwrap();
+        let c: FheBool = expander.get(2).unwrap().unwrap();
+        let d: FheBool = expander.get(3).unwrap().unwrap();
+
+        let a: u32 = a.decrypt(ck);
+        assert_eq!(a, 17);
+        let b: i64 = b.decrypt(ck);
+        assert_eq!(b, -1);
+        assert!(c.decrypt(ck));
+        assert!(!d.decrypt(ck));
+        assert!(expander.get::<FheBool>(4).unwrap().is_none());
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_compact_list_without_casting_key() {
+        for params in [
+            AtomicPatternParameters::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        ] {
+            let config = crate::ConfigBuilder::with_custom_parameters(params).build();
+
+            let ck = crate::ClientKey::generate(config);
+            let gpu_sk = CompressedServerKey::new(&ck).decompress_to_gpu();
+            let pk = crate::CompactPublicKey::new(&ck);
+
+            set_server_key(gpu_sk);
+
+            let compact_list = CompactCiphertextList::builder(&pk)
+                .push(17u32)
+                .push(-1i64)
+                .push(true)
+                .push(false)
+                .build_packed();
+
+            let mut moved = compact_list.clone();
+            moved.move_to_current_device().unwrap();
+            assert!(matches!(moved.current_device(), crate::Device::CudaGpu));
+
+            for list in [&compact_list, &moved] {
+                let expander = list.expand().unwrap();
+                check_expander_without_casting_key(&expander, &ck);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_compact_list_without_casting_key_rejects_ks32_key() {
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        )
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let gpu_sk = CompressedServerKey::new(&ck).decompress_to_gpu();
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(gpu_sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .build_packed();
+
+        assert!(compact_list.expand().is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_casting_key_rejects_compact_list_without_casting() {
+        let casting_config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ))
+        .build();
+        let casting_ck = crate::ClientKey::generate(casting_config);
+        set_server_key(CompressedServerKey::new(&casting_ck).decompress_to_gpu());
+
+        let ck = crate::ClientKey::generate(
+            crate::ConfigBuilder::with_custom_parameters(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+            .build(),
+        );
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .build_packed();
+
+        let Err(err) = compact_list.expand() else {
+            panic!("expanding a list that does not require casting with a casting key must fail");
+        };
+        assert!(
+            err.to_string().contains("does not require casting"),
+            "{err}"
+        );
+    }
+
     #[cfg(feature = "extended-types")]
     #[test]
     fn test_compact_list_extended_types() {
