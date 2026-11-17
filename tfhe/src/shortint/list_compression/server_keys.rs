@@ -10,6 +10,9 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::CompressedNoiseSquashingCompressionKey;
 use crate::shortint::noise_squashing::NoiseSquashingPrivateKey;
+use crate::shortint::parameters::list_compression::{
+    ClassicCompressionParameters, MultiBitCompressionParameters,
+};
 use crate::shortint::parameters::{
     CompressionParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
     PolynomialSize,
@@ -133,26 +136,60 @@ impl From<(AtomicPatternParameters, CompressionParameters)> for CompressionKeyCo
     fn from(
         (ap_params, compression_params): (AtomicPatternParameters, CompressionParameters),
     ) -> Self {
-        let decompression_grouping_factor = match compression_params {
-            CompressionParameters::Classic(_) => None,
-            CompressionParameters::MultiBit(multi_bit_compression_parameters) => {
-                Some(multi_bit_compression_parameters.decompression_grouping_factor)
-            }
-        };
+        let uncompressed_polynomial_size = ap_params.polynomial_size();
+        let uncompressed_glwe_dimension = ap_params.glwe_dimension();
+        let cipherext_modulus = ap_params.ciphertext_modulus();
 
-        Self {
-            br_level: compression_params.br_level(),
-            br_base_log: compression_params.br_base_log(),
-            packing_ks_level: compression_params.packing_ks_level(),
-            packing_ks_base_log: compression_params.packing_ks_base_log(),
-            packing_ks_polynomial_size: compression_params.packing_ks_polynomial_size(),
-            packing_ks_glwe_dimension: compression_params.packing_ks_glwe_dimension(),
-            lwe_per_glwe: compression_params.lwe_per_glwe(),
-            storage_log_modulus: compression_params.storage_log_modulus(),
-            uncompressed_polynomial_size: ap_params.polynomial_size(),
-            uncompressed_glwe_dimension: ap_params.glwe_dimension(),
-            cipherext_modulus: ap_params.ciphertext_modulus(),
-            decompression_grouping_factor,
+        match compression_params {
+            CompressionParameters::Classic(ClassicCompressionParameters {
+                br_level,
+                br_base_log,
+                packing_ks_level,
+                packing_ks_base_log,
+                packing_ks_polynomial_size,
+                packing_ks_glwe_dimension,
+                lwe_per_glwe,
+                storage_log_modulus,
+                packing_ks_key_noise_distribution: _,
+            }) => Self {
+                br_level,
+                br_base_log,
+                packing_ks_level,
+                packing_ks_base_log,
+                packing_ks_polynomial_size,
+                packing_ks_glwe_dimension,
+                lwe_per_glwe,
+                storage_log_modulus,
+                uncompressed_polynomial_size,
+                uncompressed_glwe_dimension,
+                cipherext_modulus,
+                decompression_grouping_factor: None,
+            },
+            CompressionParameters::MultiBit(MultiBitCompressionParameters {
+                br_level,
+                br_base_log,
+                packing_ks_level,
+                packing_ks_base_log,
+                packing_ks_polynomial_size,
+                packing_ks_glwe_dimension,
+                lwe_per_glwe,
+                storage_log_modulus,
+                decompression_grouping_factor,
+                packing_ks_key_noise_distribution: _,
+            }) => Self {
+                br_level,
+                br_base_log,
+                packing_ks_level,
+                packing_ks_base_log,
+                packing_ks_polynomial_size,
+                packing_ks_glwe_dimension,
+                lwe_per_glwe,
+                storage_log_modulus,
+                uncompressed_polynomial_size,
+                uncompressed_glwe_dimension,
+                cipherext_modulus,
+                decompression_grouping_factor: Some(decompression_grouping_factor),
+            },
         }
     }
 }
