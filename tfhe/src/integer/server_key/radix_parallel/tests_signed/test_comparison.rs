@@ -168,7 +168,6 @@ macro_rules! define_signed_default_comparison_tests {
                     >,
                 {
                     TestBuilder::new(ctx)
-                        .n_random(4)
                         .fixed_cases(radix_pair_fixed_cases::<Int>)
                         .execute(executor, |(lhs, rhs): (Int, Int)| lhs.$comparison_name(&rhs));
                 }
@@ -209,7 +208,6 @@ macro_rules! define_signed_default_minmax_tests {
                     >,
                 {
                     TestBuilder::new(ctx)
-                        .n_random(4)
                         .fixed_cases(radix_pair_fixed_cases::<Int>)
                         .execute(executor, |(lhs, rhs): (Int, Int)| lhs.$name(rhs));
                 }

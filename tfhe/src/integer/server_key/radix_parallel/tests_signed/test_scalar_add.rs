@@ -69,7 +69,6 @@ where
     E: ExecuteOn<(SignedRadixCiphertext, i64), (SignedRadixCiphertext, BooleanBlock)>,
 {
     TestBuilder::new(ctx)
-        .n_random(4)
         .fixed_cases(default_scalar_fixed_cases::<i64>)
         .execute(executor, |(lhs, rhs): (Int, TestScalar<_>)| {
             lhs.overflowing_scalar_add(rhs.clear())
@@ -82,7 +81,9 @@ where
     E: ExecuteOn<(SignedRadixCiphertext, i8), (SignedRadixCiphertext, BooleanBlock)>,
 {
     TestBuilder::new(ctx)
-        .n_random(0)
+        // Only fixed_cases: default_overflowing_scalar_add_test already draws random inputs,
+        // this test only adds the edges of a scalar narrower than the radix
+        .fixed_cases_only()
         .fixed_cases(narrow_scalar_cases)
         .execute(executor, |(lhs, rhs): (Int, TestScalar<_>)| {
             lhs.overflowing_scalar_add(rhs.clear())

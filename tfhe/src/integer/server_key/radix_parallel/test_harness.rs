@@ -1,8 +1,9 @@
 //! Declarative harness for the 'default' radix operation tests.
 //!
 //! Backends are abstracted with the [`ExecuteOn`] trait.
-//! With [`TestBuilder`], a test declares a recipe: the block counts to cover, the number of
-//! random cases to draw and the fixed cases to run.
+//! With [`TestBuilder`], a test declares a recipe: how costly the operation is ([`OpCost`])
+//! and the fixed cases to run. The [`TestProfile`] of the run then decides how extensively
+//! to test: the block counts to cover and the number of random cases to draw.
 //!
 //! The harness will then coordinate test execution: generate inputs, encrypt, execute,
 //! check results.
@@ -40,25 +41,194 @@ pub(crate) fn max_block_requirement(params: TestParameters) -> u32 {
     }
 }
 
-/// Default block counts depending on parameters
-pub(crate) fn default_block_requirements(params: TestParameters) -> Vec<SizeRequirements> {
-    (1..=max_block_requirement(params))
-        .map(SizeRequirements::new_scalar)
+#[derive(Copy, Clone, Debug, PartialEq, Eq, strum::EnumIter)]
+pub(crate) enum CpuProfile {
+    /// Quick feedback: a few block counts
+    Light,
+    /// The usual block counts.
+    Baseline,
+    /// Denser and wider block counts, with more random cases.
+    Extensive,
+    /// The integer widths FHEVM exposes (see [`FHEVM_WIDTHS`]).
+    Fhevm,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, strum::EnumIter)]
+pub(crate) enum GpuProfile {
+    /// The integer widths FHEVM exposes (see [`FHEVM_WIDTHS`]).
+    Fhevm,
+}
+
+/// Environment variable selecting the [`TestProfile`] of a run by its name, case insensitive
+/// (e.g. `cpu_light`). [`TestProfile::DEFAULT`] when not set or empty.
+const PROFILE_ENV_VAR: &str = "TFHE_RS_TEST_PROFILE";
+
+/// How extensively the harness tests: the block counts and the number of random cases. Every
+/// fixed case and input state combination runs whatever the profile.
+///
+/// Profiles are per backend: CI costs differ between backends, so each tunes its own. The
+/// values of every profile are in [`TestProfile::block_counts`] and [`TestProfile::n_random`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum TestProfile {
+    Cpu(CpuProfile),
+    Gpu(GpuProfile),
+}
+
+impl TestProfile {
+    /// The profile when [`PROFILE_ENV_VAR`] is not set.
+    const DEFAULT: Self = Self::Cpu(CpuProfile::Baseline);
+
+    fn all() -> impl Iterator<Item = Self> {
+        CpuProfile::iter()
+            .map(Self::Cpu)
+            .chain(GpuProfile::iter().map(Self::Gpu))
+    }
+
+    /// The name selecting the profile in [`PROFILE_ENV_VAR`].
+    fn name(self) -> &'static str {
+        match self {
+            Self::Cpu(CpuProfile::Light) => "cpu_light",
+            Self::Cpu(CpuProfile::Baseline) => "cpu_baseline",
+            Self::Cpu(CpuProfile::Extensive) => "cpu_extensive",
+            Self::Cpu(CpuProfile::Fhevm) => "cpu_fhevm",
+            Self::Gpu(GpuProfile::Fhevm) => "gpu_fhevm",
+        }
+    }
+
+    fn from_env() -> Self {
+        let name = std::env::var(PROFILE_ENV_VAR).unwrap_or_default();
+        if name.is_empty() {
+            return Self::DEFAULT;
+        }
+        Self::all()
+            .find(|profile| profile.name().eq_ignore_ascii_case(&name))
+            .unwrap_or_else(|| {
+                let names: Vec<_> = Self::all().map(Self::name).collect();
+                panic!("{PROFILE_ENV_VAR}={name:?} is not a profile, expected one of {names:?}")
+            })
+    }
+
+    /// The block counts to test an operation of the given `cost` on.
+    fn block_counts(self, cost: OpCost, params: TestParameters) -> Vec<u32> {
+        match self {
+            Self::Cpu(profile) => cpu_block_counts(profile, cost, params),
+            Self::Gpu(GpuProfile::Fhevm) => fhevm_block_counts(cost, params),
+        }
+    }
+
+    /// Random cases per block count, run with clean inputs.
+    fn n_random(self) -> u32 {
+        match self {
+            Self::Cpu(CpuProfile::Light) => 1,
+            Self::Cpu(CpuProfile::Baseline) => 4,
+            Self::Cpu(CpuProfile::Extensive) => 16,
+            Self::Cpu(CpuProfile::Fhevm) => 4,
+            Self::Gpu(GpuProfile::Fhevm) => 4,
+        }
+    }
+}
+
+impl std::fmt::Display for TestProfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+/// How the cost of an operation grows with its block count, which decides the block counts
+/// a profile tests it on.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) enum OpCost {
+    /// About linear: additions, bitwise operations, comparisons, shifts, cmux...
+    #[default]
+    Linear,
+    /// About quadratic: multiplications, divisions by a clear.
+    #[expect(dead_code, reason = "multiplications are not on the harness yet")]
+    Quadratic,
+    /// The encrypted divisions: quadratic too, but far slower.
+    Division,
+}
+
+/// The block counts of the CPU profiles.
+fn cpu_block_counts(profile: CpuProfile, cost: OpCost, params: TestParameters) -> Vec<u32> {
+    let max_n_blocks = max_block_requirement(params);
+    match profile {
+        CpuProfile::Light => {
+            let block_counts = match cost {
+                OpCost::Linear => vec![1, 2, 3, 4, 5, 8, 16, 32],
+                OpCost::Quadratic => vec![1, 2, 3, 4, 5, 8, 16],
+                OpCost::Division => vec![1, 2, 3, 4, 5, 8],
+            };
+            block_counts_up_to(max_n_blocks, params, block_counts)
+        }
+        CpuProfile::Baseline => {
+            let block_counts = match cost {
+                OpCost::Linear => (1..=max_n_blocks).collect(),
+                OpCost::Quadratic => vec![1, 2, 3, 4, 8, 13, 16, 32],
+                OpCost::Division => vec![1, 2, 3, 4, 8, 13, 16],
+            };
+            block_counts_up_to(max_n_blocks, params, block_counts)
+        }
+        CpuProfile::Extensive => {
+            // Twice the usual maximum: 128 bits on 2_2
+            let block_counts: Vec<u32> = match cost {
+                OpCost::Linear => (1..=2 * max_n_blocks).collect(),
+                OpCost::Quadratic => (1..=max_n_blocks).chain([2 * max_n_blocks]).collect(),
+                OpCost::Division => (1..=max_n_blocks / 2).chain([max_n_blocks]).collect(),
+            };
+            block_counts_up_to(2 * max_n_blocks, params, block_counts)
+        }
+        CpuProfile::Fhevm => fhevm_block_counts(cost, params),
+    }
+}
+
+/// Keeps the `block_counts` up to `max_n_blocks` that the harness supports (see
+/// [`MAX_RADIX_BITS`]).
+fn block_counts_up_to(
+    max_n_blocks: u32,
+    params: TestParameters,
+    block_counts: Vec<u32>,
+) -> Vec<u32> {
+    let bits_per_block = params.message_modulus().0.ilog2();
+    block_counts
+        .into_iter()
+        .filter(|&n_blocks| n_blocks <= max_n_blocks && n_blocks * bits_per_block <= MAX_RADIX_BITS)
         .collect()
+}
+
+/// Integer widths FHEVM exposes, in bits.
+const FHEVM_WIDTHS: [u32; 8] = [4, 8, 16, 32, 64, 128, 160, 256];
+
+/// Block counts of the [`FHEVM_WIDTHS`], rounded up to whole blocks.
+///
+/// FHEVM does not expose the encrypted divisions (too slow), so they only go up to 32 bits,
+/// the other profiles cover them.
+///
+/// TODO: the widths that do not fit in [`MAX_RADIX_BITS`] (160 and 256 bits) are skipped, as
+/// the clear models are backed by u128. Test them once [`Uint`] and [`Int`] can be wider.
+fn fhevm_block_counts(cost: OpCost, params: TestParameters) -> Vec<u32> {
+    let bits_per_block = params.message_modulus().0.ilog2();
+    let mut block_counts: Vec<u32> = FHEVM_WIDTHS
+        .into_iter()
+        .filter(|&bits| cost != OpCost::Division || bits <= 32)
+        .map(|bits| bits.div_ceil(bits_per_block))
+        .filter(|&n_blocks| n_blocks * bits_per_block <= MAX_RADIX_BITS)
+        .collect();
+    block_counts.dedup();
+    block_counts
 }
 
 /// Block budget for a vector operation about as costly as a sum.
 ///
 /// Operations doing more work per block need a smaller budget to run in a comparable time,
-/// hence [`vec_size_requirements_with_budget`].
+/// hence [`vec_input_sizes_with_budget`].
 pub(crate) const DEFAULT_VEC_BLOCK_BUDGET: u32 = 128;
 
-/// [`vec_size_requirements_with_budget`] with [`DEFAULT_VEC_BLOCK_BUDGET`].
-pub(crate) fn vec_size_requirements(
+/// [`vec_input_sizes_with_budget`] with [`DEFAULT_VEC_BLOCK_BUDGET`].
+pub(crate) fn vec_input_sizes(
     ctx: &TestContext,
     vec_lens: impl IntoIterator<Item = u32>,
-) -> Vec<SizeRequirements> {
-    vec_size_requirements_with_budget(ctx, vec_lens, DEFAULT_VEC_BLOCK_BUDGET)
+) -> Vec<RadixInputSize> {
+    vec_input_sizes_with_budget(ctx, vec_lens, DEFAULT_VEC_BLOCK_BUDGET)
 }
 
 /// Block counts to pair with each of `vec_lens`, for a test taking a vector input.
@@ -74,15 +244,15 @@ pub(crate) fn vec_size_requirements(
 /// than one block, so a vector longer than `budget` goes over it. The right value depends
 /// on how costly the tested operation is per block, so each test picks its own, starting
 /// from [`DEFAULT_VEC_BLOCK_BUDGET`].
-pub(crate) fn vec_size_requirements_with_budget(
+pub(crate) fn vec_input_sizes_with_budget(
     ctx: &TestContext,
     vec_lens: impl IntoIterator<Item = u32>,
     budget: u32,
-) -> Vec<SizeRequirements> {
+) -> Vec<RadixInputSize> {
     let max_n_blocks = max_block_requirement(ctx.params);
     vec_lens
         .into_iter()
-        .map(|vec_len| SizeRequirements {
+        .map(|vec_len| RadixInputSize {
             // `max(1)` as the empty vector has no element to size, any block count does
             n_blocks: (budget / vec_len.max(1)).clamp(1, max_n_blocks),
             vec_len: Some(vec_len),
@@ -122,10 +292,25 @@ fn fail_fast_from_env() -> bool {
     std::env::var(FAIL_FAST_ENV_VAR).is_ok_and(|s| !s.is_empty() && s != "0")
 }
 
+/// What reproduces the cases of a run, displayed as the environment variables to set.
+#[derive(Copy, Clone)]
+struct ReproductionConfig {
+    profile: TestProfile,
+    seed: u128,
+}
+
+impl std::fmt::Display for ReproductionConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self { profile, seed } = self;
+        write!(f, "{PROFILE_ENV_VAR}={profile} {SEED_ENV_VAR}={seed:#x}")
+    }
+}
+
 /// Things shared by every case of a test run.
 ///
 /// The clear values, input states and dirtying amounts derive from a single seed (through
-/// the rng), so a seed reproduces the cases of a run. Keys come from the key cache and the
+/// the rng), so a seed reproduces the cases of a run, along with the profile which decides
+/// the block counts and how many random cases are drawn. Keys come from the key cache and the
 /// encryption noise from the thread local engine, so it does not reproduce the ciphertexts.
 pub(crate) struct TestContext {
     params: TestParameters,
@@ -135,17 +320,19 @@ pub(crate) struct TestContext {
     /// The harness prepares inputs with it (carries, noise) and CPU executors run with it
     cpu_sks: Arc<ServerKey>,
     seed: u128,
+    profile: TestProfile,
     /// Stop at the first failing case instead of collecting them all.
     fail_fast: bool,
 }
 
 impl TestContext {
-    /// Context seeded from [`SEED_ENV_VAR`] when set, randomly otherwise, and failing fast
-    /// when [`FAIL_FAST_ENV_VAR`] is set.
+    /// Context seeded from [`SEED_ENV_VAR`] when set, randomly otherwise, with the profile
+    /// from [`PROFILE_ENV_VAR`], and failing fast when [`FAIL_FAST_ENV_VAR`] is set.
     pub(crate) fn from_env(params: impl Into<TestParameters>) -> Self {
         let params = params.into();
         let seed = seed_from_env_or_random();
-        println!("{SEED_ENV_VAR}={seed:#x}");
+        let profile = TestProfile::from_env();
+        println!("{}", ReproductionConfig { profile, seed });
 
         let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
         // The harness checks operations are deterministic
@@ -156,6 +343,7 @@ impl TestContext {
             cks,
             cpu_sks: Arc::new(sks),
             seed,
+            profile,
             fail_fast: fail_fast_from_env(),
         }
     }
@@ -199,7 +387,7 @@ impl TestContext {
     }
 }
 
-/// Required sizes an input of a test must follow when generating the inputs
+/// Size of the inputs of a test case, which their generation must follow
 ///
 /// `n_blocks` is for radix
 /// `vec_len` is for vec
@@ -208,15 +396,15 @@ impl TestContext {
 /// n_blocks = 4, vec_len = 8, it means it MUST produce an input Vec with 8 elements
 /// and each of them has 4 blocks
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) struct SizeRequirements {
+pub(crate) struct RadixInputSize {
     pub(crate) n_blocks: u32,
     pub(crate) vec_len: Option<u32>,
 }
 
-impl SizeRequirements {
-    /// Creates a requirement that only specifies a number of blocks,
-    /// meant for tests on scalar values like `RadixCiphertext`
-    pub(crate) fn new_scalar(n_blocks: u32) -> Self {
+impl RadixInputSize {
+    /// Creates a size that only specifies a number of blocks, for tests whose inputs are
+    /// not vectors (e.g. `RadixCiphertext`)
+    pub(crate) fn new(n_blocks: u32) -> Self {
         Self {
             n_blocks,
             vec_len: None,
@@ -224,19 +412,30 @@ impl SizeRequirements {
     }
 }
 
-/// Builder of the hardcoded cases of a test, for one size requirement.
-type FixedCaseFn<ClearInput> = Box<dyn Fn(SizeRequirements, &TestContext) -> Vec<ClearInput>>;
+/// Builder of the hardcoded cases of a test, for one input size.
+type FixedCaseFn<ClearInput> = Box<dyn Fn(RadixInputSize, &TestContext) -> Vec<ClearInput>>;
 
-/// Recipe for a default-op test: which block counts to cover, how many random cases to
-/// draw, and hardcoded edge cases.
+/// The sizes a [`TestBuilder`] runs its cases on.
+enum RadixInputSizeSelection {
+    /// The block counts the [`TestProfile`] gives for an operation of this cost.
+    FromCost(OpCost),
+    /// Sizes that follow from what the test checks, whatever the profile.
+    Specified(Vec<RadixInputSize>),
+}
+
+/// Recipe for a default-op test: how costly the operation is and hardcoded edge cases.
+///
+/// The [`TestProfile`] of the context decides, from the cost, the block counts to cover and
+/// the number of random cases to draw.
 ///
 /// `ClearInput` is the tuple of clear inputs of the operation (e.g. `(Uint, Uint)`)
 /// It is inferred from the closures given to [`Self::fixed_cases`] and [`Self::execute`].
 pub(crate) struct TestBuilder<'a, ClearInput> {
     ctx: &'a TestContext,
-    size_requirements: Vec<SizeRequirements>,
-    n_random: u32,
-    /// Hardcoded cases, built per size requirement since edge values depend on the radix
+    sizes: RadixInputSizeSelection,
+    /// Overrides the number of random cases of the profile.
+    n_random: Option<u32>,
+    /// Hardcoded cases, built per input size since edge values depend on the radix
     /// width (and, for vector inputs, on the number of elements).
     fixed_cases: Vec<FixedCaseFn<ClearInput>>,
 }
@@ -249,23 +448,46 @@ where
     pub(crate) fn new(ctx: &'a TestContext) -> Self {
         Self {
             ctx,
-            size_requirements: default_block_requirements(ctx.params),
-            n_random: 0,
+            sizes: RadixInputSizeSelection::FromCost(OpCost::default()),
+            n_random: None,
             fixed_cases: vec![],
         }
     }
 
-    pub(crate) fn size_requirements(
-        &mut self,
-        size_requirements: Vec<SizeRequirements>,
-    ) -> &mut Self {
-        self.size_requirements = size_requirements;
+    /// How costly the operation is, which decides the block counts the profile tests it on.
+    ///
+    /// Replaces the sizes of [`Self::input_sizes`].
+    #[expect(dead_code, reason = "multiplications are not on the harness yet")]
+    pub(crate) fn cost(&mut self, cost: OpCost) -> &mut Self {
+        self.sizes = RadixInputSizeSelection::FromCost(cost);
         self
     }
 
-    /// Number of random cases per block count (run with clean inputs).
+    /// Overrides the block counts of the profile, for tests whose sizes follow from what they
+    /// check (e.g. a scalar narrower than the radix, a single boolean block).
+    ///
+    /// Replaces the cost of [`Self::cost`], which only decides the block counts.
+    pub(crate) fn input_sizes(&mut self, input_sizes: Vec<RadixInputSize>) -> &mut Self {
+        self.sizes = RadixInputSizeSelection::Specified(input_sizes);
+        self
+    }
+
+    /// Overrides the number of random cases per block count of the profile (run with clean
+    /// inputs).
+    ///
+    /// Meant for temporary local tests: committed tests leave it to the profile, or use
+    /// [`Self::fixed_cases_only`].
     pub(crate) fn n_random(&mut self, n: u32) -> &mut Self {
-        self.n_random = n;
+        self.n_random = Some(n);
+        self
+    }
+
+    /// Runs no random case with clean inputs, for tests made of their fixed cases (e.g. a
+    /// truth table, or the cases a scalar narrower than the radix adds to another test).
+    ///
+    /// The input state combinations still run on random inputs.
+    pub(crate) fn fixed_cases_only(&mut self) -> &mut Self {
+        self.n_random = Some(0);
         self
     }
 
@@ -274,22 +496,22 @@ where
     /// into a width in bits, which is what edge values depend on. Can be called several times.
     pub(crate) fn fixed_cases(
         &mut self,
-        f: impl Fn(SizeRequirements, &TestContext) -> Vec<ClearInput> + 'static,
+        f: impl Fn(RadixInputSize, &TestContext) -> Vec<ClearInput> + 'static,
     ) -> &mut Self {
         self.fixed_cases.push(Box::new(f));
         self
     }
 
-    fn fixed_cases_for_requirements(&self, size_requirements: SizeRequirements) -> Vec<ClearInput> {
+    fn fixed_cases_for(&self, input_size: RadixInputSize) -> Vec<ClearInput> {
         self.fixed_cases
             .iter()
-            .flat_map(|f| f(size_requirements, self.ctx))
+            .flat_map(|f| f(input_size, self.ctx))
             .collect()
     }
 
     /// Runs every case with `executor` and panics with the report if any failed.
     ///
-    /// For each configured block counts this will run random tests,
+    /// For each block count of the profile this will run random tests,
     /// fixed tests cases and run the function using combinations of different input state
     /// (see [`InputState`]).
     ///
@@ -304,19 +526,29 @@ where
         Output: TestOutput,
     {
         let ctx = self.ctx;
+        let input_sizes = match &self.sizes {
+            RadixInputSizeSelection::FromCost(cost) => ctx
+                .profile
+                .block_counts(*cost, ctx.params)
+                .into_iter()
+                .map(RadixInputSize::new)
+                .collect(),
+            RadixInputSizeSelection::Specified(input_sizes) => input_sizes.clone(),
+        };
+        let n_random = self.n_random.unwrap_or_else(|| ctx.profile.n_random());
         let mut rng = ctx.new_rng();
         let mut runner = CaseRunner::new(ctx, executor, clear_func);
 
-        for size_req in self.size_requirements.iter().copied() {
-            let fixed_cases = self.fixed_cases_for_requirements(size_req);
+        for input_size in input_sizes {
+            let fixed_cases = self.fixed_cases_for(input_size);
 
             // Fixed cases and random cases with clean inputs
-            let randoms: Vec<ClearInput> = (0..self.n_random)
-                .map(|_| ClearInput::generate_random(&mut rng, size_req, ctx))
+            let randoms: Vec<ClearInput> = (0..n_random)
+                .map(|_| ClearInput::generate_random(&mut rng, input_size, ctx))
                 .collect();
             for clear_inputs in fixed_cases.iter().cloned().chain(randoms) {
                 runner.run(
-                    size_req,
+                    input_size,
                     clear_inputs,
                     <ClearInput::Input as TestInput>::State::clean(),
                     &mut rng,
@@ -327,8 +559,8 @@ where
             // are the edge case (the HLAPI serves clean ciphertexts), so one random case per
             // combination is enough; fixed cases only run with clean inputs.
             for states in <ClearInput::Input as TestInput>::State::all_combinations() {
-                let clear_inputs = ClearInput::generate_random(&mut rng, size_req, ctx);
-                runner.run(size_req, clear_inputs, states, &mut rng);
+                let clear_inputs = ClearInput::generate_random(&mut rng, input_size, ctx);
+                runner.run(input_size, clear_inputs, states, &mut rng);
             }
         }
 
@@ -350,7 +582,10 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
             ctx,
             executor,
             clear_func,
-            report: Report::new(ctx.seed),
+            report: Report::new(ReproductionConfig {
+                profile: ctx.profile,
+                seed: ctx.seed,
+            }),
         }
     }
 
@@ -361,7 +596,7 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
     /// Non clean inputs are an edge case and the check would double their cost for little value.
     fn run<C, O>(
         &mut self,
-        size_req: SizeRequirements,
+        input_size: RadixInputSize,
         clear_inputs: C,
         states: <C::Input as TestInput>::State,
         rng: &mut StdRng,
@@ -392,7 +627,7 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
                     output_index: 0,
                     kind: FailureKind::Panicked(message),
                 }];
-                self.record(size_req, &states, &clear_inputs, failures);
+                self.record(input_size, &states, &clear_inputs, failures);
                 return;
             }
         };
@@ -408,7 +643,7 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
             self.ctx,
             &mut failures,
         );
-        self.record(size_req, &states, &clear_inputs, failures.failures);
+        self.record(input_size, &states, &clear_inputs, failures.failures);
     }
 
     /// Counts a case that ran, and adds it to the report if it failed.
@@ -416,7 +651,7 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
     /// Panics with the report on the first failure when failing fast.
     fn record(
         &mut self,
-        size_req: SizeRequirements,
+        input_size: RadixInputSize,
         states: &impl std::fmt::Debug,
         clear_inputs: &impl std::fmt::Debug,
         failures: Vec<Failure>,
@@ -426,7 +661,7 @@ impl<'a, E, ClearF> CaseRunner<'a, E, ClearF> {
             return;
         }
         self.report.failing_cases.push(CaseFailure {
-            size_req,
+            input_size,
             states: format!("{states:?}"),
             inputs: format!("{clear_inputs:?}"),
             failures,
@@ -527,7 +762,7 @@ impl FailureSink {
 
 /// One failing case: what was run and everything that went wrong with its outputs.
 pub(crate) struct CaseFailure {
-    size_req: SizeRequirements,
+    input_size: RadixInputSize,
     /// `Debug` of the input states tuple
     states: String,
     /// `Debug` of the clear inputs, as seen by the clear model (i.e. after `prepare`)
@@ -541,15 +776,15 @@ pub(crate) struct CaseFailure {
 /// the whole picture (e.g. "every case with a scalar out of the radix range fails", or
 /// "only odd block counts fail").
 pub(crate) struct Report {
-    seed: u128,
+    reproduction: ReproductionConfig,
     cases_run: usize,
     failing_cases: Vec<CaseFailure>,
 }
 
 impl Report {
-    fn new(seed: u128) -> Self {
+    fn new(reproduction: ReproductionConfig) -> Self {
         Self {
-            seed,
+            reproduction,
             cases_run: 0,
             failing_cases: vec![],
         }
@@ -562,18 +797,20 @@ impl Report {
 
 impl std::fmt::Display for Report {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            reproduction,
+            cases_run,
+            failing_cases,
+        } = self;
+        let n_failing = failing_cases.len();
         writeln!(
             f,
-            "{} failing case(s) out of {} run, reproduce with {SEED_ENV_VAR}={:#x}",
-            self.failing_cases.len(),
-            self.cases_run,
-            self.seed
+            "{n_failing} failing case(s) out of {cases_run} run, reproduce with {reproduction}"
         )?;
 
         // Summary by kind, in the enum's declaration order
         for kind in FailureKind::iter() {
-            let count = self
-                .failing_cases
+            let count = failing_cases
                 .iter()
                 .flat_map(|case| case.failures.iter())
                 .filter(|failure| {
@@ -581,18 +818,24 @@ impl std::fmt::Display for Report {
                 })
                 .count();
             if count > 0 {
-                writeln!(f, "  {count} x {}", kind.label())?;
+                let label = kind.label();
+                writeln!(f, "  {count} x {label}")?;
             }
         }
 
-        for case in &self.failing_cases {
+        for CaseFailure {
+            input_size,
+            states,
+            inputs,
+            failures,
+        } in failing_cases
+        {
             writeln!(
                 f,
-                "\nsize_requirements {:?}, states {}, inputs {}:",
-                case.size_req, case.states, case.inputs
+                "\ninput_size {input_size:?}, states {states}, inputs {inputs}:"
             )?;
-            for failure in &case.failures {
-                writeln!(f, "  output {}: {}", failure.output_index, failure.kind)?;
+            for Failure { output_index, kind } in failures {
+                writeln!(f, "  output {output_index}: {kind}")?;
             }
         }
         Ok(())
@@ -692,10 +935,10 @@ pub(crate) trait TestClearInput: Clone + std::fmt::Debug {
     /// The harness derives the signature of the FHE function based on this
     type Input;
 
-    /// Draws a random clear value fitting the requirements
+    /// Draws a random clear value fitting the input size
     fn generate_random(
         rng: &mut dyn RngCore,
-        size_requirements: SizeRequirements,
+        input_size: RadixInputSize,
         ctx: &TestContext,
     ) -> Self;
 }
@@ -800,12 +1043,12 @@ impl TestClearInput for Uint {
 
     fn generate_random(
         rng: &mut dyn RngCore,
-        size_requirements: SizeRequirements,
+        input_size: RadixInputSize,
         ctx: &TestContext,
     ) -> Self {
         // The Uint stores the number of bits, this is what the radix will use to create
         // its proper size
-        Self::random(ctx.radix_bits(size_requirements.n_blocks))(rng)
+        Self::random(ctx.radix_bits(input_size.n_blocks))(rng)
     }
 }
 
@@ -814,7 +1057,7 @@ impl TestClearInput for bool {
 
     fn generate_random(
         rng: &mut dyn RngCore,
-        _size_requirements: SizeRequirements,
+        _input_size: RadixInputSize,
         _ctx: &TestContext,
     ) -> Self {
         rng.gen_bool(0.5)
@@ -826,10 +1069,10 @@ impl TestClearInput for Int {
 
     fn generate_random(
         rng: &mut dyn RngCore,
-        size_requirements: SizeRequirements,
+        input_size: RadixInputSize,
         ctx: &TestContext,
     ) -> Self {
-        Self::random(ctx.radix_bits(size_requirements.n_blocks))(rng)
+        Self::random(ctx.radix_bits(input_size.n_blocks))(rng)
     }
 }
 
@@ -838,13 +1081,13 @@ impl TestClearInput for Vec<Uint> {
 
     fn generate_random(
         rng: &mut dyn RngCore,
-        size_requirements: SizeRequirements,
+        input_size: RadixInputSize,
         ctx: &TestContext,
     ) -> Self {
-        (0..size_requirements
+        (0..input_size
             .vec_len
-            .expect("vector tests needs SizeRequirements with a vec_len"))
-            .map(|_| <Uint as TestClearInput>::generate_random(rng, size_requirements, ctx))
+            .expect("vector tests need a RadixInputSize with a vec_len"))
+            .map(|_| <Uint as TestClearInput>::generate_random(rng, input_size, ctx))
             .collect()
     }
 }
@@ -1251,10 +1494,10 @@ impl<T: ScalarType> TestScalar<T> {
 /// Fixed cases for an operation taking a single radix of `radix_bits` bits: its edge values
 /// (see [`ClearInteger`]).
 pub(crate) fn radix_edges_fixed_cases<C: ClearInteger>(
-    size_requirements: SizeRequirements,
+    input_size: RadixInputSize,
     ctx: &TestContext,
 ) -> Vec<(C,)> {
-    C::radix_edges(ctx.radix_bits(size_requirements.n_blocks))
+    C::radix_edges(ctx.radix_bits(input_size.n_blocks))
         .into_iter()
         .map(|value| (value,))
         .collect()
@@ -1266,20 +1509,20 @@ pub(crate) fn radix_edges_fixed_cases<C: ClearInteger>(
 /// The product includes the pairs of equal values, which comparison-like operations treat
 /// specially and random cases practically never draw.
 pub(crate) fn radix_pair_fixed_cases<C: ClearInteger>(
-    size_requirements: SizeRequirements,
+    input_size: RadixInputSize,
     ctx: &TestContext,
 ) -> Vec<(C, C)> {
-    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
     iproduct!(C::radix_edges(radix_bits), C::radix_edges(radix_bits)).collect()
 }
 
 /// Fixed cases for an operation between a radix of `radix_bits` bits and a scalar of type
 /// `T`: the radix edges against the scalar edge values (see [`ClearInteger`]).
 pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(
-    size_requirements: SizeRequirements,
+    input_size: RadixInputSize,
     ctx: &TestContext,
 ) -> Vec<(T::Clear, TestScalar<T>)> {
-    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
     let scalar_edges: Vec<TestScalar<T>> =
         <T::Clear as ClearInteger>::scalar_edges(radix_bits, T::BITS)
             .into_iter()
@@ -1366,10 +1609,10 @@ impl<T: ScalarType<Clear = Uint>> TestClearInput for ShiftAmount<T> {
 
     fn generate_random(
         rng: &mut dyn RngCore,
-        size_requirements: SizeRequirements,
+        input_size: RadixInputSize,
         ctx: &TestContext,
     ) -> Self {
-        let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+        let radix_bits = ctx.radix_bits(input_size.n_blocks);
         let value = random_shift_amount(rng, radix_bits, T::BITS);
         Self::new(Uint::new(value, T::BITS))
     }
@@ -1432,16 +1675,16 @@ impl TestClearInput for ShiftAmount<RadixCiphertext> {
 
     fn generate_random(
         rng: &mut dyn RngCore,
-        size_requirements: SizeRequirements,
+        input_size: RadixInputSize,
         ctx: &TestContext,
     ) -> Self {
-        let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+        let radix_bits = ctx.radix_bits(input_size.n_blocks);
         let value = random_shift_amount(rng, radix_bits, radix_bits);
         let n_blocks = if rng.gen_bool(0.5) {
-            size_requirements.n_blocks
+            input_size.n_blocks
         } else {
             let fewest_blocks = Self::fewest_blocks(value, ctx.bits_per_block());
-            rng.gen_range(fewest_blocks..=size_requirements.n_blocks)
+            rng.gen_range(fewest_blocks..=input_size.n_blocks)
         };
         Self::new(Uint::new(value, ctx.radix_bits(n_blocks)))
     }
@@ -1473,10 +1716,10 @@ impl TestInput for ShiftAmountOperand<RadixCiphertext> {
 /// type `T`: the radix edges (see [`ClearInteger`]) against the amount edge values (see
 /// [`scalar_shift_amount_edge_values`]).
 pub(crate) fn scalar_shift_amount_fixed_cases<C: ClearInteger, T: ScalarType<Clear = Uint>>(
-    size_requirements: SizeRequirements,
+    input_size: RadixInputSize,
     ctx: &TestContext,
 ) -> Vec<(C, ShiftAmount<T>)> {
-    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
     iproduct!(
         C::radix_edges(radix_bits),
         scalar_shift_amount_edge_values::<T>(radix_bits)
@@ -1526,10 +1769,10 @@ fn scalar_shift_amount_edge_values<T: ScalarType<Clear = Uint>>(
 /// Encrypted shifts are too costly to run the product of both sets at every block count. The
 /// amount is what drives the implementation's paths, random cases diversify the values.
 pub(crate) fn encrypted_shift_amount_fixed_cases<C: ClearInteger>(
-    size_requirements: SizeRequirements,
+    input_size: RadixInputSize,
     ctx: &TestContext,
 ) -> Vec<(C, ShiftAmount<RadixCiphertext>)> {
-    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
     C::radix_edges(radix_bits)
         .into_iter()
         .cycle()
@@ -1592,12 +1835,12 @@ impl<T: ScalarType> TestClearInput for TestScalar<T> {
 
     fn generate_random(
         rng: &mut dyn RngCore,
-        size_requirements: SizeRequirements,
+        input_size: RadixInputSize,
         ctx: &TestContext,
     ) -> Self {
         Self::new(<T::Clear as ClearInteger>::random_scalar(
             rng,
-            ctx.radix_bits(size_requirements.n_blocks),
+            ctx.radix_bits(input_size.n_blocks),
             T::BITS,
         ))
     }
@@ -1643,8 +1886,8 @@ macro_rules! impl_test_input_for_tuple {
         {
             type Input = ($($ty::Input,)+);
 
-            fn generate_random(rng: &mut dyn RngCore, size_requirements: SizeRequirements, ctx: &TestContext) -> Self {
-                ($($ty::generate_random(rng, size_requirements, ctx),)+)
+            fn generate_random(rng: &mut dyn RngCore, input_size: RadixInputSize, ctx: &TestContext) -> Self {
+                ($($ty::generate_random(rng, input_size, ctx),)+)
             }
         }
 

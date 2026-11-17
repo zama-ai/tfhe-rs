@@ -173,9 +173,10 @@ jobs:
         run: |
           make test_shortint_ci
 
+      # Only the default operations of tier 0 (FAST_TESTS is set for the whole job)
       - name: Run integer tests
         run: |
-          make test_integer_ci
+          TIERS=0 TFHE_RS_TEST_PROFILE=cpu_light make test_integer_ci
 
       - name: Gen Keys if required
         run: |

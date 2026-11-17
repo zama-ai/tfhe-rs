@@ -1,5 +1,5 @@
 use crate::integer::server_key::radix_parallel::test_harness::{
-    vec_size_requirements, ExecuteOn, SizeRequirements, TestBuilder, TestContext,
+    vec_input_sizes, ExecuteOn, RadixInputSize, TestBuilder, TestContext,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -19,19 +19,16 @@ const VEC_LENS: [u32; 8] = [0, 1, 2, 15, 16, 17, 64, 65];
 /// Random tests do not exercise the non overflow case a lot (ever?)
 ///
 /// So we provide fixed cases that do not create a result that overflows
-fn sum_boundary_fixed_cases(
-    size_requirements: SizeRequirements,
-    ctx: &TestContext,
-) -> Vec<(Vec<Uint>,)> {
-    let vec_len = size_requirements
+fn sum_boundary_fixed_cases(input_size: RadixInputSize, ctx: &TestContext) -> Vec<(Vec<Uint>,)> {
+    let vec_len = input_size
         .vec_len
-        .expect("sum tests need SizeRequirements with a vec_len") as usize;
+        .expect("sum tests need a RadixInputSize with a vec_len") as usize;
     if vec_len == 0 {
         // Nothing to choose, and the empty input is already covered by the random cases
         return vec![];
     }
 
-    let bits = ctx.radix_bits(size_requirements.n_blocks);
+    let bits = ctx.radix_bits(input_size.n_blocks);
     let max = Uint::max(bits);
     let vec_of_zeros = vec![Uint::zero(bits); vec_len];
 
@@ -83,7 +80,9 @@ pub(crate) fn default_unsigned_overflowing_sum_ciphertexts_vec_test<E>(
 {
     // Same lengths as `default_sum_ciphertexts_vec_test`
     TestBuilder::new(ctx)
-        .size_requirements(vec_size_requirements(ctx, VEC_LENS))
+        // TODO: the profiles do not cover vector operations yet, their sizes and number of
+        // random cases are set here until we know how to parameterize them
+        .input_sizes(vec_input_sizes(ctx, VEC_LENS))
         .n_random(2)
         .fixed_cases(sum_boundary_fixed_cases)
         .execute(executor, |(clears,): (Vec<Uint>,)| {
@@ -119,7 +118,9 @@ where
     E: ExecuteOn<(Vec<RadixCiphertext>,), Option<RadixCiphertext>>,
 {
     TestBuilder::new(ctx)
-        .size_requirements(vec_size_requirements(ctx, VEC_LENS))
+        // TODO: the profiles do not cover vector operations yet, their sizes and number of
+        // random cases are set here until we know how to parameterize them
+        .input_sizes(vec_input_sizes(ctx, VEC_LENS))
         .n_random(2)
         .fixed_cases(sum_boundary_fixed_cases)
         .execute(executor, |(clears,): (Vec<Uint>,)| {

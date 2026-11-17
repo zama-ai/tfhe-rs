@@ -46,7 +46,7 @@ use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::oprf::OprfServerKey;
 use crate::integer::server_key::radix_parallel::test_harness::{
-    SizeRequirements, TestContext, TestScalar,
+    RadixInputSize, TestContext, TestScalar,
 };
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -963,10 +963,10 @@ where
 /// Test using smaller scalar type than the radix in order to make sure block decomposition is
 /// correct
 pub(crate) fn narrow_scalar_cases(
-    size_requirements: SizeRequirements,
+    input_size: RadixInputSize,
     ctx: &TestContext,
 ) -> Vec<(Uint, TestScalar<u8>)> {
-    let radix_bits = ctx.radix_bits(size_requirements.n_blocks);
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
     let mut lhs_values = vec![
         Uint::zero(radix_bits),
         Uint::one(radix_bits),
