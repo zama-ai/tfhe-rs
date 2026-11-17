@@ -1155,7 +1155,13 @@ fn prove_impl<G: Curve>(
             sid: _,
             domain_separators: ref ds,
         },
-        PublicCommit { a, b, c1, c2, .. },
+        PublicCommit {
+            a,
+            b,
+            c1,
+            c2,
+            __marker: _,
+        },
     ) = public;
     let stored_hash_config = hash_config;
     let hash_config = hash_config.into();
@@ -1163,7 +1169,13 @@ fn prove_impl<G: Curve>(
     let g_list = &*g_lists.g_list.0;
     let g_hat_list = &*g_lists.g_hat_list.0;
 
-    let PrivateCommit { r, e1, m, e2, .. } = private_commit;
+    let PrivateCommit {
+        r,
+        e1,
+        m,
+        e2,
+        __marker: _,
+    } = private_commit;
 
     let k = c2.len();
 
@@ -2309,7 +2321,13 @@ pub fn verify_impl<G: Curve>(
         (decoded_q / t_input as u128) as u64
     };
 
-    let PublicCommit { a, b, c1, c2, .. } = public.1;
+    let PublicCommit {
+        a,
+        b,
+        c1,
+        c2,
+        __marker: _,
+    } = public.1;
     let k = c2.len();
     if k > k_max {
         return Err(());

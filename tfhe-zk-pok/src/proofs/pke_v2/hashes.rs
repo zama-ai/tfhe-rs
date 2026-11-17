@@ -377,7 +377,13 @@ impl<'a> RHash<'a> {
                 sid,
                 domain_separators: ref ds,
             },
-            PublicCommit { a, b, c1, c2, .. },
+            PublicCommit {
+                a,
+                b,
+                c1,
+                c2,
+                __marker: _,
+            },
         ) = public;
 
         let k = c2.len();

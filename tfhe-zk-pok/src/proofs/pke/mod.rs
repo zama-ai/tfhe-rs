@@ -732,8 +732,20 @@ fn prove_impl<G: Curve>(
 
     let b_i = b;
 
-    let PublicCommit { a, b, c1, c2, .. } = public.1;
-    let PrivateCommit { r, e1, m, e2, .. } = private_commit;
+    let PublicCommit {
+        a,
+        b,
+        c1,
+        c2,
+        __marker: _,
+    } = public.1;
+    let PrivateCommit {
+        r,
+        e1,
+        m,
+        e2,
+        __marker: _,
+    } = private_commit;
 
     let k = c2.len();
 
@@ -1228,7 +1240,13 @@ pub fn verify<G: Curve>(
         (decoded_q / t as u128) as u64
     };
 
-    let PublicCommit { a, b, c1, c2, .. } = public.1;
+    let PublicCommit {
+        a,
+        b,
+        c1,
+        c2,
+        __marker: _,
+    } = public.1;
     let k = c2.len();
     if k > k_max {
         return Err(());

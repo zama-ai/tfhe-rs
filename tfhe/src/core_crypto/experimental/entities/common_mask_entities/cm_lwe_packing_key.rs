@@ -126,7 +126,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKey<C>
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
-            ..
+            data: _,
+            decomp_base_log: _,
+            ciphertext_modulus: _,
         } = *self;
         cm_lwe_packing_key_part_size(
             decomp_level_count,
@@ -202,7 +204,10 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLwePackingKey
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
-            ..
+            data: _,
+            decomp_base_log: _,
+            decomp_level_count: _,
+            input_lwe_dimension: _,
         } = *self;
         CmLweCiphertextListMutView::from_container(
             self.as_mut(),

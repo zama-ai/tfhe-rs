@@ -1344,7 +1344,7 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
                     luts[num_bits as usize - 1].clone();
 
                 match self {
-                    Self::Classic { bsk, .. } => {
+                    Self::Classic { bsk } => {
                         ShortintEngine::with_thread_local_mut(|engine| {
                             let buffers = engine.get_computation_buffers();
 

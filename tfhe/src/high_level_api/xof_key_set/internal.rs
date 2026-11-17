@@ -887,7 +887,10 @@ impl crate::shortint::oprf::CompressedOprfServerKey {
             CompressedOprfBootstrappingKey::Classic { seeded_bsk } => {
                 generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
             }
-            CompressedOprfBootstrappingKey::MultiBit { seeded_bsk, .. } => {
+            CompressedOprfBootstrappingKey::MultiBit {
+                seeded_bsk,
+                deterministic_execution: _,
+            } => {
                 generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
             }
         }

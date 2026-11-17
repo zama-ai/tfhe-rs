@@ -135,19 +135,24 @@ impl AtomicPattern for KS32AtomicPatternServerKey {
 
     fn ciphertext_decompression_method(&self) -> MsDecompressionType {
         match &self.bootstrapping_key {
-            ShortintBootstrappingKey::Classic { bsk, .. } => MsDecompressionType::ClassicPbs {
+            ShortintBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key: _,
+            } => MsDecompressionType::ClassicPbs {
                 br_input_modulus_log: bsk.polynomial_size().to_blind_rotation_input_modulus_log(),
                 br_input_lwe_dim: bsk.input_lwe_dimension(),
             },
-            ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
-                MsDecompressionType::MultiBitPbs {
-                    br_input_modulus_log: fourier_bsk
-                        .polynomial_size()
-                        .to_blind_rotation_input_modulus_log(),
-                    br_input_lwe_dim: fourier_bsk.input_lwe_dimension(),
-                    grouping_factor: fourier_bsk.grouping_factor(),
-                }
-            }
+            ShortintBootstrappingKey::MultiBit {
+                fourier_bsk,
+                thread_count: _,
+                deterministic_execution: _,
+            } => MsDecompressionType::MultiBitPbs {
+                br_input_modulus_log: fourier_bsk
+                    .polynomial_size()
+                    .to_blind_rotation_input_modulus_log(),
+                br_input_lwe_dim: fourier_bsk.input_lwe_dimension(),
+                grouping_factor: fourier_bsk.grouping_factor(),
+            },
         }
     }
 

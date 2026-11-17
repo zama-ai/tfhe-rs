@@ -203,7 +203,10 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLwePackingKey
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
-            ..
+            data: _,
+            decomp_base_log: _,
+            decomp_level_count: _,
+            input_lwe_dimension: _,
         } = *self;
 
         CmLweCiphertextListMutView::from_container(
@@ -335,7 +338,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
-            ..
+            data: _,
         } = *self;
         CmLwePackingKeyPartCreationMetadata {
             decomp_base_log,

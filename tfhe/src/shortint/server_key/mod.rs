@@ -721,9 +721,10 @@ impl ServerKey {
             bsk: &ShortintBootstrappingKey<S>,
         ) -> OprfBootstrappingKeyView<'_> {
             match bsk {
-                ShortintBootstrappingKey::Classic { bsk, .. } => {
-                    OprfBootstrappingKeyView::Classic { bsk: bsk.as_view() }
-                }
+                ShortintBootstrappingKey::Classic {
+                    bsk,
+                    modulus_switch_noise_reduction_key: _,
+                } => OprfBootstrappingKeyView::Classic { bsk: bsk.as_view() },
                 ShortintBootstrappingKey::MultiBit {
                     fourier_bsk,
                     thread_count,
