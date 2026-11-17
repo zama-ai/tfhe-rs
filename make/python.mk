@@ -27,6 +27,14 @@ define activate_python_venv
 . "$(1)/bin/activate" && \
 $(activate_safe_chain)
 endef
+# Seconds pip waits for the network to answer (connection or data) before giving up on a request,
+# instead of its default of 15: packages are installed through Safe-Chain, which checks them before
+# handing them over to pip and can take longer than that to answer. PIP_DEFAULT_TIMEOUT is the
+# environment variable pip reads its --timeout option from: exporting it applies the value to every
+# pip call of every recipe, and it takes precedence over the pip configuration files, including the
+# one Safe-Chain generates. A value from the environment or the command line is used instead, e.g.
+# 'make ... PIP_DEFAULT_TIMEOUT=120'.
+export PIP_DEFAULT_TIMEOUT?=60
 # Install the given *requirements.txt lock files with pip in the venv at the given path, refusing
 # anything that is not a venv, with the packages checked by Safe-Chain. The pinned pip is installed
 # first, the pip bundled with Python may be too old to install the lock files, see
