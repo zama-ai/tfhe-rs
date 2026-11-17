@@ -1,0 +1,98 @@
+# AGENTS.md
+
+Guidance for coding agents working in TFHE-rs. This file only records what is not obvious from reading the code; the root `Makefile` is the source of truth for commands (`make help` lists targets).
+
+## Commands
+
+- Run things through `make`, which sets the right toolchain, features and flags. Tests use the stable toolchain from `rust-toolchain.toml`; fmt, clippy and docs use the nightly named in `nightly-toolchain.txt` (`make install_rs_check_toolchain`). Plain `cargo fmt` / `cargo clippy` on stable will not match CI.
+- `tfhe`'s default features enable no layer, so a bare `cargo build -p tfhe` or `cargo test -p tfhe` compiles almost nothing. Always pass features.
+- Checks before pushing: `make fpcc` is the fast subset (formatting, typos, doc checks; no clippy). `make pcc` is the full set CI runs and is slow; prefer the per-layer target for what you touched (`make clippy_core`, `clippy_shortint`, `clippy_integer`, …). `make conformance` rewrites files (formatting and newlines).
+- Clippy runs with `-D warnings` over several feature combinations per layer. Code behind `cfg(feature = ...)` is only checked by the matching make target.
+
+### Running tests
+
+The shortint, integer and high-level API suites take hours and many GB of RAM. Never run a whole suite to validate a change; run one test with the features of its layer:
+
+```bash
+RUSTFLAGS="-C target-cpu=native" cargo test --profile devo \
+  --features=integer,internal-keycache -p tfhe -- \
+  integer::block_decomposition::tests::test_bit_block_decomposer
+```
+
+- Take the feature list from the layer's `test_*` target in the Makefile (`test_core_crypto`, `test_shortint`, `test_integer`, `test_high_level_api`, …).
+- `--profile devo` is optimized without LTO and compiles much faster than the Makefile default (`release`, fat LTO). Equivalent: `make test_integer CARGO_PROFILE=devo`.
+- Most shortint/integer tests are generated per parameter set by `create_parameterized_test!`; filter on the function name to run every variant, or on the full generated name for one.
+- `NIGHTLY_TESTS` selects a parameter set and has nothing to do with the nightly toolchain.
+- `.lfsconfig` disables automatic Git LFS fetching. Test data is pulled by `make pull_*` targets (`pull_backward_compat_data`, `pull_test_vectors`, …).
+
+## Architecture
+
+### Workspace
+
+| Path | Role |
+|---|---|
+| `tfhe/` | Main crate; everything users import |
+| `tfhe-fft/`, `tfhe-ntt/` | FFT and NTT primitives used by `core_crypto` |
+| `tfhe-csprng/` | AES-CTR random generators and seeders |
+| `tfhe-zk-pok/` | Zero-knowledge proofs of correct encryption (`zk-pok` feature) |
+| `backends/` | CUDA backends (C++/CUDA with generated Rust bindings) and the HPU (FPGA) backend |
+| `utils/tfhe-versionable*`, `utils/tfhe-safe-serialize/` | Versioned serialization and safe (size-limited, conformance-checked) deserialization |
+| `utils/tfhe-backward-compat-data/`, `tests/` | Data from past releases and the tests that load it. `tests/` is its own package, distinct from `tfhe/tests` |
+| `utils/tfhe-lints/` | Custom lints for serialization rules |
+| `tfhe-benchmark/` | All benchmarks |
+| `apps/`, `tasks/`, `ci/`, `scripts/` | Example applications, `cargo xtask` helpers, CI and test-runner scripts |
+
+Some crates under `apps/` and `utils/` are excluded from the workspace and have their own lockfiles and toolchains (see `exclude` in the root `Cargo.toml`).
+
+### Layers of the `tfhe` crate
+
+Each layer is a module in `tfhe/src/` behind a Cargo feature of the same name, built only on the layers below it:
+
+| Layer | Works on | Responsibility |
+|---|---|---|
+| `core_crypto` | LWE/GLWE ciphertexts and keys | Cryptographic primitives: encryption, keyswitch, programmable bootstrap (PBS), FFT. No notion of message semantics |
+| `shortint` (and the independent `boolean`) | One LWE ciphertext holding a few message and carry bits | Small-integer arithmetic and lookup tables via PBS; owns the parameter sets and tracks noise |
+| `integer` | Vectors of shortint blocks (radix or CRT) | Arbitrary-size integer arithmetic, carry propagation, parallel algorithms; `gpu/` and `hpu/` hold the backend variants |
+| `high_level_api` | `FheUint*`, `FheInt*`, `FheBool`, … (re-exported at the crate root) | Typed user API with operator overloading, key management and backend dispatch |
+
+Alongside the layers: `strings/` (on `integer`), `zk/`, `transciphering/`, and the bindings `c_api/` and `js_on_wasm_api/`, which wrap the other layers.
+
+Things each layer expects that are easy to miss:
+
+- **shortint** ciphertexts carry a `Degree` (bound on the plaintext value) and a `NoiseLevel`. Every operation must update both; getting them wrong produces silently incorrect results rather than errors.
+- **integer** `unchecked_*` operations assume the input blocks have room in their carries; the unprefixed operations clean carries first and return clean outputs.
+- **high_level_api** keeps the server key in a thread-local, so `set_server_key` is needed on every thread. Operations dispatch by matching on `InternalServerKey` (CPU, CUDA, HPU): a new operation needs an arm for each backend.
+- The `gpu` feature changes the parameters picked by `ConfigBuilder::default()`.
+
+### Adding a GPU operation
+
+One operation spans several layers; use an existing one (e.g. `abs`) as the template:
+
+1. C ABI declaration (`scratch_*`, compute, `cleanup_*`) and CUDA implementation in `backends/tfhe-cuda-backend/cuda/`.
+2. `backends/tfhe-cuda-backend/src/bindings.rs` is bindgen output but is committed: rebuild to regenerate it and commit the result. A new header must be added to both `wrapper.h` and the watch list in `build.rs`.
+3. FFI wrapper and `CudaServerKey` method in `tfhe/src/integer/gpu/`.
+4. `InternalServerKey::Cuda` arm in `high_level_api`.
+5. GPU tests reuse the CPU test bodies through `GpuFunctionExecutor`.
+
+Changes to the CUDA crates are also subject to semver and version-bump checks in CI.
+
+### Parameters
+
+Parameter sets live in per-release modules under `tfhe/src/shortint/parameters/`. When adding one, keep the release module, `aliases.rs` and the `VEC_ALL_*` lists in sync (the lists feed the security-estimation CI). In `tfhe/src/js_on_wasm_api/shortint.rs`, new parameters must be appended, never inserted.
+
+## Serialization and backward compatibility
+
+Serialized data from past releases must stay readable. This is the most common source of CI failures on otherwise correct changes.
+
+- Any type deriving `Serialize`/`Deserialize` must also derive `Versionize`, with a dispatch enum in the layer's `backward_compatibility/` module. Custom lints enforce this (`make tfhe_lints`).
+- Changing the layout of a versioned type (fields or variants added, removed, retyped, reordered or renamed) requires keeping the old layout as a versioned snapshot, appending a variant to the dispatch enum (never reorder or rename existing ones) and implementing `Upgrade`. Procedure: `utils/tfhe-versionable/README.md`.
+- Renaming a type that implements `Named` is a compatibility break.
+- New versioned types or versions need historical test data: `utils/tfhe-backward-compat-data/README.md`.
+
+## Conventions enforced by CI
+
+- Commit messages are checked on every commit of a PR by `.github/workflows/check_commit.yml`: conventional format with a restricted type list (`ci` and `build` are not accepted; use `chore(ci)`), a line-length limit, and signed commits. Mark breaking changes, including serialization breaks, with `!`. Rebase on `main`; no merge commits.
+- PRs containing AI-generated code must say so in the description and be human-reviewed (`CONTRIBUTION_GUIDELINES.md`). Other parts of that file lag behind the Makefile.
+- Every Rust code block in `tfhe/docs/**/*.md` must be registered with `doctest!` in `tfhe/src/test_user_docs.rs`. Doc file and directory names use dashes, not underscores.
+- No `dbg!` in tracked files; `Cargo.lock` must be up to date.
+- Files starting with an "autogenerated" header (e.g. in `core_crypto/commons/noise_formulas/`) must not be edited by hand.
