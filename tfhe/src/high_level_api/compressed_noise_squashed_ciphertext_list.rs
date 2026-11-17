@@ -147,23 +147,23 @@ impl InnerCompressedSquashedNoiseCiphertextList {
         let cpu_ct = self.on_cpu()?;
 
         // Then we can transfer the desired device
-        match target_device {
-            Device::Cpu => {
-                let _ = cpu_ct;
-            }
+        // Each arm builds the new self, so a transfer cannot be forgotten
+        *self = match target_device {
+            // self is not on the CPU here, so cpu_ct is a fresh copy that has to replace it
+            Device::Cpu => Self::Cpu(cpu_ct.into_owned()),
             #[cfg(feature = "gpu")]
             Device::CudaGpu => {
                 let new_inner = with_cuda_internal_keys(|keys| {
                     let streams = &keys.streams;
                     CudaCompressedSquashedNoiseCiphertextList::from_compressed_squashed_noise_ciphertext_list(&cpu_ct, streams)
                 })?;
-                *self = Self::Cuda(new_inner);
+                Self::Cuda(new_inner)
             }
             #[cfg(feature = "hpu")]
             Device::Hpu => {
                 panic!("HPU does not support compression");
             }
-        }
+        };
 
         Ok(())
     }

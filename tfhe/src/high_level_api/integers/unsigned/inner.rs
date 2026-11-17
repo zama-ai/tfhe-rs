@@ -278,10 +278,11 @@ impl RadixCiphertext {
         let cpu_ct = self.on_cpu();
 
         // Then we can transfer the desired device
-        match target_device {
-            Device::Cpu => {
-                let _ = cpu_ct;
-            }
+        // Each arm builds the new self, so a transfer cannot be forgotten
+        *self = match target_device {
+            // self is not on the CPU here, so cpu_ct is a fresh copy that has to replace it.
+            // as_cpu_mut calls itself again after this move and relies on it to terminate
+            Device::Cpu => Self::Cpu(cpu_ct.into_owned()),
             #[cfg(feature = "gpu")]
             Device::CudaGpu => {
                 let new_inner = with_cuda_internal_keys(|key| {
@@ -290,16 +291,16 @@ impl RadixCiphertext {
                         &cpu_ct, streams,
                     )
                 });
-                *self = Self::Cuda(new_inner);
+                Self::Cuda(new_inner)
             }
             #[cfg(feature = "hpu")]
             Device::Hpu => {
                 let hpu_ct = global_state::with_thread_local_hpu_device(|device| {
                     HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device, None)
                 });
-                *self = Self::Hpu(hpu_ct);
+                Self::Hpu(hpu_ct)
             }
-        }
+        };
     }
 
     #[inline]
