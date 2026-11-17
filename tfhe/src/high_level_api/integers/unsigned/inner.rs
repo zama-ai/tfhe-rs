@@ -280,7 +280,9 @@ impl RadixCiphertext {
         // Then we can transfer the desired device
         match target_device {
             Device::Cpu => {
-                let _ = cpu_ct;
+                // self is not on the CPU here, so cpu_ct is a fresh copy that has to replace it.
+                // as_cpu_mut calls itself again after this move and relies on it to terminate
+                *self = Self::Cpu(cpu_ct.into_owned());
             }
             #[cfg(feature = "gpu")]
             Device::CudaGpu => {

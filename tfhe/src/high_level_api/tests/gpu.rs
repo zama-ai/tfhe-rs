@@ -161,6 +161,55 @@ fn test_gpu_selection() {
     assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
 }
 
+/// Regression test: with the CPU server key set, an assign operator on a ciphertext that lives
+/// on the GPU has to bring it back to the CPU (it used to retry the move forever)
+#[test]
+fn test_gpu_ciphertext_assign_op_with_cpu_server_key() {
+    let config = ConfigBuilder::default().build();
+    let keys = ClientKey::generate(config);
+    let compressed_server_keys = CompressedServerKey::new(&keys);
+
+    let mut rng = rand::thread_rng();
+    let clear: u8 = rng.gen();
+    let scalar: u8 = rng.gen();
+    let divisor: u8 = rng.gen_range(1..=u8::MAX);
+
+    set_server_key(compressed_server_keys.decompress_to_gpu());
+    let mut a = FheUint8::encrypt(clear, &keys);
+    a.move_to_current_device();
+    assert_eq!(a.current_device(), Device::CudaGpu);
+    let mut b = FheBool::encrypt(true, &keys);
+    b.move_to_current_device();
+    assert_eq!(b.current_device(), Device::CudaGpu);
+
+    // Checked before the assign operators, so that a regression fails here instead of hanging
+    let mut a_on_cpu = a.clone();
+    a_on_cpu.move_to_device(Device::Cpu);
+    assert_eq!(a_on_cpu.current_device(), Device::Cpu);
+    let decrypted: u8 = a_on_cpu.decrypt(&keys);
+    assert_eq!(decrypted, clear);
+
+    let mut b_on_cpu = b.clone();
+    b_on_cpu.move_to_device(Device::Cpu);
+    assert_eq!(b_on_cpu.current_device(), Device::Cpu);
+    assert!(b_on_cpu.decrypt(&keys));
+
+    set_server_key(compressed_server_keys.decompress());
+
+    a *= scalar;
+    assert_eq!(a.current_device(), Device::Cpu);
+    let decrypted: u8 = a.decrypt(&keys);
+    assert_eq!(decrypted, clear.wrapping_mul(scalar));
+
+    a /= divisor;
+    let decrypted: u8 = a.decrypt(&keys);
+    assert_eq!(decrypted, clear.wrapping_mul(scalar) / divisor);
+
+    b &= &FheBool::encrypt(false, &keys);
+    assert_eq!(b.current_device(), Device::Cpu);
+    assert!(!b.decrypt(&keys));
+}
+
 #[test]
 fn test_gpu_selection_2() {
     // The purpose of if this is to test that we can set_server_key using a cuda key that is on GpuY
