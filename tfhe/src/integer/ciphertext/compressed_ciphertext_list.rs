@@ -266,7 +266,7 @@ mod tests {
         TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
-    use crate::shortint::ShortintParameterSet;
+    use crate::shortint::AtomicPatternParameters;
     use itertools::Itertools;
     use rand::Rng;
 
@@ -280,7 +280,7 @@ mod tests {
         let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let comp_params = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let (cks, _) = gen_keys::<ShortintParameterSet>(params.into(), IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params.into(), IntegerKeyKind::Radix);
         let private_compression_key = cks.new_compression_private_key(comp_params);
         let (compression_key, decompression_key) =
             cks.new_compression_decompression_keys(&private_compression_key);
@@ -330,7 +330,7 @@ mod tests {
         let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let comp_params = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let (cks, _) = gen_keys::<ShortintParameterSet>(params.into(), IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params.into(), IntegerKeyKind::Radix);
         let private_compression_key = cks.new_compression_private_key(comp_params);
         let (compression_key, decompression_key) =
             cks.new_compression_decompression_keys(&private_compression_key);
@@ -389,7 +389,7 @@ mod tests {
     fn test_empty_list_compression() {
         let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
 
-        let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
         let private_compression_key = cks
             .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
@@ -428,7 +428,7 @@ mod tests {
                 TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         ] {
-            let (cks, sks) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+            let (cks, sks) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
             let max_nb_messages: usize = 2 * comp_params.lwe_per_glwe().0 / NUM_BLOCKS;
 

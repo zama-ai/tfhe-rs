@@ -8,7 +8,7 @@
 
 * `ClientKey`
 * `ServerKey`
-* `PublicKey`
+* `CompactPublicKey`
 
 The `ClientKey` is the key that encrypts and decrypts messages, thus this key is meant to be kept private and should never be shared. This key is created from parameter values that will dictate both the security and efficiency of computations. The parameters also set the maximum number of bits of message encrypted in a ciphertext.
 
@@ -16,7 +16,7 @@ The `ServerKey` is the key that is used to actually do the FHE computations. It 
 
 To reflect this, computation/operation methods are tied to the `ServerKey` type.
 
-The `PublicKey` is a key used to encrypt messages. It can be publicly shared to allow users to encrypt data such that only the `ClientKey` holder will be able to decrypt. Encrypting with the `PublicKey` does not alter the homomorphic capabilities associated to the `ServerKey`.
+The `CompactPublicKey` is a key used to encrypt messages. It can be publicly shared to allow users to encrypt data such that only the holder of the associated private key will be able to decrypt. It is generated from a dedicated `CompactPrivateKey`: data encrypted with the `CompactPublicKey` is encrypted under this private key, as a `CompactCiphertextList`. When the list is expanded, a `KeySwitchingKey` converts the ciphertexts so they are encrypted under the `ClientKey`, and they can then be used with the associated `ServerKey`.
 
 ## 1. Key Generation
 
@@ -62,28 +62,55 @@ fn main() {
 
 ## 3. Encrypting values with the public key
 
-Once the client key is generated, the public key can be derived and used to encrypt data.
+Once the client key is generated, a compact public key can be created and used to encrypt data.
 
 ```rust
-use tfhe::integer::gen_keys_radix;
-use tfhe::integer::PublicKey;
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+use tfhe::integer::ciphertext::CompactCiphertextList;
+use tfhe::integer::key_switching_key::KeySwitchingKey;
+use tfhe::integer::parameters::IntegerCompactCiphertextListExpansionMode;
+use tfhe::integer::{gen_keys_radix, CompactPrivateKey, CompactPublicKey, RadixCiphertext};
+use tfhe::shortint::parameters::{
+    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 
 fn main() {
     // We generate a set of client/server keys, using the default parameters:
     let num_block = 4;
-    let (client_key, _) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
+    let (client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block);
 
-    //We generate the public key from the secret client key:
-    let public_key = PublicKey::new(&client_key);
+    // We generate the compact public key from its own private key:
+    let cpk_private_key = CompactPrivateKey::new(PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let public_key = CompactPublicKey::new(&cpk_private_key);
 
-    //encryption
+    // The casting key converts ciphertexts encrypted under the compact public key
+    // into ciphertexts usable with the server key:
+    let casting_key = KeySwitchingKey::new(
+        (&cpk_private_key, None),
+        (&client_key, &server_key),
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
+
     let msg1 = 128u64;
     let msg2 = 13u64;
 
     // We use the public key to encrypt two messages:
-    let ct_1 = public_key.encrypt_radix(msg1, num_block);
-    let ct_2 = public_key.encrypt_radix(msg2, num_block);
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push_with_num_blocks(msg1, num_block)
+        .push_with_num_blocks(msg2, num_block)
+        .build();
+
+    // The list is then expanded into ciphertexts usable with the server key:
+    let expansion_mode =
+        IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(casting_key.as_view());
+    let expander = compact_list.expand(expansion_mode).unwrap();
+    let ct_1: RadixCiphertext = expander.get(0).unwrap().unwrap();
+    let ct_2: RadixCiphertext = expander.get(1).unwrap().unwrap();
+
+    let dec_1: u64 = client_key.decrypt(&ct_1);
+    let dec_2: u64 = client_key.decrypt(&ct_2);
+    assert_eq!(dec_1, msg1);
+    assert_eq!(dec_2, msg2);
 }
 ```
 

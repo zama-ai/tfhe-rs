@@ -23,7 +23,6 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 
 mod client_side;
-mod public_side;
 mod server_side;
 
 thread_local! {

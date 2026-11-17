@@ -10,7 +10,7 @@ pub use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweDimension, PolynomialSize, StandardDev,
 };
-use crate::shortint::PBSParameters;
+use crate::shortint::AtomicPatternParameters;
 pub use crate::shortint::{CiphertextModulus, ClassicPBSParameters};
 
 #[derive(Clone, Copy)]
@@ -31,11 +31,11 @@ pub struct RadixCiphertextConformanceParams {
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
 impl RadixCiphertextConformanceParams {
-    pub fn from_pbs_parameters<P: Into<PBSParameters>>(
+    pub fn from_atomic_pattern_parameters<P: Into<AtomicPatternParameters>>(
         params: P,
         num_blocks_per_integer: usize,
     ) -> Self {
-        let params: PBSParameters = params.into();
+        let params: AtomicPatternParameters = params.into();
         Self {
             shortint_params: params.to_shortint_conformance_param(),
             num_blocks_per_integer,

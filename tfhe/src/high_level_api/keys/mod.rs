@@ -18,7 +18,7 @@ pub(crate) use cpk_re_randomization::{
 };
 pub(crate) use inner::CompactPrivateKey;
 pub use key_switching_key::KeySwitchingKey;
-pub use public::{CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey};
+pub use public::{CompactPublicKey, CompressedCompactPublicKey};
 #[cfg(feature = "gpu")]
 pub use server::CudaServerKey;
 #[cfg(feature = "hpu")]

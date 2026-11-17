@@ -339,36 +339,6 @@ void test_int8_overflowing_mul(const ClientKey *client_key) {
   fhe_bool_destroy(overflowed);
 }
 
-int uint8_public_key(const ClientKey *client_key, const PublicKey *public_key) {
-  int ok;
-  FheUint8 *lhs = NULL;
-  FheUint8 *rhs = NULL;
-  FheUint8 *result = NULL;
-
-  uint8_t lhs_clear = 123;
-  uint8_t rhs_clear = 14;
-
-  ok = fhe_uint8_try_encrypt_with_public_key_u8(lhs_clear, public_key, &lhs);
-  assert(ok == 0);
-
-  ok = fhe_uint8_try_encrypt_with_public_key_u8(rhs_clear, public_key, &rhs);
-  assert(ok == 0);
-
-  ok = fhe_uint8_sub(lhs, rhs, &result);
-  assert(ok == 0);
-
-  uint8_t clear;
-  ok = fhe_uint8_decrypt(result, client_key, &clear);
-  assert(ok == 0);
-
-  assert(clear == (lhs_clear - rhs_clear));
-
-  fhe_uint8_destroy(lhs);
-  fhe_uint8_destroy(rhs);
-  fhe_uint8_destroy(result);
-  return ok;
-}
-
 int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *server_key) {
   int ok;
   FheUint8 *lhs = NULL;
@@ -556,11 +526,8 @@ int main(void) {
 
     ClientKey *client_key = NULL;
     ServerKey *server_key = NULL;
-    PublicKey *public_key = NULL;
 
     ok = generate_keys(config, &client_key, &server_key);
-    assert(ok == 0);
-    ok = public_key_new(client_key, &public_key);
     assert(ok == 0);
     ok = uint8_safe_serialization(client_key, server_key);
     assert(ok == 0);
@@ -575,8 +542,6 @@ int main(void) {
 
     ok = uint8_client_key(client_key);
     assert(ok == 0);
-    ok = uint8_public_key(client_key, public_key);
-    assert(ok == 0);
 
     test_uint8_overflowing_add(client_key);
     test_uint8_overflowing_sub(client_key);
@@ -588,7 +553,6 @@ int main(void) {
     test_oprf(client_key);
 
     client_key_destroy(client_key);
-    public_key_destroy(public_key);
     server_key_destroy(server_key);
   }
 
@@ -607,11 +571,8 @@ int main(void) {
 
     ClientKey *client_key = NULL;
     ServerKey *server_key = NULL;
-    PublicKey *public_key = NULL;
 
     ok = generate_keys(config, &client_key, &server_key);
-    assert(ok == 0);
-    ok = public_key_new(client_key, &public_key);
     assert(ok == 0);
 
     ok = set_server_key(server_key);
@@ -620,8 +581,6 @@ int main(void) {
     ok = uint8_client_key(client_key);
     assert(ok == 0);
 
-    ok = uint8_public_key(client_key, public_key);
-    assert(ok == 0);
 
     test_uint8_overflowing_add(client_key);
     test_uint8_overflowing_sub(client_key);
@@ -632,7 +591,6 @@ int main(void) {
     test_try_decrypt_trivial(client_key);
 
     client_key_destroy(client_key);
-    public_key_destroy(public_key);
     server_key_destroy(server_key);
     unset_server_key();
   }

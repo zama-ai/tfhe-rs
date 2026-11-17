@@ -9,15 +9,11 @@ mod tags_on_entities;
 
 use crate::high_level_api::prelude::*;
 use crate::high_level_api::{
-    generate_keys, ClientKey, ConfigBuilder, FheBool, FheUint256, FheUint8, PublicKey, ServerKey,
+    generate_keys, ClientKey, ConfigBuilder, FheBool, FheUint8, ServerKey,
 };
-use crate::integer::U256;
 use crate::shortint::parameters::TestParameters;
 use crate::shortint::ClassicPBSParameters;
-use crate::{
-    set_server_key, CompactPublicKey, CompressedPublicKey, CompressedServerKey, FheUint32, Tag,
-};
-use std::fmt::Debug;
+use crate::{set_server_key, CompactPublicKey, CompressedServerKey, FheUint32, Tag};
 
 pub(crate) fn setup_cpu(params: Option<impl Into<TestParameters>>) -> ClientKey {
     let config = params
@@ -37,71 +33,6 @@ pub(crate) fn setup_cpu(params: Option<impl Into<TestParameters>>) -> ClientKey 
 
 pub(crate) fn setup_default_cpu() -> ClientKey {
     setup_cpu(Option::<ClassicPBSParameters>::None)
-}
-
-fn assert_that_public_key_encryption_is_decrypted_by_client_key<FheType, ClearType>(
-    clear: ClearType,
-    pks: &PublicKey,
-    cks: &ClientKey,
-) where
-    ClearType: Copy + Eq + Debug,
-    FheType: FheTryEncrypt<ClearType, PublicKey> + FheDecrypt<ClearType>,
-{
-    let encrypted = FheType::try_encrypt(clear, pks).unwrap();
-    let decrypted: ClearType = encrypted.decrypt(cks);
-    assert_eq!(clear, decrypted);
-}
-
-#[test]
-fn test_boolean_public_key() {
-    let config = ConfigBuilder::default().build();
-
-    let (cks, _sks) = generate_keys(config);
-
-    let pks = PublicKey::new(&cks);
-
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheBool, bool>(
-        false, &pks, &cks,
-    );
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheBool, bool>(true, &pks, &cks);
-}
-
-#[test]
-fn test_integer_public_key() {
-    let config = ConfigBuilder::default().build();
-
-    let (cks, _sks) = generate_keys(config);
-
-    let pks = PublicKey::new(&cks);
-
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint8, u8>(235, &pks, &cks);
-}
-
-#[test]
-fn test_small_uint8() {
-    let config = ConfigBuilder::default().build();
-
-    let (cks, _sks) = generate_keys(config);
-
-    let pks = PublicKey::new(&cks);
-
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint8, u8>(235, &pks, &cks);
-}
-
-#[test]
-fn test_small_uint256() {
-    let config = ConfigBuilder::default().build();
-
-    let (cks, _sks) = generate_keys(config);
-
-    let pks = PublicKey::new(&cks);
-
-    use rand::prelude::*;
-    let mut rng = rand::thread_rng();
-    let value = rng.gen::<U256>();
-    assert_that_public_key_encryption_is_decrypted_by_client_key::<FheUint256, U256>(
-        value, &pks, &cks,
-    );
 }
 
 #[test]
@@ -177,15 +108,11 @@ fn test_serialize_deserialize_are_implemented() {
     }
 
     let (cks, sks) = generate_keys(config);
-    let pks = PublicKey::new(&cks);
-    let cpks = CompressedPublicKey::new(&cks);
     let csks = CompressedServerKey::new(&cks);
     let pksz = CompactPublicKey::new(&cks);
 
     can_be_deserialized(&cks);
     can_be_deserialized(&sks);
-    can_be_deserialized(&pks);
-    can_be_deserialized(&cpks);
     can_be_deserialized(&csks);
     can_be_deserialized(&pksz);
 }

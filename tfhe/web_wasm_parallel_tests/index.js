@@ -163,8 +163,6 @@ async function setup() {
 
   // Worker-based tests (run in Comlink worker)
   const workerDemoNames = [
-    "publicKeyTest",
-    "compressedPublicKeyTest",
     "compressedCompactPublicKeyTest256BitBig",
     "compressedCompactPublicKeyTest256BitSmall",
     "compactPublicKeyZeroKnowledgeTest",

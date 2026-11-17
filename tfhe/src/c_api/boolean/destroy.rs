@@ -1,6 +1,6 @@
 use super::{
     BooleanCiphertext, BooleanClientKey, BooleanCompressedCiphertext, BooleanCompressedServerKey,
-    BooleanPublicKey, BooleanServerKey,
+    BooleanServerKey,
 };
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
@@ -41,18 +41,6 @@ pub unsafe extern "C" fn boolean_destroy_compressed_server_key(
         check_ptr_is_non_null_and_aligned(server_key).unwrap();
 
         drop(Box::from_raw(server_key));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn boolean_destroy_public_key(public_key: *mut BooleanPublicKey) -> c_int {
-    if public_key.is_null() {
-        return 0;
-    }
-    catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(public_key).unwrap();
-
-        drop(Box::from_raw(public_key));
     })
 }
 

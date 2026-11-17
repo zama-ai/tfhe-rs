@@ -38,15 +38,11 @@ use super::backward_compatibility::parameters::{
 /// The choice of encryption key for (`boolean ciphertext`)[`super::ciphertext::Ciphertext`].
 ///
 /// * The `Big` choice means the big LWE key derived from the GLWE key is used to encrypt the input
-///   ciphertext. This offers better performance but the (`public
-///   key`)[`super::public_key::PublicKey`] can be extremely large and in some cases may not fit in
-///   memory. When refreshing a ciphertext and/or evaluating a table lookup the PBS is computed
-///   first followed by a keyswitch.
+///   ciphertext. This offers better performance. When refreshing a ciphertext and/or evaluating a
+///   table lookup the PBS is computed first followed by a keyswitch.
 /// * The `Small` choice means the small LWE key is used to encrypt the input ciphertext.
-///   Performance is not as good as in the `Big` case but (`public
-///   key`)[`super::public_key::PublicKey`] sizes are much more manageable and should always fit in
-///   memory. When refreshing a ciphertext and/or evaluating a table lookup the keyswitch is
-///   computed first followed by a PBS.
+///   Performance is not as good as in the `Big` case. When refreshing a ciphertext and/or
+///   evaluating a table lookup the keyswitch is computed first followed by a PBS.
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(BooleanParametersVersions)]
 pub struct BooleanParameters {

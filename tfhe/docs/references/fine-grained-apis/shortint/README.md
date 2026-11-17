@@ -12,7 +12,7 @@ The steps to homomorphically evaluate a `shortint` circuit are described below.
 
 * `ClientKey`
 * `ServerKey`
-* `PublicKey`
+* `CompactPublicKey`
 
 The `ClientKey` is the key that encrypts and decrypts messages (small integer values). It is meant to be kept private and should never be shared. This key is created from parameter values that will dictate both the security and efficiency of computations. The parameters also set the maximum number of bits of message encrypted in a ciphertext.
 
@@ -20,7 +20,7 @@ The `ServerKey` is the key that is used to evaluate the FHE computations. Most i
 
 Computation/operation methods are tied to the `ServerKey` type.
 
-The `PublicKey` is the key used to encrypt messages. It can be publicly shared to allow users to encrypt data such that only the `ClientKey` holder will be able to decrypt. Encrypting with the `PublicKey` does not alter the homomorphic capabilities associated to the `ServerKey`.
+The `CompactPublicKey` is the key used to encrypt messages. It can be publicly shared to allow users to encrypt data such that only the holder of the associated private key will be able to decrypt. It is generated from a dedicated `CompactPrivateKey`: data encrypted with the `CompactPublicKey` is encrypted under this private key, as a `CompactCiphertextList`. When the list is expanded, a `KeySwitchingKey` converts the ciphertexts so they are encrypted under the `ClientKey`, and they can then be used with the associated `ServerKey`.
 
 ```rust
 use tfhe::shortint::prelude::*;
@@ -53,22 +53,39 @@ fn main() {
 
 ## Encrypting values using a public key
 
-Once the keys have been generated, the client key is used to encrypt data:
+Data can also be encrypted with a `CompactPublicKey`:
 
 ```rust
+use tfhe::shortint::parameters::{
+    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 use tfhe::shortint::prelude::*;
+use tfhe::shortint::CompactPrivateKey;
 
 fn main() {
-    // We generate a set of client/server keys
-   let (client_key, _) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-   let public_key = PublicKey::new(&client_key);
+    // Generate the client key and the server key:
+    let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
-    let msg1 = 1;
-    let msg2 = 0;
+    // Generate the compact public key from its own private key:
+    let cpk_private_key = CompactPrivateKey::new(PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let cpk = CompactPublicKey::new(&cpk_private_key);
 
-    // We use the client key to encrypt two messages:
-    let ct_1 = public_key.encrypt(msg1);
-    let ct_2 = public_key.encrypt(msg2);
+    // The casting key converts ciphertexts encrypted under the compact public key
+    // into ciphertexts usable with the server key:
+    let casting_key = KeySwitchingKey::new(
+        (&cpk_private_key, None),
+        (&cks, &sks),
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
+
+    let msg = 2;
+    // Encryption of one message:
+    let compact_list = cpk.encrypt_slice(&[msg]);
+    let cts = compact_list.expand(casting_key.as_view(), None).unwrap();
+    // Decryption:
+    let dec = cks.decrypt(&cts[0]);
+    assert_eq!(dec, msg);
 }
 ```
 

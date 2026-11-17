@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::keycache::get_shortint_parameter_set_from_name;
+use tfhe::shortint::keycache::get_atomic_pattern_parameters_from_name;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -33,7 +33,8 @@ pub fn parse_wasm_benchmarks(results_file: &Path, raw_results_file: &Path) {
         };
         benchmark_test_result.write_result(&measured.to_string(), value);
 
-        let params_alias = get_shortint_parameter_set_from_name(measured.spec.param_name()).name();
+        let params_alias =
+            get_atomic_pattern_parameters_from_name(measured.spec.param_name()).name();
 
         write_to_json_measured(
             &measured,

@@ -36,7 +36,7 @@ use crate::this_function_name;
 
 use crate::shortint::server_key::tests::noise_distribution::should_run_short_pfail_tests_debug;
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulusSwitchConfig;
-use crate::shortint::{CarryModulus, Ciphertext, ClientKey, ShortintParameterSet};
+use crate::shortint::{CarryModulus, Ciphertext, ClientKey};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 /// Test function to verify that the noise checking tools match the actual atomic patterns
 /// implemented in shortint for GPU
@@ -47,8 +47,7 @@ fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_s
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = atomic_params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(atomic_params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
@@ -224,8 +223,7 @@ fn encrypt_br_dp_ks_any_ms_inner_helper_gpu(
     let (cks, cuda_sks) = if should_use_single_key_debug() {
         (single_cks, single_cuda_sks)
     } else {
-        let block_params: ShortintParameterSet = params.into();
-        thread_cks = crate::integer::ClientKey::new(block_params);
+        thread_cks = crate::integer::ClientKey::new(params);
         let thread_compressed_server_key =
             CompressedServerKey::new_radix_compressed_server_key(&thread_cks);
         thread_cuda_sks =
@@ -385,8 +383,7 @@ fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_s
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
@@ -573,8 +570,7 @@ fn noise_check_encrypt_br_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filena
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
     let max_scalar_mul = cuda_sks.max_noise_level.get();

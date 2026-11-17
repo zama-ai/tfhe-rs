@@ -8,7 +8,7 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
-use crate::{ClientKey, CompressedPublicKey, PublicKey};
+use crate::ClientKey;
 
 impl FheTryEncrypt<bool, ClientKey> for FheBool {
     type Error = crate::Error;
@@ -53,34 +53,6 @@ impl FheTrivialEncrypt<bool> for FheBool {
     #[track_caller]
     fn encrypt_trivial(value: bool) -> Self {
         Self::try_encrypt_trivial(value).unwrap()
-    }
-}
-
-impl FheTryEncrypt<bool, CompressedPublicKey> for FheBool {
-    type Error = crate::Error;
-
-    fn try_encrypt(value: bool, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
-        let mut ciphertext = Self::new(
-            key.key.encrypt_bool(value),
-            key.tag.clone(),
-            ReRandomizationMetadata::default(),
-        );
-        ciphertext.ciphertext.move_to_device_of_server_key_if_set();
-        Ok(ciphertext)
-    }
-}
-
-impl FheTryEncrypt<bool, PublicKey> for FheBool {
-    type Error = crate::Error;
-
-    fn try_encrypt(value: bool, key: &PublicKey) -> Result<Self, Self::Error> {
-        let mut ciphertext = Self::new(
-            key.key.encrypt_bool(value),
-            key.tag.clone(),
-            ReRandomizationMetadata::default(),
-        );
-        ciphertext.ciphertext.move_to_device_of_server_key_if_set();
-        Ok(ciphertext)
     }
 }
 

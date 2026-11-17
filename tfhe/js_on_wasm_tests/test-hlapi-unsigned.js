@@ -4,8 +4,6 @@ const { performance } = require("perf_hooks");
 const {
   init_panic_hook,
   TfheClientKey,
-  TfhePublicKey,
-  TfheCompressedPublicKey,
   TfheCompressedServerKey,
   TfheConfigBuilder,
   CompressedFheUint8,
@@ -93,12 +91,6 @@ test("hlapi_key_gen_big", (t) => {
 
   let clientKey = TfheClientKey.generate(config);
   let compressedServerKey = TfheCompressedServerKey.new(clientKey);
-  try {
-    let publicKey = TfhePublicKey.new(clientKey);
-    assert(false);
-  } catch (e) {
-    assert(true);
-  }
 
   let serializedClientKey = clientKey.safe_serialize(
     SAFE_SERIALIZATION_SIZE_LIMIT,
@@ -117,15 +109,11 @@ test("hlapi_key_gen_small", (t) => {
 
   let clientKey = TfheClientKey.generate(config);
   let compressedServerKey = TfheCompressedServerKey.new(clientKey);
-  let publicKey = TfhePublicKey.new(clientKey);
 
   let serializedClientKey = clientKey.safe_serialize(
     SAFE_SERIALIZATION_SIZE_LIMIT,
   );
   let serializedCompressedServerKey = compressedServerKey.safe_serialize(
-    SAFE_LARGE_SERIALIZATION_SIZE_LIMIT,
-  );
-  let serializedPublicKey = publicKey.safe_serialize(
     SAFE_LARGE_SERIALIZATION_SIZE_LIMIT,
   );
 });
@@ -170,61 +158,6 @@ test("hlapi_compressed_public_client_uint8_big", (t) => {
 
   let decrypted = decompressed.decrypt(clientKey);
   assert.deepStrictEqual(decrypted, clear);
-});
-
-test("hlapi_public_key_encrypt_decrypt_uint32_small", (t) => {
-  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
-  let params_name_small =
-    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
-  let params_small = new ShortintParameters(params_name_small);
-  let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
-
-  let clientKey = TfheClientKey.generate(config);
-  let publicKey = TfhePublicKey.new(clientKey);
-
-  let encrypted = FheUint32.encrypt_with_public_key(U32_MAX, publicKey);
-  let decrypted = encrypted.decrypt(clientKey);
-  assert.deepStrictEqual(decrypted, U32_MAX);
-
-  let serialized = encrypted.safe_serialize(SAFE_SERIALIZATION_SIZE_LIMIT);
-  let deserialized = FheUint32.safe_deserialize(
-    serialized,
-    SAFE_SERIALIZATION_SIZE_LIMIT,
-  );
-  let deserialized_decrypted = deserialized.decrypt(clientKey);
-  assert.deepStrictEqual(deserialized_decrypted, U32_MAX);
-});
-
-test("hlapi_decompress_public_key_then_encrypt_decrypt_uint32_small", (t) => {
-  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
-  let params_name_small =
-    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
-  let params_small = new ShortintParameters(params_name_small);
-  let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
-
-  let clientKey = TfheClientKey.generate(config);
-  var startTime = performance.now();
-  let compressedPublicKey = TfheCompressedPublicKey.new(clientKey);
-  var endTime = performance.now();
-
-  let data = compressedPublicKey.safe_serialize(SAFE_SERIALIZATION_SIZE_LIMIT);
-
-  let publicKey = compressedPublicKey.decompress();
-
-  var startTime = performance.now();
-  let encrypted = FheUint32.encrypt_with_public_key(U32_MAX, publicKey);
-  var endTime = performance.now();
-
-  let decrypted = encrypted.decrypt(clientKey);
-  assert.deepStrictEqual(decrypted, U32_MAX);
-
-  let serialized = encrypted.safe_serialize(SAFE_SERIALIZATION_SIZE_LIMIT);
-  let deserialized = FheUint32.safe_deserialize(
-    serialized,
-    SAFE_SERIALIZATION_SIZE_LIMIT,
-  );
-  let deserialized_decrypted = deserialized.decrypt(clientKey);
-  assert.deepStrictEqual(deserialized_decrypted, U32_MAX);
 });
 
 test("hlapi_client_key_encrypt_decrypt_uint128_big", (t) => {
@@ -373,53 +306,6 @@ test("hlapi_client_key_encrypt_decrypt_uint256_small", (t) => {
 
   decrypted = decompressed.decrypt(clientKey);
   assert.deepStrictEqual(decrypted, U256_MAX);
-});
-
-test("hlapi_decompress_public_key_then_encrypt_decrypt_uint256_small", (t) => {
-  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
-  let params_name_small =
-    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
-  let params_small = new ShortintParameters(params_name_small);
-  let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
-
-  let clientKey = TfheClientKey.generate(config);
-  let compressedPublicKey = TfheCompressedPublicKey.new(clientKey);
-  let publicKey = compressedPublicKey.decompress();
-
-  let encrypted = FheUint256.encrypt_with_public_key(U256_MAX, publicKey);
-  let decrypted = encrypted.decrypt(clientKey);
-  assert.deepStrictEqual(decrypted, U256_MAX);
-
-  let serialized = encrypted.safe_serialize(SAFE_SERIALIZATION_SIZE_LIMIT);
-  let deserialized = FheUint256.safe_deserialize(
-    serialized,
-    SAFE_SERIALIZATION_SIZE_LIMIT,
-  );
-  let deserialized_decrypted = deserialized.decrypt(clientKey);
-  assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
-});
-
-test("hlapi_public_key_encrypt_decrypt_uint256_small", (t) => {
-  // Use an older parameter set here, since parameters for PBS_KS AP have been removed in 1.7.0
-  let params_name_small =
-    ShortintParametersName.V1_6_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
-  let params_small = new ShortintParameters(params_name_small);
-  let config = TfheConfigBuilder.with_custom_parameters(params_small).build();
-
-  let clientKey = TfheClientKey.generate(config);
-  let publicKey = TfhePublicKey.new(clientKey);
-
-  let encrypted = FheUint256.encrypt_with_public_key(U256_MAX, publicKey);
-  let decrypted = encrypted.decrypt(clientKey);
-  assert.deepStrictEqual(decrypted, U256_MAX);
-
-  let serialized = encrypted.safe_serialize(SAFE_SERIALIZATION_SIZE_LIMIT);
-  let deserialized = FheUint256.safe_deserialize(
-    serialized,
-    SAFE_SERIALIZATION_SIZE_LIMIT,
-  );
-  let deserialized_decrypted = deserialized.decrypt(clientKey);
-  assert.deepStrictEqual(deserialized_decrypted, U256_MAX);
 });
 
 test("hlapi_transciphering", (t) => {

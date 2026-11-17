@@ -1,4 +1,4 @@
-use super::{NB_SUB_TEST_PK, NB_TESTS, NB_TESTS_PK};
+use super::NB_TESTS;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
@@ -143,27 +143,6 @@ create_parameterized_test!(
 create_parameterized_test!(
     shortint_encrypt_with_message_and_carry_modulus_unchecked_mul_lsb_small_carry_and_add
 );
-
-// Public key tests are limited to small parameter sets to avoid blowing up memory and large testing
-// times. Compressed keygen takes 20 minutes for params 2_2 and for encryption as well.
-// 2_2 uncompressed keys take ~2 GB and 3_3 about ~34 GB, hence why we stop at 2_2.
-#[cfg(not(tarpaulin))]
-#[test]
-fn test_shortint_compressed_public_key_add_param_message_1_carry_1_ks_pbs() {
-    shortint_compressed_public_key_add(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-}
-
-#[cfg(not(tarpaulin))]
-#[test]
-fn test_shortint_public_key_add_param_message_1_carry_1_ks_pbs() {
-    shortint_public_key_add(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-}
-
-#[cfg(not(tarpaulin))]
-#[test]
-fn test_shortint_public_key_add_param_message_2_carry_2_ks_pbs() {
-    shortint_public_key_add(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-}
 
 #[test]
 fn test_shortint_keyswitch_programmable_bootstrap_pbs_ks_ci_run_filter() {
@@ -529,76 +508,6 @@ where
         let dec_res = cks.decrypt(&ct_res);
 
         assert_eq!(clear_res % modulus, dec_res);
-    }
-}
-
-fn shortint_compressed_public_key_add<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-    let pk = crate::shortint::CompressedPublicKey::new(cks);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-
-    for _ in 0..NB_TESTS_PK {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let ctxt_0 = pk.encrypt(clear_0);
-
-        let ctxt_1 = pk.encrypt(clear_1);
-
-        let mut ct_res = sks.add(&ctxt_0, &ctxt_1);
-        let mut clear = clear_0 + clear_1;
-
-        for _ in 0..NB_SUB_TEST_PK {
-            ct_res = sks.add(&ct_res, &ctxt_0);
-            clear += clear_0;
-
-            let dec_res = cks.decrypt(&ct_res);
-
-            assert_eq!(clear % modulus, dec_res);
-        }
-    }
-}
-
-fn shortint_public_key_add<P>(param: P)
-where
-    P: Into<TestParameters>,
-{
-    let keys = KEY_CACHE.get_from_param(param);
-    let (cks, sks) = (keys.client_key(), keys.server_key());
-    let pk = crate::shortint::PublicKey::new(cks);
-
-    let mut rng = rand::thread_rng();
-
-    let modulus = cks.parameters().message_modulus().0;
-
-    for _ in 0..NB_TESTS_PK {
-        let clear_0 = rng.gen::<u64>() % modulus;
-
-        let clear_1 = rng.gen::<u64>() % modulus;
-
-        let ctxt_0 = pk.encrypt(clear_0);
-
-        let ctxt_1 = pk.encrypt(clear_1);
-
-        let mut ct_res = sks.add(&ctxt_0, &ctxt_1);
-        let mut clear = clear_0 + clear_1;
-
-        for _ in 0..NB_SUB_TEST_PK {
-            ct_res = sks.add(&ct_res, &ctxt_0);
-            clear += clear_0;
-
-            let dec_res = cks.decrypt(&ct_res);
-
-            assert_eq!(clear % modulus, dec_res);
-        }
     }
 }
 

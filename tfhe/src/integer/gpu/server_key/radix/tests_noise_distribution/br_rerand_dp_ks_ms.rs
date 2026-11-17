@@ -50,7 +50,6 @@ use crate::integer::gpu::server_key::radix::tests_noise_distribution::utils::noi
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::{CompactPrivateKey, CompactPublicKey, CompressedServerKey, RadixClientKey};
-use crate::shortint::ShortintParameterSet;
 use crate::GpuIndex;
 
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
@@ -147,8 +146,7 @@ fn encrypt_decomp_br_rerand_dp_ks_any_ms_inner_helper_gpu<C: Container<Element =
                 single_cuda_sks,
             )
         } else {
-            let block_params: ShortintParameterSet = params.into();
-            thread_cks = crate::integer::ClientKey::new(block_params);
+            thread_cks = crate::integer::ClientKey::new(params);
             let compressed_server_key =
                 CompressedServerKey::new_radix_compressed_server_key(&thread_cks);
             thread_sks = compressed_server_key.decompress();
@@ -521,8 +519,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise_gpu(
     let num_blocks = 1;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let sks = compressed_server_key.decompress();
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
@@ -828,8 +825,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail_gpu(
     let num_blocks = 1;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let sks = compressed_server_key.decompress();
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
@@ -943,8 +939,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs_gpu(
     let gpu_index = 0;
     let num_blocks = 1;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    let block_params: ShortintParameterSet = compute_params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(compute_params);
     let compact_private_key;
 
     // Create private key for the CPK depending on configuration; for with-keyswitch a dedicated

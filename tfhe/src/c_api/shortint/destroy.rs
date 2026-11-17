@@ -1,7 +1,7 @@
 use super::{
     ShortintBivariatePBSLookupTable, ShortintCiphertext, ShortintClientKey,
-    ShortintCompressedCiphertext, ShortintCompressedPublicKey, ShortintCompressedServerKey,
-    ShortintPBSLookupTable, ShortintPublicKey, ShortintServerKey,
+    ShortintCompressedCiphertext, ShortintCompressedServerKey, ShortintPBSLookupTable,
+    ShortintServerKey,
 };
 use crate::c_api::utils::*;
 use std::os::raw::c_int;
@@ -41,32 +41,6 @@ pub unsafe extern "C" fn shortint_destroy_compressed_server_key(
         check_ptr_is_non_null_and_aligned(server_key).unwrap();
 
         drop(Box::from_raw(server_key));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn shortint_destroy_public_key(public_key: *mut ShortintPublicKey) -> c_int {
-    if public_key.is_null() {
-        return 0;
-    }
-    catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(public_key).unwrap();
-
-        drop(Box::from_raw(public_key));
-    })
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn shortint_destroy_compressed_public_key(
-    compressed_public_key: *mut ShortintCompressedPublicKey,
-) -> c_int {
-    if compressed_public_key.is_null() {
-        return 0;
-    }
-    catch_panic(|| {
-        check_ptr_is_non_null_and_aligned(compressed_public_key).unwrap();
-
-        drop(Box::from_raw(compressed_public_key));
     })
 }
 

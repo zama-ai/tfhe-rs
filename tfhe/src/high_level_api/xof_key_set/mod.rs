@@ -36,7 +36,6 @@ use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
-use crate::shortint::ShortintParameterSet;
 use tfhe_csprng::seeders::XofSeed;
 use tfhe_versionable::Versionize;
 
@@ -199,7 +198,7 @@ impl CompressedXofKeySet {
             noise_random_generator,
         );
 
-        let computation_parameters: ShortintParameterSet = ck.key.key.parameters().into();
+        let computation_parameters = ck.key.key.parameters();
         let shortint_client_key = &ck.key.key.key;
 
         // First, the public key used to encrypt
@@ -525,10 +524,8 @@ impl ParameterSetConformant for CompressedXofKeySet {
                 return false;
             }
         } else {
-            let shortint_param_set: ShortintParameterSet = config.inner.block_parameters.into();
-
             let Ok(compact_pk_params): Result<CompactPublicKeyEncryptionParameters, _> =
-                shortint_param_set.try_into()
+                config.inner.block_parameters.try_into()
             else {
                 return false;
             };

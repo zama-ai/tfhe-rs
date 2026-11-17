@@ -2,7 +2,6 @@ pub mod ciphertext;
 pub mod client_key;
 pub mod destroy;
 pub mod parameters;
-pub mod public_key;
 pub mod server_key;
 
 use crate::boolean;
@@ -11,7 +10,6 @@ use std::os::raw::c_int;
 
 pub use ciphertext::{BooleanCiphertext, BooleanCompressedCiphertext};
 pub use client_key::BooleanClientKey;
-pub use public_key::BooleanPublicKey;
 pub use server_key::{BooleanCompressedServerKey, BooleanServerKey};
 
 #[no_mangle]

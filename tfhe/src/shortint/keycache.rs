@@ -10,7 +10,7 @@ use crate::shortint::parameters::*;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
 
-named_params_impl!( ShortintParameterSet =>
+named_params_impl!( AtomicPatternParameters =>
     V1_9_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     V1_9_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -116,19 +116,13 @@ impl NamedParam for MultiBitPBSParameters {
 
 impl NamedParam for PBSParameters {
     fn name(&self) -> String {
-        ShortintParameterSet::from(*self).name()
-    }
-}
-
-impl NamedParam for AtomicPatternParameters {
-    fn name(&self) -> String {
-        ShortintParameterSet::from(*self).name()
+        AtomicPatternParameters::from(*self).name()
     }
 }
 
 impl NamedParam for KeySwitch32PBSParameters {
     fn name(&self) -> String {
-        ShortintParameterSet::from(*self).name()
+        AtomicPatternParameters::from(*self).name()
     }
 }
 
@@ -182,13 +176,6 @@ named_params_impl!( NoiseSquashingCompressionParameters =>
 
 impl From<AtomicPatternParameters> for (ClientKey, ServerKey) {
     fn from(param: AtomicPatternParameters) -> Self {
-        let param_set = ShortintParameterSet::from(param);
-        param_set.into()
-    }
-}
-
-impl From<ShortintParameterSet> for (ClientKey, ServerKey) {
-    fn from(param: ShortintParameterSet) -> Self {
         let cks = ClientKey::new(param);
         let sks = ServerKey::new(&cks);
         (cks, sks)

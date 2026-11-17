@@ -7,7 +7,7 @@ use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedIn
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
-use crate::{ClientKey, CompressedPublicKey, FheInt, PublicKey};
+use crate::{ClientKey, FheInt};
 
 impl<Id, ClearType> FheDecrypt<ClearType> for FheInt<Id>
 where
@@ -51,44 +51,6 @@ where
     fn try_encrypt(value: T, key: &ClientKey) -> Result<Self, Self::Error> {
         let ciphertext = key
             .key
-            .key
-            .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(
-            ciphertext,
-            key.tag.clone(),
-            ReRandomizationMetadata::default(),
-        ))
-    }
-}
-
-impl<Id, T> FheTryEncrypt<T, PublicKey> for FheInt<Id>
-where
-    Id: FheIntId,
-    T: DecomposableInto<u64> + SignedNumeric,
-{
-    type Error = crate::Error;
-
-    fn try_encrypt(value: T, key: &PublicKey) -> Result<Self, Self::Error> {
-        let ciphertext = key
-            .key
-            .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
-        Ok(Self::new(
-            ciphertext,
-            key.tag.clone(),
-            ReRandomizationMetadata::default(),
-        ))
-    }
-}
-
-impl<Id, T> FheTryEncrypt<T, CompressedPublicKey> for FheInt<Id>
-where
-    Id: FheIntId,
-    T: DecomposableInto<u64> + SignedNumeric,
-{
-    type Error = crate::Error;
-
-    fn try_encrypt(value: T, key: &CompressedPublicKey) -> Result<Self, Self::Error> {
-        let ciphertext = key
             .key
             .encrypt_signed_radix(value, Id::num_blocks(key.message_modulus()));
         Ok(Self::new(

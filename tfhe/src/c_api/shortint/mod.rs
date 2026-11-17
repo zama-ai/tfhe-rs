@@ -2,7 +2,6 @@ pub mod ciphertext;
 pub mod client_key;
 pub mod destroy;
 pub mod parameters;
-pub mod public_key;
 pub mod server_key;
 
 use crate::c_api::utils::*;
@@ -11,7 +10,6 @@ use std::os::raw::c_int;
 
 pub use ciphertext::{ShortintCiphertext, ShortintCompressedCiphertext};
 pub use client_key::ShortintClientKey;
-pub use public_key::{ShortintCompressedPublicKey, ShortintPublicKey};
 pub use server_key::pbs::{ShortintBivariatePBSLookupTable, ShortintPBSLookupTable};
 pub use server_key::{ShortintCompressedServerKey, ShortintServerKey};
 

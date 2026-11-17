@@ -457,7 +457,7 @@ mod test {
         TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use crate::shortint::parameters::CompressedSquashedNoiseCiphertextListConformanceParams;
-    use crate::shortint::ShortintParameterSet;
+    use crate::shortint::AtomicPatternParameters;
     use itertools::Itertools;
     use rand::Rng;
 
@@ -778,7 +778,7 @@ mod test {
             TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         )] {
             let (radix_cks, sks) =
-                gen_keys_radix_gpu::<ShortintParameterSet>(params, NUM_BLOCKS, &streams);
+                gen_keys_radix_gpu::<AtomicPatternParameters>(params, NUM_BLOCKS, &streams);
             let cks = radix_cks.as_ref();
 
             let noise_squashing_private_key =

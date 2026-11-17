@@ -16,7 +16,7 @@ use crate::shortint::parameters::meta::{
 use crate::shortint::parameters::{
     Backend, CiphertextModulus32, CompressionParameters, MetaNoiseSquashingParameters,
     ModulusSwitchNoiseReductionParams, ModulusSwitchType, OprfParameters,
-    ShortintParameterSetInner, SupportedCompactPkeZkScheme,
+    SupportedCompactPkeZkScheme,
 };
 use crate::shortint::*;
 use parameters::KeySwitch32PBSParameters;
@@ -196,9 +196,38 @@ pub(crate) enum ShortintParameterSetInnerVersions {
     V1(ShortintParameterSetInner),
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Versionize)]
+#[versionize(ShortintParameterSetInnerVersions)]
+pub(crate) enum ShortintParameterSetInner {
+    PBSOnly(PBSParameters),
+    KS32PBS(KeySwitch32PBSParameters),
+}
+
 #[derive(VersionsDispatch)]
-pub enum ShortintParameterSetVersions {
+#[allow(unused)]
+pub(crate) enum ShortintParameterSetVersions {
     V0(ShortintParameterSet),
+}
+
+/// Parameter set embedded in keys serialized by older versions of TFHE-rs.
+///
+/// It is only kept to deserialize such data, it is converted into [`AtomicPatternParameters`]
+/// when upgraded.
+#[derive(Copy, Clone, Debug, PartialEq, Versionize)]
+#[versionize(ShortintParameterSetVersions)]
+pub(crate) struct ShortintParameterSet {
+    inner: ShortintParameterSetInner,
+}
+
+impl ShortintParameterSet {
+    pub(crate) fn ap_parameters(&self) -> AtomicPatternParameters {
+        match self.inner {
+            ShortintParameterSetInner::PBSOnly(params) => AtomicPatternParameters::Standard(params),
+            ShortintParameterSetInner::KS32PBS(params) => {
+                AtomicPatternParameters::KeySwitch32(params)
+            }
+        }
+    }
 }
 
 #[derive(VersionsDispatch)]

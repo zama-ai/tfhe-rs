@@ -79,34 +79,6 @@ macro_rules! create_wrapper_type_non_native_type (
             }
 
             #[wasm_bindgen]
-            pub fn encrypt_with_public_key(
-                value: JsValue,
-                public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfhePublicKey,
-            ) -> Result<$type_name, JsError> {
-                catch_panic_result(|| {
-                    let value = <$rust_type>::try_from(value)
-                        .map_err(|_| JsError::new(&format!("Failed to convert the value to a {}", stringify!($rust_type))))?;
-                    crate::high_level_api::$type_name::try_encrypt(value, &public_key.0)
-                        .map($type_name)
-                        .map_err(into_js_error)
-                })
-            }
-
-            #[wasm_bindgen]
-            pub fn encrypt_with_compressed_public_key(
-                value: JsValue,
-                compressed_public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompressedPublicKey,
-            ) -> Result<$type_name, JsError> {
-                catch_panic_result(|| {
-                    let value = <$rust_type>::try_from(value)
-                        .map_err(|_| JsError::new(&format!("Failed to convert the value to a {}", stringify!($rust_type))))?;
-                    crate::high_level_api::$type_name::try_encrypt(value, &compressed_public_key.0)
-                        .map($type_name)
-                        .map_err(into_js_error)
-                })
-            }
-
-            #[wasm_bindgen]
             pub fn decrypt(
                 &self,
                 client_key: &crate::js_on_wasm_api::js_high_level_api::client::TfheClientKey,
@@ -572,30 +544,6 @@ macro_rules! create_wrapper_type_that_has_native_type (
             ) -> Result<$type_name, JsError> {
                 catch_panic_result(|| {
                     crate::high_level_api::$type_name::try_encrypt(value, &client_key.0)
-                        .map($type_name)
-                        .map_err(into_js_error)
-                })
-            }
-
-            #[wasm_bindgen]
-            pub fn encrypt_with_public_key(
-                value: $native_type,
-                public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfhePublicKey,
-            ) -> Result<$type_name, JsError> {
-                catch_panic_result(|| {
-                    crate::high_level_api::$type_name::try_encrypt(value, &public_key.0)
-                        .map($type_name)
-                        .map_err(into_js_error)
-                })
-            }
-
-            #[wasm_bindgen]
-            pub fn encrypt_with_compressed_public_key(
-                value: $native_type,
-                compressed_public_key: &crate::js_on_wasm_api::js_high_level_api::keys::TfheCompressedPublicKey,
-            ) -> Result<$type_name, JsError> {
-                catch_panic_result(|| {
-                    crate::high_level_api::$type_name::try_encrypt(value, &compressed_public_key.0)
                         .map($type_name)
                         .map_err(into_js_error)
                 })

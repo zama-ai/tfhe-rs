@@ -70,11 +70,9 @@ pub use oprf::OprfSeed;
 pub use parameters::{
     AtomicPatternKind, AtomicPatternParameters, CarryModulus, CiphertextModulus,
     ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,
-    MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
+    MultiBitPBSParameters, PBSParameters,
 };
-pub use public_key::{
-    CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,
-};
+pub use public_key::{CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
 /// Generate a couple of client and server keys.
@@ -92,8 +90,7 @@ pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 /// ```
 pub fn gen_keys<P>(parameters_set: P) -> (ClientKey, ServerKey)
 where
-    P: TryInto<ShortintParameterSet>,
-    <P as TryInto<ShortintParameterSet>>::Error: std::fmt::Debug,
+    P: Into<AtomicPatternParameters>,
 {
     let cks = ClientKey::new(parameters_set);
     let sks = ServerKey::new(&cks);

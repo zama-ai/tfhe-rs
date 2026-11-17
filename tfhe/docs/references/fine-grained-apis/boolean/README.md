@@ -108,35 +108,6 @@ fn main() {
 }
 ```
 
-## Encrypting inputs using a public key
-
-Anyone (the server or a third party) with the public key can also encrypt some (or all) of the inputs.
-The public key can only be used to encrypt, not to decrypt.
-
-```rust
-use tfhe::boolean::prelude::*;
-
-fn main() {
-    // Don't consider the following line; you should follow the procedure above.
-    let (client_key, _) = gen_keys();
-    let public_key = PublicKey::new(&client_key);
-
-//---------------------------- SERVER or THIRD_PARTY SIDE
-
-// We use the public key to encrypt the messages:
-    let ct_1 = public_key.encrypt(true);
-    let ct_2 = public_key.encrypt(false);
-
-// We serialize the ciphertexts (if not on the server already):
-    let encoded_1: Vec<u8> = bincode::serialize(&ct_1).unwrap();
-    let encoded_2: Vec<u8> = bincode::serialize(&ct_2).unwrap();
-
-// ...
-// And we send them to the server to be deserialized (if not on the server already)
-// ...
-}
-```
-
 ## Executing a Boolean circuit
 
 Once the encrypted inputs are on the **server side**, the `server_key` can be used to homomorphically execute the desired Boolean circuit:

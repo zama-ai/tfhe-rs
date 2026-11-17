@@ -268,7 +268,7 @@ impl DecompressionKey {
 mod test {
     use super::*;
     use crate::shortint::parameters::test_params::*;
-    use crate::shortint::{gen_keys, ClientKey, ShortintParameterSet};
+    use crate::shortint::{gen_keys, AtomicPatternParameters, ClientKey};
     use rayon::iter::IntoParallelIterator;
 
     #[test]
@@ -288,7 +288,7 @@ mod test {
             ),
         ] {
             // Generate the client key and the server key:
-            let (cks, _sks) = gen_keys::<ShortintParameterSet>(params);
+            let (cks, _sks) = gen_keys::<AtomicPatternParameters>(params);
 
             let private_compression_key: crate::shortint::list_compression::CompressionPrivateKeys =
                 cks.new_compression_private_key(comp_params);
@@ -315,18 +315,18 @@ mod test {
         use crate::conformance::ParameterSetConformant;
         use crate::shortint::list_compression::CompressionKeyConformanceParams;
 
-        let params: ShortintParameterSet =
+        let params: AtomicPatternParameters =
             TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
         let compression_params =
             TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let (cks, _sks) = gen_keys::<ShortintParameterSet>(params);
+        let (cks, _sks) = gen_keys::<AtomicPatternParameters>(params);
         let private_compression_key = cks.new_compression_private_key(compression_params);
         let (compressed_compression_key, compressed_decompression_key) =
             cks.new_compressed_compression_decompression_keys(&private_compression_key);
 
         let conformance_params: CompressionKeyConformanceParams =
-            (params.pbs_parameters().unwrap().into(), compression_params).into();
+            (params, compression_params).into();
 
         assert!(
             compressed_compression_key.is_conformant(&conformance_params),

@@ -1,40 +1,11 @@
-use crate::integer::keycache::KEY_CACHE;
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{gen_keys, CompressedPublicKey, IntegerKeyKind, PublicKey, RadixCiphertext};
+use crate::integer::{gen_keys, IntegerKeyKind, RadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
-
-create_parameterized_test!(big_radix_encrypt_decrypt_128_bits {
-
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        },
-        no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            /* PARAM_MESSAGE_3_CARRY_3_KS_PBS, Skipped as the key requires 32GB
-            * PARAM_MESSAGE_4_CARRY_4_KS_PBS, Skipped as the key requires 550GB */
-        }
-    }
-);
-
-create_parameterized_test!(
-    radix_encrypt_decrypt_compressed_128_bits {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        },
-        no_coverage => {
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            /* PARAM_MESSAGE_3_CARRY_3_KS_PBS, Skipped as its slow
-            * PARAM_MESSAGE_4_CARRY_4_KS_PBS, Skipped as its slow */
-        }
-    }
-);
 
 create_parameterized_test!(
     big_radix_encrypt_decrypt_compact_128_bits_list {
@@ -57,40 +28,6 @@ create_parameterized_test!(
         }
     }
 );
-
-/// Test that the public key can encrypt a 128 bit number
-/// in radix decomposition, and that the client key can decrypt it
-fn big_radix_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let public_key = PublicKey::new(&cks);
-
-    let mut rng = rand::thread_rng();
-    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
-
-    let clear = rng.gen::<u128>();
-
-    let ct = public_key.encrypt_radix(clear, num_block);
-
-    let dec: u128 = cks.decrypt_radix(&ct);
-
-    assert_eq!(clear, dec);
-}
-
-fn radix_encrypt_decrypt_compressed_128_bits(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let public_key = CompressedPublicKey::new(&cks);
-
-    let mut rng = rand::thread_rng();
-    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
-
-    let clear = rng.gen::<u128>();
-
-    let ct = public_key.encrypt_radix(clear, num_block);
-
-    let dec: u128 = cks.decrypt_radix(&ct);
-
-    assert_eq!(clear, dec);
-}
 
 fn big_radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
     radix_encrypt_decrypt_compact_128_bits_list(params);

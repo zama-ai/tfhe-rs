@@ -53,9 +53,7 @@ use crate::shortint::key_switching_key::KeySwitchingKeyDestinationAtomicPattern;
 use crate::shortint::noise_squashing::atomic_pattern::compressed::standard::CompressedStandardAtomicPatternNoiseSquashingKey;
 use crate::shortint::parameters::ModulusSwitchNoiseReductionParams;
 use crate::shortint::prelude::ModulusSwitchType;
-use crate::shortint::{
-    ClassicPBSParameters, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
-};
+use crate::shortint::{ClassicPBSParameters, MultiBitPBSParameters, PBSParameters};
 
 impl crate::integer::CompactPrivateKey<Vec<u64>> {
     pub(super) fn generate_with_pre_seeded_generator<G>(
@@ -643,7 +641,7 @@ impl integer::compression_keys::CompressedDecompressionKey {
     pub(super) fn generate_with_pre_seeded_generator<Gen>(
         private_compression_key: &CompressionPrivateKeys,
         glwe_secret_key: &GlweSecretKey<Vec<u64>>,
-        computation_parameters: ShortintParameterSet,
+        computation_parameters: AtomicPatternParameters,
         generator: &mut EncryptionRandomGenerator<Gen>,
     ) -> Self
     where

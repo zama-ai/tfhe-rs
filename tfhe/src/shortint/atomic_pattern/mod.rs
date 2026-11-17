@@ -437,6 +437,20 @@ impl From<KeySwitch32PBSParameters> for AtomicPatternParameters {
 }
 
 impl AtomicPatternParameters {
+    pub const fn pbs_parameters(&self) -> Option<PBSParameters> {
+        match self {
+            Self::Standard(parameters) => Some(*parameters),
+            Self::KeySwitch32(_) => None,
+        }
+    }
+
+    pub const fn ks32_parameters(&self) -> Option<KeySwitch32PBSParameters> {
+        match self {
+            Self::Standard(_) => None,
+            Self::KeySwitch32(parameters) => Some(*parameters),
+        }
+    }
+
     pub const fn message_modulus(&self) -> MessageModulus {
         match self {
             Self::Standard(parameters) => parameters.message_modulus(),
@@ -466,9 +480,25 @@ impl AtomicPatternParameters {
     }
 
     pub const fn encryption_noise_distribution(&self) -> DynamicDistribution<u64> {
-        match self.encryption_key_choice() {
+        self.noise_distribution_for_key_choice(self.encryption_key_choice())
+    }
+
+    pub const fn noise_distribution_for_key_choice(
+        &self,
+        key_choice: EncryptionKeyChoice,
+    ) -> DynamicDistribution<u64> {
+        match key_choice {
             EncryptionKeyChoice::Big => self.glwe_noise_distribution(),
             EncryptionKeyChoice::Small => self.lwe_noise_distribution(),
+        }
+    }
+
+    pub const fn encryption_lwe_dimension(&self) -> LweDimension {
+        match self.encryption_key_choice() {
+            EncryptionKeyChoice::Big => self
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(self.polynomial_size()),
+            EncryptionKeyChoice::Small => self.lwe_dimension(),
         }
     }
 

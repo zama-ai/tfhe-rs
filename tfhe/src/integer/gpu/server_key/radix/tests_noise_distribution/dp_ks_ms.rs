@@ -34,7 +34,7 @@ use crate::shortint::server_key::tests::noise_distribution::utils::{
 use crate::shortint::server_key::tests::noise_distribution::{
     should_run_short_pfail_tests_debug, should_use_single_key_debug,
 };
-use crate::shortint::{ClientKey, ShortintParameterSet};
+use crate::shortint::ClientKey;
 use crate::this_function_name;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -218,8 +218,7 @@ fn encrypt_dp_ks_any_ms_inner_helper_gpu(
     let (cks, cuda_sks) = if should_use_single_key_debug() {
         (single_cks, single_cuda_sks)
     } else {
-        let block_params: ShortintParameterSet = params.into();
-        thread_cks = crate::integer::ClientKey::new(block_params);
+        thread_cks = crate::integer::ClientKey::new(params);
         let thread_compressed_server_key =
             CompressedServerKey::new_radix_compressed_server_key(&thread_cks);
         thread_cuda_sks =
@@ -361,8 +360,7 @@ fn noise_check_encrypt_dp_ks_ms_noise_gpu(meta_params: MetaParameters, filename_
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
     let modulus_switch_config_gpu = cuda_sks.noise_simulation_modulus_switch_config();
@@ -523,8 +521,7 @@ fn noise_check_encrypt_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
-    let block_params: ShortintParameterSet = params.into();
-    let cks = crate::integer::ClientKey::new(block_params);
+    let cks = crate::integer::ClientKey::new(params);
     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
     let cuda_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
     let max_scalar_mul = cuda_sks.max_noise_level.get();
