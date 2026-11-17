@@ -11,42 +11,32 @@
 
 /tfhe/examples/hpu                      @zama-ai/hardware
 
-/tfhe/src/core_crypto/                  @IceTDrinker @mayeul-zama @zama-ai/tfhe-rs
 /tfhe/src/core_crypto/gpu               @zama-ai/gpu
 /tfhe/src/core_crypto/hpu               @zama-ai/hardware
 
-/tfhe/src/shortint/                     @mayeul-zama @nsarlin-zama @zama-ai/tfhe-rs
-
-/tfhe/src/integer/                      @tmontaigu @nsarlin-zama @zama-ai/tfhe-rs
 /tfhe/src/integer/gpu                   @zama-ai/gpu
 /tfhe/src/integer/hpu                   @zama-ai/hardware
 
-/tfhe/src/high_level_api/               @tmontaigu @nsarlin-zama @zama-ai/tfhe-rs
-
-/tfhe-zk-pok/                           @nsarlin-zama @tmontaigu @zama-ai/tfhe-rs
 /tfhe-zk-pok/src/gpu                    @zama-ai/gpu
 
-/tfhe-benchmark/                        @tmontaigu @SouchonTheo @zama-ai/tfhe-rs
-
-/utils/                                 @nsarlin-zama @SouchonTheo @zama-ai/tfhe-rs
-
-/Makefile                               @IceTDrinker @nsarlin-zama @zama-ai/tfhe-rs
+/utils/                                 @zama-ai/tfhe-rs-devops
+/Makefile                               @zama-ai/tfhe-rs-devops
 
 # GitHub related configurations, workflows and codeowners
 # and more
-/.github/                               @tmontaigu @SouchonTheo @zama-ai/tfhe-rs
+/.github/                               @zama-ai/tfhe-rs-devops
 # No fallback on purpose
 /CODEOWNERS                             @IceTDrinker @nsarlin-zama
 
-/ci/                                    @nsarlin-zama @SouchonTheo @zama-ai/tfhe-rs
-/scripts/                               @nsarlin-zama @SouchonTheo @zama-ai/tfhe-rs
+/ci/                                    @zama-ai/tfhe-rs-devops
+/scripts/                               @zama-ai/tfhe-rs-devops
 
 # Protect manifests
-**/Cargo.toml                           @mayeul-zama @tmontaigu @zama-ai/tfhe-rs
-**/package.json                         @IceTDrinker @tmontaigu @zama-ai/tfhe-rs
-**/*requirements.in                     @IceTDrinker @tmontaigu @zama-ai/tfhe-rs
-**/*requirements.txt                    @IceTDrinker @tmontaigu @zama-ai/tfhe-rs
+**/Cargo.toml                           @zama-ai/tfhe-rs-devops
+**/package.json                         @zama-ai/tfhe-rs-devops
+**/*requirements.in                     @zama-ai/tfhe-rs-devops
+**/*requirements.txt                    @zama-ai/tfhe-rs-devops
 
 # Various configurations
-/.cargo/audit.toml                      @nsarlin-zama @IceTDrinker @zama-ai/tfhe-rs
-/.cargo/deny.toml                       @nsarlin-zama @IceTDrinker @zama-ai/tfhe-rs
+/.cargo/audit.toml                      @zama-ai/tfhe-rs-devops
+/.cargo/deny.toml                       @zama-ai/tfhe-rs-devops
