@@ -1,12 +1,10 @@
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::backward_compatibility::integers::SerializableSignedRadixCiphertextVersions;
-use crate::high_level_api::details::MaybeCloned;
+use crate::high_level_api::details::{DeviceMovable, MaybeCloned};
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::cuda_clone;
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_cuda_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 #[cfg(feature = "gpu")]
@@ -179,48 +177,8 @@ impl SignedRadixCiphertext {
         }
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    pub(crate) fn move_to_device(&mut self, device: Device) {
-        match (&self, device) {
-            (Self::Cpu(_), Device::Cpu) => {
-                // Nothing to do, we already are on the correct device
-            }
-            #[cfg(feature = "gpu")]
-            (Self::Cuda(cuda_ct), Device::CudaGpu) => {
-                // We are on a GPU, but it may not be the correct one
-                let new = with_cuda_internal_keys(|key| {
-                    let streams = &key.streams;
-                    if streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
-                        None
-                    } else {
-                        Some(cuda_ct.duplicate(streams))
-                    }
-                });
-                if let Some(ct) = new {
-                    *self = Self::Cuda(ct);
-                }
-            }
-            #[cfg(feature = "gpu")]
-            (Self::Cpu(ct), Device::CudaGpu) => {
-                let new_inner = with_cuda_internal_keys(|key| {
-                    let streams = &key.streams;
-                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(ct, streams)
-                });
-                *self = Self::Cuda(new_inner);
-            }
-            #[cfg(feature = "gpu")]
-            (Self::Cuda(ct), Device::Cpu) => {
-                let new_inner =
-                    with_thread_local_cuda_streams_for_gpu_indexes(ct.gpu_indexes(), |streams| {
-                        ct.to_signed_radix_ciphertext(streams)
-                    });
-                *self = Self::Cpu(new_inner);
-            }
-            #[cfg(feature = "hpu")]
-            (_, Device::Hpu) => {
-                panic!("Hpu device do not support signed integer yet")
-            }
-        }
+    pub(crate) fn move_to_device(&mut self, target_device: Device) {
+        crate::high_level_api::details::move_to_device(self, target_device);
     }
 
     #[inline]
@@ -228,5 +186,31 @@ impl SignedRadixCiphertext {
         if let Some(device) = global_state::device_of_internal_keys() {
             self.move_to_device(device);
         }
+    }
+}
+
+impl DeviceMovable for SignedRadixCiphertext {
+    type CpuCiphertext = crate::integer::SignedRadixCiphertext;
+
+    fn current_device(&self) -> Device {
+        Self::current_device(self)
+    }
+
+    fn on_cpu(&self) -> MaybeCloned<'_, Self::CpuCiphertext> {
+        Self::on_cpu(self)
+    }
+
+    fn from_cpu(cpu_ct: Self::CpuCiphertext) -> Self {
+        Self::Cpu(cpu_ct)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn make_on_gpu(&mut self, streams: &CudaStreams) {
+        self.as_gpu_mut(streams);
+    }
+
+    #[cfg(feature = "hpu")]
+    fn make_on_hpu(&mut self) {
+        panic!("Hpu device do not support signed integer yet")
     }
 }

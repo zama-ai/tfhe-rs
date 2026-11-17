@@ -1,12 +1,10 @@
 #[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::backward_compatibility::booleans::SerializableInnerBooleanVersions;
-use crate::high_level_api::details::MaybeCloned;
+use crate::high_level_api::details::{DeviceMovable, MaybeCloned};
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::cuda_clone;
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_cuda_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 use crate::integer::BooleanBlock;
@@ -209,59 +207,46 @@ impl InnerBoolean {
         CudaBooleanBlock::from_boolean_block(&cpu_bool, streams)
     }
 
-    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn move_to_device(&mut self, target_device: Device) {
-        let current_device = self.current_device();
-
-        if current_device == target_device {
-            #[cfg(feature = "gpu")]
-            // We may not be on the correct Cuda device
-            if let Self::Cuda(cuda_ct) = self {
-                with_cuda_internal_keys(|key| {
-                    let streams = &key.streams;
-                    if !streams.is_on_first_gpu(cuda_ct.gpu_indexes()) {
-                        *cuda_ct = cuda_ct.duplicate(streams);
-                    }
-                })
-            }
-            return;
-        }
-
-        // The logic is that the common device is the CPU, all other devices
-        // know how to transfer from and to CPU.
-
-        // So we first transfer to CPU
-        let cpu_ct = self.on_cpu();
-
-        // Then we can transfer the desired device
-        match target_device {
-            Device::Cpu => {
-                let _ = cpu_ct;
-            }
-            #[cfg(feature = "gpu")]
-            Device::CudaGpu => {
-                let new_inner = with_cuda_internal_keys(|key| {
-                    let streams = &key.streams;
-                    crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock::from_boolean_block(
-                        &cpu_ct, streams,
-                    )
-                });
-                *self = Self::Cuda(new_inner);
-            }
-            #[cfg(feature = "hpu")]
-            Device::Hpu => {
-                let hpu_ct = global_state::with_thread_local_hpu_device(|device| {
-                    HpuRadixCiphertext::from_boolean_ciphertext(&cpu_ct, &device.device, None)
-                });
-                *self = Self::Hpu(hpu_ct);
-            }
-        }
+        crate::high_level_api::details::move_to_device(self, target_device);
     }
 
     #[inline]
     pub(crate) fn move_to_device_of_server_key_if_set(&mut self) {
         if let Some(device) = global_state::device_of_internal_keys() {
             self.move_to_device(device);
+        }
+    }
+}
+
+impl DeviceMovable for InnerBoolean {
+    type CpuCiphertext = BooleanBlock;
+
+    fn current_device(&self) -> Device {
+        Self::current_device(self)
+    }
+
+    fn on_cpu(&self) -> MaybeCloned<'_, Self::CpuCiphertext> {
+        Self::on_cpu(self)
+    }
+
+    fn from_cpu(cpu_ct: Self::CpuCiphertext) -> Self {
+        Self::Cpu(cpu_ct)
+    }
+
+    #[cfg(feature = "gpu")]
+    fn make_on_gpu(&mut self, streams: &CudaStreams) {
+        self.as_gpu_mut(streams);
+    }
+
+    #[cfg(feature = "hpu")]
+    fn make_on_hpu(&mut self) {
+        if !matches!(self, Self::Hpu(_)) {
+            let cpu_ct = Self::on_cpu(self);
+            let hpu_ct = global_state::with_thread_local_hpu_device(|device| {
+                HpuRadixCiphertext::from_boolean_ciphertext(&cpu_ct, &device.device, None)
+            });
+            *self = Self::Hpu(hpu_ct);
         }
     }
 }
