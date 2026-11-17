@@ -11,7 +11,8 @@ uint64_t scratch_cuda_shift_and_rotate_64_inplace_async(
 
   return scratch_cuda_shift_and_rotate<uint64_t>(
       CudaStreams(streams), (int_shift_and_rotate_buffer<uint64_t> **)mem_ptr,
-      num_blocks, num_shift_blocks, params, shift_type, is_signed, allocate_gpu_memory);
+      num_blocks, num_shift_blocks, params, shift_type, is_signed,
+      allocate_gpu_memory);
 }
 
 void cuda_shift_and_rotate_64_inplace_async(
