@@ -256,13 +256,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     /// Return a view of the [`SeededGgswCiphertext`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> SeededGgswCiphertextView<'_, Scalar> {
+        let Self {
+            ref data,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
         SeededGgswCiphertextView::from_container(
-            self.as_ref(),
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.compression_seed(),
-            self.ciphertext_modulus(),
+            data.as_ref(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            compression_seed.clone(),
+            ciphertext_modulus,
         )
     }
 
@@ -412,13 +421,18 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededGgswCiphe
 
     /// Mutable variant of [`SeededGgswCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> SeededGgswCiphertextMutView<'_, Scalar> {
-        let glwe_size = self.glwe_size();
-        let polynomial_size = self.polynomial_size();
-        let decomp_base_log = self.decomposition_base_log();
-        let compression_seed = self.compression_seed();
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let Self {
+            ref mut data,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
+        let compression_seed = compression_seed.clone();
         SeededGgswCiphertextMutView::from_container(
-            self.as_mut(),
+            data.as_mut(),
             glwe_size,
             polynomial_size,
             decomp_base_log,
@@ -731,11 +745,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            glwe_size,
+            polynomial_size,
+            ref compression_seed,
+            ciphertext_modulus,
+            data: _,
+            decomp_base_log: _,
+        } = *self;
+
         SeededGgswLevelMatrixCreationMetadata {
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_size,
+            polynomial_size,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus,
         }
     }
 

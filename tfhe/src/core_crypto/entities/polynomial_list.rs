@@ -92,7 +92,12 @@ impl<Scalar, C: Container<Element = Scalar>> PolynomialList<C> {
     /// Return a view of the [`PolynomialList`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> PolynomialListView<'_, Scalar> {
-        PolynomialListView::from_container(self.as_ref(), self.polynomial_size())
+        let Self {
+            ref data,
+            polynomial_size,
+        } = *self;
+
+        PolynomialListView::from_container(data.as_ref(), polynomial_size)
     }
 
     /// Consume the entity and return its underlying container.
@@ -106,8 +111,12 @@ impl<Scalar, C: Container<Element = Scalar>> PolynomialList<C> {
 impl<Scalar, C: ContainerMut<Element = Scalar>> PolynomialList<C> {
     /// Mutable variant of [`PolynomialList::as_view`].
     pub fn as_mut_view(&mut self) -> PolynomialListMutView<'_, Scalar> {
-        let polynomial_size = self.polynomial_size();
-        PolynomialListMutView::from_container(self.as_mut(), polynomial_size)
+        let Self {
+            ref mut data,
+            polynomial_size,
+        } = *self;
+
+        PolynomialListMutView::from_container(data.as_mut(), polynomial_size)
     }
 }
 
@@ -181,9 +190,12 @@ impl<C: Container> ContiguousEntityContainer for PolynomialList<C> {
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        PolynomialListCreationMetadata {
-            polynomial_size: self.polynomial_size(),
-        }
+        let Self {
+            polynomial_size,
+            data: _,
+        } = *self;
+
+        PolynomialListCreationMetadata { polynomial_size }
     }
 }
 

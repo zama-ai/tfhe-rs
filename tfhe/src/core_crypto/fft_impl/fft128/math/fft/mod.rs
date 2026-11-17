@@ -25,7 +25,9 @@ pub struct Fft128View<'a> {
 
 impl Fft128 {
     pub fn as_view(&self) -> Fft128View<'_> {
-        Fft128View { plan: &self.plan }
+        let Self { plan } = self;
+
+        Fft128View { plan }
     }
 }
 

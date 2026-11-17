@@ -87,28 +87,32 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLweBootstrapKey<
     }
 
     pub fn as_view(&self) -> CmLweBootstrapKey<&'_ [Scalar]> {
+        let Self { ref ggsw_list } = *self;
+
         CmLweBootstrapKey::from_container(
-            self.as_ref(),
-            self.glwe_dimension(),
-            self.cm_dimension(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
-            self.ciphertext_modulus(),
+            ggsw_list.as_ref(),
+            ggsw_list.glwe_dimension(),
+            ggsw_list.cm_dimension(),
+            ggsw_list.polynomial_size(),
+            ggsw_list.decomposition_base_log(),
+            ggsw_list.decomposition_level_count(),
+            ggsw_list.ciphertext_modulus(),
         )
     }
 }
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLweBootstrapKey<C> {
     pub fn as_mut_view(&mut self) -> CmLweBootstrapKey<&'_ mut [Scalar]> {
-        let glwe_dimension = self.glwe_dimension();
-        let cm_dimension = self.cm_dimension();
-        let polynomial_size = self.polynomial_size();
-        let decomp_base_log = self.decomposition_base_log();
-        let decomp_level_count = self.decomposition_level_count();
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let Self { ref mut ggsw_list } = *self;
+
+        let glwe_dimension = ggsw_list.glwe_dimension();
+        let cm_dimension = ggsw_list.cm_dimension();
+        let polynomial_size = ggsw_list.polynomial_size();
+        let decomp_base_log = ggsw_list.decomposition_base_log();
+        let decomp_level_count = ggsw_list.decomposition_level_count();
+        let ciphertext_modulus = ggsw_list.ciphertext_modulus();
         CmLweBootstrapKey::from_container(
-            self.as_mut(),
+            ggsw_list.as_mut(),
             glwe_dimension,
             cm_dimension,
             polynomial_size,

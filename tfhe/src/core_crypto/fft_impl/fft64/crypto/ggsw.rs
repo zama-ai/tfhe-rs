@@ -107,14 +107,21 @@ impl<C: Container<Element = c64>> FourierGgswCiphertext<C> {
     where
         C: AsRef<[c64]>,
     {
+        let Self {
+            fourier,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         FourierGgswCiphertextView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_ref(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_ref(),
+                polynomial_size: fourier.polynomial_size,
             },
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 
@@ -122,14 +129,21 @@ impl<C: Container<Element = c64>> FourierGgswCiphertext<C> {
     where
         C: AsMut<[c64]>,
     {
+        let Self {
+            fourier,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         FourierGgswCiphertextMutView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_mut(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_mut(),
+                polynomial_size: fourier.polynomial_size,
             },
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 }
@@ -162,13 +176,19 @@ impl<C: Container<Element = c64>> FourierGgswLevelMatrix<C> {
         C: Split,
     {
         let row_count = self.row_count();
-        self.data
-            .split_into(row_count)
+
+        let Self {
+            data,
+            glwe_size,
+            polynomial_size,
+            decomposition_level,
+        } = self;
+        data.split_into(row_count)
             .map(move |slice| FourierGgswLevelRow {
                 data: slice,
-                polynomial_size: self.polynomial_size,
-                glwe_size: self.glwe_size,
-                decomposition_level: self.decomposition_level,
+                polynomial_size,
+                glwe_size,
+                decomposition_level,
             })
     }
 
@@ -232,16 +252,23 @@ impl<C: Container<Element = c64>> FourierGgswLevelRow<C> {
 impl<'a> FourierGgswCiphertextView<'a> {
     /// Return an iterator over the level matrices.
     pub fn into_levels(self) -> impl DoubleEndedIterator<Item = FourierGgswLevelMatrixView<'a>> {
-        let decomposition_level_count = self.decomposition_level_count.0;
-        self.fourier
+        let Self {
+            fourier,
+            glwe_size,
+            decomposition_level_count,
+            decomposition_base_log: _,
+        } = self;
+
+        let decomposition_level_count = decomposition_level_count.0;
+        fourier
             .data
             .split_into(decomposition_level_count)
             .enumerate()
             .map(move |(i, slice)| {
                 FourierGgswLevelMatrixView::new(
                     slice,
-                    self.glwe_size,
-                    self.fourier.polynomial_size,
+                    glwe_size,
+                    fourier.polynomial_size,
                     DecompositionLevel(decomposition_level_count - i),
                 )
             })
@@ -374,16 +401,28 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
     }
 
     pub fn as_view(&self) -> FourierGgswCiphertextListView<'_> {
+        let Self {
+            fourier:
+                FourierPolynomialList {
+                    data,
+                    polynomial_size,
+                },
+            count,
+            glwe_size,
+            decomposition_level_count,
+            decomposition_base_log,
+        } = self;
+
         let fourier = FourierPolynomialList {
-            data: self.fourier.data.as_ref(),
-            polynomial_size: self.fourier.polynomial_size,
+            data: data.as_ref(),
+            polynomial_size: *polynomial_size,
         };
         FourierGgswCiphertextListView {
             fourier,
-            count: self.count,
-            glwe_size: self.glwe_size,
-            decomposition_level_count: self.decomposition_level_count,
-            decomposition_base_log: self.decomposition_base_log,
+            count: *count,
+            glwe_size: *glwe_size,
+            decomposition_level_count: *decomposition_level_count,
+            decomposition_base_log: *decomposition_base_log,
         }
     }
 
@@ -391,16 +430,28 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
     where
         C: AsMut<[c64]>,
     {
+        let Self {
+            fourier:
+                FourierPolynomialList {
+                    data,
+                    polynomial_size,
+                },
+            count,
+            glwe_size,
+            decomposition_level_count,
+            decomposition_base_log,
+        } = self;
+
         let fourier = FourierPolynomialList {
-            data: self.fourier.data.as_mut(),
-            polynomial_size: self.fourier.polynomial_size,
+            data: data.as_mut(),
+            polynomial_size: *polynomial_size,
         };
         FourierGgswCiphertextListMutView {
             fourier,
-            count: self.count,
-            glwe_size: self.glwe_size,
-            decomposition_level_count: self.decomposition_level_count,
-            decomposition_base_log: self.decomposition_base_log,
+            count: *count,
+            glwe_size: *glwe_size,
+            decomposition_level_count: *decomposition_level_count,
+            decomposition_base_log: *decomposition_base_log,
         }
     }
 
@@ -411,13 +462,21 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
     where
         C: Split,
     {
-        self.fourier.data.split_into(self.count).map(move |slice| {
+        let Self {
+            fourier,
+            glwe_size,
+            decomposition_level_count,
+            decomposition_base_log,
+            count,
+        } = self;
+
+        fourier.data.split_into(count).map(move |slice| {
             FourierGgswCiphertext::from_container(
                 slice,
-                self.glwe_size,
-                self.fourier.polynomial_size,
-                self.decomposition_base_log,
-                self.decomposition_level_count,
+                glwe_size,
+                fourier.polynomial_size,
+                decomposition_base_log,
+                decomposition_level_count,
             )
         })
     }

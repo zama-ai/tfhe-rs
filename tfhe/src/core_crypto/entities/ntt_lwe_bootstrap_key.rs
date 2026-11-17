@@ -137,7 +137,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttLweBootstrapKey
     where
         C: Split,
     {
-        self.ggsw_list.into_ggsw_iter()
+        let Self { ggsw_list } = self;
+
+        ggsw_list.into_ggsw_iter()
     }
 
     /// Return the [`LweDimension`] of the input
@@ -203,7 +205,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttLweBootstrapKey
     /// Return a view of the [`NttLweBootstrapKey`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> NttLweBootstrapKeyView<'_, Scalar> {
-        let ggsw_list_view = self.ggsw_list.as_view();
+        let Self { ggsw_list } = self;
+
+        let ggsw_list_view = ggsw_list.as_view();
         NttLweBootstrapKeyView {
             ggsw_list: ggsw_list_view,
         }
@@ -219,7 +223,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttLweBootstrapKey
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> NttLweBootstrapKey<C> {
     /// Mutable variant of [`NttLweBootstrapKey::as_view`].
     pub fn as_mut_view(&mut self) -> NttLweBootstrapKeyMutView<'_, Scalar> {
-        let ggsw_list_mut_view = self.ggsw_list.as_mut_view();
+        let Self { ggsw_list } = self;
+
+        let ggsw_list_mut_view = ggsw_list.as_mut_view();
         NttLweBootstrapKeyMutView {
             ggsw_list: ggsw_list_mut_view,
         }

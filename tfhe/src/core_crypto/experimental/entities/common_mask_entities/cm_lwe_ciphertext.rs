@@ -69,11 +69,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLweCiphertext<C>
     }
 
     pub fn as_view(&self) -> CmLweCiphertextView<'_, Scalar> {
-        CmLweCiphertextView::from_container(
-            self.as_ref(),
-            self.lwe_dimension,
-            self.ciphertext_modulus(),
-        )
+        let Self {
+            ref data,
+            lwe_dimension,
+            ciphertext_modulus,
+        } = *self;
+
+        CmLweCiphertextView::from_container(data.as_ref(), lwe_dimension, ciphertext_modulus)
     }
 
     pub fn into_container(self) -> C {
@@ -115,10 +117,13 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLweCiphertext
     }
 
     pub fn as_mut_view(&mut self) -> CmLweCiphertextMutView<'_, Scalar> {
-        let ciphertext_modulus = self.ciphertext_modulus();
-        let lwe_dimension = self.lwe_dimension;
+        let Self {
+            ref mut data,
+            lwe_dimension,
+            ciphertext_modulus,
+        } = *self;
 
-        CmLweCiphertextMutView::from_container(self.as_mut(), lwe_dimension, ciphertext_modulus)
+        CmLweCiphertextMutView::from_container(data.as_mut(), lwe_dimension, ciphertext_modulus)
     }
 }
 

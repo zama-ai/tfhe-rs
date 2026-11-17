@@ -107,15 +107,23 @@ impl<C: Container<Element = c64>> PseudoFourierGgswCiphertext<C> {
     where
         C: AsRef<[c64]>,
     {
+        let Self {
+            fourier,
+            glwe_size_in,
+            glwe_size_out,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         PseudoFourierGgswCiphertextView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_ref(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_ref(),
+                polynomial_size: fourier.polynomial_size,
             },
-            glwe_size_in: self.glwe_size_in,
-            glwe_size_out: self.glwe_size_out,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            glwe_size_in: *glwe_size_in,
+            glwe_size_out: *glwe_size_out,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 
@@ -123,15 +131,23 @@ impl<C: Container<Element = c64>> PseudoFourierGgswCiphertext<C> {
     where
         C: AsMut<[c64]>,
     {
+        let Self {
+            fourier,
+            glwe_size_in,
+            glwe_size_out,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         PseudoFourierGgswCiphertextMutView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_mut(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_mut(),
+                polynomial_size: fourier.polynomial_size,
             },
-            glwe_size_in: self.glwe_size_in,
-            glwe_size_out: self.glwe_size_out,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            glwe_size_in: *glwe_size_in,
+            glwe_size_out: *glwe_size_out,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 }
@@ -167,13 +183,20 @@ impl<C: Container<Element = c64>> PseudoFourierGgswLevelMatrix<C> {
         C: Split,
     {
         let row_count = self.row_count();
-        self.data
-            .split_into(row_count)
+
+        let Self {
+            data,
+            glwe_size_out,
+            polynomial_size,
+            decomposition_level,
+            glwe_size_in: _,
+        } = self;
+        data.split_into(row_count)
             .map(move |slice| PseudoFourierGgswLevelRow {
                 data: slice,
-                polynomial_size: self.polynomial_size,
-                glwe_size_out: self.glwe_size_out,
-                decomposition_level: self.decomposition_level,
+                polynomial_size,
+                glwe_size_out,
+                decomposition_level,
             })
     }
 
@@ -243,17 +266,25 @@ impl<'a> PseudoFourierGgswCiphertextView<'a> {
     pub fn into_levels(
         self,
     ) -> impl DoubleEndedIterator<Item = PseudoFourierGgswLevelMatrixView<'a>> {
-        let decomposition_level_count = self.decomposition_level_count.0;
-        self.fourier
+        let Self {
+            fourier,
+            glwe_size_in,
+            glwe_size_out,
+            decomposition_level_count,
+            decomposition_base_log: _,
+        } = self;
+
+        let decomposition_level_count = decomposition_level_count.0;
+        fourier
             .data
             .split_into(decomposition_level_count)
             .enumerate()
             .map(move |(i, slice)| {
                 PseudoFourierGgswLevelMatrixView::new(
                     slice,
-                    self.glwe_size_in,
-                    self.glwe_size_out,
-                    self.fourier.polynomial_size,
+                    glwe_size_in,
+                    glwe_size_out,
+                    fourier.polynomial_size,
                     DecompositionLevel(decomposition_level_count - i),
                 )
             })

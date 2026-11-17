@@ -207,11 +207,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     /// Return a view of the [`SeededLweCiphertextList`]. This is useful if an algorithm takes a
     /// view by value.
     pub fn as_view(&self) -> SeededLweCiphertextList<&'_ [Scalar]> {
+        let Self {
+            ref data,
+            lwe_size,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
         SeededLweCiphertextList::from_container(
-            self.as_ref(),
-            self.lwe_size(),
-            self.compression_seed(),
-            self.ciphertext_modulus(),
+            data.as_ref(),
+            lwe_size,
+            compression_seed.clone(),
+            ciphertext_modulus,
         )
     }
 
@@ -272,11 +279,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweCiphertextList<C> {
     /// Mutable variant of [`SeededLweCiphertextList::as_view`].
     pub fn as_mut_view(&mut self) -> SeededLweCiphertextList<&'_ mut [Scalar]> {
-        let lwe_size = self.lwe_size();
-        let compression_seed = self.compression_seed();
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let Self {
+            ref mut data,
+            lwe_size,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
+        let compression_seed = compression_seed.clone();
         SeededLweCiphertextList::from_container(
-            self.as_mut(),
+            data.as_mut(),
             lwe_size,
             compression_seed,
             ciphertext_modulus,
@@ -365,9 +377,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweBodyCreationMetadata {
-            ciphertext_modulus: self.ciphertext_modulus(),
-        }
+        let Self {
+            ciphertext_modulus,
+            data: _,
+            lwe_size: _,
+            compression_seed: _,
+        } = *self;
+
+        LweBodyCreationMetadata { ciphertext_modulus }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {

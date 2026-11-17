@@ -132,7 +132,12 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
     /// Return a view of the [`GlweSecretKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> GlweSecretKeyView<'_, Scalar> {
-        GlweSecretKey::from_container(self.as_ref(), self.polynomial_size)
+        let Self {
+            ref data,
+            polynomial_size,
+        } = *self;
+
+        GlweSecretKey::from_container(data.as_ref(), polynomial_size)
     }
 
     /// Consume the entity and return its underlying container.
@@ -146,8 +151,12 @@ impl<Scalar, C: Container<Element = Scalar>> GlweSecretKey<C> {
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweSecretKey<C> {
     /// Mutable variant of [`GlweSecretKey::as_view`].
     pub fn as_mut_view(&mut self) -> GlweSecretKeyMutView<'_, Scalar> {
-        let polynomial_size = self.polynomial_size;
-        GlweSecretKey::from_container(self.as_mut(), polynomial_size)
+        let Self {
+            ref mut data,
+            polynomial_size,
+        } = *self;
+
+        GlweSecretKey::from_container(data.as_mut(), polynomial_size)
     }
 
     /// Interpret the [`GlweSecretKey`] as a [`PolynomialListMutView`].

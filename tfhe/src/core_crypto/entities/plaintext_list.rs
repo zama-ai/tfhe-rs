@@ -80,7 +80,9 @@ impl<Scalar, C: Container<Element = Scalar>> PlaintextList<C> {
     /// Return a view of the [`PlaintextList`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> PlaintextListView<'_, Scalar> {
-        PlaintextListView::from_container(self.as_ref())
+        let Self { ref data } = *self;
+
+        PlaintextListView::from_container(data.as_ref())
     }
 }
 
@@ -92,7 +94,9 @@ impl<Scalar, C: ContainerMut<Element = Scalar>> PlaintextList<C> {
 
     /// Mutable variant of [`PlaintextList::as_view`].
     pub fn as_mut_view(&mut self) -> PlaintextListMutView<'_, Scalar> {
-        PlaintextListMutView::from_container(self.as_mut())
+        let Self { ref mut data } = *self;
+
+        PlaintextListMutView::from_container(data.as_mut())
     }
 }
 

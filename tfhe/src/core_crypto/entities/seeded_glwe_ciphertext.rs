@@ -218,11 +218,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     /// Return a view of the [`SeededGlweCiphertext`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> SeededGlweCiphertext<&'_ [Scalar]> {
+        let Self {
+            data,
+            glwe_size,
+            compression_seed,
+            ciphertext_modulus,
+        } = self;
+
         SeededGlweCiphertext {
-            data: self.data.as_ref(),
-            glwe_size: self.glwe_size,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_ref(),
+            glwe_size: *glwe_size,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }
@@ -238,11 +245,18 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededGlweCiphe
 
     /// Mutable variant of [`SeededGlweCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> SeededGlweCiphertext<&'_ mut [Scalar]> {
+        let Self {
+            data,
+            glwe_size,
+            compression_seed,
+            ciphertext_modulus,
+        } = self;
+
         SeededGlweCiphertext {
-            data: self.data.as_mut(),
-            glwe_size: self.glwe_size,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_mut(),
+            glwe_size: *glwe_size,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }

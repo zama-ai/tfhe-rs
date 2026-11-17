@@ -221,11 +221,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey
     /// Return a view of the [`SeededLwePublicKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> SeededLwePublicKey<&'_ [Scalar]> {
+        let Self { ref lwe_list } = *self;
+
         SeededLwePublicKey::from_container(
-            self.as_ref(),
-            self.lwe_size(),
-            self.compression_seed(),
-            self.ciphertext_modulus(),
+            lwe_list.as_ref(),
+            lwe_list.lwe_size(),
+            lwe_list.compression_seed(),
+            lwe_list.ciphertext_modulus(),
         )
     }
 }
@@ -233,11 +235,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePublicKey
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLwePublicKey<C> {
     /// Mutable variant of [`SeededLwePublicKey::as_view`].
     pub fn as_mut_view(&mut self) -> SeededLwePublicKey<&'_ mut [Scalar]> {
-        let lwe_size = self.lwe_size();
-        let compression_seed = self.compression_seed();
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let Self { ref mut lwe_list } = *self;
+
+        let lwe_size = lwe_list.lwe_size();
+        let compression_seed = lwe_list.compression_seed();
+        let ciphertext_modulus = lwe_list.ciphertext_modulus();
         SeededLwePublicKey::from_container(
-            self.as_mut(),
+            lwe_list.as_mut(),
             lwe_size,
             compression_seed,
             ciphertext_modulus,

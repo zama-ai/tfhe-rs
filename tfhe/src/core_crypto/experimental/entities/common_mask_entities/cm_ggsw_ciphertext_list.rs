@@ -306,12 +306,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+            data: _,
+            decomp_level_count: _,
+        } = *self;
+
         CmGgswCiphertextCreationMetadata {
-            glwe_dimension: self.glwe_dimension,
-            cm_dimension: self.cm_dimension,
-            polynomial_size: self.polynomial_size,
-            decomp_base_log: self.decomp_base_log,
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
         }
     }
 
@@ -325,13 +335,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+            data: _,
+        } = *self;
+
         CmGgswCiphertextListCreationMetadata {
-            glwe_dimension: self.glwe_dimension,
-            cm_dimension: self.cm_dimension,
-            polynomial_size: self.polynomial_size,
-            decomp_base_log: self.decomp_base_log,
-            decomp_level_count: self.decomp_level_count,
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
         }
     }
 }

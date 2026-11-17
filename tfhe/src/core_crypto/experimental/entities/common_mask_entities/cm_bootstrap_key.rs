@@ -113,16 +113,25 @@ impl<C: Container<Element = c64>> FourierCmLweBootstrapKey<C> {
     }
 
     pub fn as_view(&self) -> FourierCmLweBootstrapKeyView<'_> {
+        let Self {
+            fourier,
+            input_lwe_dimension,
+            glwe_dimension,
+            cm_dimension,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         FourierCmLweBootstrapKeyView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_ref(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_ref(),
+                polynomial_size: fourier.polynomial_size,
             },
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_dimension: self.glwe_dimension,
-            cm_dimension: self.cm_dimension,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_dimension: *glwe_dimension,
+            cm_dimension: *cm_dimension,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 
@@ -130,16 +139,25 @@ impl<C: Container<Element = c64>> FourierCmLweBootstrapKey<C> {
     where
         C: AsMut<[c64]>,
     {
+        let Self {
+            fourier,
+            input_lwe_dimension,
+            glwe_dimension,
+            cm_dimension,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         FourierCmLweBootstrapKeyMutView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_mut(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_mut(),
+                polynomial_size: fourier.polynomial_size,
             },
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_dimension: self.glwe_dimension,
-            cm_dimension: self.cm_dimension,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_dimension: *glwe_dimension,
+            cm_dimension: *cm_dimension,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 }

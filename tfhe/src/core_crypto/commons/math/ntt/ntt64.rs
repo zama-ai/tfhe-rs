@@ -18,7 +18,9 @@ pub struct Ntt64View<'a> {
 impl Ntt64 {
     #[inline]
     pub fn as_view(&self) -> Ntt64View<'_> {
-        Ntt64View { plan: &self.plan }
+        let Self { plan } = self;
+
+        Ntt64View { plan }
     }
 }
 

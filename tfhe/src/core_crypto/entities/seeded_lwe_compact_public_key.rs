@@ -221,8 +221,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
     /// Return a view of the [`SeededLweCompactPublicKey`]. This is useful if an algorithm takes a
     /// view by value.
     pub fn as_view(&self) -> SeededLweCompactPublicKey<&[Scalar]> {
+        let Self {
+            seeded_glwe_ciphertext,
+        } = self;
+
         SeededLweCompactPublicKey {
-            seeded_glwe_ciphertext: self.seeded_glwe_ciphertext.as_view(),
+            seeded_glwe_ciphertext: seeded_glwe_ciphertext.as_view(),
         }
     }
 }

@@ -105,7 +105,9 @@ impl<Scalar, C: Container<Element = Scalar>> Polynomial<C> {
 
     /// Return a view of the [`Polynomial`]. This is useful if an algorithm takes a view by value.
     pub fn as_view(&self) -> PolynomialView<'_, Scalar> {
-        PolynomialView::from_container(self.as_ref())
+        let Self { ref data } = *self;
+
+        PolynomialView::from_container(data.as_ref())
     }
 }
 
@@ -119,7 +121,9 @@ impl<'a, Scalar: 'a, C: Container<Element = Scalar>> Polynomial<C> {
 impl<'a, Scalar: 'a, C: ContainerMut<Element = Scalar>> Polynomial<C> {
     /// Mutable variant of [`Polynomial::as_view`].
     pub fn as_mut_view(&mut self) -> PolynomialMutView<'_, Scalar> {
-        PolynomialMutView::from_container(self.as_mut())
+        let Self { ref mut data } = *self;
+
+        PolynomialMutView::from_container(data.as_mut())
     }
 
     /// Iterate on the elements of the [`Polynomial`] allowing to modify them.

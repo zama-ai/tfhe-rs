@@ -176,11 +176,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<
     /// Return a view of the [`LweCiphertextList`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> LweCiphertextListView<'_, Scalar> {
-        LweCiphertextListView::from_container(
-            self.as_ref(),
-            self.lwe_size(),
-            self.ciphertext_modulus(),
-        )
+        let Self {
+            ref data,
+            lwe_size,
+            ciphertext_modulus,
+        } = *self;
+
+        LweCiphertextListView::from_container(data.as_ref(), lwe_size, ciphertext_modulus)
     }
 
     /// Consume the entity and return its underlying container.
@@ -221,9 +223,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertextList<
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweCiphertextList<C> {
     /// Mutable variant of [`LweCiphertextList::as_view`].
     pub fn as_mut_view(&mut self) -> LweCiphertextListMutView<'_, Scalar> {
-        let lwe_size = self.lwe_size();
-        let ciphertext_modulus = self.ciphertext_modulus();
-        LweCiphertextListMutView::from_container(self.as_mut(), lwe_size, ciphertext_modulus)
+        let Self {
+            ref mut data,
+            lwe_size,
+            ciphertext_modulus,
+        } = *self;
+
+        LweCiphertextListMutView::from_container(data.as_mut(), lwe_size, ciphertext_modulus)
     }
 }
 
@@ -400,9 +406,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweCiphertextCreationMetadata {
-            ciphertext_modulus: self.ciphertext_modulus(),
-        }
+        let Self {
+            ciphertext_modulus,
+            data: _,
+            lwe_size: _,
+        } = *self;
+
+        LweCiphertextCreationMetadata { ciphertext_modulus }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -410,9 +420,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            lwe_size,
+            ciphertext_modulus,
+            data: _,
+        } = *self;
+
         LweCiphertextListCreationMetadata {
-            lwe_size: self.lwe_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            lwe_size,
+            ciphertext_modulus,
         }
     }
 }

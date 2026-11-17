@@ -215,9 +215,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            polynomial_size,
+            ciphertext_modulus,
+            data: _,
+        } = *self;
+
         GlweCiphertextCreationMetadata {
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus(),
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 
@@ -226,9 +232,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            polynomial_size,
+            ciphertext_modulus,
+            data: _,
+        } = *self;
+
         GlweBodyListCreationMetadata {
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus(),
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 }
@@ -651,10 +663,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertext<C> 
     /// Return a view of the [`GlweCiphertext`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> GlweCiphertext<&'_ [Scalar]> {
+        let Self {
+            data,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         GlweCiphertext {
-            data: self.data.as_ref(),
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_ref(),
+            polynomial_size: *polynomial_size,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 
@@ -721,10 +739,16 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweCiphertext<
 
     /// Mutable variant of [`GlweCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> GlweCiphertext<&'_ mut [Scalar]> {
+        let Self {
+            data,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         GlweCiphertext {
-            data: self.data.as_mut(),
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_mut(),
+            polynomial_size: *polynomial_size,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }

@@ -226,12 +226,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweShrinkingKeyswi
     /// Return a view of the [`LweShrinkingKeyswitchKey`]. This is useful if an algorithm takes a
     /// view by value.
     pub fn as_view(&self) -> LweShrinkingKeyswitchKey<&'_ [Scalar]> {
+        let Self { ref lwe_ksk } = *self;
+
         LweShrinkingKeyswitchKey::from_container(
-            self.as_ref(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
-            self.output_lwe_size(),
-            self.ciphertext_modulus(),
+            lwe_ksk.as_ref(),
+            lwe_ksk.decomposition_base_log(),
+            lwe_ksk.decomposition_level_count(),
+            lwe_ksk.output_lwe_size(),
+            lwe_ksk.ciphertext_modulus(),
         )
     }
 }
@@ -243,12 +245,14 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweShrinkingKey
 
     /// Mutable variant of [`LweShrinkingKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> LweShrinkingKeyswitchKey<&'_ mut [Scalar]> {
-        let decomposition_base_log = self.decomposition_base_log();
-        let decomposition_level_count = self.decomposition_level_count();
-        let output_lwe_size = self.output_lwe_size();
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let Self { ref mut lwe_ksk } = *self;
+
+        let decomposition_base_log = lwe_ksk.decomposition_base_log();
+        let decomposition_level_count = lwe_ksk.decomposition_level_count();
+        let output_lwe_size = lwe_ksk.output_lwe_size();
+        let ciphertext_modulus = lwe_ksk.ciphertext_modulus();
         LweShrinkingKeyswitchKey::from_container(
-            self.as_mut(),
+            lwe_ksk.as_mut(),
             decomposition_base_log,
             decomposition_level_count,
             output_lwe_size,

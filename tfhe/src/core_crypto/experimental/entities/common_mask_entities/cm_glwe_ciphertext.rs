@@ -142,12 +142,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmGlweCiphertext<C
     }
 
     pub fn as_view(&self) -> CmGlweCiphertext<&'_ [Scalar]> {
+        let Self {
+            data,
+            glwe_dimension,
+            polynomial_size,
+            cm_dimension,
+            ciphertext_modulus,
+        } = self;
+
         CmGlweCiphertext {
-            data: self.data.as_ref(),
-            glwe_dimension: self.glwe_dimension,
-            polynomial_size: self.polynomial_size,
-            cm_dimension: self.cm_dimension,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_ref(),
+            glwe_dimension: *glwe_dimension,
+            polynomial_size: *polynomial_size,
+            cm_dimension: *cm_dimension,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 
@@ -207,12 +215,20 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmGlweCiphertex
     }
 
     pub fn as_mut_view(&mut self) -> CmGlweCiphertext<&'_ mut [Scalar]> {
+        let Self {
+            data,
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         CmGlweCiphertext {
-            data: self.data.as_mut(),
-            glwe_dimension: self.glwe_dimension,
-            cm_dimension: self.cm_dimension,
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_mut(),
+            glwe_dimension: *glwe_dimension,
+            cm_dimension: *cm_dimension,
+            polynomial_size: *polynomial_size,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }

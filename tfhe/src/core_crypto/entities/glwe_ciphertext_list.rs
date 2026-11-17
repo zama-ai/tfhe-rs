@@ -36,11 +36,18 @@ impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for GlweCipher
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweCiphertextList<C> {
     /// Mutable variant of [`GlweCiphertextList::as_view`].
     pub fn as_mut_view(&mut self) -> GlweCiphertextList<&'_ mut [Scalar]> {
+        let Self {
+            data,
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         GlweCiphertextList {
-            data: self.data.as_mut(),
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_mut(),
+            glwe_size: *glwe_size,
+            polynomial_size: *polynomial_size,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }
@@ -182,11 +189,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertextList
     /// Return a view of the [`GlweCiphertext`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> GlweCiphertextList<&'_ [Scalar]> {
+        let Self {
+            data,
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         GlweCiphertextList {
-            data: self.data.as_ref(),
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_ref(),
+            glwe_size: *glwe_size,
+            polynomial_size: *polynomial_size,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }
@@ -300,9 +314,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            polynomial_size,
+            ciphertext_modulus,
+            data: _,
+            glwe_size: _,
+        } = *self;
+
         GlweCiphertextCreationMetadata {
-            polynomial_size: self.polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 
@@ -311,10 +332,17 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+            data: _,
+        } = *self;
+
         GlweCiphertextListCreationMetadata {
-            glwe_size: self.glwe_size(),
-            polynomial_size: self.polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 }

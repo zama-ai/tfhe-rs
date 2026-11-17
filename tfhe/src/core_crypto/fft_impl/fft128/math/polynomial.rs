@@ -61,11 +61,18 @@ impl Fourier128Polynomial<ABox<[f64]>> {
 
 impl<C: Container<Element = f64>> Fourier128Polynomial<C> {
     pub fn as_view(&self) -> Fourier128PolynomialView<'_> {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+        } = self;
+
         Fourier128Polynomial {
-            data_re0: self.data_re0.as_ref(),
-            data_re1: self.data_re1.as_ref(),
-            data_im0: self.data_im0.as_ref(),
-            data_im1: self.data_im1.as_ref(),
+            data_re0: data_re0.as_ref(),
+            data_re1: data_re1.as_ref(),
+            data_im0: data_im0.as_ref(),
+            data_im1: data_im1.as_ref(),
         }
     }
 

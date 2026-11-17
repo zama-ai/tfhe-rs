@@ -108,14 +108,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLweKeyswitchKey<
     }
 
     pub fn as_view(&self) -> CmLweKeyswitchKeyView<'_, Scalar> {
+        let Self {
+            ref data,
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
+        } = *self;
+
         CmLweKeyswitchKey::from_container(
-            self.as_ref(),
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.input_lwe_dimension,
-            self.output_lwe_dimension,
-            self.cm_dimension,
-            self.ciphertext_modulus,
+            data.as_ref(),
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
         )
     }
 
@@ -139,14 +149,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLweKeyswitchKey<
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLweKeyswitchKey<C> {
     pub fn as_mut_view(&mut self) -> CmLweKeyswitchKeyMutView<'_, Scalar> {
-        let decomp_base_log = self.decomp_base_log;
-        let decomp_level_count = self.decomp_level_count;
-        let input_lwe_dimension = self.input_lwe_dimension;
-        let output_lwe_dimension = self.output_lwe_dimension;
-        let cm_dimension = self.cm_dimension;
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
+        } = *self;
+
         CmLweKeyswitchKey::from_container(
-            self.as_mut(),
+            data.as_mut(),
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
@@ -262,10 +276,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            output_lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
+            data: _,
+            decomp_base_log: _,
+            decomp_level_count: _,
+            input_lwe_dimension: _,
+        } = *self;
+
         CmLweCiphertextListCreationMetadata {
-            ciphertext_modulus: self.ciphertext_modulus(),
-            lwe_dimension: self.output_lwe_dimension,
-            cm_dimension: self.cm_dimension,
+            ciphertext_modulus,
+            lwe_dimension: output_lwe_dimension,
+            cm_dimension,
         }
     }
 
@@ -274,13 +298,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
+            data: _,
+        } = *self;
+
         CmLweKeyswitchKeyCreationMetadata {
-            decomp_base_log: self.decomposition_base_log(),
-            decomp_level_count: self.decomposition_level_count(),
-            output_lwe_dimension: self.output_lwe_dimension,
-            input_lwe_dimension: self.input_lwe_dimension,
-            cm_dimension: self.cm_dimension,
-            ciphertext_modulus: self.ciphertext_modulus(),
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
         }
     }
 }

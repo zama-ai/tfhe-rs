@@ -320,15 +320,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
     /// Return a view of the [`SeededLweMultiBitBootstrapKey`]. This is useful if an algorithm takes
     /// a view by value.
     pub fn as_view(&self) -> SeededLweMultiBitBootstrapKey<&'_ [Scalar]> {
+        let Self {
+            ref ggsw_list,
+            grouping_factor,
+        } = *self;
+
         SeededLweMultiBitBootstrapKey::from_container(
-            self.as_ref(),
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
-            self.compression_seed(),
-            self.grouping_factor(),
-            self.ciphertext_modulus(),
+            ggsw_list.as_ref(),
+            ggsw_list.glwe_size(),
+            ggsw_list.polynomial_size(),
+            ggsw_list.decomposition_base_log(),
+            ggsw_list.decomposition_level_count(),
+            ggsw_list.compression_seed(),
+            grouping_factor,
+            ggsw_list.ciphertext_modulus(),
         )
     }
 
@@ -392,15 +397,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweMultiBitB
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweMultiBitBootstrapKey<C> {
     /// Mutable variant of [`SeededLweMultiBitBootstrapKey::as_view`].
     pub fn as_mut_view(&mut self) -> SeededLweMultiBitBootstrapKey<&'_ mut [Scalar]> {
-        let glwe_size = self.glwe_size();
-        let polynomial_size = self.polynomial_size();
-        let decomp_base_log = self.decomposition_base_log();
-        let decomp_level_count = self.decomposition_level_count();
-        let compression_seed = self.compression_seed();
-        let grouping_factor = self.grouping_factor();
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let Self {
+            ref mut ggsw_list,
+            grouping_factor,
+        } = *self;
+
+        let glwe_size = ggsw_list.glwe_size();
+        let polynomial_size = ggsw_list.polynomial_size();
+        let decomp_base_log = ggsw_list.decomposition_base_log();
+        let decomp_level_count = ggsw_list.decomposition_level_count();
+        let compression_seed = ggsw_list.compression_seed();
+        let ciphertext_modulus = ggsw_list.ciphertext_modulus();
         SeededLweMultiBitBootstrapKey::from_container(
-            self.as_mut(),
+            ggsw_list.as_mut(),
             glwe_size,
             polynomial_size,
             decomp_base_log,

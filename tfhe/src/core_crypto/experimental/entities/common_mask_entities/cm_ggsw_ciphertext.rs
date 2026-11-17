@@ -271,13 +271,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmGgswCiphertext<C
     }
 
     pub fn as_view(&self) -> CmGgswCiphertextView<'_, Scalar> {
+        let Self {
+            ref data,
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+        } = *self;
+
         CmGgswCiphertextView::from_container(
-            self.as_ref(),
-            self.glwe_dimension(),
-            self.cm_dimension,
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.ciphertext_modulus(),
+            data.as_ref(),
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
         )
     }
 
@@ -329,13 +338,17 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmGgswCiphertex
     }
 
     pub fn as_mut_view(&mut self) -> CmGgswCiphertextMutView<'_, Scalar> {
-        let glwe_dimension = self.glwe_dimension;
-        let cm_dimension = self.cm_dimension;
-        let polynomial_size = self.polynomial_size();
-        let decomp_base_log = self.decomposition_base_log();
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+        } = *self;
+
         CmGgswCiphertextMutView::from_container(
-            self.as_mut(),
+            data.as_mut(),
             glwe_dimension,
             cm_dimension,
             polynomial_size,
@@ -571,11 +584,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            ciphertext_modulus,
+            data: _,
+            decomp_base_log: _,
+        } = *self;
+
         CmGgswLevelMatrixCreationMetadata {
-            glwe_dimension: self.glwe_dimension,
-            cm_dimension: self.cm_dimension,
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 

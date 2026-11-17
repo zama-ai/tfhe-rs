@@ -70,11 +70,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLweCiphertextLis
     }
 
     pub fn as_view(&self) -> CmLweCiphertextListView<'_, Scalar> {
+        let Self {
+            ref data,
+            lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
+        } = *self;
+
         CmLweCiphertextListView::from_container(
-            self.as_ref(),
-            self.lwe_dimension,
-            self.cm_dimension,
-            self.ciphertext_modulus,
+            data.as_ref(),
+            lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
         )
     }
 
@@ -89,12 +96,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLweCiphertextLis
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLweCiphertextList<C> {
     pub fn as_mut_view(&mut self) -> CmLweCiphertextListMutView<'_, Scalar> {
-        let lwe_dimension = self.lwe_dimension();
-        let ciphertext_modulus = self.ciphertext_modulus();
-        let cm_dimension = self.cm_dimension;
+        let Self {
+            ref mut data,
+            lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
+        } = *self;
 
         CmLweCiphertextListMutView::from_container(
-            self.as_mut(),
+            data.as_mut(),
             lwe_dimension,
             cm_dimension,
             ciphertext_modulus,
@@ -168,9 +178,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            lwe_dimension,
+            ciphertext_modulus,
+            data: _,
+            cm_dimension: _,
+        } = *self;
+
         CmLweCiphertextCreationMetadata {
-            ciphertext_modulus: self.ciphertext_modulus,
-            lwe_dimension: self.lwe_dimension,
+            lwe_dimension,
+            ciphertext_modulus,
         }
     }
 
@@ -179,10 +196,17 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
+            data: _,
+        } = *self;
+
         CmLweCiphertextListCreationMetadata {
-            lwe_dimension: self.lwe_dimension,
-            cm_dimension: self.cm_dimension,
-            ciphertext_modulus: self.ciphertext_modulus,
+            lwe_dimension,
+            cm_dimension,
+            ciphertext_modulus,
         }
     }
 }

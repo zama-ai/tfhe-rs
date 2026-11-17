@@ -127,16 +127,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LwePublicKey<C> {
     /// Return a view of the [`LwePublicKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> LwePublicKey<&'_ [Scalar]> {
-        LwePublicKey::from_container(self.as_ref(), self.lwe_size(), self.ciphertext_modulus())
+        let Self { ref lwe_list } = *self;
+
+        LwePublicKey::from_container(
+            lwe_list.as_ref(),
+            lwe_list.lwe_size(),
+            lwe_list.ciphertext_modulus(),
+        )
     }
 }
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LwePublicKey<C> {
     /// Mutable variant of [`LwePublicKey::as_view`].
     pub fn as_mut_view(&mut self) -> LwePublicKey<&'_ mut [Scalar]> {
-        let lwe_size = self.lwe_size();
-        let ciphertext_modulus = self.ciphertext_modulus();
-        LwePublicKey::from_container(self.as_mut(), lwe_size, ciphertext_modulus)
+        let Self { ref mut lwe_list } = *self;
+
+        let lwe_size = lwe_list.lwe_size();
+        let ciphertext_modulus = lwe_list.ciphertext_modulus();
+        LwePublicKey::from_container(lwe_list.as_mut(), lwe_size, ciphertext_modulus)
     }
 }
 

@@ -457,12 +457,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ref compression_seed,
+            ciphertext_modulus,
+            data: _,
+            decomp_level_count: _,
+        } = *self;
+
         SeededGgswCiphertextCreationMetadata {
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            decomp_base_log: self.decomp_base_log,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus,
         }
     }
 
@@ -477,13 +487,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     /// Unimplemented for [`SeededGgswCiphertextList`]. At the moment it does not make sense to
     /// return "sub" seeded lists.
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ref compression_seed,
+            ciphertext_modulus,
+            data: _,
+        } = *self;
+
         SeededGgswCiphertextListCreationMetadata {
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            decomp_base_log: self.decomp_base_log,
-            decomp_level_count: self.decomp_level_count,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus,
         }
     }
 }

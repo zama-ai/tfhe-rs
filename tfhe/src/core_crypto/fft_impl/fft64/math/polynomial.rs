@@ -37,8 +37,10 @@ impl FourierPolynomial<ABox<[c64]>> {
 
 impl<C: Container<Element = c64>> FourierPolynomial<C> {
     pub fn as_view(&self) -> FourierPolynomialView<'_> {
+        let Self { data } = self;
+
         FourierPolynomial {
-            data: self.data.as_ref(),
+            data: data.as_ref(),
         }
     }
 
@@ -46,8 +48,10 @@ impl<C: Container<Element = c64>> FourierPolynomial<C> {
     where
         C: AsMut<[c64]>,
     {
+        let Self { data } = self;
+
         FourierPolynomial {
-            data: self.data.as_mut(),
+            data: data.as_mut(),
         }
     }
 
