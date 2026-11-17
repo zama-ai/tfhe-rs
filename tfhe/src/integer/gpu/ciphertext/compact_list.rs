@@ -208,9 +208,14 @@ impl CudaCompactCiphertextListExpander {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self {
+            expanded_blocks,
+            blocks_info,
+        } = self;
+
         Self {
-            expanded_blocks: self.expanded_blocks.duplicate(streams),
-            blocks_info: self.blocks_info.iter().cloned().collect_vec(),
+            expanded_blocks: expanded_blocks.duplicate(streams),
+            blocks_info: blocks_info.iter().cloned().collect_vec(),
         }
     }
 }
@@ -591,18 +596,32 @@ impl CudaFlattenedVecCompactCiphertextList {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self {
+            d_flattened_vec,
+            lwe_dimension,
+            lwe_ciphertext_count,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind,
+            ciphertext_modulus,
+            num_lwe_per_compact_list,
+            data_info,
+            is_boolean,
+        } = self;
+
         Self {
-            d_flattened_vec: self.d_flattened_vec.duplicate(streams),
-            lwe_dimension: self.lwe_dimension,
-            lwe_ciphertext_count: self.lwe_ciphertext_count,
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            expansion_kind: self.expansion_kind,
-            ciphertext_modulus: self.ciphertext_modulus,
-            num_lwe_per_compact_list: self.num_lwe_per_compact_list.clone(),
-            data_info: self.data_info.clone(),
-            is_boolean: self.is_boolean.clone(),
+            d_flattened_vec: d_flattened_vec.duplicate(streams),
+            lwe_dimension: *lwe_dimension,
+            lwe_ciphertext_count: *lwe_ciphertext_count,
+            degree: *degree,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            expansion_kind: *expansion_kind,
+            ciphertext_modulus: *ciphertext_modulus,
+            num_lwe_per_compact_list: num_lwe_per_compact_list.clone(),
+            data_info: data_info.clone(),
+            is_boolean: is_boolean.clone(),
         }
     }
     pub fn gpu_indexes(&self) -> &[GpuIndex] {

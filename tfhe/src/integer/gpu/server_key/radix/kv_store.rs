@@ -180,14 +180,15 @@ impl<Key, Ct> CudaKVStore<Key, Ct> {
         Key: Clone + Ord,
         Ct: CudaIntegerRadixCiphertext,
     {
-        let data = self
-            .data
+        let Self { data, block_count } = self;
+
+        let data = data
             .iter()
             .map(|(k, v)| (k.clone(), v.duplicate(streams)))
             .collect();
         Self {
             data,
-            block_count: self.block_count,
+            block_count: *block_count,
         }
     }
 

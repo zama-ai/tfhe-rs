@@ -106,11 +106,18 @@ impl KeySwitchingKeyMaterial {
     }
 
     pub fn as_view(&self) -> KeySwitchingKeyMaterialView<'_> {
+        let Self {
+            key_switching_key,
+            cast_rshift,
+            destination_key,
+            destination_atomic_pattern,
+        } = self;
+
         KeySwitchingKeyMaterialView {
-            key_switching_key: &self.key_switching_key,
-            cast_rshift: self.cast_rshift,
-            destination_key: self.destination_key,
-            destination_atomic_pattern: self.destination_atomic_pattern,
+            key_switching_key,
+            cast_rshift: *cast_rshift,
+            destination_key: *destination_key,
+            destination_atomic_pattern: *destination_atomic_pattern,
         }
     }
 }

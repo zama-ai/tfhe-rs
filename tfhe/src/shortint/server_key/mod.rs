@@ -481,13 +481,22 @@ pub struct GenericServerKey<AP> {
 
 impl<AP: Clone> GenericServerKey<&AP> {
     pub fn owned(&self) -> GenericServerKey<AP> {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = *self;
+
         GenericServerKey {
-            atomic_pattern: self.atomic_pattern.clone(),
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            max_degree: self.max_degree,
-            max_noise_level: self.max_noise_level,
-            ciphertext_modulus: self.ciphertext_modulus,
+            atomic_pattern: atomic_pattern.clone(),
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         }
     }
 }
@@ -506,15 +515,24 @@ impl Copy for ServerKeyView<'_> {}
 
 impl From<StandardServerKey> for ServerKey {
     fn from(value: StandardServerKey) -> Self {
-        let atomic_pattern = AtomicPatternServerKey::Standard(value.atomic_pattern);
+        let GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = value;
+
+        let atomic_pattern = AtomicPatternServerKey::Standard(atomic_pattern);
 
         Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
-            max_noise_level: value.max_noise_level,
-            ciphertext_modulus: value.ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         }
     }
 }
@@ -534,17 +552,26 @@ impl TryFrom<ServerKey> for StandardServerKey {
     type Error = UnsupportedOperation;
 
     fn try_from(value: ServerKey) -> Result<Self, Self::Error> {
-        let AtomicPatternServerKey::Standard(atomic_pattern) = value.atomic_pattern else {
+        let GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = value;
+
+        let AtomicPatternServerKey::Standard(atomic_pattern) = atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
         Ok(Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
-            max_noise_level: value.max_noise_level,
-            ciphertext_modulus: value.ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         })
     }
 }
@@ -553,17 +580,26 @@ impl<'key> TryFrom<ServerKeyView<'key>> for StandardServerKeyView<'key> {
     type Error = UnsupportedOperation;
 
     fn try_from(value: ServerKeyView<'key>) -> Result<Self, Self::Error> {
-        let AtomicPatternServerKey::Standard(atomic_pattern) = value.atomic_pattern else {
+        let GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = value;
+
+        let AtomicPatternServerKey::Standard(atomic_pattern) = atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
         Ok(Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
-            max_noise_level: value.max_noise_level,
-            ciphertext_modulus: value.ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         })
     }
 }
@@ -572,17 +608,26 @@ impl<'key> TryFrom<ServerKeyView<'key>> for KS32ServerKeyView<'key> {
     type Error = UnsupportedOperation;
 
     fn try_from(value: ServerKeyView<'key>) -> Result<Self, Self::Error> {
-        let AtomicPatternServerKey::KeySwitch32(atomic_pattern) = value.atomic_pattern else {
+        let GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = value;
+
+        let AtomicPatternServerKey::KeySwitch32(atomic_pattern) = atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
         Ok(Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
-            max_noise_level: value.max_noise_level,
-            ciphertext_modulus: value.ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         })
     }
 }
@@ -708,13 +753,22 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     }
 
     pub fn as_view(&self) -> GenericServerKey<&AP> {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = self;
+
         GenericServerKey {
-            atomic_pattern: &self.atomic_pattern,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            max_degree: self.max_degree,
-            max_noise_level: self.max_noise_level,
-            ciphertext_modulus: self.ciphertext_modulus,
+            atomic_pattern,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            max_degree: *max_degree,
+            max_noise_level: *max_noise_level,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 

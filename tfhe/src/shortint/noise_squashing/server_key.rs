@@ -274,15 +274,22 @@ impl<'key> TryFrom<NoiseSquashingKeyView<'key>> for StandardNoiseSquashingKeyVie
     type Error = UnsupportedOperation;
 
     fn try_from(value: NoiseSquashingKeyView<'key>) -> Result<Self, Self::Error> {
-        let AtomicPatternNoiseSquashingKey::Standard(atomic_pattern) = value.atomic_pattern else {
+        let GenericNoiseSquashingKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = value;
+
+        let AtomicPatternNoiseSquashingKey::Standard(atomic_pattern) = atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
         Ok(Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            output_ciphertext_modulus: value.output_ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
         })
     }
 }
@@ -332,11 +339,18 @@ impl NoiseSquashingKey {
     }
 
     pub fn as_view(&self) -> NoiseSquashingKeyView<'_> {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = self;
+
         GenericNoiseSquashingKey {
-            atomic_pattern: &self.atomic_pattern,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            output_ciphertext_modulus: self.output_ciphertext_modulus,
+            atomic_pattern,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            output_ciphertext_modulus: *output_ciphertext_modulus,
         }
     }
 }

@@ -85,9 +85,11 @@ impl CudaCompressedSquashedNoiseCiphertextList {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self { packed_list, info } = self;
+
         Self {
-            packed_list: self.packed_list.duplicate(streams),
-            info: self.info.clone(),
+            packed_list: packed_list.duplicate(streams),
+            info: info.clone(),
         }
     }
 

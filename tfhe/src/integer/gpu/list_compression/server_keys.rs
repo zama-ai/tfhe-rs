@@ -336,9 +336,11 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self { data, meta } = self;
+
         Self {
-            data: self.data.duplicate(streams),
-            meta: self.meta,
+            data: data.duplicate(streams),
+            meta: *meta,
         }
     }
     pub fn extract_glwe(
