@@ -3,17 +3,21 @@ use super::legacy_default_tests::{
     legacy_default_sum_ciphertexts_vec_test,
 };
 use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+use crate::integer::bigint::U4096;
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
+use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     unchecked_add_assign_test, unchecked_add_test,
 };
+use crate::integer::{IntegerKeyKind, RadixClientKey};
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
+use rand::Rng;
 
 create_gpu_parameterized_test!(integer_unchecked_add {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -44,6 +48,9 @@ create_gpu_parameterized_test!(multi_device_integer_add {
     TEST_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 });
 create_gpu_parameterized_test!(integer_sum_ciphertexts_vec);
+create_gpu_parameterized_test!(integer_sum_ciphertexts_many_blocks {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
 create_gpu_parameterized_test!(integer_default_overflowing_add);
 create_gpu_parameterized_test!(multi_device_integer_default_overflowing_add);
 
@@ -97,6 +104,37 @@ where
     };
     let executor = GpuFunctionExecutor::new(sum_vec);
     legacy_default_sum_ciphertexts_vec_test(param, executor);
+}
+
+fn integer_sum_ciphertexts_many_blocks<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let param = param.into();
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+
+    let mut rng = rand::thread_rng();
+    let num_ctxts = 16;
+    let bits_per_block = param.message_modulus().0.ilog2();
+    for num_blocks in [512, 1024, 2048] {
+        let cks = RadixClientKey::from((cks.clone(), num_blocks));
+        let mask = U4096::MAX >> (U4096::BITS - bits_per_block * num_blocks as u32);
+        let clears: Vec<U4096> = (0..num_ctxts).map(|_| rng.gen::<U4096>() & mask).collect();
+        let d_ctxts: Vec<CudaUnsignedRadixCiphertext> = clears
+            .iter()
+            .map(|&clear| {
+                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&cks.encrypt(clear), &streams)
+            })
+            .collect();
+
+        let d_result = sks.sum_ciphertexts(d_ctxts, &streams).unwrap();
+        let result = d_result.to_radix_ciphertext(&streams);
+        let decrypted: U4096 = cks.decrypt(&result);
+        let expected = clears.iter().fold(U4096::ZERO, |acc, &x| acc + x) & mask;
+        assert_eq!(decrypted, expected, "num_blocks = {num_blocks}");
+    }
 }
 
 fn integer_default_overflowing_add<P>(param: P)
