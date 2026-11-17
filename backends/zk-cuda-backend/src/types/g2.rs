@@ -122,13 +122,24 @@ impl fmt::Debug for G2Affine {
 
 impl PartialEq for G2Affine {
     fn eq(&self, other: &Self) -> bool {
-        if self.is_infinity() && other.is_infinity() {
-            return true;
+        let Self {
+            inner: G2Point { x, y, infinity },
+        } = self;
+        let Self {
+            inner:
+                G2Point {
+                    x: other_x,
+                    y: other_y,
+                    infinity: other_infinity,
+                },
+        } = other;
+
+        match (infinity, other_infinity) {
+            (true, true) => true,
+            (false, false) => x == other_x && y == other_y,
+            // Only one point is at infinity
+            (true, false) | (false, true) => false,
         }
-        if self.is_infinity() != other.is_infinity() {
-            return false;
-        }
-        self.inner.x == other.inner.x && self.inner.y == other.inner.y
     }
 }
 
