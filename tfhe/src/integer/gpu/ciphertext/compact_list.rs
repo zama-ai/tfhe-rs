@@ -418,11 +418,24 @@ impl CudaFlattenedVecCompactCiphertextList {
         &self,
         streams: &CudaStreams,
     ) -> crate::Result<Vec<crate::shortint::ciphertext::CompactCiphertextList>> {
+        let Self {
+            d_flattened_vec,
+            num_lwe_per_compact_list,
+            lwe_dimension,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind,
+            ciphertext_modulus,
+            data_info: _,
+            is_boolean: _,
+            lwe_ciphertext_count: _,
+        } = self;
+
         // First we get the h_vec with all data copied from GPU
-        let mut h_vec = vec![0u64; self.d_flattened_vec.len()];
+        let mut h_vec = vec![0u64; d_flattened_vec.len()];
         unsafe {
-            self.d_flattened_vec
-                .copy_to_cpu_async(h_vec.as_mut_slice(), streams, 0);
+            d_flattened_vec.copy_to_cpu_async(h_vec.as_mut_slice(), streams, 0);
         }
 
         // Now we'll split it into individual lists
@@ -432,10 +445,10 @@ impl CudaFlattenedVecCompactCiphertextList {
         streams.synchronize();
         // For each size in num_lwe_per_compact_list, compute the length of that slice
         // and extract it from h_vec
-        for num_lwe in self.num_lwe_per_compact_list.iter() {
+        for num_lwe in num_lwe_per_compact_list.iter() {
             let num_lwe = *num_lwe as usize;
             let length =
-                lwe_compact_ciphertext_list_size(self.lwe_dimension, LweCiphertextCount(num_lwe));
+                lwe_compact_ciphertext_list_size(*lwe_dimension, LweCiphertextCount(num_lwe));
 
             // Extract the slice from h_vec starting at current_offset with computed length
             let slice = offset
@@ -454,16 +467,16 @@ impl CudaFlattenedVecCompactCiphertextList {
 
             let lwe = LweCompactCiphertextList::from_container(
                 list,
-                self.lwe_dimension.to_lwe_size(),
+                lwe_dimension.to_lwe_size(),
                 LweCiphertextCount(num_lwe),
-                self.ciphertext_modulus,
+                *ciphertext_modulus,
             );
             let ct = CompactCiphertextList {
                 ct_list: lwe,
-                degree: self.degree,
-                message_modulus: self.message_modulus,
-                carry_modulus: self.carry_modulus,
-                expansion_kind: self.expansion_kind,
+                degree: *degree,
+                message_modulus: *message_modulus,
+                carry_modulus: *carry_modulus,
+                expansion_kind: *expansion_kind,
             };
             result.push(ct);
 

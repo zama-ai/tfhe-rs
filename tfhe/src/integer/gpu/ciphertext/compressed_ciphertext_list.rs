@@ -254,10 +254,17 @@ impl CudaCompressedCiphertextList {
             });
         };
 
-        let ciphertext_modulus = gpu_meta.ciphertext_modulus;
-        let message_modulus = gpu_meta.message_modulus;
-        let carry_modulus = gpu_meta.carry_modulus;
-        let lwe_per_glwe = gpu_meta.lwe_per_glwe;
+        let &CudaPackedGlweCiphertextListMeta {
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            lwe_per_glwe,
+            glwe_dimension: _,
+            polynomial_size: _,
+            storage_log_modulus: _,
+            total_lwe_bodies_count: _,
+            initial_len: _,
+        } = gpu_meta;
 
         let modulus_switched_glwe_ciphertext_list =
             self.packed_list.to_compressed_glwe_list(streams)?;
@@ -390,9 +397,13 @@ impl CompressedCiphertextList {
         let initial_len = self.packed_list.len();
 
         let meta = self.packed_list.meta.as_ref().and_then(|cpu_meta| {
-            let lwe_per_glwe = cpu_meta.lwe_per_glwe;
-            let message_modulus = cpu_meta.message_modulus;
-            let carry_modulus = cpu_meta.carry_modulus;
+            let &CompressedCiphertextListMeta {
+                ciphertext_modulus,
+                message_modulus,
+                carry_modulus,
+                lwe_per_glwe,
+                atomic_pattern: _,
+            } = cpu_meta;
 
             modulus_switched_glwe_ciphertext_list
                 .first()
@@ -401,7 +412,7 @@ impl CompressedCiphertextList {
                     polynomial_size: first_ct.polynomial_size(),
                     message_modulus,
                     carry_modulus,
-                    ciphertext_modulus: cpu_meta.ciphertext_modulus,
+                    ciphertext_modulus,
                     storage_log_modulus: first_ct.packed_integers().log_modulus(),
                     lwe_per_glwe,
                     total_lwe_bodies_count: self.packed_list.len(),
