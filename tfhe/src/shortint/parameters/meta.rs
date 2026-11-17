@@ -699,36 +699,44 @@ impl MetaParametersFinder {
     /// compression is deemed compatible because we can remove the compression params from the
     /// struct.
     fn is_compatible(&self, parameters: &MetaParameters) -> bool {
-        if self.backend != parameters.backend {
+        let Self {
+            msg_modulus,
+            carry_modulus,
+            failure_probability,
+            backend,
+            atomic_pattern_choice,
+            noise_distribution,
+            dedicated_compact_public_key_choice,
+            use_compression,
+            noise_squashing_choice,
+            re_randomization_choice,
+            version: _,
+        } = self;
+
+        if *backend != parameters.backend {
             return false;
         }
 
-        if self.msg_modulus != parameters.compute_parameters.message_modulus()
-            || self.carry_modulus != parameters.compute_parameters.carry_modulus()
+        if *msg_modulus != parameters.compute_parameters.message_modulus()
+            || *carry_modulus != parameters.compute_parameters.carry_modulus()
         {
             return false;
         }
 
-        if !self
-            .failure_probability
-            .is_compatible(&parameters.failure_probability())
-        {
+        if !failure_probability.is_compatible(&parameters.failure_probability()) {
             return false;
         }
 
-        if !self.noise_distribution.is_compatible(parameters) {
+        if !noise_distribution.is_compatible(parameters) {
             return false;
         }
 
-        if !self
-            .atomic_pattern_choice
-            .is_compatible(&parameters.compute_parameters)
-        {
+        if !atomic_pattern_choice.is_compatible(&parameters.compute_parameters) {
             return false;
         }
 
         match (
-            self.dedicated_compact_public_key_choice.as_ref(),
+            dedicated_compact_public_key_choice.as_ref(),
             &parameters.dedicated_compact_public_key_parameters,
         ) {
             (None, None | Some(_)) => {}
@@ -740,18 +748,15 @@ impl MetaParametersFinder {
             }
         }
 
-        if !self.re_randomization_choice.is_compatible(parameters) {
+        if !re_randomization_choice.is_compatible(parameters) {
             return false;
         }
 
-        if self.use_compression && parameters.compression_parameters.is_none() {
+        if *use_compression && parameters.compression_parameters.is_none() {
             return false;
         }
 
-        if !self
-            .noise_squashing_choice
-            .is_compatible(parameters.noise_squashing_parameters.as_ref())
-        {
+        if !noise_squashing_choice.is_compatible(parameters.noise_squashing_parameters.as_ref()) {
             return false;
         }
 

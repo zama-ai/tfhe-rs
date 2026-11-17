@@ -190,8 +190,19 @@ pub(crate) struct IntegerClientKey {
 
 impl IntegerClientKey {
     pub(crate) fn with_seed(config: IntegerConfig, seed: Seed) -> Self {
+        let IntegerConfig {
+            block_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+            noise_squashing_compression_parameters,
+            cpk_re_randomization_params,
+            dedicated_oprf_key,
+            transciphering_parameters,
+        } = config;
+
         assert!(
-            (config.block_parameters.message_modulus().0) == 2 || config.block_parameters.message_modulus().0 == 4,
+            (block_parameters.message_modulus().0) == 2 || block_parameters.message_modulus().0 == 4,
             "This API only supports parameters for which the MessageModulus is 2 or 4 (1 or 2 bits per block)",
         );
         let aes_ctr_params = tfhe_csprng::generators::aes_ctr::AesCtrParams {
@@ -201,7 +212,7 @@ impl IntegerClientKey {
         };
         let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(aes_ctr_params);
         let mut engine = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder);
-        let cks = engine.new_client_key(config.block_parameters);
+        let cks = engine.new_client_key(block_parameters);
 
         let previous_engine =
             crate::shortint::engine::ShortintEngine::with_thread_local_mut(|local_engine| {
@@ -210,30 +221,22 @@ impl IntegerClientKey {
 
         let key = crate::integer::ClientKey::from(cks);
 
-        let compression_key = config
-            .compression_parameters
-            .map(|params| key.new_compression_private_key(params));
+        let compression_key =
+            compression_parameters.map(|params| key.new_compression_private_key(params));
 
-        let dedicated_compact_private_key = config
-            .dedicated_compact_public_key_parameters
+        let dedicated_compact_private_key = dedicated_compact_public_key_parameters
             .map(|p| (crate::integer::CompactPrivateKey::new(p.0), p.1));
 
-        let noise_squashing_private_key = config
-            .noise_squashing_parameters
-            .map(NoiseSquashingPrivateKey::new);
+        let noise_squashing_private_key =
+            noise_squashing_parameters.map(NoiseSquashingPrivateKey::new);
 
-        let noise_squashing_compression_private_key = config
-            .noise_squashing_compression_parameters
-            .map(NoiseSquashingCompressionPrivateKey::new);
+        let noise_squashing_compression_private_key =
+            noise_squashing_compression_parameters.map(NoiseSquashingCompressionPrivateKey::new);
 
-        let cpk_re_randomization_params = config.cpk_re_randomization_params;
+        let dedicated_oprf_private_key = dedicated_oprf_key.then(|| OprfPrivateKey::new(&key));
 
-        let dedicated_oprf_private_key =
-            config.dedicated_oprf_key.then(|| OprfPrivateKey::new(&key));
-
-        let transciphering_private_key = config
-            .transciphering_parameters
-            .map(|params| TranscipheringPrivateKey::new(&key.key, params));
+        let transciphering_private_key =
+            transciphering_parameters.map(|params| TranscipheringPrivateKey::new(&key.key, params));
 
         crate::shortint::engine::ShortintEngine::with_thread_local_mut(|local_engine| {
             *local_engine = previous_engine;
@@ -385,37 +388,40 @@ impl IntegerClientKey {
 
 impl From<IntegerConfig> for IntegerClientKey {
     fn from(config: IntegerConfig) -> Self {
+        let IntegerConfig {
+            block_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+            noise_squashing_compression_parameters,
+            cpk_re_randomization_params,
+            dedicated_oprf_key,
+            transciphering_parameters,
+        } = config;
+
         assert!(
-            (config.block_parameters.message_modulus().0) == 2 || config.block_parameters.message_modulus().0 == 4,
+            (block_parameters.message_modulus().0) == 2 || block_parameters.message_modulus().0 == 4,
             "This API only supports parameters for which the MessageModulus is 2 or 4 (1 or 2 bits per block)",
         );
 
-        let key = crate::integer::ClientKey::new(config.block_parameters);
+        let key = crate::integer::ClientKey::new(block_parameters);
 
-        let dedicated_compact_private_key = config
-            .dedicated_compact_public_key_parameters
+        let dedicated_compact_private_key = dedicated_compact_public_key_parameters
             .map(|p| (crate::integer::CompactPrivateKey::new(p.0), p.1));
 
-        let compression_key = config
-            .compression_parameters
-            .map(|params| key.new_compression_private_key(params));
+        let compression_key =
+            compression_parameters.map(|params| key.new_compression_private_key(params));
 
-        let noise_squashing_private_key = config
-            .noise_squashing_parameters
-            .map(NoiseSquashingPrivateKey::new);
+        let noise_squashing_private_key =
+            noise_squashing_parameters.map(NoiseSquashingPrivateKey::new);
 
-        let noise_squashing_compression_private_key = config
-            .noise_squashing_compression_parameters
-            .map(NoiseSquashingCompressionPrivateKey::new);
+        let noise_squashing_compression_private_key =
+            noise_squashing_compression_parameters.map(NoiseSquashingCompressionPrivateKey::new);
 
-        let cpk_re_randomization_params = config.cpk_re_randomization_params;
+        let dedicated_oprf_private_key = dedicated_oprf_key.then(|| OprfPrivateKey::new(&key));
 
-        let dedicated_oprf_private_key =
-            config.dedicated_oprf_key.then(|| OprfPrivateKey::new(&key));
-
-        let transciphering_private_key = config
-            .transciphering_parameters
-            .map(|params| TranscipheringPrivateKey::new(&key.key, params));
+        let transciphering_private_key =
+            transciphering_parameters.map(|params| TranscipheringPrivateKey::new(&key.key, params));
 
         Self {
             key,
@@ -451,9 +457,18 @@ pub struct IntegerServerKey {
 
 impl IntegerServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
-        let cks = &client_key.key;
+        let IntegerClientKey {
+            key: cks,
+            dedicated_compact_private_key,
+            compression_key: compression_private_key,
+            noise_squashing_private_key,
+            noise_squashing_compression_private_key,
+            dedicated_oprf_private_key,
+            transciphering_private_key,
+            cpk_re_randomization_params: _,
+        } = client_key;
 
-        let (compression_key, decompression_key) = client_key.compression_key.as_ref().map_or_else(
+        let (compression_key, decompression_key) = compression_private_key.as_ref().map_or_else(
             || (None, None),
             |a| {
                 let (compression_key, decompression_key) =
@@ -465,8 +480,7 @@ impl IntegerServerKey {
         let base_integer_key = crate::integer::ServerKey::new_radix_server_key(cks);
 
         let cpk_key_switching_key_material =
-            client_key
-                .dedicated_compact_private_key
+            dedicated_compact_private_key
                 .as_ref()
                 .map(|(private_key, ksk_params)| {
                     let build_helper =
@@ -480,13 +494,12 @@ impl IntegerServerKey {
                 });
 
         let (noise_squashing_key, noise_squashing_compression_key) =
-            client_key.noise_squashing_private_key.as_ref().map_or_else(
+            noise_squashing_private_key.as_ref().map_or_else(
                 || (None, None),
                 |noise_squashing_private_key| {
                     let noise_squashing_key =
                         NoiseSquashingKey::new(cks, noise_squashing_private_key);
-                    let noise_squashing_compression_key = client_key
-                        .noise_squashing_compression_private_key
+                    let noise_squashing_compression_key = noise_squashing_compression_private_key
                         .as_ref()
                         .map(|comp_private_key| {
                             noise_squashing_private_key
@@ -529,19 +542,17 @@ impl IntegerServerKey {
                 }
             });
 
-        let oprf_key = client_key
-            .dedicated_oprf_private_key
+        let oprf_key = dedicated_oprf_private_key
             .as_ref()
-            .map(|oprf_pk| OprfServerKey::new(oprf_pk, &client_key.key))
+            .map(|oprf_pk| OprfServerKey::new(oprf_pk, cks))
             .transpose()
             .expect("Failed to create the server key for the oprf");
 
         let transciphering_key =
-            client_key
-                .transciphering_private_key
+            transciphering_private_key
                 .as_ref()
                 .map(|transciphering_private_key| {
-                    TranscipheringServerKey::new(transciphering_private_key, &client_key.key.key)
+                    TranscipheringServerKey::new(transciphering_private_key, &cks.key)
                         .expect("Failed to create the server key for transciphering")
                 });
 
@@ -706,13 +717,21 @@ pub struct IntegerCompressedServerKey {
 
 impl IntegerCompressedServerKey {
     pub(in crate::high_level_api) fn new(client_key: &IntegerClientKey) -> Self {
-        let cks = &client_key.key;
+        let IntegerClientKey {
+            key: cks,
+            dedicated_compact_private_key,
+            compression_key: compression_private_key,
+            noise_squashing_private_key,
+            noise_squashing_compression_private_key,
+            dedicated_oprf_private_key,
+            transciphering_private_key,
+            cpk_re_randomization_params: _,
+        } = client_key;
 
         let key = crate::integer::CompressedServerKey::new_radix_compressed_server_key(cks);
 
         let cpk_key_switching_key_material =
-            client_key
-                .dedicated_compact_private_key
+            dedicated_compact_private_key
                 .as_ref()
                 .map(|(private_key, ksk_params)| {
                     let build_helper =
@@ -726,26 +745,22 @@ impl IntegerCompressedServerKey {
                 });
 
         let (compression_key, decompression_key) =
-            client_key
-                .compression_key
+            compression_private_key
                 .as_ref()
                 .map_or((None, None), |compression_private_key| {
-                    let (compression_keys, decompression_keys) = client_key
-                        .key
-                        .new_compressed_compression_decompression_keys(compression_private_key);
+                    let (compression_keys, decompression_keys) =
+                        cks.new_compressed_compression_decompression_keys(compression_private_key);
 
                     (Some(compression_keys), Some(decompression_keys))
                 });
 
-        let (noise_squashing_key, noise_squashing_compression_key) = client_key
-            .noise_squashing_private_key
+        let (noise_squashing_key, noise_squashing_compression_key) = noise_squashing_private_key
             .as_ref()
             .map_or((None, None), |noise_squashing_private_key| {
                 let noise_squashing_key =
-                    noise_squashing_private_key.new_compressed_noise_squashing_key(&client_key.key);
+                    noise_squashing_private_key.new_compressed_noise_squashing_key(cks);
 
-                let noise_squashing_compression_key = client_key
-                    .noise_squashing_compression_private_key
+                let noise_squashing_compression_key = noise_squashing_compression_private_key
                     .as_ref()
                     .map(|comp_private_key| {
                         noise_squashing_private_key
@@ -789,24 +804,17 @@ impl IntegerCompressedServerKey {
                 }
             });
 
-        let oprf_key = client_key
-            .dedicated_oprf_private_key
-            .as_ref()
-            .map(|oprf_private_key| {
-                CompressedOprfServerKey::new(oprf_private_key, &client_key.key)
-                    .expect("Failed to create the OPRF key")
-            });
+        let oprf_key = dedicated_oprf_private_key.as_ref().map(|oprf_private_key| {
+            CompressedOprfServerKey::new(oprf_private_key, cks)
+                .expect("Failed to create the OPRF key")
+        });
 
         let transciphering_key =
-            client_key
-                .transciphering_private_key
+            transciphering_private_key
                 .as_ref()
                 .map(|transciphering_private_key| {
-                    CompressedTranscipheringServerKey::new(
-                        transciphering_private_key,
-                        &client_key.key.key,
-                    )
-                    .expect("Failed to create the compressed server key for transciphering")
+                    CompressedTranscipheringServerKey::new(transciphering_private_key, &cks.key)
+                        .expect("Failed to create the compressed server key for transciphering")
                 });
 
         Self {
@@ -1056,16 +1064,29 @@ pub struct IntegerServerKeyConformanceParams {
 
 impl<C: Into<Config>> From<C> for IntegerServerKeyConformanceParams {
     fn from(value: C) -> Self {
-        let config: Config = value.into();
+        let Config {
+            inner:
+                IntegerConfig {
+                    block_parameters,
+                    dedicated_compact_public_key_parameters,
+                    compression_parameters,
+                    noise_squashing_parameters,
+                    noise_squashing_compression_parameters,
+                    cpk_re_randomization_params,
+                    dedicated_oprf_key,
+                    transciphering_parameters,
+                },
+        } = value.into();
+
         Self {
-            sk_param: config.inner.block_parameters,
-            cpk_param: config.inner.dedicated_compact_public_key_parameters,
-            compression_param: config.inner.compression_parameters,
-            noise_squashing_param: config.inner.noise_squashing_parameters,
-            noise_squashing_compression_param: config.inner.noise_squashing_compression_parameters,
-            cpk_re_randomization_params: config.inner.cpk_re_randomization_params,
-            dedicated_oprf_key: config.inner.dedicated_oprf_key,
-            transciphering_parameters: config.inner.transciphering_parameters,
+            sk_param: block_parameters,
+            cpk_param: dedicated_compact_public_key_parameters,
+            compression_param: compression_parameters,
+            noise_squashing_param: noise_squashing_parameters,
+            noise_squashing_compression_param: noise_squashing_compression_parameters,
+            cpk_re_randomization_params,
+            dedicated_oprf_key,
+            transciphering_parameters,
         }
     }
 }
