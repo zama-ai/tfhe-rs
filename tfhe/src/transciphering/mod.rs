@@ -183,9 +183,20 @@ impl ParameterSetConformant for StreamCiphertext {
     type ParameterSet = StreamCiphertextConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
-        self.kind == params.kind
-            && self.n_bits == params.n_bits
-            && self.bytes.len() == self.n_bits.div_ceil(8)
+        let Self {
+            kind,
+            n_bits,
+            bytes,
+            encryption_counter: _,
+        } = self;
+        let StreamCiphertextConformanceParams {
+            kind: expected_kind,
+            n_bits: expected_n_bits,
+        } = *params;
+
+        let expected_byte_len = expected_n_bits.div_ceil(8);
+
+        *kind == expected_kind && *n_bits == expected_n_bits && bytes.len() == expected_byte_len
     }
 }
 
