@@ -512,6 +512,23 @@ fn test_match_value_gpu_multibit() {
 }
 
 #[test]
+fn test_match_value_small_outputs_have_output_block_count_gpu() {
+    let client_key = setup_classical_gpu();
+    let ct = FheUint8::encrypt(17u8, &client_key);
+    let matches = MatchValues::new(vec![(17u8, 3u8), (0u8, 1u8)]).unwrap();
+
+    let (result, matched): (FheUint8, FheBool) = ct.match_value(&matches).unwrap();
+    let matched: bool = matched.decrypt(&client_key);
+    assert!(matched);
+    let doubled: u8 = (&result * 2u8).decrypt(&client_key);
+    assert_eq!(doubled, 6);
+
+    let result: FheUint8 = ct.match_value_or(&matches, 2u8).unwrap();
+    let doubled: u8 = (&result * 2u8).decrypt(&client_key);
+    assert_eq!(doubled, 6);
+}
+
+#[test]
 fn test_min_max_multibit() {
     let client_key = setup_multibit_gpu();
     super::test_case_min_max(&client_key);
