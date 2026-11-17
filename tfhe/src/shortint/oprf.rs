@@ -150,7 +150,9 @@ impl OprfPrivateKey {
     }
 
     pub fn into_raw_parts(self) -> AtomicPatternOprfPrivateKey {
-        self.0
+        let Self(key) = self;
+
+        key
     }
 
     pub fn parameters(&self) -> OprfParameters {
@@ -363,7 +365,9 @@ impl ExpandedOprfServerKey {
     }
 
     pub fn into_raw_parts(self) -> ExpandedOprfBootstrappingKey {
-        self.0
+        let Self(key) = self;
+
+        key
     }
 
     pub fn to_fourier(&self) -> OprfServerKey {
@@ -518,7 +522,9 @@ impl CompressedOprfServerKey {
     }
 
     pub fn into_raw_parts(self) -> CompressedOprfBootstrappingKey {
-        self.inner
+        let Self { inner } = self;
+
+        inner
     }
 
     pub fn expand(&self) -> ExpandedOprfServerKey {
@@ -733,7 +739,9 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     }
 
     pub fn into_raw_parts(self) -> OprfBootstrappingKey<C> {
-        self.inner
+        let Self { inner } = self;
+
+        inner
     }
 
     /// Uniformly generates a batch of encrypted random bit-chunks from a single seed in one call.

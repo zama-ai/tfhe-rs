@@ -133,7 +133,9 @@ impl KeySwitchingKey {
 
     /// Deconstruct a [`KeySwitchingKey`] into its constituents.
     pub fn into_raw_parts(self) -> crate::shortint::KeySwitchingKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 
     /// Construct a [`KeySwitchingKey`] from its constituents.

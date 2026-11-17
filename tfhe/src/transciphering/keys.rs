@@ -49,7 +49,9 @@ impl TranscipheringPrivateKey {
     }
 
     pub fn into_raw_parts(self) -> (OprfPrivateKey, TranscipheringParameters) {
-        (self.oprf_key, self.params)
+        let Self { oprf_key, params } = self;
+
+        (oprf_key, params)
     }
 }
 
@@ -91,7 +93,9 @@ impl TranscipheringServerKey {
     }
 
     pub fn into_raw_parts(self) -> OprfServerKey {
-        self.oprf_key
+        let Self { oprf_key } = self;
+
+        oprf_key
     }
 }
 
@@ -134,7 +138,9 @@ impl CompressedTranscipheringServerKey {
     }
 
     pub fn into_raw_parts(self) -> CompressedOprfServerKey {
-        self.oprf_key
+        let Self { oprf_key } = self;
+
+        oprf_key
     }
 }
 
@@ -157,7 +163,9 @@ impl ExpandedTranscipheringServerKey {
     }
 
     pub fn into_raw_parts(self) -> ExpandedOprfServerKey {
-        self.oprf_key
+        let Self { oprf_key } = self;
+
+        oprf_key
     }
 }
 

@@ -94,8 +94,10 @@ impl ClientKey {
         Option<TranscipheringPrivateKey>,
         Tag,
     ) {
-        let (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf, tk) = self.key.into_raw_parts();
-        (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf, tk, self.tag)
+        let Self { key, tag } = self;
+
+        let (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf, tk) = key.into_raw_parts();
+        (cks, cpk, cppk, nsk, nscpk, cpkrndp, oprf, tk, tag)
     }
 
     #[allow(clippy::too_many_arguments)]

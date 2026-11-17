@@ -62,7 +62,9 @@ impl NoiseSquashingCompressionPrivateKey {
     }
 
     pub fn into_raw_parts(self) -> ShortintNoiseSquashingCompressionPrivateKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 }
 
@@ -105,7 +107,9 @@ impl CompressedNoiseSquashingCompressionKey {
     }
 
     pub fn into_raw_parts(self) -> ShortintCompressedNoiseSquashingCompressionKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 }
 
@@ -125,7 +129,9 @@ impl NoiseSquashingCompressionKey {
     }
 
     pub fn into_raw_parts(self) -> ShortintNoiseSquashingCompressionKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 }
 

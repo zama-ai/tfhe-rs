@@ -92,7 +92,9 @@ pub struct IntegerStreamCiphertext {
 
 impl IntegerStreamCiphertext {
     pub fn into_raw_parts(self) -> (StreamCiphertext, IntegerStreamCiphertextKind) {
-        (self.inner, self.kind)
+        let Self { inner, kind } = self;
+
+        (inner, kind)
     }
 
     pub fn from_raw_parts(inner: StreamCiphertext, kind: IntegerStreamCiphertextKind) -> Self {

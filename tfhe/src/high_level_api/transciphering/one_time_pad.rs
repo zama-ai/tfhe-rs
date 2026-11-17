@@ -110,7 +110,9 @@ impl OneTimePadFheSecretMask {
     }
 
     pub fn into_raw_parts(self) -> (TranscipheringOneTimePadFheSecretMask, Tag) {
-        (self.inner.into(), self.tag)
+        let Self { inner, tag } = self;
+
+        (inner.into(), tag)
     }
 
     /// Generate a fresh FHE-encrypted pad of `n_bits` bits server-side using

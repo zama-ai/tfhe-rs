@@ -49,7 +49,9 @@ impl CompactPublicKey {
     }
 
     pub fn into_raw_parts(self) -> (crate::integer::public_key::CompactPublicKey, Tag) {
-        (self.key.into_raw_parts(), self.tag)
+        let Self { key, tag } = self;
+
+        (key.into_raw_parts(), tag)
     }
 
     pub fn from_raw_parts(key: crate::integer::public_key::CompactPublicKey, tag: Tag) -> Self {
@@ -104,7 +106,9 @@ impl CompressedCompactPublicKey {
 
     /// Deconstruct a [`CompressedCompactPublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> (crate::integer::CompressedCompactPublicKey, Tag) {
-        (self.key.into_raw_parts(), self.tag)
+        let Self { key, tag } = self;
+
+        (key.into_raw_parts(), tag)
     }
 
     /// Construct a [`CompressedCompactPublicKey`] from its constituents.

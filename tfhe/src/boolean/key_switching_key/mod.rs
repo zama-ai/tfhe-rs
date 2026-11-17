@@ -28,7 +28,9 @@ impl KeySwitchingKey {
 
     /// Deconstruct a [`KeySwitchingKey`] into its constituents.
     pub fn into_raw_parts(self) -> LweKeyswitchKeyOwned<u32> {
-        self.key_switching_key
+        let Self { key_switching_key } = self;
+
+        key_switching_key
     }
 
     /// Construct a [`KeySwitchingKey`] from its constituents.

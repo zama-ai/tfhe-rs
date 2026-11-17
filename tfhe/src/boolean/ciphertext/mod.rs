@@ -36,7 +36,9 @@ impl CompressedCiphertext {
 
     /// Deconstruct a [`CompressedCiphertext`] into its constituents.
     pub fn into_raw_parts(self) -> SeededLweCiphertext<u32> {
-        self.ciphertext
+        let Self { ciphertext } = self;
+
+        ciphertext
     }
 
     /// Construct a [`CompressedCiphertext`] from its constituents.

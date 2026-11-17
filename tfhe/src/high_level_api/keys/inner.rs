@@ -991,7 +991,9 @@ impl IntegerCompactPublicKey {
     }
 
     pub fn into_raw_parts(self) -> CompactPublicKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 
     pub fn from_raw_parts(key: CompactPublicKey) -> Self {
@@ -1027,7 +1029,9 @@ impl IntegerCompressedCompactPublicKey {
 
     /// Deconstruct a [`IntegerCompressedCompactPublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> CompressedCompactPublicKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 
     /// Construct a [`IntegerCompressedCompactPublicKey`] from its constituents.

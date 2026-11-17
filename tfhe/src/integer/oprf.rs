@@ -41,7 +41,9 @@ impl OprfPrivateKey {
     }
 
     pub fn into_raw_parts(self) -> ShortintOprfPrivateKey {
-        self.0
+        let Self(key) = self;
+
+        key
     }
 }
 
@@ -59,7 +61,9 @@ impl CompressedOprfServerKey {
     }
 
     pub fn into_raw_parts(self) -> ShortintCompressedOprfServerKey {
-        self.0
+        let Self(key) = self;
+
+        key
     }
 
     pub fn expand(&self) -> ExpandedOprfServerKey {
@@ -84,7 +88,9 @@ impl ExpandedOprfServerKey {
     }
 
     pub fn into_raw_parts(self) -> ShortintExpandedOprfServerKey {
-        self.0
+        let Self(key) = self;
+
+        key
     }
 
     pub fn to_fourier(&self) -> OprfServerKey {
@@ -111,7 +117,9 @@ where
     }
 
     pub fn into_raw_parts(self) -> ShortintGenericOprfServerKey<C> {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 
     /// Generates an encrypted `num_block` blocks unsigned integer

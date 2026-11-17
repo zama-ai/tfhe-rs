@@ -82,7 +82,9 @@ impl KreyviumFheKey {
     }
 
     pub fn into_raw_parts(self) -> (TranscipheringKreyviumFheKey, Tag) {
-        (self.inner.into(), self.tag)
+        let Self { inner, tag } = self;
+
+        (inner.into(), tag)
     }
 }
 

@@ -54,7 +54,9 @@ impl StreamCiphertext {
     }
 
     pub fn into_raw_parts(self) -> IntegerStreamCiphertext {
-        self.inner
+        let Self { inner } = self;
+
+        inner
     }
 
     pub(super) fn integer(&self) -> &IntegerStreamCiphertext {

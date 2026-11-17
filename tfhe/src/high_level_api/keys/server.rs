@@ -480,8 +480,10 @@ impl CompressedServerKey {
         Option<CompressedTranscipheringServerKey>,
         Tag,
     ) {
-        let (a, b, c, d, e, f, g, h, i) = self.integer_key.into_raw_parts();
-        (a, b, c, d, e, f, g, h, i, self.tag)
+        let Self { integer_key, tag } = self;
+
+        let (a, b, c, d, e, f, g, h, i) = integer_key.into_raw_parts();
+        (a, b, c, d, e, f, g, h, i, tag)
     }
 
     #[allow(clippy::too_many_arguments)]

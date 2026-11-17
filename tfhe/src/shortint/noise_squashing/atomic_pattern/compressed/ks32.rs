@@ -44,7 +44,9 @@ impl CompressedKS32AtomicPatternNoiseSquashingKey {
     }
 
     pub fn into_raw_parts(self) -> CompressedShortint128BootstrappingKey<u32> {
-        self.bootstrapping_key
+        let Self { bootstrapping_key } = self;
+
+        bootstrapping_key
     }
 
     pub fn bootstrapping_key(&self) -> &CompressedShortint128BootstrappingKey<u32> {

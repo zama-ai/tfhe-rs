@@ -578,12 +578,15 @@ impl Named for XofKeySet {
 }
 
 impl XofKeySet {
-    pub fn into_raw_parts(mut self) -> (CompactPublicKey, ServerKey) {
+    pub fn into_raw_parts(self) -> (CompactPublicKey, ServerKey) {
+        let Self {
+            mut public_key,
+            server_key,
+        } = self;
+
         // Server key tag is the source of truth for Tagged impl
-        self.public_key
-            .tag_mut()
-            .set_data(self.server_key.tag.data());
-        (self.public_key, self.server_key)
+        public_key.tag_mut().set_data(server_key.tag.data());
+        (public_key, server_key)
     }
 
     /// Returns whether the inner [`ServerKey`] carries a dedicated key-switching
@@ -656,12 +659,15 @@ mod gpu {
     }
 
     impl CudaXofKeySet {
-        pub fn into_raw_parts(mut self) -> (CompactPublicKey, CudaServerKey) {
+        pub fn into_raw_parts(self) -> (CompactPublicKey, CudaServerKey) {
+            let Self {
+                mut public_key,
+                server_key,
+            } = self;
+
             // Server key tag is the source of truth for Tagged impl
-            self.public_key
-                .tag_mut()
-                .set_data(self.server_key.tag.data());
-            (self.public_key, self.server_key)
+            public_key.tag_mut().set_data(server_key.tag.data());
+            (public_key, server_key)
         }
     }
 

@@ -196,7 +196,9 @@ impl ServerKey {
 
     /// Deconstruct a [`ServerKey`] into its constituents.
     pub fn into_raw_parts(self) -> crate::shortint::ServerKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 
     /// Construct a [`ServerKey`] from its constituents.
@@ -295,7 +297,9 @@ impl CompressedServerKey {
 
     /// Deconstruct a [`CompressedServerKey`] into its constituents.
     pub fn into_raw_parts(self) -> crate::shortint::CompressedServerKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 
     /// Construct a [`CompressedServerKey`] from its constituents.
