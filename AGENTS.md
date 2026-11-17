@@ -1,29 +1,6 @@
 # AGENTS.md
 
-Guidance for coding agents working in TFHE-rs. This file only records what is not obvious from reading the code; the root `Makefile` is the source of truth for commands (`make help` lists targets).
-
-## Commands
-
-- Run things through `make`, which sets the right toolchain, features and flags. Tests use the stable toolchain from `rust-toolchain.toml`; fmt, clippy and docs use the nightly named in `nightly-toolchain.txt` (`make install_rs_check_toolchain`). Plain `cargo fmt` / `cargo clippy` on stable will not match CI.
-- `tfhe`'s default features enable no layer, so a bare `cargo build -p tfhe` or `cargo test -p tfhe` compiles almost nothing. Always pass features.
-- Checks before pushing: `make fpcc` is the fast subset (formatting, typos, doc checks; no clippy). `make pcc` is the full set CI runs and is slow; prefer the per-layer target for what you touched (`make clippy_core`, `clippy_shortint`, `clippy_integer`, …). `make conformance` rewrites files (formatting and newlines).
-- Clippy runs with `-D warnings` over several feature combinations per layer. Code behind `cfg(feature = ...)` is only checked by the matching make target.
-
-### Running tests
-
-The shortint, integer and high-level API suites take hours and many GB of RAM. Never run a whole suite to validate a change; run one test with the features of its layer:
-
-```bash
-RUSTFLAGS="-C target-cpu=native" cargo test --profile devo \
-  --features=integer,internal-keycache -p tfhe -- \
-  integer::block_decomposition::tests::test_bit_block_decomposer
-```
-
-- Take the feature list from the layer's `test_*` target in the Makefile (`test_core_crypto`, `test_shortint`, `test_integer`, `test_high_level_api`, …).
-- `--profile devo` is optimized without LTO and compiles much faster than the Makefile default (`release`, fat LTO). Equivalent: `make test_integer CARGO_PROFILE=devo`.
-- Most shortint/integer tests are generated per parameter set by `create_parameterized_test!`; filter on the function name to run every variant, or on the full generated name for one.
-- `NIGHTLY_TESTS` selects a parameter set and has nothing to do with the nightly toolchain.
-- `.lfsconfig` disables automatic Git LFS fetching. Test data is pulled by `make pull_*` targets (`pull_backward_compat_data`, `pull_test_vectors`, …).
+Guidance for coding agents working in TFHE-rs. The root `Makefile` is the source of truth for commands (`make help` lists targets).
 
 ## Architecture
 
@@ -60,7 +37,6 @@ Alongside the layers: `strings/` (on `integer`), `zk/`, `transciphering/`, and t
 Things each layer expects that are easy to miss:
 
 - **shortint** ciphertexts carry a `Degree` (bound on the plaintext value) and a `NoiseLevel`. Every operation must update both; getting them wrong produces silently incorrect results rather than errors.
-- **shortint** take the atomic pattern of a ciphertext from the key or the parameters. Do not rebuild it from the bootstrap order: two different patterns can share the same order.
 - **integer** `unchecked_*` operations assume the input blocks have room in their carries; the unprefixed operations clean carries first and return clean outputs. Clean means empty carries and nominal noise (`is_clean()`), so a shortcut that skips the bootstrap must still guarantee both.
 - **integer** to split a clear scalar into a fixed number of blocks, use `BlockDecomposer::with_block_count`. It sign-extends signed values; padding with zeros gives wrong results for negative numbers.
 - **high_level_api** keeps the server key in a thread-local, so `set_server_key` is needed on every thread. Operations dispatch by matching on `InternalServerKey` (CPU, CUDA, HPU): a new operation needs an arm for each backend.
@@ -80,9 +56,46 @@ Changes to the CUDA crates are also subject to semver and version-bump checks in
 
 ### Parameters
 
-Parameter sets live in per-release modules under `tfhe/src/shortint/parameters/`. When adding one, keep the release module, `aliases.rs` and the `VEC_ALL_*` lists in sync (the lists feed the security-estimation CI). In `tfhe/src/js_on_wasm_api/shortint.rs`, new parameters must be appended, never inserted.
+- **Optimize for production parameters first.** Algorithms must be optimized in priority for `PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128`, even at the cost of extra effort. Keep the code simple and lean where possible. Other parameter sets must never produce incorrect results. Depending on how much complexity supporting them would add, they should be, in order of preference:
+  1. optimized too, if that needs no complex dedicated code;
+  2. supported but unoptimized (e.g. a generic, slower path);
+  3. explicitly rejected at the start of the algorithm (error or panic with a clear message), if supporting them would increase the overall complexity.
+- **Do not invent parameters.** Parameter sets are produced by external tooling and security estimation. Never edit the numeric values of existing parameters. Parameters are versioned per release under `tfhe/src/shortint/parameters/v*_*`; the parameters of a released version are frozen.
+- When adding a set, keep the release module, `aliases.rs` and the `VEC_ALL_*` lists in sync (the lists feed the security-estimation CI). In `tfhe/src/js_on_wasm_api/shortint.rs`, new parameters must be appended, never inserted.
+- A configuration that combines compute, compact public key, compression, noise squashing or re-randomization parameters must start from the `MetaParameters` bundle of the target backend. Sets that are each valid can still be incompatible with each other.
 
-A configuration that combines compute, compact public key, compression, noise squashing or re-randomization parameters must start from the `MetaParameters` bundle of the target backend. Sets that are each valid can still be incompatible with each other.
+## Commands
+
+- Run things through `make`, which sets the right toolchain, features and flags. Tests use the stable toolchain from `rust-toolchain.toml`; fmt, clippy and docs use the nightly named in `nightly-toolchain.txt` (`make install_rs_check_toolchain`). Plain `cargo fmt` / `cargo clippy` on stable will not match CI.
+- `tfhe`'s default features enable no layer, so a bare `cargo build -p tfhe` or `cargo test -p tfhe` compiles almost nothing. Always pass features.
+- Checks before pushing: `make fpcc` is the fast subset (formatting, typos, doc checks; no clippy). `make pcc` is the full set CI runs and is slow; prefer the per-layer target for what you touched (`make clippy_core`, `clippy_shortint`, `clippy_integer`, …). `make conformance` rewrites files (formatting and newlines).
+- Clippy runs with `-D warnings` over several feature combinations per layer. Code behind `cfg(feature = ...)` is only checked by the matching make target.
+
+### Running tests
+
+The shortint, integer and high-level API suites take hours and many GB of RAM. Never run a whole suite to validate a change; run one test with the features of its layer:
+
+```bash
+RUSTFLAGS="-C target-cpu=native" cargo test --profile devo \
+  --features=integer,internal-keycache -p tfhe -- \
+  integer::block_decomposition::tests::test_bit_block_decomposer
+```
+
+- Take the feature list from the layer's `test_*` target in the Makefile (`test_core_crypto`, `test_shortint`, `test_integer`, `test_high_level_api`, …).
+- `--profile devo` is optimized without LTO and compiles much faster than the Makefile default (`release`, fat LTO). Equivalent: `make test_integer CARGO_PROFILE=devo`.
+- Most shortint/integer tests are generated per parameter set by `create_parameterized_test!`; filter on the function name to run every variant, or on the full generated name for one.
+- `NIGHTLY_TESTS` selects a parameter set and has nothing to do with the nightly toolchain.
+- `.lfsconfig` disables automatic Git LFS fetching. Test data is pulled by `make pull_*` targets (`pull_backward_compat_data`, `pull_test_vectors`, …).
+
+### GPU code without a GPU
+
+`DOCS_RS=1` makes the CUDA build scripts skip the real CUDA build, so GPU code can be type-checked and linted without a CUDA toolchain or device:
+
+```bash
+DOCS_RS=1 make clippy_gpu
+```
+
+This only checks that the code compiles and lints; it cannot run GPU code. Code behind `cfg(feature = "gpu")` is not seen by a non-GPU build, so lint it this way whenever you touch it.
 
 ## Serialization and backward compatibility
 
@@ -93,7 +106,18 @@ Serialized data from past releases must stay readable. This is the most common s
 - Renaming a type that implements `Named` is a compatibility break.
 - New versioned types or versions need historical test data: `utils/tfhe-backward-compat-data/README.md`. Generate it from the shared small `INSECURE_*` parameter sets in that crate, not from production parameters: the data is stored in Git LFS and production keys add gigabytes.
 
-## Conventions enforced by CI
+## Security rules
+
+- **Deserialized data is untrusted.** Data coming from outside is expected to go through `safe_deserialize_conformant` (size limit plus conformance check against the expected parameters; `safe_deserialize` only applies the size limit) before use. Code that runs on deserialized data before conformance (custom `Deserialize` impls, `Upgrade` impls) and conformance itself must not panic or allocate based on attacker-controlled sizes.
+- Avoid `unwrap`, `expect` and indexing on values derived from external input; return errors instead.
+
+## Code style
+
+- Match the surrounding code: naming, comment density, module structure. When an established in-repo pattern exists for a situation, copy it rather than inventing a variant. When you introduce a new helper or constant, replace every existing occurrence it covers instead of leaving mixed conventions.
+- Use the narrowest visibility that works: no modifier if only the module and its descendants use an item, then `pub(super)`, `pub(in path)`, and `pub(crate)` only for real crate-wide use.
+- Comments must make sense on their own, without the conversation or PR context that produced them. Keep them short; link to the issue when documenting a workaround. Do not add comments that only restate what a well-named standard API does.
+
+## Conventions
 
 - Commit messages are checked on every commit of a PR by `.github/workflows/check_commit.yml`: conventional format with a restricted type list (`ci` and `build` are not accepted; use `chore(ci)`), a line-length limit, and signed commits. Mark breaking changes, including serialization breaks, with `!`. Rebase on `main`; no merge commits.
 - PRs containing AI-generated code must say so in the description and be human-reviewed (`CONTRIBUTION_GUIDELINES.md`). Other parts of that file lag behind the Makefile.
