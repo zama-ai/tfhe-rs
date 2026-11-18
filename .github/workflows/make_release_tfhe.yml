@@ -65,6 +65,7 @@ jobs:
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   make-release-js:
+    environment: release
     name: make_release_tfhe/make-release-js
     needs: make-release
     if: ${{ always() && needs.make-release.result != 'failure' }}
