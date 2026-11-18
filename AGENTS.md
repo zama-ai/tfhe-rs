@@ -23,7 +23,7 @@ Some crates under `apps/` and `utils/` are excluded from the workspace and have 
 
 ### Layers of the `tfhe` crate
 
-Each layer is a module in `tfhe/src/` behind a Cargo feature of the same name, built only on the layers below it:
+Each layer is a module in `tfhe/src/`, built only on the layers below it. `core_crypto` is always compiled. The other layers need a Cargo feature: `boolean`, `shortint`, `integer`, and `high_level_api` comes with `integer`.
 
 | Layer | Works on | Responsibility |
 |---|---|---|
@@ -36,9 +36,9 @@ Alongside the layers: `strings/` (on `integer`), `zk/`, `transciphering/`, and t
 
 Things each layer expects that are easy to miss:
 
-- **shortint** ciphertexts carry a `Degree` (bound on the plaintext value) and a `NoiseLevel`. Every operation must update both; getting them wrong produces silently incorrect results rather than errors.
+- **shortint** ciphertexts carry a `Degree` (bound on the plaintext value) and a `NoiseLevel`. Every operation must update both; getting them wrong produces silently incorrect results rather than errors. The degree must stay within the server key's `max_degree` (`MaxDegree::validate`). Set the noise level with `set_noise_level`, which takes the server key's `max_noise_level` and checks it only in tests and with the `noise-asserts` feature.
 - **shortint** in code that supports more than one atomic pattern, take the `AtomicPatternKind` from the key or the parameters. Build `Standard` from a PBS order only in types or paths that support only the standard pattern.
-- **integer** `unchecked_*` operations assume the input blocks have room in their carries; the unprefixed operations clean carries first and return clean outputs. Clean means empty carries and nominal noise (`is_clean()`), so a shortcut that skips the bootstrap must still guarantee both.
+- **integer** `unchecked_*` operations assume the input blocks have room in their carries; the default arithmetic operations (no prefix, e.g. `add_parallelized`) clean carries first and return clean outputs. Clean means empty carries and noise at most nominal (`is_clean()`), so a shortcut that skips the bootstrap must still guarantee both.
 - **integer** to split a clear scalar into a fixed number of blocks, use `BlockDecomposer::with_block_count`. It sign-extends signed values; padding with zeros gives wrong results for negative numbers.
 - **high_level_api** keeps the server key in a thread-local, so `set_server_key` is needed on every thread. Operations dispatch by matching on `InternalServerKey` (CPU, CUDA, HPU): a new operation needs an arm for each backend.
 - **high_level_api** errors name the public operation and the `Fhe*` types, not types from lower layers.
@@ -58,7 +58,7 @@ Changes to the CUDA crates are also subject to semver and version-bump checks in
 
 - New FFI interfaces take key parameters through `params_ffi()`, not as separate `u32` arguments for dimension, level or base log.
 - Allocate reusable workspace in `scratch_*` and release it in the matching `cleanup_*`. `make semgrep_and_lint_gpu_code` checks the pairing.
-- In `integer`, GPU algorithms go in `integer/gpu/`. CPU algorithm modules get no `cfg(feature = "gpu")` gates.
+- In `integer`, GPU algorithms go in `integer/gpu/`. CPU algorithm modules get no `cfg(feature = "gpu")` gates; shared test modules can have them.
 
 ### Parameters
 
@@ -73,8 +73,8 @@ Changes to the CUDA crates are also subject to semver and version-bump checks in
 ## Commands
 
 - Run things through `make`, which sets the right toolchain, features and flags. Tests use the stable toolchain from `rust-toolchain.toml`; fmt, clippy and docs use the nightly named in `nightly-toolchain.txt` (`make install_rs_check_toolchain`). Plain `cargo fmt` / `cargo clippy` on stable will not match CI.
-- `tfhe`'s default features enable no layer, so a bare `cargo build -p tfhe` or `cargo test -p tfhe` compiles almost nothing. Always pass features.
-- Checks before pushing: `make fpcc` is the fast subset (formatting, typos, doc checks; no clippy). `make pcc` is the full set CI runs and is slow; prefer the per-layer target for what you touched (`make clippy_core`, `clippy_shortint`, `clippy_integer`, …). `make conformance` rewrites files (formatting and newlines).
+- `tfhe`'s default features build only `core_crypto`. For the other layers, pass their feature (`shortint`, `integer`, …).
+- Checks before pushing: `make fpcc` is the fast subset (formatting, typos, doc checks; no clippy). `make pcc` is the full set CI runs and is slow; prefer the per-layer target for what you touched (`make clippy_core`, `clippy_shortint`, `clippy_integer`, …). `make conformance` rewrites files (formatting and newlines). `DOCS_RS=1 make clippy_gpu` is a broad clippy check: it covers `boolean`, `shortint`, `integer`, `zk-pok` and GPU code with all targets, and it needs no CUDA install.
 - Clippy runs with `-D warnings` over several feature combinations per layer. Code behind `cfg(feature = ...)` is only checked by the matching make target.
 
 ### Running tests
@@ -84,13 +84,13 @@ The shortint, integer and high-level API suites take hours and many GB of RAM. N
 ```bash
 RUSTFLAGS="-C target-cpu=native" cargo test --profile devo \
   --features=integer,internal-keycache -p tfhe -- \
-  integer::block_decomposition::tests::test_bit_block_decomposer
+  integer::block_decomposition::tests::test_bit_block_decomposer --exact
 ```
 
 - Take the feature list from the layer's `test_*` target in the Makefile (`test_core_crypto`, `test_shortint`, `test_integer`, `test_high_level_api`, …).
-- `--profile devo` is optimized without LTO and compiles much faster than the Makefile default (`release`, fat LTO). Equivalent: `make test_integer CARGO_PROFILE=devo`.
+- `--profile devo` is optimized without LTO and compiles much faster than the Makefile default (`release`, fat LTO). `make test_integer CARGO_PROFILE=devo` runs the whole integer suite with this profile.
 - Most shortint/integer tests are generated per parameter set by `create_parameterized_test!`; filter on the function name to run every variant, or on the full generated name for one.
-- `NIGHTLY_TESTS` selects a parameter set and has nothing to do with the nightly toolchain.
+- `FAST_TESTS` and `NIGHTLY_TESTS` select subsets of tests in the CI test scripts (`scripts/test_filtering.py`). `NIGHTLY_TESTS` has nothing to do with the nightly toolchain.
 - `.lfsconfig` disables automatic Git LFS fetching. Test data is pulled by `make pull_*` targets (`pull_backward_compat_data`, `pull_test_vectors`, …).
 - Investigate each test failure. Do not call a failure "pre-existing" or "unrelated" until you have followed the call chain and found the cause.
 - Test the success path, not only the error paths.
@@ -109,7 +109,7 @@ This only checks that the code compiles and lints; it cannot run GPU code. Code 
 
 Serialized data from past releases must stay readable. This is the most common source of CI failures on otherwise correct changes.
 
-- Any type deriving `Serialize`/`Deserialize` must also derive `Versionize`, with a dispatch enum in the layer's `backward_compatibility/` module. Custom lints enforce this (`make tfhe_lints`).
+- Any type deriving `Serialize`/`Deserialize` must also derive `Versionize`, with a dispatch enum in the layer's `backward_compatibility/` module. The `serialize_without_versionize` lint (`make tfhe_lints`) checks only that `Serialize` types implement `Versionize`.
 - Changing the layout of a versioned type (fields or variants added, removed, retyped, reordered or renamed) requires keeping the old layout as a versioned snapshot, appending a variant to the dispatch enum (never reorder or rename existing ones) and implementing `Upgrade`. Procedure: `utils/tfhe-versionable/README.md`.
 - Renaming a type that implements `Named` is a compatibility break.
 - New versioned types or versions need historical test data: `utils/tfhe-backward-compat-data/README.md`. Generate it from the shared small `INSECURE_*` parameter sets in that crate, not from production parameters: the data is stored in Git LFS and production keys add gigabytes.
@@ -119,7 +119,7 @@ Serialized data from past releases must stay readable. This is the most common s
 - **Deserialized data is untrusted.** Data coming from outside is expected to go through `safe_deserialize_conformant` (size limit plus conformance check against the expected parameters) before use; `safe_deserialize` skips the conformance check. Code that runs on deserialized data before conformance (custom `Deserialize` impls, `Upgrade` impls) and conformance itself must not panic or allocate based on attacker-controlled sizes.
 - Avoid `unwrap`, `expect` and indexing on values derived from external input; return errors instead.
 - Validate sizes with checked arithmetic before allocations and FFI conversions. Return an error for invalid external data. Use assertions only for internal invariants and caller preconditions.
-- For a fix on input handling, the commit message, PR text, comments, test names and new panic or error messages describe only the code change, not the effect of the bug. Report the details through the process in `SECURITY.md`. If you are not sure, show the text to the user first.
+- For a fix where external input can cause a panic, an abort or a GPU fault, the commit message, PR text, comments, test names and new panic or error messages describe only the code change, not the effect of the bug. Report the details through the process in `SECURITY.md`. If you are not sure, show the text to the user first.
 
 ## Code style
 
@@ -135,5 +135,5 @@ Serialized data from past releases must stay readable. This is the most common s
 - Every Rust code block in `tfhe/docs/**/*.md` must be registered with `doctest!` in `tfhe/src/test_user_docs.rs`. Doc file and directory names use dashes, not underscores.
 - No call to the `dbg` macro in any tracked file. The check is a plain text search, so do not write the macro with its `!` in comments or docs either. `Cargo.lock` must be up to date.
 - CI decides which test workflows run from hand-written path filters in `.github/workflows/`. When you change a `make test_*` target, its launcher script or what it depends on, update the filters of the workflows that run it.
-- Each published crate must build alone from its crates.io package: no relative paths to sibling crates. The CUDA build scripts share paths through `links` and `DEP_*` variables.
+- Each published crate must build from its crates.io package alone. Build scripts and CMake files must not read files from sibling crates. The CUDA build scripts pass shared paths through `links` and `DEP_*` variables.
 - Files starting with an "autogenerated" header (e.g. in `core_crypto/commons/noise_formulas/`) must not be edited by hand.
