@@ -1135,13 +1135,20 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
   VERIFICATION_TRACE_HOOK(auto vt_meta_in = verification::pbs_meta_in<Torus>(
                               streams.stream(0), streams.gpu_index(0),
                               lwe_array_in, lut, num_radix_blocks));
-  for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-    auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
-    lwe_array_out->degrees[i] = lut->degrees[degrees_index];
+  // Outputs are laid out function by function: output i is function
+  // i / num_radix_blocks applied to block i % num_radix_blocks. Each LUT stores
+  // num_many_lut degrees, one per function (int_radix_lut::get_degree).
+  for (uint32_t i = 0; i < num_many_lut * num_radix_blocks; i++) {
+    uint32_t block = i % num_radix_blocks;
+    uint32_t function = i / num_radix_blocks;
+    auto lut_index = lut->h_lut_indexes[block];
+    lwe_array_out->degrees[i] =
+        lut->degrees[num_many_lut * lut_index + function];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
                       params.carry_modulus);
   }
+
   VERIFICATION_TRACE_HOOK(verification::record_programmable_bootstrap<Torus>(
       __func__, streams.stream(0), streams.gpu_index(0), lwe_array_out,
       lwe_array_in, lut, num_radix_blocks, num_many_lut, lut_stride,
