@@ -446,6 +446,64 @@ impl CudaServerKey {
         (ct_res, ct_overflowed)
     }
 
+    /// Computes `lhs + rhs + input_carry` and returns the result together with the carry out of
+    /// the last block, i.e. runs the CUDA `add_and_propagate_single_carry` path with
+    /// `requested_flag = Carry` and `uses_carry = 1`.
+    ///
+    /// Hidden: exposed only so standalone apps can drive this exact backend path; it is not part
+    /// of the stable API. Inputs are not cleaned, so their block carries must already be empty.
+    #[doc(hidden)]
+    pub fn unchecked_unsigned_add_with_input_carry_and_carry_flag(
+        &self,
+        lhs: &CudaUnsignedRadixCiphertext,
+        rhs: &CudaUnsignedRadixCiphertext,
+        input_carry: &CudaBooleanBlock,
+        streams: &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock) {
+        assert_eq!(
+            lhs.as_ref().d_blocks.lwe_ciphertext_count().0,
+            rhs.as_ref().d_blocks.lwe_ciphertext_count().0,
+            "lhs and rhs must have the same number of blocks ({} vs {})",
+            lhs.as_ref().d_blocks.lwe_ciphertext_count().0,
+            rhs.as_ref().d_blocks.lwe_ciphertext_count().0
+        );
+        assert!(
+            lhs.as_ref().d_blocks.lwe_ciphertext_count().0 > 0,
+            "inputs cannot be empty"
+        );
+        assert!(
+            lhs.block_carries_are_empty() && rhs.block_carries_are_empty(),
+            "input block carries must be empty"
+        );
+
+        let mut ct_res = lhs.duplicate(streams);
+        let mut carry_out: CudaUnsignedRadixCiphertext = self
+            .add_and_propagate_single_carry_assign(
+                &mut ct_res,
+                rhs,
+                streams,
+                Some(input_carry),
+                OutputFlag::Carry,
+            );
+
+        // Same noise bookkeeping as `unchecked_unsigned_overflowing_add`, also accounting for the
+        // input carry: the flag stays noiseless only if every input it depends on is.
+        let all_inputs_noiseless = [lhs.as_ref(), rhs.as_ref(), input_carry.0.as_ref()]
+            .iter()
+            .all(|ct| ct.info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO);
+        let noise_level = if all_inputs_noiseless {
+            NoiseLevel::ZERO
+        } else {
+            NoiseLevel::NOMINAL
+        };
+        carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(noise_level);
+
+        (
+            ct_res,
+            CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext),
+        )
+    }
+
     pub(crate) fn unchecked_signed_overflowing_add(
         &self,
         lhs: &CudaSignedRadixCiphertext,

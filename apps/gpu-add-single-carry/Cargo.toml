@@ -1,0 +1,11 @@
+[package]
+name = "tfhe-gpu-add-single-carry"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Excluded from the root workspace (like apps/trivium): it needs the `gpu` feature,
+# hence nvcc, which would break CPU-only workspace builds.
+
+[dependencies]
+tfhe = { path = "../../tfhe", features = ["integer", "gpu"] }

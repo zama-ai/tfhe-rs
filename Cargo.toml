@@ -42,6 +42,7 @@ exclude = [
     "apps/trivium",
     "utils/tfhe-forward-compat-matrices",
     "apps/princev2",
+    "apps/gpu-add-single-carry",
 ]
 
 [workspace.package]

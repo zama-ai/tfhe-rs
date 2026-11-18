@@ -16,6 +16,7 @@
 #include "pbs/pbs_128_utilities.h"
 #include "polynomial/functions.cuh"
 #include "utils/helper.cuh"
+#include "utils/helper_debug.cuh"
 #include "utils/helper_multi_gpu.cuh"
 #include "verification/trace.h"
 #include <algorithm>
@@ -1145,6 +1146,30 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
       __func__, streams.stream(0), streams.gpu_index(0), lwe_array_out,
       lwe_array_in, lut, num_radix_blocks, num_many_lut, lut_stride,
       std::move(vt_meta_in)));
+
+  // DEBUG: dump output blocks. Only meaningful for trivial inputs: a PBS on a
+  // zero-mask LWE keeps the mask zero, so body / delta is the plaintext
+  // (padding-bit encoding, delta = 2^(nbits-1) / (message * carry modulus)).
+  {
+    auto nbits = sizeof(Torus) * 8;
+    Torus delta = (static_cast<Torus>(1) << (nbits - 1)) /
+                  (params.message_modulus * params.carry_modulus);
+    // print_body synchronizes the whole device before and after its kernel,
+    // so the async KS/PBS above have completed when it reads the bodies.
+    print_body<Torus>(
+        "apply_many_lut out (body, value)", (Torus *)lwe_array_out->ptr,
+        lwe_array_out->num_radix_blocks, lwe_array_out->lwe_dimension, delta);
+    printf("apply_many_lut out degrees: ");
+    for (uint32_t i = 0; i < lwe_array_out->num_radix_blocks; i++)
+      printf("%lu, ", (unsigned long)lwe_array_out->degrees[i]);
+    printf("\napply_many_lut out noise levels: ");
+    for (uint32_t i = 0; i < lwe_array_out->num_radix_blocks; i++)
+      printf("%lu, ", (unsigned long)lwe_array_out->noise_levels[i]);
+    printf("\n");
+    // C stdio is fully buffered when redirected; flush so these lines are not
+    // reordered against Rust's stdout.
+    fflush(stdout);
+  }
   POP_RANGE()
 }
 
