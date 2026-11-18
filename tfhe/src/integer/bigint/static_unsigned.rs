@@ -1,4 +1,6 @@
-use crate::core_crypto::prelude::{CastFrom, Numeric, OverflowingAdd, UnsignedNumeric};
+use crate::core_crypto::prelude::{
+    CastFrom, Numeric, OverflowingAdd, UnsignedMarker, UnsignedNumeric,
+};
 use std::ops::ShlAssign;
 
 const fn one_for_unsigned_u64_based_integer<const N: usize>() -> [u64; N] {
@@ -479,6 +481,8 @@ impl<const N: usize> Numeric for StaticUnsignedBigInt<N> {
     const TWO: Self = Self::TWO;
 
     const MAX: Self = Self::MAX;
+
+    type Signedness = UnsignedMarker;
 }
 
 impl<const N: usize> UnsignedNumeric for StaticUnsignedBigInt<N> {

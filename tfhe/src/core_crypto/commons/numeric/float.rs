@@ -1,4 +1,4 @@
-use super::Numeric;
+use super::{Numeric, SignedMarker};
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign,
 };
@@ -66,6 +66,7 @@ macro_rules! implement {
             const ONE: Self = 1.;
             const TWO: Self = 2.;
             const MAX: Self = <$Type>::MAX;
+            type Signedness = SignedMarker;
         }
         impl FloatingPoint for $Type {
             const MANTISSA_DIGITS: usize = $Type::MANTISSA_DIGITS as usize;
