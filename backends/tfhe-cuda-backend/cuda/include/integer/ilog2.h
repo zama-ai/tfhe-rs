@@ -270,7 +270,7 @@ template <typename Torus> struct int_ilog2_buffer {
         allocate_gpu_memory);
 
     this->final_propagate_mem = new int_fullprop_buffer<Torus>(
-        streams, params, allocate_gpu_memory, size_tracker);
+        streams, params, counter_num_blocks, allocate_gpu_memory, size_tracker);
   }
 
   void release(CudaStreams streams) {

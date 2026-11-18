@@ -648,6 +648,7 @@ unsafe extern "C" {
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
         ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        num_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
         allocate_gpu_memory: bool,
@@ -660,7 +661,6 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
-        num_blocks: u32,
     );
 }
 unsafe extern "C" {

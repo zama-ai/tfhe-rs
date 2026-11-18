@@ -202,6 +202,7 @@ impl CudaServerKey {
                 streams,
                 &self.bootstrapping_key,
                 computing_ks_key.params_ffi(),
+                lwe_ciphertext_count.0 as u32,
                 self.message_modulus,
                 self.carry_modulus,
             )

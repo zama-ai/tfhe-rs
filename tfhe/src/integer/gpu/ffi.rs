@@ -1931,6 +1931,7 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger>(
         std::ptr::addr_of_mut!(mem_ptr),
         bsk_params,
         ksk_params,
+        num_blocks,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         true,
@@ -1941,7 +1942,6 @@ pub(crate) unsafe fn cuda_backend_full_propagate_assign<T: UnsignedInteger>(
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bsk.ptrs().as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_full_propagation_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_lwe_input, &cuda_ffi_radix_lwe_input);
@@ -1952,6 +1952,7 @@ pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
     streams: &CudaStreams,
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
 ) -> u64 {
@@ -1964,6 +1965,7 @@ pub(crate) fn cuda_backend_get_full_propagate_assign_size_on_gpu(
             std::ptr::addr_of_mut!(mem_ptr),
             bsk_params,
             ksk_params,
+            num_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             false,
