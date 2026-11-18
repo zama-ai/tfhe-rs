@@ -407,8 +407,6 @@ __global__ void device_radix_cumulative_sum_in_groups(Torus *dest, Torus *src,
   }
 }
 
-/// This function does not update noise level/degree at this stage,
-/// it can be added later
 template <typename Torus>
 __host__ void host_radix_cumulative_sum_in_groups(cudaStream_t stream,
                                                   uint32_t gpu_index,
@@ -443,7 +441,14 @@ __host__ void host_radix_cumulative_sum_in_groups(cudaStream_t stream,
           (Torus *)dest->ptr, (Torus *)src->ptr, num_radix_blocks, lwe_size,
           group_size);
   check_cuda_error(cudaGetLastError());
-
+  // Running sums of the notes, restarting at each group. Works in place
+  // (dest == src): src[i] is read before dest[i] is written and not read again.
+  for (uint32_t i = 0; i < num_radix_blocks; i++) {
+    bool first = i % group_size == 0;
+    dest->degrees[i] = src->degrees[i] + (first ? 0 : dest->degrees[i - 1]);
+    dest->noise_levels[i] =
+        src->noise_levels[i] + (first ? 0 : dest->noise_levels[i - 1]);
+  }
   // Degrees/noise levels of dest are NOT updated by this function, so the
   // metadata printed here is whatever dest held before the call.
   debug_print_radix<Torus>("cumulative_sum_in_groups after (dest)", dest,
