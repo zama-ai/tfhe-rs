@@ -895,6 +895,11 @@ private:
     generate_lut_indexes<InputTorus>(streams, generator, get_lut_indexes(0, 0),
                                      num_indexes, num_luts, index_buffer,
                                      gpu_memory_allocated);
+    // The host reads h_lut_indexes to set the output degrees after a PBS, so it
+    // must match the GPU indexes even when they were generated in h_buffer.
+    if (index_buffer != h_lut_indexes)
+      memcpy(h_lut_indexes, index_buffer,
+             safe_mul_sizeof<InputTorus>(num_indexes));
   }
 
   /// Sets all LUT indexes to a constant value on both CPU and GPU.
