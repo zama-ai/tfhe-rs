@@ -1891,7 +1891,7 @@ mod zk_pok_tests {
 
     /// Test a compact list encryption proven with the v1 zk scheme
     #[test]
-    fn test_zkv1_compact_ciphertext_list_encryption_ci_run_filter() {
+    fn test_zkv1_compact_ciphertext_list_encryption() {
         let pke_params = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
         let ksk_params =
             TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
