@@ -7,7 +7,10 @@ Answers the two questions asked before each release:
 
 Everything is derived, nothing is hand-maintained: the crate list, versions and
 the dependency graph come from `cargo metadata`, releases from the git tags,
-published versions from the crates.io API.
+published versions from the index of the registry, crates.io unless told
+otherwise.
+
+scripts/release_publish.py builds on this report to publish the crates.
 """
 
 import argparse
@@ -23,16 +26,17 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import repeat
 from pathlib import Path
 
+# The repository holding this script, see use_repo() to work on another one.
 REPO = Path(__file__).resolve().parent.parent
-API_URL = "https://crates.io/api/v1/crates"
-# crates.io asks API clients to identify themselves.
+# The name cargo gives to crates.io, and its index: the registry of a release
+# unless --registry and --index name another one, as the release test run does.
+CRATES_IO = "crates-io"
+CRATES_IO_INDEX = "https://index.crates.io"
+# crates.io asks its clients to identify themselves.
 USER_AGENT = "tfhe-rs release_status (https://github.com/zama-ai/tfhe-rs)"
 
 # Release tags are named `<package name>-<version>`, except for the main crate.
 TAG_PREFIXES = {"tfhe": "tfhe-rs"}
-
-# Crates released by a single workflow dispatch, hence from one of their tags.
-SHARED_TAGS = [{"tfhe-versionable", "tfhe-versionable-derive"}]
 
 MERMAID_HEADER = """---
 config:
@@ -49,12 +53,53 @@ TAG = "TAG"
 PUBLISH = "PUBLISH"
 MISMATCH = "MISMATCH"
 
-# Why a status other than PUBLISH stops a release; MISMATCH carries its own detail.
-READINESS = {
-    OK: "this version is already on crates.io",
-    BUMP: "this version is already on crates.io and the crate changed since",
-    TAG: "no tag names this version",
-}
+
+def use_repo(path):
+    """Work on the repository at `path` rather than on the one holding this script."""
+    global REPO
+    REPO = Path(path).resolve()
+
+
+class Registry:
+    """The registry the crates are released to."""
+
+    def __init__(self, name=CRATES_IO, index=None):
+        if name != CRATES_IO and not index:
+            sys.exit(f"--index is required to release to {name}")
+        # What cargo calls it, as in `cargo publish --registry`.
+        self.name = name
+        # cargo configuration files write the same URL with a sparse+ prefix.
+        self.index = (index or CRATES_IO_INDEX).removeprefix("sparse+").rstrip("/")
+        # What to call it in a message.
+        self.label = "crates.io" if name == CRATES_IO else name
+
+
+def add_repo_arguments(parser):
+    """Arguments choosing what is released and where to, see open_repo()."""
+    parser.add_argument(
+        "--repo",
+        metavar="PATH",
+        help="repository to work on, defaults to the one holding this script",
+    )
+    parser.add_argument(
+        "--registry",
+        default=CRATES_IO,
+        metavar="NAME",
+        help="registry the crates are released to, by the name cargo knows it by,"
+        " defaults to crates.io",
+    )
+    parser.add_argument(
+        "--index",
+        metavar="URL",
+        help="sparse index of --registry, required unless it is crates.io",
+    )
+
+
+def open_repo(args):
+    """Apply the arguments of add_repo_arguments(), return the registry they name."""
+    if args.repo:
+        use_repo(args.repo)
+    return Registry(args.registry, args.index)
 
 
 def git(*args):
@@ -90,16 +135,17 @@ def release_line(version):
     return version_key(version)[0][:2]
 
 
-def release_crates(packages):
-    """Crates this repo releases, which is every package cargo may publish."""
+def release_crates(packages, registry=CRATES_IO):
+    """Crates this repo releases: every package cargo may publish to `registry`."""
     return sorted(
         name
         for name, p in packages.items()
-        if p["publish"] is None or p["publish"] is True or "crates-io" in p["publish"]
+        if p["publish"] is None or p["publish"] is True or registry in p["publish"]
     )
 
 
-def workspace_packages():
+def cargo_metadata():
+    """What cargo knows about the workspace: its packages and its directories."""
     # --locked keeps this script read-only: without it a stale Cargo.lock would be
     # rewritten just by asking for the crate versions.
     result = subprocess.run(
@@ -113,22 +159,65 @@ def workspace_packages():
             f"{result.stderr.strip()}\n"
             "If Cargo.lock is out of date, run `make update_cargo_lock`."
         )
-    metadata = json.loads(result.stdout)
+    return json.loads(result.stdout)
+
+
+def workspace_packages(metadata=None):
+    metadata = metadata or cargo_metadata()
     return {package["name"]: package for package in metadata["packages"]}
 
 
-def published_versions(name, context):
-    """Versions of `name` on crates.io."""
+def index_path(name):
+    """Path of the file listing the versions of crate `name` in a registry index."""
+    name = name.lower()
+    if len(name) <= 2:
+        return f"{len(name)}/{name}"
+    if len(name) == 3:
+        return f"3/{name[0]}/{name}"
+    return f"{name[:2]}/{name[2:4]}/{name}"
+
+
+def published_versions(name, index, context):
+    """Versions of `name` in the registry, each with the checksum of its crate file.
+
+    The index is what cargo itself reads, and all a registry is required to
+    serve. A yanked version is listed like any other: it cannot be published again.
+    """
     request = urllib.request.Request(
-        f"{API_URL}/{name}/versions", headers={"User-Agent": USER_AGENT}
+        f"{index}/{index_path(name)}", headers={"User-Agent": USER_AGENT}
     )
     try:
         body = urllib.request.urlopen(request, context=context, timeout=30).read()
     except urllib.error.HTTPError as error:
-        if error.code == 404:
-            return []
+        if error.code in (404, 410):
+            return {}
         raise
-    return [version["num"] for version in json.loads(body)["versions"]]
+    entries = (json.loads(line) for line in body.splitlines() if line.strip())
+    return {entry["vers"]: entry["cksum"] for entry in entries}
+
+
+def fetch_published(names, index):
+    """Published versions of each crate of `names`, see published_versions().
+
+    Raises OSError when the registry cannot be reached.
+    """
+    context = ssl.create_default_context()
+    # One connection per crate, so the fetches are worth overlapping.
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        versions = pool.map(published_versions, names, repeat(index), repeat(context))
+        return dict(zip(names, versions))
+
+
+def tag_commits():
+    """Commit each tag of the repository points at."""
+    # %(*objectname) is the commit of an annotated tag, empty for a lightweight
+    # one, whose %(objectname) is the commit itself.
+    refs = git(
+        "for-each-ref",
+        "--format=%(refname:short) %(*objectname) %(objectname)",
+        "refs/tags",
+    )
+    return {name: commits[0] for name, *commits in map(str.split, refs.splitlines())}
 
 
 def version_at(rev, manifest):
@@ -162,21 +251,9 @@ def fork_point():
     return f"{own[-1]}^"
 
 
-def check_release_tag(tag, names, packages):
-    """Check the release tag names the crate and version declared at this commit."""
-    for name in names:
-        version = packages[name]["version"]
-        released = {name}.union(*(g for g in SHARED_TAGS if name in g), set())
-        expected = {f"{TAG_PREFIXES.get(n, n)}-{version}" for n in released}
-        if tag not in expected:
-            sys.exit(
-                f"{tag} does not release {name},"
-                f" expected {' or '.join(sorted(expected))}"
-            )
-        print(f"{tag} releases {name} {version}")
-
-
-def crate_status(name, package, tags, published, base=None):
+def crate_status(name, package, tags, published, registry, base=None):
+    """Where crate `name` stands, given the commit of each tag of the repository
+    and the versions of the crate published to `registry`."""
     version = package["version"]
     manifest = str(Path(package["manifest_path"]).relative_to(REPO))
     directory = str(Path(manifest).parent)
@@ -219,7 +296,7 @@ def crate_status(name, package, tags, published, base=None):
         status = BUMP if changed else OK
     elif line_latest and version_key(version) < version_key(line_latest):
         status = MISMATCH
-        detail = f"manifest version is behind crates.io ({line_latest})"
+        detail = f"manifest version is behind {registry.label} ({line_latest})"
     elif tag:
         status = PUBLISH
         at_tag = version_at(tag, manifest)
@@ -239,14 +316,36 @@ def crate_status(name, package, tags, published, base=None):
         "crate": name,
         "version": version,
         "published": latest,
+        "is_published": version in published,
+        # Of the crate file the registry holds for this version, if any.
+        "checksum": published.get(version),
         "baseline_tag": baseline,
         "tag": tag or f"{prefix}-{version}",
         "tag_exists": tag is not None,
+        "tag_commit": tags[tag] if tag else None,
         "manifest": manifest,
         "changed_files": changed,
         "status": status,
         "detail": detail,
     }
+
+
+def crate_reports(names, packages, release, registry, base=None):
+    """Status of each crate of `names`, in the order they have to be published."""
+    tags = tag_commits()
+    try:
+        published = fetch_published(names, registry.index)
+    except OSError as error:
+        print(f"could not reach {registry.index}: {error}", file=sys.stderr)
+        sys.exit(2)
+    reports = []
+    for name in publish_order(names, packages):
+        report = crate_status(
+            name, packages[name], tags, published[name], registry, base
+        )
+        report["dependencies"] = release_dependencies(packages[name], release)
+        reports.append(report)
+    return reports
 
 
 def release_dependencies(package, names):
@@ -275,11 +374,11 @@ def publish_order(names, packages):
     return ordered
 
 
-def print_table(reports):
+def print_table(reports, registry):
     columns = [
         ("crate", lambda r: r["crate"]),
         ("manifest", lambda r: r["version"]),
-        ("crates.io", lambda r: r["published"] or "-"),
+        (registry.label, lambda r: r["published"] or "-"),
         ("baseline", lambda r: r["baseline_tag"] or "-"),
         (
             "changes",
@@ -294,11 +393,10 @@ def print_table(reports):
         print("  ".join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip())
 
 
-def print_actions(reports, show_files, brief=False):
+def print_actions(reports, registry, show_files, brief=False):
     by_status = {}
     for report in reports:
         by_status.setdefault(report["status"], []).append(report)
-    pending = {r["crate"] for r in reports if r["status"] in (TAG, PUBLISH)}
 
     for report in by_status.get(MISMATCH, []):
         print(f"\n!! {report['crate']}: {report['detail']}")
@@ -318,7 +416,7 @@ def print_actions(reports, show_files, brief=False):
         return
 
     if TAG in by_status:
-        print("\nBumped but not tagged, create the tags in this order:")
+        print("\nBumped but not tagged, tag the commit they are released from:")
         for report in by_status[TAG]:
             tag = report["tag"]
             print(
@@ -327,20 +425,24 @@ def print_actions(reports, show_files, brief=False):
             )
 
     if PUBLISH in by_status:
-        print("\nTagged but not on crates.io, release these in this order:")
+        print(f"\nTagged but not on {registry.label}:")
         for report in by_status[PUBLISH]:
-            print(f"  {report['crate']} from tag {report['tag']}")
-
-    for report in by_status.get(TAG, []) + by_status.get(PUBLISH, []):
-        blockers = sorted(pending & set(report["dependencies"]))
-        if blockers:
             print(
-                f"\nNote: publish {', '.join(blockers)} before {report['crate']};"
-                " cargo publish fails on a dependency that is not on crates.io yet."
+                f"  {report['crate']} {report['version']},"
+                f" tag {report['tag']} on commit {report['tag_commit'][:9]}"
             )
+        # A single run publishes the crates tagged on a commit, in dependency
+        # order: there is no order to follow by hand.
+        print(
+            "Run the make_release_tfhe workflow from one of the tags of a commit to"
+            " release every crate tagged on it,\n`make release_plan TAG=<tag>` shows"
+            " what that run would publish."
+        )
 
     if set(by_status) <= {OK}:
-        print("\nNothing to do: every released crate is up to date on crates.io.")
+        print(
+            f"\nNothing to do: every released crate is up to date on {registry.label}."
+        )
 
 
 def pruned_dependencies(names, packages):
@@ -381,12 +483,6 @@ def main():
         "--mermaid", action="store_true", help="print the release dependency graph"
     )
     parser.add_argument(
-        "--release-gate",
-        metavar="TAG",
-        help="gate a release: exit with 1 unless the selected crates are ready"
-        " to be released from TAG",
-    )
-    parser.add_argument(
         "--pr-gate",
         nargs="?",
         const="",
@@ -394,10 +490,12 @@ def main():
         help="gate a pull request: judge only what changed since REF, defaulting to"
         " the branch's fork point, and exit with 1 on a missing bump",
     )
+    add_repo_arguments(parser)
     args = parser.parse_args()
+    registry = open_repo(args)
 
     packages = workspace_packages()
-    release = release_crates(packages)
+    release = release_crates(packages, registry.name)
     names = [name for name in release if not args.crates or name in args.crates]
     unknown = set(args.crates or []) - set(release)
     if unknown:
@@ -407,52 +505,20 @@ def main():
         print_mermaid(release, packages)
         return 0
 
-    if args.release_gate:
-        # Offline, so a tag naming the wrong crate fails before any crates.io call.
-        check_release_tag(args.release_gate, names, packages)
-
-    tags = git("tag").split()
-    context = ssl.create_default_context()
     gate = args.pr_gate is not None
     base = (args.pr_gate or fork_point()) if gate else None
+    reports = crate_reports(names, packages, release, registry, base)
 
-    # One connection per crate, so the fetches are worth overlapping.
-    try:
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            versions = pool.map(published_versions, names, repeat(context))
-            fetched = dict(zip(names, versions))
-    except (urllib.error.URLError, ssl.SSLError) as error:
-        print(f"could not reach {API_URL}: {error}", file=sys.stderr)
-        return 2
-
-    reports = []
-    for name in publish_order(names, packages):
-        report = crate_status(name, packages[name], tags, fetched[name], base)
-        report["dependencies"] = release_dependencies(packages[name], release)
-        reports.append(report)
-
-    # Each gate accepts the states that answer its own question with a yes.
-    if args.release_gate:
-        # A crate ready to release is tagged at a version crates.io does not have yet.
-        allowed = {PUBLISH}
-    elif gate:
-        # TAG means the bump was made, which is what the gate asked for.
-        allowed = {OK, TAG, PUBLISH}
-    else:
-        allowed = None
+    # TAG means the bump was made, which is what the gate asked for. Whether a
+    # crate is ready to be released is for scripts/release_publish.py to tell.
+    allowed = {OK, TAG, PUBLISH} if gate else None
     rejected = [r for r in reports if allowed and r["status"] not in allowed]
 
     if args.json:
         print(json.dumps(reports, indent=2))
     else:
-        print_table(reports)
-        print_actions(reports, args.files, gate or bool(args.release_gate))
-        for report in rejected if args.release_gate else []:
-            why = report["detail"] or READINESS[report["status"]]
-            print(
-                f"\n{report['crate']} is not ready to release"
-                f" from {args.release_gate}: {why}"
-            )
+        print_table(reports, registry)
+        print_actions(reports, registry, args.files, gate)
 
     return 1 if rejected else 0
 

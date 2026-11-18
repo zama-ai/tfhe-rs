@@ -1,83 +1,109 @@
-# Publish new release of tfhe-rs on various platform.
+# Publish a release of tfhe-rs: the crates on crates.io, then the JS packages on npmjs.com.
+#
+# Run it from a release tag. It publishes, with a single `cargo publish`, every crate whose release
+# tag points at the tagged commit and whose version is not on crates.io yet, then the JS packages
+# when the tfhe crate is one of them. Running it again resumes a release that stopped half way.
+#
+# Code that is not ours runs when crates and packages are built: the build scripts and proc-macros
+# of the dependencies. The jobs building never have the permission to authenticate on a registry,
+# the jobs publishing build nothing.
+#
+# See RELEASING.md.
 name: make_release_tfhe
+
+run-name: ${{ inputs.dry_run && 'Dry-run of a release' || 'Release' }} from ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Dry-run"
+        description: "Dry-run: build and check everything, publish nothing"
         type: boolean
         default: true
-      push_to_crates:
-        description: "Push to crate"
-        type: boolean
-        default: true
-      push_web_package:
-        description: "Push web js package"
-        type: boolean
-        default: true
-      push_web_compat_package:
-        description: "Push web compat (cross-origin) js package"
-        type: boolean
-        default: true
-      push_web_client_package:
-        description: "Push web client js package"
-        type: boolean
-        default: true
-      push_web_compat_client_package:
-        description: "Push web compat (cross-origin) client js package"
-        type: boolean
-        default: true
-      push_node_package:
-        description: "Push node js package"
-        type: boolean
-        default: true
-      npm_latest_tag:
-        description: "Set NPM tag as latest"
-        type: boolean
-        default: false
 
 env:
-  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  NPM_TAG: ""
-  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
-  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  CARGO_TERM_COLOR: always
+  # What to publish is read from the release tags of the commit. Without a tag, a dry-run rehearses
+  # the release of every crate that is not on crates.io yet.
+  TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+  REHEARSAL: ${{ github.ref_type != 'tag' && '1' || '' }}
 
 permissions: {}
 
-# zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
+# One release at a time, and never interrupted: a cancelled upload leaves a release half done.
+concurrency:
+  group: make_release_tfhe
+  cancel-in-progress: false
 
 jobs:
-  make-release:
-    name: make_release_tfhe/make-release
-    uses: ./.github/workflows/make_release_common.yml
-    if: ${{ inputs.push_to_crates }}
-    with:
-      package-name: "tfhe"
-      dry-run: ${{ inputs.dry_run }}
-    permissions:
-      actions: read # Needed to detect the GitHub Actions environment
-      id-token: write # Needed to create the provenance via GitHub OIDC
-      contents: write # Needed to upload assets/artifacts
+  verify-triggering-actor:
+    name: make_release_tfhe/verify-triggering-actor
+    uses: ./.github/workflows/verify_triggering_actor.yml
     secrets:
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
       ALLOWED_TEAM: ${{ secrets.RELEASE_TEAM }}
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
-  make-release-js:
-    name: make_release_tfhe/make-release-js
-    needs: make-release
-    if: ${{ always() && needs.make-release.result != 'failure' }}
+  plan:
+    name: make_release_tfhe/plan
+    needs: verify-triggering-actor
     runs-on: ubuntu-latest
-    # For provenance of npmjs publish
     permissions:
-      contents: read
-      id-token: write # also needed for OIDC token exchange on crates.io and npmjs.com
+      contents: read # Needed to checkout the repository
+    outputs:
+      # JSON lists of crate names: to publish, and released from this commit by this run or an earlier one
+      publish: ${{ steps.plan.outputs.publish }}
+      released: ${{ steps.plan.outputs.released }}
+    steps:
+      - name: Publish from a release tag only
+        if: ${{ !inputs.dry_run && github.ref_type != 'tag' }}
+        run: |
+          echo "::error::Run the release from a release tag, ${GITHUB_REF} can only be used for a dry-run"
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The release tags, and the history the crates are compared with.
+          fetch-depth: 0
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
+      - name: Plan the release
+        id: plan
+        run: make release_plan TAG="${TAG}" REHEARSAL="${REHEARSAL}"
+
+  # The CUDA backends are built when they are verified, which takes a machine with the CUDA toolkit.
+  setup-instance:
+    name: make_release_tfhe/setup-instance
+    needs: plan
+    if: ${{ needs.plan.outputs.publish != '[]' }}
+    uses: ./.github/workflows/slab_setup.yml
+    with:
+      backend: aws
+      profile: gpu-build
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+
+  # Package and build every crate to publish, the way `cargo publish` does before uploading.
+  verify-crates:
+    name: make_release_tfhe/verify-crates
+    needs: setup-instance
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    permissions:
+      contents: read # Needed to checkout the repository
+    env:
+      # The AWS AMI of the gpu-build profile embeds this version of CUDA only.
+      CUDA_VERSION: "12.2"
+      GCC_VERSION: 9
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,29 +112,264 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Export CUDA variables
+        shell: bash
+        run: |
+          read -ra CUDA_VERSIONS_LIST <<< "${CUDA_VERSION}"
+          bash ci/export_cuda_vars.sh "${GITHUB_ENV}" "${GITHUB_PATH}" "${CUDA_VERSIONS_LIST[@]}" >&2
+
+      # Specify the correct host compilers
+      - name: Export gcc and g++ variables
+        run: |
+          {
+            echo "CC=/usr/bin/gcc-${GCC_VERSION}";
+            echo "CXX=/usr/bin/g++-${GCC_VERSION}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
+            echo "HOME=/home/ubuntu";
+          } >> "${GITHUB_ENV}"
+
+      - name: Verify crates
+        run: make release_verify TAG="${TAG}" REHEARSAL="${REHEARSAL}"
+
+      # What a dry-run checks the crates packaged by a GitHub-hosted runner against.
+      - name: Upload crates as artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-crates
+          path: target/release-crates/
+          if-no-files-found: error
+
+  # Upload the crates, on the instance that verified them. Nothing is built here: the crates are
+  # packaged again, which gives the same files, and uploaded as they are.
+  publish-crates:
+    name: make_release_tfhe/publish-crates
+    needs: [setup-instance, verify-crates]
+    # The plan job already fails a run that is to publish from anything else than a tag.
+    if: ${{ !inputs.dry_run && github.ref_type == 'tag' }}
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    permissions:
+      contents: read # Needed to checkout the repository
+      id-token: write # Needed for OIDC token exchange on crates.io
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
+        with:
+          toolchain: stable
+
+      - name: Export HOME variable
+        run: |
+          echo "HOME=/home/ubuntu" >> "${GITHUB_ENV}"
+
+      # The token is valid for 30 minutes: enough to upload the crates, not to build them first.
+      - name: Authenticate on registry
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        id: auth
+
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: make release_upload TAG="${TAG}"
+
+      - name: Upload crates as artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: published-crates
+          path: target/release-crates/
+          if-no-files-found: error
+
+  teardown-instance:
+    name: make_release_tfhe/teardown-instance
+    if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
+    needs: [setup-instance, verify-crates, publish-crates]
+    uses: ./.github/workflows/slab_teardown.yml
+    with:
+      runner-name: ${{ needs.setup-instance.outputs.runner-name }}
+      notification-context: tfhe-rs release
+    permissions:
+      id-token: write # Needed to join the Slab tailnet via OIDC
+    secrets:
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      TS_SLAB_OAUTH_CLIENT_ID: ${{ secrets.TS_SLAB_OAUTH_CLIENT_ID }}
+      TS_SLAB_OAUTH_AUDIENCE: ${{ secrets.TS_SLAB_OAUTH_AUDIENCE }}
+
+  # Attest every crate released from this commit, including by an earlier run that stopped half
+  # way: it also runs when publish-crates had nothing left to do, not when a job failed.
+  attest-crates:
+    name: make_release_tfhe/attest-crates
+    needs: [plan, publish-crates]
+    if: ${{ !inputs.dry_run && !failure() && !cancelled() }}
+    uses: ./.github/workflows/make_release_attest.yml
+    with:
+      dry-run: false
+    permissions:
+      contents: read # Needed to checkout the repository
+      id-token: write # Needed to get the certificate signing the attestation via GitHub OIDC
+      attestations: write # Needed to store the attestation
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+  # In a dry-run, check that what attest-crates relies on holds: a GitHub-hosted runner packages
+  # the very files the instance verified.
+  rehearse-attestation:
+    name: make_release_tfhe/rehearse-attestation
+    needs: verify-crates
+    if: ${{ inputs.dry_run }}
+    uses: ./.github/workflows/make_release_attest.yml
+    with:
+      dry-run: true
+    permissions:
+      contents: read # Needed to checkout the repository
+      id-token: write # Declared by the called workflow, which does not use it in a dry-run
+      attestations: write # Declared by the called workflow, which does not use it in a dry-run
+    secrets:
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+  # The JS packages are built from the tfhe crate and released with it.
+  build-js:
+    name: make_release_tfhe/build-js
+    needs: plan
+    # The list is empty when the plan job did not get to write it.
+    if: ${{ contains(fromJSON(needs.plan.outputs.released || '[]'), 'tfhe') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # Needed to checkout the repository
+    outputs:
+      # JSON list of the packages built, the ones that are not on npmjs.com yet
+      packages: ${{ steps.pending.outputs.packages }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
       - name: Node setup
         run: |
           echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
 
-      - name: Create NPM version tag
-        env:
-          NPM_LATEST_TAG: ${{ inputs.npm_latest_tag }}
+      - name: Install Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # Fetch the most recent release instead of settling for the one pre-installed on the runner
+          check-latest: true
+
+      - name: Install Safe-Chain
         run: |
-          if [[ "${NPM_LATEST_TAG}" == "true" ]]; then
-            echo "NPM_TAG=latest" >> "${GITHUB_ENV}"
-          else
-            # We need to explicitly set a tag or npm will try to apply "latest",
-            # which would fail in case of a backport.
-            VERSION="$(cargo metadata --no-deps --format-version 1 \
-              --manifest-path tfhe/Cargo.toml \
-              | jq -er '.packages[] | select(.name == "tfhe") | .version')"
-            echo "NPM_TAG=release-${VERSION%.*}" >> "${GITHUB_ENV}"
-          fi
+          make install_aikido_safe_chain
+
+      - name: Get packages version
+        id: version
+        run: |
+          VERSION="$(cargo metadata --no-deps --format-version 1 \
+            --manifest-path tfhe/Cargo.toml \
+            | jq -er '.packages[] | select(.name == "tfhe") | .version')"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      # A package already on the registry, published by a run that stopped half way, is left alone.
+      - name: Find packages left to publish
+        id: pending
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          PACKAGES="$(./ci/npm_unpublished_packages.sh "${VERSION}" \
+            tfhe tfhe-compat tfhe-client tfhe-client-compat node-tfhe)"
+          echo "packages=${PACKAGES}" >> "${GITHUB_OUTPUT}"
 
       - name: Build web package
-        if: ${{ inputs.push_web_package }}
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe') }}
         run: |
           make build_web_js_api_parallel
+          mkdir -p npm-packages && mv tfhe/pkg npm-packages/tfhe
+
+      - name: Build web compat (cross-origin) package
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe-compat') }}
+        run: |
+          make build_web_js_api
+          sed -i 's/"tfhe"/"tfhe-compat"/g' tfhe/pkg/package.json
+          mkdir -p npm-packages && mv tfhe/pkg npm-packages/tfhe-compat
+
+      - name: Build web client package
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe-client') }}
+        run: |
+          make build_web_js_api_parallel_client
+          sed -i 's/"tfhe"/"tfhe-client"/g' tfhe/pkg/package.json
+          mkdir -p npm-packages && mv tfhe/pkg npm-packages/tfhe-client
+
+      - name: Build web compat (cross-origin) client package
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe-client-compat') }}
+        run: |
+          make build_web_js_api_client
+          sed -i 's/"tfhe"/"tfhe-client-compat"/g' tfhe/pkg/package.json
+          mkdir -p npm-packages && mv tfhe/pkg npm-packages/tfhe-client-compat
+
+      - name: Build Node package
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'node-tfhe') }}
+        run: |
+          make build_node_js_api
+          sed -i 's/"tfhe"/"node-tfhe"/g' tfhe/pkg/package.json
+          mkdir -p npm-packages && mv tfhe/pkg npm-packages/node-tfhe
+
+      - name: Upload packages as artifact
+        if: ${{ steps.pending.outputs.packages != '[]' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npm-packages
+          path: npm-packages/
+          # Hand the packages over as they were built, the .gitignore of wasm-pack included.
+          include-hidden-files: true
+          if-no-files-found: error
+
+  # Publish the JS packages once the crates are out, all of them being built by then.
+  # npmjs.com only accepts trusted publishing from GitHub-hosted runners, hence not on the instance
+  # publishing the crates.
+  publish-js:
+    name: make_release_tfhe/publish-js
+    needs: [build-js, publish-crates]
+    # publish-crates is skipped by a dry-run, and when the crates are on crates.io already.
+    if: ${{ !failure() && !cancelled() && needs.build-js.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # Needed to checkout the repository
+      id-token: write # Needed for OIDC token exchange on npmjs.com, which adds the provenance of the packages
+    env:
+      # Managing dist-tags with trusted publishing requires npm >= 11.21.0, newer than the one bundled with Node.
+      NPM_VERSION: "11.21.1"
+      PACKAGE_VERSION: ${{ needs.build-js.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Node setup
+        run: |
+          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
 
       - name: Authenticate on NPM
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -122,87 +383,99 @@ jobs:
         run: |
           make install_aikido_safe_chain
 
+      - name: Create NPM version tag
+        run: |
+          # Packages are always published under a tag of their minor version, never
+          # directly as "latest" (which would also move "latest" to a backport).
+          # "latest" is set afterwards, once the packages are published.
+          # Only major and minor are kept: 1.4.0-alpha.1 goes to release-1.4.
+          echo "NPM_TAG=release-$(cut -d. -f1-2 <<< "${PACKAGE_VERSION}")" >> "${GITHUB_ENV}"
+
+      - name: Download packages
+        if: ${{ needs.build-js.outputs.packages != '[]' }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: npm-packages
+          path: npm-packages
+
       - name: Publish web package
-        if: ${{ inputs.push_web_package }}
+        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'tfhe') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
-          package: tfhe/pkg/package.json
+          package: npm-packages/tfhe/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
           provenance: true
-
-      - name: Build web compat (cross-origin) package
-        if: ${{ inputs.push_web_compat_package }}
-        run: |
-          rm -rf tfhe/pkg
-
-          make build_web_js_api
-          sed -i 's/"tfhe"/"tfhe-compat"/g' tfhe/pkg/package.json
 
       - name: Publish web compat (cross-origin) package
-        if: ${{ inputs.push_web_compat_package }}
+        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'tfhe-compat') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
-          package: tfhe/pkg/package.json
+          package: npm-packages/tfhe-compat/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
           provenance: true
-
-      - name: Build web client package
-        if: ${{ inputs.push_web_client_package }}
-        run: |
-          rm -rf tfhe/pkg
-
-          make build_web_js_api_parallel_client
-          sed -i 's/"tfhe"/"tfhe-client"/g' tfhe/pkg/package.json
 
       - name: Publish web client package
-        if: ${{ inputs.push_web_client_package }}
+        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'tfhe-client') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
-          package: tfhe/pkg/package.json
+          package: npm-packages/tfhe-client/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
           provenance: true
-
-      - name: Build web compat (cross-origin) client package
-        if: ${{ inputs.push_web_compat_client_package }}
-        run: |
-          rm -rf tfhe/pkg
-
-          make build_web_js_api_client
-          sed -i 's/"tfhe"/"tfhe-client-compat"/g' tfhe/pkg/package.json
 
       - name: Publish web compat (cross-origin) client package
-        if: ${{ inputs.push_web_compat_client_package }}
+        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'tfhe-client-compat') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
-          package: tfhe/pkg/package.json
+          package: npm-packages/tfhe-client-compat/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
           provenance: true
-
-      - name: Build Node package
-        if: ${{ inputs.push_node_package }}
-        run: |
-          rm -rf tfhe/pkg
-
-          make build_node_js_api
-          sed -i 's/"tfhe"/"node-tfhe"/g' tfhe/pkg/package.json
 
       - name: Publish Node package
-        if: ${{ inputs.push_node_package }}
+        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'node-tfhe') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
-          package: tfhe/pkg/package.json
+          package: npm-packages/node-tfhe/package.json
           dry-run: ${{ inputs.dry_run }}
           tag: ${{ env.NPM_TAG }}
           provenance: true
 
+      - name: Install npm
+        run: |
+          npm install --global "npm@${NPM_VERSION}"
+
+      - name: Tag newest stable release as latest
+        env:
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        # DRY_RUN may be empty, so it cannot be double quoted.
+        run: |
+          # shellcheck disable=SC2086
+          ./ci/npm_dist_tag_latest.sh ${DRY_RUN} "${PACKAGE_VERSION}" \
+            tfhe tfhe-compat tfhe-client tfhe-client-compat node-tfhe
+
+  notify:
+    name: make_release_tfhe/notify
+    needs:
+      - plan
+      - verify-crates
+      - publish-crates
+      - attest-crates
+      - rehearse-attestation
+      - build-js
+      - publish-js
+    if: ${{ failure() || cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Slack Notification
-        if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
         env:
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "tfhe release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_COLOR: failure
+          SLACK_MESSAGE: "tfhe-rs release${{ inputs.dry_run && ' dry-run' || '' }} from ${{ github.ref_name }} did not complete: crates ${{ needs.publish-crates.result }}, attestation ${{ needs.attest-crates.result }}, JS packages ${{ needs.publish-js.result }}. (${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"

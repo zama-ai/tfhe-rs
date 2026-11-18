@@ -1,0 +1,85 @@
+# Attest the crates released from the current commit with their build provenance.
+#
+# The crates are packaged again here, on a GitHub-hosted runner taking no part in their upload, and
+# have to be the very files crates.io serves: a crate file only depends on the commit and on the
+# version of cargo packaging it. The attestation, signed for this workflow, is stored by GitHub
+# and in the public transparency log of Sigstore, and checked with:
+#   gh attestation verify <name>-<version>.crate --repo zama-ai/tfhe-rs \
+#     --signer-workflow zama-ai/tfhe-rs/.github/workflows/make_release_attest.yml
+#
+# Building and attesting in a reusable workflow, whose steps a caller cannot change, is what GitHub
+# documents to reach SLSA v1.0 Build Level 3.
+name: make_release_attest
+
+on:
+  workflow_call:
+    inputs:
+      dry-run:
+        description: Attest nothing, check that the crates packaged here are the ones verified by the caller, found in its verified-crates artifact
+        type: boolean
+        required: true
+    secrets:
+      REPO_CHECKOUT_TOKEN:
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+  REHEARSAL: ${{ github.ref_type != 'tag' && '1' || '' }}
+
+permissions: {}
+
+# zizmor: ignore[concurrency-limits] caller workflow is responsible for the concurrency
+
+jobs:
+  attest:
+    name: make_release_attest/attest
+    # The condition of the caller does not propagate to the jobs of a reusable workflow: without
+    # this one, the job is skipped when a job the caller depends on was, which is the case of a
+    # release with nothing left to upload.
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # Needed to checkout the repository
+      id-token: write # Needed to get the certificate signing the attestation via GitHub OIDC
+      attestations: write # Needed to store the attestation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The release tags, and the history the crates are compared with.
+          fetch-depth: 0
+          persist-credentials: "false"
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
+      - name: Download verified crates
+        if: ${{ inputs.dry-run }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verified-crates
+          path: verified-crates
+
+      - name: Reproduce crates
+        id: reproduce
+        env:
+          AGAINST: ${{ inputs.dry-run && 'verified-crates/SHA256SUMS' || '' }}
+        run: make release_reproduce TAG="${TAG}" REHEARSAL="${REHEARSAL}" AGAINST="${AGAINST}"
+
+      - name: Attest crates
+        if: ${{ !inputs.dry-run && steps.reproduce.outputs.count != '0' }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        id: attest
+        with:
+          subject-checksums: target/release-crates/SHA256SUMS
+
+      # GitHub keeps the attestation, this copy is for whoever wants the file.
+      - name: Upload attestation as artifact
+        if: ${{ !inputs.dry-run && steps.reproduce.outputs.count != '0' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: crates-attestation
+          path: ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error

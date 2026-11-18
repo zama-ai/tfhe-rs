@@ -1855,13 +1855,40 @@ check_local_workspace_version:
 release_status: setup_python_venv
 	$(PYTHON_VENV)/bin/python ./scripts/release_status.py
 
+# A release publishes the crates whose release tag points at the current commit and whose version
+# is not on crates.io yet, see RELEASING.md. TAG is the tag the release was asked from, which has
+# to be one of those. REHEARSAL=1 selects every crate that is not on crates.io yet instead, tagged
+# or not, to check that they could all be released: nothing can be uploaded then.
+# RUSTFLAGS is emptied for the crates to be built the way their users build them, without the
+# flags this Makefile exports.
+RELEASE_PUBLISH=RUSTFLAGS="" $(PYTHON_VENV)/bin/python ./scripts/release_publish.py \
+	$(if $(TAG),--tag "$(TAG)") $(if $(REHEARSAL),--rehearsal) \
+	$(if $(GITHUB_OUTPUT),--github-output "$(GITHUB_OUTPUT)") \
+	$(if $(GITHUB_STEP_SUMMARY),--summary "$(GITHUB_STEP_SUMMARY)")
+
+.PHONY: release_plan # Show the crates a release from the current commit publishes, see TAG and REHEARSAL
+release_plan: setup_python_venv
+	$(RELEASE_PUBLISH) plan
+
+.PHONY: release_verify # Package and build the crates to release as cargo publish does, without uploading them
+release_verify: setup_python_venv
+	$(RELEASE_PUBLISH) publish --dry-run
+
+.PHONY: release_upload # Upload the crates to release to crates.io without building them, release_verify does
+release_upload: setup_python_venv
+	$(RELEASE_PUBLISH) publish --no-verify
+
+.PHONY: release_reproduce # Package the released crates again, check they are the files of crates.io or of the SHA256SUMS file AGAINST
+release_reproduce: setup_python_venv
+	$(RELEASE_PUBLISH) reproduce $(if $(AGAINST),--against "$(AGAINST)")
+
+.PHONY: test_release_tooling # Run the release tooling on test crates and a local registry mirroring crates.io, nothing can reach crates.io
+test_release_tooling: setup_python_venv
+	$(PYTHON_VENV)/bin/python ./scripts/release_test/run.py $(if $(SLOW),--slow)
+
 # In a pull_request workflow actions/checkout produces a merge commit whose first parent
 # is the base branch, so HEAD^1 is the changes the pull request introduces. Locally
 # there is no such commit, and --pr-gate falls back to this branch's fork point.
-.PHONY: check_release_ready # Check PACKAGE is ready to be released from tag TAG
-check_release_ready: setup_python_venv
-	$(PYTHON_VENV)/bin/python ./scripts/release_status.py --release-gate "$(TAG)" --crates "$(PACKAGE)"
-
 .PHONY: check_cuda_version_bump # Check that modified CUDA crates had their version bumped
 check_cuda_version_bump: setup_python_venv
 	$(PYTHON_VENV)/bin/python ./scripts/release_status.py --files \
