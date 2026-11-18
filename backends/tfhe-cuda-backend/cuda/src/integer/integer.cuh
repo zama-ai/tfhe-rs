@@ -1980,19 +1980,33 @@ void host_compute_propagation_simulators_and_group_carries(
       streams.stream(0), streams.gpu_index(0), propagation_cum_sums,
       block_states, num_radix_blocks, group_size);
 
+  // Hoisted above the debug prints below, which decode bodies with it.
+  uint32_t modulus_sup = message_modulus * carry_modulus;
+  auto nbits = sizeof(Torus) * 8;
+  Torus delta = (static_cast<Torus>(1) << (nbits - 1)) / modulus_sup;
+
+  // DEBUG: nothing runs between the LUT and the scalar addition, so the
+  // middle print is both "after LUT" and "before scalar addition".
+  debug_print_radix<Torus>("prop_simu before second-step LUT",
+                           propagation_cum_sums, num_radix_blocks, delta);
+
   auto luts_array_second_step = mem->luts_array_second_step;
   integer_radix_apply_univariate_lookup_table<Torus>(
       streams, propagation_cum_sums, propagation_cum_sums, bsks, ksks,
       luts_array_second_step, num_radix_blocks);
+
+  debug_print_radix<Torus>(
+      "prop_simu after second-step LUT / before scalar add",
+      propagation_cum_sums, num_radix_blocks, delta);
 
   host_scalar_addition_inplace<Torus>(
       streams, propagation_cum_sums, mem->scalar_array_cum_sum,
       mem->h_scalar_array_cum_sum, num_radix_blocks, message_modulus,
       carry_modulus);
 
-  uint32_t modulus_sup = message_modulus * carry_modulus;
-  auto nbits = sizeof(Torus) * 8;
-  Torus delta = (static_cast<Torus>(1) << (nbits - 1)) / modulus_sup;
+  debug_print_radix<Torus>("prop_simu after scalar add", propagation_cum_sums,
+                           num_radix_blocks, delta);
+
   auto simulators = mem->simulators;
   auto grouping_pgns = mem->grouping_pgns;
   host_radix_split_simulators_and_grouping_pgns<Torus>(
