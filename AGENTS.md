@@ -58,6 +58,7 @@ Changes to the CUDA crates are also subject to semver and version-bump checks in
 
 - New FFI interfaces take key parameters through `params_ffi()`, not as separate `u32` arguments for dimension, level or base log.
 - Allocate reusable workspace in `scratch_*` and release it in the matching `cleanup_*`. `make semgrep_and_lint_gpu_code` checks the pairing.
+- `make fmt` formats only Rust. After a change to C++ or CUDA code, run `make fmt_gpu`, which needs `clang-format-15` and `cmake-format`.
 - In `integer`, GPU algorithms go in `integer/gpu/`. CPU algorithm modules get no `cfg(feature = "gpu")` gates; shared test modules can have them.
 
 ### Parameters
