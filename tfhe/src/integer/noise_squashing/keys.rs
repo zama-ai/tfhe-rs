@@ -6,6 +6,7 @@ use crate::integer::ciphertext::{
     BooleanBlock, RadixCiphertext, SignedRadixCiphertext, SquashedNoiseBooleanBlock,
     SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
 };
+use crate::integer::noise_squashing::check_block_chunk_can_be_packed_and_squashed;
 use crate::integer::server_key::ServerKey;
 use crate::integer::ClientKey;
 use crate::named::Named;
@@ -309,9 +310,21 @@ impl NoiseSquashingKey {
         blocks
             .par_chunks(2)
             .map(|two_values| {
-                let packed = src_server_key
-                    .can_pack_block_chunk(two_values)
-                    .map(|two_values| src_server_key.pack_block_chunk(two_values))?;
+                let (low, high) = match two_values {
+                    [low] => (low, None),
+                    [low, high] => (low, Some(high)),
+                    _ => unreachable!("par_chunks(2) yields chunks of 1 or 2 blocks"),
+                };
+
+                check_block_chunk_can_be_packed_and_squashed(
+                    (low.degree, low.noise_level()),
+                    high.map(|high| (high.degree, high.noise_level())),
+                    src_server_key.message_modulus(),
+                    src_server_key.carry_modulus(),
+                    src_server_key.key.max_noise_level,
+                )?;
+
+                let packed = src_server_key.pack_block_chunk(two_values);
 
                 self.key
                     .checked_squash_ciphertext_noise(&packed, &src_server_key.key)
@@ -354,10 +367,15 @@ impl NoiseSquashingKey {
         src_server_key: &ServerKey,
         boolean_block: &BooleanBlock,
     ) -> crate::Result<SquashedNoiseBooleanBlock> {
+        // A boolean block goes through the same checks as the last block of a radix with an odd
+        // block count, its carry must be empty as the squashed boolean is decrypted as
+        // `value != 0` over the whole message and carry space
+        let mut squashed =
+            self.pack_and_squash_ct_blocks(std::slice::from_ref(&boolean_block.0), src_server_key)?;
+        debug_assert_eq!(squashed.len(), 1);
+
         Ok(SquashedNoiseBooleanBlock {
-            ciphertext: self
-                .key
-                .checked_squash_ciphertext_noise(&boolean_block.0, &src_server_key.key)?,
+            ciphertext: squashed.pop().unwrap(),
         })
     }
 }
