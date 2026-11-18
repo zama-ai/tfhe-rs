@@ -5,8 +5,8 @@
 # when the tfhe crate is one of them. Running it again resumes a release that stopped half way.
 #
 # Code that is not ours runs when crates and packages are built: the build scripts and proc-macros
-# of the dependencies. The jobs building never have the permission to authenticate on a registry,
-# the jobs publishing build nothing.
+# of their dependencies. The jobs building them never have the permission to authenticate on a
+# registry, the jobs publishing build nothing but the release tooling, `cargo xtask release`.
 #
 # See RELEASING.md.
 name: make_release_tfhe
@@ -68,9 +68,6 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-      - name: Setup Python
-        uses: ./.github/actions/setup_python
-
       - name: Plan the release
         id: plan
         run: make release_plan TAG="${TAG}" REHEARSAL="${REHEARSAL}"
@@ -112,9 +109,6 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-      - name: Setup Python
-        uses: ./.github/actions/setup_python
-
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
@@ -147,7 +141,7 @@ jobs:
           path: target/release-crates/
           if-no-files-found: error
 
-  # Upload the crates, on the instance that verified them. Nothing is built here: the crates are
+  # Upload the crates, on the instance that verified them. No crate is built here: they are
   # packaged again, which gives the same files, and uploaded as they are.
   publish-crates:
     name: make_release_tfhe/publish-crates
@@ -165,9 +159,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-      - name: Setup Python
-        uses: ./.github/actions/setup_python
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # zizmor: ignore[stale-action-refs] this action doesn't create releases

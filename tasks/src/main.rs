@@ -7,6 +7,7 @@ use std::sync::atomic::Ordering::Relaxed;
 mod check_local_workspace_version;
 mod check_tfhe_docs_are_tested;
 mod format_latex_doc;
+mod release;
 mod utils;
 
 // -------------------------------------------------------------------------------------------------
@@ -40,6 +41,19 @@ enum Commands {
     CheckTfheDocsAreTested,
     /// Check that local workspace dependency versions are consistent
     CheckLocalWorkspaceVersion,
+    /// Show which released crates need a version bump, a tag or a publication
+    ReleaseStatus(release::StatusArgs),
+    /// Plan, publish or reproduce the release of the crates tagged on the current commit
+    Release(release::ReleaseArgs),
+}
+
+/// Exit the way a release command asks to, with the reason it gives when it could not complete.
+fn exit_with(outcome: release::Result<i32>) -> ! {
+    let code = outcome.unwrap_or_else(|failure| {
+        eprintln!("{}", failure.message);
+        failure.code
+    });
+    std::process::exit(code)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -77,6 +91,8 @@ fn main() -> Result<(), std::io::Error> {
         Commands::CheckLocalWorkspaceVersion => {
             check_local_workspace_version::check_local_workspace_version()
         }
+        Commands::ReleaseStatus(args) => exit_with(release::release_status(&args)),
+        Commands::Release(args) => exit_with(release::release(&args)),
     }
 
     Ok(())

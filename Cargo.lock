@@ -3505,7 +3505,11 @@ dependencies = [
  "clap",
  "log",
  "no-comment",
+ "serde",
+ "serde_json",
+ "sha2",
  "simplelog",
+ "toml 1.1.6+spec-1.1.0",
  "walkdir",
 ]
 

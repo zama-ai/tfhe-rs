@@ -1851,47 +1851,54 @@ check_md_docs_are_tested:
 check_local_workspace_version:
 	RUSTFLAGS="" cargo xtask check-local-workspace-version
 
+# The release tooling lives in the tasks crate, see RELEASING.md. --locked has a Cargo.lock that is
+# out of date reported rather than rewritten. RUSTFLAGS is emptied for the crates of a release to
+# be built the way their users build them, without the flags this Makefile exports.
+RELEASE_TOOL=RUSTFLAGS="" cargo --locked xtask
+
 .PHONY: release_status # Show which released crates need a version bump, a tag or a publish
-release_status: setup_python_venv
-	$(PYTHON_VENV)/bin/python ./scripts/release_status.py
+release_status:
+	$(RELEASE_TOOL) release-status
 
 # A release publishes the crates whose release tag points at the current commit and whose version
-# is not on crates.io yet, see RELEASING.md. TAG is the tag the release was asked from, which has
-# to be one of those. REHEARSAL=1 selects every crate that is not on crates.io yet instead, tagged
-# or not, to check that they could all be released: nothing can be uploaded then.
-# RUSTFLAGS is emptied for the crates to be built the way their users build them, without the
-# flags this Makefile exports.
-RELEASE_PUBLISH=RUSTFLAGS="" $(PYTHON_VENV)/bin/python ./scripts/release_publish.py \
+# is not on crates.io yet. TAG is the tag the release was asked from, which has to be one of those.
+# REHEARSAL=1 selects every crate that is not on crates.io yet instead, tagged or not, to check
+# that they could all be released: nothing can be uploaded then.
+RELEASE=$(RELEASE_TOOL) release \
 	$(if $(TAG),--tag "$(TAG)") $(if $(REHEARSAL),--rehearsal) \
 	$(if $(GITHUB_OUTPUT),--github-output "$(GITHUB_OUTPUT)") \
 	$(if $(GITHUB_STEP_SUMMARY),--summary "$(GITHUB_STEP_SUMMARY)")
 
 .PHONY: release_plan # Show the crates a release from the current commit publishes, see TAG and REHEARSAL
-release_plan: setup_python_venv
-	$(RELEASE_PUBLISH) plan
+release_plan:
+	$(RELEASE) plan
 
 .PHONY: release_verify # Package and build the crates to release as cargo publish does, without uploading them
-release_verify: setup_python_venv
-	$(RELEASE_PUBLISH) publish --dry-run
+release_verify:
+	$(RELEASE) publish --dry-run
 
 .PHONY: release_upload # Upload the crates to release to crates.io without building them, release_verify does
-release_upload: setup_python_venv
-	$(RELEASE_PUBLISH) publish --no-verify
+release_upload:
+	$(RELEASE) publish --no-verify
 
 .PHONY: release_reproduce # Package the released crates again, check they are the files of crates.io or of the SHA256SUMS file AGAINST
-release_reproduce: setup_python_venv
-	$(RELEASE_PUBLISH) reproduce $(if $(AGAINST),--against "$(AGAINST)")
+release_reproduce:
+	$(RELEASE) reproduce $(if $(AGAINST),--against "$(AGAINST)")
 
-.PHONY: test_release_tooling # Run the release tooling on test crates and a local registry mirroring crates.io, nothing can reach crates.io
-test_release_tooling: setup_python_venv
-	$(PYTHON_VENV)/bin/python ./scripts/release_test/run.py $(if $(SLOW),--slow)
+# The tests run the release tooling on test crates, against a local registry: nothing can reach
+# crates.io. SLOW=1 adds an index too slow for cargo, which takes a few minutes. OFFLINE=1 leaves
+# out the test in which the registry mirrors crates.io for a dependency of the test crates.
+.PHONY: test_release_tooling # Run the tests of the release tooling: releases of test crates to a local registry
+test_release_tooling:
+	RUSTFLAGS="" cargo test --locked -p tasks --test release -- \
+		$(if $(SLOW),--include-ignored) $(if $(OFFLINE),--skip the_registry_mirrors_crates_io)
 
 # In a pull_request workflow actions/checkout produces a merge commit whose first parent
 # is the base branch, so HEAD^1 is the changes the pull request introduces. Locally
 # there is no such commit, and --pr-gate falls back to this branch's fork point.
 .PHONY: check_cuda_version_bump # Check that modified CUDA crates had their version bumped
-check_cuda_version_bump: setup_python_venv
-	$(PYTHON_VENV)/bin/python ./scripts/release_status.py --files \
+check_cuda_version_bump:
+	$(RELEASE_TOOL) release-status --files \
 		--pr-gate $(if $(GITHUB_BASE_REF),HEAD^1) \
 		--crates tfhe-cuda-common tfhe-cuda-backend zk-cuda-backend
 
