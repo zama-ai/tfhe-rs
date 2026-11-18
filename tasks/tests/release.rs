@@ -12,7 +12,7 @@ use std::time::Duration;
 use support::mirror::ALWAYS;
 use support::{
     CUDA_BACKEND, CUDA_COMMON, DERIVE, INTERNAL, MAIN, Options, RELEASED, VERSIONABLE, WITH_TOKEN,
-    World, crates,
+    World, crates, step_output,
 };
 
 /// Every test crate is new to the registry, which a release refuses unless told otherwise.
@@ -242,42 +242,57 @@ fn a_patch_release_of_one_crate_publishes_that_crate_alone() {
 
     world.bump(&[(VERSIONABLE, "0.1.1")], &[]);
     let tag = world.tag(VERSIONABLE);
-    world
-        .release(&["--tag", &tag, "publish", "--dry-run"])
-        .success();
-
-    // What a dry-run of the workflow checks: another machine packages the files that were
-    // verified.
-    let verified = world.repo.join("target/release-crates/SHA256SUMS");
-    let checkout = world.fresh_checkout();
-    let against = [
+    let outputs = world.file("step-outputs");
+    let verify = [
         "--tag",
         &tag,
-        "reproduce",
-        "--against",
-        verified.to_str().unwrap(),
+        "--github-output",
+        outputs.to_str().unwrap(),
+        "publish",
+        "--dry-run",
     ];
+    world.release(&verify).success();
+    assert_eq!(
+        step_output(&outputs, "publish"),
+        format!("[\"{VERSIONABLE}\"]")
+    );
+
+    // What a dry-run of the workflow checks: another machine packages the files that were
+    // verified. All it is handed is their checksums, an output of the job that verified them.
+    let checksums = step_output(&outputs, "checksums");
     assert!(
-        world
-            .release_in(&checkout, &against)
+        checksums.ends_with(&format!("  {VERSIONABLE}-0.1.1.crate")),
+        "{checksums}"
+    );
+    let checkout = world.fresh_checkout();
+    let reproduce_against = |checksums: &str| {
+        let verified = world.file("verified-SHA256SUMS");
+        fs::write(&verified, format!("{checksums}\n")).unwrap();
+        let against = [
+            "--tag",
+            &tag,
+            "reproduce",
+            "--against",
+            verified.to_str().unwrap(),
+        ];
+        world.release_in(&checkout, &against)
+    };
+    assert!(
+        reproduce_against(&checksums)
             .success()
             .contains("are the ones of")
     );
-    let checksums = fs::read_to_string(&verified).unwrap();
-    let other = world.repo.join("target/other-SHA256SUMS");
-    fs::write(&other, format!("{}{}", "0".repeat(64), &checksums[64..])).unwrap();
-    let against = [
-        "--tag",
-        &tag,
-        "reproduce",
-        "--against",
-        other.to_str().unwrap(),
-    ];
+    let other = format!("{}{}", "0".repeat(64), &checksums[64..]);
     assert!(
-        world
-            .release_in(&checkout, &against)
+        reproduce_against(&other)
             .refused()
             .contains("does not reproduce")
+    );
+    // An output that did not make it is not a reason to vouch for the crates.
+    assert!(
+        reproduce_against("")
+            .refused()
+            .contains("lists no crate file")
     );
 
     let upload = world.release_with(WITH_TOKEN, &["--tag", &tag, "publish", "--no-verify"]);

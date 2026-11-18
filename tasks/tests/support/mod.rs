@@ -462,6 +462,11 @@ impl World {
         tag
     }
 
+    /// A file of the test, outside of its repository.
+    pub fn file(&self, name: &str) -> PathBuf {
+        self.work.join(name)
+    }
+
     /// Another checkout of the current commit, as a job on another machine has.
     #[track_caller]
     pub fn fresh_checkout(&self) -> PathBuf {
@@ -595,6 +600,24 @@ impl World {
         self.release_with(WITH_TOKEN, &args).success();
         assert_eq!(self.uploads().len(), RELEASED.len());
     }
+}
+
+/// Value of an output in the file a GitHub step writes its outputs to, the way GitHub reads it.
+#[track_caller]
+pub fn step_output(outputs: &Path, name: &str) -> String {
+    let outputs = fs::read_to_string(outputs).unwrap();
+    let mut lines = outputs.lines();
+    while let Some(line) = lines.next() {
+        if let Some(value) = line.strip_prefix(&format!("{name}=")) {
+            return value.to_owned();
+        }
+        // A value on several lines, up to the delimiter the first one names.
+        if let Some(delimiter) = line.strip_prefix(&format!("{name}<<")) {
+            let value: Vec<&str> = lines.take_while(|line| *line != delimiter).collect();
+            return value.join("\n");
+        }
+    }
+    panic!("no output named {name}");
 }
 
 /// `(name, version)` pairs as the registry reports them.

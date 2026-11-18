@@ -47,13 +47,17 @@ release of every crate that is not on crates.io yet (`make release_plan REHEARSA
 | `verify-crates` | CUDA instance | `cargo publish --dry-run`: packages and builds every crate, CUDA backends included |
 | `publish-crates` | CUDA instance | Gets a crates.io token, uploads with `cargo publish --no-verify`, checks crates.io holds the files it packaged |
 | `attest-crates` | GitHub | Packages the crates again, checks they are the files crates.io serves, attests them |
-| `build-js` | GitHub | Builds the JS packages that are not on npmjs.com yet |
-| `publish-js` | GitHub | Publishes them under the `release-X.Y` tag, then moves `latest` if this is the newest stable version |
+| `publish-js` | GitHub | Builds the JS packages that are not on npmjs.com yet, publishes them under the `release-X.Y` tag, then moves `latest` if this is the newest stable version |
 
-Building runs code that is not ours, the build scripts and proc-macros of the dependencies. The
-jobs building crates and packages have no permission to authenticate on a registry, the jobs
-publishing build nothing but the release tooling. This is also why the crates.io token, valid for
-30 minutes, is only requested once the crates are verified.
+No artifact goes from a job to another, which leaves a release fewer ways to fail: the jobs only
+exchange outputs, and a job that needs files makes them itself. `publish-crates` and `attest-crates`
+package the crates again, which gives the same files, and `publish-js` builds the packages it
+publishes, all of them before it publishes the first one.
+
+Building crates runs code that is not ours, the build scripts and proc-macros of their
+dependencies. The job building them has no permission to authenticate on a registry, the job
+uploading them builds nothing but the release tooling. This is also why the crates.io token, valid
+for 30 minutes, is only requested once the crates are verified.
 
 `cargo publish` gives up when the index of crates.io takes more than a minute to list a crate the
 next ones depend on. `publish-crates` then waits for the index and runs cargo again for what is
@@ -91,8 +95,8 @@ maintained and recommends them.
 An attestation is a signed [SLSA build provenance](https://slsa.dev/spec/v1.0/provenance) statement
 binding the checksum of a crate file to the repository, commit and workflow that built it. GitHub
 stores it (https://github.com/zama-ai/tfhe-rs/attestations) and it is recorded in the public
-transparency log of Sigstore, there is nothing to upload. The run also keeps it as the
-`crates-attestation` artifact.
+transparency log of Sigstore, there is nothing to upload.
+`gh attestation download <crate file> --repo zama-ai/tfhe-rs` fetches it.
 
 To check a crate downloaded from crates.io:
 
@@ -106,7 +110,8 @@ The attestation is not made by the job uploading the crates. A crate file only d
 commit and on the version of cargo packaging it, so `attest-crates` packages the crates again on a
 GitHub-hosted runner and only attests them if they are, byte for byte, the files crates.io serves.
 It does so in a reusable workflow, which is what GitHub documents to go from SLSA v1.0 Build Level 2
-to Build Level 3. A dry-run checks the same thing against the files `verify-crates` packaged.
+to Build Level 3. A dry-run checks the same thing against the checksums of the files
+`verify-crates` packaged.
 
 JS packages get their provenance from npmjs.com itself, which generates it for packages published
 with trusted publishing.

@@ -18,6 +18,8 @@ use super::plan::{Plan, Planned, names};
 use super::{Failure, Result, Target};
 
 const CHECKSUMS: &str = "SHA256SUMS";
+/// What ends the checksums in the outputs of a GitHub step, which hold them on several lines.
+const CHECKSUMS_END: &str = "END_OF_SHA256SUMS";
 /// Time between two looks at the index while waiting for a crate to show there.
 const POLL: Duration = Duration::from_secs(5);
 
@@ -38,8 +40,9 @@ pub struct ReleaseArgs {
     allow_new_crates: bool,
 
     /// File to write the outputs of a GitHub step to: `publish` and `released`, the JSON lists of
-    /// the crates to publish and of the crates released from this commit, or `count`, the number
-    /// of crates reproduced
+    /// the crates to publish and of the crates released from this commit, `checksums`, the
+    /// SHA256SUMS of the crates packaged by `publish`, or `count`, the number of crates
+    /// reproduced
     #[arg(long, value_name = "FILE")]
     github_output: Option<PathBuf>,
 
@@ -83,8 +86,8 @@ enum ReleaseCommand {
     },
     /// Package the released crates again and compare them with the registry
     Reproduce {
-        /// Compare with the crates of this file, written by `publish`, instead of the ones in the
-        /// registry
+        /// Compare with the crates of this SHA256SUMS file, as `publish` writes it and gives it
+        /// in its outputs, instead of the ones in the registry
         #[arg(long, value_name = "SHA256SUMS")]
         against: Option<PathBuf>,
 
@@ -308,6 +311,7 @@ fn publish(
     no_verify: bool,
     timeout: Duration,
     output_directory: &Path,
+    github_output: Option<&Path>,
     summary: Option<&Path>,
 ) -> Result<i32> {
     if plan.rehearsal && !dry_run {
@@ -334,6 +338,9 @@ fn publish(
     }
 
     let checksums = write_artifacts(plan, &selected, output_directory)?;
+    // For another job to check the crates it packages against these, with no file to hand over.
+    let output = format!("checksums<<{CHECKSUMS_END}\n{checksums}{CHECKSUMS_END}\n");
+    append(github_output, &output)?;
     if !dry_run {
         let registry = &plan.registry.label;
         let published = format!("### Published to {registry}\n\n```\n{checksums}```\n");
@@ -388,6 +395,11 @@ fn reproduce(
             (expected, plan.registry.label.clone())
         }
     };
+    if against.is_some() && expected.is_empty() {
+        // Comparing with nothing would vouch for anything.
+        error(&format!("{reference} lists no crate file to compare with"));
+        return Ok(1);
+    }
     let listed = |planned: &&Planned| expected.contains_key(&planned.file_name());
     let crates: Vec<&Planned> = plan.crates.iter().filter(listed).collect();
     if crates.len() != expected.len() {
@@ -496,6 +508,7 @@ pub fn release(args: &ReleaseArgs) -> Result<i32> {
             *no_verify,
             Duration::from_secs(*index_timeout),
             output_dir.as_deref().unwrap_or(&default_output),
+            github_output,
             summary,
         ),
         ReleaseCommand::Reproduce {

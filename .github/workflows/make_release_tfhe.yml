@@ -4,9 +4,12 @@
 # tag points at the tagged commit and whose version is not on crates.io yet, then the JS packages
 # when the tfhe crate is one of them. Running it again resumes a release that stopped half way.
 #
-# Code that is not ours runs when crates and packages are built: the build scripts and proc-macros
-# of their dependencies. The jobs building them never have the permission to authenticate on a
-# registry, the jobs publishing build nothing but the release tooling, `cargo xtask release`.
+# Nothing but job outputs goes from a job to another: no artifact is uploaded, a job that needs
+# files makes them itself.
+#
+# Code that is not ours runs when crates are built: the build scripts and proc-macros of their
+# dependencies. The job building them cannot authenticate on a registry, and the one uploading
+# them builds nothing but the release tooling, `cargo xtask release`.
 #
 # See RELEASING.md.
 name: make_release_tfhe
@@ -97,6 +100,10 @@ jobs:
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     permissions:
       contents: read # Needed to checkout the repository
+    outputs:
+      # SHA256SUMS of the crates packaged here: what a dry-run checks the crates packaged by a
+      # GitHub-hosted runner against, with no file to hand over
+      checksums: ${{ steps.verify.outputs.checksums }}
     env:
       # The AWS AMI of the gpu-build profile embeds this version of CUDA only.
       CUDA_VERSION: "12.2"
@@ -131,15 +138,8 @@ jobs:
           } >> "${GITHUB_ENV}"
 
       - name: Verify crates
+        id: verify
         run: make release_verify TAG="${TAG}" REHEARSAL="${REHEARSAL}"
-
-      # What a dry-run checks the crates packaged by a GitHub-hosted runner against.
-      - name: Upload crates as artifact
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: verified-crates
-          path: target/release-crates/
-          if-no-files-found: error
 
   # Upload the crates, on the instance that verified them. No crate is built here: they are
   # packaged again, which gives the same files, and uploaded as they are.
@@ -179,13 +179,6 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: make release_upload TAG="${TAG}"
 
-      - name: Upload crates as artifact
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: published-crates
-          path: target/release-crates/
-          if-no-files-found: error
-
   teardown-instance:
     name: make_release_tfhe/teardown-instance
     if: ${{ always() && needs.setup-instance.outputs.runner-name != '' }}
@@ -223,7 +216,7 @@ jobs:
       REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
   # In a dry-run, check that what attest-crates relies on holds: a GitHub-hosted runner packages
-  # the very files the instance verified.
+  # the very files the instance verified, which it knows by their checksums.
   rehearse-attestation:
     name: make_release_tfhe/rehearse-attestation
     needs: verify-crates
@@ -231,6 +224,7 @@ jobs:
     uses: ./.github/workflows/make_release_attest.yml
     with:
       dry-run: true
+      verified-checksums: ${{ needs.verify-crates.outputs.checksums }}
     permissions:
       contents: read # Needed to checkout the repository
       id-token: write # Declared by the called workflow, which does not use it in a dry-run
@@ -238,19 +232,23 @@ jobs:
     secrets:
       REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-  # The JS packages are built from the tfhe crate and released with it.
-  build-js:
-    name: make_release_tfhe/build-js
-    needs: plan
-    # The list is empty when the plan job did not get to write it.
-    if: ${{ contains(fromJSON(needs.plan.outputs.released || '[]'), 'tfhe') }}
+  # The JS packages are built from the tfhe crate and released with it, once the crates are out.
+  # They are built and published by the same job, for no file to travel between two jobs, all of
+  # them being built before any is published. npmjs.com only accepts trusted publishing from
+  # GitHub-hosted runners, hence not on the instance publishing the crates.
+  publish-js:
+    name: make_release_tfhe/publish-js
+    needs: [plan, publish-crates]
+    # publish-crates is skipped by a dry-run, and when the crates are on crates.io already. The
+    # list is empty when the plan job did not get to write it.
+    if: ${{ !failure() && !cancelled() && contains(fromJSON(needs.plan.outputs.released || '[]'), 'tfhe') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read # Needed to checkout the repository
-    outputs:
-      # JSON list of the packages built, the ones that are not on npmjs.com yet
-      packages: ${{ steps.pending.outputs.packages }}
-      version: ${{ steps.version.outputs.version }}
+      id-token: write # Needed for OIDC token exchange on npmjs.com, which adds the provenance of the packages
+    env:
+      # Managing dist-tags with trusted publishing requires npm >= 11.21.0, newer than the one bundled with Node.
+      NPM_VERSION: "11.21.1"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -262,35 +260,40 @@ jobs:
         run: |
           echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
 
-      - name: Install Node
+      - name: Authenticate on NPM
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           # Fetch the most recent release instead of settling for the one pre-installed on the runner
           check-latest: true
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install Safe-Chain
         run: |
           make install_aikido_safe_chain
 
-      - name: Get packages version
-        id: version
+      - name: Create NPM version tag
         run: |
           VERSION="$(cargo metadata --no-deps --format-version 1 \
             --manifest-path tfhe/Cargo.toml \
             | jq -er '.packages[] | select(.name == "tfhe") | .version')"
-          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "PACKAGE_VERSION=${VERSION}" >> "${GITHUB_ENV}"
+          # Packages are always published under a tag of their minor version, never
+          # directly as "latest" (which would also move "latest" to a backport).
+          # "latest" is set afterwards, once the packages are published.
+          # Only major and minor are kept: 1.4.0-alpha.1 goes to release-1.4.
+          echo "NPM_TAG=release-$(cut -d. -f1-2 <<< "${VERSION}")" >> "${GITHUB_ENV}"
 
       # A package already on the registry, published by a run that stopped half way, is left alone.
       - name: Find packages left to publish
         id: pending
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          PACKAGES="$(./ci/npm_unpublished_packages.sh "${VERSION}" \
+          PACKAGES="$(./ci/npm_unpublished_packages.sh "${PACKAGE_VERSION}" \
             tfhe tfhe-compat tfhe-client tfhe-client-compat node-tfhe)"
           echo "packages=${PACKAGES}" >> "${GITHUB_OUTPUT}"
 
+      # Every package is built before the first one is published: a build that fails leaves
+      # npmjs.com untouched.
       - name: Build web package
         if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe') }}
         run: |
@@ -325,72 +328,8 @@ jobs:
           sed -i 's/"tfhe"/"node-tfhe"/g' tfhe/pkg/package.json
           mkdir -p npm-packages && mv tfhe/pkg npm-packages/node-tfhe
 
-      - name: Upload packages as artifact
-        if: ${{ steps.pending.outputs.packages != '[]' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: npm-packages
-          path: npm-packages/
-          # Hand the packages over as they were built, the .gitignore of wasm-pack included.
-          include-hidden-files: true
-          if-no-files-found: error
-
-  # Publish the JS packages once the crates are out, all of them being built by then.
-  # npmjs.com only accepts trusted publishing from GitHub-hosted runners, hence not on the instance
-  # publishing the crates.
-  publish-js:
-    name: make_release_tfhe/publish-js
-    needs: [build-js, publish-crates]
-    # publish-crates is skipped by a dry-run, and when the crates are on crates.io already.
-    if: ${{ !failure() && !cancelled() && needs.build-js.result == 'success' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read # Needed to checkout the repository
-      id-token: write # Needed for OIDC token exchange on npmjs.com, which adds the provenance of the packages
-    env:
-      # Managing dist-tags with trusted publishing requires npm >= 11.21.0, newer than the one bundled with Node.
-      NPM_VERSION: "11.21.1"
-      PACKAGE_VERSION: ${{ needs.build-js.outputs.version }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: "false"
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-      - name: Node setup
-        run: |
-          echo "NODE_VERSION=$(make node_version)" >> "${GITHUB_ENV}"
-
-      - name: Authenticate on NPM
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          # Fetch the most recent release instead of settling for the one pre-installed on the runner
-          check-latest: true
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Install Safe-Chain
-        run: |
-          make install_aikido_safe_chain
-
-      - name: Create NPM version tag
-        run: |
-          # Packages are always published under a tag of their minor version, never
-          # directly as "latest" (which would also move "latest" to a backport).
-          # "latest" is set afterwards, once the packages are published.
-          # Only major and minor are kept: 1.4.0-alpha.1 goes to release-1.4.
-          echo "NPM_TAG=release-$(cut -d. -f1-2 <<< "${PACKAGE_VERSION}")" >> "${GITHUB_ENV}"
-
-      - name: Download packages
-        if: ${{ needs.build-js.outputs.packages != '[]' }}
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: npm-packages
-          path: npm-packages
-
       - name: Publish web package
-        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'tfhe') }}
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
           package: npm-packages/tfhe/package.json
@@ -399,7 +338,7 @@ jobs:
           provenance: true
 
       - name: Publish web compat (cross-origin) package
-        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'tfhe-compat') }}
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe-compat') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
           package: npm-packages/tfhe-compat/package.json
@@ -408,7 +347,7 @@ jobs:
           provenance: true
 
       - name: Publish web client package
-        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'tfhe-client') }}
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe-client') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
           package: npm-packages/tfhe-client/package.json
@@ -417,7 +356,7 @@ jobs:
           provenance: true
 
       - name: Publish web compat (cross-origin) client package
-        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'tfhe-client-compat') }}
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'tfhe-client-compat') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
           package: npm-packages/tfhe-client-compat/package.json
@@ -426,7 +365,7 @@ jobs:
           provenance: true
 
       - name: Publish Node package
-        if: ${{ contains(fromJSON(needs.build-js.outputs.packages), 'node-tfhe') }}
+        if: ${{ contains(fromJSON(steps.pending.outputs.packages), 'node-tfhe') }}
         uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f
         with:
           package: npm-packages/node-tfhe/package.json
@@ -455,7 +394,6 @@ jobs:
       - publish-crates
       - attest-crates
       - rehearse-attestation
-      - build-js
       - publish-js
     if: ${{ failure() || cancelled() }}
     runs-on: ubuntu-latest

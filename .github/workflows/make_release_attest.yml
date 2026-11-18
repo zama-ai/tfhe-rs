@@ -2,8 +2,9 @@
 #
 # The crates are packaged again here, on a GitHub-hosted runner taking no part in their upload, and
 # have to be the very files crates.io serves: a crate file only depends on the commit and on the
-# version of cargo packaging it. The attestation, signed for this workflow, is stored by GitHub
-# and in the public transparency log of Sigstore, and checked with:
+# version of cargo packaging it. No file is handed to this workflow, and it uploads none: the
+# attestation, signed for this workflow, is stored by GitHub and in the public transparency log of
+# Sigstore. It is checked with:
 #   gh attestation verify <name>-<version>.crate --repo zama-ai/tfhe-rs \
 #     --signer-workflow zama-ai/tfhe-rs/.github/workflows/make_release_attest.yml
 #
@@ -15,9 +16,13 @@ on:
   workflow_call:
     inputs:
       dry-run:
-        description: Attest nothing, check that the crates packaged here are the ones verified by the caller, found in its verified-crates artifact
+        description: Attest nothing, check that the crates packaged here are the ones the caller verified, known by verified-checksums
         type: boolean
         required: true
+      verified-checksums:
+        description: SHA256SUMS of the crates the caller verified, which a dry-run compares the crates packaged here with
+        type: string
+        default: ""
     secrets:
       REPO_CHECKOUT_TOKEN:
         required: true
@@ -52,31 +57,23 @@ jobs:
           persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-      - name: Download verified crates
-        if: ${{ inputs.dry-run }}
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: verified-crates
-          path: verified-crates
-
+      # In a dry-run the crates are compared with the ones the caller verified, which are only
+      # known here by their checksums. Checksums that did not make it fail the comparison.
       - name: Reproduce crates
         id: reproduce
         env:
-          AGAINST: ${{ inputs.dry-run && 'verified-crates/SHA256SUMS' || '' }}
-        run: make release_reproduce TAG="${TAG}" REHEARSAL="${REHEARSAL}" AGAINST="${AGAINST}"
+          DRY_RUN: ${{ inputs.dry-run }}
+          VERIFIED: ${{ inputs.verified-checksums }}
+        run: |
+          AGAINST=""
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            AGAINST="${RUNNER_TEMP}/verified-SHA256SUMS"
+            printf '%s\n' "${VERIFIED}" > "${AGAINST}"
+          fi
+          make release_reproduce TAG="${TAG}" REHEARSAL="${REHEARSAL}" AGAINST="${AGAINST}"
 
       - name: Attest crates
         if: ${{ !inputs.dry-run && steps.reproduce.outputs.count != '0' }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        id: attest
         with:
           subject-checksums: target/release-crates/SHA256SUMS
-
-      # GitHub keeps the attestation, this copy is for whoever wants the file.
-      - name: Upload attestation as artifact
-        if: ${{ !inputs.dry-run && steps.reproduce.outputs.count != '0' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: crates-attestation
-          path: ${{ steps.attest.outputs.bundle-path }}
-          if-no-files-found: error
