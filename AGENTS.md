@@ -37,9 +37,11 @@ Alongside the layers: `strings/` (on `integer`), `zk/`, `transciphering/`, and t
 Things each layer expects that are easy to miss:
 
 - **shortint** ciphertexts carry a `Degree` (bound on the plaintext value) and a `NoiseLevel`. Every operation must update both; getting them wrong produces silently incorrect results rather than errors.
+- **shortint** in code that supports more than one atomic pattern, take the `AtomicPatternKind` from the key or the parameters. Build `Standard` from a PBS order only in types or paths that support only the standard pattern.
 - **integer** `unchecked_*` operations assume the input blocks have room in their carries; the unprefixed operations clean carries first and return clean outputs. Clean means empty carries and nominal noise (`is_clean()`), so a shortcut that skips the bootstrap must still guarantee both.
 - **integer** to split a clear scalar into a fixed number of blocks, use `BlockDecomposer::with_block_count`. It sign-extends signed values; padding with zeros gives wrong results for negative numbers.
 - **high_level_api** keeps the server key in a thread-local, so `set_server_key` is needed on every thread. Operations dispatch by matching on `InternalServerKey` (CPU, CUDA, HPU): a new operation needs an arm for each backend.
+- **high_level_api** errors name the public operation and the `Fhe*` types, not types from lower layers.
 - The `gpu` feature changes the parameters picked by `ConfigBuilder::default()`.
 
 ### Adding a GPU operation
@@ -53,6 +55,10 @@ One operation spans several layers; use an existing one (e.g. `abs`) as the temp
 5. GPU tests reuse the CPU test bodies through `GpuFunctionExecutor`.
 
 Changes to the CUDA crates are also subject to semver and version-bump checks in CI.
+
+- New FFI interfaces take key parameters through `params_ffi()`, not as separate `u32` arguments for dimension, level or base log.
+- Allocate reusable workspace in `scratch_*` and release it in the matching `cleanup_*`. `make semgrep_and_lint_gpu_code` checks the pairing.
+- In `integer`, GPU algorithms go in `integer/gpu/`. CPU algorithm modules get no `cfg(feature = "gpu")` gates.
 
 ### Parameters
 
@@ -86,6 +92,8 @@ RUSTFLAGS="-C target-cpu=native" cargo test --profile devo \
 - Most shortint/integer tests are generated per parameter set by `create_parameterized_test!`; filter on the function name to run every variant, or on the full generated name for one.
 - `NIGHTLY_TESTS` selects a parameter set and has nothing to do with the nightly toolchain.
 - `.lfsconfig` disables automatic Git LFS fetching. Test data is pulled by `make pull_*` targets (`pull_backward_compat_data`, `pull_test_vectors`, …).
+- Investigate each test failure. Do not call a failure "pre-existing" or "unrelated" until you have followed the call chain and found the cause.
+- Test the success path, not only the error paths.
 
 ### GPU code without a GPU
 
@@ -110,10 +118,13 @@ Serialized data from past releases must stay readable. This is the most common s
 
 - **Deserialized data is untrusted.** Data coming from outside is expected to go through `safe_deserialize_conformant` (size limit plus conformance check against the expected parameters) before use; `safe_deserialize` skips the conformance check. Code that runs on deserialized data before conformance (custom `Deserialize` impls, `Upgrade` impls) and conformance itself must not panic or allocate based on attacker-controlled sizes.
 - Avoid `unwrap`, `expect` and indexing on values derived from external input; return errors instead.
+- Validate sizes with checked arithmetic before allocations and FFI conversions. Return an error for invalid external data. Use assertions only for internal invariants and caller preconditions.
+- For a fix on input handling, the commit message, PR text, comments, test names and new panic or error messages describe only the code change, not the effect of the bug. Report the details through the process in `SECURITY.md`. If you are not sure, show the text to the user first.
 
 ## Code style
 
 - Match the surrounding code: naming, comment density, module structure. When an established in-repo pattern exists for a situation, copy it rather than inventing a variant. When you introduce a new helper or constant, replace every existing occurrence it covers instead of leaving mixed conventions.
+- Extend existing functions, helpers and parameterized tests to cover the new case. Do not copy them. Reuse test helpers from lower layers. Versioned type snapshots are the exception: they are copies on purpose.
 - Use the narrowest visibility that works: no modifier if only the module and its descendants use an item, then `pub(super)`, `pub(in path)`, and `pub(crate)` only for real crate-wide use.
 - Comments must make sense on their own, without the conversation or PR context that produced them. Keep them short; link to the issue when documenting a workaround. Do not add comments that only restate what a well-named standard API does.
 
@@ -124,4 +135,5 @@ Serialized data from past releases must stay readable. This is the most common s
 - Every Rust code block in `tfhe/docs/**/*.md` must be registered with `doctest!` in `tfhe/src/test_user_docs.rs`. Doc file and directory names use dashes, not underscores.
 - No call to the `dbg` macro in any tracked file. The check is a plain text search, so do not write the macro with its `!` in comments or docs either. `Cargo.lock` must be up to date.
 - CI decides which test workflows run from hand-written path filters in `.github/workflows/`. When you change a `make test_*` target, its launcher script or what it depends on, update the filters of the workflows that run it.
+- Each published crate must build alone from its crates.io package: no relative paths to sibling crates. The CUDA build scripts share paths through `links` and `DEP_*` variables.
 - Files starting with an "autogenerated" header (e.g. in `core_crypto/commons/noise_formulas/`) must not be edited by hand.
