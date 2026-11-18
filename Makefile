@@ -19,10 +19,8 @@ GEN_KEY_CACHE_COVERAGE_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 BIT_SIZES_SET?=ALL
-NIGHTLY_TESTS?=FALSE
-# Comma separated parameter tiers of the CPU integer tests to run, e.g. 0 or 1,2.
-# When empty, the FAST_TESTS and NIGHTLY_TESTS selection applies. When set, NIGHTLY_TESTS does
-# not apply and FAST_TESTS keeps only the default operations of the tiers
+# Comma separated parameter tiers of the CPU integer tests to run, e.g. 0 or 1,2. When empty,
+# tier 0 (prod params). FAST_TESTS keeps only the default operations of the tiers
 TIERS?=
 # Test profile of the radix test harness: cpu_light, cpu_baseline, cpu_extensive or cpu_fhevm.
 # When empty, the harness uses cpu_baseline
@@ -1223,7 +1221,6 @@ test_integer_compression_gpu:
 test_integer_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--tfhe-package "tfhe"
@@ -1232,7 +1229,6 @@ test_integer_gpu_ci: install_cargo_nextest
 test_unsigned_integer_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--unsigned-only --tfhe-package "tfhe"
@@ -1241,7 +1237,6 @@ test_unsigned_integer_gpu_ci: install_cargo_nextest
 test_signed_integer_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
 		--signed-only --tfhe-package "tfhe"
@@ -1257,7 +1252,6 @@ test_integer_goldschmidt_golden_trace_gpu:
 test_signed_integer_fake_multi_gpu: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" --gpufeature "gpu-debug-fake-multi-gpu" \
 		--signed-only --tfhe-package "tfhe"
@@ -1267,7 +1261,6 @@ test_signed_integer_fake_multi_gpu: install_cargo_nextest
 test_integer_multi_bit_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--tfhe-package "tfhe"
@@ -1276,7 +1269,6 @@ test_integer_multi_bit_gpu_ci: install_cargo_nextest
 test_unsigned_integer_multi_bit_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--unsigned-only --tfhe-package "tfhe"
@@ -1285,7 +1277,6 @@ test_unsigned_integer_multi_bit_gpu_ci: install_cargo_nextest
 test_signed_integer_multi_bit_gpu_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--signed-only --tfhe-package "tfhe"
@@ -1405,7 +1396,6 @@ test_shortint_cov: install_tarpaulin
 test_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 	TIERS="$(TIERS)" \
 	TFHE_RS_TEST_PROFILE="$(TFHE_RS_TEST_PROFILE)" \
 		./scripts/integer-tests.sh \
@@ -1416,7 +1406,6 @@ test_integer_ci: install_cargo_nextest
 test_unsigned_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 	TIERS="$(TIERS)" \
 	TFHE_RS_TEST_PROFILE="$(TFHE_RS_TEST_PROFILE)" \
 		./scripts/integer-tests.sh \
@@ -1427,38 +1416,10 @@ test_unsigned_integer_ci: install_cargo_nextest
 test_signed_integer_ci: install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 	TIERS="$(TIERS)" \
 	TFHE_RS_TEST_PROFILE="$(TFHE_RS_TEST_PROFILE)" \
 		./scripts/integer-tests.sh \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
-		--signed-only --tfhe-package "tfhe"
-
-.PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
-test_integer_multi_bit_ci: install_cargo_nextest
-	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
-	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
-		--tfhe-package "tfhe"
-
-.PHONY: test_unsigned_integer_multi_bit_ci # Run the tests for unsigned integer ci running only multibit tests
-test_unsigned_integer_multi_bit_ci: install_cargo_nextest
-	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
-	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
-		--unsigned-only --tfhe-package "tfhe"
-
-.PHONY: test_signed_integer_multi_bit_ci # Run the tests for signed integer ci running only multibit tests
-test_signed_integer_multi_bit_ci: install_cargo_nextest
-	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
-	FAST_TESTS="$(FAST_TESTS)" \
-	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
-		./scripts/integer-tests.sh \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
 		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_long_run # Run the long run integer tests
