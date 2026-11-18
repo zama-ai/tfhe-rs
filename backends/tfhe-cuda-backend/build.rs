@@ -24,7 +24,13 @@ fn main() {
     println!("cargo::rerun-if-changed=cuda/src");
     println!("cargo::rerun-if-changed=cuda/tests_and_benchmarks");
     println!("cargo::rerun-if-changed=cuda/CMakeLists.txt");
-    println!("cargo::rerun-if-changed=src");
+    // Automatically generated files are excluded from `cargo::rerun-if-changed`
+    for entry in std::fs::read_dir("src").unwrap() {
+        let path = entry.unwrap().path();
+        if path.file_name().is_some_and(|name| name != "bindings.rs") {
+            println!("cargo::rerun-if-changed={}", path.display());
+        }
+    }
 
     // Platform/distro check is performed by tfhe-cuda-common's build.rs, which
     // Cargo builds first as a dependency.
