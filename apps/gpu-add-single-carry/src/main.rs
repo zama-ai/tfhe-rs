@@ -25,7 +25,7 @@ fn main() {
     let modulus = 1u128 << (NUM_BLOCKS * bits_per_block);
 
     // (lhs, rhs, carry_in)
-    let cases = [(32768u64, 32768u64, true)];
+    let cases = [(11141120u64, 11141120u64, true)];
 
     for (lhs, rhs, carry_in) in cases {
         let d_lhs: CudaUnsignedRadixCiphertext =

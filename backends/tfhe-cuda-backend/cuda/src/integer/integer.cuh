@@ -355,6 +355,30 @@ __host__ void host_radix_blocks_reverse_inplace(CudaStreams streams,
   reverseArray(src->noise_levels, src->num_radix_blocks);
 }
 
+// DEBUG: prints the first num_blocks blocks of a radix ciphertext as
+// (body, body / delta) pairs, followed by their degrees and noise levels. The
+// decoded value is only meaningful for trivial (zero-mask) ciphertexts.
+// print_body synchronizes the whole device, so pending async work on the
+// ciphertext has completed before its bodies are read.
+template <typename Torus>
+__host__ void debug_print_radix(const char *tag,
+                                CudaRadixCiphertextFFI const *ct,
+                                uint32_t num_blocks, Torus delta) {
+  // print_body appends its own ": " after the (empty) name it is given.
+  printf("%s (body, value)", tag);
+  print_body<Torus>("", (Torus *)ct->ptr, num_blocks, ct->lwe_dimension, delta);
+  printf("%s degrees: ", tag);
+  for (uint32_t i = 0; i < num_blocks; i++)
+    printf("%lu, ", (unsigned long)ct->degrees[i]);
+  printf("\n%s noise levels: ", tag);
+  for (uint32_t i = 0; i < num_blocks; i++)
+    printf("%lu, ", (unsigned long)ct->noise_levels[i]);
+  printf("\n");
+  // C stdio is fully buffered when redirected; flush so these lines are not
+  // reordered against Rust's stdout.
+  fflush(stdout);
+}
+
 // If group_size = 4, the first group of 4 elements will be transformed as
 // follows:
 //  dest[0] = src[0]
@@ -405,11 +429,25 @@ __host__ void host_radix_cumulative_sum_in_groups(cudaStream_t stream,
   // Each CUDA block is responsible for a single group
   int num_blocks = CEIL_DIV(num_radix_blocks, group_size);
   int num_threads = 512;
+
+  // DEBUG: this function has no access to the parameters, so delta is
+  // hard-coded for message_modulus = carry_modulus = 4 (2_2 params), i.e.
+  // 2^63 / 16 = 2^59. Decoded values are wrong for any other parameter set.
+  const Torus debug_delta =
+      (static_cast<Torus>(1) << (sizeof(Torus) * 8 - 1)) / (4 * 4);
+  debug_print_radix<Torus>("cumulative_sum_in_groups before (src)", src,
+                           num_radix_blocks, debug_delta);
+
   device_radix_cumulative_sum_in_groups<Torus>
       <<<num_blocks, num_threads, 0, stream>>>(
           (Torus *)dest->ptr, (Torus *)src->ptr, num_radix_blocks, lwe_size,
           group_size);
   check_cuda_error(cudaGetLastError());
+
+  // Degrees/noise levels of dest are NOT updated by this function, so the
+  // metadata printed here is whatever dest held before the call.
+  debug_print_radix<Torus>("cumulative_sum_in_groups after (dest)", dest,
+                           num_radix_blocks, debug_delta);
   VERIFICATION_TRACE_HOOK(
       verification::record_radix_cumulative_sum_in_groups<Torus>(
           __func__, dest, src, num_radix_blocks, group_size));
@@ -1161,21 +1199,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
     auto nbits = sizeof(Torus) * 8;
     Torus delta = (static_cast<Torus>(1) << (nbits - 1)) /
                   (params.message_modulus * params.carry_modulus);
-    // print_body synchronizes the whole device before and after its kernel,
-    // so the async KS/PBS above have completed when it reads the bodies.
-    print_body<Torus>(
-        "apply_many_lut out (body, value)", (Torus *)lwe_array_out->ptr,
-        lwe_array_out->num_radix_blocks, lwe_array_out->lwe_dimension, delta);
-    printf("apply_many_lut out degrees: ");
-    for (uint32_t i = 0; i < lwe_array_out->num_radix_blocks; i++)
-      printf("%lu, ", (unsigned long)lwe_array_out->degrees[i]);
-    printf("\napply_many_lut out noise levels: ");
-    for (uint32_t i = 0; i < lwe_array_out->num_radix_blocks; i++)
-      printf("%lu, ", (unsigned long)lwe_array_out->noise_levels[i]);
-    printf("\n");
-    // C stdio is fully buffered when redirected; flush so these lines are not
-    // reordered against Rust's stdout.
-    fflush(stdout);
+    debug_print_radix<Torus>("apply_many_lut out", lwe_array_out,
+                             lwe_array_out->num_radix_blocks, delta);
   }
   POP_RANGE()
 }
