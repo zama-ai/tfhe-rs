@@ -237,7 +237,7 @@ install_node_impl:
 	@if ! [ -d "$(NVM_DIR)" ]; then mkdir -p "$(NVM_DIR)"; fi
 	$(SHELL) nvm_install.sh
 	@rm nvm_install.sh
-	$(target_shell) -i -c 'nvm install $(NODE_VERSION)' || \
+	$(target_shell) -i -c 'source "$(NVM_DIR)"/nvm.sh && nvm install $(NODE_VERSION)' || \
 	( echo "Unable to install node, unknown error." && exit 1 )
 
 .PHONY: node_version # Return Node version that will be installed

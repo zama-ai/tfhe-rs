@@ -36,6 +36,6 @@ clippy_data_extractor: install_rs_check_toolchain
 # No database needed, the extractor's profile test reads ci/regression.toml.
 .PHONY: test_benchmark_utils # Run tests for benchmark_spec, the browser ids, the bench parser and the data extractor
 test_benchmark_utils:
-	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --profile $(CARGO_PROFILE) \
 		--all-targets -p benchmark_spec -p benchmark-spec-js -p tfhe-benchmark-parser \
 		-p tfhe-data-extractor
