@@ -698,7 +698,7 @@ fn one_time_pad_mask_validation() {
 
     // The mask size must be a multiple of the number of bits per ciphertext.
     assert!(matches!(
-        OneTimePadPlainSecretMask::new(vec![0u8; 2], 10).encrypt(&cks),
+        OneTimePadPlainSecretMask::new(vec![0u8; 2], 11).encrypt(&cks),
         Err(MaskGenerationError::InvalidMaskSize)
     ));
 
@@ -752,14 +752,14 @@ fn one_time_pad_fhe_secret_mask_conformance() {
 
     // check that the output of the tamper function pass conformance when provided with the
     // original layout
-    let untampered: OneTimePadFheSecretMask = bincode::deserialize(&tamper(4)).unwrap();
+    let untampered: OneTimePadFheSecretMask = bincode::deserialize(&tamper(2)).unwrap();
     assert!(untampered.is_conformant(&conformance_params));
 
     // A layout with 0 bits per ciphertext cannot be deserialized.
     assert!(bincode::deserialize::<OneTimePadFheSecretMask>(&tamper(0)).is_err());
 
     // An invalid layout, or one that does not match the ciphertexts, is refused by conformance.
-    for bits_per_ct in [1, 2, 3, 8, 200] {
+    for bits_per_ct in [1, 3, 4, 8, 200] {
         let tampered: OneTimePadFheSecretMask = bincode::deserialize(&tamper(bits_per_ct)).unwrap();
         assert!(!tampered.is_conformant(&conformance_params));
     }
@@ -833,17 +833,17 @@ fn one_time_pad_fhe_new_random_prefix() {
             .collect()
     };
 
-    // 4 bits per ciphertext with 2_2 params
+    // 2 bits per ciphertext with 2_2 params
     let short = decrypted_mask(16);
     let long = decrypted_mask(40);
 
-    assert_eq!(short.len(), 4);
-    assert_eq!(long.len(), 10);
-    assert_eq!(short, long[..4], "seed={seed:02x?}");
+    assert_eq!(short.len(), 8);
+    assert_eq!(long.len(), 20);
+    assert_eq!(short, long[..8], "seed={seed:02x?}");
 
     // The mask size must be a multiple of the number of bits per ciphertext.
     assert!(matches!(
-        OneTimePadFheSecretMask::new_random(seed.as_slice(), &transciphering_key, &sks, 6),
+        OneTimePadFheSecretMask::new_random(seed.as_slice(), &transciphering_key, &sks, 5),
         Err(MaskGenerationError::InvalidMaskSize)
     ));
 }
@@ -916,15 +916,23 @@ fn one_time_pad_squashed_noise_mask_round_trip() {
     let decompressed_decryption_key = NoiseSquashingPrivateKeyView::from(&comp_private_key);
 
     let params = cks.parameters();
-    // The full space layout uses the whole degree range of the list, the single bit one checks
-    // that the degree is set back to the layout after decompression.
+    let full_space =
+        KeyStreamLayout::full_space(params.message_modulus(), params.carry_modulus()).unwrap();
+    let message_space = KeyStreamLayout::message_space(params.message_modulus()).unwrap();
+
+    // (layout of the mask, layout of the squashed mask)
+    // The full space layout uses the whole degree range of the list, the message space one is
+    // squashed by pairs into the full space, and the single bit one checks that the degree is set
+    // back to the layout after decompression.
     let layouts = [
-        KeyStreamLayout::full_space(params.message_modulus(), params.carry_modulus()).unwrap(),
-        KeyStreamLayout::single_bit(),
+        (full_space.clone(), full_space.clone()),
+        (message_space.clone(), full_space),
+        (KeyStreamLayout::single_bit(), KeyStreamLayout::single_bit()),
     ];
 
-    for layout in layouts {
+    for (layout, squashed_layout) in layouts {
         let bits_per_ct = layout.bits_per_ct().get();
+        let squashed_bits_per_ct = squashed_layout.bits_per_ct().get();
 
         // Byte-aligned and not, since the mask carries an explicit bit count. The asymmetric
         // pattern catches a reversed bit or ciphertext order.
@@ -940,9 +948,11 @@ fn one_time_pad_squashed_noise_mask_round_trip() {
                 .unwrap()
                 .squash_noise(&nsk, &sks)
                 .unwrap();
+            assert_eq!(squashed.layout(), &squashed_layout, "{context}");
             assert_eq!(
                 squashed.ciphertexts().len(),
-                bit_count / usize::from(bits_per_ct)
+                bit_count / usize::from(squashed_bits_per_ct),
+                "{context}"
             );
             assert!(
                 squashed.decrypt(&ns_private_key) == plain,
@@ -956,20 +966,30 @@ fn one_time_pad_squashed_noise_mask_round_trip() {
             );
 
             let decompressed = compressed.decompress().unwrap();
-            assert_eq!(decompressed.layout().bits_per_ct(), layout.bits_per_ct());
+            assert_eq!(decompressed.layout(), &squashed_layout, "{context}");
             let values: Vec<u128> = decompressed
                 .ciphertexts()
                 .iter()
                 .map(|ct| decompressed_decryption_key.decrypt_squashed_noise_ciphertext(ct))
                 .collect();
             assert!(
-                OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(&values, &layout)
-                    .unwrap()
+                OneTimePadPlainSecretMask::from_squashed_noise_decrypted_values(
+                    &values,
+                    &squashed_layout
+                )
+                .unwrap()
                     == plain,
                 "decompressed, {context}"
             );
         }
     }
+
+    // A message space mask is squashed by pairs, so it must have an even number of ciphertexts
+    let odd_mask = OneTimePadPlainSecretMask::new(vec![0b10_0111], 6)
+        .encrypt_with_layout(&cks, message_space)
+        .unwrap();
+    assert_eq!(odd_mask.ciphertexts().len(), 3);
+    assert!(odd_mask.squash_noise(&nsk, &sks).is_err());
 
     // An empty mask goes through the whole flow
     let squashed = OneTimePadPlainSecretMask::new(vec![], 0)
@@ -982,6 +1002,63 @@ fn one_time_pad_squashed_noise_mask_round_trip() {
     assert!(compressed.decompress().unwrap().ciphertexts().is_empty());
     assert!(
         compressed.decrypt(&comp_private_key).unwrap() == OneTimePadPlainSecretMask::new(vec![], 0)
+    );
+}
+
+/// Masks are packed by pairs before noise squashing only if they use the message space and the
+/// parameters have room for it, otherwise they are squashed one by one.
+#[test]
+fn one_time_pad_packed_squashed_layout() {
+    use crate::shortint::{CarryModulus, MaxNoiseLevel, MessageModulus};
+    use crate::transciphering::ciphers::one_time_pad::fhe::packed_squashed_layout;
+
+    let layout = |bits_per_ct: u8| KeyStreamLayout::try_new(bits_per_ct.try_into().unwrap());
+    let max_noise_5 = MaxNoiseLevel::new(5);
+
+    // 2_2: the default 2 bits layout is packed into 4 bits, other layouts are not packed
+    let packed = |bits_per_ct| {
+        packed_squashed_layout(
+            &layout(bits_per_ct).unwrap(),
+            MessageModulus(4),
+            CarryModulus(4),
+            max_noise_5,
+        )
+    };
+    assert_eq!(packed(2), layout(4));
+    assert_eq!(packed(1), None);
+    assert_eq!(packed(4), None);
+
+    // 2_1: no room in the carries
+    assert_eq!(
+        packed_squashed_layout(
+            &layout(2).unwrap(),
+            MessageModulus(4),
+            CarryModulus(2),
+            max_noise_5
+        ),
+        None
+    );
+
+    // 2_2 without enough noise budget for the packing
+    assert_eq!(
+        packed_squashed_layout(
+            &layout(2).unwrap(),
+            MessageModulus(4),
+            CarryModulus(4),
+            MaxNoiseLevel::new(4)
+        ),
+        None
+    );
+
+    // 1_1: the message space is a single bit, packed into 2 bits
+    assert_eq!(
+        packed_squashed_layout(
+            &KeyStreamLayout::single_bit(),
+            MessageModulus(2),
+            CarryModulus(2),
+            MaxNoiseLevel::new(3)
+        ),
+        layout(2)
     );
 }
 

@@ -1,3 +1,5 @@
+use std::num::NonZeroU8;
+
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -20,6 +22,7 @@ use crate::shortint::parameters::{
     CiphertextConformanceParams, CompressedSquashedNoiseCiphertextListConformanceParams,
 };
 use crate::shortint::server_key::ServerKey;
+use crate::shortint::{CarryModulus, MaxNoiseLevel, MessageModulus};
 use crate::transciphering::backward_compatibility::{
     CompressedSquashedNoiseOneTimePadFheSecretMaskVersions, OneTimePadFheSecretMaskVersions,
 };
@@ -96,7 +99,8 @@ impl OneTimePadFheSecretMask {
 
     /// Generate a mask of `n_bits` encrypted random bits with the OPRF of `transciphering_key`.
     ///
-    /// This will use the full message space + carry space for mask bits.
+    /// This will use the message space for mask bits, so that the mask can be compressed and
+    /// its noise squashed by pairs of ciphertexts.
     ///
     /// The mask is generated in counter mode: the ciphertext at index `i` is generated
     /// independently, from `seed ‖ i`, with `i` as a little-endian `u32`. As a result, the mask
@@ -112,7 +116,7 @@ impl OneTimePadFheSecretMask {
         sks: &ServerKey,
         n_bits: u64,
     ) -> Result<Self, MaskGenerationError> {
-        let layout = KeyStreamLayout::full_space(sks.message_modulus, sks.carry_modulus)
+        let layout = KeyStreamLayout::message_space(sks.message_modulus)
             .ok_or(MaskGenerationError::IncompatibleParameters)?;
 
         Self::new_random_with_layout(seed, transciphering_key, sks, n_bits, layout)
@@ -203,22 +207,81 @@ impl OneTimePadFheSecretMask {
         OneTimePadPlainSecretMask::new(bytes, bits.len())
     }
 
+    /// Squash the noise of the mask, so that it can be decrypted with the noise squashing key.
+    ///
+    /// If the mask uses the message space (the default layout), and the parameters allow it, its
+    /// ciphertexts are packed by pairs before being squashed, so the squashed mask holds twice as
+    /// many bits per ciphertext. In that case, the mask must hold an even number of ciphertexts.
+    ///
+    /// Otherwise, the ciphertexts are squashed one by one and the squashed mask keeps the layout
+    /// of the mask.
     pub fn squash_noise(
         &self,
         nsk: &NoiseSquashingKey,
         sks: &ServerKey,
     ) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
-        let secret_mask = self
-            .secret_mask
-            .par_iter()
-            .map(|ct| nsk.checked_squash_ciphertext_noise(ct, sks))
-            .collect::<crate::Result<_>>()?;
+        let packed_layout = packed_squashed_layout(
+            &self.layout,
+            sks.message_modulus,
+            sks.carry_modulus,
+            sks.max_noise_level,
+        );
+
+        let Some(layout) = packed_layout else {
+            let secret_mask = self
+                .secret_mask
+                .par_iter()
+                .map(|ct| nsk.checked_squash_ciphertext_noise(ct, sks))
+                .collect::<crate::Result<_>>()?;
+
+            return Ok(SquashedNoiseOneTimePadFheSecretMask {
+                secret_mask,
+                layout: self.layout.clone(),
+            });
+        };
+
+        if !self.secret_mask.len().is_multiple_of(2) {
+            return Err(crate::error!(
+                "This mask is squashed by pairs of ciphertexts, so it must hold a multiple of {} \
+                bits (got {})",
+                layout.bits_per_ct(),
+                self.bit_count(),
+            ));
+        }
+
+        let secret_mask = nsk.checked_pack_and_squash_ciphertexts_noise(&self.secret_mask, sks)?;
 
         Ok(SquashedNoiseOneTimePadFheSecretMask {
             secret_mask,
-            layout: self.layout.clone(),
+            layout,
         })
     }
+}
+
+/// Layout of the squashed mask if the ciphertexts of a mask with `layout` can be packed by pairs
+/// before being squashed, which requires the mask to use the message space, and the parameters to
+/// have room in the carries and enough noise budget for the second ciphertext.
+///
+/// Returns `None` if the ciphertexts must be squashed one by one.
+pub(crate) fn packed_squashed_layout(
+    layout: &KeyStreamLayout,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    max_noise_level: MaxNoiseLevel,
+) -> Option<KeyStreamLayout> {
+    // Mask ciphertexts have nominal noise
+    let packed_noise = NoiseLevel::NOMINAL * message_modulus.0 + NoiseLevel::NOMINAL;
+
+    let can_pack = KeyStreamLayout::message_space(message_modulus).as_ref() == Some(layout)
+        && carry_modulus.0 >= message_modulus.0
+        && max_noise_level.validate(packed_noise).is_ok();
+
+    if !can_pack {
+        return None;
+    }
+
+    let bits_per_ct = layout.bits_per_ct().get().checked_mul(2)?;
+    KeyStreamLayout::try_new(NonZeroU8::new(bits_per_ct)?)
 }
 
 impl ParameterSetConformant for OneTimePadFheSecretMask {
