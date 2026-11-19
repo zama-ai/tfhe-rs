@@ -49,7 +49,7 @@ usize_is_size_t = true
 
 
 [export]
-include = ["BooleanParametersSet"]
+include = []
 exclude = []
 #prefix = "CAPI_"
 item_types = []

@@ -1,6 +1,4 @@
 #![allow(clippy::missing_safety_doc)]
-#[cfg(feature = "boolean-c-api")]
-pub mod boolean;
 pub mod buffer;
 pub mod core_crypto;
 pub mod error;

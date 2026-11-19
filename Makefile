@@ -630,10 +630,10 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,experimental-graph,gpu,gpu-zk \
 		-p tfhe -- --nocapture
 
-.PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
+.PHONY: clippy_c_api # Run clippy lints enabling the shortint and the C API
 clippy_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api,extended-types \
+		--features=shortint-c-api,high-level-c-api,extended-types \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
@@ -975,22 +975,22 @@ build_tfhe_msrv:
 		--features=hpu-v80,integer,noise-asserts \
 		--features=pbs-stats,shortint,strings,zk-pok -p tfhe
 
-.PHONY: build_c_api # Build the C API for boolean, shortint and integer
+.PHONY: build_c_api # Build the C API for shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types \
+		--features=shortint-c-api,high-level-c-api,zk-pok,extended-types \
 		-p tfhe
 
-.PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
+.PHONY: build_c_api_gpu # Build the C API for shortint and integer
 build_c_api_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types,gpu,gpu-zk \
+		--features=shortint-c-api,high-level-c-api,zk-pok,extended-types,gpu,gpu-zk \
 		-p tfhe
 
-.PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
+.PHONY: build_c_api_experimental_deterministic_fft # Build the C API for shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4 \
+		--features=shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4 \
 		-p tfhe
 
 # wasm pkg build rules
@@ -1364,7 +1364,7 @@ test_boolean_cov: install_tarpaulin
 .PHONY: test_c_api_rs # Run the rust tests for the C API
 test_c_api_rs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api \
+		--features=shortint-c-api,high-level-c-api \
 		-p tfhe \
 		c_api
 
