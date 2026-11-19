@@ -179,7 +179,7 @@ pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
     ciphertext_modulus: CiphertextModulus::new(1 << 31),
 };
 
-#[cfg(feature = "gpu")]
+#[cfg(all(feature = "gpu", feature = "gpu-experimental-pbs"))]
 pub const NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     NoiseSquashingMultiBitTestParameters<u128> = NoiseSquashingMultiBitTestParameters {
     glwe_dimension: GlweDimension(2),
@@ -192,7 +192,7 @@ pub const NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_T
     ciphertext_modulus: CiphertextModulus::<u128>::new_native(),
 };
 
-#[cfg(feature = "gpu")]
+#[cfg(all(feature = "gpu", feature = "gpu-experimental-pbs"))]
 pub const PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: MultiBitTestParams<
     u64,
 > = MultiBitTestParams {

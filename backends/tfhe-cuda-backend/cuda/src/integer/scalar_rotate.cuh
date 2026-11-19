@@ -6,7 +6,6 @@
 #include "integer/integer_utilities.h"
 #include "integer/scalar_shifts.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
-#include "pbs/programmable_bootstrap_multibit.cuh"
 
 template <typename Torus>
 __host__ uint64_t scratch_cuda_scalar_rotate(

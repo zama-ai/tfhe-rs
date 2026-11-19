@@ -87,11 +87,11 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// // 4 blocks of 2 message bits, the width of an i8
     /// let number_of_blocks = 4;
@@ -99,7 +99,7 @@ impl CudaServerKey {
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// let msg = -4i8;
     ///
@@ -132,11 +132,11 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// // 4 blocks of 2 message bits, the width of an i8
     /// let number_of_blocks = 4;
@@ -144,7 +144,7 @@ impl CudaServerKey {
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// let msg = -4i8;
     ///

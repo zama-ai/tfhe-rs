@@ -138,6 +138,7 @@ void programmable_bootstrap_classical_teardown(
   cuda_destroy_stream(stream, gpu_index);
 }
 
+#ifdef TFHE_CUDA_EXT_PBS
 void programmable_bootstrap_multibit_setup(
     cudaStream_t stream, uint32_t gpu_index, Seed *seed, uint64_t **lwe_sk_in_array,
     uint64_t **lwe_sk_out_array, uint64_t **d_bsk_array, uint64_t **plaintexts,
@@ -273,6 +274,7 @@ void programmable_bootstrap_multibit_teardown(
   cuda_synchronize_stream(stream, gpu_index);
   cuda_destroy_stream(stream, gpu_index);
 }
+#endif
 
 void keyswitch_setup(
     cudaStream_t stream, uint32_t gpu_index, Seed *seed, uint64_t **lwe_sk_in_array,

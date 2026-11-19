@@ -695,9 +695,9 @@ mod cpu {
 #[cfg(feature = "gpu")]
 mod gpu {
     use super::*;
-    use crate::high_level_api::integers::unsigned::tests::gpu::{
-        setup_classical_gpu, setup_multibit_gpu,
-    };
+    use crate::high_level_api::integers::unsigned::tests::gpu::setup_classical_gpu;
+    #[cfg(feature = "gpu-experimental-pbs")]
+    use crate::high_level_api::integers::unsigned::tests::gpu::setup_multibit_gpu;
     use crate::GpuIndex;
 
     #[test]
@@ -1011,6 +1011,7 @@ mod gpu {
     #[test]
     fn test_compressed_bool() {
         compressed_bool_test_case(|| (setup_classical_gpu(), Device::CudaGpu));
+        #[cfg(feature = "gpu-experimental-pbs")]
         compressed_bool_test_case(|| (setup_multibit_gpu(), Device::CudaGpu));
     }
 
@@ -1064,6 +1065,7 @@ mod gpu {
                 V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
                 V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
             };
+            #[cfg(feature = "gpu-experimental-pbs")]
             use crate::shortint::parameters::v1_5::meta::gpu::{
                 V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
                 V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -1072,6 +1074,7 @@ mod gpu {
                 V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
                 V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
             };
+            #[cfg(feature = "gpu-experimental-pbs")]
             use crate::shortint::parameters::v1_6::meta::gpu::{
                 V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
                 V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -1081,11 +1084,15 @@ mod gpu {
             let meta_params = [
                 V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
                 V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+                #[cfg(feature = "gpu-experimental-pbs")]
                 V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                #[cfg(feature = "gpu-experimental-pbs")]
                 V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
                 V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
                 V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+                #[cfg(feature = "gpu-experimental-pbs")]
                 V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+                #[cfg(feature = "gpu-experimental-pbs")]
                 V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
             ];
 

@@ -22,6 +22,7 @@ fn main() {
     println!("Build tfhe-cuda-backend");
     println!("cargo::rerun-if-changed=cuda/include");
     println!("cargo::rerun-if-changed=cuda/src");
+    println!("cargo::rerun-if-changed=cuda/src_experimental");
     println!("cargo::rerun-if-changed=cuda/tests_and_benchmarks");
     println!("cargo::rerun-if-changed=cuda/CMakeLists.txt");
     // Automatically generated files are excluded from `cargo::rerun-if-changed`
@@ -54,6 +55,12 @@ fn main() {
             cmake_config.define("GOLDSCHMIDT_TRACE", "ON");
         } else {
             cmake_config.define("GOLDSCHMIDT_TRACE", "OFF");
+        }
+
+        if cfg!(feature = "ext-pbs") {
+            cmake_config.define("TFHE_CUDA_EXT_PBS", "ON");
+        } else {
+            cmake_config.define("TFHE_CUDA_EXT_PBS", "OFF");
         }
 
         if cfg!(feature = "debug") {
@@ -144,7 +151,7 @@ fn main() {
             "cuda/include/fft/fft128.h",
             "cuda/include/pbs/bootstrap_key_params.h",
             "cuda/include/pbs/programmable_bootstrap.h",
-            "cuda/include/pbs/programmable_bootstrap_multibit.h",
+            "cuda/src_experimental/include/pbs/programmable_bootstrap_multibit.h",
         ];
         let out_path = PathBuf::from("src").join("bindings.rs");
         let bindings_modified = if out_path.exists() {
@@ -164,7 +171,7 @@ fn main() {
 
         // Regenerate bindings only if header has been modified
         if headers_modified > bindings_modified {
-            let bindings = bindgen::Builder::default()
+            let mut builder = bindgen::Builder::default()
                 .header(header_path)
                 // allow only what we are interested in, the custom types appearing in the interface
                 .allowlist_type("PBS_TYPE")
@@ -178,10 +185,13 @@ fn main() {
                 .clang_arg("-std=c++17")
                 .clang_arg("-I/usr/include")
                 .clang_arg("-I/usr/local/include")
+                .clang_arg("-Icuda/include")
                 .ctypes_prefix("ffi")
-                .raw_line("use crate::ffi;")
-                .generate()
-                .expect("Unable to generate bindings");
+                .raw_line("use crate::ffi;");
+            if cfg!(feature = "ext-pbs") {
+                builder = builder.clang_arg("-Icuda/src_experimental/include");
+            }
+            let bindings = builder.generate().expect("Unable to generate bindings");
 
             bindings
                 .write_to_file(&out_path)

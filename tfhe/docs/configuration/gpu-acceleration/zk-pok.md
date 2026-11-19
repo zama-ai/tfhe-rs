@@ -66,7 +66,7 @@ use tfhe::set_server_key;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let params = tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let params = tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     // Indicate which parameters to use for the Compact Public Key encryption
     let cpk_params = tfhe::shortint::parameters::PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     // And parameters allowing to keyswitch/cast to the computation parameters.

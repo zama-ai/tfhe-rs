@@ -1,7 +1,9 @@
 #include <algorithm>
 #include "pbs/pbs_utilities.h"
 #include "pbs/programmable_bootstrap.h"
+#ifdef TFHE_CUDA_EXT_PBS
 #include "pbs/programmable_bootstrap_multibit.h"
+#endif
 #include "pbs/programmable_bootstrap_testing.h"
 #include <cmath>
 #include <cstdint>
@@ -247,6 +249,7 @@ void generate_lwe_programmable_bootstrap_keys_2_2_specialized(
       });
 }
 
+#ifdef TFHE_CUDA_EXT_PBS
 void generate_lwe_multi_bit_programmable_bootstrap_keys(
     cudaStream_t stream, uint32_t gpu_index, uint64_t **d_bsk_array, uint64_t *lwe_sk_in_array,
     uint64_t *lwe_sk_out_array, int lwe_dimension, int glwe_dimension,
@@ -294,6 +297,8 @@ void generate_lwe_multi_bit_programmable_bootstrap_keys(
   cuda_synchronize_stream(stream, gpu_index);
   free(bsk_array);
 }
+
+#endif
 
 // Generate repetitions keyswitch keys
 void generate_lwe_keyswitch_keys(

@@ -1,10 +1,13 @@
+#ifdef TFHE_CUDA_EXT_PBS
 #include "pbs/pbs_multibit_utilities.h"
+#endif
 #include "pbs/pbs_utilities.h"
 #include <benchmark/benchmark.h>
 #include <cmath>
 #include <cstdint>
 #include <setup_and_teardown.h>
 
+#ifdef TFHE_CUDA_EXT_PBS
 typedef struct {
   int lwe_dimension;
   int glwe_dimension;
@@ -14,6 +17,7 @@ typedef struct {
   int input_lwe_ciphertext_count;
   int grouping_factor;
 } MultiBitPBSBenchmarkParams;
+#endif
 
 typedef struct {
   int lwe_dimension;
@@ -24,6 +28,7 @@ typedef struct {
   int input_lwe_ciphertext_count;
 } BootstrapBenchmarkParams;
 
+#ifdef TFHE_CUDA_EXT_PBS
 class MultiBitBootstrap_u64 : public benchmark::Fixture {
 protected:
   int lwe_dimension;
@@ -98,6 +103,7 @@ public:
     cudaDeviceReset();
   }
 };
+#endif
 
 class ClassicalBootstrap_u64 : public benchmark::Fixture {
 protected:
@@ -175,6 +181,7 @@ public:
   }
 };
 
+#ifdef TFHE_CUDA_EXT_PBS
 #if CUDA_ARCH >= 900
 BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 (benchmark::State &st) {
@@ -256,6 +263,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, DefaultMultiBit)
 
   cleanup_cuda_multi_bit_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
+#endif // TFHE_CUDA_EXT_PBS
 
 BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, Specialized2_2PBS)
 (benchmark::State &st) {
@@ -334,6 +342,7 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
   cleanup_cuda_programmable_bootstrap_64(stream, gpu_index, &buffer);
 }
 
+#ifdef TFHE_CUDA_EXT_PBS
 static void
 MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   // Define the parameters to benchmark
@@ -360,6 +369,7 @@ MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
     }
   }
 }
+#endif // TFHE_CUDA_EXT_PBS
 
 static void
 BootstrapBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
@@ -382,6 +392,7 @@ BootstrapBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
     }
 }
 
+#ifdef TFHE_CUDA_EXT_PBS
 #if CUDA_ARCH >= 900
 BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, TbcMultiBit)
     ->Apply(MultiBitPBSBenchmarkGenerateParams)
@@ -401,6 +412,7 @@ BENCHMARK_REGISTER_F(MultiBitBootstrap_u64, DefaultMultiBit)
     ->ArgNames({"lwe_dimension", "glwe_dimension", "polynomial_size",
                 "pbs_base_log", "pbs_level", "input_lwe_ciphertext_count",
                 "grouping_factor"});
+#endif // TFHE_CUDA_EXT_PBS
 
 BENCHMARK_REGISTER_F(ClassicalBootstrap_u64, Specialized2_2PBS)
     ->Apply(BootstrapBenchmarkGenerateParams)

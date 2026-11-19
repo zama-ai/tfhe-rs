@@ -91,10 +91,10 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::GpuIndex;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -102,7 +102,7 @@ impl CudaServerKey {
     /// // PRINCE works on 1-block radix ciphertexts
     /// let num_blocks = 1;
     /// let (cks, sks) = gen_keys_radix_gpu(
-    ///     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     ///     num_blocks,
     ///     &streams,
     /// );
