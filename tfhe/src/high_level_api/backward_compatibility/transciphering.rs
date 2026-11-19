@@ -3,8 +3,8 @@ use std::convert::Infallible;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::high_level_api::transciphering::{
-    AesFheKey, CompressedSquashedNoiseOneTimePadFheSecretMask, KreyviumFheKey,
-    OneTimePadFheSecretMask, StreamCiphertext, StreamCiphertextList,
+    AesFheKey, CompressedOneTimePadFheSecretMask, CompressedSquashedNoiseOneTimePadFheSecretMask,
+    KreyviumFheKey, OneTimePadFheSecretMask, StreamCiphertext, StreamCiphertextList,
 };
 use crate::transciphering::{
     AesFheKey as ShortintAesFheKey, KreyviumFheKey as ShortintKreyviumFheKey,
@@ -80,6 +80,11 @@ impl Upgrade<OneTimePadFheSecretMask> for OneTimePadFheSecretMaskV0 {
 pub enum OneTimePadFheSecretMaskVersions {
     V0(OneTimePadFheSecretMaskV0),
     V1(OneTimePadFheSecretMask),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedOneTimePadFheSecretMaskVersions {
+    V0(CompressedOneTimePadFheSecretMask),
 }
 
 #[derive(VersionsDispatch)]

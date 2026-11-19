@@ -814,38 +814,49 @@ fn one_time_pad_fhe_mask_encrypt_decrypt_round_trip() {
     }
 }
 
-/// Check that masks generated with the same seed but different size share the same prefix
+/// Check that masks generated with the same seed but different size share the same prefix, with
+/// both the compute and a dedicated OPRF key
 #[test]
 fn one_time_pad_fhe_new_random_prefix() {
+    use crate::shortint::parameters::OprfParameters;
+
     let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
-    let private_key = TranscipheringPrivateKey::new(&cks, TranscipheringParameters::SameAsCompute);
-    let transciphering_key = TranscipheringServerKey::new(&private_key, &cks).unwrap();
 
-    let seed: [u8; 32] = rand::thread_rng().gen();
-    println!("one_time_pad_fhe_new_random_prefix seed={seed:02x?}");
+    for params in [
+        TranscipheringParameters::SameAsCompute,
+        TranscipheringParameters::DedicatedOprf(OprfParameters {
+            lwe_dimension: LweDimension(600),
+        }),
+    ] {
+        let private_key = TranscipheringPrivateKey::new(&cks, params);
+        let transciphering_key = TranscipheringServerKey::new(&private_key, &cks).unwrap();
 
-    let decrypted_mask = |n_bits| -> Vec<u64> {
-        OneTimePadFheSecretMask::new_random(seed.as_slice(), &transciphering_key, &sks, n_bits)
-            .unwrap()
-            .ciphertexts()
-            .iter()
-            .map(|ct| cks.decrypt_message_and_carry(ct))
-            .collect()
-    };
+        let seed: [u8; 32] = rand::thread_rng().gen();
+        println!("one_time_pad_fhe_new_random_prefix params={params:?} seed={seed:02x?}");
 
-    // 2 bits per ciphertext with 2_2 params
-    let short = decrypted_mask(16);
-    let long = decrypted_mask(40);
+        let decrypted_mask = |n_bits| -> Vec<u64> {
+            OneTimePadFheSecretMask::new_random(seed.as_slice(), &transciphering_key, &sks, n_bits)
+                .unwrap()
+                .ciphertexts()
+                .iter()
+                .map(|ct| cks.decrypt_message_and_carry(ct))
+                .collect()
+        };
 
-    assert_eq!(short.len(), 8);
-    assert_eq!(long.len(), 20);
-    assert_eq!(short, long[..8], "seed={seed:02x?}");
+        // 2 bits per ciphertext with 2_2 params
+        let short = decrypted_mask(16);
+        let long = decrypted_mask(40);
 
-    // The mask size must be a multiple of the number of bits per ciphertext.
-    assert!(matches!(
-        OneTimePadFheSecretMask::new_random(seed.as_slice(), &transciphering_key, &sks, 5),
-        Err(MaskGenerationError::InvalidMaskSize)
-    ));
+        assert_eq!(short.len(), 8);
+        assert_eq!(long.len(), 20);
+        assert_eq!(short, long[..8], "params={params:?} seed={seed:02x?}");
+
+        // The mask size must be a multiple of the number of bits per ciphertext.
+        assert!(matches!(
+            OneTimePadFheSecretMask::new_random(seed.as_slice(), &transciphering_key, &sks, 5),
+            Err(MaskGenerationError::InvalidMaskSize)
+        ));
+    }
 }
 
 #[test]
@@ -1175,6 +1186,139 @@ fn one_time_pad_compressed_squashed_noise_mask_conformance() {
     // expected one is refused by conformance, even if it fits in the parameters.
     for bits_per_ct in [1, 2, 3, 5, 8, 200] {
         let tampered: CompressedSquashedNoiseOneTimePadFheSecretMask =
+            bincode::deserialize(&tamper(bits_per_ct)).unwrap();
+        assert!(!tampered.is_conformant(&conformance_params));
+    }
+}
+
+/// The compressed mask must decompress to a mask usable for transciphering, that decrypts to the
+/// original plain mask.
+#[test]
+fn one_time_pad_compressed_mask_round_trip() {
+    use crate::shortint::parameters::test_params::{
+        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
+    };
+
+    let (cks, _sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let comp_private_key =
+        cks.new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+    let (comp_key, decomp_key) = cks.new_compression_decompression_keys(&comp_private_key);
+
+    // Byte-aligned and not. The asymmetric pattern catches a reversed bit or ciphertext order.
+    for bit_count in [32usize, 14] {
+        let bytes: Vec<u8> = (0..bit_count.div_ceil(8))
+            .map(|i| 0x1Fu8.wrapping_mul(i as u8 + 1))
+            .collect();
+        let plain = OneTimePadPlainSecretMask::new(clear_padding(bytes, bit_count), bit_count);
+
+        let mask = plain.encrypt(&cks).unwrap();
+        let compressed = mask.compress(&comp_key).unwrap();
+        assert_eq!(compressed.layout(), mask.layout());
+
+        let decompressed = compressed.decompress(&decomp_key).unwrap();
+        assert_eq!(decompressed.layout(), mask.layout());
+        assert_eq!(decompressed.ciphertexts().len(), mask.ciphertexts().len());
+        assert!(
+            decompressed.decrypt(&cks) == plain,
+            "decompressed, {bit_count} bits"
+        );
+    }
+
+    // Compression only keeps the message part, so other layouts are refused
+    let plain = OneTimePadPlainSecretMask::new(vec![0xAB; 2], 16);
+    let params = cks.parameters();
+    for layout in [
+        KeyStreamLayout::full_space(params.message_modulus(), params.carry_modulus()).unwrap(),
+        KeyStreamLayout::single_bit(),
+    ] {
+        let mask = plain.encrypt_with_layout(&cks, layout).unwrap();
+        assert!(mask.compress(&comp_key).is_err());
+    }
+
+    // Decompression requires equal message and carry moduli, so a mask using the message space of
+    // other parameters is refused
+    let cks_1_2 = ClientKey::new(TEST_PARAM_MESSAGE_1_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128);
+    let mask = plain.encrypt(&cks_1_2).unwrap();
+    assert!(mask.compress(&comp_key).is_err());
+
+    // An empty mask goes through the whole flow
+    let compressed = OneTimePadPlainSecretMask::new(vec![], 0)
+        .encrypt(&cks)
+        .unwrap()
+        .compress(&comp_key)
+        .unwrap();
+    assert!(compressed
+        .decompress(&decomp_key)
+        .unwrap()
+        .ciphertexts()
+        .is_empty());
+}
+
+#[test]
+fn one_time_pad_compressed_mask_conformance() {
+    use crate::conformance::ParameterSetConformant;
+    use crate::shortint::ciphertext::CompressedCiphertextList;
+    use crate::shortint::parameters::test_params::TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use crate::shortint::parameters::CompressedCiphertextListConformanceParams;
+    use crate::shortint::AtomicPatternParameters;
+    use crate::transciphering::{
+        CompressedOneTimePadFheSecretMask, CompressedOneTimePadFheSecretMaskConformanceParams,
+    };
+
+    let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let comp_params = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    let (cks, _sks) = gen_keys(params);
+    let comp_private_key = cks.new_compression_private_key(comp_params);
+    let (comp_key, _decomp_key) = cks.new_compression_decompression_keys(&comp_private_key);
+    let list_params = CompressedCiphertextListConformanceParams::from_params(
+        AtomicPatternParameters::from(params),
+        comp_params,
+    );
+    let layout = KeyStreamLayout::message_space(params.message_modulus).unwrap();
+    let conformance_params = CompressedOneTimePadFheSecretMaskConformanceParams {
+        list_params,
+        layout,
+    };
+
+    let compressed = OneTimePadPlainSecretMask::new(vec![0xAB; 2], 16)
+        .encrypt(&cks)
+        .unwrap()
+        .compress(&comp_key)
+        .unwrap();
+    assert!(compressed.is_conformant(&conformance_params));
+
+    // A mask with another layout than the expected one is refused
+    let single_bit_params = CompressedOneTimePadFheSecretMaskConformanceParams {
+        list_params,
+        layout: KeyStreamLayout::single_bit(),
+    };
+    assert!(!compressed.is_conformant(&single_bit_params));
+
+    // Same serialized form as the compressed mask, with a raw layout
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Tampered {
+        secret_mask: CompressedCiphertextList,
+        bits_per_ct: u8,
+    }
+
+    let serialized = bincode::serialize(&compressed).unwrap();
+    let tamper = |bits_per_ct| {
+        let mut tampered: Tampered = bincode::deserialize(&serialized).unwrap();
+        tampered.bits_per_ct = bits_per_ct;
+        bincode::serialize(&tampered).unwrap()
+    };
+
+    let untampered: CompressedOneTimePadFheSecretMask = bincode::deserialize(&tamper(2)).unwrap();
+    assert!(untampered.is_conformant(&conformance_params));
+
+    // A layout with 0 bits per ciphertext cannot be deserialized.
+    assert!(bincode::deserialize::<CompressedOneTimePadFheSecretMask>(&tamper(0)).is_err());
+
+    // A layout that differs from the expected one is refused by conformance
+    for bits_per_ct in [1, 3, 4, 8, 200] {
+        let tampered: CompressedOneTimePadFheSecretMask =
             bincode::deserialize(&tamper(bits_per_ct)).unwrap();
         assert!(!tampered.is_conformant(&conformance_params));
     }
