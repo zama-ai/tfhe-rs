@@ -1,6 +1,4 @@
 use clap::{Arg, ArgAction, Command};
-use tfhe::boolean;
-use tfhe::boolean::parameters::{BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS};
 use tfhe::shortint::keycache::{KEY_CACHE, KEY_CACHE_KSK};
 #[cfg(tarpaulin)]
 use tfhe::shortint::parameters::coverage_parameters::{
@@ -84,10 +82,6 @@ fn client_server_keys() {
 
             generate_pbs_multi_bit_keys(&MULTI_BIT_PARAMS);
         }
-
-        const BOOLEAN_PARAMS: [BooleanParameters; 2] =
-            [DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS];
-        generate_boolean_keys(&BOOLEAN_PARAMS);
     } else {
         const PBS_KEYS: [ClassicPBSParameters; 15] = [
             // TUniform
@@ -175,25 +169,6 @@ fn generate_ksk_keys(
 
         // Clear keys as we go to avoid filling the RAM
         KEY_CACHE_KSK.clear_in_memory_cache()
-    }
-}
-
-fn generate_boolean_keys(params: &[BooleanParameters]) {
-    println!("Generating boolean (ClientKey, ServerKey)");
-
-    for (i, param) in params.iter().copied().enumerate() {
-        println!("Generating [{} / {}]", i + 1, params.len());
-
-        let start = std::time::Instant::now();
-
-        let _ = boolean::keycache::KEY_CACHE.get_from_param(param);
-
-        let stop = start.elapsed().as_secs();
-
-        println!("Generation took {stop} seconds");
-
-        // Clear keys as we go to avoid filling the RAM
-        boolean::keycache::KEY_CACHE.clear_in_memory_cache()
     }
 }
 

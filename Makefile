@@ -1632,13 +1632,8 @@ test_regex_engine:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--example regex_engine -p tfhe --features=integer
 
-.PHONY: test_sha256_bool # Run tests for sha256_bool example
-test_sha256_bool:
-	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--example sha256_bool -p tfhe --features=boolean
-
 .PHONY: test_examples # Run tests for examples
-test_examples: test_sha256_bool test_regex_engine
+test_examples: test_regex_engine
 
 .PHONY: test_trivium # Run tests for trivium
 test_trivium:
@@ -2604,7 +2599,7 @@ bench_custom: install_rs_check_toolchain
 gen_key_cache:
 	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
-		--features=boolean,shortint,experimental,internal-keycache -p tfhe \
+		--features=shortint,experimental,internal-keycache -p tfhe \
 		-- $(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
 
 .PHONY: gen_key_cache_core_crypto # Run function to generate keys and cache them for core_crypto tests
@@ -2643,7 +2638,7 @@ parse_integer_benches: setup_python_venv
 .PHONY: write_params_to_file # Gather all crypto parameters into a file with a Sage readable format.
 write_params_to_file: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
-	--example write_params_to_file --features=boolean,shortint,integer,hpu,internal-keycache,experimental -p tfhe
+	--example write_params_to_file --features=shortint,integer,hpu,internal-keycache,experimental -p tfhe
 
 .PHONY: pull_backward_compat_data # Pull the data files needed for backward compatibility tests
 pull_backward_compat_data:
@@ -2677,11 +2672,6 @@ dark_market:
 	--example dark_market -p tfhe \
 	--features=integer,internal-keycache \
 	-- fhe-modified fhe-parallel plain fhe
-
-.PHONY: sha256_bool # Run sha256_bool example
-sha256_bool:
-	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
-	--example sha256_bool -p tfhe --features=boolean
 
 .PHONY: pcc # pcc stands for pre commit checks for CPU compilation
 pcc: pcc_batch_1 pcc_batch_2 pcc_batch_3 pcc_batch_4 pcc_batch_5 pcc_batch_6 pcc_batch_7

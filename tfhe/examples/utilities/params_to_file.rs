@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
-use tfhe::boolean::parameters::{BooleanParameters, VEC_BOOLEAN_PARAM};
 use tfhe::core_crypto::commons::parameters::{GlweDimension, LweDimension, PolynomialSize};
 use tfhe::core_crypto::prelude::{CiphertextModulus, DynamicDistribution, UnsignedInteger};
 use tfhe::keycache::NamedParam;
@@ -64,35 +63,6 @@ pub trait ParamDetails<T: UnsignedInteger> {
     fn polynomial_size(&self) -> PolynomialSize;
     fn lwe_ciphertext_modulus(&self) -> ParamModulus;
     fn glwe_ciphertext_modulus(&self) -> ParamModulus;
-}
-
-impl ParamDetails<u32> for BooleanParameters {
-    fn lwe_dimension(&self) -> LweDimension {
-        self.lwe_dimension
-    }
-
-    fn glwe_dimension(&self) -> GlweDimension {
-        self.glwe_dimension
-    }
-
-    fn lwe_noise_distribution(&self) -> DynamicDistribution<u32> {
-        self.lwe_noise_distribution
-    }
-    fn glwe_noise_distribution(&self) -> DynamicDistribution<u32> {
-        self.glwe_noise_distribution
-    }
-
-    fn polynomial_size(&self) -> PolynomialSize {
-        self.polynomial_size
-    }
-
-    fn lwe_ciphertext_modulus(&self) -> ParamModulus {
-        ParamModulus::Other(1u128.checked_shl(u32::BITS).unwrap())
-    }
-
-    fn glwe_ciphertext_modulus(&self) -> ParamModulus {
-        ParamModulus::Other(1u128.checked_shl(u32::BITS).unwrap())
-    }
 }
 
 impl ParamDetails<u64> for AtomicPatternParameters {
@@ -503,13 +473,6 @@ fn main() {
     let mut new_work_dir = work_dir;
     new_work_dir.push("ci");
     std::env::set_current_dir(new_work_dir).unwrap();
-
-    let boolean_params: Vec<_> = VEC_BOOLEAN_PARAM.into_iter().map(|p| (p, None)).collect();
-    write_all_params_in_file(
-        "boolean_parameters_lattice_estimator.sage",
-        &boolean_params,
-        ParametersFormat::LweGlwe,
-    );
 
     let classic_pbs: Vec<_> = VEC_ALL_CLASSIC_PBS_PARAMETERS
         .into_iter()

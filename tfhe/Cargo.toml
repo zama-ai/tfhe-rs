@@ -197,18 +197,12 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 [[example]]
 name = "generates_test_keys"
 path = "examples/utilities/generates_test_keys.rs"
-required-features = ["boolean", "shortint", "internal-keycache"]
-
-[[example]]
-name = "micro_bench_and"
-path = "examples/utilities/micro_bench_and.rs"
-required-features = ["boolean"]
+required-features = ["shortint", "internal-keycache"]
 
 [[example]]
 name = "write_params_to_file"
 path = "examples/utilities/params_to_file.rs"
 required-features = [
-    "boolean",
     "shortint",
     "integer",
     "internal-keycache",
@@ -235,10 +229,6 @@ required-features = ["integer", "internal-keycache"]
 [[example]]
 name = "regex_engine"
 required-features = ["integer"]
-
-[[example]]
-name = "sha256_bool"
-required-features = ["boolean"]
 
 [[example]]
 name = "sha256"
