@@ -111,7 +111,6 @@ tfhe-hpu-backend = { version = "0.8.0", path = "../backends/tfhe-hpu-backend", o
 
 [features]
 default = ["avx512"]
-boolean = []
 shortint = ["dep:sha3", "dep:shake", "dep:blake3"]
 integer = ["shortint", "dep:strum"]
 strings = ["integer"]
@@ -180,7 +179,6 @@ software-prng = ["tfhe-csprng/software-prng"]
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
 features = [
-    "boolean",
     "shortint",
     "integer",
     "gpu",

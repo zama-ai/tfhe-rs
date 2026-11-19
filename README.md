@@ -74,7 +74,7 @@ production-ready library for all the advanced features of TFHE.
 To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
 ```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer"] }
+tfhe = { version = "*", features = ["shortint", "integer"] }
 ```
 
 > [!Note]

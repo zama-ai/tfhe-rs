@@ -473,28 +473,28 @@ check_typos: install_typos_checker
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-zk,pbs-stats,extended-types,zk-pok \
+		--features=shortint,integer,internal-keycache,gpu,gpu-zk,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: check_gpu # Run check on tfhe with "gpu" enabled
 check_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" check \
-		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-zk,pbs-stats \
+		--features=shortint,integer,internal-keycache,gpu,gpu-zk,pbs-stats \
 		--all-targets \
 		-p tfhe
 
 .PHONY: clippy_hpu # Run clippy lints on tfhe with "hpu" enabled
 clippy_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,hpu,pbs-stats,extended-types \
+		--features=shortint,integer,internal-keycache,hpu,pbs-stats,extended-types \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_gpu_hpu # Run clippy lints on tfhe with "gpu" and "hpu" enabled
 clippy_gpu_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,gpu-zk,hpu,pbs-stats,extended-types,zk-pok \
+		--features=shortint,integer,internal-keycache,gpu,gpu-zk,hpu,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
@@ -596,13 +596,13 @@ clippy_integer: install_rs_check_toolchain
 		--all-targets \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
+.PHONY: clippy # Run clippy lints enabling the shortint, integer
 clippy: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer \
+		--features=shortint,integer \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy_rustdoc # Run clippy lints on doctests enabling the boolean, shortint, integer and zk-pok
+.PHONY: clippy_rustdoc # Run clippy lints on doctests of tfhe (shortint, integer, zk-pok) and tfhe-experimental
 clippy_rustdoc: install_rs_check_toolchain
 	if [[ "$(OS)" != "Linux" && "$(OS)" != "Darwin" ]]; then \
 		echo "WARNING: skipped clippy_rustdoc, unsupported OS $(OS)"; \
@@ -610,10 +610,14 @@ clippy_rustdoc: install_rs_check_toolchain
 	fi && \
 	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
-		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,experimental-graph \
-		-p tfhe -- --nocapture
+		--features=shortint,integer,zk-pok,pbs-stats,strings,experimental,experimental-graph \
+		-p tfhe -- --nocapture && \
+	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
+		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
+		--features=boolean,internal-keycache \
+		-p tfhe-experimental -- --nocapture
 
-.PHONY: clippy_rustdoc_gpu # Run clippy lints on doctests enabling the boolean, shortint, integer and zk-pok
+.PHONY: clippy_rustdoc_gpu # Run clippy lints on doctests enabling the shortint, integer and zk-pok
 clippy_rustdoc_gpu: install_rs_check_toolchain
 	if [[ "$(OS)" != "Linux" ]]; then \
 		echo "WARNING: skipped clippy_rustdoc_gpu, unsupported OS $(OS)"; \
@@ -621,7 +625,7 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 	fi && \
 	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
-		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,experimental-graph,gpu,gpu-zk \
+		--features=shortint,integer,zk-pok,pbs-stats,strings,experimental,experimental-graph,gpu,gpu-zk \
 		-p tfhe -- --nocapture
 
 .PHONY: clippy_c_api # Run clippy lints enabling the shortint and the C API
@@ -682,10 +686,10 @@ clippy_ws_tests: install_rs_check_toolchain
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types \
+		--features=shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types,experimental,experimental-graph \
+		--features=shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types,experimental,experimental-graph \
 		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tfhe_csprng # Run clippy lints on tfhe-csprng
@@ -953,22 +957,22 @@ build_integer:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		--features=integer -p tfhe --all-targets
 
-.PHONY: build_tfhe_full # Build with boolean, shortint and integer enabled
+.PHONY: build_tfhe_full # Build with shortint and integer enabled
 build_tfhe_full:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer -p tfhe --all-targets
+		--features=shortint,integer -p tfhe --all-targets
 
 .PHONY: build_tfhe_coverage # Build with test coverage enabled
 build_tfhe_coverage:
 	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo build --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache -p tfhe --tests
+		--features=shortint,integer,internal-keycache -p tfhe --tests
 
 # As of 05/08/2025 this is the set of features that can be easily compiled without additional
 # toolkits
 .PHONY: build_tfhe_msrv # Build with msrv compiler
 build_tfhe_msrv:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo +$(MIN_RUST_VERSION) build --profile dev \
-		--features=boolean,extended-types,hpu,hpu-debug \
+		--features=extended-types,hpu,hpu-debug \
 		--features=hpu-v80,integer,noise-asserts \
 		--features=pbs-stats,shortint,strings,zk-pok -p tfhe
 
@@ -1450,24 +1454,24 @@ test_integer_long_run: install_cargo_nextest
 test_noise_check:
 	@# First run the sanity checks to make sure the atomic patterns are correct
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,experimental -p tfhe -- sanity_check
+		--features=shortint,integer,experimental -p tfhe -- sanity_check
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,experimental -p tfhe -- noise_check \
+		--features=shortint,integer,experimental -p tfhe -- noise_check \
 		--test-threads=1 --nocapture
 
 .PHONY: test_noise_check_gpu # Run dedicated noise and pfail check tests on gpu backend
 test_noise_check_gpu:
 	@# First run the sanity checks to make sure the atomic patterns are correct
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,gpu -p tfhe -- gpu_sanity_check
+		--features=shortint,integer,gpu -p tfhe -- gpu_sanity_check
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,gpu -p tfhe -- gpu_noise_check \
+		--features=shortint,integer,gpu -p tfhe -- gpu_noise_check \
 		--test-threads=1 --nocapture
 
 .PHONY: test_safe_serialization # Run the tests for safe serialization
 test_safe_serialization: install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache -p tfhe -- safe_serialization::
+		--features=shortint,integer,internal-keycache -p tfhe -- safe_serialization::
 
 .PHONY: test_zk # Run the tests for the zk module of the TFHE-rs crate
 test_zk: install_cargo_nextest
@@ -1491,13 +1495,13 @@ test_integer_cov: install_tarpaulin
 .PHONY: test_graph_api # Run all the tests for the experimental Graph API
 test_graph_api:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental-graph -p tfhe \
+		--features=shortint,integer,internal-keycache,zk-pok,strings,experimental-graph -p tfhe \
 		-- high_level_api::graph:: --test-threads=20
 
 .PHONY: test_high_level_api # Run all the tests for high_level_api, including the Graph API
 test_high_level_api: test_graph_api
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental -p tfhe \
+		--features=shortint,integer,internal-keycache,zk-pok,strings,experimental -p tfhe \
 		-- high_level_api:: --skip test_noise_check
 
 test_high_level_api_gpu_fast: install_cargo_nextest # Run all the GPU tests for high_level_api except test_uniformity for oprf which is too long
@@ -1596,7 +1600,7 @@ test_strings:
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) --doc \
-		--features=boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok,strings \
+		--features=shortint,integer,internal-keycache,pbs-stats,zk-pok,strings \
 		-p tfhe \
 		-- test_user_docs::
 
@@ -1779,7 +1783,7 @@ doc: install_rs_check_toolchain
 	DOCS_RS=1 \
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=boolean,shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok --no-deps -p tfhe
+		--features=shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok --no-deps -p tfhe
 
 .PHONY: docs # Build rust doc alias for doc
 docs: doc
@@ -1790,10 +1794,16 @@ lint_doc: install_rs_check_toolchain
 	DOCS_RS=1 \
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=boolean,shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok -p tfhe --no-deps
+		--features=shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok -p tfhe --no-deps
 
 .PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
 lint_docs: lint_doc
+
+.PHONY: lint_doc_experimental # Build rust doc for tfhe-experimental with linting enabled
+lint_doc_experimental: install_rs_check_toolchain
+	RUSTDOCFLAGS="-Dwarnings" \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
+		--features=boolean,internal-keycache --no-deps -p tfhe-experimental
 
 .PHONY: lint_doc_zk_pok # Build rust doc for tfhe-zk-pok with linting enabled
 lint_doc_zk_pok: install_rs_check_toolchain
@@ -1863,7 +1873,7 @@ check_parameter_export_ok: setup_python_venv
 .PHONY: check_compile_tests # Build tests in debug without running them
 check_compile_tests:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
-		--features=experimental,boolean,shortint,integer,internal-keycache \
+		--features=experimental,shortint,integer,internal-keycache \
 		-p tfhe
 
 .PHONY: check_compile_tests_c_api # Build C API tests without running them
@@ -1876,7 +1886,7 @@ check_compile_tests_c_api:
 .PHONY: check_compile_tests_benches_gpu # Build tests in debug without running them
 check_compile_tests_benches_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
-		--features=experimental,boolean,shortint,integer,internal-keycache,gpu,zk-pok \
+		--features=experimental,shortint,integer,internal-keycache,gpu,zk-pok \
 		-p tfhe
 	mkdir -p "$(TFHECUDA_BUILD)" && \
 		cd "$(TFHECUDA_BUILD)" && \
@@ -2745,6 +2755,7 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_zk_pok)
 	$(call run_recipe_with_details,clippy_zk_pok_wasm)
 	$(call run_recipe_with_details,lint_doc_zk_pok)
+	$(call run_recipe_with_details,lint_doc_experimental)
 	$(call run_recipe_with_details,clippy_trivium)
 	$(call run_recipe_with_details,clippy_forward_compat)
 	$(call run_recipe_with_details,clippy_princev2)

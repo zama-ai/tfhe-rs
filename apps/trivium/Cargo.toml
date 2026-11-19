@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 rayon = "1"
-tfhe = { path = "../../tfhe", features = ["boolean", "shortint", "integer"] }
+tfhe = { path = "../../tfhe", features = ["shortint", "integer"] }
 
 [dev-dependencies]
 criterion = { version = "0.8.2", features = ["html_reports"] }
