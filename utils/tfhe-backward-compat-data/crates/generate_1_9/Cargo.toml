@@ -12,7 +12,6 @@ clap = { version = "4.5", features = ["derive"] }
 
 # TFHE-rs
 tfhe = { features = [
-    "boolean",
     "integer",
     "shortint",
     "zk-pok",
@@ -22,7 +21,6 @@ tfhe-versionable = { path = "../../../tfhe-versionable" }
 
 # Uncomment this and remove the lines above once the current tfhe-rs version has been released
 # tfhe = { git = "https://github.com/zama-ai/tfhe-rs.git", tag = "tfhe-rs-1.9.0", features = [
-#     "boolean",
 #     "integer",
 #     "shortint",
 #     "zk-pok",

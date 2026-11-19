@@ -35,7 +35,7 @@ impl TfhersVersion for V{{ tfhe_version_underscored }} {
 
     fn seed_prng(seed: u128) {
         // <TODO> Include here the code required to seed the prng for this version of TFHE-rs.
-        // <TODO> This might require: seeding shortint and boolean engines
+        // <TODO> This might require: seeding the shortint engine
         // <TODO>
         // <TODO> Example:
         // <TODO> let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
@@ -43,9 +43,6 @@ impl TfhersVersion for V{{ tfhe_version_underscored }} {
         // <TODO> ShortintEngine::with_thread_local_mut(|local_engine| {
         // <TODO>     let _ = std::mem::replace(local_engine, shortint_engine);
         // <TODO> });
-        // <TODO>
-        // <TODO> let boolean_engine = BooleanEngine::new_from_seeder(&mut seeder);
-        // <TODO> BooleanEngine::replace_thread_local(boolean_engine);
         todo!()
     }
 
