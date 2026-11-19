@@ -169,7 +169,14 @@ supports_distributed_shared_memory_on_classic_programmable_bootstrap(
 }
 
 struct pbs_buffer_base {
+  /// Null if the buffer is not shared: no stream check. Otherwise, the only
+  /// stream that can use the buffer.
+  cudaStream_t shared_stream = nullptr;
+
   virtual void release(cudaStream_t stream, uint32_t gpu_index) = 0;
+  /// Number of inputs the buffer was allocated for: a PBS on this buffer
+  /// can process at most this many inputs.
+  virtual uint32_t max_num_inputs() const = 0;
   virtual ~pbs_buffer_base() = default;
 };
 
@@ -198,6 +205,9 @@ struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> : public pbs_buffer_base {
   uint32_t level_count;
   uint32_t input_lwe_ciphertext_count;
   uint32_t max_shared_memory;
+  uint32_t max_num_inputs() const override {
+    return input_lwe_ciphertext_count;
+  }
   // Set by every 64-bit classical scratch path for the launch-time guard;
   // stays 0 for 128-bit buffers, whose launch paths do not run it.
   uint32_t pbs_base_log = 0;
