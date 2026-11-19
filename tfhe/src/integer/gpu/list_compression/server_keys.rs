@@ -31,6 +31,7 @@ use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::prelude::{GlweDimension, LweDimension};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
+use std::ops::Range;
 use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
 
 #[derive(Debug)]
@@ -696,11 +697,10 @@ impl CudaDecompressionKey {
     pub fn get_gpu_list_unpack_size_on_gpu(
         &self,
         packed_list: &CudaPackedGlweCiphertextList<u64>,
-        start_block_index: usize,
-        end_block_index: usize,
+        block_range: Range<usize>,
         streams: &CudaStreams,
     ) -> u64 {
-        if start_block_index == end_block_index {
+        if block_range.is_empty() {
             return 0;
         }
 
@@ -708,9 +708,7 @@ impl CudaDecompressionKey {
             panic!("Missing ciphertext metadata in CompressedCiphertextList")
         };
 
-        let indexes_array = (start_block_index..=end_block_index)
-            .map(|x| x as u32)
-            .collect_vec();
+        let indexes_array = block_range.map(|x| x as u32).collect_vec();
 
         let encryption_glwe_dimension = self.glwe_dimension;
         let encryption_polynomial_size = self.polynomial_size;
@@ -743,17 +741,14 @@ impl CudaDecompressionKey {
     pub fn get_cpu_list_unpack_size_on_gpu(
         &self,
         packed_list: &CompressedCiphertextList,
-        start_block_index: usize,
-        end_block_index: usize,
+        block_range: Range<usize>,
         streams: &CudaStreams,
     ) -> u64 {
-        if start_block_index == end_block_index {
+        if block_range.is_empty() {
             return 0;
         }
 
-        let indexes_array = (start_block_index..=end_block_index)
-            .map(|x| x as u32)
-            .collect_vec();
+        let indexes_array = block_range.map(|x| x as u32).collect_vec();
 
         let encryption_glwe_dimension = self.glwe_dimension;
         let encryption_polynomial_size = self.polynomial_size;

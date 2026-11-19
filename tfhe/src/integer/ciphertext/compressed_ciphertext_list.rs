@@ -224,14 +224,9 @@ impl CompressedCiphertextList {
         let Some((_, block_range)) = self.block_range(index)? else {
             return Ok(None);
         };
-        if block_range.is_empty() {
-            return Ok(Some(0));
-        }
-
         Ok(Some(decomp_key.get_cpu_list_unpack_size_on_gpu(
             &self.packed_list,
-            block_range.start,
-            block_range.end - 1,
+            block_range,
             streams,
         )))
     }
