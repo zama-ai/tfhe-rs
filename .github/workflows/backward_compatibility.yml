@@ -37,15 +37,25 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: "true"
+          fetch-depth: 2
 
-      - name: Fetch base commit
+      - name: Resolve base commit
+        id: base
         env:
-          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: git fetch origin "$BASE_REF" --depth=1
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base_ref=$(git rev-parse HEAD^1)
+          else
+            git fetch origin "$BEFORE_SHA" --depth=1
+            base_ref="$BEFORE_SHA"
+          fi
+          echo "ref=$base_ref" >> "$GITHUB_OUTPUT"
 
       - name: Generate base snapshot
         env:
-          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_REF: ${{ steps.base.outputs.ref }}
         run: make backward_snapshot_worktree BASE_REF="$BASE_REF" SNAPSHOT_OUTPUT_DIR=/tmp/snapshots/base
 
       - name: Generate head snapshot
