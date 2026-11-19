@@ -13,6 +13,7 @@
 
 #![allow(non_snake_case)]
 
+use crate::curve_api::bls12_446::{G1, G2};
 use crate::curve_api::Bls12_446;
 use crate::gpu::pke_v2 as gpu_pke_v2;
 use crate::proofs::pke_v2::VerificationPairingMode;
@@ -302,5 +303,104 @@ fn test_pke_v2_long_run() {
         let round_seed: u64 = seed_rng.gen();
         println!("  round {round}/{rounds}: seed={round_seed:#x}");
         run_pke_v2_gpu_cpu_equivalence_round(round_seed);
+    }
+}
+
+#[test]
+fn test_pke_v2_gpu_verify_rejects_identity_commitment() {
+    let params = crate::proofs::pke_v2::tests::PKEV2_TEST_PARAMS;
+    let PkeTestParameters {
+        d,
+        k,
+        B,
+        q,
+        t,
+        msbs_zero_padding_bit_count,
+    } = params;
+
+    let seed: u64 = thread_rng().gen();
+    println!("test_pke_v2_gpu_verify_rejects_identity_commitment seed: {seed:#x}");
+    let rng = &mut StdRng::seed_from_u64(seed);
+
+    let testcase = PkeTestcase::gen(rng, params);
+    let ct = testcase.encrypt(params);
+    let public_param = pke_v2::crs_gen::<Curve>(d, k, B, q, t, msbs_zero_padding_bit_count, rng);
+    let (public_commit, private_commit) = pke_v2::commit(
+        testcase.a.clone(),
+        testcase.b.clone(),
+        ct.c1.clone(),
+        ct.c2.clone(),
+        testcase.r.clone(),
+        testcase.e1.clone(),
+        testcase.m.clone(),
+        testcase.e2.clone(),
+        &public_param,
+    );
+
+    let set_identity: [fn(&mut pke_v2::Proof<Curve>); 11] = [
+        |proof| proof.C_hat_bin = G2::ZERO,
+        |proof| proof.C_hat_e = G2::ZERO,
+        |proof| proof.C_hat_t = G2::ZERO,
+        |proof| proof.C_R = G1::ZERO,
+        |proof| proof.C_r_tilde = G1::ZERO,
+        |proof| proof.C_e = G1::ZERO,
+        |proof| proof.C_y = G1::ZERO,
+        |proof| proof.C_h1 = G1::ZERO,
+        |proof| proof.C_h2 = G1::ZERO,
+        |proof| proof.pi = G1::ZERO,
+        |proof| proof.pi_kzg = G1::ZERO,
+    ];
+    let set_compute_load_identity: [fn(&mut pke_v2::ComputeLoadProofFields<Curve>); 2] = [
+        |fields| fields.C_hat_h3 = G2::ZERO,
+        |fields| fields.C_hat_w = G2::ZERO,
+    ];
+
+    for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
+        let valid_proof = gpu_pke_v2::prove(
+            (&public_param, &public_commit),
+            &private_commit,
+            &testcase.metadata,
+            load,
+            &seed.to_le_bytes(),
+        );
+
+        let assert_verify = |proof: &pke_v2::Proof<Curve>, should_fail: bool| {
+            for pairing_mode in [
+                VerificationPairingMode::TwoSteps,
+                VerificationPairingMode::Batched,
+            ] {
+                let public = (&public_param, &public_commit);
+                let cpu_result = pke_v2::verify(proof, public, &testcase.metadata, pairing_mode);
+                let gpu_result =
+                    gpu_pke_v2::verify(proof, public, &testcase.metadata, pairing_mode);
+                assert_eq!(
+                    cpu_result.is_err(),
+                    should_fail,
+                    "CPU verify: load={load}, mode={pairing_mode:?}"
+                );
+                assert_eq!(
+                    gpu_result.is_err(),
+                    should_fail,
+                    "GPU verify: load={load}, mode={pairing_mode:?}"
+                );
+            }
+        };
+
+        assert_verify(&valid_proof, false);
+
+        for set in set_identity {
+            let mut proof = valid_proof.clone();
+            set(&mut proof);
+            assert_verify(&proof, true);
+        }
+
+        for set in set_compute_load_identity {
+            let mut proof = valid_proof.clone();
+            // Only ComputeLoad::Proof proofs contain these fields.
+            if let Some(fields) = proof.compute_load_proof_fields.as_mut() {
+                set(fields);
+                assert_verify(&proof, true);
+            }
+        }
     }
 }

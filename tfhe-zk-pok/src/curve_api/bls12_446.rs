@@ -903,6 +903,12 @@ mod gt {
 
     impl Gt {
         pub fn pairing(g1: G1, g2: G2) -> Self {
+            // e(O, Q) = e(P, O) = 1, and `ate_pairing` does not accept the point at infinity.
+            if g1 == G1::ZERO || g2 == G2::ZERO {
+                return Self {
+                    inner: PairingOutput::zero(),
+                };
+            }
             ate_pairing(g1, -g2)
         }
 
@@ -1400,6 +1406,24 @@ mod tests {
             Gt::pairing(x1, x2),
             Gt::pairing(G1::GENERATOR, G2::GENERATOR).mul_scalar(p1 * p2),
         );
+    }
+
+    #[test]
+    fn test_pairing_with_identity_point() {
+        let identity = Gt {
+            inner: PairingOutput::zero(),
+        };
+        for (g1, g2) in [
+            (G1::GENERATOR, G2::ZERO),
+            (G1::ZERO, G2::GENERATOR),
+            (G1::ZERO, G2::ZERO),
+        ] {
+            assert_eq!(Gt::pairing(g1, g2), identity);
+            assert_eq!(
+                <Gt as PairingGroupOps<Zp, G1, G2>>::pairing(g1, g2),
+                identity
+            );
+        }
     }
 
     #[test]
