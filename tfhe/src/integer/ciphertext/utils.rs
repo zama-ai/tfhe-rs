@@ -21,6 +21,28 @@ pub enum DataKind {
 }
 
 impl DataKind {
+    /// Bit width of a radix item, or None if the item is not a radix, if the modulus is invalid
+    /// or on overflow
+    pub(crate) fn radix_num_bits(self, message_modulus: MessageModulus) -> Option<usize> {
+        let (Self::Unsigned(num_blocks) | Self::Signed(num_blocks)) = self else {
+            return None;
+        };
+        let bits_per_block = message_modulus.0.checked_ilog2()?;
+        num_blocks.get().checked_mul(bits_per_block as usize)
+    }
+
+    pub(crate) fn is_unsigned_radix(
+        self,
+        message_modulus: MessageModulus,
+        num_bits: usize,
+    ) -> bool {
+        matches!(self, Self::Unsigned(_)) && self.radix_num_bits(message_modulus) == Some(num_bits)
+    }
+
+    pub(crate) fn is_signed_radix(self, message_modulus: MessageModulus, num_bits: usize) -> bool {
+        matches!(self, Self::Signed(_)) && self.radix_num_bits(message_modulus) == Some(num_bits)
+    }
+
     pub fn num_blocks(self, message_modulus: MessageModulus) -> crate::Result<usize> {
         match self {
             Self::Unsigned(n) | Self::Signed(n) => Ok(n.get()),
@@ -129,38 +151,50 @@ impl DataKind {
 type BlocksCounter = fn(DataKind, MessageModulus) -> crate::Result<usize>;
 
 pub trait Expandable: Sized {
+    /// Rejects an item of `kind` that cannot be expanded into `Self`, before paying for its
+    /// decompression
+    fn check_kind(kind: DataKind, message_modulus: MessageModulus) -> crate::Result<()>;
+
     fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self>;
+}
+
+/// Checks that an item of `kind` holds a radix with the signedness of `T`
+fn check_radix_kind<T: IntegerRadixCiphertext>(kind: DataKind) -> crate::Result<()> {
+    match (kind, T::IS_SIGNED) {
+        (DataKind::Unsigned(_), false) | (DataKind::Signed(_), true) => Ok(()),
+        (_, signed) => {
+            let signedness = if signed { "signed" } else { "unsigned" };
+            Err(crate::error!(
+                "Tried to expand a {signedness} radix while a {kind:?} is stored"
+            ))
+        }
+    }
 }
 
 impl<T> Expandable for T
 where
     T: IntegerRadixCiphertext,
 {
+    fn check_kind(kind: DataKind, _message_modulus: MessageModulus) -> crate::Result<()> {
+        check_radix_kind::<T>(kind)
+    }
+
     fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self> {
-        match (kind, T::IS_SIGNED) {
-            (DataKind::Unsigned(_), false) | (DataKind::Signed(_), true) => {
-                Ok(T::from_blocks(blocks))
-            }
-            (DataKind::Boolean, _) => {
-                let signed_or_unsigned_str = if T::IS_SIGNED { "signed" } else { "unsigned" };
-                Err(crate::Error::new(format!(
-                    "Tried to expand a {signed_or_unsigned_str} radix while boolean is stored"
-                )))
-            }
-            (DataKind::Unsigned(_), true) => Err(crate::Error::new(
-                "Tried to expand a signed radix while an unsigned radix is stored".to_string(),
-            )),
-            (DataKind::Signed(_), false) => Err(crate::Error::new(
-                "Tried to expand an unsigned radix while a signed radix is stored".to_string(),
-            )),
-            (DataKind::String { .. }, _) => Err(crate::Error::new(
-                "Tried to expand an unsigned radix while a string is stored".to_string(),
-            )),
-        }
+        check_radix_kind::<T>(kind)?;
+        Ok(T::from_blocks(blocks))
     }
 }
 
 impl Expandable for BooleanBlock {
+    fn check_kind(kind: DataKind, _message_modulus: MessageModulus) -> crate::Result<()> {
+        if kind == DataKind::Boolean {
+            return Ok(());
+        }
+        Err(crate::error!(
+            "Tried to expand a boolean block while a {kind:?} is stored"
+        ))
+    }
+
     fn from_expanded_blocks(blocks: Vec<Ciphertext>, kind: DataKind) -> crate::Result<Self> {
         match kind {
             DataKind::Unsigned(_) => Err(crate::Error::new(

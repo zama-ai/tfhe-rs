@@ -172,6 +172,15 @@ impl crate::integer::ciphertext::CompactCiphertextListBuilder {
 }
 
 impl crate::integer::ciphertext::Expandable for FheString {
+    fn check_kind(kind: DataKind, _message_modulus: MessageModulus) -> crate::Result<()> {
+        if matches!(kind, DataKind::String { .. }) {
+            return Ok(());
+        }
+        Err(crate::error!(
+            "Tried to expand a string while a {kind:?} is stored"
+        ))
+    }
+
     fn from_expanded_blocks(
         mut blocks: Vec<crate::shortint::Ciphertext>,
         kind: DataKind,
