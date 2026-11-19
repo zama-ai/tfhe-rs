@@ -884,7 +884,7 @@ mod tests {
         assert_eq!(decrypted, clear_c);
     }
     #[test]
-    #[cfg(feature = "gpu")]
+    #[cfg(all(feature = "gpu", feature = "gpu-experimental-pbs"))]
     fn test_gpu_compressed_squashed_noise_ciphertext_list_multibit() {
         let params = V1_9_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_params =

@@ -20,7 +20,7 @@
 #include "fft/twiddles.cuh"
 #include "pbs/pbs_multibit_utilities.h"
 #include "pbs/programmable_bootstrap.h"
-#include "pbs/programmable_bootstrap_multibit.cuh"
+#include "programmable_bootstrap_multibit.cuh"
 #include "polynomial/functions.cuh"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"

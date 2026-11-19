@@ -119,10 +119,10 @@ impl CudaServerKey {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::GpuIndex;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::GpuIndex;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -131,7 +131,7 @@ impl CudaServerKey {
     /// // AES bit-wise operations require 1-block ciphertexts (for encrypting single bits).
     /// let num_blocks = 1;
     /// let (cks, sks) = gen_keys_radix_gpu(
-    ///     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     ///     num_blocks,
     ///     &streams,
     /// );
@@ -155,7 +155,10 @@ impl CudaServerKey {
     /// let fhe_results = cks.decrypt_u128_from_aes_ctr(&ct_res, num_aes_inputs);
     ///
     /// // Verify:
-    /// let expected_results = vec![0xec8cdf7398607cb0f2d21675ea9ea1e4, 0x362b7c3c6773516318a077d7fc5073ae];
+    /// let expected_results = vec![
+    ///     0xec8cdf7398607cb0f2d21675ea9ea1e4,
+    ///     0x362b7c3c6773516318a077d7fc5073ae,
+    /// ];
     /// assert_eq!(fhe_results, expected_results);
     /// ```
     pub fn aes_ctr(

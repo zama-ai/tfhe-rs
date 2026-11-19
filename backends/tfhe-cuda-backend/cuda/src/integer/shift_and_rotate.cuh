@@ -9,7 +9,6 @@
 #include "integer/scalar_comparison.cuh"
 #include "integer/shift_and_rotate.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
-#include "pbs/programmable_bootstrap_multibit.cuh"
 #include "scalar_mul.cuh"
 
 template <typename Torus>
