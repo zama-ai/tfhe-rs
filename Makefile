@@ -701,6 +701,11 @@ clippy_tfhe_csprng: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=parallel -p tfhe-csprng -- --no-deps -D warnings
 
+.PHONY: clippy_experimental # Run clippy lints on tfhe-experimental
+clippy_experimental: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-experimental -- --no-deps -D warnings
+
 .PHONY: clippy_zk_pok # Run clippy lints on tfhe-zk-pok
 clippy_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
@@ -874,7 +879,7 @@ clippy_test_vectors: install_rs_check_toolchain
 # MAKE SURE TO ALSO ADD IT TO A PCC BATCH BELOW
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
-clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium clippy_princev2 \
+clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_experimental clippy_zk_pok clippy_zk_pok_wasm clippy_trivium clippy_princev2 \
 clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
 clippy_benchmark_spec clippy_benchmark_spec_js clippy_benchmark_parser clippy_data_extractor clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq \
 clippy_fuzz
@@ -2732,6 +2737,7 @@ pcc_batch_5:
 
 .PHONY: pcc_batch_6 # duration: 6'32''
 pcc_batch_6:
+	$(call run_recipe_with_details,clippy_experimental)
 	$(call run_recipe_with_details,clippy_boolean)
 	$(call run_recipe_with_details,clippy_c_api)
 	$(call run_recipe_with_details,clippy_tasks)

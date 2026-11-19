@@ -1,0 +1,24 @@
+[package]
+name = "tfhe-experimental"
+version = "0.1.0"
+edition = "2021"
+keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
+homepage = "https://zama.org/"
+documentation = "https://docs.zama.org/tfhe-rs"
+repository = "https://github.com/zama-ai/tfhe-rs"
+license = "BSD-3-Clause-Clear"
+description = "tfhe-experimental: experimental and legacy features built on top of TFHE-rs, not intended for production use."
+rust-version.workspace = true
+
+[dependencies]
+tfhe = { version = "1.9.0", path = "../tfhe", default-features = false }
+
+[features]
+default = ["avx512"]
+avx512 = ["tfhe/avx512"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)'] }

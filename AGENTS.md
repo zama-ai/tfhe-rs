@@ -12,6 +12,7 @@ Guidance for coding agents working in TFHE-rs. The root `Makefile` is the source
 | `tfhe-fft/`, `tfhe-ntt/` | FFT and NTT primitives used by `core_crypto` |
 | `tfhe-csprng/` | AES-CTR random generators and seeders |
 | `tfhe-zk-pok/` | Zero-knowledge proofs of correct encryption (`zk-pok` feature) |
+| `tfhe-experimental/` | Experimental and legacy features built on the public API of `tfhe`; not for production |
 | `backends/` | CUDA backends (C++/CUDA with generated Rust bindings) and the HPU (FPGA) backend |
 | `utils/tfhe-versionable*`, `utils/tfhe-safe-serialize/` | Versioned serialization and safe (size-limited, optionally conformance-checked) deserialization |
 | `utils/tfhe-backward-compat-data/`, `tests/` | Data from past releases and the tests that load it. `tests/` is its own package, distinct from `tfhe/tests` |

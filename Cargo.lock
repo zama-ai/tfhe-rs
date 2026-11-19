@@ -3775,6 +3775,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "tfhe-experimental"
+version = "0.1.0"
+dependencies = [
+ "tfhe",
+]
+
+[[package]]
 name = "tfhe-fft"
 version = "0.10.2"
 dependencies = [
