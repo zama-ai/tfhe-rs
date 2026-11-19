@@ -2,11 +2,11 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::shortint::Ciphertext;
 use crate::transciphering::{
-    AesIv, AesPlainKey, CompressedSquashedNoiseOneTimePadFheSecretMask,
-    CompressedTranscipheringServerKey, KeyStreamLayout, KreyviumIV, KreyviumPlainKey,
-    OneTimePadFheSecretMask, OneTimePadPlainSecretMask, SerializableAesFheKey,
-    SerializableKreyviumFheKey, StreamCipherKind, StreamCiphertext, TranscipheringPrivateKey,
-    TranscipheringServerKey,
+    AesIv, AesPlainKey, CompressedOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMask, CompressedTranscipheringServerKey,
+    KeyStreamLayout, KreyviumIV, KreyviumPlainKey, OneTimePadFheSecretMask,
+    OneTimePadPlainSecretMask, SerializableAesFheKey, SerializableKreyviumFheKey, StreamCipherKind,
+    StreamCiphertext, TranscipheringPrivateKey, TranscipheringServerKey,
 };
 
 #[derive(VersionsDispatch)]
@@ -72,6 +72,11 @@ impl Upgrade<OneTimePadFheSecretMask> for OneTimePadFheSecretMaskV0 {
 pub enum OneTimePadFheSecretMaskVersions {
     V0(OneTimePadFheSecretMaskV0),
     V1(OneTimePadFheSecretMask),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedOneTimePadFheSecretMaskVersions {
+    V0(CompressedOneTimePadFheSecretMask),
 }
 
 #[derive(VersionsDispatch)]
