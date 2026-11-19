@@ -32,6 +32,7 @@ use crate::shortint::server_key::{
     UnsupportedOperation,
 };
 use crate::shortint::AtomicPatternKind;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -448,6 +449,76 @@ impl<AP: NoiseSquashingAtomicPattern> GenericNoiseSquashingKey<AP> {
             self.carry_modulus,
             self.output_ciphertext_modulus,
         )
+    }
+
+    /// Squash the noise of `ciphertexts`, packing them by pairs. If the number of inputs is odd,
+    /// the last ciphertext is squashed on its own, with an empty carry part.
+    ///
+    /// Packing requires the carry modulus to be greater than or equal to the message modulus,
+    /// the ciphertexts to have empty carries, and the noise level of the packed ciphertexts to be
+    /// within the noise budget of `src_server_key`.
+    pub fn checked_pack_and_squash_ciphertexts_noise(
+        &self,
+        ciphertexts: &[Ciphertext],
+        src_server_key: &ServerKey,
+    ) -> crate::Result<Vec<SquashedNoiseCiphertext>>
+    where
+        Self: Sync,
+    {
+        ciphertexts
+            .par_chunks(2)
+            .map(|chunk| {
+                let packed = match chunk {
+                    [single] => single.clone(),
+                    [low, high] => Self::checked_pack_pair(low, high, src_server_key)?,
+                    _ => {
+                        return Err(crate::error!(
+                            "Chunks of {} ciphertexts cannot be packed by pairs",
+                            chunk.len()
+                        ))
+                    }
+                };
+
+                self.checked_squash_ciphertext_noise(&packed, src_server_key)
+            })
+            .collect()
+    }
+
+    /// Packs `low` in the message part and `high` in the carry part of a new ciphertext
+    fn checked_pack_pair(
+        low: &Ciphertext,
+        high: &Ciphertext,
+        src_server_key: &ServerKey,
+    ) -> crate::Result<Ciphertext> {
+        let message_modulus = src_server_key.message_modulus;
+
+        if src_server_key.carry_modulus.0 < message_modulus.0 {
+            return Err(crate::error!(
+                "Cannot pack if carry modulus is smaller than message modulus"
+            ));
+        }
+
+        if !(low.carry_is_empty() && high.carry_is_empty()) {
+            return Err(crate::error!(
+                "Cannot pack blocks: need both carries to be empty."
+            ));
+        }
+
+        let final_noise = high.noise_level() * message_modulus.0 + low.noise_level();
+        src_server_key
+            .max_noise_level
+            .validate(final_noise)
+            .map_err(|e| crate::error!("{}", e))?;
+
+        if u8::try_from(message_modulus.0).is_err() {
+            return Err(crate::error!(
+                "Cannot pack with a message modulus {message_modulus:?} above 255"
+            ));
+        }
+
+        let mut packed = high.clone();
+        src_server_key.unchecked_pack_pair_assign(low, &mut packed);
+        Ok(packed)
     }
 }
 

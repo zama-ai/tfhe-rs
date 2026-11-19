@@ -718,6 +718,18 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         }
     }
 
+    /// Packs the low ciphertext in the message part of the high ciphertext and moves the high
+    /// ciphertext into the carry part.
+    ///
+    /// This requires the parameters to have enough room for two ciphertexts, so a carry modulus
+    /// at least as big as the message modulus, and the carry part of `high` to be empty.
+    pub(crate) fn unchecked_pack_pair_assign(&self, low: &Ciphertext, high: &mut Ciphertext) {
+        debug_assert!(high.degree.get() < high.message_modulus.0);
+
+        self.unchecked_scalar_mul_assign(high, high.message_modulus.0 as u8);
+        self.unchecked_add_assign(high, low);
+    }
+
     /// Deconstruct a [`ServerKey`] into its constituents.
     pub fn into_raw_parts(self) -> (AP, MessageModulus, CarryModulus, MaxDegree, MaxNoiseLevel) {
         let Self {
