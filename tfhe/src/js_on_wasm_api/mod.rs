@@ -1,9 +1,6 @@
 #[cfg(feature = "shortint-js-wasm-api")]
 mod shortint;
 
-#[cfg(feature = "boolean-js-wasm-api")]
-mod boolean;
-
 // We need to use the init_thread_pool for it to be publicly visible but it appears unused when
 // compiling
 #[allow(unused_imports)]

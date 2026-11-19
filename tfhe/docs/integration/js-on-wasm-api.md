@@ -13,7 +13,7 @@ For the runtime:
 
 For the API:
 
-* The full package exposes the whole client API (Boolean, shortint and integer) and compact public-key encryption.
+* The full package exposes the whole client API (shortint and integer) and compact public-key encryption.
 * The client package is a smaller build with only compact encryption and zero-knowledge proofs, for when all you do on the client side is build and prove compact ciphertext lists.
 
 ## Client (compact) API
@@ -39,7 +39,7 @@ The client package (the `build_*_client` targets) keeps only what a client needs
 * `ProvenCompactCiphertextList`: a list built together with a proof through `CompactCiphertextListBuilder.build_with_proof_packed(...)`; supports `len`, `is_empty`, `get_kind_of`, `safe_serialize` / `safe_deserialize`.
 * `ZkComputeLoad`: `Proof` or `Verify`.
 
-There is no server key, and no way to expand or decrypt ciphertexts; the Boolean and shortint modules are gone too. Reach for the full package when you need any of that.
+There is no server key, and no way to expand or decrypt ciphertexts; the shortint module is gone too. Reach for the full package when you need any of that.
 
 ## Node.js
 
@@ -228,7 +228,7 @@ if (supportsThreads) {
 
 Use the provided Makefile in the **TFHE-rs** repository to compile for the desired target. Each command produces a package in `tfhe/pkg`.
 
-**Full API** (Boolean, shortint and integer):
+**Full API** (shortint and integer):
 
 * `make build_node_js_api`: Node.js API
 * `make build_web_js_api`: browser API, sequential or cross-origin parallelism
@@ -276,7 +276,7 @@ Alternatively, you can use [Vite](https://vitejs.dev/) which has necessary plugi
 
 ## Using the JS on WASM API
 
-**TFHE-rs** uses WASM to provide a JavaScript (JS) binding to the client-side primitives, like key generation and encryption within the Boolean, shortint and integer modules.
+**TFHE-rs** uses WASM to provide a JavaScript (JS) binding to the client-side primitives, like key generation and encryption within the shortint and integer modules.
 
 Currently, there are several limitations. Due to a lack of threading support in WASM, key generation can be too slow to be practical for bigger parameter sets.
 
@@ -295,7 +295,7 @@ Cloning into 'tfhe-rs'...
 Resolving deltas: 100% (3866/3866), done.
 $ cd tfhe-rs
 $ cd tfhe
-$ wasm-pack build --release --target=nodejs --features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types
+$ wasm-pack build --release --target=nodejs --features=integer-js-wasm-api,zk-pok,extended-types
 [INFO]: Compiling to Wasm...
 ...
 [INFO]: :-) Your wasm pkg is ready to publish at ...
@@ -303,7 +303,7 @@ $ wasm-pack build --release --target=nodejs --features=boolean-js-wasm-api,integ
 
 The command above targets Node.js. To generate a binding for a web browser, use `--target=web`. However, this tutorial does not cover that particular use case.
 
-The Boolean, shortint and integer features are enabled here, but it's possible to use them individually. To build the lighter client-only package instead, drop the default features and enable `integer-client-js-wasm-api` (optionally with `zk-pok`), as done by the `build_*_client` Makefile targets.
+The shortint and integer features are enabled here, but it's possible to use them individually. To build the lighter client-only package instead, drop the default features and enable `integer-client-js-wasm-api` (optionally with `zk-pok`), as done by the `build_*_client` Makefile targets.
 
 After the build, a new directory **pkg** is available in the `tfhe` directory.
 

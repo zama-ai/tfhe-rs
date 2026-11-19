@@ -2,9 +2,7 @@ const crypto = require("crypto");
 const test = require("node:test");
 const assert = require("node:assert").strict;
 const {
-  Boolean,
   Shortint,
-  BooleanParameterSet,
   ShortintParametersName,
   ShortintParameters,
   shortint_params_name,
@@ -22,77 +20,6 @@ test("invalid variant of ShortintParametersName", (t) => {
   assert.throws(() => {
     new ShortintParameters(ShortintParametersName.IDontExist);
   });
-});
-
-// Boolean tests
-test("boolean_encrypt_decrypt", (t) => {
-  let params = Boolean.get_parameters(BooleanParameterSet.Default);
-  let cks = Boolean.new_client_key(params);
-  let ct = Boolean.encrypt(cks, true);
-
-  let serialized_cks = Boolean.serialize_client_key(cks);
-  let deserialized_cks = Boolean.deserialize_client_key(serialized_cks);
-
-  let serialized_ct = Boolean.serialize_ciphertext(ct);
-  let deserialized_ct = Boolean.deserialize_ciphertext(serialized_ct);
-
-  let decrypted = Boolean.decrypt(deserialized_cks, deserialized_ct);
-  assert.deepStrictEqual(decrypted, true);
-
-  let sks = Boolean.new_compressed_server_key(cks);
-
-  let serialized_sks = Boolean.serialize_compressed_server_key(sks);
-  let deserialized_sks =
-    Boolean.deserialize_compressed_server_key(serialized_sks);
-
-  // No equality tests here, as wasm stores pointers which will always differ
-});
-
-test("boolean_compressed_encrypt_decrypt", (t) => {
-  let params = Boolean.get_parameters(BooleanParameterSet.Default);
-  let cks = Boolean.new_client_key(params);
-  let ct = Boolean.encrypt_compressed(cks, true);
-
-  let serialized_cks = Boolean.serialize_client_key(cks);
-  let deserialized_cks = Boolean.deserialize_client_key(serialized_cks);
-
-  let serialized_ct = Boolean.serialize_compressed_ciphertext(ct);
-  let deserialized_ct =
-    Boolean.deserialize_compressed_ciphertext(serialized_ct);
-
-  let decompressed_ct = Boolean.decompress_ciphertext(deserialized_ct);
-
-  let decrypted = Boolean.decrypt(deserialized_cks, decompressed_ct);
-  assert.deepStrictEqual(decrypted, true);
-});
-
-test("boolean_deterministic_keygen", (t) => {
-  const TEST_LOOP_COUNT = 128;
-
-  let seed_high_bytes = genRandomBigIntWithBytes(8);
-  let seed_low_bytes = genRandomBigIntWithBytes(8);
-
-  let params = Boolean.get_parameters(BooleanParameterSet.Default);
-  let cks = Boolean.new_client_key_from_seed_and_parameters(
-    seed_high_bytes,
-    seed_low_bytes,
-    params,
-  );
-  let other_cks = Boolean.new_client_key_from_seed_and_parameters(
-    seed_high_bytes,
-    seed_low_bytes,
-    params,
-  );
-
-  for (let i = 0; i < TEST_LOOP_COUNT; i++) {
-    let ct_true = Boolean.encrypt(cks, true);
-    let decrypt_true_other = Boolean.decrypt(other_cks, ct_true);
-    assert.deepStrictEqual(decrypt_true_other, true);
-
-    let ct_false = Boolean.encrypt(cks, false);
-    let decrypt_false_other = Boolean.decrypt(other_cks, ct_false);
-    assert.deepStrictEqual(decrypt_false_other, false);
-  }
 });
 
 // Shortint tests

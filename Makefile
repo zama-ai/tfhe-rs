@@ -636,22 +636,19 @@ clippy_c_api: install_rs_check_toolchain
 		--features=shortint-c-api,high-level-c-api,extended-types \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
+.PHONY: clippy_js_wasm_api # Run clippy lints enabling the shortint, integer and the js wasm API
 clippy_js_wasm_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-js-wasm-api,integer-js-wasm-api,extended-types \
+		--features=integer-js-wasm-api,extended-types \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types \
+		--features=integer-js-wasm-api,zk-pok,extended-types \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types,parallel-wasm-api \
+		--features=integer-js-wasm-api,zk-pok,extended-types,parallel-wasm-api \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api \
-		-p tfhe -- --no-deps -D warnings
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-js-wasm-api \
+		--features=integer-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api \
 		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=shortint-js-wasm-api \
@@ -1894,7 +1891,7 @@ check_compile_tests_benches_gpu:
 .PHONY: test_rust_wasm_api # Run the Rust unit tests of the js on wasm API
 test_rust_wasm_api:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types -p tfhe \
+		--features=integer-js-wasm-api,zk-pok,extended-types -p tfhe \
 		--lib -- js_on_wasm_api::
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API

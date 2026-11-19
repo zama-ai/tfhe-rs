@@ -16,7 +16,7 @@ WASM_PARALLEL_RUSTFLAGS := -C target-feature=+atomics,+bulk-memory \
 build_web_js_api: install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=web \
-		-- --features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api && \
+		-- --features=integer-js-wasm-api,zk-pok,extended-types,cross-origin-wasm-api && \
 	find pkg/snippets -type f -iname worker_helpers.js -exec sed -i 's|import("../../..")|import("../../../tfhe.js")|g' {} \;
 	cp utils/wasm-par-mq/js/coordinator.js tfhe/pkg/
 	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
@@ -28,7 +28,7 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack install_
 	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS) $(WASM_PARALLEL_RUSTFLAGS)" \
 		rustup run $(RS_CHECK_TOOLCHAIN) wasm-pack build --release --target=web \
-		-- --features=boolean-js-wasm-api,integer-js-wasm-api,parallel-wasm-api,zk-pok,extended-types \
+		-- --features=integer-js-wasm-api,parallel-wasm-api,zk-pok,extended-types \
 		-Z build-std=panic_abort,std && \
 	find pkg/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
 	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
@@ -42,7 +42,7 @@ build_benchmark_spec_js: install_wasm_pack
 build_node_js_api: install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" wasm-pack build --release --target=nodejs \
-		-- --features=boolean-js-wasm-api,integer-js-wasm-api,zk-pok,extended-types
+		-- --features=integer-js-wasm-api,zk-pok,extended-types
 
 .PHONY: build_node_js_api_client # Build the client js API targeting nodejs (compact encryption + ZK proofs only)
 build_node_js_api_client: install_wasm_pack
