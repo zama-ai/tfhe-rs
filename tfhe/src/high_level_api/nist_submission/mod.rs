@@ -21,11 +21,9 @@ pub use re_randomization::{preproc_eval, NistSubmissionReRandomize};
 
 // ZK proof types
 #[cfg(feature = "zk-pok")]
-pub use crate::zk::{
-    CompactPkeCrs, CompactPkeCrsConformanceParams, ZkComputeLoad, ZkPkeV2SupportedHashConfig,
-};
+pub use crate::zk::{ZkComputeLoad, ZkPkeV2SupportedHashConfig};
 #[cfg(feature = "zk-pok")]
-pub use zk::{new_compact_pke_crs, new_compact_pke_crs_conformance_params};
+pub use zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 
 // Config
 pub use crate::high_level_api::config::{Config, ConfigBuilder};

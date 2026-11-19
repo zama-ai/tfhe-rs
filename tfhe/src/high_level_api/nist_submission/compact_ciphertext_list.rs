@@ -163,10 +163,11 @@ use crate::core_crypto::algorithms::verify_lwe_compact_ciphertext_list;
 use crate::high_level_api::compact_list::zk::InnerProvenCompactCiphertextList;
 use crate::high_level_api::compact_list::InnerCompactCiphertextListExpander;
 use crate::high_level_api::global_state;
+use crate::high_level_api::nist_submission::CompactPkeCrs;
 use crate::integer::ciphertext::{DataKind, IntegerProvenCompactCiphertextListConformanceParams};
 use crate::keys::InternalServerKeyRef;
 use crate::prelude::ParameterSetConformant;
-use crate::zk::{CompactPkeCrs, ZkComputeLoad, ZkPkeV2SupportedHashConfig};
+use crate::zk::{ZkComputeLoad, ZkPkeV2SupportedHashConfig};
 use crate::CompactCiphertextListExpander;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -205,10 +206,11 @@ impl ProvenCompactCiphertextList {
         (integer_list, tag)
     }
 
-    /// The `crs` must be conformant to [new_compact_pke_crs_conformance_params]
-    /// as the expansion relies on the proofs to bound the blocks below the message modulus.
+    /// A deserialized `crs` must be checked for conformance (see
+    /// [`CompactPkeCrsConformanceParams`]) as the expansion relies on its proofs to bound the
+    /// blocks below the message modulus.
     ///
-    /// [new_compact_pke_crs_conformance_params]: super::new_compact_pke_crs_conformance_params
+    /// [`CompactPkeCrsConformanceParams`]: super::CompactPkeCrsConformanceParams
     pub fn verify_and_expand(
         &self,
         crs: &CompactPkeCrs,
@@ -249,7 +251,7 @@ impl ProvenCompactCiphertextList {
                     &ct_list.ct_list,
                     &pk.key.key.key.key,
                     proof,
-                    crs,
+                    crs.inner(),
                     metadata,
                 )
                 .is_invalid()
@@ -307,7 +309,7 @@ impl CompactCiphertextListBuilder {
     ) -> crate::Result<ProvenCompactCiphertextList> {
         let shortint_proven_list = self.0.inner.pk.key.encrypt_and_prove_slice(
             &self.0.inner.messages,
-            crs,
+            crs.inner(),
             metadata,
             compute_load,
             self.0.inner.pk.parameters().message_modulus.0,
@@ -333,7 +335,7 @@ impl CompactCiphertextListBuilder {
     ) -> crate::Result<ProvenCompactCiphertextList> {
         let shortint_proven_list = self.0.inner.pk.key.encrypt_and_prove_slice_seeded(
             &self.0.inner.messages,
-            crs,
+            crs.inner(),
             metadata,
             compute_load,
             self.0.inner.pk.parameters().message_modulus.0,
@@ -370,7 +372,8 @@ impl ProvenCompactCiphertextListConformanceParams {
         Self {
             // Packed lists are refused by the NIST is_conformant
             inner: IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
-                params, crs,
+                params,
+                crs.inner(),
             )
             .allow_unpacked(),
         }
@@ -423,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_proven_compact_list() {
-        use crate::high_level_api::nist_submission::{new_compact_pke_crs, ZkComputeLoad};
+        use crate::high_level_api::nist_submission::ZkComputeLoad;
 
         let config = crate::Config::from(NIST_META_PARAMS_2_2);
 
@@ -432,7 +435,7 @@ mod tests {
         let pk = crate::CompactPublicKey::new(&ck);
 
         // Intentionally low so that we test when multiple lists and proofs are needed
-        let crs = new_compact_pke_crs(config, 32).unwrap();
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
 
         let metadata = *b"nist";
 
@@ -504,7 +507,7 @@ mod tests {
     ) -> IntegerProvenCompactCiphertextListConformanceParams {
         IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
             NIST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            crs,
+            crs.inner(),
         )
         .allow_unpacked()
     }
@@ -519,34 +522,15 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_nist_crs_conformance() {
-        use crate::high_level_api::nist_submission::{
-            new_compact_pke_crs, new_compact_pke_crs_conformance_params,
-        };
-
-        let config = crate::Config::from(NIST_META_PARAMS_2_2);
-        let crs = new_compact_pke_crs(config, 32).unwrap();
-        let conformance_params = new_compact_pke_crs_conformance_params(config, 32).unwrap();
-
-        assert!(crs.is_conformant(&conformance_params));
-
-        // The regular CRS only proves the padding bit
-        let regular_crs = CompactPkeCrs::from_config(config, 32).unwrap();
-        assert!(!regular_crs.is_conformant(&conformance_params));
-    }
-
     /// The NIST expansion does not clean the blocks: the proofs must reject any block with a
     /// carry bit set, while honest blocks expand with a degree that bounds their value.
     #[test]
     fn test_nist_proofs_bound_blocks_below_message_modulus() {
-        use crate::high_level_api::nist_submission::new_compact_pke_crs;
-
         let config = crate::Config::from(NIST_META_PARAMS_2_2);
         let ck = crate::ClientKey::generate(config);
         let sk = crate::ServerKey::new(&ck);
         let pk = crate::CompactPublicKey::new(&ck);
-        let crs = new_compact_pke_crs(config, 32).unwrap();
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
         let metadata = *b"nist";
         set_server_key(sk);
 
@@ -601,12 +585,10 @@ mod tests {
     /// The NIST expansion maps each LWE to a block, packed lists must not be conformant
     #[test]
     fn test_nist_packed_list_is_not_conformant() {
-        use crate::high_level_api::nist_submission::new_compact_pke_crs;
-
         let config = crate::Config::from(NIST_META_PARAMS_2_2);
         let ck = crate::ClientKey::generate(config);
         let pk = crate::CompactPublicKey::new(&ck);
-        let crs = new_compact_pke_crs(config, 32).unwrap();
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
         let metadata = *b"nist";
 
         let proven_list = ProvenCompactCiphertextList::builder(&pk)
@@ -635,12 +617,10 @@ mod tests {
     /// holding them must not be conformant
     #[test]
     fn test_nist_non_integer_list_is_not_conformant() {
-        use crate::high_level_api::nist_submission::new_compact_pke_crs;
-
         let config = crate::Config::from(NIST_META_PARAMS_2_2);
         let ck = crate::ClientKey::generate(config);
         let pk = crate::CompactPublicKey::new(&ck);
-        let crs = new_compact_pke_crs(config, 32).unwrap();
+        let crs = CompactPkeCrs::from_config(config, 32).unwrap();
         let metadata = *b"nist";
 
         // A boolean is 1 block, an ASCII character is 4 blocks with 2_2 parameters

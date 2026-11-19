@@ -4,9 +4,9 @@ use crate::nist_submission::parameters::{
     NIST_META_PARAMS_2_2, NIST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::nist_submission::{
-    new_compact_pke_crs, new_compact_pke_crs_conformance_params, preproc_eval, set_server_key,
-    ClientKey, CompactCiphertextListBuilder, CompactPublicKey, CompressedXofKeySet, Config,
-    FheUint32, NormalizedHammingWeightBound, ProvenCompactCiphertextList,
+    preproc_eval, set_server_key, ClientKey, CompactCiphertextListBuilder, CompactPkeCrs,
+    CompactPkeCrsConformanceParams, CompactPublicKey, CompressedXofKeySet, Config, FheUint32,
+    NormalizedHammingWeightBound, ProvenCompactCiphertextList,
     ProvenCompactCiphertextListConformanceParams, SquashedNoiseFheUint, Tag, ZkComputeLoad,
 };
 
@@ -113,8 +113,8 @@ fn complete_test_zk() {
     let clear_c: u32 = rng.gen();
 
     // Intentionally low max_num_bits to test multi-list proofs
-    let crs = new_compact_pke_crs(config, 32).expect("Failed to create CRS");
-    let crs_conformance_params = new_compact_pke_crs_conformance_params(config, 32)
+    let crs = CompactPkeCrs::from_config(config, 32).expect("Failed to create CRS");
+    let crs_conformance_params = CompactPkeCrsConformanceParams::new(config, 32)
         .expect("Failed to create CRS conformance params");
     assert!(crs.is_conformant(&crs_conformance_params));
 
