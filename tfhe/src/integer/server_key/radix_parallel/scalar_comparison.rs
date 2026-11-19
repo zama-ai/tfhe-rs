@@ -127,23 +127,8 @@ impl ServerKey {
         let low = &chunk[0];
         let mut high = chunk[1].clone();
 
-        self.pack_block_assign(low, &mut high);
+        self.key.unchecked_pack_pair_assign(low, &mut high);
         high
-    }
-
-    /// Packs the low ciphertext in the message parts of the high ciphertext
-    /// and moves the high ciphertext into the carry part.
-    ///
-    /// This requires the block parameters to have enough room for two ciphertexts,
-    /// so at least as many carry modulus as the message modulus
-    ///
-    /// Expects the carry buffer to be empty
-    pub(crate) fn pack_block_assign(
-        &self,
-        low: &crate::shortint::Ciphertext,
-        high: &mut crate::shortint::Ciphertext,
-    ) {
-        self.key.unchecked_pack_pair_assign(low, high);
     }
 
     pub(crate) fn are_all_blocks_zero(&self, ciphertexts: &[Ciphertext]) -> Ciphertext {

@@ -702,6 +702,36 @@ impl ServerKey {
     }
 }
 
+/// Checks that parameters with `message_modulus`, `carry_modulus` and `max_noise_level` allow
+/// packing a ciphertext with noise level `high_ct_noise` in the carry part of a ciphertext with
+/// noise level `low_ct_noise`, with [`GenericServerKey::unchecked_pack_pair_assign`].
+pub(crate) fn is_pack_possible(
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    max_noise_level: MaxNoiseLevel,
+    low_ct_noise: NoiseLevel,
+    high_ct_noise: NoiseLevel,
+) -> crate::Result<()> {
+    if carry_modulus.0 < message_modulus.0 {
+        return Err(crate::error!(
+            "Cannot pack if carry modulus is smaller than message modulus"
+        ));
+    }
+
+    let final_noise = high_ct_noise * message_modulus.0 + low_ct_noise;
+    max_noise_level
+        .validate(final_noise)
+        .map_err(|e| crate::error!("{}", e))?;
+
+    if u8::try_from(message_modulus.0).is_err() {
+        return Err(crate::error!(
+            "Cannot pack with a message modulus {message_modulus:?} above 255"
+        ));
+    }
+
+    Ok(())
+}
+
 impl<AP: AtomicPattern> GenericServerKey<AP> {
     pub fn ciphertext_lwe_dimension(&self) -> LweDimension {
         self.atomic_pattern.ciphertext_lwe_dimension()

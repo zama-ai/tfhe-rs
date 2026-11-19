@@ -105,7 +105,7 @@ impl OneTimePadPlainSecretMask {
         client_key: &ClientKey,
     ) -> Result<OneTimePadFheSecretMask, MaskGenerationError> {
         let params = client_key.atomic_pattern.parameters();
-        let layout = KeyStreamLayout::full_space(params.message_modulus(), params.carry_modulus())
+        let layout = KeyStreamLayout::message_space(params.message_modulus())
             .ok_or(MaskGenerationError::IncompatibleParameters)?;
 
         self.encrypt_with_layout(client_key, layout)

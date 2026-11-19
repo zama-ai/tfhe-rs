@@ -28,8 +28,8 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::prelude::{LweDimension, PolynomialSize};
 use crate::shortint::server_key::{
-    ModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
-    UnsupportedOperation,
+    is_pack_possible, ModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams,
+    ServerKey, UnsupportedOperation,
 };
 use crate::shortint::AtomicPatternKind;
 use rayon::prelude::*;
@@ -465,23 +465,19 @@ impl<AP: NoiseSquashingAtomicPattern> GenericNoiseSquashingKey<AP> {
     where
         Self: Sync,
     {
-        ciphertexts
-            .par_chunks(2)
-            .map(|chunk| {
-                let packed = match chunk {
-                    [single] => single.clone(),
-                    [low, high] => Self::checked_pack_pair(low, high, src_server_key)?,
-                    _ => {
-                        return Err(crate::error!(
-                            "Chunks of {} ciphertexts cannot be packed by pairs",
-                            chunk.len()
-                        ))
-                    }
-                };
+        let (pairs, remainder) = ciphertexts.as_chunks::<2>();
 
-                self.checked_squash_ciphertext_noise(&packed, src_server_key)
-            })
-            .collect()
+        let packed = pairs.par_iter().map(|[low, high]| {
+            let packed = Self::checked_pack_pair(low, high, src_server_key)?;
+            self.checked_squash_ciphertext_noise(&packed, src_server_key)
+        });
+
+        // If the number of ciphertexts is odd, the last one is squashed on its own
+        let last = remainder
+            .par_iter()
+            .map(|ct| self.checked_squash_ciphertext_noise(ct, src_server_key));
+
+        packed.chain(last).collect()
     }
 
     /// Packs `low` in the message part and `high` in the carry part of a new ciphertext
@@ -490,29 +486,23 @@ impl<AP: NoiseSquashingAtomicPattern> GenericNoiseSquashingKey<AP> {
         high: &Ciphertext,
         src_server_key: &ServerKey,
     ) -> crate::Result<Ciphertext> {
-        let message_modulus = src_server_key.message_modulus;
+        is_pack_possible(
+            src_server_key.message_modulus,
+            src_server_key.carry_modulus,
+            src_server_key.max_noise_level,
+            low.noise_level(),
+            high.noise_level(),
+        )?;
 
-        if src_server_key.carry_modulus.0 < message_modulus.0 {
+        if (low.message_modulus, low.carry_modulus) != (high.message_modulus, high.carry_modulus) {
             return Err(crate::error!(
-                "Cannot pack if carry modulus is smaller than message modulus"
+                "Cannot pack ciphertexts with different message or carry moduli"
             ));
         }
 
         if !(low.carry_is_empty() && high.carry_is_empty()) {
             return Err(crate::error!(
                 "Cannot pack blocks: need both carries to be empty."
-            ));
-        }
-
-        let final_noise = high.noise_level() * message_modulus.0 + low.noise_level();
-        src_server_key
-            .max_noise_level
-            .validate(final_noise)
-            .map_err(|e| crate::error!("{}", e))?;
-
-        if u8::try_from(message_modulus.0).is_err() {
-            return Err(crate::error!(
-                "Cannot pack with a message modulus {message_modulus:?} above 255"
             ));
         }
 
