@@ -9,7 +9,9 @@
 #include "helper_multi_gpu.h"
 #include "pbs/pbs_128_utilities.h"
 #include "pbs/pbs_utilities.h"
+#ifdef TFHE_CUDA_EXT_PBS
 #include "pbs/programmable_bootstrap_multibit.h"
+#endif
 #include "polynomial/polynomial_math.cuh"
 
 using namespace cooperative_groups;
@@ -510,12 +512,19 @@ void execute_pbs_async(CudaStreams streams,
                        uint32_t input_lwe_ciphertext_count,
                        uint32_t num_many_lut, uint32_t lut_stride) {
 
+#ifdef TFHE_CUDA_EXT_PBS
   if (bsk_params.pbs_type == PBS_TYPE::MULTI_BIT &&
       bsk_params.pbs_params.multi_bit.grouping_factor == 0)
     PANIC("Multi-bit PBS error: grouping factor should be > 0.")
   if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL &&
       bsk_params.pbs_type != PBS_TYPE::MULTI_BIT)
     PANIC("Error: unsupported cuda PBS type %u.", bsk_params.pbs_type)
+#else
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Error: multi-bit PBS disabled, rebuild with the ext-pbs feature "
+          "(pbs_type %u).",
+          bsk_params.pbs_type)
+#endif
 
   for (uint i = 0; i < streams.count(); i++) {
     PANIC_IF_FALSE(pbs_buffer[i]->shared_stream == nullptr ||
@@ -548,6 +557,7 @@ void execute_pbs_async(CudaStreams streams,
 
     if constexpr (std::is_same_v<OutputTorus, uint64_t>) {
       // 64 bits
+#ifdef TFHE_CUDA_EXT_PBS
       if (bsk_params.pbs_type == PBS_TYPE::CLASSICAL)
         cuda_programmable_bootstrap_64_async(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
@@ -562,8 +572,18 @@ void execute_pbs_async(CudaStreams streams,
             current_lwe_array_in, current_lwe_input_indexes,
             bootstrapping_keys[i], reinterpret_cast<int8_t *>(pbs_buffer[i]),
             bsk_params, num_inputs_on_gpu, num_many_lut, lut_stride);
+#else
+      // Entry-level check above guarantees pbs_type == CLASSICAL.
+      cuda_programmable_bootstrap_64_async(
+          streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+          current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
+          current_lwe_array_in, current_lwe_input_indexes,
+          bootstrapping_keys[i], reinterpret_cast<int8_t *>(pbs_buffer[i]),
+          bsk_params, num_inputs_on_gpu, num_many_lut, lut_stride);
+#endif
     } else if constexpr (std::is_same_v<OutputTorus, __uint128_t>) {
       // 128 bits
+#ifdef TFHE_CUDA_EXT_PBS
       if (bsk_params.pbs_type == PBS_TYPE::CLASSICAL)
         cuda_programmable_bootstrap_128_async(
             streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
@@ -577,6 +597,14 @@ void execute_pbs_async(CudaStreams streams,
             current_lwe_input_indexes, bootstrapping_keys[i],
             reinterpret_cast<int8_t *>(pbs_buffer[i]), bsk_params,
             num_inputs_on_gpu, num_many_lut, lut_stride);
+#else
+      // Entry-level check above guarantees pbs_type == CLASSICAL.
+      cuda_programmable_bootstrap_128_async(
+          streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+          lut_vec[i], current_lwe_array_in, bootstrapping_keys[i],
+          reinterpret_cast<int8_t *>(pbs_buffer[i]), bsk_params,
+          num_inputs_on_gpu);
+#endif
     } else {
       static_assert(
           std::is_same_v<OutputTorus, uint64_t> ||
@@ -597,9 +625,16 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
       std::is_same_v<Torus, uint64_t> || std::is_same_v<Torus, __uint128_t>,
       "Cuda error: unsupported modulus size: only 64, or 128-bit integer "
       "moduli are supported.");
+#ifdef TFHE_CUDA_EXT_PBS
   if (bsk_params.pbs_type == PBS_TYPE::MULTI_BIT &&
       bsk_params.pbs_params.multi_bit.grouping_factor == 0)
     PANIC("Multi-bit PBS error: grouping factor should be > 0.")
+#else
+  if (bsk_params.pbs_type != PBS_TYPE::CLASSICAL)
+    PANIC("Error: multi-bit PBS disabled, rebuild with the ext-pbs feature "
+          "(pbs_type %u).",
+          bsk_params.pbs_type)
+#endif
   if constexpr (std::is_same_v<Torus, uint64_t>) {
     // 64 bits
     switch (bsk_params.pbs_type) {
@@ -608,11 +643,13 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
           stream, gpu_index, pbs_buffer, bsk_params, input_lwe_ciphertext_count,
           allocate_gpu_memory);
       break;
+#ifdef TFHE_CUDA_EXT_PBS
     case PBS_TYPE::MULTI_BIT:
       size_tracker = scratch_cuda_multi_bit_programmable_bootstrap_64_async(
           stream, gpu_index, pbs_buffer, bsk_params, input_lwe_ciphertext_count,
           allocate_gpu_memory);
       break;
+#endif
     default:
       PANIC("Error: unsupported cuda PBS type %u.", bsk_params.pbs_type)
     }
@@ -624,11 +661,13 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
           stream, gpu_index, pbs_buffer, bsk_params, input_lwe_ciphertext_count,
           allocate_gpu_memory);
       break;
+#ifdef TFHE_CUDA_EXT_PBS
     case PBS_TYPE::MULTI_BIT:
       size_tracker = scratch_cuda_multi_bit_programmable_bootstrap_128_async(
           stream, gpu_index, pbs_buffer, bsk_params, input_lwe_ciphertext_count,
           allocate_gpu_memory);
       break;
+#endif
     default:
       PANIC("Error: unsupported cuda PBS type %u.", bsk_params.pbs_type)
     }

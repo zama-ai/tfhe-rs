@@ -41,9 +41,9 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
 use crate::shortint::server_key::tests::noise_distribution::utils::traits::{
     LweGenericBlindRotate128, LweGenericBootstrap, LwePackingKeyswitch,
 };
-use tfhe_cuda_backend::bindings::{
-    cuda_centered_modulus_switch_64_async, cuda_modulus_switch_multi_bit_64_async,
-};
+use tfhe_cuda_backend::bindings::cuda_centered_modulus_switch_64_async;
+#[cfg(feature = "gpu-ext-pbs")]
+use tfhe_cuda_backend::bindings::cuda_modulus_switch_multi_bit_64_async;
 /// Side resources for CUDA operations in noise simulation
 pub struct CudaSideResources {
     pub streams: CudaStreams,
@@ -1295,6 +1295,7 @@ impl AllocateMultiBitModSwitchResult for CudaDynLwe {
 impl MultiBitModSwitch<Self> for CudaDynLwe {
     type SideResources = CudaSideResources;
 
+    #[allow(unused_variables)]
     fn multi_bit_mod_switch(
         &self,
         grouping_factor: LweBskGroupingFactor,
@@ -1302,50 +1303,55 @@ impl MultiBitModSwitch<Self> for CudaDynLwe {
         output: &mut Self,
         side_resources: &mut Self::SideResources,
     ) {
-        let polynomial_size = side_resources
-            .polynomial_size
-            .expect("polynomial_size must be set in CudaSideResources for multi-bit mod switch");
+        #[cfg(not(feature = "gpu-ext-pbs"))]
+        panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+        #[cfg(feature = "gpu-ext-pbs")]
+        {
+            let polynomial_size = side_resources.polynomial_size.expect(
+                "polynomial_size must be set in CudaSideResources for multi-bit mod switch",
+            );
 
-        match (self, output) {
-            (Self::U64(input), Self::U64(output_cuda_lwe)) => {
-                // Copy the original input into the first slot of the output buffer so that
-                // the multi-bit PBS kernel can read both the unmodified input and the
-                // modulus-switched variants from a single contiguous allocation.
-                let input_len = input.0.d_vec.len();
-                unsafe {
-                    output_cuda_lwe.0.d_vec.copy_self_range_gpu_to_gpu_async(
-                        0..input_len,
-                        &input.0.d_vec,
-                        &side_resources.streams,
-                        0,
-                    );
-                }
-                side_resources.streams.synchronize();
+            match (self, output) {
+                (Self::U64(input), Self::U64(output_cuda_lwe)) => {
+                    // Copy the original input into the first slot of the output buffer so that
+                    // the multi-bit PBS kernel can read both the unmodified input and the
+                    // modulus-switched variants from a single contiguous allocation.
+                    let input_len = input.0.d_vec.len();
+                    unsafe {
+                        output_cuda_lwe.0.d_vec.copy_self_range_gpu_to_gpu_async(
+                            0..input_len,
+                            &input.0.d_vec,
+                            &side_resources.streams,
+                            0,
+                        );
+                    }
+                    side_resources.streams.synchronize();
 
-                // Call the multi-bit modulus switch kernel writing after the original input
-                // in the output buffer, so that the layout is [input | ms_0 | ... ].
-                let mut input_copy = input.duplicate(&side_resources.streams);
-                let lwe_size = input.0.lwe_dimension.to_lwe_size().0;
-                unsafe {
-                    let out_ptr = output_cuda_lwe
-                        .0
-                        .d_vec
-                        .as_mut_c_ptr(0)
-                        .add(lwe_size * std::mem::size_of::<u64>());
-                    cuda_modulus_switch_multi_bit_64_async(
-                        side_resources.streams.ptr[0],
-                        side_resources.streams.gpu_indexes[0].get(),
-                        out_ptr,
-                        input_copy.0.d_vec.as_mut_c_ptr(0),
-                        u32::try_from(input_copy.0.d_vec.len()).unwrap(),
-                        output_modulus_log.0 as u32,
-                        polynomial_size.0 as u32,
-                        grouping_factor.0 as u32,
-                    );
+                    // Call the multi-bit modulus switch kernel writing after the original input
+                    // in the output buffer, so that the layout is [input | ms_0 | ... ].
+                    let mut input_copy = input.duplicate(&side_resources.streams);
+                    let lwe_size = input.0.lwe_dimension.to_lwe_size().0;
+                    unsafe {
+                        let out_ptr = output_cuda_lwe
+                            .0
+                            .d_vec
+                            .as_mut_c_ptr(0)
+                            .add(lwe_size * std::mem::size_of::<u64>());
+                        cuda_modulus_switch_multi_bit_64_async(
+                            side_resources.streams.ptr[0],
+                            side_resources.streams.gpu_indexes[0].get(),
+                            out_ptr,
+                            input_copy.0.d_vec.as_mut_c_ptr(0),
+                            u32::try_from(input_copy.0.d_vec.len()).unwrap(),
+                            output_modulus_log.0 as u32,
+                            polynomial_size.0 as u32,
+                            grouping_factor.0 as u32,
+                        );
+                    }
+                    side_resources.streams.synchronize();
                 }
-                side_resources.streams.synchronize();
+                _ => panic!("Multi-bit mod switch is only supported for U64 CudaDynLwe"),
             }
-            _ => panic!("Multi-bit mod switch is only supported for U64 CudaDynLwe"),
         }
     }
 }

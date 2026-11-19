@@ -1,13 +1,13 @@
+#[cfg(feature = "gpu-ext-pbs")]
+use crate::core_crypto::gpu::convert_lwe_multi_bit_programmable_bootstrap_key_async;
 use crate::core_crypto::gpu::entities::lwe_bootstrap_key::CudaBootstrapKey;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
-use crate::core_crypto::gpu::{
-    bsk_params_ffi, convert_lwe_multi_bit_programmable_bootstrap_key_async, CudaPbsTypeParams,
-    CudaStreams,
-};
+use crate::core_crypto::gpu::{bsk_params_ffi, CudaPbsTypeParams, CudaStreams};
+#[cfg(feature = "gpu-ext-pbs")]
+use crate::core_crypto::prelude::lwe_multi_bit_bootstrap_key_size;
 use crate::core_crypto::prelude::{
-    lwe_multi_bit_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
-    GlweDimension, LweBskGroupingFactor, LweDimension, LweMultiBitBootstrapKey, PolynomialSize,
-    UnsignedInteger,
+    Container, DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
+    LweDimension, LweMultiBitBootstrapKey, PolynomialSize, UnsignedInteger,
 };
 use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::CudaLweBootstrapKeyParamsFFI;
@@ -32,54 +32,60 @@ pub struct CudaLweMultiBitBootstrapKey<Scalar: UnsignedInteger> {
 }
 
 impl<Scalar: UnsignedInteger> CudaLweMultiBitBootstrapKey<Scalar> {
+    #[allow(unused_variables)]
     pub fn from_lwe_multi_bit_bootstrap_key<InputBskCont: Container<Element = Scalar>>(
         bsk: &LweMultiBitBootstrapKey<InputBskCont>,
         streams: &CudaStreams,
     ) -> Self {
-        let input_lwe_dimension = bsk.input_lwe_dimension();
-        let polynomial_size = bsk.polynomial_size();
-        let decomp_level_count = bsk.decomposition_level_count();
-        let decomp_base_log = bsk.decomposition_base_log();
-        let glwe_dimension = bsk.glwe_size().to_glwe_dimension();
-        let grouping_factor = bsk.grouping_factor();
+        #[cfg(not(feature = "gpu-ext-pbs"))]
+        panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+        #[cfg(feature = "gpu-ext-pbs")]
+        {
+            let input_lwe_dimension = bsk.input_lwe_dimension();
+            let polynomial_size = bsk.polynomial_size();
+            let decomp_level_count = bsk.decomposition_level_count();
+            let decomp_base_log = bsk.decomposition_base_log();
+            let glwe_dimension = bsk.glwe_size().to_glwe_dimension();
+            let grouping_factor = bsk.grouping_factor();
 
-        // Allocate memory
-        let mut d_vec = CudaVec::<InputBskCont::Element>::new_multi_gpu(
-            lwe_multi_bit_bootstrap_key_size(
+            // Allocate memory
+            let mut d_vec = CudaVec::<InputBskCont::Element>::new_multi_gpu(
+                lwe_multi_bit_bootstrap_key_size(
+                    input_lwe_dimension,
+                    glwe_dimension.to_glwe_size(),
+                    polynomial_size,
+                    decomp_level_count,
+                    grouping_factor,
+                )
+                .unwrap(),
+                streams,
+            );
+            // Copy to the GPU
+            unsafe {
+                convert_lwe_multi_bit_programmable_bootstrap_key_async(
+                    streams,
+                    &mut d_vec,
+                    bsk.as_ref(),
+                    bsk_params_ffi(
+                        input_lwe_dimension,
+                        glwe_dimension,
+                        polynomial_size,
+                        decomp_base_log,
+                        decomp_level_count,
+                        CudaPbsTypeParams::MultiBit { grouping_factor },
+                    ),
+                );
+            }
+            streams.synchronize();
+            Self {
+                d_vec,
                 input_lwe_dimension,
-                glwe_dimension.to_glwe_size(),
+                glwe_dimension,
                 polynomial_size,
+                decomp_base_log,
                 decomp_level_count,
                 grouping_factor,
-            )
-            .unwrap(),
-            streams,
-        );
-        // Copy to the GPU
-        unsafe {
-            convert_lwe_multi_bit_programmable_bootstrap_key_async(
-                streams,
-                &mut d_vec,
-                bsk.as_ref(),
-                bsk_params_ffi(
-                    input_lwe_dimension,
-                    glwe_dimension,
-                    polynomial_size,
-                    decomp_base_log,
-                    decomp_level_count,
-                    CudaPbsTypeParams::MultiBit { grouping_factor },
-                ),
-            );
-        }
-        streams.synchronize();
-        Self {
-            d_vec,
-            input_lwe_dimension,
-            glwe_dimension,
-            polynomial_size,
-            decomp_base_log,
-            decomp_level_count,
-            grouping_factor,
+            }
         }
     }
 

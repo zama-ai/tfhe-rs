@@ -16,4 +16,4 @@
 #include "cuda/include/fft/fft128.h"
 #include "cuda/include/pbs/bootstrap_key_params.h"
 #include "cuda/include/pbs/programmable_bootstrap.h"
-#include "cuda/include/pbs/programmable_bootstrap_multibit.h"
+#include "cuda/src_ext/include/pbs/programmable_bootstrap_multibit.h"

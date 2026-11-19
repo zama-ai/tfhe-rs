@@ -213,7 +213,7 @@ pub unsafe fn programmable_bootstrap_128<T: UnsignedInteger>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior./// required
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, unused_variables)]
 pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<B>,
@@ -226,16 +226,120 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
     bsk_params: CudaLweBootstrapKeyParamsFFI,
     num_samples: u32,
 ) {
-    let num_many_lut = 1u32;
-    let lut_stride = 0u32;
-    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    assert!(
-        TypeId::of::<T>() == TypeId::of::<u64>(),
-        "CUDA TFHE backend only supports u64 PBS indices and u64 LWE inputs"
-    );
+    #[cfg(not(feature = "gpu-ext-pbs"))]
+    panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+    #[cfg(feature = "gpu-ext-pbs")]
+    {
+        let num_many_lut = 1u32;
+        let lut_stride = 0u32;
+        let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+        assert!(
+            TypeId::of::<T>() == TypeId::of::<u64>(),
+            "CUDA TFHE backend only supports u64 PBS indices and u64 LWE inputs"
+        );
 
-    if TypeId::of::<B>() == TypeId::of::<u128>() {
-        scratch_cuda_multi_bit_programmable_bootstrap_128_async(
+        if TypeId::of::<B>() == TypeId::of::<u128>() {
+            scratch_cuda_multi_bit_programmable_bootstrap_128_async(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+                bsk_params,
+                num_samples,
+                true,
+            );
+            cuda_multi_bit_programmable_bootstrap_128_async(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                lwe_array_out.as_mut_c_ptr(0),
+                output_indexes.as_c_ptr(0),
+                test_vector.as_c_ptr(0),
+                lwe_array_in.as_c_ptr(0),
+                input_indexes.as_c_ptr(0),
+                bootstrapping_key.as_c_ptr(0),
+                pbs_buffer,
+                bsk_params,
+                num_samples,
+                num_many_lut,
+                lut_stride,
+            );
+            cleanup_cuda_multi_bit_programmable_bootstrap_128(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+            );
+        } else if TypeId::of::<B>() == TypeId::of::<u64>() {
+            scratch_cuda_multi_bit_programmable_bootstrap_64_async(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+                bsk_params,
+                num_samples,
+                true,
+            );
+            cuda_multi_bit_programmable_bootstrap_64_async(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                lwe_array_out.as_mut_c_ptr(0),
+                output_indexes.as_c_ptr(0),
+                test_vector.as_c_ptr(0),
+                test_vector_indexes.as_c_ptr(0),
+                lwe_array_in.as_c_ptr(0),
+                input_indexes.as_c_ptr(0),
+                bootstrapping_key.as_c_ptr(0),
+                pbs_buffer,
+                bsk_params,
+                num_samples,
+                num_many_lut,
+                lut_stride,
+            );
+            cleanup_cuda_multi_bit_programmable_bootstrap_64(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+            );
+        } else {
+            panic!("Unsupported torus size")
+        }
+    }
+}
+
+/// Programmable multi-bit bootstrap (noise tests variant) on a vector of LWE
+/// ciphertexts that has been already modulus switched using the multi-bit ms.
+/// Only used during noise tests to evaluate the noise at intermediate steps.
+///
+/// # Safety
+///
+/// - The data must not be moved or dropped while being used by the CUDA kernel.
+/// - This function assumes exclusive access to the passed data; violating this may lead to
+///   undefined behavior.
+#[cfg(test)]
+#[allow(clippy::too_many_arguments, unused_variables)]
+pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<u64>,
+    output_indexes: &CudaVec<T>,
+    test_vector: &CudaVec<u64>,
+    test_vector_indexes: &CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    input_indexes: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<u64>,
+    bsk_params: CudaLweBootstrapKeyParamsFFI,
+    num_samples: u32,
+) {
+    #[cfg(not(feature = "gpu-ext-pbs"))]
+    panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+    #[cfg(feature = "gpu-ext-pbs")]
+    {
+        assert_eq!(
+            bsk_params.polynomial_size, 2048,
+            "programmable_bootstrap_multi_bit_noise_tests only supports polynomial \
+         size 2048, got {}",
+            bsk_params.polynomial_size
+        );
+        let num_many_lut = 1u32;
+        let lut_stride = 0u32;
+        let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(pbs_buffer),
@@ -243,36 +347,7 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
             num_samples,
             true,
         );
-        cuda_multi_bit_programmable_bootstrap_128_async(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            lwe_array_out.as_mut_c_ptr(0),
-            output_indexes.as_c_ptr(0),
-            test_vector.as_c_ptr(0),
-            lwe_array_in.as_c_ptr(0),
-            input_indexes.as_c_ptr(0),
-            bootstrapping_key.as_c_ptr(0),
-            pbs_buffer,
-            bsk_params,
-            num_samples,
-            num_many_lut,
-            lut_stride,
-        );
-        cleanup_cuda_multi_bit_programmable_bootstrap_128(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-        );
-    } else if TypeId::of::<B>() == TypeId::of::<u64>() {
-        scratch_cuda_multi_bit_programmable_bootstrap_64_async(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-            bsk_params,
-            num_samples,
-            true,
-        );
-        cuda_multi_bit_programmable_bootstrap_64_async(
+        cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             lwe_array_out.as_mut_c_ptr(0),
@@ -288,77 +363,12 @@ pub unsafe fn programmable_bootstrap_multi_bit<T: UnsignedInteger, B: Any + Unsi
             num_many_lut,
             lut_stride,
         );
-        cleanup_cuda_multi_bit_programmable_bootstrap_64(
+        cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(pbs_buffer),
         );
-    } else {
-        panic!("Unsupported torus size")
     }
-}
-
-/// Programmable multi-bit bootstrap (noise tests variant) on a vector of LWE
-/// ciphertexts that has been already modulus switched using the multi-bit ms.
-/// Only used during noise tests to evaluate the noise at intermediate steps.
-///
-/// # Safety
-///
-/// - The data must not be moved or dropped while being used by the CUDA kernel.
-/// - This function assumes exclusive access to the passed data; violating this may lead to
-///   undefined behavior.
-#[allow(clippy::too_many_arguments)]
-#[cfg(test)]
-pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
-    streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<u64>,
-    output_indexes: &CudaVec<T>,
-    test_vector: &CudaVec<u64>,
-    test_vector_indexes: &CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
-    input_indexes: &CudaVec<T>,
-    bootstrapping_key: &CudaVec<u64>,
-    bsk_params: CudaLweBootstrapKeyParamsFFI,
-    num_samples: u32,
-) {
-    assert_eq!(
-        bsk_params.polynomial_size, 2048,
-        "programmable_bootstrap_multi_bit_noise_tests only supports polynomial \
-         size 2048, got {}",
-        bsk_params.polynomial_size
-    );
-    let num_many_lut = 1u32;
-    let lut_stride = 0u32;
-    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        std::ptr::addr_of_mut!(pbs_buffer),
-        bsk_params,
-        num_samples,
-        true,
-    );
-    cuda_multi_bit_programmable_bootstrap_noise_tests_64_async(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        output_indexes.as_c_ptr(0),
-        test_vector.as_c_ptr(0),
-        test_vector_indexes.as_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        input_indexes.as_c_ptr(0),
-        bootstrapping_key.as_c_ptr(0),
-        pbs_buffer,
-        bsk_params,
-        num_samples,
-        num_many_lut,
-        lut_stride,
-    );
-    cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        std::ptr::addr_of_mut!(pbs_buffer),
-    );
 }
 
 /// Programmable 128-bit multi-bit bootstrap (noise tests variant) on a vector of LWE ciphertexts
@@ -371,8 +381,8 @@ pub unsafe fn programmable_bootstrap_multi_bit_noise_tests<T: UnsignedInteger>(
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
 /// - This function assumes exclusive access to the passed data; violating this may lead to
 ///   undefined behavior.
-#[allow(clippy::too_many_arguments)]
 #[cfg(test)]
+#[allow(clippy::too_many_arguments, unused_variables)]
 pub unsafe fn programmable_bootstrap_multi_bit_noise_tests_128<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<u128>,
@@ -384,71 +394,82 @@ pub unsafe fn programmable_bootstrap_multi_bit_noise_tests_128<T: UnsignedIntege
     bsk_params: CudaLweBootstrapKeyParamsFFI,
     num_samples: u32,
 ) {
-    assert_eq!(
-        bsk_params.polynomial_size, 2048,
-        "programmable_bootstrap_multi_bit_noise_tests_128 only supports polynomial \
+    #[cfg(not(feature = "gpu-ext-pbs"))]
+    panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+    #[cfg(feature = "gpu-ext-pbs")]
+    {
+        assert_eq!(
+            bsk_params.polynomial_size, 2048,
+            "programmable_bootstrap_multi_bit_noise_tests_128 only supports polynomial \
          size 2048, got {}",
-        bsk_params.polynomial_size
-    );
-    let num_many_lut = 1u32;
-    let lut_stride = 0u32;
-    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        std::ptr::addr_of_mut!(pbs_buffer),
-        bsk_params,
-        num_samples,
-        true,
-    );
-    cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        output_indexes.as_c_ptr(0),
-        test_vector.as_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        input_indexes.as_c_ptr(0),
-        bootstrapping_key.as_c_ptr(0),
-        pbs_buffer,
-        bsk_params,
-        num_samples,
-        num_many_lut,
-        lut_stride,
-    );
-    cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_128(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        std::ptr::addr_of_mut!(pbs_buffer),
-    );
-}
-
-/// Returns the GPU memory size of the PBS scratch buffer.
-/// `bsk_params.pbs_type` must be `MULTI_BIT`, otherwise the CUDA backend panics.
-pub fn get_programmable_bootstrap_multi_bit_size_on_gpu(
-    streams: &CudaStreams,
-    bsk_params: CudaLweBootstrapKeyParamsFFI,
-    num_samples: u32,
-) -> u64 {
-    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    let size_tracker = unsafe {
-        scratch_cuda_multi_bit_programmable_bootstrap_64_async(
+            bsk_params.polynomial_size
+        );
+        let num_many_lut = 1u32;
+        let lut_stride = 0u32;
+        let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+        scratch_cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(pbs_buffer),
             bsk_params,
             num_samples,
-            false,
-        )
-    };
-    unsafe {
-        cleanup_cuda_multi_bit_programmable_bootstrap_64(
+            true,
+        );
+        cuda_multi_bit_programmable_bootstrap_noise_tests_128_async(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            output_indexes.as_c_ptr(0),
+            test_vector.as_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            input_indexes.as_c_ptr(0),
+            bootstrapping_key.as_c_ptr(0),
+            pbs_buffer,
+            bsk_params,
+            num_samples,
+            num_many_lut,
+            lut_stride,
+        );
+        cleanup_cuda_multi_bit_programmable_bootstrap_noise_tests_128(
             streams.ptr[0],
             streams.gpu_indexes[0].get(),
             std::ptr::addr_of_mut!(pbs_buffer),
         );
     }
-    size_tracker
+}
+
+/// Returns the GPU memory size of the PBS scratch buffer.
+/// `bsk_params.pbs_type` must be `MULTI_BIT`, otherwise the CUDA backend panics.
+#[allow(unused_variables)]
+pub fn get_programmable_bootstrap_multi_bit_size_on_gpu(
+    streams: &CudaStreams,
+    bsk_params: CudaLweBootstrapKeyParamsFFI,
+    num_samples: u32,
+) -> u64 {
+    #[cfg(not(feature = "gpu-ext-pbs"))]
+    panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+    #[cfg(feature = "gpu-ext-pbs")]
+    {
+        let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+        let size_tracker = unsafe {
+            scratch_cuda_multi_bit_programmable_bootstrap_64_async(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+                bsk_params,
+                num_samples,
+                false,
+            )
+        };
+        unsafe {
+            cleanup_cuda_multi_bit_programmable_bootstrap_64(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                std::ptr::addr_of_mut!(pbs_buffer),
+            );
+        }
+        size_tracker
+    }
 }
 
 /// Keyswitch on a vector of LWE ciphertexts using the GEMM batch KS approach
@@ -736,34 +757,40 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
 ///
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
+#[allow(unused_variables)]
 pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: Any + UnsignedInteger>(
     streams: &CudaStreams,
     dest: &mut CudaVec<T>,
     src: &[T],
     bsk_params: CudaLweBootstrapKeyParamsFFI,
 ) {
-    let size = std::mem::size_of_val(src);
-    for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
-        assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
+    #[cfg(not(feature = "gpu-ext-pbs"))]
+    panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+    #[cfg(feature = "gpu-ext-pbs")]
+    {
+        let size = std::mem::size_of_val(src);
+        for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
+            assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
 
-        if TypeId::of::<T>() == TypeId::of::<u128>() {
-            cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128_async(
-                stream_ptr,
-                streams.gpu_indexes[i].get(),
-                dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
-                src.as_ptr().cast(),
-                bsk_params,
-            );
-        } else if TypeId::of::<T>() == TypeId::of::<u64>() {
-            cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
-                stream_ptr,
-                streams.gpu_indexes[i].get(),
-                dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
-                src.as_ptr().cast(),
-                bsk_params,
-            );
-        } else {
-            panic!("Unsupported torus size for bsk conversion")
+            if TypeId::of::<T>() == TypeId::of::<u128>() {
+                cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128_async(
+                    stream_ptr,
+                    streams.gpu_indexes[i].get(),
+                    dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
+                    src.as_ptr().cast(),
+                    bsk_params,
+                );
+            } else if TypeId::of::<T>() == TypeId::of::<u64>() {
+                cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64_async(
+                    stream_ptr,
+                    streams.gpu_indexes[i].get(),
+                    dest.as_mut_c_ptr(u32::try_from(i).unwrap()),
+                    src.as_ptr().cast(),
+                    bsk_params,
+                );
+            } else {
+                panic!("Unsupported torus size for bsk conversion")
+            }
         }
     }
 }
@@ -848,7 +875,7 @@ pub fn cuda_modulus_switch_ciphertext<Scalar>(
     streams.synchronize();
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, unused_variables)]
 pub fn cuda_modulus_switch_multi_bit_ciphertext<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<T>,
@@ -857,22 +884,27 @@ pub fn cuda_modulus_switch_multi_bit_ciphertext<T: UnsignedInteger>(
     polynomial_size: u32,
     grouping_factor: u32,
 ) {
-    unsafe {
-        cuda_modulus_switch_multi_bit_64_async(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            lwe_array_out.as_mut_c_ptr(0),
-            lwe_array_in.as_mut_c_ptr(0),
-            u32::try_from(lwe_array_in.len()).unwrap(),
-            log_modulus,
-            polynomial_size,
-            grouping_factor,
-        );
+    #[cfg(not(feature = "gpu-ext-pbs"))]
+    panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+    #[cfg(feature = "gpu-ext-pbs")]
+    {
+        unsafe {
+            cuda_modulus_switch_multi_bit_64_async(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                lwe_array_out.as_mut_c_ptr(0),
+                lwe_array_in.as_mut_c_ptr(0),
+                u32::try_from(lwe_array_in.len()).unwrap(),
+                log_modulus,
+                polynomial_size,
+                grouping_factor,
+            );
+        }
+        streams.synchronize();
     }
-    streams.synchronize();
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, unused_variables)]
 pub fn cuda_modulus_switch_multi_bit_ciphertext_u128<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<T>,
@@ -881,19 +913,24 @@ pub fn cuda_modulus_switch_multi_bit_ciphertext_u128<T: UnsignedInteger>(
     polynomial_size: u32,
     grouping_factor: u32,
 ) {
-    unsafe {
-        cuda_modulus_switch_multi_bit_128_async(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            lwe_array_out.as_mut_c_ptr(0),
-            lwe_array_in.as_mut_c_ptr(0),
-            u32::try_from(lwe_array_in.len()).unwrap(),
-            log_modulus,
-            polynomial_size,
-            grouping_factor,
-        );
+    #[cfg(not(feature = "gpu-ext-pbs"))]
+    panic!("multi-bit PBS disabled: rebuild with the gpu-ext-pbs feature");
+    #[cfg(feature = "gpu-ext-pbs")]
+    {
+        unsafe {
+            cuda_modulus_switch_multi_bit_128_async(
+                streams.ptr[0],
+                streams.gpu_indexes[0].get(),
+                lwe_array_out.as_mut_c_ptr(0),
+                lwe_array_in.as_mut_c_ptr(0),
+                u32::try_from(lwe_array_in.len()).unwrap(),
+                log_modulus,
+                polynomial_size,
+                grouping_factor,
+            );
+        }
+        streams.synchronize();
     }
-    streams.synchronize();
 }
 
 /// forward fourier transform for complex f128 as torus

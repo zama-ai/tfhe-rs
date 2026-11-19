@@ -4,8 +4,6 @@ use crate::high_level_api::{
 };
 use crate::integer::U256;
 use crate::set_server_key;
-#[cfg(feature = "gpu")]
-use crate::shortint::parameters::NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::parameters::{
     NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -81,16 +79,13 @@ fn test_noise_squashing() {
 #[cfg(feature = "gpu")]
 #[test]
 fn test_gpu_noise_squashing() {
-    let noise_squashing_params = [
-        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    ];
+    let noise_squashing_params = [NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128];
 
     for noise_squashing_param in noise_squashing_params {
-        let config = ConfigBuilder::with_custom_parameters(
-        crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
-        .enable_noise_squashing(noise_squashing_param)
-        .build();
+        let config =
+            ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .enable_noise_squashing(noise_squashing_param)
+                .build();
         let cks = crate::ClientKey::generate(config);
         let sks = cks.generate_compressed_server_key();
         set_server_key(sks.decompress_to_gpu());

@@ -1391,7 +1391,12 @@ mod tests {
     #[cfg(feature = "gpu")]
     #[test]
     fn test_gpu_compact_list() {
-        for i in [0, 1] {
+        let iters = [
+            0,
+            #[cfg(feature = "gpu-ext-pbs")]
+            1,
+        ];
+        for i in iters {
             let config = if i == 0 {
                 crate::ConfigBuilder::with_custom_parameters(
                     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -1401,16 +1406,19 @@ mod tests {
                     PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 ))
                 .build()
-            } else if i == 1 {
-                crate::ConfigBuilder::with_custom_parameters(
-                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                )
-                .use_dedicated_compact_public_key_parameters((
-                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                ))
-                .build()
             } else {
+                #[cfg(feature = "gpu-ext-pbs")]
+                {
+                    crate::ConfigBuilder::with_custom_parameters(
+                        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    )
+                    .use_dedicated_compact_public_key_parameters((
+                        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    ))
+                    .build()
+                }
+                #[cfg(not(feature = "gpu-ext-pbs"))]
                 panic!("Unexpected parameter set")
             };
 
@@ -1471,7 +1479,12 @@ mod tests {
     #[test]
     #[cfg(feature = "gpu")]
     fn test_gpu_compact_list_single_item() {
-        for i in [0, 1] {
+        let iters = [
+            0,
+            #[cfg(feature = "gpu-ext-pbs")]
+            1,
+        ];
+        for i in iters {
             let config = if i == 0 {
                 crate::ConfigBuilder::with_custom_parameters(
                     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -1481,16 +1494,19 @@ mod tests {
                     PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 ))
                 .build()
-            } else if i == 1 {
-                crate::ConfigBuilder::with_custom_parameters(
-                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                )
-                .use_dedicated_compact_public_key_parameters((
-                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                ))
-                .build()
             } else {
+                #[cfg(feature = "gpu-ext-pbs")]
+                {
+                    crate::ConfigBuilder::with_custom_parameters(
+                        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    )
+                    .use_dedicated_compact_public_key_parameters((
+                        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    ))
+                    .build()
+                }
+                #[cfg(not(feature = "gpu-ext-pbs"))]
                 panic!("Unexpected parameter set")
             };
 
@@ -1584,7 +1600,12 @@ mod tests {
     #[cfg(feature = "gpu")]
     #[test]
     fn test_gpu_compact_list_extended_types() {
-        for i in [0, 1] {
+        let iters = [
+            0,
+            #[cfg(feature = "gpu-ext-pbs")]
+            1,
+        ];
+        for i in iters {
             let config = if i == 0 {
                 crate::ConfigBuilder::with_custom_parameters(
                     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -1594,16 +1615,19 @@ mod tests {
                     PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 ))
                 .build()
-            } else if i == 1 {
-                crate::ConfigBuilder::with_custom_parameters(
-                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                )
-                .use_dedicated_compact_public_key_parameters((
-                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                ))
-                .build()
             } else {
+                #[cfg(feature = "gpu-ext-pbs")]
+                {
+                    crate::ConfigBuilder::with_custom_parameters(
+                        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    )
+                    .use_dedicated_compact_public_key_parameters((
+                        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    ))
+                    .build()
+                }
+                #[cfg(not(feature = "gpu-ext-pbs"))]
                 panic!("Unexpected parameter set")
             };
 
@@ -1941,7 +1965,12 @@ mod tests {
     #[cfg(all(feature = "zk-pok", feature = "gpu"))]
     #[test]
     fn test_gpu_proven_compact_list() {
-        for i in [0, 1] {
+        let iters = [
+            0,
+            #[cfg(feature = "gpu-ext-pbs")]
+            1,
+        ];
+        for i in iters {
             let config = if i == 0 {
                 crate::ConfigBuilder::with_custom_parameters(
                     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -1951,16 +1980,19 @@ mod tests {
                     PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 ))
                 .build()
-            } else if i == 1 {
-                crate::ConfigBuilder::with_custom_parameters(
-                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                )
-                .use_dedicated_compact_public_key_parameters((
-                    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                ))
-                .build()
             } else {
+                #[cfg(feature = "gpu-ext-pbs")]
+                {
+                    crate::ConfigBuilder::with_custom_parameters(
+                        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    )
+                    .use_dedicated_compact_public_key_parameters((
+                        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    ))
+                    .build()
+                }
+                #[cfg(not(feature = "gpu-ext-pbs"))]
                 panic!("Unexpected parameter set")
             };
 

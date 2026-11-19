@@ -1446,28 +1446,31 @@ mod test {
     #[cfg(feature = "gpu")]
     mod gpu {
         use crate::shortint::parameters::{
-            CompressionParameters,
-            COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
+        #[cfg(feature = "gpu-ext-pbs")]
+        use crate::shortint::parameters::{
+            COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         };
         use crate::shortint::AtomicPatternParameters;
         use crate::{set_server_key, ConfigBuilder};
 
         use super::*;
 
-        fn gpu_parameter_sets() -> [(AtomicPatternParameters, CompressionParameters); 2] {
-            [
-                (
-                    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-                    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                ),
-                (
-                    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-                    COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                ),
-            ]
+        fn gpu_parameter_sets() -> Vec<(AtomicPatternParameters, CompressionParameters)> {
+            #[allow(unused_mut)]
+            let mut sets = vec![(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )];
+            #[cfg(feature = "gpu-ext-pbs")]
+            sets.push((
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ));
+            sets
         }
 
         fn setup_gpu(
