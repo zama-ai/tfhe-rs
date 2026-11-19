@@ -2,7 +2,7 @@
 #define CUDA_MULTI_BIT_UTILITIES_H
 
 #include "checked_arithmetic.h"
-#include "pbs_utilities.h"
+#include "pbs/pbs_utilities.h"
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(

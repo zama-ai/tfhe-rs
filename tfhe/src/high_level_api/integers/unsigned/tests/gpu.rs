@@ -9,9 +9,10 @@ use crate::prelude::{
     RotateLeftAssign, RotateLeftSizeOnGpu, RotateRight, RotateRightAssign, RotateRightSizeOnGpu,
     ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
+#[cfg(feature = "gpu-ext-pbs")]
+use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::parameters::{
-    TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TestParameters, PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
@@ -49,6 +50,7 @@ pub(crate) fn setup_classical_gpu() -> ClientKey {
     setup_gpu(Some(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128))
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 pub(crate) fn setup_multibit_gpu() -> ClientKey {
     setup_gpu(Some(
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -76,8 +78,11 @@ pub(crate) fn setup_gpu_with_dedicated_cpk() -> ClientKey {
     client_key
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 pub(crate) const GPU_SETUP_FN: [&dyn Fn() -> ClientKey; 2] =
     [&setup_classical_gpu, &setup_multibit_gpu];
+#[cfg(not(feature = "gpu-ext-pbs"))]
+pub(crate) const GPU_SETUP_FN: [&dyn Fn() -> ClientKey; 1] = [&setup_classical_gpu];
 
 #[test]
 fn test_integer_compressed_can_be_serialized_gpu() {
@@ -126,6 +131,7 @@ fn test_uint8_quickstart_gpu() {
     super::test_case_uint8_quickstart(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_uint8_quickstart_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -138,6 +144,7 @@ fn test_uint32_quickstart_gpu() {
     super::test_case_uint32_quickstart(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_uint32_quickstart_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -150,6 +157,7 @@ fn test_uint64_quickstart_gpu() {
     super::test_case_uint64_quickstart(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_uint64_quickstart_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -403,6 +411,7 @@ fn test_if_then_else_gpu() {
     super::test_case_if_then_else(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_if_then_else_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -415,6 +424,7 @@ fn test_flip() {
     super::test_case_flip(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_flip_multibit() {
     let client_key = setup_multibit_gpu();
@@ -427,6 +437,7 @@ fn test_sum_gpu() {
     super::test_case_sum(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_sum_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -439,6 +450,7 @@ fn test_is_even_is_odd_gpu() {
     super::test_case_is_even_is_odd(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_is_even_is_odd_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -451,6 +463,7 @@ fn test_leading_trailing_zeros_ones_gpu() {
     super::test_case_leading_trailing_zeros_ones(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_leading_trailing_zeros_ones_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -463,6 +476,7 @@ fn test_count_zeros_ones_gpu() {
     super::test_case_count_zeros_ones(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_count_zeros_ones_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -475,6 +489,7 @@ fn test_ilog2_gpu() {
     super::test_case_ilog2(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_ilog2_multibit() {
     let client_key = setup_multibit_gpu();
@@ -487,6 +502,7 @@ fn test_ilog2_one_block_gpu() {
     super::test_case_ilog2_one_block(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_ilog2_one_block_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -505,12 +521,14 @@ fn test_match_value_gpu() {
     super::test_case_match_value(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_match_value_gpu_multibit() {
     let client_key = setup_multibit_gpu();
     super::test_case_match_value(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_match_value_small_outputs_have_output_block_count_gpu() {
     let client_key = setup_classical_gpu();
@@ -528,6 +546,7 @@ fn test_match_value_small_outputs_have_output_block_count_gpu() {
     assert_eq!(doubled, 6);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_min_max_multibit() {
     let client_key = setup_multibit_gpu();
@@ -574,11 +593,18 @@ fn test_safe_deserialize_conformant_fhe_uint32_gpu() {
 
         let params = if i == 0 {
             FheUint32ConformanceParams::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
-        } else if i == 1 {
-            FheUint32ConformanceParams::from(
-                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            )
         } else {
+            #[cfg(feature = "gpu-ext-pbs")]
+            {
+                if i == 1 {
+                    FheUint32ConformanceParams::from(
+                        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    )
+                } else {
+                    panic!("Unexpected parameter set")
+                }
+            }
+            #[cfg(not(feature = "gpu-ext-pbs"))]
             panic!("Unexpected parameter set")
         };
         let deserialized_a = DeserializationConfig::new(1 << 20)
@@ -606,11 +632,18 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32_gpu() {
             CompressedFheUint32ConformanceParams::from(
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             )
-        } else if i == 1 {
-            CompressedFheUint32ConformanceParams::from(
-                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            )
         } else {
+            #[cfg(feature = "gpu-ext-pbs")]
+            {
+                if i == 1 {
+                    CompressedFheUint32ConformanceParams::from(
+                        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                    )
+                } else {
+                    panic!("Unexpected parameter set")
+                }
+            }
+            #[cfg(not(feature = "gpu-ext-pbs"))]
             panic!("Unexpected parameter set")
         };
         let deserialized_a = DeserializationConfig::new(1 << 20)
@@ -1004,6 +1037,7 @@ fn test_match_value_or_gpu() {
     super::test_case_match_value_or(&client_key);
 }
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[test]
 fn test_match_value_or_gpu_multibit() {
     let client_key = setup_multibit_gpu();
@@ -1080,6 +1114,7 @@ fn test_gpu_get_rerand_size_on_gpu() {
             V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
             V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
         };
+        #[cfg(feature = "gpu-ext-pbs")]
         use crate::shortint::parameters::v1_5::meta::gpu::{
             V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
             V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -1088,6 +1123,7 @@ fn test_gpu_get_rerand_size_on_gpu() {
             V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
             V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
         };
+        #[cfg(feature = "gpu-ext-pbs")]
         use crate::shortint::parameters::v1_6::meta::gpu::{
             V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
             V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
@@ -1097,11 +1133,15 @@ fn test_gpu_get_rerand_size_on_gpu() {
         let meta_params = [
             V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
             V1_6_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            #[cfg(feature = "gpu-ext-pbs")]
             V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+            #[cfg(feature = "gpu-ext-pbs")]
             V1_6_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
             V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
             V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
+            #[cfg(feature = "gpu-ext-pbs")]
             V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128,
+            #[cfg(feature = "gpu-ext-pbs")]
             V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
         ];
 

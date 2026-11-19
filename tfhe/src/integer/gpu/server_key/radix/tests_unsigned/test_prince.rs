@@ -9,9 +9,12 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     prince_decrypt_kat_test, prince_encrypt_decrypt_random_test, prince_encrypt_kat_test,
 };
 use crate::integer::{IntegerKeyKind, RadixClientKey};
+#[cfg(feature = "gpu-ext-pbs")]
+use crate::shortint::parameters::test_params::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128;
+#[cfg(not(feature = "gpu-ext-pbs"))]
+use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128;
 use crate::shortint::parameters::{
-    TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 
@@ -147,8 +150,18 @@ fn prince_guard_fixture() -> PrinceGuardFixture {
 #[test]
 #[should_panic(expected = "PRINCE requires 2_2 parameters")]
 fn test_gpu_integer_prince_rejects_non_2_2_parameters() {
-    let param = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128;
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    // Needs a non-2_2 param to trigger the PRINCE panic; falls back to a classic
+    // 1_1 param when multi-bit is gated out.
+    #[cfg(feature = "gpu-ext-pbs")]
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+    #[cfg(not(feature = "gpu-ext-pbs"))]
+    let (cks, _) = KEY_CACHE.get_from_params(
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        IntegerKeyKind::Radix,
+    );
     let cks = RadixClientKey::from((cks, 1));
     let streams = CudaStreams::new_multi_gpu();
     let sks = CudaServerKey::new(cks.as_ref(), &streams);

@@ -95,11 +95,11 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// {
     ///     let number_of_blocks = 4;
@@ -108,28 +108,30 @@ impl CudaServerKey {
     ///     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     ///     let mut d_ctxt_vec1 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(4);
     ///
     ///     for i in 0..4 {
-    ///      let msg_tmp = 3u16 + i;
-    ///      let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
-    ///      let d_ctxt_tmp = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
-    ///      d_ctxt_vec1.push(d_ctxt_tmp);
+    ///         let msg_tmp = 3u16 + i;
+    ///         let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
+    ///         let d_ctxt_tmp =
+    ///             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
+    ///         d_ctxt_vec1.push(d_ctxt_tmp);
     ///     }
     ///
     ///     let mut d_ctxt_vec2 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(4);
     ///     for i in 0..4 {
-    ///      let msg_tmp = 3u16 + i%2;
-    ///      let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
-    ///      let d_ctxt_tmp = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
-    ///      d_ctxt_vec2.push(d_ctxt_tmp);
+    ///         let msg_tmp = 3u16 + i % 2;
+    ///         let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
+    ///         let d_ctxt_tmp =
+    ///             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
+    ///         d_ctxt_vec2.push(d_ctxt_tmp);
     ///     }
     ///
     ///     // Homomorphically check if two vectors of ciphertexts are equal
     ///     let d_check = sks.all_eq_slices(&d_ctxt_vec1, &d_ctxt_vec2, &streams);
-    ///     
+    ///
     ///     // Decrypt
     ///     let check = d_check.to_boolean_block(&streams);
     ///     let is_ok = cks.decrypt_bool(&check);
@@ -142,28 +144,30 @@ impl CudaServerKey {
     ///     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     ///     let mut d_ctxt_vec1 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(4);
     ///
     ///     for i in 0..4 {
-    ///      let msg_tmp = 3u16 + i;
-    ///      let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
-    ///      let d_ctxt_tmp = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
-    ///      d_ctxt_vec1.push(d_ctxt_tmp);
+    ///         let msg_tmp = 3u16 + i;
+    ///         let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
+    ///         let d_ctxt_tmp =
+    ///             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
+    ///         d_ctxt_vec1.push(d_ctxt_tmp);
     ///     }
     ///
     ///     let mut d_ctxt_vec2 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(4);
     ///     for i in 0..4 {
-    ///      let msg_tmp = 3u16 + i;
-    ///      let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
-    ///      let d_ctxt_tmp = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
-    ///      d_ctxt_vec2.push(d_ctxt_tmp);
+    ///         let msg_tmp = 3u16 + i;
+    ///         let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
+    ///         let d_ctxt_tmp =
+    ///             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
+    ///         d_ctxt_vec2.push(d_ctxt_tmp);
     ///     }
     ///
     ///     // Homomorphically check if two vectors of ciphertexts are equal
     ///     let d_check = sks.all_eq_slices(&d_ctxt_vec1, &d_ctxt_vec2, &streams);
-    ///     
+    ///
     ///     // Decrypt
     ///     let check = d_check.to_boolean_block(&streams);
     ///     let is_ok = cks.decrypt_bool(&check);
@@ -273,11 +277,11 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// {
     ///     let number_of_blocks = 4;
     ///
@@ -285,28 +289,30 @@ impl CudaServerKey {
     ///     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     ///     let mut d_ctxt_vec1 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(4);
     ///
     ///     for i in 0..4 {
-    ///      let msg_tmp = 3u16 + i;
-    ///      let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
-    ///      let d_ctxt_tmp = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
-    ///      d_ctxt_vec1.push(d_ctxt_tmp);
+    ///         let msg_tmp = 3u16 + i;
+    ///         let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
+    ///         let d_ctxt_tmp =
+    ///             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
+    ///         d_ctxt_vec1.push(d_ctxt_tmp);
     ///     }
     ///
     ///     let mut d_ctxt_vec2 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(4);
     ///     for i in 0..2 {
-    ///      let msg_tmp = 8u16 + i;
-    ///      let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
-    ///      let d_ctxt_tmp = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
-    ///      d_ctxt_vec2.push(d_ctxt_tmp);
+    ///         let msg_tmp = 8u16 + i;
+    ///         let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
+    ///         let d_ctxt_tmp =
+    ///             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
+    ///         d_ctxt_vec2.push(d_ctxt_tmp);
     ///     }
     ///
     ///     // Homomorphically check if vectors1 contains vector2
     ///     let d_check = sks.contains_sub_slice(&d_ctxt_vec1, &d_ctxt_vec2, &streams);
-    ///     
+    ///
     ///     // Decrypt
     ///     let check = d_check.to_boolean_block(&streams);
     ///     let is_ok = cks.decrypt_bool(&check);
@@ -319,28 +325,30 @@ impl CudaServerKey {
     ///     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     ///     let mut d_ctxt_vec1 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(4);
     ///
     ///     for i in 0..4 {
-    ///      let msg_tmp = 3u16 + i;
-    ///      let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
-    ///      let d_ctxt_tmp = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
-    ///      d_ctxt_vec1.push(d_ctxt_tmp);
+    ///         let msg_tmp = 3u16 + i;
+    ///         let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
+    ///         let d_ctxt_tmp =
+    ///             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
+    ///         d_ctxt_vec1.push(d_ctxt_tmp);
     ///     }
     ///
     ///     let mut d_ctxt_vec2 = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(4);
     ///     for i in 0..2 {
-    ///      let msg_tmp = 4u16 + i;
-    ///      let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
-    ///      let d_ctxt_tmp = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
-    ///      d_ctxt_vec2.push(d_ctxt_tmp);
+    ///         let msg_tmp = 4u16 + i;
+    ///         let ctxt_tmp = cks.encrypt_radix(msg_tmp, number_of_blocks);
+    ///         let d_ctxt_tmp =
+    ///             CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ctxt_tmp, &streams);
+    ///         d_ctxt_vec2.push(d_ctxt_tmp);
     ///     }
     ///
     ///     // Homomorphically check if vectors1 contains vector2
     ///     let d_check = sks.contains_sub_slice(&d_ctxt_vec1, &d_ctxt_vec2, &streams);
-    ///     
+    ///
     ///     // Decrypt
     ///     let check = d_check.to_boolean_block(&streams);
     ///     let is_ok = cks.decrypt_bool(&check);

@@ -1569,10 +1569,10 @@ mod test {
         use super::*;
         use crate::core_crypto::gpu::get_number_of_gpus;
         use crate::prelude::check_valid_cuda_malloc_assert_oom;
+        #[cfg(feature = "gpu-ext-pbs")]
+        use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         use crate::shortint::parameters::{
-            AtomicPatternParameters,
-            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            AtomicPatternParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         };
         use crate::{
             clear_gpu_thread_locals, ClientKey, CompressedServerKey, FheInt128, FheUint32,
@@ -1585,6 +1585,7 @@ mod test {
         #[test]
         fn test_oprf_bounded_zero() {
             for params in [
+                #[cfg(feature = "gpu-ext-pbs")]
                 AtomicPatternParameters::from(
                     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 ),
@@ -1684,7 +1685,9 @@ mod test {
 
         #[test]
         fn test_prf_and_re_rand_equivalence() {
+            #[cfg_attr(not(feature = "gpu-ext-pbs"), allow(clippy::single_element_loop))]
             for params in [
+                #[cfg(feature = "gpu-ext-pbs")]
                 AtomicPatternParameters::from(
                     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 ),
@@ -1750,7 +1753,7 @@ mod test {
 
         #[test]
         fn test_uniformity_generate_oblivious_pseudo_random_custom_range_gpu() {
-            let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
             let config = ConfigBuilder::with_custom_parameters(params)
                 .use_dedicated_oprf_key(true)
                 .build();

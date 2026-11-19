@@ -52,12 +52,16 @@ fn execute_dyn_rerand_test(cks: &ClientKey, cpk: &CompactPublicKey) {
 #[cfg(feature = "gpu")]
 mod gpu {
     use super::*;
+    #[cfg(feature = "gpu-ext-pbs")]
     use crate::shortint::parameters::v1_5::meta::gpu::V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
 
     #[test]
     fn test_gpu_legacy_dyn_rerand() {
+        #[cfg(feature = "gpu-ext-pbs")]
         let params =
             V1_5_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
+        #[cfg(not(feature = "gpu-ext-pbs"))]
+        let params = V1_5_META_PARAM_CPU_2_2_KS_PBS_PKE_TO_BIG_ZKV2_TUNIFORM_2M128;
         let (cks, sks, cpk) = setup_re_rand_test(params);
         set_server_key(sks.decompress_to_gpu());
         execute_dyn_rerand_test(&cks, &cpk);

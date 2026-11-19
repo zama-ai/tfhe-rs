@@ -64,18 +64,22 @@ impl CudaServerKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let gpu_index = 0;
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
     /// let num_blocks = 4;
-    /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
+    /// let (cks, sks) = gen_keys_radix_gpu(
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ///     num_blocks,
+    ///     &streams,
+    /// );
     ///
     /// let msg = -14i32;
     ///
@@ -93,7 +97,7 @@ impl CudaServerKey {
     /// let dec_result: i32 = cks.decrypt_signed(&ct_res);
     ///
     /// let abs_msg = if msg < 0 { -msg } else { msg };
-    /// assert_eq!(dec_result, abs_msg );
+    /// assert_eq!(dec_result, abs_msg);
     /// ```
     pub fn abs<T>(&self, ct: &T, streams: &CudaStreams) -> T
     where

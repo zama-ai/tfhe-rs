@@ -81,7 +81,7 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
     pub thread_count: ThreadCount,
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(all(feature = "gpu", feature = "gpu-ext-pbs"))]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct NoiseSquashingMultiBitTestParameters<Scalar: UnsignedInteger> {
     pub glwe_dimension: GlweDimension,

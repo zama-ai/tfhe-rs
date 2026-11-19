@@ -1,4 +1,4 @@
-#include "../polynomial/parameters.cuh"
+#include "polynomial/parameters.cuh"
 #include "checked_arithmetic.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "polynomial/dispatch.cuh"
