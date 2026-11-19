@@ -1412,6 +1412,11 @@ mod tests {
                 .unwrap()
                 .unwrap();
             check_valid_cuda_malloc_assert_oom(decompress_ct2_size_on_gpu, GpuIndex::new(0));
+            // ct2 is a single-block item (a FheBool): decompressing it still needs memory
+            assert!(
+                decompress_ct2_size_on_gpu > 0,
+                "decompression size of a single-block item must not be 0"
+            );
             compressed_list.move_to_current_device().unwrap();
             let decompress_ct1_size_on_gpu_1 = compressed_list
                 .get_decompression_size_on_gpu(0)

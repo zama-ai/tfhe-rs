@@ -700,10 +700,6 @@ impl CudaDecompressionKey {
         end_block_index: usize,
         streams: &CudaStreams,
     ) -> u64 {
-        if start_block_index == end_block_index {
-            return 0;
-        }
-
         let Some(ref meta) = packed_list.meta else {
             panic!("Missing ciphertext metadata in CompressedCiphertextList")
         };
@@ -747,10 +743,6 @@ impl CudaDecompressionKey {
         end_block_index: usize,
         streams: &CudaStreams,
     ) -> u64 {
-        if start_block_index == end_block_index {
-            return 0;
-        }
-
         let indexes_array = (start_block_index..=end_block_index)
             .map(|x| x as u32)
             .collect_vec();
