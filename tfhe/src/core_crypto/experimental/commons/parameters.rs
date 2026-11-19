@@ -16,6 +16,13 @@ pub struct LweSecretKeySharedCoefCount(pub usize);
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct LweSecretKeyUnsharedCoefCount(pub usize);
 
+/// The number of consecutive elements of an LWE mask (and of the matching LWE secret key) covered
+/// by one part of a split [`LweDimension`].
+///
+/// [`LweDimension`]: crate::core_crypto::commons::parameters::LweDimension
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub struct LweDimensionPart(pub usize);
+
 impl crate::core_crypto::commons::parameters::LweDimension {
     #[track_caller]
     pub fn shared_coef_count_from(
