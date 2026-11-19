@@ -54,7 +54,9 @@ impl StreamCiphertext {
     }
 
     pub fn into_raw_parts(self) -> IntegerStreamCiphertext {
-        self.inner
+        let Self { inner } = self;
+
+        inner
     }
 
     pub(super) fn integer(&self) -> &IntegerStreamCiphertext {
@@ -66,7 +68,9 @@ impl ParameterSetConformant for StreamCiphertext {
     type ParameterSet = IntegerStreamCiphertextConformanceParams;
 
     fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
-        self.inner.is_conformant(params)
+        let Self { inner } = self;
+
+        inner.is_conformant(params)
     }
 }
 

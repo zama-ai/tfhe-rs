@@ -99,9 +99,11 @@ fn prove_impl(
             t: t_input,
             msbs_zero_padding_bit_count,
             bound_type,
-            sid: _,
             domain_separators: ref ds,
+            // Hashed by `RHash::new`, which takes the whole public params
+            sid: _,
         },
+        // `__marker` is private to `proofs::pke_v2`, it holds no data
         PublicCommit { a, b, c1, c2, .. },
     ) = public;
     let stored_hash_config = hash_config;
@@ -110,6 +112,7 @@ fn prove_impl(
     let g_list = &*g_lists.g_list.0;
     let g_hat_list = &*g_lists.g_hat_list.0;
 
+    // `__marker` is private to `proofs::pke_v2`, it holds no data
     let PrivateCommit { r, e1, m, e2, .. } = private_commit;
 
     let k = c2.len();
@@ -1073,10 +1076,11 @@ fn verify_impl(
         C_h1,
         C_h2,
         C_hat_t,
-        pi: _,
-        pi_kzg: _,
         ref compute_load_proof_fields,
         hash_config,
+        // Read by the pairing checks, which take the whole proof
+        pi: _,
+        pi_kzg: _,
     } = proof;
     if !public.0.has_valid_params() {
         return Err(());
@@ -1085,19 +1089,22 @@ fn verify_impl(
     let hash_config = hash_config.into();
 
     let &PublicParams {
-        g_lists: _,
         D: D_max,
         n,
         d,
         k: k_max,
-        B_bound_squared: _,
         B_inf,
         q,
         t: t_input,
         msbs_zero_padding_bit_count,
         bound_type,
+        // Used by the hash chain started by `RHash::new`, which takes the whole public params
         sid: _,
         domain_separators: _,
+        // Read by the pairing checks through `public.0`
+        g_lists: _,
+        // Not used by the verifier, which uses `B_squared` derived from `B_inf` and the actual `k`
+        B_bound_squared: _,
     } = public.0;
 
     let decoded_q = decode_q(q);
@@ -1108,6 +1115,7 @@ fn verify_impl(
         (decoded_q / t_input as u128) as u64
     };
 
+    // `__marker` is private to `proofs::pke_v2`, it holds no data
     let PublicCommit { a, b, c1, c2, .. } = public.1;
     let k = c2.len();
     if k > k_max {
@@ -1407,6 +1415,7 @@ fn pairing_check_two_steps(
         pi,
         pi_kzg,
         ref compute_load_proof_fields,
+        // Already used to generate `scalars`
         hash_config: _,
     } = proof;
 
@@ -1463,6 +1472,7 @@ fn pairing_check_two_steps(
                 match compute_load_proof_fields.as_ref() {
                     Some(&ComputeLoadProofFields {
                         C_hat_h3,
+                        // Paired with `C_e` in `lhs4`
                         C_hat_w: _,
                     }) => C_hat_h3,
                     // GPU MSM: C_hat_h3 on-the-fly during verify
@@ -1507,8 +1517,9 @@ fn pairing_check_two_steps(
                 C_e.mul_scalar(delta_e),
                 match compute_load_proof_fields.as_ref() {
                     Some(&ComputeLoadProofFields {
-                        C_hat_h3: _,
                         C_hat_w,
+                        // Paired with `C_r_tilde` in `lhs2`
+                        C_hat_h3: _,
                     }) => C_hat_w,
                     // GPU MSM: C_hat_w on-the-fly during verify
                     None => super::g2_msm_gpu(
@@ -1615,6 +1626,7 @@ fn pairing_check_batched(
         pi,
         pi_kzg,
         ref compute_load_proof_fields,
+        // Already used to generate `scalars`
         hash_config: _,
     } = proof;
 
@@ -1677,6 +1689,7 @@ fn pairing_check_batched(
         s.spawn(|_| match compute_load_proof_fields.as_ref() {
             Some(&ComputeLoadProofFields {
                 C_hat_h3,
+                // Paired with `C_e` in `lhs4`
                 C_hat_w: _,
             }) => lhs2 = Some(pairing(C_r_tilde + g.mul_scalar(eta * chi3), C_hat_h3)),
             None => {
@@ -1721,8 +1734,9 @@ fn pairing_check_batched(
         });
         s.spawn(|_| match compute_load_proof_fields.as_ref() {
             Some(&ComputeLoadProofFields {
-                C_hat_h3: _,
                 C_hat_w,
+                // Paired with `C_r_tilde` in `lhs2`
+                C_hat_h3: _,
             }) => {
                 lhs4 = Some(pairing(
                     C_e.mul_scalar(delta_e) - g.mul_scalar(eta * chi4),

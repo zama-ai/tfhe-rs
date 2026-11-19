@@ -59,12 +59,38 @@ impl<G: Curve> ParameterSetConformant for PublicParams<G> {
     type ParameterSet = CompactPkeCrsConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.d == parameter_set.lwe_dim
-            && self.k == parameter_set.max_num_message
-            && self.B_inf == parameter_set.noise_bound
-            && self.q == parameter_set.ciphertext_modulus
-            && self.t == parameter_set.plaintext_modulus
-            && self.msbs_zero_padding_bit_count == parameter_set.msbs_zero_padding_bit_count
+        let &Self {
+            d,
+            k,
+            B_inf,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            // Checked by `is_usable`
+            g_lists: _,
+            n: _,
+            B_bound_squared: _,
+            bound_type: _,
+            // Not constrained by the conformance parameters
+            D: _,
+            sid: _,
+            domain_separators: _,
+        } = self;
+        let &CompactPkeCrsConformanceParams {
+            lwe_dim,
+            max_num_message,
+            noise_bound,
+            ciphertext_modulus,
+            plaintext_modulus,
+            msbs_zero_padding_bit_count: expected_msbs_zero_padding_bit_count,
+        } = parameter_set;
+
+        d == lwe_dim
+            && k == max_num_message
+            && B_inf == noise_bound
+            && q == ciphertext_modulus
+            && t == plaintext_modulus
+            && msbs_zero_padding_bit_count == expected_msbs_zero_padding_bit_count
             && self.is_usable()
     }
 }
@@ -531,6 +557,7 @@ impl<G: Curve> Proof<G> {
             pi,
             pi_kzg,
             ref compute_load_proof_fields,
+            // Checked by `is_conformant`
             hash_config: _,
         } = self;
 
@@ -579,6 +606,7 @@ impl<G: Curve> Proof<G> {
             pi,
             pi_kzg,
             compute_load_proof_fields,
+            // Not a group element, only the proof points are written
             hash_config: _,
         } = self;
 
@@ -682,12 +710,30 @@ impl<G: Curve> ParameterSetConformant for Proof<G> {
     type ParameterSet = CompactPkeV2ProofConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        parameter_set
-            .accepted_compute_load
-            .contains(self.compute_load())
-            && parameter_set
-                .accepted_hash_config
-                .contains(self.hash_config())
+        let &Self {
+            hash_config,
+            // Presence checked through `compute_load`, points by `is_usable`
+            compute_load_proof_fields: _,
+            // Checked by `is_usable`
+            C_hat_e: _,
+            C_e: _,
+            C_r_tilde: _,
+            C_R: _,
+            C_hat_bin: _,
+            C_y: _,
+            C_h1: _,
+            C_h2: _,
+            C_hat_t: _,
+            pi: _,
+            pi_kzg: _,
+        } = self;
+        let &CompactPkeV2ProofConformanceParams {
+            accepted_compute_load,
+            accepted_hash_config,
+        } = parameter_set;
+
+        accepted_compute_load.contains(self.compute_load())
+            && accepted_hash_config.contains(hash_config)
             && self.is_usable()
     }
 }
@@ -1112,10 +1158,18 @@ fn prove_impl<G: Curve>(
             t: t_input,
             msbs_zero_padding_bit_count,
             bound_type,
-            sid: _,
             domain_separators: ref ds,
+            // Hashed by `RHash::new`, which takes the whole public params
+            sid: _,
         },
-        PublicCommit { a, b, c1, c2, .. },
+        PublicCommit {
+            a,
+            b,
+            c1,
+            c2,
+            // Type marker, holds no data
+            __marker: _,
+        },
     ) = public;
     let stored_hash_config = hash_config;
     let hash_config = hash_config.into();
@@ -1123,7 +1177,14 @@ fn prove_impl<G: Curve>(
     let g_list = &*g_lists.g_list.0;
     let g_hat_list = &*g_lists.g_hat_list.0;
 
-    let PrivateCommit { r, e1, m, e2, .. } = private_commit;
+    let PrivateCommit {
+        r,
+        e1,
+        m,
+        e2,
+        // Type marker, holds no data
+        __marker: _,
+    } = private_commit;
 
     let k = c2.len();
 
@@ -2238,25 +2299,29 @@ pub fn verify_impl<G: Curve>(
         C_h1,
         C_h2,
         C_hat_t,
-        pi: _,
-        pi_kzg: _,
         ref compute_load_proof_fields,
         hash_config,
+        // Read by the pairing checks, which take the whole proof
+        pi: _,
+        pi_kzg: _,
     } = proof;
     let hash_config = hash_config.into();
 
     let &PublicParams {
-        g_lists: _,
         D: D_max,
         n,
         d,
         k: k_max,
-        B_bound_squared: _,
         B_inf,
         q,
         t: t_input,
         msbs_zero_padding_bit_count,
         bound_type,
+        // Read by the pairing checks through `public.0`
+        g_lists: _,
+        // Not used by the verifier, which uses `B_squared` derived from `B_inf` and the actual `k`
+        B_bound_squared: _,
+        // Used by the hash chain started by `RHash::new`, which takes the whole public params
         sid: _,
         domain_separators: _,
     } = public.0;
@@ -2269,7 +2334,14 @@ pub fn verify_impl<G: Curve>(
         (decoded_q / t_input as u128) as u64
     };
 
-    let PublicCommit { a, b, c1, c2, .. } = public.1;
+    let PublicCommit {
+        a,
+        b,
+        c1,
+        c2,
+        // Type marker, holds no data
+        __marker: _,
+    } = public.1;
     let k = c2.len();
     if k > k_max {
         return Err(());
@@ -2564,6 +2636,7 @@ fn pairing_check_two_steps<G: Curve>(
         pi,
         pi_kzg,
         ref compute_load_proof_fields,
+        // Already used to generate `scalars`
         hash_config: _,
     } = proof;
 
@@ -2620,6 +2693,7 @@ fn pairing_check_two_steps<G: Curve>(
                 match compute_load_proof_fields.as_ref() {
                     Some(&ComputeLoadProofFields {
                         C_hat_h3,
+                        // Paired with `C_e` in `lhs4`
                         C_hat_w: _,
                     }) => C_hat_h3,
                     None => G::G2::multi_mul_scalar(
@@ -2660,8 +2734,9 @@ fn pairing_check_two_steps<G: Curve>(
                 C_e.mul_scalar(delta_e),
                 match compute_load_proof_fields.as_ref() {
                     Some(&ComputeLoadProofFields {
-                        C_hat_h3: _,
                         C_hat_w,
+                        // Paired with `C_r_tilde` in `lhs2`
+                        C_hat_h3: _,
                     }) => C_hat_w,
                     None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
                 },
@@ -2762,6 +2837,7 @@ fn pairing_check_batched<G: Curve>(
         pi,
         pi_kzg,
         ref compute_load_proof_fields,
+        // Already used to generate `scalars`
         hash_config: _,
     } = proof;
 
@@ -2824,6 +2900,7 @@ fn pairing_check_batched<G: Curve>(
         s.spawn(|_| match compute_load_proof_fields.as_ref() {
             Some(&ComputeLoadProofFields {
                 C_hat_h3,
+                // Paired with `C_e` in `lhs4`
                 C_hat_w: _,
             }) => lhs2 = Some(pairing(C_r_tilde + g.mul_scalar(eta * chi3), C_hat_h3)),
             None => {
@@ -2864,8 +2941,9 @@ fn pairing_check_batched<G: Curve>(
         });
         s.spawn(|_| match compute_load_proof_fields.as_ref() {
             Some(&ComputeLoadProofFields {
-                C_hat_h3: _,
                 C_hat_w,
+                // Paired with `C_r_tilde` in `lhs2`
+                C_hat_h3: _,
             }) => {
                 lhs4 = Some(pairing(
                     C_e.mul_scalar(delta_e) - g.mul_scalar(eta * chi4),
@@ -3661,9 +3739,10 @@ pub(crate) mod tests {
             d,
             k,
             B,
-            q: _,
             t,
             msbs_zero_padding_bit_count,
+            // Not an input of `compute_crs_params`
+            q: _,
         } = PKEV2_TEST_PARAMS;
 
         let B_squared = inf_norm_bound_to_euclidean_squared(B, d + k);

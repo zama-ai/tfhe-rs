@@ -44,13 +44,21 @@ impl ParameterSetConformant for Ciphertext {
             carry_modulus,
             atomic_pattern,
         } = self;
+        let CiphertextConformanceParams {
+            ct_params,
+            message_modulus: expected_message_modulus,
+            carry_modulus: expected_carry_modulus,
+            degree: expected_degree,
+            noise_level: expected_noise_level,
+            atomic_pattern: expected_atomic_pattern,
+        } = param;
 
-        ct.is_conformant(&param.ct_params)
-            && *message_modulus == param.message_modulus
-            && *carry_modulus == param.carry_modulus
-            && *atomic_pattern == param.atomic_pattern
-            && param.degree.is_conformant(*degree)
-            && param.noise_level.is_conformant(*noise_level)
+        ct.is_conformant(ct_params)
+            && message_modulus == expected_message_modulus
+            && carry_modulus == expected_carry_modulus
+            && atomic_pattern == expected_atomic_pattern
+            && expected_degree.is_conformant(*degree)
+            && expected_noise_level.is_conformant(*noise_level)
     }
 }
 

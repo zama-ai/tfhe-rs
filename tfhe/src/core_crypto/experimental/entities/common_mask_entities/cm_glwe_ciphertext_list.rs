@@ -194,11 +194,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         CmGlweCiphertextCreationMetadata {
-            glwe_dimension: self.glwe_dimension,
-            cm_dimension: self.cm_dimension,
-            polynomial_size: self.polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 
@@ -211,11 +220,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         CmGlweCiphertextListCreationMetadata {
-            glwe_dimension: self.glwe_dimension,
-            cm_dimension: self.cm_dimension,
-            polynomial_size: self.polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            glwe_dimension,
+            cm_dimension,
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 }

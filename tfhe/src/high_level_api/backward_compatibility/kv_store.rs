@@ -20,8 +20,10 @@ where
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedKVStore<Key, Value>, Self::Error> {
+        let Self { inner } = self;
+
         Ok(CompressedKVStore {
-            inner: self.inner,
+            inner,
             tag: Tag::default(),
         })
     }

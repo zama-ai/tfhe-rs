@@ -31,18 +31,35 @@ pub struct ClientKey {
 
 impl PartialEq for ClientKey {
     fn eq(&self, other: &Self) -> bool {
-        self.parameters == other.parameters
-            && self.lwe_secret_key == other.lwe_secret_key
-            && self.glwe_secret_key == other.glwe_secret_key
+        let Self {
+            lwe_secret_key,
+            glwe_secret_key,
+            parameters,
+        } = self;
+        let Self {
+            lwe_secret_key: other_lwe_secret_key,
+            glwe_secret_key: other_glwe_secret_key,
+            parameters: other_parameters,
+        } = other;
+
+        parameters == other_parameters
+            && lwe_secret_key == other_lwe_secret_key
+            && glwe_secret_key == other_glwe_secret_key
     }
 }
 
 impl Debug for ClientKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            lwe_secret_key,
+            glwe_secret_key,
+            parameters,
+        } = self;
+
         write!(f, "ClientKey {{ ")?;
-        write!(f, "lwe_secret_key: {:?}, ", self.lwe_secret_key)?;
-        write!(f, "glwe_secret_key: {:?}, ", self.glwe_secret_key)?;
-        write!(f, "parameters: {:?}, ", self.parameters)?;
+        write!(f, "lwe_secret_key: {lwe_secret_key:?}, ")?;
+        write!(f, "glwe_secret_key: {glwe_secret_key:?}, ")?;
+        write!(f, "parameters: {parameters:?}, ")?;
         write!(f, "engine: CoreEngine, ")?;
         write!(f, "}}")?;
         Ok(())

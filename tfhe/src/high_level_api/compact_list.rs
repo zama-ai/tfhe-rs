@@ -342,22 +342,23 @@ impl CompactCiphertextList {
         &self,
         sks: impl Into<InternalServerKeyRef<'a>>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        let Self { inner, tag } = self;
         let sks = sks.into();
-        match (&self.inner, sks) {
+        match (inner, sks) {
             (InnerCompactCiphertextList::Cpu(cpu_inner), InternalServerKeyRef::Cpu(cpu_key)) => {
                 // CPU data, CPU key case
                 cpu_inner
                     .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
                     .map(|inner| CompactCiphertextListExpander {
                         inner: InnerCompactCiphertextListExpander::Cpu(inner),
-                        tag: self.tag.clone(),
+                        tag: tag.clone(),
                     })
             }
             #[cfg(feature = "gpu")]
             (InnerCompactCiphertextList::Cpu(cpu_inner), InternalServerKeyRef::Cuda(cuda_key)) => {
                 // An empty list cannot be moved to the GPU, expand it as the CPU does
                 if cpu_inner.is_empty() {
-                    return Ok(CompactCiphertextListExpander::empty(self.tag.clone()));
+                    return Ok(CompactCiphertextListExpander::empty(tag.clone()));
                 }
 
                 if !cpu_inner.is_packed() {
@@ -380,7 +381,7 @@ impl CompactCiphertextList {
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
-                    tag: self.tag.clone(),
+                    tag: tag.clone(),
                 })
             }
             #[cfg(feature = "gpu")]
@@ -396,7 +397,7 @@ impl CompactCiphertextList {
                     .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
                     .map(|inner| CompactCiphertextListExpander {
                         inner: InnerCompactCiphertextListExpander::Cpu(inner),
-                        tag: self.tag.clone(),
+                        tag: tag.clone(),
                     })
             }
             #[cfg(feature = "gpu")]
@@ -426,7 +427,7 @@ impl CompactCiphertextList {
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
-                    tag: self.tag.clone(),
+                    tag: tag.clone(),
                 })
             }
             #[cfg(feature = "hpu")]
@@ -458,12 +459,13 @@ impl CompactCiphertextList {
     /// Use [`expand`](Self::expand) if you need sanitization or unpacking.
     #[cfg(any(feature = "__wasm_api", test))]
     pub(crate) fn expand_without_key(&self) -> crate::Result<CompactCiphertextListExpander> {
-        match &self.inner {
+        let Self { inner, tag } = self;
+        match inner {
             InnerCompactCiphertextList::Cpu(inner) => {
                 let expanded = inner.expand_without_key()?;
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cpu(expanded),
-                    tag: self.tag.clone(),
+                    tag: tag.clone(),
                 })
             }
             #[cfg(feature = "gpu")]
@@ -488,6 +490,7 @@ impl ParameterSetConformant for CompactCiphertextList {
     type ParameterSet = CompactCiphertextListConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        // Any tag is valid
         let Self { inner, tag: _ } = self;
         inner
             .on_cpu()
@@ -535,7 +538,20 @@ pub(crate) mod zk {
             match (self, other) {
                 (Self::Cpu(a), Self::Cpu(b)) => a == b,
                 #[cfg(feature = "gpu")]
-                (Self::Cuda(a), Self::Cuda(b)) => a.h_proved_lists == b.h_proved_lists,
+                (Self::Cuda(a), Self::Cuda(b)) => {
+                    let crate::integer::gpu::zk::CudaProvenCompactCiphertextList {
+                        h_proved_lists,
+                        // Device copy of the lists in `h_proved_lists`
+                        d_flattened_compact_lists: _,
+                    } = a;
+                    let crate::integer::gpu::zk::CudaProvenCompactCiphertextList {
+                        h_proved_lists: other_h_proved_lists,
+                        // Device copy of the lists in `other_h_proved_lists`
+                        d_flattened_compact_lists: _,
+                    } = b;
+
+                    h_proved_lists == other_h_proved_lists
+                }
                 #[cfg(feature = "gpu")]
                 _ => self.on_cpu() == other.on_cpu(),
             }
@@ -885,7 +901,10 @@ pub(crate) mod zk {
         type ParameterSet = IntegerProvenCompactCiphertextListConformanceParams;
 
         fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-            self.inner.on_cpu().is_conformant(parameter_set)
+            // Any tag is valid
+            let Self { inner, tag: _ } = self;
+
+            inner.on_cpu().is_conformant(parameter_set)
         }
     }
 

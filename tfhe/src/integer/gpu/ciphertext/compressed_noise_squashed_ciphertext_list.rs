@@ -14,6 +14,7 @@ use crate::integer::gpu::ciphertext::squashed_noise::{
 use crate::integer::gpu::cuda_backend_decompress_128;
 use crate::integer::gpu::list_compression::server_keys::{
     CudaNoiseSquashingCompressionKey, CudaPackedGlweCiphertextList,
+    CudaPackedGlweCiphertextListMeta,
 };
 use crate::shortint::ciphertext::{CompressedSquashedNoiseCiphertextListMeta, Degree, NoiseLevel};
 use crate::shortint::{AtomicPatternKind, PBSOrder};
@@ -51,12 +52,23 @@ impl CudaCompressedSquashedNoiseCiphertextList {
 
         // Extract the packed list
         let glwe_ciphertext_list = self.packed_list.to_compressed_glwe_list(streams)?;
-        let lwe_per_glwe = gpu_meta.lwe_per_glwe;
+        let CudaPackedGlweCiphertextListMeta {
+            message_modulus,
+            carry_modulus,
+            lwe_per_glwe,
+            // Carried by the GLWE list extracted above
+            glwe_dimension: _,
+            polynomial_size: _,
+            ciphertext_modulus: _,
+            storage_log_modulus: _,
+            total_lwe_bodies_count: _,
+            initial_len: _,
+        } = gpu_meta;
 
         // Extract the metadata
         let meta = Some(CompressedSquashedNoiseCiphertextListMeta {
-            message_modulus: gpu_meta.message_modulus,
-            carry_modulus: gpu_meta.carry_modulus,
+            message_modulus,
+            carry_modulus,
             lwe_per_glwe,
         });
 
@@ -85,9 +97,11 @@ impl CudaCompressedSquashedNoiseCiphertextList {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self { packed_list, info } = self;
+
         Self {
-            packed_list: self.packed_list.duplicate(streams),
-            info: self.info.clone(),
+            packed_list: packed_list.duplicate(streams),
+            info: info.clone(),
         }
     }
 

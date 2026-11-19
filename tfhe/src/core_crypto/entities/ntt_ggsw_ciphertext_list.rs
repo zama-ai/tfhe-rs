@@ -190,13 +190,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertextL
     /// Return a view of the [`NttGgswCiphertextList`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> NttGgswCiphertextListView<'_, Scalar> {
+        let Self {
+            data,
+            polynomial_size,
+            glwe_size,
+            decomposition_level_count,
+            decomposition_base_log,
+            ciphertext_modulus,
+        } = self;
+
         NttGgswCiphertextListView {
-            data: self.data.as_ref(),
-            polynomial_size: self.polynomial_size,
-            glwe_size: self.glwe_size,
-            decomposition_level_count: self.decomposition_level_count,
-            decomposition_base_log: self.decomposition_base_log,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_ref(),
+            polynomial_size: *polynomial_size,
+            glwe_size: *glwe_size,
+            decomposition_level_count: *decomposition_level_count,
+            decomposition_base_log: *decomposition_base_log,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 
@@ -217,30 +226,47 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertextL
         C: Split,
     {
         let ggsw_ciphertext_count = self.ggsw_ciphertext_count();
-        self.data
-            .split_into(ggsw_ciphertext_count.0)
-            .map(move |slice| {
-                NttGgswCiphertext::from_container(
-                    slice,
-                    self.glwe_size,
-                    self.polynomial_size,
-                    self.decomposition_base_log,
-                    self.decomposition_level_count,
-                )
-            })
+
+        let Self {
+            data,
+            polynomial_size,
+            glwe_size,
+            decomposition_level_count,
+            decomposition_base_log,
+            // Not stored in the NTT GGSW ciphertexts
+            ciphertext_modulus: _,
+        } = self;
+        data.split_into(ggsw_ciphertext_count.0).map(move |slice| {
+            NttGgswCiphertext::from_container(
+                slice,
+                glwe_size,
+                polynomial_size,
+                decomposition_base_log,
+                decomposition_level_count,
+            )
+        })
     }
 }
 
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> NttGgswCiphertextList<C> {
     /// Mutable variant of [`NttGgswCiphertextList::as_view`].
     pub fn as_mut_view(&mut self) -> NttGgswCiphertextListMutView<'_, Scalar> {
+        let Self {
+            data,
+            polynomial_size,
+            glwe_size,
+            decomposition_level_count,
+            decomposition_base_log,
+            ciphertext_modulus,
+        } = self;
+
         NttGgswCiphertextListMutView {
-            data: self.data.as_mut(),
-            polynomial_size: self.polynomial_size,
-            glwe_size: self.glwe_size,
-            decomposition_level_count: self.decomposition_level_count,
-            decomposition_base_log: self.decomposition_base_log,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_mut(),
+            polynomial_size: *polynomial_size,
+            glwe_size: *glwe_size,
+            decomposition_level_count: *decomposition_level_count,
+            decomposition_base_log: *decomposition_base_log,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 

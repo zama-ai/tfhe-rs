@@ -86,7 +86,9 @@ pub struct ProvenCompactCiphertextList {
 
 impl ProvenCompactCiphertextList {
     pub fn into_raw_parts(self) -> Vec<(CompactCiphertextList, CompactPkeProof)> {
-        self.proved_lists
+        let Self { proved_lists } = self;
+
+        proved_lists
     }
 
     pub fn ciphertext_count(&self) -> usize {
@@ -132,17 +134,18 @@ impl ProvenCompactCiphertextList {
         casting_key: KeySwitchingKeyView<'a>,
         functions: Option<ExpandFunctionsView<'a>>,
     ) -> crate::Result<Vec<Ciphertext>> {
+        let Self { proved_lists } = self;
+
         let per_list_functions: Vec<_> = match functions {
             Some(functions) => self
                 .split_functions_per_list(functions)?
                 .into_iter()
                 .map(Some)
                 .collect(),
-            None => vec![None; self.proved_lists.len()],
+            None => vec![None; proved_lists.len()],
         };
 
-        let expanded = self
-            .proved_lists
+        let expanded = proved_lists
             .par_iter()
             .zip(per_list_functions)
             .map(|((ct_list, _proof), functions)| ct_list.expand(casting_key, functions))
@@ -164,10 +167,11 @@ impl ProvenCompactCiphertextList {
         server_key: &GenericServerKey<AP>,
         functions: ExpandFunctionsView<'_>,
     ) -> crate::Result<Vec<Ciphertext>> {
+        let Self { proved_lists } = self;
+
         let per_list_functions = self.split_functions_per_list(functions)?;
 
-        let expanded = self
-            .proved_lists
+        let expanded = proved_lists
             .par_iter()
             .zip(per_list_functions)
             .map(|((ct_list, _proof), functions)| {

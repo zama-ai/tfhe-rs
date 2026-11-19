@@ -72,7 +72,9 @@ impl NoiseSimulationLweMultiBitFourierBsk {
             decomp_base_log,
             decomp_level_count,
             grouping_factor,
+            // The noise distribution cannot be read back from a key
             noise_distribution: _,
+            // Fourier keys don't store a ciphertext modulus
             modulus: _,
         } = *self;
 
@@ -290,7 +292,9 @@ impl NoiseSimulationLweMultiBitFourier128Bsk {
             decomp_base_log,
             decomp_level_count,
             grouping_factor,
+            // The noise distribution cannot be read back from a key
             noise_distribution: _,
+            // Fourier keys don't store a ciphertext modulus
             modulus: _,
         } = *self;
 

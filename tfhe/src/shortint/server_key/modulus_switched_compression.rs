@@ -38,7 +38,12 @@ where
 
             InternalCompressedModulusSwitchedCiphertext::Classic(compressed)
         }
-        ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
+        ShortintBootstrappingKey::MultiBit {
+            fourier_bsk,
+            // Execution settings, not needed to compress
+            thread_count: _,
+            deterministic_execution: _,
+        } => {
             let compressed = CompressedModulusSwitchedMultiBitLweCiphertext::compress(
                 &ciphertext,
                 bootstrapping_key
@@ -71,7 +76,11 @@ pub(crate) fn decompress_and_apply_lookup_table<InputScalar, OutputScalar>(
     local_accumulator.as_mut().copy_from_slice(acc.as_ref());
 
     match &bootstrapping_key {
-        ShortintBootstrappingKey::Classic { bsk, .. } => {
+        ShortintBootstrappingKey::Classic {
+            bsk,
+            // Already applied when compressing
+            modulus_switch_noise_reduction_key: _,
+        } => {
             let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
                 InternalCompressedModulusSwitchedCiphertext::Classic(a) => a.extract(),
                 InternalCompressedModulusSwitchedCiphertext::MultiBit(_) => {
@@ -87,6 +96,7 @@ cannot decompress with a Classic bootstrapping key"
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,
             thread_count,
+            // The blind rotation used here is always deterministic
             deterministic_execution: _,
         } => {
             let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {

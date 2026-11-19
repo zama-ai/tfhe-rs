@@ -47,10 +47,9 @@ pub struct TwistiesView<'a> {
 
 impl Twisties {
     pub fn as_view(&self) -> TwistiesView<'_> {
-        TwistiesView {
-            re: &self.re,
-            im: &self.im,
-        }
+        let Self { re, im } = self;
+
+        TwistiesView { re, im }
     }
 }
 
@@ -93,9 +92,11 @@ pub struct FftView<'a> {
 impl Fft {
     #[inline]
     pub fn as_view(&self) -> FftView<'_> {
+        let Self { plan } = self;
+
         FftView {
-            plan: &self.plan.1,
-            twisties: self.plan.0.as_view(),
+            plan: &plan.1,
+            twisties: plan.0.as_view(),
         }
     }
 }

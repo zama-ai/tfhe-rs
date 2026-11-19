@@ -235,14 +235,25 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+            // Read by `decompress_seeded_ggsw_ciphertext_list`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_list = GgswCiphertextListOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
             self.ggsw_ciphertext_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         decompress_seeded_ggsw_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
@@ -257,14 +268,25 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+            // Read by `par_decompress_seeded_ggsw_ciphertext_list`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_list = GgswCiphertextListOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
             self.ggsw_ciphertext_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         par_decompress_seeded_ggsw_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
@@ -303,14 +325,25 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            decomp_level_count,
+            ciphertext_modulus,
+            // Only used through `ggsw_ciphertext_count`
+            data: _,
+            // The fork config only depends on the shape of the list
+            compression_seed: _,
+            decomp_base_log: _,
+        } = self;
+
         let ggsw_count = self.ggsw_ciphertext_count().0;
         let ggsw_mask_sample_count = ggsw_ciphertext_encryption_mask_sample_count(
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_level_count(),
+            glwe_size,
+            polynomial_size,
+            decomp_level_count,
         );
 
-        let ciphertext_modulus = self.ciphertext_modulus();
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(
@@ -428,12 +461,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ref compression_seed,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_level_count: _,
+        } = *self;
+
         SeededGgswCiphertextCreationMetadata {
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            decomp_base_log: self.decomp_base_log,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus,
         }
     }
 
@@ -448,13 +493,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     /// Unimplemented for [`SeededGgswCiphertextList`]. At the moment it does not make sense to
     /// return "sub" seeded lists.
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ref compression_seed,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         SeededGgswCiphertextListCreationMetadata {
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            decomp_base_log: self.decomp_base_log,
-            decomp_level_count: self.decomp_level_count,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus,
         }
     }
 }
@@ -490,16 +546,26 @@ impl<Scalar: UnsignedInteger> TryFrom<&MultiBitBootstrapKeyConformanceParams<Sca
     fn try_from(
         value: &MultiBitBootstrapKeyConformanceParams<Scalar>,
     ) -> Result<Self, &'static str> {
+        let MultiBitBootstrapKeyConformanceParams {
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_glwe_size,
+            polynomial_size,
+            grouping_factor,
+            ciphertext_modulus,
+        } = *value;
+
         let group_count =
-            equivalent_multi_bit_lwe_dimension(value.input_lwe_dimension, value.grouping_factor)?.0;
+            equivalent_multi_bit_lwe_dimension(input_lwe_dimension, grouping_factor)?.0;
 
         Ok(Self {
-            len: group_count * value.grouping_factor.ggsw_per_multi_bit_element().0,
-            glwe_size: value.output_glwe_size,
-            polynomial_size: value.polynomial_size,
-            decomp_base_log: value.decomp_base_log,
-            decomp_level_count: value.decomp_level_count,
-            ciphertext_modulus: value.ciphertext_modulus,
+            len: group_count * grouping_factor.ggsw_per_multi_bit_element().0,
+            glwe_size: output_glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
         })
     }
 }
@@ -508,13 +574,22 @@ impl<Scalar: UnsignedInteger> From<&LweBootstrapKeyConformanceParams<Scalar>>
     for GgswCiphertextListConformanceParams<Scalar>
 {
     fn from(value: &LweBootstrapKeyConformanceParams<Scalar>) -> Self {
+        let LweBootstrapKeyConformanceParams {
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_dimension,
+            output_glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+        } = *value;
+
         Self {
-            len: value.input_lwe_dimension.0,
-            glwe_size: value.output_glwe_size,
-            polynomial_size: value.polynomial_size,
-            decomp_base_log: value.decomp_base_log,
-            decomp_level_count: value.decomp_level_count,
-            ciphertext_modulus: value.ciphertext_modulus,
+            len: input_lwe_dimension.0,
+            glwe_size: output_glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
         }
     }
 }
@@ -531,17 +606,27 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
-            compression_seed: _,
             ciphertext_modulus,
+            // Only used to regenerate the mask on decompression, any value is accepted
+            compression_seed: _,
         } = self;
 
+        let GgswCiphertextListConformanceParams {
+            len: expected_len,
+            glwe_size: expected_glwe_size,
+            polynomial_size: expected_polynomial_size,
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
         data.container_len()
-            == parameter_set.len
+            == expected_len
                 * seeded_ggsw_ciphertext_size(*glwe_size, *polynomial_size, *decomp_level_count)
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *glwe_size == parameter_set.glwe_size
-            && *polynomial_size == parameter_set.polynomial_size
-            && *ciphertext_modulus == parameter_set.ciphertext_modulus
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && glwe_size == expected_glwe_size
+            && polynomial_size == expected_polynomial_size
+            && ciphertext_modulus == expected_ciphertext_modulus
     }
 }

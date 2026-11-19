@@ -13,7 +13,9 @@ use crate::core_crypto::prelude::{
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext, KsType};
-use crate::integer::gpu::list_compression::server_keys::CudaPackedGlweCiphertextList;
+use crate::integer::gpu::list_compression::server_keys::{
+    CudaPackedGlweCiphertextList, CudaPackedGlweCiphertextListMeta,
+};
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::scalar_div_mod::{
     choose_multiplier, SignedReciprocable,
@@ -135,13 +137,27 @@ fn prepare_cuda_lwe_ct_ffi<T: UnsignedInteger>(
 fn prepare_cuda_packed_glwe_ct_ffi<T: UnsignedInteger>(
     input: &CudaPackedGlweCiphertextList<T>,
 ) -> CudaPackedGlweCiphertextListFFI {
+    let CudaPackedGlweCiphertextList { data, meta } = input;
+    let CudaPackedGlweCiphertextListMeta {
+        glwe_dimension,
+        polynomial_size,
+        storage_log_modulus,
+        lwe_per_glwe,
+        total_lwe_bodies_count,
+        // Not needed by the backend to (de)compress
+        message_modulus: _,
+        carry_modulus: _,
+        ciphertext_modulus: _,
+        initial_len: _,
+    } = meta.unwrap();
+
     CudaPackedGlweCiphertextListFFI {
-        ptr: input.data.get_mut_c_ptr(0),
-        storage_log_modulus: u32::try_from(input.meta.unwrap().storage_log_modulus.0).unwrap(),
-        num_lwes_stored_per_glwe: u32::try_from(input.meta.unwrap().lwe_per_glwe.get()).unwrap(),
-        total_lwe_bodies_count: u32::try_from(input.meta.unwrap().total_lwe_bodies_count).unwrap(),
-        glwe_dimension: u32::try_from(input.meta.unwrap().glwe_dimension.0).unwrap(),
-        polynomial_size: u32::try_from(input.meta.unwrap().polynomial_size.0).unwrap(),
+        ptr: data.get_mut_c_ptr(0),
+        storage_log_modulus: u32::try_from(storage_log_modulus.0).unwrap(),
+        num_lwes_stored_per_glwe: u32::try_from(lwe_per_glwe.get()).unwrap(),
+        total_lwe_bodies_count: u32::try_from(total_lwe_bodies_count).unwrap(),
+        glwe_dimension: u32::try_from(glwe_dimension.0).unwrap(),
+        polynomial_size: u32::try_from(polynomial_size.0).unwrap(),
     }
 }
 

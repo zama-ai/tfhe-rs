@@ -1001,14 +1001,16 @@ impl ServerKey {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
                 match &standard_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
-                        bsk: _,
                         modulus_switch_noise_reduction_key,
+                        // The modulus switch config does not depend on the bootstrapping key
+                        bsk: _,
                     } => NoiseSimulationModulusSwitchConfig::new_from_config_and_key(
                         modulus_switch_noise_reduction_key,
                         self,
                     ),
                     ShortintBootstrappingKey::MultiBit {
                         fourier_bsk,
+                        // Execution settings, irrelevant to the modulus switch config
                         thread_count: _,
                         deterministic_execution: _,
                     } => {
@@ -1019,8 +1021,9 @@ impl ServerKey {
             AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
                 match &ks32_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
-                        bsk: _,
                         modulus_switch_noise_reduction_key,
+                        // The modulus switch config does not depend on the bootstrapping key
+                        bsk: _,
                     } => NoiseSimulationModulusSwitchConfig::new_from_config_and_key(
                         modulus_switch_noise_reduction_key,
                         self,
@@ -1107,8 +1110,9 @@ impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
                 match &standard_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
-                        bsk: _,
                         modulus_switch_noise_reduction_key,
+                        // The drift technique only uses the modulus switch noise reduction key
+                        bsk: _,
                     } => match modulus_switch_noise_reduction_key {
                         ModulusSwitchConfiguration::Standard => panic!(
                             "ModulusSwitchConfiguration::Standard \
@@ -1140,8 +1144,9 @@ impl AllocateDriftTechniqueStandardModSwitchResult for ServerKey {
             AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
                 match &ks32_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
-                        bsk: _,
                         modulus_switch_noise_reduction_key,
+                        // The drift technique only uses the modulus switch noise reduction key
+                        bsk: _,
                     } => match modulus_switch_noise_reduction_key {
                         ModulusSwitchConfiguration::Standard => panic!(
                             "ModulusSwitchConfiguration::Standard \
@@ -1192,8 +1197,9 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for ServerKey {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
                 match &standard_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
-                        bsk: _,
                         modulus_switch_noise_reduction_key,
+                        // The drift technique only uses the modulus switch noise reduction key
+                        bsk: _,
                     } => match modulus_switch_noise_reduction_key {
                         ModulusSwitchConfiguration::Standard => panic!(
                             "ModulusSwitchConfiguration::Standard \
@@ -1233,8 +1239,9 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for ServerKey {
             AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
                 match &ks32_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
-                        bsk: _,
                         modulus_switch_noise_reduction_key,
+                        // The drift technique only uses the modulus switch noise reduction key
+                        bsk: _,
                     } => {
                         match modulus_switch_noise_reduction_key {
                             ModulusSwitchConfiguration::Standard => panic!(
@@ -1401,6 +1408,7 @@ impl<C: Container<Element = u64>>
                     ShortintBootstrappingKey::MultiBit {
                         fourier_bsk,
                         thread_count,
+                        // Deterministic execution is always forced below
                         deterministic_execution: _,
                     } => match input {
                         DynModSwitchedLwe::MultiBitModSwitchedLwe(input) => {
@@ -1468,6 +1476,7 @@ impl<C: Container<Element = u64>> LweMultiBitFftBootstrap<DynLwe, DynLwe, Lookup
                     ShortintBootstrappingKey::MultiBit {
                         fourier_bsk,
                         thread_count,
+                        // Deterministic execution is always forced below
                         deterministic_execution: _,
                     } => match (input, output) {
                         (DynLwe::U64(input), DynLwe::U64(output)) => fourier_bsk
@@ -1573,14 +1582,16 @@ impl NoiseSquashingKey {
                 standard_atomic_pattern_noise_squashing_key,
             ) => match &standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
                 Shortint128BootstrappingKey::Classic {
-                    bsk: _,
                     modulus_switch_noise_reduction_key,
+                    // The modulus switch config does not depend on the bootstrapping key
+                    bsk: _,
                 } => NoiseSimulationModulusSwitchConfig::new_from_config_and_key(
                     modulus_switch_noise_reduction_key,
                     self,
                 ),
                 Shortint128BootstrappingKey::MultiBit {
                     bsk,
+                    // Execution settings, irrelevant to the modulus switch config
                     thread_count: _,
                     deterministic_execution: _,
                 } => NoiseSimulationModulusSwitchConfig::MultiBit(bsk.grouping_factor()),
@@ -1589,8 +1600,9 @@ impl NoiseSquashingKey {
                 ks32_atomic_pattern_noise_squashing_key,
             ) => match &ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
                 Shortint128BootstrappingKey::Classic {
-                    bsk: _,
                     modulus_switch_noise_reduction_key,
+                    // The modulus switch config does not depend on the bootstrapping key
+                    bsk: _,
                 } => NoiseSimulationModulusSwitchConfig::new_from_config_and_key(
                     modulus_switch_noise_reduction_key,
                     self,
@@ -1664,8 +1676,9 @@ impl AllocateDriftTechniqueStandardModSwitchResult for NoiseSquashingKey {
 
         match nsk.bootstrapping_key() {
             Shortint128BootstrappingKey::Classic {
-                bsk: _,
                 modulus_switch_noise_reduction_key,
+                // The drift technique only uses the modulus switch noise reduction key
+                bsk: _,
             } => match modulus_switch_noise_reduction_key {
                 ModulusSwitchConfiguration::Standard => panic!(
                     "ModulusSwitchConfiguration::Standard does not support the drift technique"
@@ -1709,8 +1722,9 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for NoiseSquashingK
                 standard_atomic_pattern_noise_squashing_key,
             ) => match standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
                 Shortint128BootstrappingKey::Classic {
-                    bsk: _,
                     modulus_switch_noise_reduction_key,
+                    // The drift technique only uses the modulus switch noise reduction key
+                    bsk: _,
                 } => match modulus_switch_noise_reduction_key {
                     ModulusSwitchConfiguration::Standard => panic!(
                         "ModulusSwitchConfiguration::Standard \
@@ -1750,8 +1764,9 @@ impl DriftTechniqueStandardModSwitch<DynLwe, DynLwe, DynLwe> for NoiseSquashingK
                 ks32_atomic_pattern_noise_squashing_key,
             ) => match ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
                 Shortint128BootstrappingKey::Classic {
-                    bsk: _,
                     modulus_switch_noise_reduction_key,
+                    // The drift technique only uses the modulus switch noise reduction key
+                    bsk: _,
                 } => match modulus_switch_noise_reduction_key {
                     ModulusSwitchConfiguration::Standard => panic!(
                         "ModulusSwitchConfiguration::Standard \
@@ -1845,6 +1860,7 @@ where
                 match std_nsk.bootstrapping_key() {
                     Shortint128BootstrappingKey::Classic {
                         bsk,
+                        // Only the PBS is executed here, drift technique is managed separately
                         modulus_switch_noise_reduction_key: _,
                     } => match input {
                         DynLwe::U64(input) => {
@@ -1864,6 +1880,7 @@ where
                 match ks32_nsk.bootstrapping_key() {
                     Shortint128BootstrappingKey::Classic {
                         bsk,
+                        // Only the PBS is executed here, drift technique is managed separately
                         modulus_switch_noise_reduction_key: _,
                     } => match input {
                         DynLwe::U32(input) => {
@@ -1940,6 +1957,7 @@ where
                     Shortint128BootstrappingKey::MultiBit {
                         bsk,
                         thread_count,
+                        // The f128 multi bit blind rotation is always deterministic
                         deterministic_execution: _,
                     } => match input {
                         DynStandardMultiBitModulusSwitchedCt::U64(input) => {
@@ -1967,6 +1985,7 @@ where
                     Shortint128BootstrappingKey::MultiBit {
                         bsk,
                         thread_count,
+                        // The f128 multi bit blind rotation is always deterministic
                         deterministic_execution: _,
                     } => match input {
                         DynStandardMultiBitModulusSwitchedCt::U32(input) => {
@@ -2236,6 +2255,7 @@ impl LweClassicFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for Decompres
         match &self.bsk {
             ShortintBootstrappingKey::Classic {
                 bsk,
+                // Decompression never does modulus switch noise reduction
                 modulus_switch_noise_reduction_key: _,
             } => match (input, output) {
                 (DynLwe::U64(input), DynLwe::U64(output)) => {
@@ -2264,6 +2284,7 @@ impl LweMultiBitFftBootstrap<DynLwe, DynLwe, LookupTable<Vec<u64>>> for Decompre
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 thread_count,
+                // Deterministic execution is always forced below
                 deterministic_execution: _,
             } => match (input, output) {
                 (DynLwe::U64(input), DynLwe::U64(output)) => fourier_bsk
@@ -2465,8 +2486,9 @@ impl NoiseSimulationDriftTechniqueKey {
     ) -> bool {
         let Self {
             lwe_dimension,
-            noise_distribution: _,
             modulus,
+            // Not recoverable from the encryptions of zero stored in the drift key
+            noise_distribution: _,
         } = *self;
 
         let drift_key_lwe_dimension = drift_key.modulus_switch_zeros.lwe_size().to_lwe_dimension();
@@ -2579,6 +2601,7 @@ impl NoiseSimulationLweFourier128Bsk {
             ) => match standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
                 Shortint128BootstrappingKey::Classic {
                     bsk,
+                    // The drift key is matched by `NoiseSimulationDriftTechniqueKey`
                     modulus_switch_noise_reduction_key: _,
                 } => self.matches_actual_bsk(bsk),
                 Shortint128BootstrappingKey::MultiBit { .. } => false,
@@ -2588,6 +2611,7 @@ impl NoiseSimulationLweFourier128Bsk {
             ) => match ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
                 Shortint128BootstrappingKey::Classic {
                     bsk,
+                    // The drift key is matched by `NoiseSimulationDriftTechniqueKey`
                     modulus_switch_noise_reduction_key: _,
                 } => self.matches_actual_bsk(bsk),
                 Shortint128BootstrappingKey::MultiBit { .. } => false,
@@ -2726,8 +2750,9 @@ impl NoiseSimulationDriftTechniqueKey {
             AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
                 match &standard_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
-                        bsk: _,
                         modulus_switch_noise_reduction_key,
+                        // The bootstrapping key is matched by `NoiseSimulationLweFourierBsk`
+                        bsk: _,
                     } => match modulus_switch_noise_reduction_key {
                         ModulusSwitchConfiguration::Standard => false,
                         ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
@@ -2741,8 +2766,9 @@ impl NoiseSimulationDriftTechniqueKey {
             AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
                 match &ks32_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
-                        bsk: _,
                         modulus_switch_noise_reduction_key,
+                        // The bootstrapping key is matched by `NoiseSimulationLweFourierBsk`
+                        bsk: _,
                     } => match modulus_switch_noise_reduction_key {
                         ModulusSwitchConfiguration::Standard => false,
                         ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
@@ -2768,8 +2794,9 @@ impl NoiseSimulationDriftTechniqueKey {
                 standard_atomic_pattern_noise_squashing_key,
             ) => match standard_atomic_pattern_noise_squashing_key.bootstrapping_key() {
                 Shortint128BootstrappingKey::Classic {
-                    bsk: _,
                     modulus_switch_noise_reduction_key,
+                    // The bootstrapping key is matched by `NoiseSimulationLweFourier128Bsk`
+                    bsk: _,
                 } => match modulus_switch_noise_reduction_key {
                     ModulusSwitchConfiguration::Standard => false,
                     ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
@@ -2783,8 +2810,9 @@ impl NoiseSimulationDriftTechniqueKey {
                 ks32_atomic_pattern_noise_squashing_key,
             ) => match ks32_atomic_pattern_noise_squashing_key.bootstrapping_key() {
                 Shortint128BootstrappingKey::Classic {
-                    bsk: _,
                     modulus_switch_noise_reduction_key,
+                    // The bootstrapping key is matched by `NoiseSimulationLweFourier128Bsk`
+                    bsk: _,
                 } => match modulus_switch_noise_reduction_key {
                     ModulusSwitchConfiguration::Standard => false,
                     ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
@@ -2805,6 +2833,7 @@ impl NoiseSimulationLweFourierBsk {
                 match &standard_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
                         bsk,
+                        // The drift key is matched by `NoiseSimulationDriftTechniqueKey`
                         modulus_switch_noise_reduction_key: _,
                     } => self.matches_actual_bsk(bsk),
                     ShortintBootstrappingKey::MultiBit { .. } => false,
@@ -2814,6 +2843,7 @@ impl NoiseSimulationLweFourierBsk {
                 match &ks32_atomic_pattern_server_key.bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
                         bsk,
+                        // The drift key is matched by `NoiseSimulationDriftTechniqueKey`
                         modulus_switch_noise_reduction_key: _,
                     } => self.matches_actual_bsk(bsk),
                     ShortintBootstrappingKey::MultiBit { .. } => false,
@@ -2829,6 +2859,7 @@ impl NoiseSimulationLweFourierBsk {
         match &decomp_key.bsk {
             ShortintBootstrappingKey::Classic {
                 bsk,
+                // Decompression never does modulus switch noise reduction
                 modulus_switch_noise_reduction_key: _,
             } => self.matches_actual_bsk(bsk),
             ShortintBootstrappingKey::MultiBit { .. } => false,
@@ -2915,6 +2946,7 @@ impl NoiseSimulationLweMultiBitFourierBsk {
             ShortintBootstrappingKey::Classic { .. } => false,
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
+                // Execution settings, not part of the key material
                 thread_count: _,
                 deterministic_execution: _,
             } => self.matches_actual_bsk(fourier_bsk),

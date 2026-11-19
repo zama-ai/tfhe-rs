@@ -189,8 +189,10 @@ impl Boolean {
     pub fn decompress_ciphertext(
         compressed_ciphertext: &BooleanCompressedCiphertext,
     ) -> BooleanCiphertext {
+        let BooleanCompressedCiphertext(compressed_ciphertext) = compressed_ciphertext;
+
         set_hook(Box::new(console_error_panic_hook::hook));
-        BooleanCiphertext(compressed_ciphertext.0.decompress())
+        BooleanCiphertext(compressed_ciphertext.decompress())
     }
 
     #[wasm_bindgen]

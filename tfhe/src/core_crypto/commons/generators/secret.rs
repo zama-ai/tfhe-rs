@@ -23,7 +23,9 @@ impl<G: ByteRandomGenerator> SecretRandomGenerator<G> {
     }
 
     pub fn into_raw_parts(self) -> RandomGenerator<G> {
-        self.0
+        let Self(generator) = self;
+
+        generator
     }
 
     /// Return the number of remaining bytes, if the generator is bounded.

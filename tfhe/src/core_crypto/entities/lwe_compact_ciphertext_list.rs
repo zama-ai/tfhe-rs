@@ -225,11 +225,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
     ///
     /// See [`LweCompactCiphertextList::from_container`] for usage.
     pub fn expand_into_lwe_ciphertext_list(self) -> LweCiphertextListOwned<Scalar> {
+        let &Self {
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
+            // Read by `expand_lwe_compact_ciphertext_list`
+            data: _,
+        } = &self;
+
         let mut lwe_ciphertext_list = LweCiphertextListOwned::new(
             Scalar::ZERO,
-            self.lwe_size(),
-            self.lwe_ciphertext_count(),
-            self.ciphertext_modulus(),
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
         );
 
         expand_lwe_compact_ciphertext_list(&mut lwe_ciphertext_list, &self);
@@ -241,11 +249,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCompactCipherte
     where
         Scalar: UnsignedInteger + Send + Sync,
     {
+        let &Self {
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
+            // Read by `par_expand_lwe_compact_ciphertext_list`
+            data: _,
+        } = &self;
+
         let mut lwe_ciphertext_list = LweCiphertextListOwned::new(
             Scalar::ZERO,
-            self.lwe_size(),
-            self.lwe_ciphertext_count(),
-            self.ciphertext_modulus(),
+            lwe_size,
+            lwe_ciphertext_count,
+            ciphertext_modulus,
         );
 
         par_expand_lwe_compact_ciphertext_list(&mut lwe_ciphertext_list, &self);
@@ -356,17 +372,22 @@ impl<T: UnsignedInteger> ParameterSetConformant for LweCompactCiphertextListOwne
             lwe_ciphertext_count,
             ciphertext_modulus,
         } = self;
-        param
-            .lwe_ciphertext_count_constraint
-            .is_valid(lwe_ciphertext_count.0)
+
+        let LweCiphertextListConformanceParams {
+            lwe_dim,
+            lwe_ciphertext_count_constraint,
+            ct_modulus,
+        } = param;
+
+        lwe_ciphertext_count_constraint.is_valid(lwe_ciphertext_count.0)
             && data.len()
                 == lwe_compact_ciphertext_list_size(
                     lwe_size.to_lwe_dimension(),
                     *lwe_ciphertext_count,
                 )
-            && check_encrypted_content_respects_mod(self, param.ct_modulus)
-            && *lwe_size == param.lwe_dim.to_lwe_size()
-            && *ciphertext_modulus == param.ct_modulus
+            && check_encrypted_content_respects_mod(self, *ct_modulus)
+            && *lwe_size == lwe_dim.to_lwe_size()
+            && ciphertext_modulus == ct_modulus
     }
 }
 

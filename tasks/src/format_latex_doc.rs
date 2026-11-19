@@ -208,6 +208,7 @@ fn find_contiguous_part_in_doc_test_or_comment(
 
         let CommentContent {
             is_in_code_block: next_line_is_in_code_block,
+            // Parts are delimited by the code block status only
             line_start: _,
             line_content: _,
         } = full_doc_comment_content[next_line_idx];
@@ -234,9 +235,10 @@ fn escape_underscores_rewrite_equations(
 ) -> Result<(), LatexEscapeToolError> {
     let mut latex_equation_kind = LatexEquationKind::NotAnEquation;
     for CommentContent {
-        is_in_code_block: _,
         line_start,
         line_content,
+        // Only called on parts outside code blocks
+        is_in_code_block: _,
     } in comment_to_rewrite.iter()
     {
         rewritten_content.push_str(line_start);
@@ -312,6 +314,7 @@ fn process_doc_lines_until_impossible<'a>(
     while current_line_in_doc_idx < full_doc_content.len() {
         let CommentContent {
             is_in_code_block,
+            // Written out per line when the part is processed below
             line_start: _,
             line_content: _,
         } = full_doc_content[current_line_in_doc_idx];
@@ -328,9 +331,10 @@ fn process_doc_lines_until_impossible<'a>(
         // The current part is a code block
         if is_in_code_block {
             for CommentContent {
-                is_in_code_block: _,
                 line_start,
                 line_content,
+                // Every line of this part is in a code block
+                is_in_code_block: _,
             } in current_part_content.iter()
             {
                 // We can just push the content unmodified
@@ -387,6 +391,7 @@ fn escape_underscore_in_latex_doc_in_file(
         let (line_type, _) = get_line_type_and_trimmed_line(line);
         line_idx = match line_type {
             LineType::DocComment {
+                // Code block limits are tracked again by the contiguous comment search
                 code_block_limit: _,
             } => process_doc_lines_until_impossible(
                 &content_by_lines,
@@ -395,6 +400,7 @@ fn escape_underscore_in_latex_doc_in_file(
                 line_idx,
             )?,
             LineType::DocTest {
+                // Code block limits are tracked again by the contiguous comment search
                 code_block_limit: _,
             } => process_doc_lines_until_impossible(
                 &content_by_lines,

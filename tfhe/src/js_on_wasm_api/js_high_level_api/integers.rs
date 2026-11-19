@@ -36,11 +36,10 @@ impl ProvenCompactCiphertextList {
 
     #[wasm_bindgen]
     pub fn expand_without_verification(&self) -> Result<CompactCiphertextListExpander, JsError> {
+        let Self(list) = self;
+
         catch_panic_result(|| {
-            let inner = self
-                .0
-                .expand_without_verification()
-                .map_err(into_js_error)?;
+            let inner = list.expand_without_verification().map_err(into_js_error)?;
             Ok(CompactCiphertextListExpander(inner))
         })
     }
@@ -136,8 +135,10 @@ macro_rules! create_wrapper_type_non_native_type (
             pub fn decompress(
                 &self,
             ) -> Result<$type_name, JsError> {
+                let Self(compressed) = self;
+
                 catch_panic(||{
-                    $type_name(self.0.decompress())
+                    $type_name(compressed.decompress())
                 })
             }
 
@@ -599,8 +600,10 @@ macro_rules! create_wrapper_type_that_has_native_type (
             pub fn decompress(
                 &self,
             ) -> Result<$type_name, JsError> {
+                let Self(compressed) = self;
+
                 catch_panic(||{
-                    $type_name(self.0.decompress())
+                    $type_name(compressed.decompress())
                 })
             }
 
@@ -850,9 +853,10 @@ impl CompactCiphertextList {
 
     #[wasm_bindgen]
     pub fn expand(&self) -> Result<CompactCiphertextListExpander, JsError> {
+        let Self(list) = self;
+
         catch_panic_result(|| {
-            self.0
-                .expand()
+            list.expand()
                 .map_err(into_js_error)
                 .map(CompactCiphertextListExpander)
         })
@@ -860,9 +864,10 @@ impl CompactCiphertextList {
 
     #[wasm_bindgen]
     pub fn expand_without_key(&self) -> Result<CompactCiphertextListExpander, JsError> {
+        let Self(list) = self;
+
         catch_panic_result(|| {
-            self.0
-                .expand_without_key()
+            list.expand_without_key()
                 .map_err(into_js_error)
                 .map(CompactCiphertextListExpander)
         })
@@ -972,24 +977,37 @@ mod sync_executor {
 
     impl From<&crate::CompactCiphertextListBuilder> for SerializableCompactCiphertextListBuilder {
         fn from(value: &crate::CompactCiphertextListBuilder) -> Self {
+            let crate::CompactCiphertextListBuilder {
+                inner:
+                    crate::integer::ciphertext::CompactCiphertextListBuilder { messages, info, pk },
+                tag,
+            } = value;
+
             Self {
-                messages: value.inner.messages.clone(),
-                info: value.inner.info.clone(),
-                pk: value.inner.pk.clone(),
-                tag: value.tag.clone(),
+                messages: messages.clone(),
+                info: info.clone(),
+                pk: pk.clone(),
+                tag: tag.clone(),
             }
         }
     }
 
     impl From<SerializableCompactCiphertextListBuilder> for crate::CompactCiphertextListBuilder {
         fn from(value: SerializableCompactCiphertextListBuilder) -> Self {
+            let SerializableCompactCiphertextListBuilder {
+                messages,
+                info,
+                pk,
+                tag,
+            } = value;
+
             Self {
                 inner: crate::integer::ciphertext::CompactCiphertextListBuilder {
-                    messages: value.messages,
-                    info: value.info,
-                    pk: value.pk,
+                    messages,
+                    info,
+                    pk,
                 },
-                tag: value.tag,
+                tag,
             }
         }
     }

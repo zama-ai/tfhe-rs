@@ -54,13 +54,39 @@ impl<G: Curve> ParameterSetConformant for PublicParams<G> {
     type ParameterSet = CompactPkeCrsConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.k <= self.d
-            && self.d == parameter_set.lwe_dim
-            && self.k == parameter_set.max_num_message
-            && self.b == parameter_set.noise_bound
-            && self.q == parameter_set.ciphertext_modulus
-            && self.t == parameter_set.plaintext_modulus
-            && self.msbs_zero_padding_bit_count == parameter_set.msbs_zero_padding_bit_count
+        let &Self {
+            d,
+            k,
+            b,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+            // Checked by `is_usable`
+            g_lists: _,
+            // Only used by `is_usable` as the length of `g_lists`
+            n: _,
+            // Not constrained by the conformance parameters
+            big_d: _,
+            b_r: _,
+            sid: _,
+            domain_separators: _,
+        } = self;
+        let &CompactPkeCrsConformanceParams {
+            lwe_dim,
+            max_num_message,
+            noise_bound,
+            ciphertext_modulus,
+            plaintext_modulus,
+            msbs_zero_padding_bit_count: expected_msbs_zero_padding_bit_count,
+        } = parameter_set;
+
+        k <= d
+            && d == lwe_dim
+            && k == max_num_message
+            && b == noise_bound
+            && q == ciphertext_modulus
+            && t == plaintext_modulus
+            && msbs_zero_padding_bit_count == expected_msbs_zero_padding_bit_count
             && self.is_usable()
     }
 }
@@ -370,10 +396,19 @@ impl<G: Curve> ParameterSetConformant for Proof<G> {
     type ParameterSet = CompactPkeV1ProofConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        parameter_set
-            .accepted_compute_load
-            .contains(self.compute_load())
-            && self.is_usable()
+        let Self {
+            // Presence checked through `compute_load`, points by `is_usable`
+            compute_load_proof_fields: _,
+            // Checked by `is_usable`
+            c_hat: _,
+            c_y: _,
+            pi: _,
+        } = self;
+        let &CompactPkeV1ProofConformanceParams {
+            accepted_compute_load,
+        } = parameter_set;
+
+        accepted_compute_load.contains(self.compute_load()) && self.is_usable()
     }
 }
 
@@ -702,8 +737,22 @@ fn prove_impl<G: Curve>(
 
     let b_i = b;
 
-    let PublicCommit { a, b, c1, c2, .. } = public.1;
-    let PrivateCommit { r, e1, m, e2, .. } = private_commit;
+    let PublicCommit {
+        a,
+        b,
+        c1,
+        c2,
+        // Type marker, holds no data
+        __marker: _,
+    } = public.1;
+    let PrivateCommit {
+        r,
+        e1,
+        m,
+        e2,
+        // Type marker, holds no data
+        __marker: _,
+    } = private_commit;
 
     let k = c2.len();
 
@@ -1198,7 +1247,14 @@ pub fn verify<G: Curve>(
         (decoded_q / t as u128) as u64
     };
 
-    let PublicCommit { a, b, c1, c2, .. } = public.1;
+    let PublicCommit {
+        a,
+        b,
+        c1,
+        c2,
+        // Type marker, holds no data
+        __marker: _,
+    } = public.1;
     let k = c2.len();
     if k > k_max {
         return Err(());

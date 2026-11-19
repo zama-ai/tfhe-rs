@@ -78,6 +78,7 @@ where
             }
             ShortintExpandedBootstrappingKey::MultiBit {
                 bsk,
+                // CPU execution settings, not used by the CUDA backend
                 thread_count: _,
                 deterministic_execution: _,
             } => {
@@ -147,7 +148,7 @@ impl CudaBootstrappingKey<u64> {
         streams: &CudaStreams,
     ) -> Self {
         match expanded_bsk {
-            ExpandedOprfBootstrappingKey::Classic { bsk, .. } => {
+            ExpandedOprfBootstrappingKey::Classic { bsk } => {
                 let d_bootstrap_key =
                     CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, streams);
 
@@ -155,6 +156,7 @@ impl CudaBootstrappingKey<u64> {
             }
             ExpandedOprfBootstrappingKey::MultiBit {
                 bsk,
+                // CPU execution settings, not used by the CUDA backend
                 thread_count: _,
                 deterministic_execution: _,
             } => {

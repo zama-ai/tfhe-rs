@@ -23,7 +23,13 @@ impl<AP: 'static> Upgrade<GenericClientKey<AP>> for GenericClientKeyV0 {
     type Error = Error;
 
     fn upgrade(self) -> Result<GenericClientKey<AP>, Self::Error> {
-        let ap_params = self.parameters.ap_parameters().pbs_parameters().ok_or_else(|| {
+        let Self {
+            glwe_secret_key,
+            lwe_secret_key,
+            parameters,
+        } = self;
+
+        let ap_params = parameters.ap_parameters().pbs_parameters().ok_or_else(|| {
             Error::new(
                 "ClientKey from TFHE-rs 1.2 and before needs PBS parameters to be upgraded to the latest version"
                     .to_string(),
@@ -31,8 +37,8 @@ impl<AP: 'static> Upgrade<GenericClientKey<AP>> for GenericClientKeyV0 {
         })?;
 
         let std_ap = StandardAtomicPatternClientKey::from_raw_parts(
-            self.glwe_secret_key,
-            self.lwe_secret_key,
+            glwe_secret_key,
+            lwe_secret_key,
             ap_params,
         );
 

@@ -533,6 +533,9 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(clear);
         }
+        // In all the `kind: _` arms below, operand kinds are only needed for type checking:
+        // execution dispatches on the runtime value variants, and the ciphertexts carry their
+        // own width
         HlInstructionSet::FheAdd { kind: _ } => {
             outputs.push(exec_binary_op(
                 inputs,
@@ -608,6 +611,7 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(result);
         }
+        // The source kind is given by the runtime variant of the input
         HlInstructionSet::FheCast { from: _, to } => {
             outputs.push(exec_cast(inputs[0], *to, sks));
         }
@@ -842,6 +846,7 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(result);
         }
+        // The number of operands is given by `inputs`
         HlInstructionSet::FheSum { kind, n: _ } => {
             // Dispatch on the dialect's `kind` (FheIntKind) — no need to look at
             // `output_kinds` since the variant carries the type tag inline.
@@ -930,6 +935,7 @@ pub(super) fn exec_dialect_op(
             ));
         }
         HlInstructionSet::FheShl {
+            // Operand kinds and widths are given by the runtime operands
             lhs_kind: _,
             rhs_bits: _,
         } => {
@@ -940,6 +946,7 @@ pub(super) fn exec_dialect_op(
             ));
         }
         HlInstructionSet::FheShr {
+            // Operand kinds and widths are given by the runtime operands
             lhs_kind: _,
             rhs_bits: _,
         } => {
@@ -950,6 +957,7 @@ pub(super) fn exec_dialect_op(
             ));
         }
         HlInstructionSet::FheRotateLeft {
+            // Operand kinds and widths are given by the runtime operands
             lhs_kind: _,
             rhs_bits: _,
         } => {
@@ -960,6 +968,7 @@ pub(super) fn exec_dialect_op(
             ));
         }
         HlInstructionSet::FheRotateRight {
+            // Operand kinds and widths are given by the runtime operands
             lhs_kind: _,
             rhs_bits: _,
         } => {
@@ -1356,6 +1365,7 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(result);
         }
+        // The haystack size is given by `inputs`
         HlInstructionSet::FheContains { kind, n: _ } => {
             let needle = inputs[0];
             let haystack = &inputs[1..];
@@ -1391,6 +1401,7 @@ pub(super) fn exec_dialect_op(
             };
             outputs.push(RuntimeValue::FheBool(result));
         }
+        // The haystack size is given by `inputs`
         HlInstructionSet::FheContainsScalar { kind, n: _ } => {
             // Clear needle is inputs[0], haystack is inputs[1..].
             let scalar = inputs[0].as_clear_scalar();
@@ -1427,8 +1438,9 @@ pub(super) fn exec_dialect_op(
             outputs.push(RuntimeValue::FheBool(result));
         }
         HlInstructionSet::KVStoreCreate {
-            key_kind: _,
             value_kind,
+            // Runtime stores always use u128 keys
+            key_kind: _,
         } => {
             let store = match value_kind {
                 FheIntKind::Uint(_) => RuntimeValue::FheUintKVStore(KVStore::new()),

@@ -17,12 +17,20 @@ impl CudaBlockInfo {
         self.degree.get() < self.message_modulus.0
     }
     pub fn duplicate(&self) -> Self {
+        let Self {
+            degree,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            noise_level,
+        } = self;
+
         Self {
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            atomic_pattern: self.atomic_pattern,
-            noise_level: self.noise_level,
+            degree: *degree,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            atomic_pattern: *atomic_pattern,
+            noise_level: *noise_level,
         }
     }
 }
@@ -72,12 +80,10 @@ impl CudaRadixCiphertextInfo {
     }
 
     pub fn duplicate(&self) -> Self {
+        let Self { blocks } = self;
+
         Self {
-            blocks: self
-                .blocks
-                .iter()
-                .map(|block| block.duplicate())
-                .collect_vec(),
+            blocks: blocks.iter().map(|block| block.duplicate()).collect_vec(),
         }
     }
 }

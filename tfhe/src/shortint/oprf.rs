@@ -150,7 +150,9 @@ impl OprfPrivateKey {
     }
 
     pub fn into_raw_parts(self) -> AtomicPatternOprfPrivateKey {
-        self.0
+        let Self(key) = self;
+
+        key
     }
 
     pub fn parameters(&self) -> OprfParameters {
@@ -257,18 +259,40 @@ impl ParameterSetConformant for OprfBootstrappingKeyOwned {
     type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, &parameter_set.pbs_type) {
-            (Self::Classic { bsk }, PbsTypeConformanceParams::Classic { .. }) => {
+        let PBSConformanceParams {
+            pbs_type,
+            // Checked through the conversion to the bootstrapping key conformance params
+            in_lwe_dimension: _,
+            out_glwe_dimension: _,
+            out_polynomial_size: _,
+            base_log: _,
+            level: _,
+            // Fourier bootstrapping keys don't store a ciphertext modulus
+            ciphertext_modulus: _,
+        } = parameter_set;
+
+        match (self, pbs_type) {
+            (
+                Self::Classic { bsk },
+                PbsTypeConformanceParams::Classic {
+                    // The OPRF key has no modulus switch configuration
+                    modulus_switch_noise_reduction: _,
+                },
+            ) => {
                 let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
                 bsk.is_conformant(&param)
             }
             (
                 Self::MultiBit {
                     fourier_bsk,
+                    // Execution settings, taken from the serialized key without validation
                     thread_count: _,
                     deterministic_execution: _,
                 },
-                PbsTypeConformanceParams::MultiBit { .. },
+                PbsTypeConformanceParams::MultiBit {
+                    // Checked through the conversion to `MultiBitBootstrapKeyConformanceParams`
+                    lwe_bsk_grouping_factor: _,
+                },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
                 .is_ok_and(|param| fourier_bsk.is_conformant(&param)),
             _ => false,
@@ -346,7 +370,9 @@ impl ExpandedOprfServerKey {
     }
 
     pub fn into_raw_parts(self) -> ExpandedOprfBootstrappingKey {
-        self.0
+        let Self(key) = self;
+
+        key
     }
 
     pub fn to_fourier(&self) -> OprfServerKey {
@@ -410,17 +436,38 @@ impl ParameterSetConformant for CompressedOprfBootstrappingKey {
     type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, &parameter_set.pbs_type) {
-            (Self::Classic { seeded_bsk }, PbsTypeConformanceParams::Classic { .. }) => {
+        let PBSConformanceParams {
+            pbs_type,
+            // Checked through the conversion to the bootstrapping key conformance params
+            in_lwe_dimension: _,
+            out_glwe_dimension: _,
+            out_polynomial_size: _,
+            base_log: _,
+            level: _,
+            ciphertext_modulus: _,
+        } = parameter_set;
+
+        match (self, pbs_type) {
+            (
+                Self::Classic { seeded_bsk },
+                PbsTypeConformanceParams::Classic {
+                    // The OPRF key has no modulus switch configuration
+                    modulus_switch_noise_reduction: _,
+                },
+            ) => {
                 let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
                 seeded_bsk.is_conformant(&param)
             }
             (
                 Self::MultiBit {
                     seeded_bsk,
+                    // Execution setting, not part of the key material
                     deterministic_execution: _,
                 },
-                PbsTypeConformanceParams::MultiBit { .. },
+                PbsTypeConformanceParams::MultiBit {
+                    // Checked through the conversion to `MultiBitBootstrapKeyConformanceParams`
+                    lwe_bsk_grouping_factor: _,
+                },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
                 .is_ok_and(|param| seeded_bsk.is_conformant(&param)),
             _ => false,
@@ -484,11 +531,15 @@ impl CompressedOprfServerKey {
     }
 
     pub fn into_raw_parts(self) -> CompressedOprfBootstrappingKey {
-        self.inner
+        let Self { inner } = self;
+
+        inner
     }
 
     pub fn expand(&self) -> ExpandedOprfServerKey {
-        ExpandedOprfServerKey(self.inner.expand())
+        let Self { inner } = self;
+
+        ExpandedOprfServerKey(inner.expand())
     }
 }
 
@@ -532,8 +583,9 @@ impl ParameterSetConformant for CompressedOprfServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.inner
-            .is_conformant(&parameter_set.to_pbs_conformance_params())
+        let Self { inner } = self;
+
+        inner.is_conformant(&parameter_set.to_pbs_conformance_params())
     }
 }
 
@@ -696,7 +748,9 @@ impl<C: Container<Element = c64> + Sync> GenericOprfServerKey<C> {
     }
 
     pub fn into_raw_parts(self) -> OprfBootstrappingKey<C> {
-        self.inner
+        let Self { inner } = self;
+
+        inner
     }
 
     /// Uniformly generates a batch of encrypted random bit-chunks from a single seed in one call.
@@ -842,8 +896,9 @@ impl ParameterSetConformant for OprfServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.inner
-            .is_conformant(&parameter_set.to_pbs_conformance_params())
+        let Self { inner } = self;
+
+        inner.is_conformant(&parameter_set.to_pbs_conformance_params())
     }
 }
 
@@ -1298,7 +1353,7 @@ impl<C: Container<Element = c64> + Sync> OprfBootstrappingKey<C> {
                     luts[num_bits as usize - 1].clone();
 
                 match self {
-                    Self::Classic { bsk, .. } => {
+                    Self::Classic { bsk } => {
                         ShortintEngine::with_thread_local_mut(|engine| {
                             let buffers = engine.get_computation_buffers();
 

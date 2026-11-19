@@ -115,7 +115,9 @@ impl ClientKey {
     /// let key = cks.into_raw_parts();
     /// ```
     pub fn into_raw_parts(self) -> ShortintClientKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 
     /// Construct a [`ClientKey`] from its constituents.

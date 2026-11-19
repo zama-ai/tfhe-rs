@@ -418,16 +418,19 @@ impl CompressedXofKeySet {
     }
 
     fn expand(&self) -> (CompactPublicKey, IntegerExpandedServerKey) {
-        let mut mask_generator =
-            MaskRandomGenerator::<DefaultRandomGenerator>::new(self.seed.clone());
+        let Self {
+            seed,
+            compressed_public_key,
+            compressed_server_key,
+        } = self;
 
-        let public_key = self
-            .compressed_public_key
-            .decompress_with_pre_seeded_generator(&mut mask_generator);
+        let mut mask_generator = MaskRandomGenerator::<DefaultRandomGenerator>::new(seed.clone());
 
-        let expanded_server_key = self
-            .compressed_server_key
-            .decompress_with_pre_seeded_generator(&mut mask_generator);
+        let public_key =
+            compressed_public_key.decompress_with_pre_seeded_generator(&mut mask_generator);
+
+        let expanded_server_key =
+            compressed_server_key.decompress_with_pre_seeded_generator(&mut mask_generator);
 
         (public_key, expanded_server_key)
     }
@@ -518,9 +521,16 @@ impl ParameterSetConformant for CompressedXofKeySet {
     type ParameterSet = Config;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            compressed_public_key,
+            compressed_server_key,
+            // Any seed is valid
+            seed: _,
+        } = self;
+
         let config = *parameter_set;
         if let Some((pke_params, _)) = &config.inner.dedicated_compact_public_key_parameters {
-            if !self.compressed_public_key.is_conformant(pke_params) {
+            if !compressed_public_key.is_conformant(pke_params) {
                 return false;
             }
         } else {
@@ -530,15 +540,14 @@ impl ParameterSetConformant for CompressedXofKeySet {
                 return false;
             };
 
-            if !self.compressed_public_key.is_conformant(&compact_pk_params) {
+            if !compressed_public_key.is_conformant(&compact_pk_params) {
                 return false;
             }
         }
 
         let sk_conformance_params = IntegerServerKeyConformanceParams::from(config);
 
-        self.compressed_server_key
-            .is_conformant(&sk_conformance_params)
+        compressed_server_key.is_conformant(&sk_conformance_params)
     }
 }
 
@@ -570,12 +579,15 @@ impl Named for XofKeySet {
 }
 
 impl XofKeySet {
-    pub fn into_raw_parts(mut self) -> (CompactPublicKey, ServerKey) {
+    pub fn into_raw_parts(self) -> (CompactPublicKey, ServerKey) {
+        let Self {
+            mut public_key,
+            server_key,
+        } = self;
+
         // Server key tag is the source of truth for Tagged impl
-        self.public_key
-            .tag_mut()
-            .set_data(self.server_key.tag.data());
-        (self.public_key, self.server_key)
+        public_key.tag_mut().set_data(server_key.tag.data());
+        (public_key, server_key)
     }
 
     /// Returns whether the inner [`ServerKey`] carries a dedicated key-switching
@@ -648,12 +660,15 @@ mod gpu {
     }
 
     impl CudaXofKeySet {
-        pub fn into_raw_parts(mut self) -> (CompactPublicKey, CudaServerKey) {
+        pub fn into_raw_parts(self) -> (CompactPublicKey, CudaServerKey) {
+            let Self {
+                mut public_key,
+                server_key,
+            } = self;
+
             // Server key tag is the source of truth for Tagged impl
-            self.public_key
-                .tag_mut()
-                .set_data(self.server_key.tag.data());
-            (self.public_key, self.server_key)
+            public_key.tag_mut().set_data(server_key.tag.data());
+            (public_key, server_key)
         }
     }
 

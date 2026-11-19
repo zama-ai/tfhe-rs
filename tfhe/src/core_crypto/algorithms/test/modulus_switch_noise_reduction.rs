@@ -66,9 +66,10 @@ fn improve_modulus_switch_noise_test_individual_check_p_success(
         r_sigma_factor,
         log_modulus,
         expected_individual_check_p_success,
-        expected_variance_improved: _,
         target_upper_bound_p_all_fail_log2,
         input_variance,
+        // Checked by `check_noise_improve_modulus_switch_noise`
+        expected_variance_improved: _,
     } = params;
 
     let modulus = ciphertext_modulus.raw_modulus_float();
@@ -238,9 +239,10 @@ fn improve_modulus_switch_noise_test_average_number_checks(params: MsNoiseReduct
         r_sigma_factor,
         log_modulus,
         expected_individual_check_p_success,
+        input_variance,
+        // Only the average number of checks is tested here
         expected_variance_improved: _,
         target_upper_bound_p_all_fail_log2: _,
-        input_variance,
     } = params;
 
     let expected_average_number_checks = 1. / expected_individual_check_p_success;
@@ -364,10 +366,12 @@ fn check_noise_improve_modulus_switch_noise(
         bound,
         r_sigma_factor,
         log_modulus,
-        expected_individual_check_p_success: _,
         expected_variance_improved,
-        target_upper_bound_p_all_fail_log2: _,
         input_variance,
+        // This test only checks the variance after noise reduction
+        expected_individual_check_p_success: _,
+        // This test only checks the variance after noise reduction
+        target_upper_bound_p_all_fail_log2: _,
     } = ms_noise_reduction_test_params;
 
     let number_loops = 100_000;

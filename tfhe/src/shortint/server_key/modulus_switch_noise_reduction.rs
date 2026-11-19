@@ -259,14 +259,20 @@ where
     InputScalar: UnsignedTorus,
 {
     pub fn decompress(&self) -> ModulusSwitchNoiseReductionKey<InputScalar> {
+        let Self {
+            modulus_switch_zeros,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
+        } = self;
+
         ModulusSwitchNoiseReductionKey {
-            modulus_switch_zeros: self
-                .modulus_switch_zeros
+            modulus_switch_zeros: modulus_switch_zeros
                 .as_view()
                 .decompress_into_lwe_ciphertext_list(),
-            ms_bound: self.ms_bound,
-            ms_r_sigma_factor: self.ms_r_sigma_factor,
-            ms_input_variance: self.ms_input_variance,
+            ms_bound: *ms_bound,
+            ms_r_sigma_factor: *ms_r_sigma_factor,
+            ms_input_variance: *ms_input_variance,
         }
     }
 }

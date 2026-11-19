@@ -28,15 +28,19 @@ impl<T: UnsignedInteger> ParameterSetConformant for SeededLweCiphertext<T> {
         let Self {
             data,
             lwe_size,
-            compression_seed: _,
             ciphertext_modulus,
+            // Only used to regenerate the mask on decompression, any value is accepted
+            compression_seed: _,
         } = self;
 
-        check_encrypted_content_respects_mod::<T, &[T]>(
-            &std::slice::from_ref(data),
-            lwe_ct_parameters.ct_modulus,
-        ) && *lwe_size == lwe_ct_parameters.lwe_dim.to_lwe_size()
-            && *ciphertext_modulus == lwe_ct_parameters.ct_modulus
+        let LweCiphertextConformanceParams {
+            lwe_dim,
+            ct_modulus,
+        } = lwe_ct_parameters;
+
+        check_encrypted_content_respects_mod::<T, &[T]>(&std::slice::from_ref(data), *ct_modulus)
+            && *lwe_size == lwe_dim.to_lwe_size()
+            && ciphertext_modulus == ct_modulus
     }
 }
 
@@ -171,8 +175,15 @@ impl<Scalar: UnsignedInteger> SeededLweCiphertext<Scalar> {
     where
         Scalar: UnsignedTorus,
     {
-        let mut decompressed_ct =
-            LweCiphertext::new(Scalar::ZERO, self.lwe_size(), self.ciphertext_modulus());
+        let &Self {
+            lwe_size,
+            ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_ciphertext`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
+        let mut decompressed_ct = LweCiphertext::new(Scalar::ZERO, lwe_size, ciphertext_modulus);
         decompress_seeded_lwe_ciphertext::<_, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
             &self,

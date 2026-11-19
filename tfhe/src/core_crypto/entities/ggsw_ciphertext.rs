@@ -488,12 +488,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GgswCiphertext<C> 
     /// Return a view of the [`GgswCiphertext`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> GgswCiphertextView<'_, Scalar> {
+        let Self {
+            ref data,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+        } = *self;
+
         GgswCiphertextView::from_container(
-            self.as_ref(),
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.ciphertext_modulus(),
+            data.as_ref(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
         )
     }
 
@@ -548,12 +556,16 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GgswCiphertext<
 
     /// Mutable variant of [`GgswCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> GgswCiphertextMutView<'_, Scalar> {
-        let glwe_size = self.glwe_size();
-        let polynomial_size = self.polynomial_size();
-        let decomp_base_log = self.decomposition_base_log();
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+        } = *self;
+
         GgswCiphertextMutView::from_container(
-            self.as_mut(),
+            data.as_mut(),
             glwe_size,
             polynomial_size,
             decomp_base_log,
@@ -814,10 +826,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_base_log: _,
+        } = *self;
+
         GgswLevelMatrixCreationMetadata {
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 

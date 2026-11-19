@@ -161,12 +161,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertext<
     /// Return a view of the [`NttGgswCiphertext`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> NttGgswCiphertextView<'_, Scalar> {
+        let Self {
+            data,
+            polynomial_size,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         NttGgswCiphertextView {
-            data: self.data.as_ref(),
-            polynomial_size: self.polynomial_size,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            data: data.as_ref(),
+            polynomial_size: *polynomial_size,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 
@@ -176,16 +184,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertext<
     pub fn into_levels(
         &self,
     ) -> impl DoubleEndedIterator<Item = NttGgswLevelMatrixView<'_, Scalar>> {
-        let decomposition_level_count = self.decomposition_level_count.0;
-        self.data
-            .as_ref()
+        let Self {
+            ref data,
+            polynomial_size,
+            glwe_size,
+            decomposition_level_count,
+            // Not part of the level matrices
+            decomposition_base_log: _,
+        } = *self;
+
+        let decomposition_level_count = decomposition_level_count.0;
+        data.as_ref()
             .split_into(decomposition_level_count)
             .enumerate()
             .map(move |(i, slice)| {
                 NttGgswLevelMatrixView::from_container(
                     slice,
-                    self.glwe_size,
-                    self.polynomial_size,
+                    glwe_size,
+                    polynomial_size,
                     DecompositionLevel(decomposition_level_count - i),
                 )
             })
@@ -195,12 +211,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswCiphertext<
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> NttGgswCiphertext<C> {
     /// Mutable variant of [`NttGgswCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> NttGgswCiphertextMutView<'_, Scalar> {
+        let Self {
+            data,
+            polynomial_size,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         NttGgswCiphertextMutView {
-            data: self.data.as_mut(),
-            polynomial_size: self.polynomial_size,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            data: data.as_mut(),
+            polynomial_size: *polynomial_size,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 }
@@ -295,13 +319,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> NttGgswLevelMatrix
         C: Split,
     {
         let row_count = self.row_count();
-        self.data
-            .split_into(row_count)
+
+        let Self {
+            data,
+            glwe_size,
+            polynomial_size,
+            decomposition_level,
+        } = self;
+        data.split_into(row_count)
             .map(move |slice| NttGgswLevelRow {
                 data: slice,
-                polynomial_size: self.polynomial_size,
-                glwe_size: self.glwe_size,
-                decomposition_level: self.decomposition_level,
+                polynomial_size,
+                glwe_size,
+                decomposition_level,
             })
     }
 

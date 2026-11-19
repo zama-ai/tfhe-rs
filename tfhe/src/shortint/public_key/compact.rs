@@ -580,10 +580,12 @@ impl CompressedCompactPublicKey {
     }
 
     pub fn decompress(&self) -> CompactPublicKey {
-        let decompressed_key = self.key.as_view().decompress_into_lwe_compact_public_key();
+        let Self { key, parameters } = self;
+
+        let decompressed_key = key.as_view().decompress_into_lwe_compact_public_key();
         CompactPublicKey {
             key: decompressed_key,
-            parameters: self.parameters,
+            parameters: *parameters,
         }
     }
 
@@ -597,10 +599,20 @@ impl ParameterSetConformant for CompactPublicKey {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key, parameters } = self;
+        let CompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension,
+            ciphertext_modulus,
+            // Checked by `parameters == parameter_set`
+            encryption_noise_distribution: _,
+            message_modulus: _,
+            carry_modulus: _,
+            expansion_kind: _,
+            zk_scheme: _,
+        } = *parameter_set;
 
         let core_params = LweCompactPublicKeyConformanceParams {
-            encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
-            ciphertext_modulus: parameter_set.ciphertext_modulus,
+            encryption_lwe_dimension,
+            ciphertext_modulus,
         };
 
         parameters == parameter_set && key.is_conformant(&core_params)
@@ -612,10 +624,20 @@ impl ParameterSetConformant for CompressedCompactPublicKey {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key, parameters } = self;
+        let CompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension,
+            ciphertext_modulus,
+            // Checked by `parameters == parameter_set`
+            encryption_noise_distribution: _,
+            message_modulus: _,
+            carry_modulus: _,
+            expansion_kind: _,
+            zk_scheme: _,
+        } = *parameter_set;
 
         let core_params = LweCompactPublicKeyConformanceParams {
-            encryption_lwe_dimension: parameter_set.encryption_lwe_dimension,
-            ciphertext_modulus: parameter_set.ciphertext_modulus,
+            encryption_lwe_dimension,
+            ciphertext_modulus,
         };
 
         parameters == parameter_set && key.is_conformant(&core_params)

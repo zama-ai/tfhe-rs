@@ -130,7 +130,9 @@ impl TfheCompressedCompactPublicKey {
 
     #[wasm_bindgen]
     pub fn decompress(&self) -> Result<TfheCompactPublicKey, JsError> {
-        catch_panic(|| TfheCompactPublicKey(self.0.decompress()))
+        let Self(compressed) = self;
+
+        catch_panic(|| TfheCompactPublicKey(compressed.decompress()))
     }
 
     #[wasm_bindgen]

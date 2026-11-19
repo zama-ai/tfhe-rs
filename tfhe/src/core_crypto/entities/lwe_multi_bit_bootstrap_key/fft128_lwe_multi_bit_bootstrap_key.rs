@@ -75,14 +75,27 @@ impl<C: Container<Element = f64>> Fourier128LweMultiBitBootstrapKey<C> {
         C: Split,
     {
         let multi_bit_lwe_dim = self.multi_bit_input_lwe_dimension();
-        let ggsw_count =
-            multi_bit_lwe_dim.0 * self.grouping_factor().ggsw_per_multi_bit_element().0;
+
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+            grouping_factor,
+            // Read through `multi_bit_input_lwe_dimension`
+            input_lwe_dimension: _,
+        } = self;
+        let ggsw_count = multi_bit_lwe_dim.0 * grouping_factor.ggsw_per_multi_bit_element().0;
 
         izip_eq!(
-            self.data_re0.split_into(ggsw_count),
-            self.data_re1.split_into(ggsw_count),
-            self.data_im0.split_into(ggsw_count),
-            self.data_im1.split_into(ggsw_count),
+            data_re0.split_into(ggsw_count),
+            data_re1.split_into(ggsw_count),
+            data_im0.split_into(ggsw_count),
+            data_im1.split_into(ggsw_count),
         )
         .map(move |(data_re0, data_re1, data_im0, data_im1)| {
             Fourier128GgswCiphertext::from_container(
@@ -90,10 +103,10 @@ impl<C: Container<Element = f64>> Fourier128LweMultiBitBootstrapKey<C> {
                 data_re1,
                 data_im0,
                 data_im1,
-                self.polynomial_size,
-                self.glwe_size,
-                self.decomposition_base_log,
-                self.decomposition_level_count,
+                polynomial_size,
+                glwe_size,
+                decomposition_base_log,
+                decomposition_level_count,
             )
         })
     }
@@ -136,17 +149,30 @@ impl<C: Container<Element = f64>> Fourier128LweMultiBitBootstrapKey<C> {
     }
 
     pub fn as_view(&self) -> Fourier128LweMultiBitBootstrapKey<&[C::Element]> {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+            grouping_factor,
+        } = self;
+
         Fourier128LweMultiBitBootstrapKey {
-            data_re0: self.data_re0.as_ref(),
-            data_re1: self.data_re1.as_ref(),
-            data_im0: self.data_im0.as_ref(),
-            data_im1: self.data_im1.as_ref(),
-            polynomial_size: self.polynomial_size,
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
-            grouping_factor: self.grouping_factor,
+            data_re0: data_re0.as_ref(),
+            data_re1: data_re1.as_ref(),
+            data_im0: data_im0.as_ref(),
+            data_im1: data_im1.as_ref(),
+            polynomial_size: *polynomial_size,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
+            grouping_factor: *grouping_factor,
         }
     }
 
@@ -154,17 +180,30 @@ impl<C: Container<Element = f64>> Fourier128LweMultiBitBootstrapKey<C> {
     where
         C: AsMut<[C::Element]>,
     {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+            grouping_factor,
+        } = self;
+
         Fourier128LweMultiBitBootstrapKey {
-            data_re0: self.data_re0.as_mut(),
-            data_re1: self.data_re1.as_mut(),
-            data_im0: self.data_im0.as_mut(),
-            data_im1: self.data_im1.as_mut(),
-            polynomial_size: self.polynomial_size,
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
-            grouping_factor: self.grouping_factor,
+            data_re0: data_re0.as_mut(),
+            data_re1: data_re1.as_mut(),
+            data_im0: data_im0.as_mut(),
+            data_im1: data_im1.as_mut(),
+            polynomial_size: *polynomial_size,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
+            grouping_factor: *grouping_factor,
         }
     }
 }
@@ -233,7 +272,8 @@ impl<C: Container<Element = f64>> ParameterSetConformant for Fourier128LweMultiB
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
             grouping_factor: expected_grouping_factor,
-            ciphertext_modulus: _expected_ciphertext_modulus,
+            // Fourier keys don't store a ciphertext modulus
+            ciphertext_modulus: _,
         } = parameter_set;
 
         let container_len = fourier_lwe_multi_bit_bootstrap_key_size(

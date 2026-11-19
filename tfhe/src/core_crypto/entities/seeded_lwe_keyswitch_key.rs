@@ -220,13 +220,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
     /// Return a view of the [`SeededLweKeyswitchKey`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> SeededLweKeyswitchKey<&'_ [Scalar]> {
+        let Self {
+            ref data,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
         SeededLweKeyswitchKey::from_container(
-            self.as_ref(),
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.output_lwe_size,
-            self.compression_seed.clone(),
-            self.ciphertext_modulus,
+            data.as_ref(),
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            compression_seed.clone(),
+            ciphertext_modulus,
         )
     }
 
@@ -245,13 +254,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_keyswitch_key`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_ksk = LweKeyswitchKeyOwned::new(
             Scalar::ZERO,
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            decomp_base_log,
+            decomp_level_count,
             self.input_key_lwe_dimension(),
-            self.output_key_lwe_dimension(),
-            self.ciphertext_modulus(),
+            output_lwe_size.to_lwe_dimension(),
+            ciphertext_modulus,
         );
         decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ksk,
@@ -266,13 +285,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let &Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+            // Read by `par_decompress_seeded_lwe_keyswitch_key`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_ksk = LweKeyswitchKeyOwned::new(
             Scalar::ZERO,
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            decomp_base_log,
+            decomp_level_count,
             self.input_key_lwe_dimension(),
-            self.output_key_lwe_dimension(),
-            self.ciphertext_modulus(),
+            output_lwe_size.to_lwe_dimension(),
+            ciphertext_modulus,
         );
         par_decompress_seeded_lwe_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ksk,
@@ -298,13 +327,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweKeyswitch
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweKeyswitchKey<C> {
     /// Mutable variant of [`SeededLweKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> SeededLweKeyswitchKey<&'_ mut [Scalar]> {
-        let decomp_base_log = self.decomp_base_log;
-        let decomp_level_count = self.decomp_level_count;
-        let output_lwe_size = self.output_lwe_size;
-        let compression_seed = self.compression_seed.clone();
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
+        let compression_seed = compression_seed.clone();
         SeededLweKeyswitchKey::from_container(
-            self.as_mut(),
+            data.as_mut(),
             decomp_base_log,
             decomp_level_count,
             output_lwe_size,
@@ -390,10 +424,21 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     fn get_entity_view_creation_metadata(
         &self,
     ) -> SeededLweCiphertextListCreationMetadata<Self::Element> {
+        let Self {
+            output_lwe_size,
+            ref compression_seed,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_base_log: _,
+            decomp_level_count: _,
+        } = *self;
+
         SeededLweCiphertextListCreationMetadata {
-            lwe_size: self.output_lwe_size(),
-            compression_seed: self.compression_seed(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            lwe_size: output_lwe_size,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus,
         }
     }
 
@@ -439,17 +484,26 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             decomp_level_count,
             output_lwe_size,
             ciphertext_modulus,
+            // Only used to regenerate the mask on decompression, any value is accepted
             compression_seed: _,
         } = self;
 
-        *ciphertext_modulus == parameter_set.ciphertext_modulus
+        let LweKeyswitchKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            output_lwe_size: expected_output_lwe_size,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
+        ciphertext_modulus == expected_ciphertext_modulus
             && data.container_len()
-                == parameter_set.input_lwe_dimension.0
+                == expected_input_lwe_dimension.0
                     * seeded_lwe_keyswitch_key_input_key_element_encrypted_size(
-                        parameter_set.decomp_level_count,
+                        *expected_decomp_level_count,
                     )
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_lwe_size == parameter_set.output_lwe_size
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_lwe_size == expected_output_lwe_size
     }
 }

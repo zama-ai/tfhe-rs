@@ -182,11 +182,18 @@ impl RustModulusSwitchType {
 
 impl RustModulusSwitchNoiseReductionParams {
     pub const fn convert_to_c(&self) -> ModulusSwitchNoiseReductionParams {
+        let Self {
+            modulus_switch_zeros_count,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
+        } = self;
+
         ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: self.modulus_switch_zeros_count.0 as u32,
-            ms_bound: self.ms_bound.0,
-            ms_r_sigma_factor: self.ms_r_sigma_factor.0,
-            ms_input_variance: self.ms_input_variance.0,
+            modulus_switch_zeros_count: modulus_switch_zeros_count.0 as u32,
+            ms_bound: ms_bound.0,
+            ms_r_sigma_factor: ms_r_sigma_factor.0,
+            ms_input_variance: ms_input_variance.0,
         }
     }
 }
@@ -216,26 +223,42 @@ impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
     type Error = &'static str;
 
     fn try_from(c_params: ShortintPBSParameters) -> Result<Self, Self::Error> {
+        let ShortintPBSParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            modulus_power_of_2_exponent,
+            encryption_key_choice,
+            modulus_switch_noise_reduction_params,
+        } = c_params;
+
         Ok(Self {
-            lwe_dimension: LweDimension(c_params.lwe_dimension),
-            glwe_dimension: GlweDimension(c_params.glwe_dimension),
-            polynomial_size: PolynomialSize(c_params.polynomial_size),
-            lwe_noise_distribution: c_params.lwe_noise_distribution.try_into()?,
-            glwe_noise_distribution: c_params.glwe_noise_distribution.try_into()?,
-            pbs_base_log: DecompositionBaseLog(c_params.pbs_base_log),
-            pbs_level: DecompositionLevelCount(c_params.pbs_level),
-            ks_base_log: DecompositionBaseLog(c_params.ks_base_log),
-            ks_level: DecompositionLevelCount(c_params.ks_level),
-            message_modulus: MessageModulus(c_params.message_modulus),
-            carry_modulus: CarryModulus(c_params.carry_modulus),
-            ciphertext_modulus: CiphertextModulus::try_new_power_of_2(
-                c_params.modulus_power_of_2_exponent,
-            )?,
-            max_noise_level: MaxNoiseLevel::new(c_params.max_noise_level),
-            log2_p_fail: c_params.log2_p_fail,
-            encryption_key_choice: c_params.encryption_key_choice.into(),
-            modulus_switch_noise_reduction_params: c_params
-                .modulus_switch_noise_reduction_params
+            lwe_dimension: LweDimension(lwe_dimension),
+            glwe_dimension: GlweDimension(glwe_dimension),
+            polynomial_size: PolynomialSize(polynomial_size),
+            lwe_noise_distribution: lwe_noise_distribution.try_into()?,
+            glwe_noise_distribution: glwe_noise_distribution.try_into()?,
+            pbs_base_log: DecompositionBaseLog(pbs_base_log),
+            pbs_level: DecompositionLevelCount(pbs_level),
+            ks_base_log: DecompositionBaseLog(ks_base_log),
+            ks_level: DecompositionLevelCount(ks_level),
+            message_modulus: MessageModulus(message_modulus),
+            carry_modulus: CarryModulus(carry_modulus),
+            ciphertext_modulus: CiphertextModulus::try_new_power_of_2(modulus_power_of_2_exponent)?,
+            max_noise_level: MaxNoiseLevel::new(max_noise_level),
+            log2_p_fail,
+            encryption_key_choice: encryption_key_choice.into(),
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params
                 .try_into()?,
         })
     }
@@ -325,10 +348,16 @@ impl From<ShortintCompactCiphertextListCastingParameters>
     for crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters
 {
     fn from(value: ShortintCompactCiphertextListCastingParameters) -> Self {
+        let ShortintCompactCiphertextListCastingParameters {
+            ks_base_log,
+            ks_level,
+            destination_key,
+        } = value;
+
         Self {
-            ks_base_log: DecompositionBaseLog(value.ks_base_log),
-            ks_level: DecompositionLevelCount(value.ks_level),
-            destination_key: value.destination_key.into(),
+            ks_base_log: DecompositionBaseLog(ks_base_log),
+            ks_level: DecompositionLevelCount(ks_level),
+            destination_key: destination_key.into(),
         }
     }
 }
@@ -417,17 +446,28 @@ impl TryFrom<ShortintCompactPublicKeyEncryptionParameters>
     fn try_from(
         c_params: ShortintCompactPublicKeyEncryptionParameters,
     ) -> Result<Self, Self::Error> {
+        let ShortintCompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension,
+            encryption_noise_distribution,
+            message_modulus,
+            carry_modulus,
+            modulus_power_of_2_exponent,
+            zk_scheme,
+            // Converted separately to the casting key switching parameters
+            casting_parameters: _,
+        } = c_params;
+
         Ok(Self {
-            encryption_lwe_dimension: LweDimension(c_params.encryption_lwe_dimension),
-            encryption_noise_distribution: c_params.encryption_noise_distribution.try_into()?,
-            message_modulus: MessageModulus(c_params.message_modulus),
-            carry_modulus: CarryModulus(c_params.carry_modulus),
+            encryption_lwe_dimension: LweDimension(encryption_lwe_dimension),
+            encryption_noise_distribution: encryption_noise_distribution.try_into()?,
+            message_modulus: MessageModulus(message_modulus),
+            carry_modulus: CarryModulus(carry_modulus),
             ciphertext_modulus: crate::shortint::parameters::CiphertextModulus::try_new_power_of_2(
-                c_params.modulus_power_of_2_exponent,
+                modulus_power_of_2_exponent,
             )?,
             expansion_kind:
                 crate::shortint::parameters::CompactCiphertextListExpansionKind::RequiresCasting,
-            zk_scheme: c_params.zk_scheme.into(),
+            zk_scheme: zk_scheme.into(),
         })
     }
 }
@@ -458,8 +498,9 @@ impl ShortintCompactPublicKeyEncryptionParameters {
             message_modulus,
             carry_modulus,
             ciphertext_modulus,
-            expansion_kind: _,
             zk_scheme,
+            // The C API parameters always require casting
+            expansion_kind: _,
         } = compact_pke_params;
 
         Self {

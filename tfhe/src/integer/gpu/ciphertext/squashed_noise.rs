@@ -67,10 +67,16 @@ impl CudaSquashedNoiseRadixCiphertext {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self {
+            packed_d_blocks,
+            info,
+            original_block_count,
+        } = self;
+
         Self {
-            packed_d_blocks: self.packed_d_blocks.duplicate(streams),
-            info: self.info.duplicate(),
-            original_block_count: self.original_block_count,
+            packed_d_blocks: packed_d_blocks.duplicate(streams),
+            info: info.duplicate(),
+            original_block_count: *original_block_count,
         }
     }
 
@@ -289,8 +295,10 @@ impl CudaSquashedNoiseSignedRadixCiphertext {
     }
 
     pub(crate) fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self { ciphertext } = self;
+
         Self {
-            ciphertext: self.ciphertext.duplicate(streams),
+            ciphertext: ciphertext.duplicate(streams),
         }
     }
 
@@ -326,8 +334,10 @@ impl CudaSquashedNoiseBooleanBlock {
     }
 
     pub(crate) fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self { ciphertext } = self;
+
         Self {
-            ciphertext: self.ciphertext.duplicate(streams),
+            ciphertext: ciphertext.duplicate(streams),
         }
     }
 

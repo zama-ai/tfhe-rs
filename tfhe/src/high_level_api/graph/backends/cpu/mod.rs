@@ -141,6 +141,7 @@ impl CpuBackend {
         for val in graph.ir().walk_vals_linear() {
             match val.get_type() {
                 ValueKind::FheUint(n) | ValueKind::FheInt(n) => check(u64::from(n))?,
+                // Keys are clear, only values have a bit width
                 ValueKind::KVStore { key: _, value } => {
                     let bits = match value {
                         FheIntKind::Uint(n) | FheIntKind::Int(n) => n,

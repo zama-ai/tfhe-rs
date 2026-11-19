@@ -3,9 +3,10 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::config::ConfigVersions;
 use crate::high_level_api::keys::IntegerConfig;
 use crate::shortint::parameters::list_compression::CompressionParameters;
+use crate::shortint::parameters::meta::DedicatedCompactPublicKeyParameters;
 use crate::shortint::parameters::{
-    MetaParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
-    ReRandomizationParameters, TranscipheringParameters,
+    MetaNoiseSquashingParameters, MetaParameters, NoiseSquashingCompressionParameters,
+    NoiseSquashingParameters, ReRandomizationParameters, TranscipheringParameters,
 };
 
 /// The config type
@@ -163,22 +164,48 @@ impl From<ConfigBuilder> for Config {
 
 impl From<MetaParameters> for Config {
     fn from(meta_params: MetaParameters) -> Self {
+        let cpk_re_randomization_params = meta_params.rerandomization_parameters();
+
+        let MetaParameters {
+            compute_parameters,
+            dedicated_compact_public_key_parameters,
+            compression_parameters,
+            noise_squashing_parameters,
+            transciphering_parameters,
+            // The config is backend agnostic, the backend is picked when creating the server key
+            backend: _,
+            // Read through `MetaParameters::rerandomization_parameters`
+            rerand_configuration: _,
+        } = meta_params;
+
+        let dedicated_compact_public_key_parameters = dedicated_compact_public_key_parameters.map(
+            |DedicatedCompactPublicKeyParameters {
+                 pke_params,
+                 ksk_params,
+                 // Read through `MetaParameters::rerandomization_parameters`
+                 re_randomization_parameters: _,
+             }| (pke_params, ksk_params),
+        );
+
+        let (noise_squashing_parameters, noise_squashing_compression_parameters) =
+            match noise_squashing_parameters {
+                Some(MetaNoiseSquashingParameters {
+                    parameters,
+                    compression_parameters,
+                }) => (Some(parameters), compression_parameters),
+                None => (None, None),
+            };
+
         Self {
             inner: IntegerConfig {
-                block_parameters: meta_params.compute_parameters,
-                dedicated_compact_public_key_parameters: meta_params
-                    .dedicated_compact_public_key_parameters
-                    .map(|dedicated_p| (dedicated_p.pke_params, dedicated_p.ksk_params)),
-                compression_parameters: meta_params.compression_parameters,
-                noise_squashing_parameters: meta_params
-                    .noise_squashing_parameters
-                    .map(|ns_p| ns_p.parameters),
-                noise_squashing_compression_parameters: meta_params
-                    .noise_squashing_parameters
-                    .and_then(|ns_p| ns_p.compression_parameters),
-                cpk_re_randomization_params: meta_params.rerandomization_parameters(),
+                block_parameters: compute_parameters,
+                dedicated_compact_public_key_parameters,
+                compression_parameters,
+                noise_squashing_parameters,
+                noise_squashing_compression_parameters,
+                cpk_re_randomization_params,
                 dedicated_oprf_key: true,
-                transciphering_parameters: meta_params.transciphering_parameters,
+                transciphering_parameters,
             },
         }
     }

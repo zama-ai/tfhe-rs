@@ -178,13 +178,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
-        let glwe = self.as_seeded_glwe_ciphertext();
+        let Self {
+            seeded_glwe_ciphertext,
+        } = self;
+
         let mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
-            glwe.glwe_size().to_glwe_dimension(),
-            glwe.polynomial_size(),
+            seeded_glwe_ciphertext.glwe_size().to_glwe_dimension(),
+            seeded_glwe_ciphertext.polynomial_size(),
         );
 
-        let modulus = self
+        let modulus = seeded_glwe_ciphertext
             .ciphertext_modulus()
             .get_custom_modulus_as_optional_scalar();
 
@@ -199,10 +202,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
     where
         Scalar: UnsignedTorus,
     {
+        let Self {
+            seeded_glwe_ciphertext,
+        } = &self;
+
         let mut decompressed_cpk = LweCompactPublicKey::new(
             Scalar::ZERO,
             self.lwe_dimension(),
-            self.ciphertext_modulus(),
+            seeded_glwe_ciphertext.ciphertext_modulus(),
         );
         decompress_seeded_lwe_compact_public_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_cpk,
@@ -214,8 +221,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCompactPu
     /// Return a view of the [`SeededLweCompactPublicKey`]. This is useful if an algorithm takes a
     /// view by value.
     pub fn as_view(&self) -> SeededLweCompactPublicKey<&[Scalar]> {
+        let Self {
+            seeded_glwe_ciphertext,
+        } = self;
+
         SeededLweCompactPublicKey {
-            seeded_glwe_ciphertext: self.seeded_glwe_ciphertext.as_view(),
+            seeded_glwe_ciphertext: seeded_glwe_ciphertext.as_view(),
         }
     }
 }
@@ -267,14 +278,19 @@ where
             seeded_glwe_ciphertext,
         } = self;
 
-        if !parameter_set.encryption_lwe_dimension.0.is_power_of_two() {
+        let LweCompactPublicKeyConformanceParams {
+            encryption_lwe_dimension,
+            ciphertext_modulus,
+        } = *parameter_set;
+
+        if !encryption_lwe_dimension.0.is_power_of_two() {
             return false;
         }
 
         let glwe_ciphertext_conformance_parameters = GlweCiphertextConformanceParams {
             glwe_dim: GlweDimension(1),
-            polynomial_size: PolynomialSize(parameter_set.encryption_lwe_dimension.0),
-            ct_modulus: parameter_set.ciphertext_modulus,
+            polynomial_size: PolynomialSize(encryption_lwe_dimension.0),
+            ct_modulus: ciphertext_modulus,
         };
 
         seeded_glwe_ciphertext.is_conformant(&glwe_ciphertext_conformance_parameters)

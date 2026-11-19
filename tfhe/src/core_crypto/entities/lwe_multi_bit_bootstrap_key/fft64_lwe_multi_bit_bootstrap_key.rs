@@ -126,16 +126,25 @@ impl<C: Container<Element = c64>> FourierLweMultiBitBootstrapKey<C> {
     }
 
     pub fn as_view(&self) -> FourierLweMultiBitBootstrapKeyView<'_> {
+        let Self {
+            fourier,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+            grouping_factor,
+        } = self;
+
         FourierLweMultiBitBootstrapKeyView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_ref(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_ref(),
+                polynomial_size: fourier.polynomial_size,
             },
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
-            grouping_factor: self.grouping_factor,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
+            grouping_factor: *grouping_factor,
         }
     }
 
@@ -143,16 +152,25 @@ impl<C: Container<Element = c64>> FourierLweMultiBitBootstrapKey<C> {
     where
         C: AsMut<[c64]>,
     {
+        let Self {
+            fourier,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+            grouping_factor,
+        } = self;
+
         FourierLweMultiBitBootstrapKeyMutView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_mut(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_mut(),
+                polynomial_size: fourier.polynomial_size,
             },
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
-            grouping_factor: self.grouping_factor,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
+            grouping_factor: *grouping_factor,
         }
     }
 
@@ -245,7 +263,8 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweMultiBitB
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
             grouping_factor: expected_grouping_factor,
-            ciphertext_modulus: _expected_ciphertext_modulus,
+            // Fourier keys don't store a ciphertext modulus
+            ciphertext_modulus: _,
         } = parameter_set;
 
         if input_lwe_dimension.0 % grouping_factor.0 != 0 {

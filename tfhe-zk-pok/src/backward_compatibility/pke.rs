@@ -21,7 +21,16 @@ impl<G: Curve> Upgrade<Proof<G>> for ProofV0<G> {
     type Error = IncompleteProof;
 
     fn upgrade(self) -> Result<Proof<G>, Self::Error> {
-        let compute_load_proof_fields = match (self.c_hat_t, self.c_h, self.pi_kzg) {
+        let Self {
+            c_hat,
+            c_y,
+            pi,
+            c_hat_t,
+            c_h,
+            pi_kzg,
+        } = self;
+
+        let compute_load_proof_fields = match (c_hat_t, c_h, pi_kzg) {
             (None, None, None) => None,
             (Some(c_hat_t), Some(c_h), Some(pi_kzg)) => Some(ComputeLoadProofFields {
                 c_hat_t,
@@ -34,9 +43,9 @@ impl<G: Curve> Upgrade<Proof<G>> for ProofV0<G> {
         };
 
         Ok(Proof {
-            c_hat: self.c_hat,
-            c_y: self.c_y,
-            pi: self.pi,
+            c_hat,
+            c_y,
+            pi,
             compute_load_proof_fields,
         })
     }
@@ -75,7 +84,16 @@ where
     type Error = IncompleteProof;
 
     fn upgrade(self) -> Result<CompressedProof<G>, Self::Error> {
-        let compute_load_proof_fields = match (self.c_hat_t, self.c_h, self.pi_kzg) {
+        let Self {
+            c_hat,
+            c_y,
+            pi,
+            c_hat_t,
+            c_h,
+            pi_kzg,
+        } = self;
+
+        let compute_load_proof_fields = match (c_hat_t, c_h, pi_kzg) {
             (None, None, None) => None,
             (Some(c_hat_t), Some(c_h), Some(pi_kzg)) => Some(CompressedComputeLoadProofFields {
                 c_hat_t,
@@ -88,9 +106,9 @@ where
         };
 
         Ok(CompressedProof {
-            c_hat: self.c_hat,
-            c_y: self.c_y,
-            pi: self.pi,
+            c_hat,
+            c_y,
+            pi,
             compute_load_proof_fields,
         })
     }

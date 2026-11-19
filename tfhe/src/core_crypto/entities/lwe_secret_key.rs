@@ -94,7 +94,9 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKey<C> {
     /// Return a view of the [`LweSecretKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> LweSecretKeyView<'_, Scalar> {
-        LweSecretKey::from_container(self.as_ref())
+        let Self { ref data } = *self;
+
+        LweSecretKey::from_container(data.as_ref())
     }
 
     /// Consume the entity and return its underlying container.
@@ -108,7 +110,9 @@ impl<Scalar, C: Container<Element = Scalar>> LweSecretKey<C> {
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweSecretKey<C> {
     /// Mutable variant of [`LweSecretKey::as_view`].
     pub fn as_mut_view(&mut self) -> LweSecretKeyMutView<'_, Scalar> {
-        LweSecretKey::from_container(self.as_mut())
+        let Self { ref mut data } = *self;
+
+        LweSecretKey::from_container(data.as_mut())
     }
 }
 

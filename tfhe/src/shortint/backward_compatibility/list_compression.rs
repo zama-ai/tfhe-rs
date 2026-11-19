@@ -38,6 +38,7 @@ impl Upgrade<DecompressionKeyV1> for DecompressionKeyV0 {
         match blind_rotate_key {
             ShortintBootstrappingKey::Classic {
                 bsk,
+                // Decompression never does modulus switch noise reduction
                 modulus_switch_noise_reduction_key: _,
             } => Ok(DecompressionKeyV1 {
                 blind_rotate_key: bsk,

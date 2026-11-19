@@ -15,7 +15,9 @@ pub struct NttNativeBinary64 {
 impl NttNativeBinary64 {
     #[inline]
     pub fn as_view(&self) -> NttNativeBinary64View<'_> {
-        NttNativeBinary64View { plan: &self.plan }
+        let Self { plan } = self;
+
+        NttNativeBinary64View { plan }
     }
 }
 
@@ -69,7 +71,9 @@ mod avx512 {
     impl NttNativeBinary64Avx512 {
         #[inline]
         pub fn as_view(&self) -> NttNativeBinary64Avx512View<'_> {
-            NttNativeBinary64Avx512View { plan: &self.plan }
+            let Self { plan } = self;
+
+            NttNativeBinary64Avx512View { plan }
         }
     }
 

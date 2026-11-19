@@ -117,13 +117,16 @@ impl ParameterSetConformant for FheBool {
     fn is_conformant(&self, params: &FheBoolConformanceParams) -> bool {
         let Self {
             ciphertext,
+            // Any tag is valid
             tag: _,
+            // Arbitrary user data, any value is valid
             re_randomization_metadata: _,
         } = self;
+        let FheBoolConformanceParams(ct_params) = params;
 
         let BooleanBlock(block) = &*ciphertext.on_cpu();
 
-        block.is_conformant(&params.0)
+        block.is_conformant(ct_params)
     }
 }
 

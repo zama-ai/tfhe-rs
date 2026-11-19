@@ -24,8 +24,8 @@ use crate::integer::gpu::{
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{
     CompressedCiphertextList,
-    CompressedSquashedNoiseCiphertextList as ShortintCompressedSquashedNoiseCiphertextList, Degree,
-    NoiseLevel,
+    CompressedSquashedNoiseCiphertextList as ShortintCompressedSquashedNoiseCiphertextList,
+    CompressedSquashedNoiseCiphertextListMeta, Degree, NoiseLevel,
 };
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::prelude::{GlweDimension, LweDimension};
@@ -95,8 +95,19 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
         ct_list: &ShortintCompressedSquashedNoiseCiphertextList,
         streams: &CudaStreams,
     ) -> crate::Result<Self> {
-        let (Some(input_meta), Some(first_ct)) =
-            (ct_list.meta.as_ref(), ct_list.glwe_ciphertext_list.first())
+        let ShortintCompressedSquashedNoiseCiphertextList {
+            glwe_ciphertext_list,
+            meta,
+        } = ct_list;
+
+        let (
+            Some(&CompressedSquashedNoiseCiphertextListMeta {
+                message_modulus,
+                carry_modulus,
+                lwe_per_glwe: nonzero_lwe_per_glwe,
+            }),
+            Some(first_ct),
+        ) = (meta.as_ref(), glwe_ciphertext_list.first())
         else {
             // A list without metadata or without GLWE stores no ciphertext
             return Ok(Self {
@@ -108,7 +119,7 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
         let glwe_dimension = first_ct.glwe_dimension();
         let polynomial_size = first_ct.polynomial_size();
         let log_modulus = first_ct.packed_integers().log_modulus();
-        let lwe_per_glwe = input_meta.lwe_per_glwe.get();
+        let lwe_per_glwe = nonzero_lwe_per_glwe.get();
 
         let size_overflow =
             || error!("Invalid CompressedSquashedNoiseCiphertextList metadata: size overflows");
@@ -126,7 +137,7 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
             .ok_or_else(size_overflow)?
             .div_ceil(T::BITS);
 
-        if ct_list.glwe_ciphertext_list.iter().any(|ct| {
+        if glwe_ciphertext_list.iter().any(|ct| {
             ct.glwe_dimension() != glwe_dimension
                 || ct.polynomial_size() != polynomial_size
                 || ct.packed_integers().log_modulus() != log_modulus
@@ -139,20 +150,17 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
             ));
         }
 
-        let total_lwe_bodies_count = ct_list
-            .glwe_ciphertext_list
+        let total_lwe_bodies_count = glwe_ciphertext_list
             .iter()
             .try_fold(0usize, |acc, ct| acc.checked_add(ct.bodies_count().0))
             .ok_or_else(size_overflow)?;
-        let initial_len = ct_list
-            .glwe_ciphertext_list
+        let initial_len = glwe_ciphertext_list
             .len()
             .checked_mul(mask_size)
             .and_then(|masks_len| masks_len.checked_add(total_lwe_bodies_count))
             .ok_or_else(size_overflow)?;
 
-        let flat_packed_integers: Vec<T> = ct_list
-            .glwe_ciphertext_list
+        let flat_packed_integers: Vec<T> = glwe_ciphertext_list
             .iter()
             .flat_map(|ct| {
                 ct.packed_integers()
@@ -175,11 +183,11 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
         let meta = Some(CudaPackedGlweCiphertextListMeta::<T> {
             glwe_dimension,
             polynomial_size,
-            message_modulus: input_meta.message_modulus,
-            carry_modulus: input_meta.carry_modulus,
+            message_modulus,
+            carry_modulus,
             ciphertext_modulus: CiphertextModulus::new_native(),
             storage_log_modulus: log_modulus,
-            lwe_per_glwe: input_meta.lwe_per_glwe,
+            lwe_per_glwe: nonzero_lwe_per_glwe,
             total_lwe_bodies_count,
             initial_len,
         });
@@ -336,9 +344,11 @@ impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self { data, meta } = self;
+
         Self {
-            data: self.data.duplicate(streams),
-            meta: self.meta,
+            data: data.duplicate(streams),
+            meta: *meta,
         }
     }
     pub fn extract_glwe(

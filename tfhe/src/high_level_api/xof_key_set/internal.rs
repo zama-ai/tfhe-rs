@@ -42,8 +42,8 @@ use crate::high_level_api::keys::expanded::{
     IntegerExpandedServerKey, ShortintExpandedBootstrappingKey, ShortintExpandedServerKey,
 };
 use crate::high_level_api::keys::{
-    CompactPrivateKey, CompressedReRandomizationKey, ReRandomizationKey,
-    ReRandomizationKeySwitchingKeyGenInfo,
+    CompactPrivateKey, CompressedReRandomizationKey, IntegerCompressedServerKey,
+    ReRandomizationKey, ReRandomizationKeySwitchingKeyGenInfo,
 };
 use crate::shortint::atomic_pattern::expanded::{
     ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
@@ -416,8 +416,14 @@ impl integer::CompressedCompactPublicKey {
     where
         Gen: ByteRandomGenerator,
     {
-        let shortint_cpk = &self.key;
-        let compressed_pk = &shortint_cpk.key;
+        let Self {
+            key:
+                shortint::CompressedCompactPublicKey {
+                    key: compressed_pk,
+                    parameters,
+                },
+        } = self;
+
         let mut pk = LweCompactPublicKey::new(
             0u64,
             compressed_pk.lwe_dimension(),
@@ -430,7 +436,7 @@ impl integer::CompressedCompactPublicKey {
             generator,
         );
 
-        let shortint_pk = shortint::CompactPublicKey::from_raw_parts(pk, shortint_cpk.parameters);
+        let shortint_pk = shortint::CompactPublicKey::from_raw_parts(pk, *parameters);
         integer::CompactPublicKey::from_raw_parts(shortint_pk)
     }
 
@@ -467,8 +473,10 @@ impl CompressedCompactPublicKey {
     where
         Gen: ByteRandomGenerator,
     {
-        let integer_pk = self.key.key.decompress_with_pre_seeded_generator(generator);
-        CompactPublicKey::from_raw_parts(integer_pk, self.tag.clone())
+        let Self { key, tag } = self;
+
+        let integer_pk = key.key.decompress_with_pre_seeded_generator(generator);
+        CompactPublicKey::from_raw_parts(integer_pk, tag.clone())
     }
 
     pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
@@ -487,19 +495,32 @@ impl crate::CompressedServerKey {
     where
         Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
     {
-        let compression_key = self
-            .integer_key
-            .compression_key
+        let Self {
+            integer_key:
+                IntegerCompressedServerKey {
+                    key,
+                    cpk_key_switching_key_material,
+                    compression_key,
+                    decompression_key,
+                    noise_squashing_key,
+                    noise_squashing_compression_key,
+                    cpk_re_randomization_key,
+                    oprf_key,
+                    transciphering_key,
+                },
+            // The caller attaches the tag to the decompressed key
+            tag: _,
+        } = self;
+
+        let compression_key = compression_key
             .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
-        let decompression_key = self
-            .integer_key
-            .decompression_key
+        let decompression_key = decompression_key
             .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
-        let shortint_sk = &self.integer_key.key.key;
+        let shortint_sk = &key.key;
 
         let atomic_pattern_key = shortint_sk
             .compressed_ap_server_key
@@ -514,39 +535,27 @@ impl crate::CompressedServerKey {
             ciphertext_modulus: shortint_sk.ciphertext_modulus(),
         };
 
-        let noise_squashing_key = self
-            .integer_key
-            .noise_squashing_key
+        let noise_squashing_key = noise_squashing_key
             .as_ref()
             .map(|compressed_nsk| compressed_nsk.decompress_with_pre_seeded_generator(generator));
 
-        let cpk_key_switching_key_material = self
-            .integer_key
-            .cpk_key_switching_key_material
+        let cpk_key_switching_key_material = cpk_key_switching_key_material
             .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
-        let cpk_re_randomization_key = self
-            .integer_key
-            .cpk_re_randomization_key
+        let cpk_re_randomization_key = cpk_re_randomization_key
             .as_ref()
             .map(|k| k.decompress_with_pre_seeded_generator(generator));
 
-        let noise_squashing_compression_key = self
-            .integer_key
-            .noise_squashing_compression_key
+        let noise_squashing_compression_key = noise_squashing_compression_key
             .as_ref()
             .map(|ns_comp_key| ns_comp_key.decompress_with_pre_seeded_generator(generator));
 
-        let oprf_key = self
-            .integer_key
-            .oprf_key
+        let oprf_key = oprf_key
             .as_ref()
             .map(|key| key.decompress_with_pre_seeded_generator(generator));
 
-        let transciphering_key = self
-            .integer_key
-            .transciphering_key
+        let transciphering_key = transciphering_key
             .as_ref()
             .map(|key| key.decompress_with_pre_seeded_generator(generator));
 
@@ -610,16 +619,23 @@ impl integer::compression_keys::CompressedCompressionKey {
     where
         Gen: ByteRandomGenerator,
     {
-        let packing_key_switching_key = self
-            .key
-            .packing_key_switching_key
+        let Self {
+            key:
+                shortint::list_compression::CompressedCompressionKey {
+                    packing_key_switching_key,
+                    lwe_per_glwe,
+                    storage_log_modulus,
+                },
+        } = self;
+
+        let packing_key_switching_key = packing_key_switching_key
             .decompress_to_lwe_packing_keyswitch_key_with_pre_seeded_generator(generator);
 
         CompressionKey {
             key: shortint::list_compression::CompressionKey {
                 packing_key_switching_key,
-                lwe_per_glwe: self.key.lwe_per_glwe,
-                storage_log_modulus: self.key.storage_log_modulus,
+                lwe_per_glwe: *lwe_per_glwe,
+                storage_log_modulus: *storage_log_modulus,
             },
         }
     }
@@ -716,14 +732,13 @@ impl integer::compression_keys::CompressedDecompressionKey {
     where
         Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
     {
-        let crate::shortint::list_compression::CompressedDecompressionKey {
-            ref bsk,
-            lwe_per_glwe,
-        } = self.key;
+        let Self {
+            key: crate::shortint::list_compression::CompressedDecompressionKey { bsk, lwe_per_glwe },
+        } = self;
 
         ExpandedDecompressionKey {
             bsk: bsk.decompress_with_pre_seeded_generator(generator),
-            lwe_per_glwe,
+            lwe_per_glwe: *lwe_per_glwe,
         }
     }
 
@@ -829,13 +844,16 @@ impl crate::shortint::oprf::CompressedOprfServerKey {
     {
         use crate::shortint::oprf::{CompressedOprfBootstrappingKey, ExpandedOprfBootstrappingKey};
 
-        let inner = match &self.inner {
+        let Self { inner } = self;
+
+        let inner = match inner {
             CompressedOprfBootstrappingKey::Classic { seeded_bsk } => {
                 let bsk = decompress_bootstrap_key_with_pre_seeded_generator(seeded_bsk, generator);
                 ExpandedOprfBootstrappingKey::Classic { bsk }
             }
             CompressedOprfBootstrappingKey::MultiBit {
                 seeded_bsk,
+                // Expanded keys always use deterministic execution
                 deterministic_execution: _,
             } => {
                 let bsk =
@@ -871,7 +889,11 @@ impl crate::shortint::oprf::CompressedOprfServerKey {
             CompressedOprfBootstrappingKey::Classic { seeded_bsk } => {
                 generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
             }
-            CompressedOprfBootstrappingKey::MultiBit { seeded_bsk, .. } => {
+            CompressedOprfBootstrappingKey::MultiBit {
+                seeded_bsk,
+                // Execution setting, not generated from the seed
+                deterministic_execution: _,
+            } => {
                 generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
             }
         }
@@ -903,9 +925,9 @@ impl crate::integer::oprf::CompressedOprfServerKey {
     where
         Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
     {
-        ExpandedOprfServerKey::from_raw_parts(
-            self.0.decompress_with_pre_seeded_generator(generator),
-        )
+        let Self(inner) = self;
+
+        ExpandedOprfServerKey::from_raw_parts(inner.decompress_with_pre_seeded_generator(generator))
     }
 
     pub(super) fn advance_generator<Gen>(&self, generator: &mut MaskRandomGenerator<Gen>)
@@ -1013,7 +1035,9 @@ impl CompressedNoiseSquashingKey {
     where
         Gen: ByteRandomGenerator + ParallelByteRandomGenerator,
     {
-        let decompressed = match self.key.atomic_pattern() {
+        let Self { key } = self;
+
+        let decompressed = match key.atomic_pattern() {
             CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std) => {
                 ExpandedAtomicPatternNoiseSquashingKey::Standard(
                     compressed_std
@@ -1032,9 +1056,9 @@ impl CompressedNoiseSquashingKey {
 
         ExpandedNoiseSquashingKey::from_raw_parts(
             decompressed,
-            self.key.message_modulus(),
-            self.key.carry_modulus(),
-            self.key.output_ciphertext_modulus(),
+            key.message_modulus(),
+            key.carry_modulus(),
+            key.output_ciphertext_modulus(),
         )
     }
 
@@ -1455,6 +1479,7 @@ where
             }
             Self::MultiBit {
                 seeded_bsk,
+                // Expanded keys always use deterministic execution
                 deterministic_execution: _,
             } => {
                 let core_bsk = par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_new_with_pre_seeded_generator(
@@ -1495,6 +1520,7 @@ where
             }
             Self::MultiBit {
                 seeded_bsk,
+                // Execution setting, not generated from the seed
                 deterministic_execution: _,
             } => {
                 mask_generator.skip(seeded_bsk.decompression_fork_config(Uniform).byte_count());
@@ -1533,6 +1559,7 @@ where
             Self::MultiBit {
                 bsk,
                 thread_count,
+                // Expanded keys always use deterministic execution
                 deterministic_execution: _,
             } => {
                 let core_bsk = par_decompress_seeded_lwe_multi_bit_bootstrap_key_to_new_with_pre_seeded_generator(
@@ -1563,6 +1590,7 @@ where
             }
             Self::MultiBit {
                 bsk,
+                // Execution settings, not part of the key material
                 thread_count: _,
                 deterministic_execution: _,
             } => {
@@ -1746,15 +1774,21 @@ impl CompressedNoiseSquashingCompressionKey {
     where
         Gen: ByteRandomGenerator,
     {
-        let packing_key_switching_key = self
-            .key
-            .packing_key_switching_key
+        let Self {
+            key:
+                shortint::list_compression::CompressedNoiseSquashingCompressionKey {
+                    packing_key_switching_key,
+                    lwe_per_glwe,
+                },
+        } = self;
+
+        let packing_key_switching_key = packing_key_switching_key
             .decompress_to_lwe_packing_keyswitch_key_with_pre_seeded_generator(generator);
 
         NoiseSquashingCompressionKey {
             key: shortint::list_compression::NoiseSquashingCompressionKey::from_raw_parts(
                 packing_key_switching_key,
-                self.key.lwe_per_glwe,
+                *lwe_per_glwe,
             ),
         }
     }
@@ -1779,7 +1813,15 @@ impl CompressedKeySwitchingKeyMaterial {
     where
         Gen: ByteRandomGenerator,
     {
-        let compressed_cpk_ksk = &self.material.key_switching_key;
+        let Self {
+            material:
+                shortint::key_switching_key::CompressedKeySwitchingKeyMaterial {
+                    key_switching_key: compressed_cpk_ksk,
+                    cast_rshift,
+                    destination_key,
+                    destination_atomic_pattern,
+                },
+        } = self;
 
         let mut key_switching_key = LweKeyswitchKey::new(
             0u64,
@@ -1796,9 +1838,9 @@ impl CompressedKeySwitchingKeyMaterial {
         );
         let shortint_cpk_ksk = shortint::key_switching_key::KeySwitchingKeyMaterial {
             key_switching_key,
-            cast_rshift: self.material.cast_rshift,
-            destination_key: self.material.destination_key,
-            destination_atomic_pattern: self.material.destination_atomic_pattern,
+            cast_rshift: *cast_rshift,
+            destination_key: *destination_key,
+            destination_atomic_pattern: *destination_atomic_pattern,
         };
         KeySwitchingKeyMaterial::from_raw_parts(shortint_cpk_ksk)
     }
@@ -1972,24 +2014,31 @@ where
     where
         Gen: ByteRandomGenerator,
     {
+        let Self {
+            modulus_switch_zeros,
+            ms_bound,
+            ms_r_sigma_factor,
+            ms_input_variance,
+        } = self;
+
         let mut decompressed_list = LweCiphertextList::new(
             Scalar::ZERO,
-            self.modulus_switch_zeros.lwe_size(),
-            self.modulus_switch_zeros.lwe_ciphertext_count(),
-            self.modulus_switch_zeros.ciphertext_modulus(),
+            modulus_switch_zeros.lwe_size(),
+            modulus_switch_zeros.lwe_ciphertext_count(),
+            modulus_switch_zeros.ciphertext_modulus(),
         );
 
         decompress_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
             &mut decompressed_list,
-            &self.modulus_switch_zeros,
+            modulus_switch_zeros,
             generator,
         );
 
         ModulusSwitchNoiseReductionKey {
             modulus_switch_zeros: decompressed_list,
-            ms_bound: self.ms_bound,
-            ms_r_sigma_factor: self.ms_r_sigma_factor,
-            ms_input_variance: self.ms_input_variance,
+            ms_bound: *ms_bound,
+            ms_r_sigma_factor: *ms_r_sigma_factor,
+            ms_input_variance: *ms_input_variance,
         }
     }
 

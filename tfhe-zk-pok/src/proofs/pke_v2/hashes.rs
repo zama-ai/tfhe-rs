@@ -363,12 +363,8 @@ impl<'a> RHash<'a> {
     ) -> (Box<[i8]>, Self) {
         let (
             &PublicParams {
-                g_lists: _,
-                D: _,
                 n,
                 d,
-                k: _,
-                B_bound_squared: _,
                 B_inf,
                 q,
                 t: t_input,
@@ -376,8 +372,23 @@ impl<'a> RHash<'a> {
                 bound_type,
                 sid,
                 domain_separators: ref ds,
+                // Group elements are not part of the hashed statement
+                g_lists: _,
+                // Recomputed for the actual `k` by `compute_crs_params`
+                D: _,
+                // The actual number of messages is `c2.len()`
+                k: _,
+                // The hashed bound is derived from `B_inf`
+                B_bound_squared: _,
             },
-            PublicCommit { a, b, c1, c2, .. },
+            PublicCommit {
+                a,
+                b,
+                c1,
+                c2,
+                // Type marker, holds no data
+                __marker: _,
+            },
         ) = public;
 
         let k = c2.len();
@@ -520,12 +531,14 @@ impl<'a> RHash<'a> {
 
         let phi_bytes = mode.gen_scalars(&mut phi, &self.phi_hash_inputs(&phi_inputs));
 
+        let Self { R_inputs, R_bytes } = self;
+
         (
             phi,
             PhiHash {
-                R_inputs: self.R_inputs,
+                R_inputs,
                 phi_inputs,
-                R_bytes: self.R_bytes,
+                R_bytes,
                 phi_bytes,
             },
         )
@@ -590,13 +603,20 @@ impl<'a> PhiHash<'a> {
 
         let xi_bytes = mode.gen_scalars(&mut xi, &self.xi_hash_inputs(&xi_inputs));
 
+        let Self {
+            R_inputs,
+            R_bytes,
+            phi_inputs,
+            phi_bytes,
+        } = self;
+
         (
             xi,
             XiHash {
-                R_inputs: self.R_inputs,
-                R_bytes: self.R_bytes,
-                phi_inputs: self.phi_inputs,
-                phi_bytes: self.phi_bytes,
+                R_inputs,
+                R_bytes,
+                phi_inputs,
+                phi_bytes,
                 xi_inputs,
                 xi_bytes,
             },
@@ -666,15 +686,24 @@ impl<'a> XiHash<'a> {
         let mut y = vec![Zp::ZERO; self.R_inputs.D + 128 * self.R_inputs.m];
         let y_bytes = mode.gen_scalars(&mut y, &self.y_hash_inputs());
 
+        let Self {
+            R_inputs,
+            R_bytes,
+            phi_inputs,
+            phi_bytes,
+            xi_inputs,
+            xi_bytes,
+        } = self;
+
         (
             y,
             YHash {
-                R_inputs: self.R_inputs,
-                R_bytes: self.R_bytes,
-                phi_inputs: self.phi_inputs,
-                phi_bytes: self.phi_bytes,
-                xi_inputs: self.xi_inputs,
-                xi_bytes: self.xi_bytes,
+                R_inputs,
+                R_bytes,
+                phi_inputs,
+                phi_bytes,
+                xi_inputs,
+                xi_bytes,
                 y_bytes,
             },
         )
@@ -750,16 +779,26 @@ impl<'a> YHash<'a> {
             mode.gen_scalars(&mut t, &self.t_hash_input(&t_inputs))
         };
 
+        let Self {
+            R_inputs,
+            R_bytes,
+            phi_inputs,
+            phi_bytes,
+            xi_inputs,
+            xi_bytes,
+            y_bytes,
+        } = self;
+
         (
             t,
             THash {
-                R_inputs: self.R_inputs,
-                R_bytes: self.R_bytes,
-                phi_inputs: self.phi_inputs,
-                phi_bytes: self.phi_bytes,
-                xi_inputs: self.xi_inputs,
-                xi_bytes: self.xi_bytes,
-                y_bytes: self.y_bytes,
+                R_inputs,
+                R_bytes,
+                phi_inputs,
+                phi_bytes,
+                xi_inputs,
+                xi_bytes,
+                y_bytes,
                 t_inputs,
                 t_bytes,
             },
@@ -841,18 +880,30 @@ impl<'a> THash<'a> {
         let mut theta = vec![Zp::ZERO; self.R_inputs.d + self.R_inputs.k];
         let theta_bytes = mode.gen_scalars(&mut theta, &self.theta_hash_input());
 
+        let Self {
+            R_inputs,
+            R_bytes,
+            phi_inputs,
+            phi_bytes,
+            xi_inputs,
+            xi_bytes,
+            y_bytes,
+            t_inputs,
+            t_bytes,
+        } = self;
+
         (
             theta,
             ThetaHash {
-                R_inputs: self.R_inputs,
-                R_bytes: self.R_bytes,
-                phi_inputs: self.phi_inputs,
-                phi_bytes: self.phi_bytes,
-                xi_inputs: self.xi_inputs,
-                xi_bytes: self.xi_bytes,
-                y_bytes: self.y_bytes,
-                t_inputs: self.t_inputs,
-                t_bytes: self.t_bytes,
+                R_inputs,
+                R_bytes,
+                phi_inputs,
+                phi_bytes,
+                xi_inputs,
+                xi_bytes,
+                y_bytes,
+                t_inputs,
+                t_bytes,
                 theta_bytes,
             },
         )
@@ -937,19 +988,32 @@ impl<'a> ThetaHash<'a> {
             mode.gen_scalars(&mut omega, &self.omega_hash_input())
         };
 
+        let Self {
+            R_inputs,
+            R_bytes,
+            phi_inputs,
+            phi_bytes,
+            xi_inputs,
+            xi_bytes,
+            y_bytes,
+            t_inputs,
+            t_bytes,
+            theta_bytes,
+        } = self;
+
         (
             omega,
             OmegaHash {
-                R_inputs: self.R_inputs,
-                R_bytes: self.R_bytes,
-                phi_inputs: self.phi_inputs,
-                phi_bytes: self.phi_bytes,
-                xi_inputs: self.xi_inputs,
-                xi_bytes: self.xi_bytes,
-                y_bytes: self.y_bytes,
-                t_inputs: self.t_inputs,
-                t_bytes: self.t_bytes,
-                theta_bytes: self.theta_bytes,
+                R_inputs,
+                R_bytes,
+                phi_inputs,
+                phi_bytes,
+                xi_inputs,
+                xi_bytes,
+                y_bytes,
+                t_inputs,
+                t_bytes,
+                theta_bytes,
                 omega_bytes,
             },
         )
@@ -1038,20 +1102,34 @@ impl<'a> OmegaHash<'a> {
             .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
             .collect::<Box<[_]>>();
 
+        let Self {
+            R_inputs,
+            R_bytes,
+            phi_inputs,
+            phi_bytes,
+            xi_inputs,
+            xi_bytes,
+            y_bytes,
+            t_inputs,
+            t_bytes,
+            theta_bytes,
+            omega_bytes,
+        } = self;
+
         (
             delta,
             DeltaHash {
-                R_inputs: self.R_inputs,
-                R_bytes: self.R_bytes,
-                phi_inputs: self.phi_inputs,
-                phi_bytes: self.phi_bytes,
-                xi_inputs: self.xi_inputs,
-                xi_bytes: self.xi_bytes,
-                y_bytes: self.y_bytes,
-                t_inputs: self.t_inputs,
-                t_bytes: self.t_bytes,
-                theta_bytes: self.theta_bytes,
-                omega_bytes: self.omega_bytes,
+                R_inputs,
+                R_bytes,
+                phi_inputs,
+                phi_bytes,
+                xi_inputs,
+                xi_bytes,
+                y_bytes,
+                t_inputs,
+                t_bytes,
+                theta_bytes,
+                omega_bytes,
                 delta_bytes,
             },
         )
@@ -1190,21 +1268,36 @@ impl<'a> DeltaHash<'a> {
         let mut z = Zp::ZERO;
         Zp::hash(core::slice::from_mut(&mut z), &self.z_hash_input(&z_inputs));
 
+        let Self {
+            R_inputs,
+            R_bytes,
+            phi_inputs,
+            phi_bytes,
+            xi_inputs,
+            xi_bytes,
+            y_bytes,
+            t_inputs,
+            t_bytes,
+            theta_bytes,
+            omega_bytes,
+            delta_bytes,
+        } = self;
+
         (
             z,
             ZHash {
-                R_inputs: self.R_inputs,
-                R_bytes: self.R_bytes,
-                phi_inputs: self.phi_inputs,
-                phi_bytes: self.phi_bytes,
-                xi_inputs: self.xi_inputs,
-                xi_bytes: self.xi_bytes,
-                y_bytes: self.y_bytes,
-                t_inputs: self.t_inputs,
-                t_bytes: self.t_bytes,
-                theta_bytes: self.theta_bytes,
-                omega_bytes: self.omega_bytes,
-                delta_bytes: self.delta_bytes,
+                R_inputs,
+                R_bytes,
+                phi_inputs,
+                phi_bytes,
+                xi_inputs,
+                xi_bytes,
+                y_bytes,
+                t_inputs,
+                t_bytes,
+                theta_bytes,
+                omega_bytes,
+                delta_bytes,
                 z_inputs,
                 z_bytes: Box::from(z.to_le_bytes().as_ref()),
             },

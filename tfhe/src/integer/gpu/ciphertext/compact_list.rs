@@ -208,9 +208,14 @@ impl CudaCompactCiphertextListExpander {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self {
+            expanded_blocks,
+            blocks_info,
+        } = self;
+
         Self {
-            expanded_blocks: self.expanded_blocks.duplicate(streams),
-            blocks_info: self.blocks_info.iter().cloned().collect_vec(),
+            expanded_blocks: expanded_blocks.duplicate(streams),
+            blocks_info: blocks_info.iter().cloned().collect_vec(),
         }
     }
 }
@@ -413,11 +418,27 @@ impl CudaFlattenedVecCompactCiphertextList {
         &self,
         streams: &CudaStreams,
     ) -> crate::Result<Vec<crate::shortint::ciphertext::CompactCiphertextList>> {
+        let Self {
+            d_flattened_vec,
+            num_lwe_per_compact_list,
+            lwe_dimension,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind,
+            ciphertext_modulus,
+            // Integer level metadata, see `to_integer_compact_ciphertext_list`
+            data_info: _,
+            // Derived from `data_info`, only used by the backend to expand the lists
+            is_boolean: _,
+            // Sum of `num_lwe_per_compact_list`
+            lwe_ciphertext_count: _,
+        } = self;
+
         // First we get the h_vec with all data copied from GPU
-        let mut h_vec = vec![0u64; self.d_flattened_vec.len()];
+        let mut h_vec = vec![0u64; d_flattened_vec.len()];
         unsafe {
-            self.d_flattened_vec
-                .copy_to_cpu_async(h_vec.as_mut_slice(), streams, 0);
+            d_flattened_vec.copy_to_cpu_async(h_vec.as_mut_slice(), streams, 0);
         }
 
         // Now we'll split it into individual lists
@@ -427,10 +448,10 @@ impl CudaFlattenedVecCompactCiphertextList {
         streams.synchronize();
         // For each size in num_lwe_per_compact_list, compute the length of that slice
         // and extract it from h_vec
-        for num_lwe in self.num_lwe_per_compact_list.iter() {
+        for num_lwe in num_lwe_per_compact_list.iter() {
             let num_lwe = *num_lwe as usize;
             let length =
-                lwe_compact_ciphertext_list_size(self.lwe_dimension, LweCiphertextCount(num_lwe));
+                lwe_compact_ciphertext_list_size(*lwe_dimension, LweCiphertextCount(num_lwe));
 
             // Extract the slice from h_vec starting at current_offset with computed length
             let slice = offset
@@ -449,16 +470,16 @@ impl CudaFlattenedVecCompactCiphertextList {
 
             let lwe = LweCompactCiphertextList::from_container(
                 list,
-                self.lwe_dimension.to_lwe_size(),
+                lwe_dimension.to_lwe_size(),
                 LweCiphertextCount(num_lwe),
-                self.ciphertext_modulus,
+                *ciphertext_modulus,
             );
             let ct = CompactCiphertextList {
                 ct_list: lwe,
-                degree: self.degree,
-                message_modulus: self.message_modulus,
-                carry_modulus: self.carry_modulus,
-                expansion_kind: self.expansion_kind,
+                degree: *degree,
+                message_modulus: *message_modulus,
+                carry_modulus: *carry_modulus,
+                expansion_kind: *expansion_kind,
             };
             result.push(ct);
 
@@ -491,8 +512,28 @@ impl CudaFlattenedVecCompactCiphertextList {
         zk_type: crate::integer::gpu::ZKType,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
+        let Self {
+            d_flattened_vec,
+            num_lwe_per_compact_list,
+            data_info,
+            is_boolean,
+            lwe_dimension,
+            lwe_ciphertext_count,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            // Only read through `is_packed`
+            degree: _,
+            // Not checked, `zk_type` alone selects whether the list is cast
+            expansion_kind: _,
+        } = self;
+        let &CudaKeySwitchingKey {
+            key_switching_key_material: casting_key,
+            dest_server_key: sks,
+        } = key;
+
         // Already checked on construction, but `data_info` is mutable within the crate
-        check_data_info_is_supported_on_gpu(&self.data_info)?;
+        check_data_info_is_supported_on_gpu(data_info)?;
 
         // Casting unpacks the message and carry of each LWE into 2 blocks and sanitizes them using
         // `is_boolean`, whose flags are laid out per block: this only lines up for packed lists
@@ -502,26 +543,17 @@ impl CudaFlattenedVecCompactCiphertextList {
             ));
         }
 
-        let lwe_dimension = self.lwe_dimension;
-        let ciphertext_modulus = self.ciphertext_modulus;
-
-        let input_lwe_ciphertext_count = self.lwe_ciphertext_count;
-        let output_lwe_ciphertext_count = LweCiphertextCount(2 * input_lwe_ciphertext_count.0);
+        let output_lwe_ciphertext_count = LweCiphertextCount(2 * lwe_ciphertext_count.0);
 
         let d_expanded_blocks = unsafe {
             let mut d_output = CudaLweCiphertextList::new(
-                lwe_dimension,
+                *lwe_dimension,
                 output_lwe_ciphertext_count,
-                ciphertext_modulus,
+                *ciphertext_modulus,
                 streams,
             );
 
-            let d_input = &self.d_flattened_vec;
-            let casting_key = key.key_switching_key_material;
-            let sks = key.dest_server_key;
-
-            let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) =
-                &key.dest_server_key.key_switching_key
+            let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &sks.key_switching_key
             else {
                 panic!("Only the standard atomic pattern is supported on GPU")
             };
@@ -539,7 +571,7 @@ impl CudaFlattenedVecCompactCiphertextList {
             cuda_backend_expand(
                 streams,
                 &mut d_output,
-                d_input,
+                d_flattened_vec,
                 &computing_ks_key.d_vec,
                 &casting_key.lwe_keyswitch_key.d_vec,
                 &sks.bootstrapping_key,
@@ -548,18 +580,17 @@ impl CudaFlattenedVecCompactCiphertextList {
                 computing_ksk_params,
                 casting_ksk_params,
                 casting_key_type,
-                self.num_lwe_per_compact_list.as_slice(),
-                self.is_boolean.as_slice(),
-                self.is_boolean.len() as u32,
+                num_lwe_per_compact_list.as_slice(),
+                is_boolean.as_slice(),
+                is_boolean.len() as u32,
                 zk_type,
             );
             d_output
         };
 
-        let message_modulus = self.message_modulus;
-        let carry_modulus = self.carry_modulus;
-        let blocks_info = self
-            .data_info
+        let message_modulus = *message_modulus;
+        let carry_modulus = *carry_modulus;
+        let blocks_info = data_info
             .iter()
             .map(|data_kind| CudaCompactCiphertextListInfo {
                 info: CudaBlockInfo {
@@ -569,7 +600,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                     },
                     message_modulus,
                     carry_modulus,
-                    atomic_pattern: AtomicPatternKind::Standard(key.dest_server_key.pbs_order),
+                    atomic_pattern: AtomicPatternKind::Standard(sks.pbs_order),
                     noise_level: NoiseLevel::NOMINAL,
                 },
                 data_kind: *data_kind,
@@ -583,18 +614,32 @@ impl CudaFlattenedVecCompactCiphertextList {
     }
 
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self {
+            d_flattened_vec,
+            lwe_dimension,
+            lwe_ciphertext_count,
+            degree,
+            message_modulus,
+            carry_modulus,
+            expansion_kind,
+            ciphertext_modulus,
+            num_lwe_per_compact_list,
+            data_info,
+            is_boolean,
+        } = self;
+
         Self {
-            d_flattened_vec: self.d_flattened_vec.duplicate(streams),
-            lwe_dimension: self.lwe_dimension,
-            lwe_ciphertext_count: self.lwe_ciphertext_count,
-            degree: self.degree,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            expansion_kind: self.expansion_kind,
-            ciphertext_modulus: self.ciphertext_modulus,
-            num_lwe_per_compact_list: self.num_lwe_per_compact_list.clone(),
-            data_info: self.data_info.clone(),
-            is_boolean: self.is_boolean.clone(),
+            d_flattened_vec: d_flattened_vec.duplicate(streams),
+            lwe_dimension: *lwe_dimension,
+            lwe_ciphertext_count: *lwe_ciphertext_count,
+            degree: *degree,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            expansion_kind: *expansion_kind,
+            ciphertext_modulus: *ciphertext_modulus,
+            num_lwe_per_compact_list: num_lwe_per_compact_list.clone(),
+            data_info: data_info.clone(),
+            is_boolean: is_boolean.clone(),
         }
     }
     pub fn gpu_indexes(&self) -> &[GpuIndex] {

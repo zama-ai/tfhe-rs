@@ -102,13 +102,17 @@ impl CompressedKS32AtomicPatternServerKey {
 
     /// Expand to standard domain without Fourier conversion.
     pub fn expand(&self) -> ExpandedKS32AtomicPatternServerKey {
-        let ciphertext_modulus = self.bootstrapping_key().ciphertext_modulus();
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+        } = self;
 
-        let key_switching_key = self
-            .key_switching_key()
+        let ciphertext_modulus = bootstrapping_key.ciphertext_modulus();
+
+        let key_switching_key = key_switching_key
             .as_view()
             .par_decompress_into_lwe_keyswitch_key();
-        let bootstrapping_key = self.bootstrapping_key().expand();
+        let bootstrapping_key = bootstrapping_key.expand();
 
         ExpandedKS32AtomicPatternServerKey {
             key_switching_key,

@@ -192,12 +192,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKeyChu
     /// Return a view of the [`LweKeyswitchKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> LweKeyswitchKeyChunkView<'_, Scalar> {
+        let Self {
+            ref data,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+        } = *self;
+
         LweKeyswitchKeyChunk::from_container(
-            self.as_ref(),
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.output_lwe_size,
-            self.ciphertext_modulus,
+            data.as_ref(),
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
         )
     }
 
@@ -224,12 +232,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweKeyswitchKeyChu
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweKeyswitchKeyChunk<C> {
     /// Mutable variant of [`LweKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> LweKeyswitchKeyChunkMutView<'_, Scalar> {
-        let decomp_base_log = self.decomp_base_log;
-        let decomp_level_count = self.decomp_level_count;
-        let output_lwe_size = self.output_lwe_size;
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+        } = *self;
+
         LweKeyswitchKeyChunk::from_container(
-            self.as_mut(),
+            data.as_mut(),
             decomp_base_log,
             decomp_level_count,
             output_lwe_size,
@@ -330,9 +342,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            output_lwe_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_base_log: _,
+            decomp_level_count: _,
+        } = *self;
+
         LweCiphertextListCreationMetadata {
-            lwe_size: self.output_lwe_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            lwe_size: output_lwe_size,
+            ciphertext_modulus,
         }
     }
 
@@ -341,11 +363,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         LweKeyswitchKeyCreationMetadata {
-            decomp_base_log: self.decomposition_base_log(),
-            decomp_level_count: self.decomposition_level_count(),
-            output_lwe_size: self.output_lwe_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            decomp_base_log,
+            decomp_level_count,
+            output_lwe_size,
+            ciphertext_modulus,
         }
     }
 }
@@ -386,15 +417,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             ciphertext_modulus,
         } = self;
 
-        *ciphertext_modulus == parameter_set.ciphertext_modulus
+        let LweKeyswitchKeyChunkConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            output_lwe_size: expected_output_lwe_size,
+            chunk_size: expected_chunk_size,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
+        ciphertext_modulus == expected_ciphertext_modulus
             && data.container_len()
-                == parameter_set.chunk_size.0
+                == expected_chunk_size.0
                     * lwe_keyswitch_key_input_key_element_encrypted_size(
-                        parameter_set.decomp_level_count,
-                        parameter_set.output_lwe_size,
+                        *expected_decomp_level_count,
+                        *expected_output_lwe_size,
                     )
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_lwe_size == parameter_set.output_lwe_size
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_lwe_size == expected_output_lwe_size
     }
 }

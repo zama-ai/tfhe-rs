@@ -475,18 +475,20 @@ impl CudaRadixCiphertext {
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronised
     pub unsafe fn duplicate_async(&self, streams: &CudaStreams) -> Self {
-        let lwe_ciphertext_count = self.d_blocks.lwe_ciphertext_count();
-        let ciphertext_modulus = self.d_blocks.ciphertext_modulus();
+        let Self { d_blocks, info } = self;
 
-        let mut d_ct = CudaVec::new_async(self.d_blocks.0.d_vec.len(), streams, 0);
-        d_ct.copy_from_gpu_async(&self.d_blocks.0.d_vec, streams, 0);
+        let lwe_ciphertext_count = d_blocks.lwe_ciphertext_count();
+        let ciphertext_modulus = d_blocks.ciphertext_modulus();
+
+        let mut d_ct = CudaVec::new_async(d_blocks.0.d_vec.len(), streams, 0);
+        d_ct.copy_from_gpu_async(&d_blocks.0.d_vec, streams, 0);
 
         let d_blocks =
             CudaLweCiphertextList::from_cuda_vec(d_ct, lwe_ciphertext_count, ciphertext_modulus);
 
         Self {
             d_blocks,
-            info: self.info.clone(),
+            info: info.clone(),
         }
     }
 

@@ -115,7 +115,9 @@ impl BooleanBlock {
 
     /// Consumes the BooleanBlock to return its inner ciphertext
     pub fn into_raw_parts(self) -> Ciphertext {
-        self.0
+        let Self(ct) = self;
+
+        ct
     }
 
     /// Consumes and converts the BooleanBlock to a [RadixCiphertext] / [SignedRadixCiphertext]

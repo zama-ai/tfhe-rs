@@ -158,11 +158,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            lwe_size,
+            ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_ciphertext_list`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_list = LweCiphertextList::new(
             Scalar::ZERO,
-            self.lwe_size(),
+            lwe_size,
             self.lwe_ciphertext_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         decompress_seeded_lwe_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
@@ -177,11 +185,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let &Self {
+            lwe_size,
+            ciphertext_modulus,
+            // Read by `par_decompress_seeded_lwe_ciphertext_list`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_list = LweCiphertextList::new(
             Scalar::ZERO,
-            self.lwe_size(),
+            lwe_size,
             self.lwe_ciphertext_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         par_decompress_seeded_lwe_ciphertext_list::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_list,
@@ -193,11 +209,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
     /// Return a view of the [`SeededLweCiphertextList`]. This is useful if an algorithm takes a
     /// view by value.
     pub fn as_view(&self) -> SeededLweCiphertextList<&'_ [Scalar]> {
+        let Self {
+            ref data,
+            lwe_size,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
         SeededLweCiphertextList::from_container(
-            self.as_ref(),
-            self.lwe_size(),
-            self.compression_seed(),
-            self.ciphertext_modulus(),
+            data.as_ref(),
+            lwe_size,
+            compression_seed.clone(),
+            ciphertext_modulus,
         )
     }
 
@@ -233,11 +256,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
+        let &Self {
+            lwe_size,
+            ciphertext_modulus,
+            // Only used through `lwe_ciphertext_count`
+            data: _,
+            // The fork config only depends on the shape of the list
+            compression_seed: _,
+        } = self;
+
         let lwe_count = self.lwe_ciphertext_count().0;
         let lwe_mask_sample_count =
-            lwe_ciphertext_encryption_mask_sample_count(self.lwe_size().to_lwe_dimension());
+            lwe_ciphertext_encryption_mask_sample_count(lwe_size.to_lwe_dimension());
 
-        let ciphertext_modulus = self.ciphertext_modulus();
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(
@@ -252,11 +283,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLweCiphertex
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLweCiphertextList<C> {
     /// Mutable variant of [`SeededLweCiphertextList::as_view`].
     pub fn as_mut_view(&mut self) -> SeededLweCiphertextList<&'_ mut [Scalar]> {
-        let lwe_size = self.lwe_size();
-        let compression_seed = self.compression_seed();
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let Self {
+            ref mut data,
+            lwe_size,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
+        let compression_seed = compression_seed.clone();
         SeededLweCiphertextList::from_container(
-            self.as_mut(),
+            data.as_mut(),
             lwe_size,
             compression_seed,
             ciphertext_modulus,
@@ -345,9 +381,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweBodyCreationMetadata {
-            ciphertext_modulus: self.ciphertext_modulus(),
-        }
+        let Self {
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            lwe_size: _,
+            compression_seed: _,
+        } = *self;
+
+        LweBodyCreationMetadata { ciphertext_modulus }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {

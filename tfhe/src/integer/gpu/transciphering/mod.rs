@@ -28,7 +28,9 @@ impl CudaFheKeyStream {
     }
 
     pub fn into_raw_parts(self) -> CudaUnsignedRadixCiphertext {
-        self.0
+        let Self(ct) = self;
+
+        ct
     }
 
     pub fn as_radix(&self) -> &CudaUnsignedRadixCiphertext {

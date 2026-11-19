@@ -49,7 +49,9 @@ impl CompactPublicKey {
     }
 
     pub fn into_raw_parts(self) -> (crate::integer::public_key::CompactPublicKey, Tag) {
-        (self.key.into_raw_parts(), self.tag)
+        let Self { key, tag } = self;
+
+        (key.into_raw_parts(), tag)
     }
 
     pub fn from_raw_parts(key: crate::integer::public_key::CompactPublicKey, tag: Tag) -> Self {
@@ -104,7 +106,9 @@ impl CompressedCompactPublicKey {
 
     /// Deconstruct a [`CompressedCompactPublicKey`] into its constituents.
     pub fn into_raw_parts(self) -> (crate::integer::CompressedCompactPublicKey, Tag) {
-        (self.key.into_raw_parts(), self.tag)
+        let Self { key, tag } = self;
+
+        (key.into_raw_parts(), tag)
     }
 
     /// Construct a [`CompressedCompactPublicKey`] from its constituents.
@@ -117,9 +121,11 @@ impl CompressedCompactPublicKey {
 
     /// Decompresses the key
     pub fn decompress(&self) -> CompactPublicKey {
+        let Self { key, tag } = self;
+
         CompactPublicKey {
-            key: self.key.decompress(),
-            tag: self.tag.clone(),
+            key: key.decompress(),
+            tag: tag.clone(),
         }
     }
 
@@ -146,6 +152,7 @@ impl ParameterSetConformant for CompactPublicKey {
     type ParameterSet = CompactPublicKeyEncryptionParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        // Any tag is valid
         let Self { key, tag: _ } = self;
 
         key.is_conformant(parameter_set)
@@ -156,6 +163,7 @@ impl ParameterSetConformant for CompressedCompactPublicKey {
     type ParameterSet = CompactPublicKeyEncryptionParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        // Any tag is valid
         let Self { key, tag: _ } = self;
 
         key.is_conformant(parameter_set)

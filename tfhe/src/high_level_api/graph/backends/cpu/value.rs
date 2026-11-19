@@ -229,12 +229,14 @@ impl RuntimeValueConformanceParams {
             ValueKind::FheUint(bits) => Self::FheUint(radix(bits)),
             ValueKind::FheInt(bits) => Self::FheInt(radix(bits)),
             ValueKind::KVStore {
-                key: _,
                 value: FheIntKind::Uint(bits),
+                // Keys are clear, only values have conformance params
+                key: _,
             } => Self::FheUintKVStore(radix(bits)),
             ValueKind::KVStore {
-                key: _,
                 value: FheIntKind::Int(bits),
+                // Keys are clear, only values have conformance params
+                key: _,
             } => Self::FheIntKVStore(radix(bits)),
             ValueKind::Bool | ValueKind::Uint(_) | ValueKind::Int(_) | ValueKind::Seed => {
                 Self::Clear
@@ -407,11 +409,15 @@ impl ParameterSetConformant for CpuInputList {
     type ParameterSet = ExecutionGraphInputConformanceParams;
 
     fn is_conformant(&self, params: &ExecutionGraphInputConformanceParams) -> bool {
-        self.inputs.len() == params.inputs.len()
-            && self
-                .inputs
+        let Self { inputs } = self;
+        let ExecutionGraphInputConformanceParams {
+            inputs: input_params,
+        } = params;
+
+        inputs.len() == input_params.len()
+            && inputs
                 .iter()
-                .zip(&params.inputs)
+                .zip(input_params)
                 .all(|(value, params)| value.is_conformant(params))
     }
 }

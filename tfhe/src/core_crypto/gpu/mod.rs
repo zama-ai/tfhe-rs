@@ -191,11 +191,18 @@ pub struct CudaLweList<T: UnsignedInteger> {
 
 impl<T: UnsignedInteger> CudaLweList<T> {
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self {
+            d_vec,
+            lwe_ciphertext_count,
+            lwe_dimension,
+            ciphertext_modulus,
+        } = self;
+
         Self {
-            d_vec: self.d_vec.duplicate(streams),
-            lwe_ciphertext_count: self.lwe_ciphertext_count,
-            lwe_dimension: self.lwe_dimension,
-            ciphertext_modulus: self.ciphertext_modulus,
+            d_vec: d_vec.duplicate(streams),
+            lwe_ciphertext_count: *lwe_ciphertext_count,
+            lwe_dimension: *lwe_dimension,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }
@@ -216,12 +223,20 @@ pub struct CudaGlweList<T: UnsignedInteger> {
 
 impl<T: UnsignedInteger> CudaGlweList<T> {
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self {
+            d_vec,
+            glwe_ciphertext_count,
+            glwe_dimension,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         Self {
-            d_vec: self.d_vec.duplicate(streams),
-            glwe_ciphertext_count: self.glwe_ciphertext_count,
-            glwe_dimension: self.glwe_dimension,
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            d_vec: d_vec.duplicate(streams),
+            glwe_ciphertext_count: *glwe_ciphertext_count,
+            glwe_dimension: *glwe_dimension,
+            polynomial_size: *polynomial_size,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }

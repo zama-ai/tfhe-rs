@@ -416,9 +416,11 @@ impl serde::Serialize for ServerKey {
     where
         S: serde::Serializer,
     {
+        let Self { key, tag } = self;
+
         SerializableServerKey {
-            integer_key: &self.key,
-            tag: &self.tag,
+            integer_key: key,
+            tag,
         }
         .serialize(serializer)
     }
@@ -435,10 +437,12 @@ impl<'de> serde::Deserialize<'de> for ServerKey {
     where
         D: serde::Deserializer<'de>,
     {
-        DeserializableServerKey::deserialize(deserializer).map(|deserialized| Self {
-            key: Arc::new(deserialized.integer_key),
-            tag: deserialized.tag,
-        })
+        DeserializableServerKey::deserialize(deserializer).map(
+            |DeserializableServerKey { integer_key, tag }| Self {
+                key: Arc::new(integer_key),
+                tag,
+            },
+        )
     }
 }
 
@@ -480,8 +484,10 @@ impl CompressedServerKey {
         Option<CompressedTranscipheringServerKey>,
         Tag,
     ) {
-        let (a, b, c, d, e, f, g, h, i) = self.integer_key.into_raw_parts();
-        (a, b, c, d, e, f, g, h, i, self.tag)
+        let Self { integer_key, tag } = self;
+
+        let (a, b, c, d, e, f, g, h, i) = integer_key.into_raw_parts();
+        (a, b, c, d, e, f, g, h, i, tag)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -557,9 +563,11 @@ impl CompressedServerKey {
     }
 
     pub fn decompress(&self) -> ServerKey {
+        let Self { integer_key, tag } = self;
+
         ServerKey {
-            key: Arc::new(self.integer_key.decompress()),
-            tag: self.tag.clone(),
+            key: Arc::new(integer_key.decompress()),
+            tag: tag.clone(),
         }
     }
 
@@ -573,15 +581,16 @@ impl CompressedServerKey {
         &self,
         gpu_choice: impl Into<crate::CudaGpuChoice>,
     ) -> CudaServerKey {
+        let Self { integer_key, tag } = self;
+
         let streams = gpu_choice.into().build_streams();
-        let key = self
-            .integer_key
+        let key = integer_key
             .expand()
             .convert_to_gpu(&streams)
             .expect("Unsupported configuration");
         CudaServerKey {
             key: Arc::new(key),
-            tag: self.tag.clone(),
+            tag: tag.clone(),
             streams,
         }
     }
@@ -842,6 +851,7 @@ impl ParameterSetConformant for ServerKey {
     type ParameterSet = IntegerServerKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        // Any tag is valid
         let Self { key, tag: _ } = self;
 
         key.is_conformant(parameter_set)
@@ -854,6 +864,7 @@ impl ParameterSetConformant for CompressedServerKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
             integer_key,
+            // Any tag is valid
             tag: _,
         } = self;
 

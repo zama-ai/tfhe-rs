@@ -105,11 +105,15 @@ where
     C: Container<Element = Scalar>,
 {
     pub fn into_raw_parts(self) -> (LweCiphertext<C>, Scalar, CiphertextModulusLog) {
-        (
-            self.lwe_in,
-            self.body_correction_to_add_before_switching,
-            self.log_modulus,
-        )
+        let Self {
+            lwe_in,
+            body_correction_to_add_before_switching,
+            log_modulus,
+            // Type marker, holds no data
+            phantom: _,
+        } = self;
+
+        (lwe_in, body_correction_to_add_before_switching, log_modulus)
     }
 
     #[track_caller]
@@ -132,10 +136,18 @@ where
     pub fn as_view(
         &self,
     ) -> LazyStandardModulusSwitchedLweCiphertext<Scalar, SwitchedScalar, &[Scalar]> {
+        let Self {
+            ref lwe_in,
+            body_correction_to_add_before_switching,
+            log_modulus,
+            // Type marker, holds no data
+            phantom: _,
+        } = *self;
+
         LazyStandardModulusSwitchedLweCiphertext {
-            lwe_in: self.lwe_in.as_view(),
-            body_correction_to_add_before_switching: self.body_correction_to_add_before_switching,
-            log_modulus: self.log_modulus,
+            lwe_in: lwe_in.as_view(),
+            body_correction_to_add_before_switching,
+            log_modulus,
             phantom: PhantomData,
         }
     }

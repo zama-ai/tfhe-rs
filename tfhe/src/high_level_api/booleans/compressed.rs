@@ -75,7 +75,9 @@ impl CompressedFheBool {
     ///
     /// See [CompressedFheBool] example.
     pub fn decompress(&self) -> FheBool {
-        let ciphertext = BooleanBlock::new_unchecked(match &self.inner {
+        let Self { inner, tag } = self;
+
+        let ciphertext = BooleanBlock::new_unchecked(match inner {
             InnerCompressedFheBool::Seeded(seeded) => seeded.decompress(),
             InnerCompressedFheBool::ModulusSwitched(modulus_switched) => {
                 global_state::with_internal_keys(|keys| match keys {
@@ -93,11 +95,8 @@ impl CompressedFheBool {
                 })
             }
         });
-        let mut ciphertext = FheBool::new(
-            ciphertext,
-            self.tag.clone(),
-            ReRandomizationMetadata::default(),
-        );
+        let mut ciphertext =
+            FheBool::new(ciphertext, tag.clone(), ReRandomizationMetadata::default());
         ciphertext.ciphertext.move_to_device_of_server_key_if_set();
         ciphertext
     }
@@ -144,9 +143,13 @@ impl ParameterSetConformant for CompressedFheBool {
     type ParameterSet = CompressedFheBoolConformanceParams;
 
     fn is_conformant(&self, params: &CompressedFheBoolConformanceParams) -> bool {
-        match &self.inner {
-            InnerCompressedFheBool::Seeded(seeded) => seeded.is_conformant(&params.0.into()),
-            InnerCompressedFheBool::ModulusSwitched(ct) => ct.is_conformant(&params.0),
+        // Any tag is valid
+        let Self { inner, tag: _ } = self;
+        let &CompressedFheBoolConformanceParams(ct_params) = params;
+
+        match inner {
+            InnerCompressedFheBool::Seeded(seeded) => seeded.is_conformant(&ct_params.into()),
+            InnerCompressedFheBool::ModulusSwitched(ct) => ct.is_conformant(&ct_params),
         }
     }
 }

@@ -15,11 +15,15 @@ pub struct CompactPublicKeyV0 {
 
 impl Upgrade<CompactPublicKey> for CompactPublicKeyV0 {
     fn upgrade(self) -> Result<CompactPublicKey, Self::Error> {
-        let parameters = self.parameters.ap_parameters().try_into()?;
-        Ok(CompactPublicKey {
-            key: self.key,
+        let Self {
+            key,
             parameters,
-        })
+            // Derived from the atomic pattern of `parameters`
+            pbs_order: _,
+        } = self;
+
+        let parameters = parameters.ap_parameters().try_into()?;
+        Ok(CompactPublicKey { key, parameters })
     }
 
     type Error = crate::Error;
@@ -45,11 +49,15 @@ pub struct CompressedCompactPublicKeyV0 {
 
 impl Upgrade<CompressedCompactPublicKey> for CompressedCompactPublicKeyV0 {
     fn upgrade(self) -> Result<CompressedCompactPublicKey, Self::Error> {
-        let parameters = self.parameters.ap_parameters().try_into()?;
-        Ok(CompressedCompactPublicKey {
-            key: self.key,
+        let Self {
+            key,
             parameters,
-        })
+            // Derived from the atomic pattern of `parameters`
+            pbs_order: _,
+        } = self;
+
+        let parameters = parameters.ap_parameters().try_into()?;
+        Ok(CompressedCompactPublicKey { key, parameters })
     }
 
     type Error = crate::Error;

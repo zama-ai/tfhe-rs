@@ -278,9 +278,13 @@ impl IntegerExpandedServerKey {
 impl CompressedDecompressionKey {
     /// Expand to standard domain without Fourier conversion.
     pub fn expand(&self) -> ExpandedDecompressionKey {
+        let Self {
+            key: crate::shortint::list_compression::CompressedDecompressionKey { bsk, lwe_per_glwe },
+        } = self;
+
         ExpandedDecompressionKey {
-            bsk: self.key.bsk.expand(),
-            lwe_per_glwe: self.key.lwe_per_glwe,
+            bsk: bsk.expand(),
+            lwe_per_glwe: *lwe_per_glwe,
         }
     }
 }
@@ -288,7 +292,9 @@ impl CompressedDecompressionKey {
 impl CompressedNoiseSquashingKey {
     /// Expand to standard domain without Fourier conversion.
     pub fn expand(&self) -> ExpandedNoiseSquashingKey {
-        let expanded_ap = match self.key.atomic_pattern() {
+        let Self { key } = self;
+
+        let expanded_ap = match key.atomic_pattern() {
             CompressedAtomicPatternNoiseSquashingKey::Standard(compressed_std) => {
                 ExpandedAtomicPatternNoiseSquashingKey::Standard(
                     compressed_std.bootstrapping_key().expand(),
@@ -303,9 +309,9 @@ impl CompressedNoiseSquashingKey {
 
         ExpandedNoiseSquashingKey::from_raw_parts(
             expanded_ap,
-            self.key.message_modulus(),
-            self.key.carry_modulus(),
-            self.key.output_ciphertext_modulus(),
+            key.message_modulus(),
+            key.carry_modulus(),
+            key.output_ciphertext_modulus(),
         )
     }
 }

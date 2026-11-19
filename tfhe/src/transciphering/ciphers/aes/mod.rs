@@ -134,9 +134,9 @@ pub struct SerializableAesFheKey {
 
 impl From<AesFheKey> for SerializableAesFheKey {
     fn from(value: AesFheKey) -> Self {
-        Self {
-            key: value.key.into(),
-        }
+        let AesFheKey { key } = value;
+
+        Self { key: key.into() }
     }
 }
 
@@ -144,8 +144,10 @@ impl TryFrom<SerializableAesFheKey> for AesFheKey {
     type Error = crate::Error;
 
     fn try_from(value: SerializableAesFheKey) -> Result<Self, Self::Error> {
-        let len = value.key.len();
-        let key: [Ciphertext; 128] = value.key.try_into().map_err(|_| {
+        let SerializableAesFheKey { key } = value;
+
+        let len = key.len();
+        let key: [Ciphertext; 128] = key.try_into().map_err(|_| {
             crate::error!("an AES key must hold exactly 128 ciphertexts, got {len}")
         })?;
         for (i, ct) in key.iter().enumerate() {

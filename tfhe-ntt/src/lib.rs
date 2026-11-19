@@ -371,6 +371,7 @@ impl core::ops::Deref for V4IFma {
             avx512cd,
             avx512dq,
             avx512vl,
+            // `pulp::x86::V4` has no IFMA feature token
             avx512ifma: _,
         } = *self;
         let simd_ref = (pulp::x86::V4 {

@@ -29,12 +29,16 @@ pub struct CompressedCiphertext {
 
 impl CompressedCiphertext {
     pub fn decompress(&self) -> Ciphertext {
-        Ciphertext::Encrypted(self.ciphertext.clone().decompress_into_lwe_ciphertext())
+        let Self { ciphertext } = self;
+
+        Ciphertext::Encrypted(ciphertext.clone().decompress_into_lwe_ciphertext())
     }
 
     /// Deconstruct a [`CompressedCiphertext`] into its constituents.
     pub fn into_raw_parts(self) -> SeededLweCiphertext<u32> {
-        self.ciphertext
+        let Self { ciphertext } = self;
+
+        ciphertext
     }
 
     /// Construct a [`CompressedCiphertext`] from its constituents.

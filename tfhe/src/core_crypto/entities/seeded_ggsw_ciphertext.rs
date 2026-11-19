@@ -256,13 +256,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     /// Return a view of the [`SeededGgswCiphertext`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> SeededGgswCiphertextView<'_, Scalar> {
+        let Self {
+            ref data,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
         SeededGgswCiphertextView::from_container(
-            self.as_ref(),
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.compression_seed(),
-            self.ciphertext_modulus(),
+            data.as_ref(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            compression_seed.clone(),
+            ciphertext_modulus,
         )
     }
 
@@ -274,13 +283,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+            // Read by `decompress_seeded_ggsw_ciphertext`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_ct = GgswCiphertextOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
             self.decomposition_level_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         decompress_seeded_ggsw_ciphertext::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
@@ -295,13 +314,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
     where
         Scalar: UnsignedTorus + Send + Sync,
     {
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+            // Read by `par_decompress_seeded_ggsw_ciphertext`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_ct = GgswCiphertextOwned::new(
             Scalar::ZERO,
-            self.glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
             self.decomposition_level_count(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         par_decompress_seeded_ggsw_ciphertext::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
@@ -346,13 +375,21 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswCipherte
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
-        let decomposition_level_count = self.decomposition_level_count();
-        let ggsw_level_matrix_mask_sample_count = ggsw_level_matrix_encryption_mask_sample_count(
-            self.glwe_size(),
-            self.polynomial_size(),
-        );
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+            // Only used through `decomposition_level_count`
+            data: _,
+            // The fork config only depends on the shape of the ciphertext
+            compression_seed: _,
+            decomp_base_log: _,
+        } = self;
 
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let decomposition_level_count = self.decomposition_level_count();
+        let ggsw_level_matrix_mask_sample_count =
+            ggsw_level_matrix_encryption_mask_sample_count(glwe_size, polynomial_size);
+
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(
@@ -388,13 +425,18 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededGgswCiphe
 
     /// Mutable variant of [`SeededGgswCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> SeededGgswCiphertextMutView<'_, Scalar> {
-        let glwe_size = self.glwe_size();
-        let polynomial_size = self.polynomial_size();
-        let decomp_base_log = self.decomposition_base_log();
-        let compression_seed = self.compression_seed();
-        let ciphertext_modulus = self.ciphertext_modulus();
+        let Self {
+            ref mut data,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
+        let compression_seed = compression_seed.clone();
         SeededGgswCiphertextMutView::from_container(
-            self.as_mut(),
+            data.as_mut(),
             glwe_size,
             polynomial_size,
             decomp_base_log,
@@ -618,13 +660,20 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGgswLevelMat
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
-        let glwe_size = self.glwe_size();
+        let &Self {
+            glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+            // The fork config only depends on the shape of the level matrix
+            data: _,
+            compression_seed: _,
+        } = self;
+
         let glwe_ciphertext_mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
             glwe_size.to_glwe_dimension(),
-            self.polynomial_size(),
+            polynomial_size,
         );
 
-        let ciphertext_modulus = self.ciphertext_modulus();
         let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(
@@ -701,11 +750,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            glwe_size,
+            polynomial_size,
+            ref compression_seed,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_base_log: _,
+        } = *self;
+
         SeededGgswLevelMatrixCreationMetadata {
-            glwe_size: self.glwe_size,
-            polynomial_size: self.polynomial_size,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            glwe_size,
+            polynomial_size,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus,
         }
     }
 

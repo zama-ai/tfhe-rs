@@ -85,11 +85,23 @@ impl<C: Container<Element = f64>> Fourier128LweBootstrapKey<C> {
     where
         C: Split,
     {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         izip_eq!(
-            self.data_re0.split_into(self.input_lwe_dimension.0),
-            self.data_re1.split_into(self.input_lwe_dimension.0),
-            self.data_im0.split_into(self.input_lwe_dimension.0),
-            self.data_im1.split_into(self.input_lwe_dimension.0),
+            data_re0.split_into(input_lwe_dimension.0),
+            data_re1.split_into(input_lwe_dimension.0),
+            data_im0.split_into(input_lwe_dimension.0),
+            data_im1.split_into(input_lwe_dimension.0),
         )
         .map(move |(data_re0, data_re1, data_im0, data_im1)| {
             Fourier128GgswCiphertext::from_container(
@@ -97,10 +109,10 @@ impl<C: Container<Element = f64>> Fourier128LweBootstrapKey<C> {
                 data_re1,
                 data_im0,
                 data_im1,
-                self.polynomial_size,
-                self.glwe_size,
-                self.decomposition_base_log,
-                self.decomposition_level_count,
+                polynomial_size,
+                glwe_size,
+                decomposition_base_log,
+                decomposition_level_count,
             )
         })
     }
@@ -134,16 +146,28 @@ impl<C: Container<Element = f64>> Fourier128LweBootstrapKey<C> {
     }
 
     pub fn as_view(&self) -> Fourier128LweBootstrapKey<&[C::Element]> {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         Fourier128LweBootstrapKey {
-            data_re0: self.data_re0.as_ref(),
-            data_re1: self.data_re1.as_ref(),
-            data_im0: self.data_im0.as_ref(),
-            data_im1: self.data_im1.as_ref(),
-            polynomial_size: self.polynomial_size,
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            data_re0: data_re0.as_ref(),
+            data_re1: data_re1.as_ref(),
+            data_im0: data_im0.as_ref(),
+            data_im1: data_im1.as_ref(),
+            polynomial_size: *polynomial_size,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 
@@ -151,16 +175,28 @@ impl<C: Container<Element = f64>> Fourier128LweBootstrapKey<C> {
     where
         C: AsMut<[C::Element]>,
     {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         Fourier128LweBootstrapKey {
-            data_re0: self.data_re0.as_mut(),
-            data_re1: self.data_re1.as_mut(),
-            data_im0: self.data_im0.as_mut(),
-            data_im1: self.data_im1.as_mut(),
-            polynomial_size: self.polynomial_size,
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            data_re0: data_re0.as_mut(),
+            data_re1: data_re1.as_mut(),
+            data_im0: data_im0.as_mut(),
+            data_im1: data_im1.as_mut(),
+            polynomial_size: *polynomial_size,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 }
@@ -517,21 +553,31 @@ where
             decomposition_level_count,
         } = self;
 
-        let expected_container_len = parameter_set.input_lwe_dimension.0
+        let LweBootstrapKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            output_glwe_size: expected_output_glwe_size,
+            polynomial_size: expected_polynomial_size,
+            // Fourier keys don't store a ciphertext modulus
+            ciphertext_modulus: _,
+        } = parameter_set;
+
+        let expected_container_len = expected_input_lwe_dimension.0
             * fourier_ggsw_ciphertext_size(
-                parameter_set.output_glwe_size,
-                parameter_set.polynomial_size.to_fourier_polynomial_size(),
-                parameter_set.decomp_level_count,
+                *expected_output_glwe_size,
+                expected_polynomial_size.to_fourier_polynomial_size(),
+                *expected_decomp_level_count,
             );
 
         data_re0.container_len() == expected_container_len
             && data_re1.container_len() == expected_container_len
             && data_im0.container_len() == expected_container_len
             && data_im1.container_len() == expected_container_len
-            && *polynomial_size == parameter_set.polynomial_size
-            && *input_lwe_dimension == parameter_set.input_lwe_dimension
-            && *glwe_size == parameter_set.output_glwe_size
-            && *decomposition_base_log == parameter_set.decomp_base_log
-            && *decomposition_level_count == parameter_set.decomp_level_count
+            && polynomial_size == expected_polynomial_size
+            && input_lwe_dimension == expected_input_lwe_dimension
+            && glwe_size == expected_output_glwe_size
+            && decomposition_base_log == expected_decomp_base_log
+            && decomposition_level_count == expected_decomp_level_count
     }
 }

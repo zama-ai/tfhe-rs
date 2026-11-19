@@ -21,7 +21,9 @@ use crate::shortint::backward_compatibility::noise_squashing::{
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
+use crate::shortint::parameters::noise_squashing::{
+    NoiseSquashingClassicParameters, NoiseSquashingMultiBitParameters, NoiseSquashingParameters,
+};
 use crate::shortint::parameters::{
     CarryModulus, CoreCiphertextModulus, KeySwitch32PBSParameters, MessageModulus,
     ModulusSwitchType, PBSParameters,
@@ -233,7 +235,12 @@ where
                 modulus_switch_key_ok && bsk.is_conformant(expected_bootstrapping_key_params)
             }
             (
-                Self::MultiBit { bsk, .. },
+                Self::MultiBit {
+                    bsk,
+                    // Execution settings, taken from the serialized key without validation
+                    thread_count: _,
+                    deterministic_execution: _,
+                },
                 Shortint128BootstrappingKeyConformanceParams::MultiBit {
                     bootstrapping_key_params: expected_bootstrapping_key_params,
                 },
@@ -268,15 +275,22 @@ impl<'key> TryFrom<NoiseSquashingKeyView<'key>> for StandardNoiseSquashingKeyVie
     type Error = UnsupportedOperation;
 
     fn try_from(value: NoiseSquashingKeyView<'key>) -> Result<Self, Self::Error> {
-        let AtomicPatternNoiseSquashingKey::Standard(atomic_pattern) = value.atomic_pattern else {
+        let GenericNoiseSquashingKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = value;
+
+        let AtomicPatternNoiseSquashingKey::Standard(atomic_pattern) = atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
         Ok(Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            output_ciphertext_modulus: value.output_ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
         })
     }
 }
@@ -326,11 +340,18 @@ impl NoiseSquashingKey {
     }
 
     pub fn as_view(&self) -> NoiseSquashingKeyView<'_> {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = self;
+
         GenericNoiseSquashingKey {
-            atomic_pattern: &self.atomic_pattern,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            output_ciphertext_modulus: self.output_ciphertext_modulus,
+            atomic_pattern,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            output_ciphertext_modulus: *output_ciphertext_modulus,
         }
     }
 }
@@ -483,26 +504,52 @@ impl TryFrom<(PBSParameters, NoiseSquashingParameters)>
         }
 
         Ok(match noise_squashing_params {
-            NoiseSquashingParameters::Classic(params) => Self::Classic {
+            NoiseSquashingParameters::Classic(NoiseSquashingClassicParameters {
+                glwe_dimension,
+                polynomial_size,
+                decomp_base_log,
+                decomp_level_count,
+                modulus_switch_noise_reduction_params,
+                ciphertext_modulus,
+                // Only used to generate the key
+                glwe_noise_distribution: _,
+                // Checked against the PBS parameters above
+                message_modulus: _,
+                carry_modulus: _,
+            }) => Self::Classic {
                 bootstrapping_key_params: LweBootstrapKeyConformanceParams {
                     input_lwe_dimension: pbs_params.lwe_dimension(),
-                    output_glwe_size: params.glwe_dimension.to_glwe_size(),
-                    polynomial_size: params.polynomial_size,
-                    decomp_base_log: params.decomp_base_log,
-                    decomp_level_count: params.decomp_level_count,
-                    ciphertext_modulus: params.ciphertext_modulus,
+                    output_glwe_size: glwe_dimension.to_glwe_size(),
+                    polynomial_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    ciphertext_modulus,
                 },
-                modulus_switch_noise_reduction_params: params.modulus_switch_noise_reduction_params,
+                modulus_switch_noise_reduction_params,
             },
-            NoiseSquashingParameters::MultiBit(params) => Self::MultiBit {
+            NoiseSquashingParameters::MultiBit(NoiseSquashingMultiBitParameters {
+                glwe_dimension,
+                polynomial_size,
+                decomp_base_log,
+                decomp_level_count,
+                grouping_factor,
+                ciphertext_modulus,
+                // Only used to generate the key
+                glwe_noise_distribution: _,
+                // Checked against the PBS parameters above
+                message_modulus: _,
+                carry_modulus: _,
+                // Execution setting, not part of the key material
+                deterministic_execution: _,
+            }) => Self::MultiBit {
                 bootstrapping_key_params: MultiBitBootstrapKeyConformanceParams {
                     input_lwe_dimension: pbs_params.lwe_dimension(),
-                    output_glwe_size: params.glwe_dimension.to_glwe_size(),
-                    polynomial_size: params.polynomial_size,
-                    decomp_base_log: params.decomp_base_log,
-                    decomp_level_count: params.decomp_level_count,
-                    grouping_factor: params.grouping_factor,
-                    ciphertext_modulus: params.ciphertext_modulus,
+                    output_glwe_size: glwe_dimension.to_glwe_size(),
+                    polynomial_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    grouping_factor,
+                    ciphertext_modulus,
                 },
             },
         })
@@ -532,26 +579,52 @@ impl TryFrom<(KeySwitch32PBSParameters, NoiseSquashingParameters)>
         }
 
         Ok(match noise_squashing_params {
-            NoiseSquashingParameters::Classic(params) => Self::Classic {
+            NoiseSquashingParameters::Classic(NoiseSquashingClassicParameters {
+                glwe_dimension,
+                polynomial_size,
+                decomp_base_log,
+                decomp_level_count,
+                modulus_switch_noise_reduction_params,
+                ciphertext_modulus,
+                // Only used to generate the key
+                glwe_noise_distribution: _,
+                // Checked against the PBS parameters above
+                message_modulus: _,
+                carry_modulus: _,
+            }) => Self::Classic {
                 bootstrapping_key_params: LweBootstrapKeyConformanceParams {
                     input_lwe_dimension: pbs_params.lwe_dimension(),
-                    output_glwe_size: params.glwe_dimension.to_glwe_size(),
-                    polynomial_size: params.polynomial_size,
-                    decomp_base_log: params.decomp_base_log,
-                    decomp_level_count: params.decomp_level_count,
-                    ciphertext_modulus: params.ciphertext_modulus,
+                    output_glwe_size: glwe_dimension.to_glwe_size(),
+                    polynomial_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    ciphertext_modulus,
                 },
-                modulus_switch_noise_reduction_params: params.modulus_switch_noise_reduction_params,
+                modulus_switch_noise_reduction_params,
             },
-            NoiseSquashingParameters::MultiBit(params) => Self::MultiBit {
+            NoiseSquashingParameters::MultiBit(NoiseSquashingMultiBitParameters {
+                glwe_dimension,
+                polynomial_size,
+                decomp_base_log,
+                decomp_level_count,
+                grouping_factor,
+                ciphertext_modulus,
+                // Only used to generate the key
+                glwe_noise_distribution: _,
+                // Checked against the PBS parameters above
+                message_modulus: _,
+                carry_modulus: _,
+                // Execution setting, not part of the key material
+                deterministic_execution: _,
+            }) => Self::MultiBit {
                 bootstrapping_key_params: MultiBitBootstrapKeyConformanceParams {
                     input_lwe_dimension: pbs_params.lwe_dimension(),
-                    output_glwe_size: params.glwe_dimension.to_glwe_size(),
-                    polynomial_size: params.polynomial_size,
-                    decomp_base_log: params.decomp_base_log,
-                    decomp_level_count: params.decomp_level_count,
-                    grouping_factor: params.grouping_factor,
-                    ciphertext_modulus: params.ciphertext_modulus,
+                    output_glwe_size: glwe_dimension.to_glwe_size(),
+                    polynomial_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    grouping_factor,
+                    ciphertext_modulus,
                 },
             },
         })
@@ -609,25 +682,28 @@ impl ParameterSetConformant for NoiseSquashingKey {
             carry_modulus,
             output_ciphertext_modulus,
         } = self;
+        let NoiseSquashingKeyConformanceParams {
+            pbs_params,
+            atomic_pattern: expected_atomic_pattern,
+            message_modulus: expected_message_modulus,
+            carry_modulus: expected_carry_modulus,
+            output_ciphertext_modulus: expected_output_ciphertext_modulus,
+        } = parameter_set;
 
-        let bsk_conformant = match (atomic_pattern, parameter_set.atomic_pattern) {
+        let bsk_conformant = match (atomic_pattern, expected_atomic_pattern) {
             (AtomicPatternNoiseSquashingKey::Standard(std_nsk), AtomicPatternKind::Standard(_)) => {
-                std_nsk
-                    .bootstrapping_key()
-                    .is_conformant(&parameter_set.pbs_params)
+                std_nsk.bootstrapping_key().is_conformant(pbs_params)
             }
             (
                 AtomicPatternNoiseSquashingKey::KeySwitch32(ks32_nsk),
                 AtomicPatternKind::KeySwitch32,
-            ) => ks32_nsk
-                .bootstrapping_key()
-                .is_conformant(&parameter_set.pbs_params),
+            ) => ks32_nsk.bootstrapping_key().is_conformant(pbs_params),
             _ => false,
         };
 
         bsk_conformant
-            && *output_ciphertext_modulus == parameter_set.output_ciphertext_modulus
-            && *message_modulus == parameter_set.message_modulus
-            && *carry_modulus == parameter_set.carry_modulus
+            && output_ciphertext_modulus == expected_output_ciphertext_modulus
+            && message_modulus == expected_message_modulus
+            && carry_modulus == expected_carry_modulus
     }
 }

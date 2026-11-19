@@ -32,7 +32,9 @@ impl Upgrade<KreyviumFheKey> for KreyviumFheKeyV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<KreyviumFheKey, Self::Error> {
-        Ok(KreyviumFheKey::from_raw_parts(self.key, self.tag))
+        let Self { key, tag } = self;
+
+        Ok(KreyviumFheKey::from_raw_parts(key, tag))
     }
 }
 
@@ -52,7 +54,9 @@ impl Upgrade<AesFheKey> for AesFheKeyV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<AesFheKey, Self::Error> {
-        Ok(AesFheKey::from_raw_parts(self.key, self.tag))
+        let Self { key, tag } = self;
+
+        Ok(AesFheKey::from_raw_parts(key, tag))
     }
 }
 
@@ -72,7 +76,9 @@ impl Upgrade<OneTimePadFheSecretMask> for OneTimePadFheSecretMaskV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<OneTimePadFheSecretMask, Self::Error> {
-        Ok(OneTimePadFheSecretMask::from_raw_parts(self.key, self.tag))
+        let Self { key, tag } = self;
+
+        Ok(OneTimePadFheSecretMask::from_raw_parts(key, tag))
     }
 }
 

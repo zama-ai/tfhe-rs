@@ -266,14 +266,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
     /// Return a view of the [`SeededLwePackingKeyswitchKey`]. This is useful if an algorithm takes
     /// a view by value.
     pub fn as_view(&self) -> SeededLwePackingKeyswitchKey<&'_ [Scalar]> {
+        let Self {
+            ref data,
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
         SeededLwePackingKeyswitchKey::from_container(
-            self.as_ref(),
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.output_glwe_size,
-            self.output_polynomial_size,
-            self.compression_seed.clone(),
-            self.ciphertext_modulus,
+            data.as_ref(),
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            compression_seed.clone(),
+            ciphertext_modulus,
         )
     }
 
@@ -292,14 +302,25 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_packing_keyswitch_key`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_pksk = LwePackingKeyswitchKeyOwned::new(
             Scalar::ZERO,
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            decomp_base_log,
+            decomp_level_count,
             self.input_key_lwe_dimension(),
-            self.output_key_glwe_dimension(),
-            self.output_key_polynomial_size(),
-            self.ciphertext_modulus(),
+            output_glwe_size.to_glwe_dimension(),
+            output_polynomial_size,
+            ciphertext_modulus,
         );
         decompress_seeded_lwe_packing_keyswitch_key::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_pksk,
@@ -318,14 +339,26 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
         Scalar: UnsignedTorus,
         Gen: ByteRandomGenerator,
     {
+        let &Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+            // Read by `decompress_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator`
+            data: _,
+            // The mask comes from the caller's pre-seeded generator
+            compression_seed: _,
+        } = self;
+
         let mut decompressed_pksk = LwePackingKeyswitchKeyOwned::new(
             Scalar::ZERO,
-            self.decomposition_base_log(),
-            self.decomposition_level_count(),
+            decomp_base_log,
+            decomp_level_count,
             self.input_key_lwe_dimension(),
-            self.output_key_glwe_dimension(),
-            self.output_key_polynomial_size(),
-            self.ciphertext_modulus(),
+            output_glwe_size.to_glwe_dimension(),
+            output_polynomial_size,
+            ciphertext_modulus,
         );
 
         decompress_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator(
@@ -360,6 +393,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
         MaskDistribution: Distribution,
         Scalar: RandomGenerable<MaskDistribution, CustomModulus = Scalar>,
     {
+        let &Self {
+            ciphertext_modulus,
+            // Only used through `as_seeded_glwe_ciphertext_list`
+            data: _,
+            output_glwe_size: _,
+            output_polynomial_size: _,
+            // The fork config only depends on the shape of the key
+            decomp_base_log: _,
+            decomp_level_count: _,
+            compression_seed: _,
+        } = self;
+
         let glwe_list = self.as_seeded_glwe_ciphertext_list();
         let per_glwe_mask_sample_count = glwe_ciphertext_encryption_mask_sample_count(
             glwe_list.glwe_size().to_glwe_dimension(),
@@ -369,9 +414,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
             glwe_list.glwe_ciphertext_count().0 * per_glwe_mask_sample_count.0,
         );
 
-        let modulus = self
-            .ciphertext_modulus()
-            .get_custom_modulus_as_optional_scalar();
+        let modulus = ciphertext_modulus.get_custom_modulus_as_optional_scalar();
 
         MaskRandomGeneratorForkConfig::new(1, total_mask_sample_count, mask_distribution, modulus)
     }
@@ -380,14 +423,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededLwePackingKe
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededLwePackingKeyswitchKey<C> {
     /// Mutable variant of [`SeededLwePackingKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> SeededLwePackingKeyswitchKey<&'_ mut [Scalar]> {
-        let decomp_base_log = self.decomp_base_log;
-        let decomp_level_count = self.decomp_level_count;
-        let output_glwe_size = self.output_glwe_size;
-        let output_polynomial_size = self.output_polynomial_size;
-        let compression_seed = self.compression_seed.clone();
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ref compression_seed,
+            ciphertext_modulus,
+        } = *self;
+
+        let compression_seed = compression_seed.clone();
         SeededLwePackingKeyswitchKey::from_container(
-            self.as_mut(),
+            data.as_mut(),
             decomp_base_log,
             decomp_level_count,
             output_glwe_size,
@@ -482,11 +530,23 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     fn get_entity_view_creation_metadata(
         &self,
     ) -> SeededGlweCiphertextListCreationMetadata<Self::Element> {
+        let Self {
+            output_glwe_size,
+            output_polynomial_size,
+            ref compression_seed,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_base_log: _,
+            decomp_level_count: _,
+        } = *self;
+
         SeededGlweCiphertextListCreationMetadata {
-            glwe_size: self.output_glwe_size(),
-            polynomial_size: self.output_polynomial_size(),
-            compression_seed: self.compression_seed(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            glwe_size: output_glwe_size,
+            polynomial_size: output_polynomial_size,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus,
         }
     }
 
@@ -533,18 +593,28 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             output_glwe_size,
             output_polynomial_size,
             ciphertext_modulus,
+            // Only used to regenerate the mask on decompression, any value is accepted
             compression_seed: _,
         } = self;
+
+        let LwePackingKeyswitchKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            output_glwe_size: expected_output_glwe_size,
+            output_polynomial_size: expected_output_polynomial_size,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
 
         data.container_len()
             == seeded_lwe_packing_keyswitch_key_input_key_element_encrypted_size(
                 *decomp_level_count,
                 *output_polynomial_size,
-            ) * parameter_set.input_lwe_dimension.0
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_glwe_size == parameter_set.output_glwe_size
-            && *output_polynomial_size == parameter_set.output_polynomial_size
-            && *ciphertext_modulus == parameter_set.ciphertext_modulus
+            ) * expected_input_lwe_dimension.0
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_glwe_size == expected_output_glwe_size
+            && output_polynomial_size == expected_output_polynomial_size
+            && ciphertext_modulus == expected_ciphertext_modulus
     }
 }

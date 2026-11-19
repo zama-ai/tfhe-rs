@@ -106,7 +106,14 @@ where
     ///
     /// See [CompressedFheUint] example.
     pub fn decompress(&self) -> FheUint<Id> {
-        let inner = match &self.ciphertext {
+        let Self {
+            ciphertext,
+            tag,
+            // Marker type, carried by the output type
+            id: _,
+        } = self;
+
+        let inner = match ciphertext {
             CompressedRadixCiphertext::Seeded(ct) => ct.decompress(),
             CompressedRadixCiphertext::ModulusSwitched(ct) => {
                 global_state::with_internal_keys(|keys| match keys {
@@ -125,8 +132,7 @@ where
             }
         };
 
-        let mut ciphertext =
-            FheUint::new(inner, self.tag.clone(), ReRandomizationMetadata::default());
+        let mut ciphertext = FheUint::new(inner, tag.clone(), ReRandomizationMetadata::default());
 
         ciphertext.move_to_device_of_server_key_if_set();
         ciphertext
@@ -199,11 +205,18 @@ impl<Id: FheUintId> ParameterSetConformant for CompressedFheUint<Id> {
     fn is_conformant(&self, params: &CompressedFheUintConformanceParams<Id>) -> bool {
         let Self {
             ciphertext,
+            // Type marker, holds no data
             id: _,
+            // Any tag is valid
             tag: _,
         } = self;
+        let CompressedFheUintConformanceParams {
+            params: ct_params,
+            // Type marker, holds no data
+            id: _,
+        } = params;
 
-        ciphertext.is_conformant(&params.params)
+        ciphertext.is_conformant(ct_params)
     }
 }
 
@@ -226,9 +239,11 @@ pub struct CompressedRadixCiphertextConformanceParams(
 impl ParameterSetConformant for CompressedRadixCiphertext {
     type ParameterSet = CompressedRadixCiphertextConformanceParams;
     fn is_conformant(&self, params: &CompressedRadixCiphertextConformanceParams) -> bool {
+        let &CompressedRadixCiphertextConformanceParams(ct_params) = params;
+
         match self {
-            Self::Seeded(ct) => ct.is_conformant(&params.0.into()),
-            Self::ModulusSwitched(ct) => ct.is_conformant(&params.0),
+            Self::Seeded(ct) => ct.is_conformant(&ct_params.into()),
+            Self::ModulusSwitched(ct) => ct.is_conformant(&ct_params),
         }
     }
 }

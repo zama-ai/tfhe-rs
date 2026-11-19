@@ -220,7 +220,8 @@ where
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
-                ..
+                // Recomputed from the key parameters on deserialization
+                thread_count: _,
             } => Self::MultiBit {
                 fourier_bsk: bsk.as_view(),
                 deterministic_execution: *deterministic_execution,
@@ -246,7 +247,8 @@ where
             ShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
-                ..
+                // Recomputed from the key parameters on deserialization
+                thread_count: _,
             } => Self::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
@@ -452,8 +454,9 @@ where
     pub fn modulus_switch_configuration(&self) -> Option<&ModulusSwitchConfiguration<InputScalar>> {
         match self {
             Self::Classic {
-                bsk: _,
                 modulus_switch_noise_reduction_key,
+                // Not needed to get the modulus switch configuration
+                bsk: _,
             } => Some(modulus_switch_noise_reduction_key),
             Self::MultiBit { .. } => None,
         }
@@ -481,13 +484,22 @@ pub struct GenericServerKey<AP> {
 
 impl<AP: Clone> GenericServerKey<&AP> {
     pub fn owned(&self) -> GenericServerKey<AP> {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = *self;
+
         GenericServerKey {
-            atomic_pattern: self.atomic_pattern.clone(),
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            max_degree: self.max_degree,
-            max_noise_level: self.max_noise_level,
-            ciphertext_modulus: self.ciphertext_modulus,
+            atomic_pattern: atomic_pattern.clone(),
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         }
     }
 }
@@ -506,15 +518,24 @@ impl Copy for ServerKeyView<'_> {}
 
 impl From<StandardServerKey> for ServerKey {
     fn from(value: StandardServerKey) -> Self {
-        let atomic_pattern = AtomicPatternServerKey::Standard(value.atomic_pattern);
+        let GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = value;
+
+        let atomic_pattern = AtomicPatternServerKey::Standard(atomic_pattern);
 
         Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
-            max_noise_level: value.max_noise_level,
-            ciphertext_modulus: value.ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         }
     }
 }
@@ -534,17 +555,26 @@ impl TryFrom<ServerKey> for StandardServerKey {
     type Error = UnsupportedOperation;
 
     fn try_from(value: ServerKey) -> Result<Self, Self::Error> {
-        let AtomicPatternServerKey::Standard(atomic_pattern) = value.atomic_pattern else {
+        let GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = value;
+
+        let AtomicPatternServerKey::Standard(atomic_pattern) = atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
         Ok(Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
-            max_noise_level: value.max_noise_level,
-            ciphertext_modulus: value.ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         })
     }
 }
@@ -553,17 +583,26 @@ impl<'key> TryFrom<ServerKeyView<'key>> for StandardServerKeyView<'key> {
     type Error = UnsupportedOperation;
 
     fn try_from(value: ServerKeyView<'key>) -> Result<Self, Self::Error> {
-        let AtomicPatternServerKey::Standard(atomic_pattern) = value.atomic_pattern else {
+        let GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = value;
+
+        let AtomicPatternServerKey::Standard(atomic_pattern) = atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
         Ok(Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
-            max_noise_level: value.max_noise_level,
-            ciphertext_modulus: value.ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         })
     }
 }
@@ -572,17 +611,26 @@ impl<'key> TryFrom<ServerKeyView<'key>> for KS32ServerKeyView<'key> {
     type Error = UnsupportedOperation;
 
     fn try_from(value: ServerKeyView<'key>) -> Result<Self, Self::Error> {
-        let AtomicPatternServerKey::KeySwitch32(atomic_pattern) = value.atomic_pattern else {
+        let GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = value;
+
+        let AtomicPatternServerKey::KeySwitch32(atomic_pattern) = atomic_pattern else {
             return Err(UnsupportedOperation);
         };
 
         Ok(Self {
             atomic_pattern,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
-            max_noise_level: value.max_noise_level,
-            ciphertext_modulus: value.ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
         })
     }
 }
@@ -676,9 +724,11 @@ impl ServerKey {
             bsk: &ShortintBootstrappingKey<S>,
         ) -> OprfBootstrappingKeyView<'_> {
             match bsk {
-                ShortintBootstrappingKey::Classic { bsk, .. } => {
-                    OprfBootstrappingKeyView::Classic { bsk: bsk.as_view() }
-                }
+                ShortintBootstrappingKey::Classic {
+                    bsk,
+                    // Not used by the OPRF
+                    modulus_switch_noise_reduction_key: _,
+                } => OprfBootstrappingKeyView::Classic { bsk: bsk.as_view() },
                 ShortintBootstrappingKey::MultiBit {
                     fourier_bsk,
                     thread_count,
@@ -708,13 +758,22 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     }
 
     pub fn as_view(&self) -> GenericServerKey<&AP> {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus,
+        } = self;
+
         GenericServerKey {
-            atomic_pattern: &self.atomic_pattern,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            max_degree: self.max_degree,
-            max_noise_level: self.max_noise_level,
-            ciphertext_modulus: self.ciphertext_modulus,
+            atomic_pattern,
+            message_modulus: *message_modulus,
+            carry_modulus: *carry_modulus,
+            max_degree: *max_degree,
+            max_noise_level: *max_noise_level,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 
@@ -726,6 +785,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             carry_modulus,
             max_degree,
             max_noise_level,
+            // Recovered from the atomic pattern key in `from_raw_parts`
             ciphertext_modulus: _,
         } = self;
 
@@ -1747,15 +1807,39 @@ impl From<&PBSParameters> for PBSConformanceParams {
 
 impl From<&KeySwitch32PBSParameters> for PBSConformanceParams {
     fn from(value: &KeySwitch32PBSParameters) -> Self {
+        let KeySwitch32PBSParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            pbs_base_log,
+            pbs_level,
+            ciphertext_modulus,
+            modulus_switch_noise_reduction_params,
+            // Only used by the keyswitch key
+            ks_base_log: _,
+            ks_level: _,
+            // Also expected to be the modulus of the drift key encryptions of zero, which
+            // conformance does not check
+            post_keyswitch_ciphertext_modulus: _,
+            // Only used to generate the keys
+            lwe_noise_distribution: _,
+            glwe_noise_distribution: _,
+            // Not part of the bootstrapping key
+            message_modulus: _,
+            carry_modulus: _,
+            max_noise_level: _,
+            log2_p_fail: _,
+        } = *value;
+
         Self {
-            in_lwe_dimension: value.lwe_dimension(),
-            out_glwe_dimension: value.glwe_dimension(),
-            out_polynomial_size: value.polynomial_size(),
-            base_log: value.pbs_base_log(),
-            level: value.pbs_level(),
-            ciphertext_modulus: value.ciphertext_modulus(),
+            in_lwe_dimension: lwe_dimension,
+            out_glwe_dimension: glwe_dimension,
+            out_polynomial_size: polynomial_size,
+            base_log: pbs_base_log,
+            level: pbs_level,
+            ciphertext_modulus,
             pbs_type: PbsTypeConformanceParams::Classic {
-                modulus_switch_noise_reduction: value.modulus_switch_noise_reduction_params,
+                modulus_switch_noise_reduction: modulus_switch_noise_reduction_params,
             },
         }
     }
@@ -1768,7 +1852,19 @@ where
     type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        match (self, &parameter_set.pbs_type) {
+        let PBSConformanceParams {
+            in_lwe_dimension,
+            pbs_type,
+            // Checked through the conversion to the bootstrapping key conformance params
+            out_glwe_dimension: _,
+            out_polynomial_size: _,
+            base_log: _,
+            level: _,
+            // Fourier bootstrapping keys don't store a ciphertext modulus
+            ciphertext_modulus: _,
+        } = parameter_set;
+
+        match (self, pbs_type) {
             (
                 Self::Classic {
                     bsk,
@@ -1798,7 +1894,7 @@ where
                         let param = ModulusSwitchNoiseReductionKeyConformanceParams {
                             modulus_switch_noise_reduction_params:
                                 *modulus_switch_noise_reduction_params,
-                            lwe_dimension: parameter_set.in_lwe_dimension,
+                            lwe_dimension: *in_lwe_dimension,
                         };
 
                         modulus_switch_noise_reduction_key.is_conformant(&param)
@@ -1813,10 +1909,14 @@ where
             (
                 Self::MultiBit {
                     fourier_bsk,
+                    // Execution settings, not part of the key material
                     thread_count: _,
                     deterministic_execution: _,
                 },
-                PbsTypeConformanceParams::MultiBit { .. },
+                PbsTypeConformanceParams::MultiBit {
+                    // Checked through the conversion to `MultiBitBootstrapKeyConformanceParams`
+                    lwe_bsk_grouping_factor: _,
+                },
             ) => MultiBitBootstrapKeyConformanceParams::try_from(parameter_set)
                 .is_ok_and(|param| fourier_bsk.is_conformant(&param)),
             _ => false,

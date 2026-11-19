@@ -195,11 +195,19 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     where
         Scalar: UnsignedTorus,
     {
+        let &Self {
+            glwe_size,
+            ciphertext_modulus,
+            // Read by `decompress_seeded_glwe_ciphertext`
+            data: _,
+            compression_seed: _,
+        } = &self;
+
         let mut decompressed_ct = GlweCiphertext::new(
             Scalar::ZERO,
-            self.glwe_size(),
+            glwe_size,
             self.polynomial_size(),
-            self.ciphertext_modulus(),
+            ciphertext_modulus,
         );
         decompress_seeded_glwe_ciphertext::<_, _, _, DefaultRandomGenerator>(
             &mut decompressed_ct,
@@ -211,11 +219,18 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> SeededGlweCipherte
     /// Return a view of the [`SeededGlweCiphertext`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> SeededGlweCiphertext<&'_ [Scalar]> {
+        let Self {
+            data,
+            glwe_size,
+            compression_seed,
+            ciphertext_modulus,
+        } = self;
+
         SeededGlweCiphertext {
-            data: self.data.as_ref(),
-            glwe_size: self.glwe_size,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_ref(),
+            glwe_size: *glwe_size,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }
@@ -231,11 +246,18 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> SeededGlweCiphe
 
     /// Mutable variant of [`SeededGlweCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> SeededGlweCiphertext<&'_ mut [Scalar]> {
+        let Self {
+            data,
+            glwe_size,
+            compression_seed,
+            ciphertext_modulus,
+        } = self;
+
         SeededGlweCiphertext {
-            data: self.data.as_mut(),
-            glwe_size: self.glwe_size,
-            compression_seed: self.compression_seed.clone(),
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_mut(),
+            glwe_size: *glwe_size,
+            compression_seed: compression_seed.clone(),
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }
@@ -310,16 +332,23 @@ where
         glwe_ct_parameters: &GlweCiphertextConformanceParams<C::Element>,
     ) -> bool {
         let Self {
-            compression_seed: _,
             data,
             ciphertext_modulus,
             glwe_size,
+            // Only used to regenerate the mask on decompression, any value is accepted
+            compression_seed: _,
         } = self;
 
-        glwe_ct_parameters.polynomial_size.0.is_power_of_two()
-            && check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
-            && data.container_len() == glwe_ct_parameters.polynomial_size.0
-            && *glwe_size == glwe_ct_parameters.glwe_dim.to_glwe_size()
-            && *ciphertext_modulus == glwe_ct_parameters.ct_modulus
+        let GlweCiphertextConformanceParams {
+            glwe_dim,
+            polynomial_size,
+            ct_modulus,
+        } = glwe_ct_parameters;
+
+        polynomial_size.0.is_power_of_two()
+            && check_encrypted_content_respects_mod(self, *ct_modulus)
+            && data.container_len() == polynomial_size.0
+            && *glwe_size == glwe_dim.to_glwe_size()
+            && ciphertext_modulus == ct_modulus
     }
 }

@@ -228,7 +228,10 @@ impl Neg for f128 {
 impl PartialEq<f128> for f128 {
     #[inline(always)]
     fn eq(&self, other: &f128) -> bool {
-        matches!((self.0 == other.0, self.1 == other.1), (true, true))
+        let Self(hi, lo) = *self;
+        let Self(other_hi, other_lo) = *other;
+
+        hi == other_hi && lo == other_lo
     }
 }
 

@@ -13,8 +13,10 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
+        let Self(inner) = self;
+
         Ok(CompactCiphertextList {
-            inner: crate::high_level_api::compact_list::InnerCompactCiphertextList::Cpu(self.0),
+            inner: crate::high_level_api::compact_list::InnerCompactCiphertextList::Cpu(inner),
             tag: Tag::default(),
         })
     }

@@ -260,14 +260,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>>
     /// Return a view of the [`LwePrivateFunctionalPackingKeyswitchKeyList`]. This is useful if an
     /// algorithm takes a view by value.
     pub fn as_view(&self) -> LwePrivateFunctionalPackingKeyswitchKeyList<&'_ [Scalar]> {
+        let Self {
+            ref data,
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_size,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+        } = *self;
+
         LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
-            self.as_ref(),
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.input_lwe_size,
-            self.output_glwe_size,
-            self.output_polynomial_size,
-            self.ciphertext_modulus,
+            data.as_ref(),
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_size,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
         )
     }
 
@@ -322,15 +332,18 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>>
 {
     /// Mutable variant of [`LwePrivateFunctionalPackingKeyswitchKeyList::as_view`].
     pub fn as_mut_view(&mut self) -> LwePrivateFunctionalPackingKeyswitchKeyList<&'_ mut [Scalar]> {
-        let decomp_base_log = self.decomp_base_log;
-        let decomp_level_count = self.decomp_level_count;
-        let input_lwe_size = self.input_lwe_size;
-        let output_glwe_size = self.output_glwe_size;
-        let output_polynomial_size = self.output_polynomial_size;
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_size,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+        } = *self;
 
         LwePrivateFunctionalPackingKeyswitchKeyList::from_container(
-            self.as_mut(),
+            data.as_mut(),
             decomp_base_log,
             decomp_level_count,
             input_lwe_size,
@@ -455,12 +468,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            input_lwe_size: _,
+        } = *self;
+
         LwePrivateFunctionalPackingKeyswitchKeyCreationMetadata {
-            decomp_base_log: self.decomposition_base_log(),
-            decomp_level_count: self.decomposition_level_count(),
-            output_glwe_size: self.output_glwe_size(),
-            output_polynomial_size: self.output_polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
         }
     }
 
@@ -469,13 +494,24 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_size,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         LwePrivateFunctionalPackingKeyswitchKeyListCreationMetadata {
-            decomp_base_log: self.decomposition_base_log(),
-            decomp_level_count: self.decomposition_level_count(),
-            input_lwe_size: self.input_lwe_size(),
-            output_glwe_size: self.output_glwe_size(),
-            output_polynomial_size: self.output_polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            decomp_base_log,
+            decomp_level_count,
+            input_lwe_size,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
         }
     }
 }

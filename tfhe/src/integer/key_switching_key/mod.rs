@@ -133,7 +133,9 @@ impl KeySwitchingKey {
 
     /// Deconstruct a [`KeySwitchingKey`] into its constituents.
     pub fn into_raw_parts(self) -> crate::shortint::KeySwitchingKey {
-        self.key
+        let Self { key } = self;
+
+        key
     }
 
     /// Construct a [`KeySwitchingKey`] from its constituents.
@@ -219,8 +221,10 @@ pub struct CompressedKeySwitchingKeyMaterial {
 
 impl CompressedKeySwitchingKeyMaterial {
     pub fn decompress(&self) -> KeySwitchingKeyMaterial {
+        let Self { material } = self;
+
         KeySwitchingKeyMaterial {
-            material: self.material.decompress(),
+            material: material.decompress(),
         }
     }
 
@@ -292,8 +296,10 @@ impl CompressedKeySwitchingKey {
     }
 
     pub fn decompress(&self) -> KeySwitchingKey {
+        let Self { key } = self;
+
         KeySwitchingKey {
-            key: self.key.decompress(),
+            key: key.decompress(),
         }
     }
 }

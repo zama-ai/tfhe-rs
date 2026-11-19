@@ -20,9 +20,14 @@ pub struct CudaProvenCompactCiphertextList {
 
 impl CudaProvenCompactCiphertextList {
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        let Self {
+            h_proved_lists,
+            d_flattened_compact_lists,
+        } = self;
+
         Self {
-            h_proved_lists: self.h_proved_lists.clone(),
-            d_flattened_compact_lists: self.d_flattened_compact_lists.duplicate(streams),
+            h_proved_lists: h_proved_lists.clone(),
+            d_flattened_compact_lists: d_flattened_compact_lists.duplicate(streams),
         }
     }
 
@@ -110,8 +115,13 @@ impl CudaProvenCompactCiphertextList {
         key: &CudaKeySwitchingKey,
         streams: &CudaStreams,
     ) -> crate::Result<CudaCompactCiphertextListExpander> {
-        self.d_flattened_compact_lists
-            .expand(key, super::ZKType::Casting, streams)
+        let Self {
+            d_flattened_compact_lists,
+            // Only needed to verify the proofs
+            h_proved_lists: _,
+        } = self;
+
+        d_flattened_compact_lists.expand(key, super::ZKType::Casting, streams)
     }
 
     /// # Safety

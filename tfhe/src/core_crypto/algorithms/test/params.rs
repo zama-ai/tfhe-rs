@@ -98,16 +98,45 @@ pub struct NoiseSquashingMultiBitTestParameters<Scalar: UnsignedInteger> {
 // to change its value in test without the need of regenerating keys in the key cache.
 impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
     fn eq(&self, other: &Self) -> bool {
-        self.input_lwe_dimension == other.input_lwe_dimension
-            && self.lwe_noise_distribution == other.lwe_noise_distribution
-            && self.decomp_base_log == other.decomp_base_log
-            && self.decomp_level_count == other.decomp_level_count
-            && self.glwe_dimension == other.glwe_dimension
-            && self.polynomial_size == other.polynomial_size
-            && self.glwe_noise_distribution == other.glwe_noise_distribution
-            && self.message_modulus_log == other.message_modulus_log
-            && self.ciphertext_modulus == other.ciphertext_modulus
-            && self.grouping_factor == other.grouping_factor
+        let Self {
+            input_lwe_dimension,
+            lwe_noise_distribution,
+            decomp_base_log,
+            decomp_level_count,
+            glwe_dimension,
+            polynomial_size,
+            glwe_noise_distribution,
+            message_modulus_log,
+            ciphertext_modulus,
+            grouping_factor,
+            // Excluded from the comparison, see above
+            thread_count: _,
+        } = *self;
+        let Self {
+            input_lwe_dimension: other_input_lwe_dimension,
+            lwe_noise_distribution: other_lwe_noise_distribution,
+            decomp_base_log: other_decomp_base_log,
+            decomp_level_count: other_decomp_level_count,
+            glwe_dimension: other_glwe_dimension,
+            polynomial_size: other_polynomial_size,
+            glwe_noise_distribution: other_glwe_noise_distribution,
+            message_modulus_log: other_message_modulus_log,
+            ciphertext_modulus: other_ciphertext_modulus,
+            grouping_factor: other_grouping_factor,
+            // Excluded from the comparison, see above
+            thread_count: _,
+        } = *other;
+
+        input_lwe_dimension == other_input_lwe_dimension
+            && lwe_noise_distribution == other_lwe_noise_distribution
+            && decomp_base_log == other_decomp_base_log
+            && decomp_level_count == other_decomp_level_count
+            && glwe_dimension == other_glwe_dimension
+            && polynomial_size == other_polynomial_size
+            && glwe_noise_distribution == other_glwe_noise_distribution
+            && message_modulus_log == other_message_modulus_log
+            && ciphertext_modulus == other_ciphertext_modulus
+            && grouping_factor == other_grouping_factor
     }
 }
 

@@ -200,14 +200,19 @@ where
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { glwe_ciphertext } = self;
 
-        if !parameter_set.encryption_lwe_dimension.0.is_power_of_two() {
+        let LweCompactPublicKeyConformanceParams {
+            encryption_lwe_dimension,
+            ciphertext_modulus,
+        } = *parameter_set;
+
+        if !encryption_lwe_dimension.0.is_power_of_two() {
             return false;
         }
 
         let glwe_ciphertext_conformance_parameters = GlweCiphertextConformanceParams {
             glwe_dim: GlweDimension(1),
-            polynomial_size: PolynomialSize(parameter_set.encryption_lwe_dimension.0),
-            ct_modulus: parameter_set.ciphertext_modulus,
+            polynomial_size: PolynomialSize(encryption_lwe_dimension.0),
+            ct_modulus: ciphertext_modulus,
         };
 
         glwe_ciphertext.is_conformant(&glwe_ciphertext_conformance_parameters)

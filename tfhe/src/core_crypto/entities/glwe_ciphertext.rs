@@ -84,8 +84,9 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     #[inline]
     fn create_from(from: C, meta: Self::Metadata) -> Self {
         let GlweCiphertextCreationMetadata {
-            polynomial_size: _,
             ciphertext_modulus,
+            // A body is a single polynomial, sized by its container
+            polynomial_size: _,
         } = meta;
         Self::from_container(from, ciphertext_modulus)
     }
@@ -215,9 +216,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         GlweCiphertextCreationMetadata {
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus(),
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 
@@ -226,9 +234,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         GlweBodyListCreationMetadata {
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus(),
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 }
@@ -651,10 +666,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweCiphertext<C> 
     /// Return a view of the [`GlweCiphertext`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> GlweCiphertext<&'_ [Scalar]> {
+        let Self {
+            data,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         GlweCiphertext {
-            data: self.data.as_ref(),
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_ref(),
+            polynomial_size: *polynomial_size,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 
@@ -721,10 +742,16 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweCiphertext<
 
     /// Mutable variant of [`GlweCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> GlweCiphertext<&'_ mut [Scalar]> {
+        let Self {
+            data,
+            polynomial_size,
+            ciphertext_modulus,
+        } = self;
+
         GlweCiphertext {
-            data: self.data.as_mut(),
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            data: data.as_mut(),
+            polynomial_size: *polynomial_size,
+            ciphertext_modulus: *ciphertext_modulus,
         }
     }
 }
@@ -808,14 +835,17 @@ where
             ciphertext_modulus,
         } = self;
 
+        let GlweCiphertextConformanceParams {
+            glwe_dim,
+            polynomial_size: expected_polynomial_size,
+            ct_modulus,
+        } = glwe_ct_parameters;
+
         polynomial_size.0.is_power_of_two()
-            && check_encrypted_content_respects_mod(self, glwe_ct_parameters.ct_modulus)
+            && check_encrypted_content_respects_mod(self, *ct_modulus)
             && data.container_len()
-                == glwe_ciphertext_size(
-                    glwe_ct_parameters.glwe_dim.to_glwe_size(),
-                    glwe_ct_parameters.polynomial_size,
-                )
-            && *polynomial_size == glwe_ct_parameters.polynomial_size
-            && *ciphertext_modulus == glwe_ct_parameters.ct_modulus
+                == glwe_ciphertext_size(glwe_dim.to_glwe_size(), *expected_polynomial_size)
+            && polynomial_size == expected_polynomial_size
+            && ciphertext_modulus == ct_modulus
     }
 }

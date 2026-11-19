@@ -126,7 +126,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKey<C>
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
-            ..
+            // The part size only depends on the level count and the dimensions
+            data: _,
+            decomp_base_log: _,
+            ciphertext_modulus: _,
         } = *self;
         cm_lwe_packing_key_part_size(
             decomp_level_count,
@@ -138,13 +141,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKey<C>
 
     pub fn as_view(&self) -> CmLwePackingKeyView<'_, Scalar> {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // Borrowed through `as_ref`
+            data: _,
         } = *self;
         CmLwePackingKey::from_container(
             self.as_ref(),
@@ -178,13 +182,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CmLwePackingKey<C>
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLwePackingKey<C> {
     pub fn as_mut_view(&mut self) -> CmLwePackingKeyMutView<'_, Scalar> {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // Borrowed mutably through `as_mut`
+            data: _,
         } = *self;
         CmLwePackingKey::from_container(
             self.as_mut(),
@@ -202,7 +207,12 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> CmLwePackingKey
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
-            ..
+            // Borrowed mutably through `as_mut`
+            data: _,
+            // Viewed as a flat list of ciphertexts whose count is deduced from the data
+            decomp_base_log: _,
+            decomp_level_count: _,
+            input_lwe_dimension: _,
         } = *self;
         CmLweCiphertextListMutView::from_container(
             self.as_mut(),
@@ -303,13 +313,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
         } = *self;
         CmLwePackingKeyPartCreationMetadata {
             decomp_base_log,
@@ -327,13 +338,14 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
         let Self {
-            data: _,
             decomp_base_log,
             decomp_level_count,
             input_lwe_dimension,
             output_lwe_dimension,
             output_cm_dimension,
             ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
         } = *self;
         CmLwePackingKeyCreationMetadata {
             decomp_base_log,

@@ -49,7 +49,9 @@ impl TranscipheringPrivateKey {
     }
 
     pub fn into_raw_parts(self) -> (OprfPrivateKey, TranscipheringParameters) {
-        (self.oprf_key, self.params)
+        let Self { oprf_key, params } = self;
+
+        (oprf_key, params)
     }
 }
 
@@ -71,7 +73,9 @@ impl ParameterSetConformant for TranscipheringServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.oprf_key.is_conformant(parameter_set)
+        let Self { oprf_key } = self;
+
+        oprf_key.is_conformant(parameter_set)
     }
 }
 
@@ -89,7 +93,9 @@ impl TranscipheringServerKey {
     }
 
     pub fn into_raw_parts(self) -> OprfServerKey {
-        self.oprf_key
+        let Self { oprf_key } = self;
+
+        oprf_key
     }
 }
 
@@ -104,7 +110,9 @@ impl ParameterSetConformant for CompressedTranscipheringServerKey {
     type ParameterSet = OprfKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-        self.oprf_key.is_conformant(parameter_set)
+        let Self { oprf_key } = self;
+
+        oprf_key.is_conformant(parameter_set)
     }
 }
 
@@ -114,8 +122,10 @@ impl CompressedTranscipheringServerKey {
     }
 
     pub fn expand(&self) -> ExpandedTranscipheringServerKey {
+        let Self { oprf_key } = self;
+
         ExpandedTranscipheringServerKey {
-            oprf_key: self.oprf_key.expand(),
+            oprf_key: oprf_key.expand(),
         }
     }
 
@@ -128,7 +138,9 @@ impl CompressedTranscipheringServerKey {
     }
 
     pub fn into_raw_parts(self) -> CompressedOprfServerKey {
-        self.oprf_key
+        let Self { oprf_key } = self;
+
+        oprf_key
     }
 }
 
@@ -151,7 +163,9 @@ impl ExpandedTranscipheringServerKey {
     }
 
     pub fn into_raw_parts(self) -> ExpandedOprfServerKey {
-        self.oprf_key
+        let Self { oprf_key } = self;
+
+        oprf_key
     }
 }
 

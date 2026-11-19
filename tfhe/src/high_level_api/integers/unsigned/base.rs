@@ -140,12 +140,20 @@ impl<Id: FheUintId> ParameterSetConformant for FheUint<Id> {
     fn is_conformant(&self, params: &FheUintConformanceParams<Id>) -> bool {
         let Self {
             ciphertext,
+            // Type marker, holds no data
             id: _,
+            // Any tag is valid
             tag: _,
+            // Arbitrary user data, any value is valid
             re_randomization_metadata: _,
         } = self;
+        let FheUintConformanceParams {
+            params: ct_params,
+            // Type marker, holds no data
+            id: _,
+        } = params;
 
-        ciphertext.on_cpu().is_conformant(&params.params)
+        ciphertext.on_cpu().is_conformant(ct_params)
     }
 }
 

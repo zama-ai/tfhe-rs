@@ -414,10 +414,15 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant for PackedIntegers<Scalar> 
             initial_len,
         } = self;
 
-        let max_log_modulus = Scalar::BITS.min(params.output_scalar_bits);
+        let PackedIntegersConformanceParams {
+            initial_len: expected_initial_len,
+            output_scalar_bits,
+        } = params;
+
+        let max_log_modulus = Scalar::BITS.min(*output_scalar_bits);
 
         (1..=max_log_modulus).contains(&log_modulus.0)
-            && *initial_len == params.initial_len
+            && initial_len == expected_initial_len
             && Self::checked_last_coeff(packed_coeffs, *log_modulus, *initial_len)
                 .is_ok_and(|last_coeff| last_coeff.is_none_or(|last| last.is_canonical()))
     }

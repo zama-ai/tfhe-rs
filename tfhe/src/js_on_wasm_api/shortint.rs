@@ -699,8 +699,10 @@ impl Shortint {
     pub fn decompress_ciphertext(
         compressed_ciphertext: &ShortintCompressedCiphertext,
     ) -> ShortintCiphertext {
+        let ShortintCompressedCiphertext(compressed_ciphertext) = compressed_ciphertext;
+
         set_hook(Box::new(console_error_panic_hook::hook));
-        ShortintCiphertext(compressed_ciphertext.0.decompress())
+        ShortintCiphertext(compressed_ciphertext.decompress())
     }
 
     #[wasm_bindgen]

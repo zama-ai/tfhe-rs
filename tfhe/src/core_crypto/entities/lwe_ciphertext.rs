@@ -195,9 +195,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweBodyCreationMetadata {
-            ciphertext_modulus: self.ciphertext_modulus(),
-        }
+        let Self {
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
+        LweBodyCreationMetadata { ciphertext_modulus }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -205,9 +209,13 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
-        LweBodyListCreationMetadata {
-            ciphertext_modulus: self.ciphertext_modulus(),
-        }
+        let Self {
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
+        LweBodyListCreationMetadata { ciphertext_modulus }
     }
 }
 
@@ -454,9 +462,15 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
-        LweMaskCreationMetadata {
-            ciphertext_modulus: self.ciphertext_modulus(),
-        }
+        let Self {
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            lwe_dimension: _,
+        } = *self;
+
+        LweMaskCreationMetadata { ciphertext_modulus }
     }
 
     fn get_entity_view_pod_size(&self) -> usize {
@@ -464,9 +478,16 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            lwe_dimension,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         LweMaskListCreationMetadata {
-            lwe_dimension: self.lwe_dimension(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            lwe_dimension,
+            ciphertext_modulus,
         }
     }
 }
@@ -686,7 +707,12 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertext<C> {
     /// Return a view of the [`LweCiphertext`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> LweCiphertextView<'_, Scalar> {
-        LweCiphertextView::from_container(self.as_ref(), self.ciphertext_modulus())
+        let Self {
+            ref data,
+            ciphertext_modulus,
+        } = *self;
+
+        LweCiphertextView::from_container(data.as_ref(), ciphertext_modulus)
     }
 
     /// Consume the entity and return its underlying container.
@@ -742,8 +768,12 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LweCiphertext<C
 
     /// Mutable variant of [`LweCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> LweCiphertextMutView<'_, Scalar> {
-        let ciphertext_modulus = self.ciphertext_modulus();
-        LweCiphertextMutView::from_container(self.as_mut(), ciphertext_modulus)
+        let Self {
+            ref mut data,
+            ciphertext_modulus,
+        } = *self;
+
+        LweCiphertextMutView::from_container(data.as_mut(), ciphertext_modulus)
     }
 }
 

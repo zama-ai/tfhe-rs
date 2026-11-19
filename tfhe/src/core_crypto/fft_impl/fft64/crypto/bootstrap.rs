@@ -79,16 +79,24 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     where
         C: Split,
     {
-        self.fourier
+        let Self {
+            fourier,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
+        fourier
             .data
-            .split_into(self.input_lwe_dimension.0)
+            .split_into(input_lwe_dimension.0)
             .map(move |slice| {
                 FourierGgswCiphertext::from_container(
                     slice,
-                    self.glwe_size,
-                    self.fourier.polynomial_size,
-                    self.decomposition_base_log,
-                    self.decomposition_level_count,
+                    glwe_size,
+                    fourier.polynomial_size,
+                    decomposition_base_log,
+                    decomposition_level_count,
                 )
             })
     }
@@ -124,15 +132,23 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     }
 
     pub fn as_view(&self) -> FourierLweBootstrapKeyView<'_> {
+        let Self {
+            fourier,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         FourierLweBootstrapKeyView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_ref(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_ref(),
+                polynomial_size: fourier.polynomial_size,
             },
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 
@@ -140,15 +156,23 @@ impl<C: Container<Element = c64>> FourierLweBootstrapKey<C> {
     where
         C: AsMut<[c64]>,
     {
+        let Self {
+            fourier,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         FourierLweBootstrapKeyMutView {
             fourier: FourierPolynomialList {
-                data: self.fourier.data.as_mut(),
-                polynomial_size: self.fourier.polynomial_size,
+                data: fourier.data.as_mut(),
+                polynomial_size: fourier.polynomial_size,
             },
-            input_lwe_dimension: self.input_lwe_dimension,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            input_lwe_dimension: *input_lwe_dimension,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 }
@@ -673,7 +697,8 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweBootstrap
             input_lwe_dimension: expected_input_lwe_dimension,
             output_glwe_size: expected_output_glwe_size,
             polynomial_size: expected_polynomial_size,
-            ciphertext_modulus: _expected_ciphertext_modulus,
+            // Fourier keys don't store a ciphertext modulus
+            ciphertext_modulus: _,
         } = parameter_set;
 
         data.container_len()

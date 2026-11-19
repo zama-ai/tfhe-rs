@@ -70,7 +70,12 @@ impl NoiseSquashingPrivateKey {
     }
 
     pub fn into_raw_parts(self) -> (GlweSecretKeyOwned<u128>, NoiseSquashingParameters) {
-        (self.post_noise_squashing_secret_key, self.params)
+        let Self {
+            post_noise_squashing_secret_key,
+            params,
+        } = self;
+
+        (post_noise_squashing_secret_key, params)
     }
 
     pub fn post_noise_squashing_lwe_secret_key(&self) -> LweSecretKeyView<'_, u128> {

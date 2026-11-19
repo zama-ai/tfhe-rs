@@ -79,7 +79,9 @@ impl AesFheKey {
     }
 
     pub fn into_raw_parts(self) -> (TranscipheringAesFheKey, Tag) {
-        (self.inner.into(), self.tag)
+        let Self { inner, tag } = self;
+
+        (inner.into(), tag)
     }
 }
 

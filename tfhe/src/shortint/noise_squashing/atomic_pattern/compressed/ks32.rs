@@ -32,7 +32,9 @@ impl CompressedKS32AtomicPatternNoiseSquashingKey {
     }
 
     pub fn decompress(&self) -> KS32AtomicPatternNoiseSquashingKey {
-        let bootstrapping_key = self.bootstrapping_key.decompress();
+        let Self { bootstrapping_key } = self;
+
+        let bootstrapping_key = bootstrapping_key.decompress();
 
         KS32AtomicPatternNoiseSquashingKey::from_raw_parts(bootstrapping_key)
     }
@@ -42,7 +44,9 @@ impl CompressedKS32AtomicPatternNoiseSquashingKey {
     }
 
     pub fn into_raw_parts(self) -> CompressedShortint128BootstrappingKey<u32> {
-        self.bootstrapping_key
+        let Self { bootstrapping_key } = self;
+
+        bootstrapping_key
     }
 
     pub fn bootstrapping_key(&self) -> &CompressedShortint128BootstrappingKey<u32> {

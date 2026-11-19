@@ -22,16 +22,23 @@ impl<Scalar: UnsignedInteger> Upgrade<CompressedModulusSwitchedLweCiphertextV1<S
     type Error = crate::Error;
 
     fn upgrade(self) -> Result<CompressedModulusSwitchedLweCiphertextV1<Scalar>, Self::Error> {
+        let Self {
+            packed_coeffs,
+            lwe_dimension,
+            log_modulus,
+            uncompressed_ciphertext_modulus,
+        } = self;
+
         let packed_integers = PackedIntegers::from_raw_parts(
-            self.packed_coeffs,
-            self.log_modulus,
-            self.lwe_dimension.to_lwe_size().0,
+            packed_coeffs,
+            log_modulus,
+            lwe_dimension.to_lwe_size().0,
         )?;
 
         Ok(CompressedModulusSwitchedLweCiphertextV1 {
             packed_integers,
-            lwe_dimension: self.lwe_dimension,
-            uncompressed_ciphertext_modulus: self.uncompressed_ciphertext_modulus,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
         })
     }
 }
@@ -52,6 +59,7 @@ impl<Scalar: UnsignedInteger> Upgrade<CompressedModulusSwitchedLweCiphertext<Sca
         let Self {
             packed_integers,
             lwe_dimension,
+            // Decompression does not depend on the uncompressed ciphertext modulus
             uncompressed_ciphertext_modulus: _,
         } = self;
 

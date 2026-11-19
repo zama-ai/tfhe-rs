@@ -235,13 +235,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LwePackingKeyswitc
     /// Return a view of the [`LwePackingKeyswitchKey`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> LwePackingKeyswitchKeyView<'_, Scalar> {
+        let Self {
+            ref data,
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+        } = *self;
+
         LwePackingKeyswitchKey::from_container(
-            self.as_ref(),
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.output_glwe_size,
-            self.output_polynomial_size,
-            self.ciphertext_modulus,
+            data.as_ref(),
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
         )
     }
 
@@ -269,13 +278,17 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LwePackingKeyswitc
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> LwePackingKeyswitchKey<C> {
     /// Mutable variant of [`LwePackingKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> LwePackingKeyswitchKeyMutView<'_, Scalar> {
-        let decomp_base_log = self.decomp_base_log;
-        let decomp_level_count = self.decomp_level_count;
-        let output_glwe_size = self.output_glwe_size;
-        let output_polynomial_size = self.output_polynomial_size;
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+        } = *self;
+
         LwePackingKeyswitchKey::from_container(
-            self.as_mut(),
+            data.as_mut(),
             decomp_base_log,
             decomp_level_count,
             output_glwe_size,
@@ -365,10 +378,21 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            output_glwe_size,
+            output_polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_base_log: _,
+            decomp_level_count: _,
+        } = *self;
+
         GlweCiphertextListCreationMetadata {
-            glwe_size: self.output_glwe_size(),
-            polynomial_size: self.output_polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            glwe_size: output_glwe_size,
+            polynomial_size: output_polynomial_size,
+            ciphertext_modulus,
         }
     }
 
@@ -426,16 +450,25 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConfor
             ciphertext_modulus,
         } = self;
 
+        let LwePackingKeyswitchKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            output_glwe_size: expected_output_glwe_size,
+            output_polynomial_size: expected_output_polynomial_size,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
         data.container_len()
             == lwe_packing_keyswitch_key_input_key_element_encrypted_size(
                 *decomp_level_count,
                 *output_glwe_size,
                 *output_polynomial_size,
-            ) * parameter_set.input_lwe_dimension.0
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_glwe_size == parameter_set.output_glwe_size
-            && *output_polynomial_size == parameter_set.output_polynomial_size
-            && *ciphertext_modulus == parameter_set.ciphertext_modulus
+            ) * expected_input_lwe_dimension.0
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_glwe_size == expected_output_glwe_size
+            && output_polynomial_size == expected_output_polynomial_size
+            && ciphertext_modulus == expected_ciphertext_modulus
     }
 }

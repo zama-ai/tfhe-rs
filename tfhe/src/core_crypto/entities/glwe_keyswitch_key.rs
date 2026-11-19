@@ -275,13 +275,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweKeyswitchKey<C
     /// Return a view of the [`GlweKeyswitchKey`]. This is useful if an algorithm takes a view by
     /// value.
     pub fn as_view(&self) -> GlweKeyswitchKey<&'_ [Scalar]> {
+        let Self {
+            ref data,
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            poly_size,
+            ciphertext_modulus,
+        } = *self;
+
         GlweKeyswitchKey::from_container(
-            self.as_ref(),
-            self.decomp_base_log,
-            self.decomp_level_count,
-            self.output_glwe_size,
-            self.poly_size,
-            self.ciphertext_modulus,
+            data.as_ref(),
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            poly_size,
+            ciphertext_modulus,
         )
     }
 
@@ -312,13 +321,17 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweKeyswitchKey<C
 impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweKeyswitchKey<C> {
     /// Mutable variant of [`GlweKeyswitchKey::as_view`].
     pub fn as_mut_view(&mut self) -> GlweKeyswitchKey<&'_ mut [Scalar]> {
-        let decomp_base_log = self.decomp_base_log;
-        let decomp_level_count = self.decomp_level_count;
-        let output_glwe_size = self.output_glwe_size;
-        let poly_size = self.poly_size;
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            poly_size,
+            ciphertext_modulus,
+        } = *self;
+
         GlweKeyswitchKey::from_container(
-            self.as_mut(),
+            data.as_mut(),
             decomp_base_log,
             decomp_level_count,
             output_glwe_size,
@@ -439,10 +452,21 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            output_glwe_size,
+            poly_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_base_log: _,
+            decomp_level_count: _,
+        } = *self;
+
         GlweCiphertextListCreationMetadata {
-            glwe_size: self.output_glwe_size(),
-            polynomial_size: self.polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            glwe_size: output_glwe_size,
+            polynomial_size: poly_size,
+            ciphertext_modulus,
         }
     }
 
@@ -451,12 +475,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
     }
 
     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        let Self {
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            poly_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+        } = *self;
+
         GlweKeyswitchKeyCreationMetadata {
-            decomp_base_log: self.decomposition_base_log(),
-            decomp_level_count: self.decomposition_level_count(),
-            output_glwe_size: self.output_glwe_size(),
-            polynomial_size: self.polynomial_size(),
-            ciphertext_modulus: self.ciphertext_modulus(),
+            decomp_base_log,
+            decomp_level_count,
+            output_glwe_size,
+            polynomial_size: poly_size,
+            ciphertext_modulus,
         }
     }
 }
@@ -497,17 +531,26 @@ impl<C: Container<Element = u64>> ParameterSetConformant for GlweKeyswitchKey<C>
             ciphertext_modulus,
         } = self;
 
-        *ciphertext_modulus == parameter_set.ciphertext_modulus
+        let GlweKeyswitchKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            output_glwe_size: expected_output_glwe_size,
+            input_glwe_dimension: expected_input_glwe_dimension,
+            polynomial_size: expected_polynomial_size,
+            ciphertext_modulus: expected_ciphertext_modulus,
+        } = parameter_set;
+
+        ciphertext_modulus == expected_ciphertext_modulus
             && data.container_len()
-                == parameter_set.input_glwe_dimension.0
+                == expected_input_glwe_dimension.0
                     * glwe_keyswitch_key_input_key_element_encrypted_size(
-                        parameter_set.decomp_level_count,
-                        parameter_set.output_glwe_size,
-                        parameter_set.polynomial_size,
+                        *expected_decomp_level_count,
+                        *expected_output_glwe_size,
+                        *expected_polynomial_size,
                     )
-            && *decomp_base_log == parameter_set.decomp_base_log
-            && *decomp_level_count == parameter_set.decomp_level_count
-            && *output_glwe_size == parameter_set.output_glwe_size
-            && *poly_size == parameter_set.polynomial_size
+            && decomp_base_log == expected_decomp_base_log
+            && decomp_level_count == expected_decomp_level_count
+            && output_glwe_size == expected_output_glwe_size
+            && poly_size == expected_polynomial_size
     }
 }

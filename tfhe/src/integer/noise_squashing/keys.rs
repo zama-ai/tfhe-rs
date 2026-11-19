@@ -57,8 +57,10 @@ impl NoiseSquashingPrivateKey {
 
 impl CompressedNoiseSquashingKey {
     pub fn decompress(&self) -> NoiseSquashingKey {
+        let Self { key } = self;
+
         NoiseSquashingKey {
-            key: self.key.decompress(),
+            key: key.decompress(),
         }
     }
 

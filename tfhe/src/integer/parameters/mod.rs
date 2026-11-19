@@ -62,12 +62,24 @@ impl CompactCiphertextListConformanceParams {
         value: CompactPublicKeyEncryptionParameters,
         num_elements_constraint: ListSizeConstraint,
     ) -> Self {
+        let CompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            expansion_kind,
+            // Only used to encrypt
+            encryption_noise_distribution: _,
+            // Only relevant for proven lists
+            zk_scheme: _,
+        } = value;
+
         Self {
-            encryption_lwe_dimension: value.encryption_lwe_dimension,
-            message_modulus: value.message_modulus,
-            carry_modulus: value.carry_modulus,
-            ciphertext_modulus: value.ciphertext_modulus,
-            expansion_kind: value.expansion_kind,
+            encryption_lwe_dimension,
+            message_modulus,
+            carry_modulus,
+            ciphertext_modulus,
+            expansion_kind,
             num_elements_constraint,
             allow_unpacked: false,
         }

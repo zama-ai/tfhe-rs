@@ -153,15 +153,26 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
     where
         C: AsRef<[C::Element]>,
     {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         Fourier128GgswCiphertext {
-            data_re0: self.data_re0.as_ref(),
-            data_re1: self.data_re1.as_ref(),
-            data_im0: self.data_im0.as_ref(),
-            data_im1: self.data_im1.as_ref(),
-            polynomial_size: self.polynomial_size,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            data_re0: data_re0.as_ref(),
+            data_re1: data_re1.as_ref(),
+            data_im0: data_im0.as_ref(),
+            data_im1: data_im1.as_ref(),
+            polynomial_size: *polynomial_size,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 
@@ -169,15 +180,26 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
     where
         C: AsMut<[C::Element]>,
     {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
         Fourier128GgswCiphertext {
-            data_re0: self.data_re0.as_mut(),
-            data_re1: self.data_re1.as_mut(),
-            data_im0: self.data_im0.as_mut(),
-            data_im1: self.data_im1.as_mut(),
-            polynomial_size: self.polynomial_size,
-            glwe_size: self.glwe_size,
-            decomposition_base_log: self.decomposition_base_log,
-            decomposition_level_count: self.decomposition_level_count,
+            data_re0: data_re0.as_mut(),
+            data_re1: data_re1.as_mut(),
+            data_im0: data_im0.as_mut(),
+            data_im1: data_im1.as_mut(),
+            polynomial_size: *polynomial_size,
+            glwe_size: *glwe_size,
+            decomposition_base_log: *decomposition_base_log,
+            decomposition_level_count: *decomposition_level_count,
         }
     }
 
@@ -186,12 +208,24 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
     where
         C: Split,
     {
-        let decomposition_level_count = self.decomposition_level_count.0;
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            glwe_size,
+            decomposition_level_count,
+            // Not part of the level matrices
+            decomposition_base_log: _,
+        } = self;
+
+        let decomposition_level_count = decomposition_level_count.0;
         izip_eq!(
-            self.data_re0.split_into(decomposition_level_count),
-            self.data_re1.split_into(decomposition_level_count),
-            self.data_im0.split_into(decomposition_level_count),
-            self.data_im1.split_into(decomposition_level_count)
+            data_re0.split_into(decomposition_level_count),
+            data_re1.split_into(decomposition_level_count),
+            data_im0.split_into(decomposition_level_count),
+            data_im1.split_into(decomposition_level_count)
         )
         .enumerate()
         .map(move |(i, (data_re0, data_re1, data_im0, data_im1))| {
@@ -200,8 +234,8 @@ impl<C: Container<Element = f64>> Fourier128GgswCiphertext<C> {
                 data_re1,
                 data_im0,
                 data_im1,
-                self.polynomial_size,
-                self.glwe_size,
+                polynomial_size,
+                glwe_size,
                 DecompositionLevel(decomposition_level_count - i),
             )
         })
@@ -246,11 +280,21 @@ impl<C: Container<Element = f64>> Fourier128GgswLevelMatrix<C> {
         C: Split,
     {
         let row_count = self.row_count();
+
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            glwe_size,
+            decomposition_level,
+        } = self;
         izip_eq!(
-            self.data_re0.split_into(row_count),
-            self.data_re1.split_into(row_count),
-            self.data_im0.split_into(row_count),
-            self.data_im1.split_into(row_count)
+            data_re0.split_into(row_count),
+            data_re1.split_into(row_count),
+            data_im0.split_into(row_count),
+            data_im1.split_into(row_count)
         )
         .map(
             move |(data_re0, data_re1, data_im0, data_im1)| Fourier128GgswLevelRow {
@@ -258,9 +302,9 @@ impl<C: Container<Element = f64>> Fourier128GgswLevelMatrix<C> {
                 data_re1,
                 data_im0,
                 data_im1,
-                polynomial_size: self.polynomial_size,
-                glwe_size: self.glwe_size,
-                decomposition_level: self.decomposition_level,
+                polynomial_size,
+                glwe_size,
+                decomposition_level,
             },
         )
     }

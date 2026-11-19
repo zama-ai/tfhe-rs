@@ -366,13 +366,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> PseudoGgswCipherte
     /// Return a view of the [`PseudoGgswCiphertext`]. This is useful if an algorithm takes a view
     /// by value.
     pub fn as_view(&self) -> PseudoGgswCiphertextView<'_, Scalar> {
+        let Self {
+            ref data,
+            input_glwe_size,
+            output_glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+        } = *self;
+
         PseudoGgswCiphertextView::from_container(
-            self.as_ref(),
-            self.input_glwe_size(),
-            self.output_glwe_size(),
-            self.polynomial_size(),
-            self.decomposition_base_log(),
-            self.ciphertext_modulus(),
+            data.as_ref(),
+            input_glwe_size,
+            output_glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
         )
     }
 
@@ -428,13 +437,17 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> PseudoGgswCiphe
 
     /// Mutable variant of [`PseudoGgswCiphertext::as_view`].
     pub fn as_mut_view(&mut self) -> PseudoGgswCiphertextMutView<'_, Scalar> {
-        let input_glwe_size = self.input_glwe_size();
-        let output_glwe_size = self.output_glwe_size();
-        let polynomial_size = self.polynomial_size();
-        let decomp_base_log = self.decomposition_base_log();
-        let ciphertext_modulus = self.ciphertext_modulus;
+        let Self {
+            ref mut data,
+            input_glwe_size,
+            output_glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            ciphertext_modulus,
+        } = *self;
+
         PseudoGgswCiphertextMutView::from_container(
-            self.as_mut(),
+            data.as_mut(),
             input_glwe_size,
             output_glwe_size,
             polynomial_size,
@@ -727,11 +740,22 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityCo
         Self: 'this;
 
     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        let Self {
+            input_glwe_size,
+            output_glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
+            // The container is split by the caller
+            data: _,
+            // Not needed to create the element views
+            decomp_base_log: _,
+        } = *self;
+
         PseudoGgswLevelMatrixCreationMetadata {
-            input_glwe_size: self.input_glwe_size,
-            output_glwe_size: self.output_glwe_size,
-            polynomial_size: self.polynomial_size,
-            ciphertext_modulus: self.ciphertext_modulus,
+            input_glwe_size,
+            output_glwe_size,
+            polynomial_size,
+            ciphertext_modulus,
         }
     }
 
