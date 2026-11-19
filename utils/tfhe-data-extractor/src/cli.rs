@@ -317,6 +317,7 @@ pub struct Args {
             "bench_subset",
             "regression_profiles",
             "regression_selected_profile",
+            "name_suffix",
         ],
     )]
     pub generate_archive_csv: bool,

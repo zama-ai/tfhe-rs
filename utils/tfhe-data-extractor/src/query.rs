@@ -91,7 +91,7 @@ impl Selection {
         // nor a profile decides what it selects: the catalogue does.
         if let Mode::Archive(_) = mode {
             return Ok(Self {
-                like_patterns: archive::like_patterns(&args.name_suffix),
+                like_patterns: archive::like_patterns(),
                 param_pattern: args
                     .param
                     .as_deref()
