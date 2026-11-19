@@ -152,6 +152,7 @@ jobs:
       base64-subjects: ${{ needs.package.outputs.hash }}
 
   publish-cuda-release:
+    environment: release
     name: make_release_common_cuda/publish-cuda-release
     needs: [setup-instance, package] # for comparing hashes
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}

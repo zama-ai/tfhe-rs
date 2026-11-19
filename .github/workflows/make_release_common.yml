@@ -88,6 +88,7 @@ jobs:
       base64-subjects: ${{ needs.package.outputs.hash }}
 
   publish_release:
+    environment: release
     name: make_release_common/publish-release
     needs: package
     runs-on: ubuntu-latest
