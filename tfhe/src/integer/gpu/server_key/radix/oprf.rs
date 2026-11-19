@@ -98,12 +98,11 @@ where
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::integer::gpu::CudaOprfServerKey;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::gpu::{gen_keys_gpu, CudaOprfServerKey};
     /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
@@ -111,7 +110,7 @@ where
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// // Generate the OPRF key:
     /// let oprf_pk = OprfPrivateKey::new(&cks);
@@ -120,7 +119,12 @@ where
     ///
     /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
     /// // The proper way of generating a seed depends on your application.
-    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &sks, &streams);
+    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_unsigned_integer(
+    ///     Seed(0),
+    ///     size as u64,
+    ///     &sks,
+    ///     &streams,
+    /// );
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// // Decrypt:
     /// let dec_result: u64 = cks.decrypt_radix(&ct_res);
@@ -164,12 +168,11 @@ where
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::integer::gpu::CudaOprfServerKey;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::gpu::{gen_keys_gpu, CudaOprfServerKey};
     /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
@@ -177,7 +180,7 @@ where
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// // Generate the OPRF key:
     /// let oprf_pk = OprfPrivateKey::new(&cks);
@@ -267,12 +270,11 @@ where
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::integer::gpu::CudaOprfServerKey;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::gpu::{gen_keys_gpu, CudaOprfServerKey};
     /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
@@ -280,7 +282,7 @@ where
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// // Generate the OPRF key:
     /// let oprf_pk = OprfPrivateKey::new(&cks);
@@ -289,7 +291,12 @@ where
     ///
     /// // DANGER: Using a fixed seed is insecure and only done here to show API usage.
     /// // The proper way of generating a seed depends on your application.
-    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &sks, &streams);
+    /// let d_ct_res = cuda_oprf_sk.par_generate_oblivious_pseudo_random_signed_integer(
+    ///     Seed(0),
+    ///     size as u64,
+    ///     &sks,
+    ///     &streams,
+    /// );
     /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
     ///
     /// // Decrypt:
@@ -334,12 +341,11 @@ where
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::CudaStreams;
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
-    /// use tfhe::integer::gpu::gen_keys_gpu;
-    /// use tfhe::integer::gpu::CudaOprfServerKey;
+    /// use tfhe::core_crypto::gpu::CudaStreams;
+    /// use tfhe::integer::gpu::{gen_keys_gpu, CudaOprfServerKey};
     /// use tfhe::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey};
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
@@ -347,7 +353,7 @@ where
     /// let size = 4;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// // Generate the OPRF key:
     /// let oprf_pk = OprfPrivateKey::new(&cks);

@@ -772,6 +772,12 @@ mod tests {
         TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    // Fall back to classic PBS when multi-bit is gated out so kv-store coverage
+    // survives the `gpu-experimental-pbs`-off matrix build.
+    #[cfg(feature = "gpu-experimental-pbs")]
+    use crate::shortint::parameters::test_params::TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 as KV_SERVER_KEY_PARAMS;
+    #[cfg(not(feature = "gpu-experimental-pbs"))]
+    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 as KV_SERVER_KEY_PARAMS;
     use crate::shortint::AtomicPatternParameters;
     use std::collections::BTreeMap;
 
@@ -942,8 +948,7 @@ mod tests {
 
     #[test]
     fn test_kv_store_get() {
-        let params =
-            TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let params = KV_SERVER_KEY_PARAMS.into();
         let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
         let streams = CudaStreams::new_multi_gpu();
@@ -1017,8 +1022,7 @@ mod tests {
 
     #[test]
     fn test_kv_store_contains_key() {
-        let params =
-            TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let params = KV_SERVER_KEY_PARAMS.into();
         let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
         let streams = CudaStreams::new_multi_gpu();
@@ -1071,8 +1075,7 @@ mod tests {
 
     #[test]
     fn test_kv_store_contains_value() {
-        let params =
-            TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let params = KV_SERVER_KEY_PARAMS.into();
         let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
         let streams = CudaStreams::new_multi_gpu();
@@ -1118,8 +1121,7 @@ mod tests {
 
     #[test]
     fn test_kv_store_contains_clear_value() {
-        let params =
-            TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let params = KV_SERVER_KEY_PARAMS.into();
         let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
         let streams = CudaStreams::new_multi_gpu();
@@ -1157,8 +1159,7 @@ mod tests {
     #[test]
     fn test_kv_store_map() {
         // kv_store_map cannot use the generic test templates, hence this dedicated test.
-        let params =
-            TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+        let params = KV_SERVER_KEY_PARAMS.into();
         let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
 
         let streams = CudaStreams::new_multi_gpu();

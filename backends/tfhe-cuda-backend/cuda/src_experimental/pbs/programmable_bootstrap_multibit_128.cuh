@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 #endif
 
+#include "bootstrapping_key_multibit.cuh"
 #include "fft128/fft128.cuh"
 #include "pbs/pbs_multibit_utilities.h"
 #include "polynomial/dispatch.cuh"

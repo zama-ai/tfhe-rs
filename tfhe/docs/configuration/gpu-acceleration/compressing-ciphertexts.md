@@ -12,12 +12,12 @@ This document explains how to compress ciphertexts using the GPU. Compression ca
 
 When using compression, the [`ConfigBuilder`](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html) class must be initialized with the `enable_compression` calls. This requires that the caller sets both the cryptographic PBS parameters and the compression cryptographic parameters.
 
-The [`PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameter set corresponds to the default PBS parameter set instantiated by `ConfigBuilder::default()` when the `"gpu"` feature enabled. The [`COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameters are the corresponding compression cryptographic parameters.
+The [`PARAM_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_MESSAGE_2_CARRY_2_KS_PBS.html) parameter set corresponds to the default PBS parameter set instantiated by `ConfigBuilder::default()` when the `"gpu"` feature enabled. The [`COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS.html) parameters are the corresponding compression cryptographic parameters.
 
 ```Rust
     let config =
-        tfhe::ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
-            .enable_compression(COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS)
             .build();
 ```
 
@@ -28,7 +28,7 @@ The following example shows how to compress and decompress a list containing 4 m
 ```rust
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::{
-    COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
 };
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
@@ -37,8 +37,8 @@ use tfhe::{
 
 fn main() {
     let config =
-        tfhe::ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
-            .enable_compression(COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS)
             .build();
 
     let ck = tfhe::ClientKey::generate(config);

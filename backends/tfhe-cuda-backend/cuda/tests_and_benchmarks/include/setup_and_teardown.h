@@ -3,7 +3,9 @@
 
 #include "keyswitch/keyswitch.h"
 #include "pbs/programmable_bootstrap.h"
+#ifdef TFHE_CUDA_EXT_PBS
 #include "pbs/programmable_bootstrap_multibit.h"
+#endif
 #include "pbs/programmable_bootstrap_testing.h"
 #include <device.h>
 #include <utils.h>
@@ -27,6 +29,7 @@ void programmable_bootstrap_classical_teardown(
     uint64_t *d_lut_pbs_indexes, uint64_t *d_lwe_ct_in_array,
     uint64_t *d_lwe_input_indexes, uint64_t *d_lwe_ct_out_array,
     uint64_t *d_lwe_output_indexes);
+#ifdef TFHE_CUDA_EXT_PBS
 void programmable_bootstrap_multibit_setup(
     cudaStream_t stream, uint32_t gpu_index, Seed *seed,
     uint64_t **lwe_sk_in_array, uint64_t **lwe_sk_out_array,
@@ -45,6 +48,7 @@ void programmable_bootstrap_multibit_teardown(
     uint64_t *d_lut_pbs_identity, uint64_t *d_lut_pbs_indexes,
     uint64_t *d_lwe_ct_in_array, uint64_t *d_lwe_input_indexes,
     uint64_t *d_lwe_ct_out_array, uint64_t *d_lwe_output_indexes);
+#endif
 void keyswitch_setup(cudaStream_t stream, uint32_t gpu_index, Seed *seed,
                      uint64_t **lwe_sk_in_array, uint64_t **lwe_sk_out_array,
                      uint64_t **d_ksk_array, uint64_t **plaintexts,
