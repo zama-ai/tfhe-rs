@@ -1,4 +1,4 @@
-use crate::core_crypto::prelude::{CastFrom, Numeric, SignedNumeric};
+use crate::core_crypto::prelude::{CastFrom, Numeric, SignedMarker, SignedNumeric};
 use std::ops::{AddAssign, ShlAssign};
 
 const fn max_value_for_signed_u64_based_integer<const N: usize>() -> [u64; N] {
@@ -358,6 +358,8 @@ impl<const N: usize> Numeric for StaticSignedBigInt<N> {
     const TWO: Self = Self::TWO;
 
     const MAX: Self = Self::MAX;
+
+    type Signedness = SignedMarker;
 }
 
 impl<const N: usize> SignedNumeric for StaticSignedBigInt<N> {

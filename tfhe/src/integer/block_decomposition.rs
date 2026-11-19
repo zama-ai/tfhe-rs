@@ -368,8 +368,7 @@ where
     }
 
     pub fn value(&self) -> T {
-        let is_signed = (T::ONE << (T::BITS as u32 - 1)) < T::ZERO;
-        if self.bit_pos >= (T::BITS as u32 - u32::from(is_signed)) {
+        if self.bit_pos >= (T::BITS as u32 - u32::from(T::IS_SIGNED)) {
             self.data
         } else {
             let valid_mask = (T::ONE << self.bit_pos) - T::ONE;

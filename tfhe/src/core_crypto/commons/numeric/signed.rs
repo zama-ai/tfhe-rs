@@ -1,4 +1,4 @@
-use super::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
+use super::{CastFrom, CastInto, Numeric, SignedMarker, SignedNumeric, UnsignedInteger};
 use crate::core_crypto::prelude::OverflowingAdd;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
@@ -57,6 +57,7 @@ macro_rules! implement {
             const ONE: Self = 1;
             const TWO: Self = 2;
             const MAX: Self = <$Type>::MAX;
+            type Signedness = SignedMarker;
         }
 
         impl SignedNumeric for $Type {

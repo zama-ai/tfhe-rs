@@ -1183,4 +1183,32 @@
             n_bits: 64,
         )),
     ),
+    (
+        tfhe_version_min: "1.9",
+        tfhe_module: "high_level_api",
+        metadata: HlStreamCiphertextList((
+            test_filename: "stream_ciphertext_list",
+            key_filename: "client_key_with_noise_squashing",
+            pad: [
+                222,
+                173,
+                190,
+                239,
+                202,
+                254,
+                186,
+                190,
+            ],
+            clear_values: [
+                42,
+                1,
+                -12,
+            ],
+            data_kinds: [
+                Unsigned,
+                Bool,
+                Signed,
+            ],
+        )),
+    ),
 ]

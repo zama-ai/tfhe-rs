@@ -47,16 +47,47 @@ pub trait Numeric:
 
     /// The largest value that can be encoded by the type.
     const MAX: Self;
+
+    /// Whether the type can represent negative values: [`SignedMarker`] or [`UnsignedMarker`]
+    type Signedness: Signedness;
+
+    /// Whether the type can represent negative values, derived from [`Self::Signedness`]
+    const IS_SIGNED: bool = <Self::Signedness as Signedness>::IS_SIGNED;
 }
 
-pub trait UnsignedNumeric: Numeric {
+mod sealed {
+    pub trait Sealed {}
+}
+
+pub trait Signedness: sealed::Sealed {
+    const IS_SIGNED: bool;
+}
+
+/// [`Signedness`] of types that can represent negative values
+pub struct SignedMarker;
+
+/// [`Signedness`] of types that cannot represent negative values
+pub struct UnsignedMarker;
+
+impl sealed::Sealed for SignedMarker {}
+impl sealed::Sealed for UnsignedMarker {}
+
+impl Signedness for SignedMarker {
+    const IS_SIGNED: bool = true;
+}
+
+impl Signedness for UnsignedMarker {
+    const IS_SIGNED: bool = false;
+}
+
+pub trait UnsignedNumeric: Numeric<Signedness = UnsignedMarker> {
     /// The signed type of the same precision
     ///
     /// The name is long and explicit to avoid clash with the
     /// same associated type in [UnsignedInteger]
     type NumericSignedType: SignedNumeric<NumericUnsignedType = Self> + CastFrom<Self>;
 }
-pub trait SignedNumeric: Numeric {
+pub trait SignedNumeric: Numeric<Signedness = SignedMarker> {
     /// The unsigned type of the same precision
     ///
     /// The name is long and explicit to avoid clash with the
