@@ -1,6 +1,6 @@
 # Quick Start
 
-This library makes it possible to execute **homomorphic operations over encrypted data**, where the data are either Booleans, short integers (named shortint in the rest of this documentation), or integers up to 256 bits. It allows you to execute a circuit on an **untrusted server** because both circuit inputs and outputs are kept **private**. Data are indeed encrypted on the client side, before being sent to the server. On the server side, every computation is performed on ciphertexts.
+This library makes it possible to execute **homomorphic operations over encrypted data**, where the data are either short integers (named shortint in the rest of this documentation) or integers up to 256 bits. It allows you to execute a circuit on an **untrusted server** because both circuit inputs and outputs are kept **private**. Data are indeed encrypted on the client side, before being sent to the server. On the server side, every computation is performed on ciphertexts.
 
 The server, however, has to know the circuit to be evaluated. At the end of the computation, the server returns the encryption of the result to the user. Then the user can decrypt it with the `secret key`.
 
@@ -8,7 +8,7 @@ The server, however, has to know the circuit to be evaluated. At the end of the 
 
 The overall process to write an homomorphic program is the same for all types. The basic steps for using the TFHE-rs library are the following:
 
-1. Choose a data type (Boolean, shortint, integer)
+1. Choose a data type (shortint, integer)
 2. Import the library
 3. Create client and server keys
 4. Encrypt data with the client key
@@ -21,7 +21,7 @@ This library has different modules, with different levels of abstraction.
 
 There is the [core\_crypto](../core-crypto-api/presentation.md) module, which is the lowest level API with the primitive functions and types of the TFHE scheme.
 
-Above the core\_crypto module, there are the [Boolean](boolean/README.md), [shortint](shortint/README.md), and [integer](integer/README.md) modules, which contain easy to use APIs enabling evaluation of Boolean, short integer, and integer circuits.
+Above the core\_crypto module, there are the [shortint](shortint/README.md) and [integer](integer/README.md) modules, which contain easy to use APIs enabling evaluation of short integer and integer circuits.
 
 Finally, there is the high-level module built on top of the shortint and integer modules. This module is meant to abstract cryptographic complexities: no cryptographical knowledge is required to start developing an FHE application. Another benefit of the high-level module is the drastically simplified development process compared to lower level modules.
 
@@ -62,38 +62,6 @@ fn main() {
     let clear_result = clear_a + clear_b;
 
     assert_eq!(decrypted_result, clear_result);
-}
-```
-
-#### Boolean example
-
-Here is an example of how the library can be used to evaluate a Boolean circuit:
-
-{% hint style="warning" %}
-Use the `--release` flag to run this example (eg: `cargo run --release`)
-{% endhint %}
-
-```rust
-use tfhe::boolean::prelude::*;
-
-fn main() {
-    // We generate a set of client/server keys, using the default parameters:
-    let (client_key, server_key) = gen_keys();
-
-    // We use the client secret key to encrypt two messages:
-    let ct_1 = client_key.encrypt(true);
-    let ct_2 = client_key.encrypt(false);
-
-    // We use the server public key to execute a boolean circuit:
-    // if ((NOT ct_2) NAND (ct_1 AND ct_2)) then (NOT ct_2) else (ct_1 AND ct_2)
-    let ct_3 = server_key.not(&ct_2);
-    let ct_4 = server_key.and(&ct_1, &ct_2);
-    let ct_5 = server_key.nand(&ct_3, &ct_4);
-    let ct_6 = server_key.mux(&ct_5, &ct_3, &ct_4);
-
-    // We use the client key to decrypt the output of the circuit:
-    let output = client_key.decrypt(&ct_6);
-    assert!(output);
 }
 ```
 

@@ -41,7 +41,6 @@ production-ready library for all the advanced features of TFHE.
 ### Main features
 
 - **Low-level cryptographic library** that implements Zama’s variant of TFHE, including programmable bootstrapping
-- **Implementation of the original TFHE boolean API** that can be used as a drop-in replacement for other TFHE libraries
 - **Short integer API** that enables exact, unbounded FHE integer arithmetics with up to 8 bits of message space
 - **Size-efficient public key encryption**
 - **Ciphertext and server key compression** for efficient data transfer

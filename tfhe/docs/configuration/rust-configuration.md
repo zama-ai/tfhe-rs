@@ -58,7 +58,6 @@ This crate provides 4 kinds of data types. Each kind is enabled by activating th
 
 | Kind      | Features         | Type (s)                    |
 | --------- | ---------------- | --------------------------- |
-| Booleans  | `boolean`        | Booleans                    |
 | ShortInts | `shortint`       | Short integers              |
 | Integers  | `integer`        | Arbitrary-sized integers    |
 | Integers+ | `extended-types` | Non-standard sized integers |

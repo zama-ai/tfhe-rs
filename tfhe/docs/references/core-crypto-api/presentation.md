@@ -1,6 +1,6 @@
 # Quick start
 
-The `core_crypto` module from `TFHE-rs` is dedicated to the implementation of the cryptographic tools related to TFHE. To construct an FHE application, the [shortint](../fine-grained-apis/shortint/) and/or [Boolean](../fine-grained-apis/boolean/) modules (based on `core_crypto`) are recommended.
+The `core_crypto` module from `TFHE-rs` is dedicated to the implementation of the cryptographic tools related to TFHE. To construct an FHE application, the [shortint](../fine-grained-apis/shortint/) module (based on `core_crypto`) is recommended.
 
 The `core_crypto` module offers an API to low-level cryptographic primitives and objects, like `lwe_encryption` or `rlwe_ciphertext`. The goal is to propose an easy-to-use API for cryptographers.
 

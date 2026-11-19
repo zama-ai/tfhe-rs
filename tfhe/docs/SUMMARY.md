@@ -93,7 +93,6 @@
 
 * [Homomorphic parity bit](tutorials/parity-bit.md)
 * [Homomorphic case changing on Ascii string](tutorials/ascii-fhe-string.md)
-* [SHA256 with Boolean API](tutorials/sha256-bool.md)
 * [All tutorials](tutorials/see-all-tutorials.md)
 
 ## References
@@ -101,10 +100,6 @@
 * [API references](https://docs.rs/tfhe/latest/tfhe/)
 * [Fine-grained APIs](references/fine-grained-apis/README.md)
   * [Quick start](references/fine-grained-apis/quick-start.md)
-  * [Boolean](references/fine-grained-apis/boolean/README.md)
-    * [Operations](references/fine-grained-apis/boolean/operations.md)
-    * [Cryptographic parameters](references/fine-grained-apis/boolean/parameters.md)
-    * [Serialization/Deserialization](references/fine-grained-apis/boolean/serialization.md)
   * [Shortint](references/fine-grained-apis/shortint/README.md)
     * [Operations](references/fine-grained-apis/shortint/operations.md)
     * [Cryptographic parameters](references/fine-grained-apis/shortint/parameters.md)
