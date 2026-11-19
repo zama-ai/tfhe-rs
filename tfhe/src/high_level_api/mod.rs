@@ -160,7 +160,9 @@ pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, Fh
 pub use tag::Tag;
 pub use traits::FheId;
 pub use transciphering::{
-    AesFheKey, CompressedSquashedNoiseOneTimePadFheSecretMask,
+    AesFheKey, CompressedOneTimePadFheSecretMask,
+    CompressedOneTimePadFheSecretMaskConformanceParams,
+    CompressedSquashedNoiseOneTimePadFheSecretMask,
     CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, HlStreamCipher,
     HlStreamDecryptable, HlStreamEncryptable, HlStreamPackable, HlTranscipherer, KreyviumFheKey,
     OneTimePadFheSecretMask, OneTimePadFheSecretMaskConformanceParams,

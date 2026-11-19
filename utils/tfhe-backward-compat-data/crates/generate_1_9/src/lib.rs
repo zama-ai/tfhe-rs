@@ -29,6 +29,14 @@ const HL_COMPRESSED_SQUASHED_NOISE_ONE_TIME_PAD_FHE_SECRET_MASK_TEST:
         n_bits: 64,
     };
 
+const HL_COMPRESSED_ONE_TIME_PAD_FHE_SECRET_MASK_TEST: HlCompressedOneTimePadFheSecretMaskTest =
+    HlCompressedOneTimePadFheSecretMaskTest {
+        test_filename: Cow::Borrowed("compressed_one_time_pad_fhe_secret_mask"),
+        key_filename: Cow::Borrowed("client_key_with_noise_squashing"),
+        pad: Cow::Borrowed(&ONE_TIME_PAD),
+        n_bits: 64,
+    };
+
 const HL_STREAM_CIPHERTEXT_LIST_TEST: HlStreamCiphertextListTest = HlStreamCiphertextListTest {
     test_filename: Cow::Borrowed("stream_ciphertext_list"),
     key_filename: Cow::Borrowed("client_key_with_noise_squashing"),
@@ -87,6 +95,13 @@ impl TfhersVersion for V1_9 {
                 &HL_COMPRESSED_SQUASHED_NOISE_ONE_TIME_PAD_FHE_SECRET_MASK_TEST.test_filename(),
             );
 
+            let stored_mask = mask.compress().unwrap();
+            store_versioned_test(
+                &stored_mask,
+                &dir,
+                &HL_COMPRESSED_ONE_TIME_PAD_FHE_SECRET_MASK_TEST.test_filename(),
+            );
+
             let list = StreamCiphertextList::builder()
                 .push(HL_STREAM_CIPHERTEXT_LIST_TEST.clear_values[0] as u8)
                 .push(HL_STREAM_CIPHERTEXT_LIST_TEST.clear_values[1] != 0)
@@ -103,6 +118,9 @@ impl TfhersVersion for V1_9 {
                 HL_COMPRESSED_SQUASHED_NOISE_ONE_TIME_PAD_FHE_SECRET_MASK_TEST,
             ),
             TestMetadata::HlStreamCiphertextList(HL_STREAM_CIPHERTEXT_LIST_TEST),
+            TestMetadata::HlCompressedOneTimePadFheSecretMask(
+                HL_COMPRESSED_ONE_TIME_PAD_FHE_SECRET_MASK_TEST,
+            ),
         ]
     }
 }
