@@ -1037,14 +1037,14 @@ mod tests {
     use crate::conformance::ParameterSetConformant;
     use crate::prelude::*;
     use crate::safe_serialization::{safe_deserialize, safe_serialize};
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "gpu-experimental-pbs")]
+    use crate::shortint::parameters::COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    #[cfg(feature = "gpu-experimental-pbs")]
     use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     #[cfg(not(feature = "gpu"))]
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     use crate::shortint::parameters::{
-        CompressionParameters,
-        COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use crate::shortint::AtomicPatternParameters;
@@ -1068,11 +1068,7 @@ mod tests {
                 PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128.into(),
                 COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
-            (
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-                COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            ),
-            #[cfg(feature = "gpu")]
+            #[cfg(feature = "gpu-experimental-pbs")]
             (
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                 COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -1281,6 +1277,7 @@ mod tests {
         println!("compressed list sizes under test: {sizes:?}");
 
         for (flavor, params, comp_params) in [
+            #[cfg(feature = "gpu-experimental-pbs")]
             (
                 "multi-bit",
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
@@ -1383,6 +1380,7 @@ mod tests {
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                 COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
+            #[cfg(feature = "gpu-experimental-pbs")]
             (
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
                 COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,

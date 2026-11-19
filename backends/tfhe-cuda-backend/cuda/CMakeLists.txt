@@ -136,6 +136,11 @@ if(GOLDSCHMIDT_TRACE)
   add_definitions(-DGOLDSCHMIDT_TRACE)
 endif()
 
+if(TFHE_CUDA_EXT_PBS)
+  message(STATUS "Extended PBS variants are enabled")
+  add_definitions(-DTFHE_CUDA_EXT_PBS)
+endif()
+
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging to use
 # nvtx when profiling -lnvToolsExt
 string(FIND "${CMAKE_CUDA_FLAGS}" "-ccbin" _cuda_has_ccbin)

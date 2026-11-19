@@ -17,18 +17,11 @@ use crate::shortint::client_key::atomic_pattern::{
     AtomicPatternClientKey, StandardAtomicPatternClientKey,
 };
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{
-    PBSParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-};
-use rand::Rng;
-use std::fmt::Write;
+use crate::shortint::parameters::{PBSParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128};
 use sum_ciphertexts_golden_data::sum_ciphertexts_golden_v1::{
-    CLASSICAL_EXPECTED, GOLDEN_SEED, INPUT_MESSAGES, MULTI_BIT_GROUP_4_EXPECTED,
+    CLASSICAL_EXPECTED, GOLDEN_SEED, INPUT_MESSAGES,
 };
-use tfhe_cuda_backend::bindings::{
-    cuda_multi_bit_pbs_golden_is_supported_async, cuda_pbs_golden_is_supported_async,
-};
+use tfhe_cuda_backend::bindings::cuda_pbs_golden_is_supported_async;
 
 // ============================================================================
 // Bit-wise regression ("golden values") test for the GPU `sum_ciphertexts`.
@@ -84,9 +77,6 @@ use tfhe_cuda_backend::bindings::{
 /// Number of radix blocks of every input and of the output.
 const NUM_BLOCKS: usize = 4;
 
-/// Number of ciphertexts in the vector given to `sum_ciphertexts`.
-const NUM_INPUTS: usize = 16;
-
 /// Fails the test unless CUDA can see GPU 0.
 ///
 /// The capability probes return `false` both on older hardware and when the
@@ -111,15 +101,6 @@ fn classical_golden_is_supported() -> bool {
     assert_gpu_0_is_usable();
     // Safe: a pure runtime device-capability query with no aliasing concerns.
     unsafe { cuda_pbs_golden_is_supported_async(0) }
-}
-
-/// Gate of the multi-bit test and of the generator: the multi-bit golden data
-/// is only validated on compute capability 9.x (Hopper) and newer, which the
-/// CUDA backend probe checks as a pure `prop.major >= 9` device query.
-fn multi_bit_golden_is_supported() -> bool {
-    assert_gpu_0_is_usable();
-    // Safe: a pure runtime device-capability query with no aliasing concerns.
-    unsafe { cuda_multi_bit_pbs_golden_is_supported_async(0) }
 }
 
 /// Builds the two generators every random value of a golden run is drawn from,
@@ -320,97 +301,122 @@ fn test_gpu_integer_default_sum_ciphertexts_golden_param_message_2_carry_2_ks_pb
     );
 }
 
-#[test]
-fn test_gpu_integer_default_sum_ciphertexts_golden_param_gpu_multi_bit_group_4_message_2_carry_2_ks_pbs_tuniform_2m128(
-) {
-    check_sum_ciphertexts_golden(
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        MULTI_BIT_GROUP_4_EXPECTED,
-        "PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
-        multi_bit_golden_is_supported,
-        "compute capability 9.x (Hopper) or newer",
-    );
-}
+#[cfg(feature = "gpu-experimental-pbs")]
+mod multi_bit {
+    use super::sum_ciphertexts_golden_data::sum_ciphertexts_golden_v1::MULTI_BIT_GROUP_4_EXPECTED;
+    use super::{
+        assert_gpu_0_is_usable, check_sum_ciphertexts_golden, run_sum_ciphertexts_golden,
+        NUM_BLOCKS, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+    use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use rand::Rng;
+    use std::fmt::Write;
+    use tfhe_cuda_backend::bindings::cuda_multi_bit_pbs_golden_is_supported_async;
 
-/// Formats a `pub const <name>: &[&[u64]] = &[...]` block holding one inner
-/// slice of hex limbs per output block, in block order.
-fn format_golden_const(name: &str, blocks: &[Vec<u64>]) -> String {
-    let mut body = String::new();
-    for (index, limbs) in blocks.iter().enumerate() {
-        let _ = writeln!(body, "    // block {index}");
-        let _ = writeln!(body, "    &[");
-        for limb in limbs {
-            let _ = writeln!(body, "        {limb:#018x},");
-        }
-        let _ = writeln!(body, "    ],");
+    /// Number of ciphertexts in the vector given to `sum_ciphertexts`.
+    const NUM_INPUTS: usize = 16;
+
+    /// Gate of the multi-bit test and of the generator: the multi-bit golden data
+    /// is only validated on compute capability 9.x (Hopper) and newer, which the
+    /// CUDA backend probe checks as a pure `prop.major >= 9` device query.
+    fn multi_bit_golden_is_supported() -> bool {
+        assert_gpu_0_is_usable();
+        // Safe: a pure runtime device-capability query with no aliasing concerns.
+        unsafe { cuda_multi_bit_pbs_golden_is_supported_async(0) }
     }
-    format!("pub const {name}: &[&[u64]] = &[\n{body}];\n\n")
-}
 
-/// (Re)generates the `sum_ciphertexts` golden file from a fresh random seed and
-/// fresh random clear inputs. This is *not* a test — it is a manual maintenance
-/// helper, kept out of every test run so no `--ignored` or filtered invocation
-/// can overwrite the committed data. To refresh the golden data, temporarily
-/// annotate it with `#[test]` `#[ignore]`, run it on an H100 (sm_90) with
-/// `cargo test --profile release --features=integer,internal-keycache,gpu -p tfhe --lib --
-/// sum_ciphertexts_golden::generate_sum_ciphertexts_golden --ignored`,
-/// then commit the regenerated file and remove the annotations again.
-#[allow(dead_code)]
-fn generate_sum_ciphertexts_golden() {
-    // Both data sets are written, so the stricter (multi-bit) gate applies.
-    if !multi_bit_golden_is_supported() {
-        println!(
-            "skipping generate_sum_ciphertexts_golden: the golden data requires compute \
-             capability 9.x (Hopper) or newer"
+    #[test]
+    fn test_gpu_integer_default_sum_ciphertexts_golden_param_gpu_multi_bit_group_4_message_2_carry_2_ks_pbs_tuniform_2m128(
+    ) {
+        check_sum_ciphertexts_golden(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            MULTI_BIT_GROUP_4_EXPECTED,
+            "PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+            multi_bit_golden_is_supported,
+            "compute capability 9.x (Hopper) or newer",
         );
-        return;
     }
 
-    // Both parameter sets share the inputs, so they must share the plaintext space.
-    let classical = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let multi_bit = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    assert_eq!(classical.message_modulus, multi_bit.message_modulus);
-    let modulus = classical.message_modulus.0.pow(NUM_BLOCKS as u32);
+    /// Formats a `pub const <name>: &[&[u64]] = &[...]` block holding one inner
+    /// slice of hex limbs per output block, in block order.
+    fn format_golden_const(name: &str, blocks: &[Vec<u64>]) -> String {
+        let mut body = String::new();
+        for (index, limbs) in blocks.iter().enumerate() {
+            let _ = writeln!(body, "    // block {index}");
+            let _ = writeln!(body, "    &[");
+            for limb in limbs {
+                let _ = writeln!(body, "        {limb:#018x},");
+            }
+            let _ = writeln!(body, "    ],");
+        }
+        format!("pub const {name}: &[&[u64]] = &[\n{body}];\n\n")
+    }
 
-    let mut rng = rand::thread_rng();
-    let seed: u128 = rng.gen();
-    let messages: Vec<u64> = (0..NUM_INPUTS).map(|_| rng.gen_range(0..modulus)).collect();
-    println!("seed: {seed:#034x}, messages: {messages:?}");
+    /// (Re)generates the `sum_ciphertexts` golden file from a fresh random seed and
+    /// fresh random clear inputs. This is *not* a test — it is a manual maintenance
+    /// helper, kept out of every test run so no `--ignored` or filtered invocation
+    /// can overwrite the committed data. To refresh the golden data, temporarily
+    /// annotate it with `#[test]` `#[ignore]`, run it on an H100 (sm_90) with
+    /// `cargo test --profile release --features=integer,internal-keycache,gpu -p tfhe --lib --
+    /// sum_ciphertexts_golden::generate_sum_ciphertexts_golden --ignored`,
+    /// then commit the regenerated file and remove the annotations again.
+    #[allow(dead_code)]
+    fn generate_sum_ciphertexts_golden() {
+        // Both data sets are written, so the stricter (multi-bit) gate applies.
+        if !multi_bit_golden_is_supported() {
+            println!(
+                "skipping generate_sum_ciphertexts_golden: the golden data requires compute \
+                 capability 9.x (Hopper) or newer"
+            );
+            return;
+        }
 
-    let classical_limbs = run_sum_ciphertexts_golden(classical, seed, &messages);
-    let multi_bit_limbs = run_sum_ciphertexts_golden(multi_bit, seed, &messages);
+        // Both parameter sets share the inputs, so they must share the plaintext space.
+        let classical = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let multi_bit = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        assert_eq!(classical.message_modulus, multi_bit.message_modulus);
+        let modulus = classical.message_modulus.0.pow(NUM_BLOCKS as u32);
 
-    let mut contents = String::from(
-        "// @generated by the `generate_sum_ciphertexts_golden` helper in\n\
-         // integer::gpu::server_key::radix::tests_unsigned::sum_ciphertexts_golden.\n\
-         // Do not edit by hand.\n",
-    );
-    let _ = writeln!(contents, "pub const GOLDEN_SEED: u128 = {seed:#034x};\n");
-    // Short integer elements are packed on one line, which is how rustfmt lays
-    // them out, so the generated file stays unchanged under formatting.
-    let message_list = messages
-        .iter()
-        .map(u64::to_string)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let _ = writeln!(
-        contents,
-        "pub const INPUT_MESSAGES: &[u64] = &[\n    {message_list},\n];\n"
-    );
-    contents += &format_golden_const("CLASSICAL_EXPECTED", &classical_limbs);
-    contents += &format_golden_const("MULTI_BIT_GROUP_4_EXPECTED", &multi_bit_limbs);
+        let mut rng = rand::thread_rng();
+        let seed: u128 = rng.gen();
+        let messages: Vec<u64> = (0..NUM_INPUTS).map(|_| rng.gen_range(0..modulus)).collect();
+        println!("seed: {seed:#034x}, messages: {messages:?}");
 
-    // Normalize to a single trailing newline so the generated file needs no
-    // manual formatting pass after regeneration.
-    let contents = format!("{}\n", contents.trim_end());
+        let classical_limbs = run_sum_ciphertexts_golden(classical, seed, &messages);
+        let multi_bit_limbs = run_sum_ciphertexts_golden(multi_bit, seed, &messages);
 
-    let dir = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/integer/gpu/server_key/radix/tests_unsigned/sum_ciphertexts_golden/\
-         sum_ciphertexts_golden_data"
-    );
-    std::fs::create_dir_all(dir).expect("failed to create the golden data directory");
-    let path = format!("{dir}/sum_ciphertexts_golden_v1.rs");
-    std::fs::write(&path, contents).expect("failed to write the sum_ciphertexts golden file");
-    println!("wrote sum_ciphertexts golden data to {path}");
+        let mut contents = String::from(
+            "// @generated by the `generate_sum_ciphertexts_golden` helper in\n\
+             // integer::gpu::server_key::radix::tests_unsigned::sum_ciphertexts_golden.\n\
+             // Do not edit by hand.\n",
+        );
+        let _ = writeln!(contents, "pub const GOLDEN_SEED: u128 = {seed:#034x};\n");
+        // Short integer elements are packed on one line, which is how rustfmt lays
+        // them out, so the generated file stays unchanged under formatting.
+        let message_list = messages
+            .iter()
+            .map(u64::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = writeln!(
+            contents,
+            "pub const INPUT_MESSAGES: &[u64] = &[\n    {message_list},\n];\n"
+        );
+        contents += &format_golden_const("CLASSICAL_EXPECTED", &classical_limbs);
+        contents += &format_golden_const("MULTI_BIT_GROUP_4_EXPECTED", &multi_bit_limbs);
+
+        // Normalize to a single trailing newline so the generated file needs no
+        // manual formatting pass after regeneration.
+        let contents = format!("{}\n", contents.trim_end());
+
+        let dir = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/integer/gpu/server_key/radix/tests_unsigned/sum_ciphertexts_golden/\
+             sum_ciphertexts_golden_data"
+        );
+        std::fs::create_dir_all(dir).expect("failed to create the golden data directory");
+        let path = format!("{dir}/sum_ciphertexts_golden_v1.rs");
+        std::fs::write(&path, contents).expect("failed to write the sum_ciphertexts golden file");
+        println!("wrote sum_ciphertexts golden data to {path}");
+    }
 }

@@ -27,3 +27,6 @@ debug-fake-multi-gpu = []
 # Test-only: Goldschmidt division writes its fixed-point iterates to a CSV
 # (trivial ciphertexts only), for the golden trace test.
 goldschmidt-trace = []
+# Extended PBS variants. Off by default. The gate removes the CUDA sources
+# and the Rust FFI wrappers from the build.
+experimental-pbs = []

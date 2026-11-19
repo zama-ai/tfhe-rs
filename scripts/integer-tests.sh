@@ -126,7 +126,12 @@ for tier in ${TIERS//,/ }; do
 done
 
 if [[ "${backend}" == "gpu" && -z "${gpu_feature}" ]]; then
-    gpu_feature="gpu"
+    if [[ -n "${multi_bit_argument}" ]]; then
+        # gpu-experimental-pbs implies gpu, and is required to compile multi-bit PBS code.
+        gpu_feature="gpu-experimental-pbs"
+    else
+        gpu_feature="gpu"
+    fi
 fi
 
 CURR_DIR="$(dirname "$0")"
