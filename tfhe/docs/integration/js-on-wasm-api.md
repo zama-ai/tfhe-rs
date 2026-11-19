@@ -111,7 +111,6 @@ import init, {
     ShortintParametersName,
     ShortintParameters,
     TfheClientKey,
-    TfhePublicKey,
 } from "./pkg/tfhe.js";
 
 async function example() {
