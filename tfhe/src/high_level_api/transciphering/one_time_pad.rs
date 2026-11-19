@@ -1,6 +1,7 @@
 use super::TranscipherSession;
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::backward_compatibility::transciphering::{
+    CompressedOneTimePadFheSecretMaskVersions,
     CompressedSquashedNoiseOneTimePadFheSecretMaskVersions, OneTimePadFheSecretMaskVersions,
 };
 use crate::high_level_api::details::MaybeCloned;
@@ -11,6 +12,7 @@ use crate::high_level_api::global_state::try_with_internal_keys;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{SquashNoise, Tagged};
 use crate::high_level_api::{
+    CompressedCiphertextListConformanceParams,
     CompressedSquashedNoiseCiphertextListConformanceParams, SquashedNoiseCiphertextState,
 };
 #[cfg(feature = "gpu")]
@@ -24,6 +26,8 @@ use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::AtomicPatternParameters;
 use crate::transciphering::{
     packed_squashed_layout,
+    CompressedOneTimePadFheSecretMask as TranscipheringCompressedOneTimePadFheSecretMask,
+    CompressedOneTimePadFheSecretMaskConformanceParams as TranscipheringCompressedOneTimePadFheSecretMaskConformanceParams,
     CompressedSquashedNoiseOneTimePadFheSecretMask as TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMask,
     CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams as TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams,
     KeyStreamLayout, OneTimePadFheSecretMask as TranscipheringOneTimePadFheSecretMask,
@@ -155,6 +159,31 @@ impl OneTimePadFheSecretMask {
             None => Err(UninitializedServerKey.into()),
         })
     }
+
+    /// Compress the pad using the compression key of the current server key, so that it can be
+    /// stored and decompressed later to be used for transciphering.
+    ///
+    /// Only pads using the message space of the parameters can be compressed, which is the case
+    /// of the pads generated with [`Self::new_random`].
+    pub fn compress(&self) -> crate::Result<CompressedOneTimePadFheSecretMask> {
+        try_with_internal_keys(|keys| match (&self.inner, keys) {
+            (InnerOneTimePadFheSecretMask::Cpu(mask), Some(InternalServerKey::Cpu(cpu_key))) => {
+                let compression_key = cpu_key.key.compression_key.as_ref().ok_or_else(|| {
+                    crate::Error::new("Compression key not set in server key".to_owned())
+                })?;
+
+                Ok(CompressedOneTimePadFheSecretMask {
+                    inner: mask.compress(&compression_key.key)?,
+                    tag: cpu_key.tag.clone(),
+                })
+            }
+            (_, None) => Err(UninitializedServerKey.into()),
+            #[cfg(any(feature = "gpu", feature = "hpu"))]
+            _ => Err(crate::Error::new(
+                "OneTimePadFheSecretMask::compress is only supported on CPU".to_owned(),
+            )),
+        })
+    }
 }
 
 impl Tagged for OneTimePadFheSecretMask {
@@ -270,6 +299,116 @@ impl ParameterSetConformant for OneTimePadFheSecretMask {
 
 impl Named for OneTimePadFheSecretMask {
     const NAME: &'static str = "high_level_api::OneTimePadFheSecretMask";
+}
+
+/// FHE-encrypted pad compressed with the compression key, so that it can be stored.
+///
+/// It is obtained with [`OneTimePadFheSecretMask::compress`], and can be turned back into a pad
+/// usable for transciphering with [`Self::decompress`].
+#[derive(Clone, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedOneTimePadFheSecretMaskVersions)]
+pub struct CompressedOneTimePadFheSecretMask {
+    inner: TranscipheringCompressedOneTimePadFheSecretMask,
+    tag: Tag,
+}
+
+impl CompressedOneTimePadFheSecretMask {
+    pub fn from_raw_parts(mask: TranscipheringCompressedOneTimePadFheSecretMask, tag: Tag) -> Self {
+        Self { inner: mask, tag }
+    }
+
+    pub fn into_raw_parts(self) -> (TranscipheringCompressedOneTimePadFheSecretMask, Tag) {
+        (self.inner, self.tag)
+    }
+
+    /// Decompress the pad using the decompression key of the current server key.
+    pub fn decompress(&self) -> crate::Result<OneTimePadFheSecretMask> {
+        try_with_internal_keys(|keys| match keys {
+            Some(InternalServerKey::Cpu(cpu_key)) => {
+                let decompression_key =
+                    cpu_key.key.decompression_key.as_ref().ok_or_else(|| {
+                        crate::Error::new("Decompression key not set in server key".to_owned())
+                    })?;
+
+                Ok(OneTimePadFheSecretMask::new_cpu(
+                    self.inner.decompress(&decompression_key.key)?,
+                    self.tag.clone(),
+                ))
+            }
+            #[cfg(feature = "gpu")]
+            Some(InternalServerKey::Cuda(_)) => Err(crate::Error::new(
+                "CompressedOneTimePadFheSecretMask::decompress is not yet supported on GPU"
+                    .to_owned(),
+            )),
+            #[cfg(feature = "hpu")]
+            Some(InternalServerKey::Hpu(_)) => Err(crate::Error::new(
+                "CompressedOneTimePadFheSecretMask::decompress is not supported on HPU".to_owned(),
+            )),
+            None => Err(UninitializedServerKey.into()),
+        })
+    }
+}
+
+impl Tagged for CompressedOneTimePadFheSecretMask {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
+    }
+}
+
+#[derive(Clone)]
+pub struct CompressedOneTimePadFheSecretMaskConformanceParams(
+    pub(crate) TranscipheringCompressedOneTimePadFheSecretMaskConformanceParams,
+);
+
+impl CompressedOneTimePadFheSecretMaskConformanceParams {
+    pub fn new(
+        list_params: CompressedCiphertextListConformanceParams,
+        layout: KeyStreamLayout,
+    ) -> Self {
+        Self(
+            TranscipheringCompressedOneTimePadFheSecretMaskConformanceParams {
+                list_params: list_params.params,
+                layout,
+            },
+        )
+    }
+}
+
+/// Conformance params for a pad generated with the message space of the server key parameters,
+/// which is the layout used by [`OneTimePadFheSecretMask::new_random`].
+impl TryFrom<&ServerKey> for CompressedOneTimePadFheSecretMaskConformanceParams {
+    type Error = crate::Error;
+
+    fn try_from(sks: &ServerKey) -> Result<Self, Self::Error> {
+        let list_params = CompressedCiphertextListConformanceParams::try_from(sks)?;
+        let layout = KeyStreamLayout::message_space(list_params.params.message_modulus)
+            .ok_or_else(|| {
+                crate::Error::new(
+                    "The server key parameters are not compatible with otp mask generation"
+                        .to_owned(),
+                )
+            })?;
+
+        Ok(Self::new(list_params, layout))
+    }
+}
+
+impl ParameterSetConformant for CompressedOneTimePadFheSecretMask {
+    type ParameterSet = CompressedOneTimePadFheSecretMaskConformanceParams;
+
+    fn is_conformant(&self, params: &Self::ParameterSet) -> bool {
+        let Self { inner, tag: _ } = self;
+
+        inner.is_conformant(&params.0)
+    }
+}
+
+impl Named for CompressedOneTimePadFheSecretMask {
+    const NAME: &'static str = "high_level_api::CompressedOneTimePadFheSecretMask";
 }
 
 /// FHE-encrypted pad whose noise has been squashed, so that it can be decrypted with the noise

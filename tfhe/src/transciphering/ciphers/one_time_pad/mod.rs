@@ -14,6 +14,7 @@ mod test;
 #[cfg(feature = "integer")]
 pub(crate) use fhe::packed_squashed_layout;
 pub use fhe::{
+    CompressedOneTimePadFheSecretMask, CompressedOneTimePadFheSecretMaskConformanceParams,
     CompressedSquashedNoiseOneTimePadFheSecretMask,
     CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
     OneTimePadFheState, SquashedNoiseOneTimePadFheSecretMask,
