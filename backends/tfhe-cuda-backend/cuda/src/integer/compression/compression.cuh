@@ -380,7 +380,7 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   // We must zero the tail region (from initial_out_len to
   // glwe_ciphertext_size)
   if (initial_out_len < glwe_ciphertext_size) {
-    cuda_memset_async(glwe_array_out + initial_out_len, 0,
+    cuda_memset_async(glwe_array_out, 0,
                       safe_mul_sizeof<Torus>(
                           (size_t)(glwe_ciphertext_size - initial_out_len)),
                       stream, gpu_index);

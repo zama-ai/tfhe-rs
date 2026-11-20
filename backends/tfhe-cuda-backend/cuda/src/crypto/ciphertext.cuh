@@ -47,7 +47,7 @@ sample_extract(Torus *lwe_array_out, Torus const *glwe_array_in,
                  (input_id / num_lwes_to_extract_per_glwe) * glwe_input_size;
 
   // Compute the per-GLWE polynomial degree from the absolute index
-  auto nth = nth_array[input_id] % num_lwes_stored_per_glwe;
+  auto nth = nth_array[input_id] % params::degree;
 
   sample_extract_mask<Torus, params>(lwe_out, glwe_in, glwe_dimension, nth);
   sample_extract_body<Torus, params>(lwe_out, glwe_in, glwe_dimension, nth);

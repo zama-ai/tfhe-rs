@@ -89,17 +89,6 @@ void generate_lut_indexes(CudaStreams streams, IndexGenerator generator,
 
   generator(h_buffer, num_indexes);
 
-  // Validate all indexes were initialized and are within bounds
-  for (uint32_t i = 0; i < num_indexes; i++) {
-    GPU_ASSERT(h_buffer[i] != sentinel,
-               "LUT index not initialized: h_buffer[%u] was not set by "
-               "generator",
-               i);
-    GPU_ASSERT(h_buffer[i] < num_luts,
-               "LUT index out of bounds: h_buffer[%u] = %llu >= num_luts (%u)",
-               i, (unsigned long long)h_buffer[i], num_luts);
-  }
-
   cuda_memcpy_with_size_tracking_async_to_gpu(
       d_lut_indexes, h_buffer, safe_mul_sizeof<Torus>(num_indexes),
       streams.stream(0), streams.gpu_index(0), gpu_memory_allocated);

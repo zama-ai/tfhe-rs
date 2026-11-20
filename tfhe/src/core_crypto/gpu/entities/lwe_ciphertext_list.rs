@@ -266,7 +266,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         R: std::ops::RangeBounds<usize>,
     {
         let (start, end) =
-            range_bounds_to_start_end(self.0.lwe_ciphertext_count.0, range).into_inner();
+            range_bounds_to_start_end(self.0.d_vec.len(), range).into_inner();
 
         let lwe_dimension = self.lwe_dimension();
         let slice_lwe_ciphertext_count = LweCiphertextCount(end - start + 1);

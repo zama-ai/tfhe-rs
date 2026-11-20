@@ -404,7 +404,7 @@ impl<T: Numeric> CudaVec<T> {
         let (start, end) = range_bounds_to_start_end(self.len(), range).into_inner();
 
         // Check the range is compatible with the vec
-        if start > end || end >= self.len {
+        if end <= start || end > self.len - 1 {
             None
         } else {
             // Shift ptr
@@ -429,7 +429,7 @@ impl<T: Numeric> CudaVec<T> {
         let (start, end) = range_bounds_to_start_end(self.len(), range).into_inner();
 
         // Check the range is compatible with the vec
-        if start > end || end >= self.len {
+        if end <= start || end > self.len - 1 {
             None
         } else {
             // Shift ptr

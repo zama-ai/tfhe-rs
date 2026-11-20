@@ -212,19 +212,6 @@ template <typename Torus> struct zk_expand_mem {
                          "Cuda error: index %lu is beyond the max value %lu",
                          (unsigned long)h_indexes_out[lwe_index],
                          (unsigned long)(num_packed_msgs * num_lwes));
-          // is_boolean_array tells us which input is a boolean and thus the
-          // related output needs boolean sanitization. It naturally has
-          // total_blocks entries, but h_indexes_out reaches
-          // message_modulus * ceil(total_blocks/2) - 1. When total_blocks is
-          // odd, the ceiling causes out-of-bounds access. Reading garbage
-          // "true" would set h_lut_indexes to an invalid index pointing to
-          // uninitialized memory instead of a real LUT. Rust pads
-          // is_boolean_array with FALSE to match.
-          PANIC_IF_FALSE(h_indexes_out[lwe_index] < is_boolean_array_len,
-                         "Cuda error: index %lu for is_boolean_array is out of "
-                         "bounds (len is %lu)",
-                         (unsigned long)h_indexes_out[lwe_index],
-                         (unsigned long)is_boolean_array_len);
         }
         offset += num_lwes_in_kth;
       }

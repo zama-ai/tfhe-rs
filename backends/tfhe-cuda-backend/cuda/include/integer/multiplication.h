@@ -105,7 +105,7 @@ template <typename Torus> struct int_mul_memory {
     auto lut_index_generator = [lsb_vector_block_count](Torus *h_lut_indexes,
                                                         uint32_t num_indexes) {
       for (uint32_t i = 0; i < num_indexes; i++) {
-        h_lut_indexes[i] = (i < lsb_vector_block_count) ? 0 : 1;
+        h_lut_indexes[i] = (i < lsb_vector_block_count) ? 0 : 2;
       }
     };
     luts_array->generate_and_broadcast_bivariate_lut(

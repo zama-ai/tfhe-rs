@@ -39,7 +39,7 @@ template <typename Torus> struct int_compression {
         allocate_gpu_memory));
     tmp_glwe_array_out =
         static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
-            safe_mul_sizeof<Torus>((size_t)max_num_glwes,
+            safe_mul_sizeof<Torus>((size_t)num_lwes_stored_per_glwe,
                                    glwe_accumulator_size),
             streams.stream(0), streams.gpu_index(0), size_tracker,
             allocate_gpu_memory));
