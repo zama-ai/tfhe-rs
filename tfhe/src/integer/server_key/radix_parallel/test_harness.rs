@@ -879,6 +879,26 @@ impl InputState for RadixState {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, strum::EnumIter)]
+pub(crate) enum BooleanState {
+    /// A fresh encryption.
+    Clean,
+    /// A trivial encryption, e.g. a condition computed from clear values only.
+    ///
+    /// Operations may skip their lookup tables on it, and still have to return clean blocks.
+    Trivial,
+}
+
+impl InputState for BooleanState {
+    fn clean() -> Self {
+        Self::Clean
+    }
+
+    fn all_combinations() -> Vec<Self> {
+        Self::iter().collect()
+    }
+}
+
 impl InputState for () {
     fn clean() -> Self {}
 
@@ -924,6 +944,7 @@ macro_rules! impl_input_state_for_tuple {
 impl_input_state_for_tuple!(A);
 impl_input_state_for_tuple!(A, B);
 impl_input_state_for_tuple!(A, B, C);
+impl_input_state_for_tuple!(A, B, C, D);
 
 /// Trait for types representing clear inputs of a test
 pub(crate) trait TestClearInput: Clone + std::fmt::Debug {
@@ -1143,15 +1164,18 @@ impl TestInput for BooleanBlock {
     where
         Self: 'a;
 
-    type State = ();
+    type State = BooleanState;
 
     fn prepare(
         clear: Self::Clear,
-        _state: Self::State,
+        state: Self::State,
         _rng: &mut dyn RngCore,
         ctx: &TestContext,
     ) -> (Self, Self::Clear) {
-        let encrypted = ctx.cks.encrypt_bool(clear);
+        let encrypted = match state {
+            BooleanState::Clean => ctx.cks.encrypt_bool(clear),
+            BooleanState::Trivial => ctx.cpu_sks.create_trivial_boolean_block(clear),
+        };
         (encrypted, clear)
     }
 
@@ -1541,6 +1565,155 @@ pub(crate) fn scalar_on_the_left<R, S>(cases: Vec<(R, S)>) -> Vec<(S, R)> {
     cases
         .into_iter()
         .map(|(radix, scalar)| (scalar, radix))
+        .collect()
+}
+
+/// Fixed cases for an operation taking a condition, built from the `cases` of the other
+/// inputs: each of them under both conditions.
+pub(crate) fn with_both_conditions<A: Clone, B: Clone>(cases: Vec<(A, B)>) -> Vec<(bool, A, B)> {
+    iproduct!([false, true], cases)
+        .map(|(condition, (a, b))| (condition, a, b))
+        .collect()
+}
+
+/// Cases for a selection between two values of `values`: each of them selected once by each
+/// condition, the other value being taken from the end of the list so the two differ whenever
+/// possible.
+///
+/// A selection handles each operand the same whatever the other holds, so pairing every value
+/// with every other would cost more without exercising more.
+pub(crate) fn selection_cases<A: Copy>(values: &[A]) -> Vec<(bool, A, A)> {
+    values
+        .iter()
+        .zip(values.iter().rev())
+        .flat_map(|(&selected, &other)| [(true, selected, other), (false, other, selected)])
+        .collect()
+}
+
+/// Fixed cases for a selection between two radixes (e.g. `if_then_else`): the
+/// [`selection_cases`] of the radix edge values (see [`ClearInteger`]).
+pub(crate) fn condition_radix_pair_fixed_cases<C: ClearInteger>(
+    input_size: RadixInputSize,
+    ctx: &TestContext,
+) -> Vec<(bool, C, C)> {
+    selection_cases(&C::radix_edges(ctx.radix_bits(input_size.n_blocks)))
+}
+
+/// Fixed cases for a selection between a radix and a scalar of type `T`, in this order: each
+/// scalar edge value (see [`ClearInteger`]) under both conditions, against one of the radix
+/// edges in turn.
+///
+/// Unlike the radix, the scalar is decomposed by the operation, so it is the scalar edges
+/// that are worth covering, every radix edge is still used as there are fewer of them.
+pub(crate) fn condition_radix_scalar_fixed_cases<T: ScalarType>(
+    input_size: RadixInputSize,
+    ctx: &TestContext,
+) -> Vec<(bool, T::Clear, TestScalar<T>)> {
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
+    let radix_edges = <T::Clear as ClearInteger>::radix_edges(radix_bits);
+    let scalar_edges = <T::Clear as ClearInteger>::scalar_edges(radix_bits, T::BITS);
+    debug_assert!(scalar_edges.len() >= radix_edges.len());
+    let cases = scalar_edges
+        .into_iter()
+        .zip(radix_edges.into_iter().cycle())
+        .map(|(scalar, radix)| (radix, TestScalar::new(scalar)))
+        .collect();
+    with_both_conditions(cases)
+}
+
+/// Fixed cases for a selection between a scalar of type `T` and a radix, in this order: the
+/// cases of [`condition_radix_scalar_fixed_cases`] with the operands swapped.
+pub(crate) fn condition_scalar_radix_fixed_cases<T: ScalarType>(
+    input_size: RadixInputSize,
+    ctx: &TestContext,
+) -> Vec<(bool, TestScalar<T>, T::Clear)> {
+    condition_radix_scalar_fixed_cases(input_size, ctx)
+        .into_iter()
+        .map(|(condition, radix, scalar)| (condition, scalar, radix))
+        .collect()
+}
+
+/// The block count of a radix an operation creates from clears (e.g.
+/// `scalar_if_then_else_parallelized`), which the operation receives as a `usize`.
+///
+/// The clear model also gets the width in bits, to reduce the clears to it.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct NumBlocks {
+    n_blocks: u32,
+    bits: u32,
+}
+
+impl NumBlocks {
+    pub(crate) fn new(input_size: RadixInputSize, ctx: &TestContext) -> Self {
+        Self {
+            n_blocks: input_size.n_blocks,
+            bits: ctx.radix_bits(input_size.n_blocks),
+        }
+    }
+
+    /// Width in bits of the radix the block count gives.
+    pub(crate) fn bits(self) -> u32 {
+        self.bits
+    }
+}
+
+impl TestClearInput for NumBlocks {
+    type Input = usize;
+
+    fn generate_random(
+        _rng: &mut dyn RngCore,
+        input_size: RadixInputSize,
+        ctx: &TestContext,
+    ) -> Self {
+        Self::new(input_size, ctx)
+    }
+}
+
+impl TestInput for usize {
+    type Clear = NumBlocks;
+
+    type Ref<'a> = Self;
+
+    // A block count has no state
+    type State = ();
+
+    fn prepare(
+        clear: Self::Clear,
+        _state: Self::State,
+        _rng: &mut dyn RngCore,
+        _ctx: &TestContext,
+    ) -> (Self, Self::Clear) {
+        (clear.n_blocks as Self, clear)
+    }
+
+    fn as_ref(&self) -> Self::Ref<'_> {
+        *self
+    }
+}
+
+/// Fixed cases for an operation selecting between two scalars of type `T` into a radix of
+/// the requested size (e.g. `scalar_if_then_else`): the [`selection_cases`] of the scalar
+/// edge values (see [`ClearInteger`]).
+pub(crate) fn scalar_if_then_else_fixed_cases<T: ScalarType>(
+    input_size: RadixInputSize,
+    ctx: &TestContext,
+) -> Vec<(bool, TestScalar<T>, TestScalar<T>, NumBlocks)> {
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
+    let edges: Vec<TestScalar<T>> = <T::Clear as ClearInteger>::scalar_edges(radix_bits, T::BITS)
+        .into_iter()
+        .map(TestScalar::new)
+        .collect();
+    selected_scalar_cases(&edges, NumBlocks::new(input_size, ctx))
+}
+
+/// The [`selection_cases`] of `scalars`, for a radix of `num_blocks` blocks.
+pub(crate) fn selected_scalar_cases<T: ScalarType>(
+    scalars: &[TestScalar<T>],
+    num_blocks: NumBlocks,
+) -> Vec<(bool, TestScalar<T>, TestScalar<T>, NumBlocks)> {
+    selection_cases(scalars)
+        .into_iter()
+        .map(|(condition, lhs, rhs)| (condition, lhs, rhs, num_blocks))
         .collect()
 }
 
@@ -1955,6 +2128,7 @@ macro_rules! impl_test_input_for_tuple {
 impl_test_input_for_tuple!(A.0);
 impl_test_input_for_tuple!(A.0, B.1);
 impl_test_input_for_tuple!(A.0, B.1, C.2);
+impl_test_input_for_tuple!(A.0, B.1, C.2, D.3);
 
 /// Trait for outputs of a FHE function that is tested
 ///
@@ -2120,3 +2294,4 @@ macro_rules! impl_execute_on_for_tuple {
 impl_execute_on_for_tuple!(A.0);
 impl_execute_on_for_tuple!(A.0, B.1);
 impl_execute_on_for_tuple!(A.0, B.1, C.2);
+impl_execute_on_for_tuple!(A.0, B.1, C.2, D.3);
