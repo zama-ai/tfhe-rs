@@ -17,20 +17,21 @@
 #include <string>
 #include <vector>
 
+// Negates num_blocks consecutive blocks that share the correcting term z
+// (z = ceil(degree / 2^p) * 2^p, computed on the host); first_zb is the z/B
+// of the block before the first one (0 for the first block of the radix)
 template <typename Torus>
 __global__ void device_negation(Torus *output, Torus const *input,
                                 int32_t num_blocks, uint64_t lwe_dimension,
-                                uint64_t message_modulus, uint64_t delta) {
+                                uint64_t message_modulus, uint64_t delta,
+                                uint64_t z, uint64_t first_zb) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < lwe_dimension + 1) {
     bool is_body = (tid == lwe_dimension);
 
-    // z = ceil( degree / 2^p ) * 2^p
-    uint64_t z = (2 * message_modulus - 1) / message_modulus;
-    z *= message_modulus;
-
     // (0,Delta*z) - ct
-    output[tid] = (is_body ? z * delta - input[tid] : -input[tid]);
+    output[tid] = (is_body ? z * delta - (input[tid] + first_zb * delta)
+                           : -input[tid]);
 
     for (int radix_block_id = 1; radix_block_id < num_blocks;
          radix_block_id++) {
@@ -129,11 +130,30 @@ __host__ void host_negation_with_correcting_term(
   // this
   uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
 
-  device_negation<Torus><<<grid, thds, 0, streams.stream(0)>>>(
-      static_cast<Torus *>(lwe_array_out->ptr),
-      static_cast<Torus *>(lwe_array_in->ptr), num_radix_blocks, lwe_dimension,
-      message_modulus, delta);
-  check_cuda_error(cudaGetLastError());
+  // Like the CPU: z_i = max(1, ceil((degree_i + z_{i-1}/B) / B)) * B. Blocks
+  // with the same z are negated by one launch (a single one for clean inputs)
+  std::vector<uint64_t> h_z(num_radix_blocks);
+  uint64_t prev_zb = 0;
+  for (uint32_t i = 0; i < num_radix_blocks; i++) {
+    uint64_t degree = lwe_array_in->degrees[i] + prev_zb;
+    h_z[i] = std::max<uint64_t>(
+                 1, (degree + message_modulus - 1) / message_modulus) *
+             message_modulus;
+    prev_zb = h_z[i] / message_modulus;
+  }
+  for (uint32_t start = 0; start < num_radix_blocks;) {
+    uint32_t end = start + 1;
+    while (end < num_radix_blocks && h_z[end] == h_z[start])
+      end++;
+    uint64_t first_zb = (start == 0) ? 0 : h_z[start - 1] / message_modulus;
+    device_negation<Torus><<<grid, thds, 0, streams.stream(0)>>>(
+        static_cast<Torus *>(lwe_array_out->ptr) + (size_t)start * lwe_size,
+        static_cast<Torus *>(lwe_array_in->ptr) + (size_t)start * lwe_size,
+        end - start, lwe_dimension, message_modulus, delta, h_z[start],
+        first_zb);
+    check_cuda_error(cudaGetLastError());
+    start = end;
+  }
 
   uint8_t zb = 0;
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
@@ -142,10 +162,10 @@ __host__ void host_negation_with_correcting_term(
     if (zb != 0) {
       input_degree += static_cast<uint64_t>(zb);
     }
-    Torus z =
-        std::max(static_cast<Torus>(1),
-                 static_cast<Torus>(ceil(input_degree / message_modulus))) *
-        message_modulus;
+    Torus z = std::max(static_cast<Torus>(1),
+                       static_cast<Torus>((input_degree + message_modulus - 1) /
+                                          message_modulus)) *
+              message_modulus;
 
     lwe_array_out->degrees[i] = z - static_cast<uint64_t>(zb);
     lwe_array_out->noise_levels[i] = lwe_array_in->noise_levels[i];

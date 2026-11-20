@@ -147,29 +147,22 @@ __host__ void host_unchecked_sub_with_correcting_term(
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
+  // The kernel adds the same correcting term z to every block and borrows
+  // nothing from the next one, like the CPU's per-block unchecked_sub (block
+  // < message_modulus means the block borrows). z is computed from a fixed
+  // rhs degree, so the output degree is the lhs degree plus that same z.
+  const uint32_t rhs_degree_for_z = message_modulus - 1;
+  const uint64_t z = std::max<uint64_t>(
+                         CEIL_DIV(rhs_degree_for_z, message_modulus), 1) *
+                     message_modulus;
   unchecked_sub_with_correcting_term<T><<<grid, thds, 0, stream>>>(
       (T *)output->ptr, (T *)input_1->ptr, (T *)input_2->ptr, num_entries,
-      lwe_size, message_modulus, carry_modulus, message_modulus - 1);
+      lwe_size, message_modulus, carry_modulus, rhs_degree_for_z);
   check_cuda_error(cudaGetLastError());
-  uint8_t zb = 0;
   for (uint i = 0; i < num_radix_blocks; i++) {
-    auto input_2_degree = input_2->degrees[i];
-
-    // input_2_degree contains the input burrow degree + current degree
-    if (zb != 0) {
-      input_2_degree += static_cast<uint64_t>(zb);
-    }
-    // If input_2_degree is 7, and message_modulus = 4
-    // Then z, the correcting term: ceil(7 / 4) * 4 = 2 * 4 = 8
-    T z = std::max(static_cast<T>(1),
-                   static_cast<T>(CEIL_DIV(input_2_degree, message_modulus))) *
-          message_modulus;
-
-    // The correcting term is applied here
-    output->degrees[i] = input_1->degrees[i] + z - static_cast<uint64_t>(zb);
+    output->degrees[i] = input_1->degrees[i] + z;
     output->noise_levels[i] =
         input_1->noise_levels[i] + input_2->noise_levels[i];
-    zb = z / message_modulus;
     CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
   }
 }
