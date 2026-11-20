@@ -80,6 +80,7 @@ pub use ciphers::kreyvium::{
 #[cfg(feature = "integer")]
 pub(crate) use ciphers::one_time_pad::packed_squashed_layout;
 pub use ciphers::one_time_pad::{
+    CompressedOneTimePadFheSecretMask, CompressedOneTimePadFheSecretMaskConformanceParams,
     CompressedSquashedNoiseOneTimePadFheSecretMask,
     CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
     OneTimePadFheState, OneTimePadPlainSecretMask, OneTimePadPlainSecretMaskConformanceParams,

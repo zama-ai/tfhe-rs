@@ -529,7 +529,7 @@ impl Tagged for CompressedCiphertextList {
 
 #[derive(Copy, Clone)]
 pub struct CompressedCiphertextListConformanceParams {
-    params: ShortintCompressedCiphertextListConformanceParams,
+    pub(in crate::high_level_api) params: ShortintCompressedCiphertextListConformanceParams,
 }
 
 impl<P: Into<AtomicPatternParameters>> From<(P, CompressionParameters)>
