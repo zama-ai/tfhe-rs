@@ -99,3 +99,11 @@ bench_kreyvium_keystream:
 .PHONY: bench_kreyvium_transcipher # Kreyvium: end-to-end transcipher over 64 bits
 bench_kreyvium_transcipher:
 	$(MAKE) bench_kreyvium_transciphering BENCH_FILTER=transcipher_64bits
+
+.PHONY: bench_otp_transciphering # Run criterion benches for the CPU one-time-pad transciphering flow (pad worker and unmask)
+bench_otp_transciphering: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+		--bench transciphering-otp \
+		--features=integer,internal-keycache \
+		-p tfhe-benchmark -- $(BENCH_FILTER)

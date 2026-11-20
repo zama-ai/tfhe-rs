@@ -138,6 +138,8 @@ mod tests {
             // split must not read `fast_kreyvium` as `kreyvium`.
             "tfhe::transciphering::kreyvium::next::cuda::PARAM_MESSAGE_2_CARRY_2::64_bits",
             "tfhe::transciphering::fast_kreyvium::generate::cuda::throughput::PARAM_MESSAGE_2_CARRY_2::512_bits::512_elements",
+            "tfhe::transciphering::one_time_pad::pad_worker::PARAM_MESSAGE_2_CARRY_2::2048_bits",
+            "tfhe::transciphering::one_time_pad::unmask::throughput::PARAM_MESSAGE_2_CARRY_2::64_bits",
         ];
         for id in ids {
             let spec: BenchmarkSpec = id.parse().unwrap_or_else(|e| panic!("parse {id:?}: {e:?}"));
