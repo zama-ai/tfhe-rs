@@ -35,7 +35,7 @@ impl HpuRadixCiphertext {
             .map(|blk| HpuLweCiphertextOwned::create_from(blk.ct.as_view(), params.clone()))
             .collect::<Vec<_>>();
 
-        let spec = zhc::builder::CiphertextSpec::new(
+        let spec = zhc::builder::SpecInteger::new(
             (cpu_ct.blocks.len() * params.pbs_params.message_width) as u16,
             params.pbs_params.carry_width as u8,
             params.pbs_params.message_width as u8,
@@ -83,8 +83,10 @@ impl HpuRadixCiphertext {
             cpu_ct.0.ct.as_view(),
             params.clone(),
         )];
-        let spec = zhc::builder::CiphertextSpec::new(
-            1,
+        // A boolean is a single block: its width is one block message, as for the booleans
+        // returned by IOps (c.f. `is_boolean`)
+        let spec = zhc::builder::SpecInteger::new(
+            params.pbs_params.message_width as u16,
             params.pbs_params.carry_width as u8,
             params.pbs_params.message_width as u8,
         );

@@ -233,10 +233,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = signature
                         .get_args()
                         .iter()
-                        .filter_map(|ty| match ty {
-                            zhc::builder::Type::Ciphertext(spec) => Some(spec),
-                            zhc::builder::Type::Plaintext(_) => None,
-                        })
+                        .filter_map(hpu_asm::ct_spec)
                         .enumerate()
                         .map(|(pos, spec)| {
                             let bw = spec.int_size() as usize;
@@ -262,7 +259,7 @@ pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     let imm_count = signature
                         .get_args()
                         .iter()
-                        .filter(|ty| matches!(ty, zhc::builder::Type::Plaintext(_)))
+                        .filter(|ty| matches!(ty, zhc::builder::Type::PlaintextInteger(_)))
                         .count();
                     let imms = (0..imm_count)
                         .map(|pos| {

@@ -27,6 +27,17 @@ pub const MAX_HPU_IN_CLUSTER: usize = 8;
 /// hand-rolled `IOpProto`.
 pub type IOpSig = (zhc::ir::Signature<zhc::builder::Type>, u8);
 
+/// Ciphertext spec of a signature argument/return, `None` for a plaintext.
+/// A boolean is held as a one-block integer (non-zero is true).
+pub fn ct_spec(ty: &zhc::builder::Type) -> Option<zhc::builder::SpecInteger> {
+    use zhc::builder::Type;
+    match ty {
+        Type::CiphertextInteger(spec) => Some(*spec),
+        Type::CiphertextBool(blk) => Some(blk.integer_spec(blk.message_size() as u16)),
+        Type::PlaintextInteger(_) => None,
+    }
+}
+
 // Common type used in asm definition -----------------------------------------
 /// Ciphertext Id
 /// On-board memory is viewed as an array of ciphertext,

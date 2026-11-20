@@ -3,7 +3,6 @@
 use super::*;
 use crate::asm::{FwMode, IOp, IOpId, IOpMapping, IOpcode, Immediate, Operand, OperandKind};
 use variable::HpuVarWrapped;
-use zhc::builder::Type;
 
 use std::sync::atomic;
 
@@ -48,8 +47,9 @@ impl HpuCmd {
                     .get_args()
                     .iter()
                     .fold((0_usize, 0_usize), |(src, imm), ty| match ty {
-                        Type::Ciphertext(_) => (src + 1, imm),
-                        Type::Plaintext(_) => (src, imm + 1),
+                        zhc::builder::Type::CiphertextInteger(_)
+                        | zhc::builder::Type::CiphertextBool(_) => (src + 1, imm),
+                        zhc::builder::Type::PlaintextInteger(_) => (src, imm + 1),
                     });
             assert_eq!(
                 dst.len(),
@@ -229,7 +229,7 @@ impl HpuCmd {
         let (signature, _used_nodes) =
             cluster.get_signature(fw_mode, opcode, rhs_ct[0].bit_width());
         // Destinations are built from the IOp's declared returns: each of them already carries
-        // its absolute `CiphertextSpec`, no need to derive it from an existing variable.
+        // its absolute `SpecInteger`, no need to derive it from an existing variable.
         //
         // _NB_: `dst_pos` honors an explicit placement request, which makes the targeted node
         // part of the computed IOp mapping. Left to `None`, destinations stay un-dispatched
@@ -237,9 +237,9 @@ impl HpuCmd {
         let dst = signature
             .get_returns()
             .iter()
-            .map(|ty| match ty {
-                Type::Ciphertext(spec) => HpuVarWrapped::new(cluster.clone(), *spec, dst_pos, None),
-                Type::Plaintext(_) => panic!("Error {opcode:?}: IOp couldn't return a plaintext"),
+            .map(|ty| match crate::asm::ct_spec(ty) {
+                Some(spec) => HpuVarWrapped::new(cluster.clone(), spec, dst_pos, None),
+                None => panic!("Error {opcode:?}: IOp couldn't return a plaintext"),
             })
             .collect::<Vec<_>>();
         Self::exec_raw(fw_mode, opcode, &dst, rhs_ct, rhs_imm);

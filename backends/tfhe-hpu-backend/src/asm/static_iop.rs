@@ -11,7 +11,7 @@
 //! | 0x80.. 0xff| Fw generated operations   |
 //! | ---------- | ------------------------- |
 
-use zhc::builder::{Builder, CiphertextSpec};
+use zhc::builder::{Builder, SpecInteger};
 use zhc::config::hpu::HpuConfig;
 use zhc::prelude::{Pipeline, PipelineExt};
 
@@ -247,7 +247,7 @@ impl StaticIOp {
     }
 
     /// Bridges this IOp to the `zhc_builder` function that compiles it into a circuit.
-    pub fn to_builder(&self, spec: CiphertextSpec) -> Builder {
+    pub fn to_builder(&self, spec: SpecInteger) -> Builder {
         use zhc::builder::*;
         match self {
             Self::IOp(n) => panic!("IOp[{n}] format couldn't be used with builder."),
@@ -297,8 +297,8 @@ impl StaticIOp {
             Self::LeadingOnes => lead1(spec),
             Self::TrailingZeros => trail0(spec),
             Self::TrailingOnes => trail1(spec),
-            Self::AddSimd => add_simd(spec),
-            Self::Erc7984Simd => erc7984_simd(spec),
+            Self::AddSimd => add_simd(spec, SIMD_N),
+            Self::Erc7984Simd => erc7984_simd(spec, SIMD_N),
             Self::Flip => flip(spec),
             Self::MemCpy => memcpy(spec),
         }
@@ -306,7 +306,7 @@ impl StaticIOp {
 
     /// Retrieved full HPU compilation pipeline for static IOp at a given spec
     /// NB: Some IOp still benefits from legacy hpu scheduler based on their kind and size.
-    pub fn get_hpu_pipeline(&self, hpu_config: &HpuConfig, spec: CiphertextSpec) -> Pipeline {
+    pub fn get_hpu_pipeline(&self, hpu_config: &HpuConfig, spec: SpecInteger) -> Pipeline {
         let pipeline = Pipeline::new()
             .with_builder(self.to_builder(spec))
             .with_hpu_config(hpu_config.clone());
