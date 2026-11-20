@@ -135,7 +135,7 @@ jobs:
     if: inputs.run-gpu-integer-benchmarks
     with:
       backend: terraform
-      profile: scaleway-multi-h100-sxm5
+      profile: generic-8-h100-sxm5
       cloud_provider: scaleway
       hardware_name: H100-SXM-8-80G
       command: integer_multi_bit,hlapi_erc7984
@@ -161,7 +161,8 @@ jobs:
     uses: ./.github/workflows/benchmark_gpu_common.yml
     if: inputs.run-gpu-integer-benchmarks
     with:
-      profile: multi-h100-sxm5
+      backend: terraform
+      profile: generic-8-h100-sxm5
       cloud_provider: hyperstack
       hardware_name: n3-H100-SXM5x8
       command: hlapi_erc7984_multi_group
@@ -262,7 +263,7 @@ jobs:
     if: inputs.run-gpu-zk-benchmarks
     with:
       backend: terraform
-      profile: scaleway-multi-h100-sxm5
+      profile: generic-8-h100-sxm5
       cloud_provider: scaleway
       hardware_name: H100-SXM-8-80G
       command: integer_zk

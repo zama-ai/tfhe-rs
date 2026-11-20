@@ -191,6 +191,19 @@ script_path = "ci/terraform_scripts/scaleway/terraform_sxm_x8.tf"
 instance_type = "H100-SXM-8-80G"
 user = "ubuntu"
 
+# 8xH100-SXM5 benchmarks feeding the quarterly archive. Fallbacks stay on the same hardware, so the
+# figures remain comparable with the ones already published, and name profiles that carry no
+# fallbacks of their own, so the chain stays exactly these four.
+[backend.terraform.generic-8-h100-sxm5]
+script_path = "ci/terraform_scripts/scaleway/terraform_sxm_x8.tf"
+instance_type = "H100-SXM-8-80G"
+user = "ubuntu"
+fallbacks = [
+    "hyperstack.multi-h100-sxm5",
+    "terraform.nebius-multi-h100-sxm5",
+    "hyperstack.multi-h100-sxm5_fallback",
+]
+
 [backend.terraform.scaleway-4-h100-sxm5]
 script_path = "ci/terraform_scripts/scaleway/terraform.tf"
 instance_type = "H100-SXM-4-80G"

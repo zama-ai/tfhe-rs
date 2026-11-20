@@ -43,7 +43,8 @@ jobs:
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
-      profile: multi-h100-sxm5
+      backend: terraform
+      profile: generic-8-h100-sxm5
       cloud_provider: hyperstack
       hardware_name: n3-H100-SXM5x8
       command: summary
