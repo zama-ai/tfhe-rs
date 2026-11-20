@@ -28,10 +28,11 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::prelude::{LweDimension, PolynomialSize};
 use crate::shortint::server_key::{
-    ModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
-    UnsupportedOperation,
+    is_pack_possible, ModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams,
+    ServerKey, UnsupportedOperation,
 };
 use crate::shortint::AtomicPatternKind;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -448,6 +449,66 @@ impl<AP: NoiseSquashingAtomicPattern> GenericNoiseSquashingKey<AP> {
             self.carry_modulus,
             self.output_ciphertext_modulus,
         )
+    }
+
+    /// Squash the noise of `ciphertexts`, packing them by pairs. If the number of inputs is odd,
+    /// the last ciphertext is squashed on its own, with an empty carry part.
+    ///
+    /// Packing requires the carry modulus to be greater than or equal to the message modulus,
+    /// the ciphertexts to have empty carries, and the noise level of the packed ciphertexts to be
+    /// within the noise budget of `src_server_key`.
+    pub fn checked_pack_and_squash_ciphertexts_noise(
+        &self,
+        ciphertexts: &[Ciphertext],
+        src_server_key: &ServerKey,
+    ) -> crate::Result<Vec<SquashedNoiseCiphertext>>
+    where
+        Self: Sync,
+    {
+        let (pairs, remainder) = ciphertexts.as_chunks::<2>();
+
+        let packed = pairs.par_iter().map(|[low, high]| {
+            let packed = Self::checked_pack_pair(low, high, src_server_key)?;
+            self.checked_squash_ciphertext_noise(&packed, src_server_key)
+        });
+
+        // If the number of ciphertexts is odd, the last one is squashed on its own
+        let last = remainder
+            .par_iter()
+            .map(|ct| self.checked_squash_ciphertext_noise(ct, src_server_key));
+
+        packed.chain(last).collect()
+    }
+
+    /// Packs `low` in the message part and `high` in the carry part of a new ciphertext
+    fn checked_pack_pair(
+        low: &Ciphertext,
+        high: &Ciphertext,
+        src_server_key: &ServerKey,
+    ) -> crate::Result<Ciphertext> {
+        is_pack_possible(
+            src_server_key.message_modulus,
+            src_server_key.carry_modulus,
+            src_server_key.max_noise_level,
+            low.noise_level(),
+            high.noise_level(),
+        )?;
+
+        if (low.message_modulus, low.carry_modulus) != (high.message_modulus, high.carry_modulus) {
+            return Err(crate::error!(
+                "Cannot pack ciphertexts with different message or carry moduli"
+            ));
+        }
+
+        if !(low.carry_is_empty() && high.carry_is_empty()) {
+            return Err(crate::error!(
+                "Cannot pack blocks: need both carries to be empty."
+            ));
+        }
+
+        let mut packed = high.clone();
+        src_server_key.unchecked_pack_pair_assign(low, &mut packed);
+        Ok(packed)
     }
 }
 

@@ -23,6 +23,7 @@ use crate::shortint::oprf::OprfSeed;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::AtomicPatternParameters;
 use crate::transciphering::{
+    packed_squashed_layout,
     CompressedSquashedNoiseOneTimePadFheSecretMask as TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMask,
     CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams as TranscipheringCompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams,
     KeyStreamLayout, OneTimePadFheSecretMask as TranscipheringOneTimePadFheSecretMask,
@@ -115,6 +116,11 @@ impl OneTimePadFheSecretMask {
 
     /// Generate a fresh FHE-encrypted pad of `n_bits` bits server-side using
     /// OPRF machinery.
+    ///
+    /// The pad uses the message space of the parameters (2 bits per ciphertext with the default
+    /// parameters), so `n_bits` must be a multiple of this number of bits. Its noise is squashed by
+    /// pairs of ciphertexts, so a pad that is meant to be squashed should hold a multiple of twice
+    /// this number of bits.
     ///
     /// Pads are generated in counter mode, so the pad generated for a seed is a prefix of all
     /// the pads generated with the same seed and more bits. See
@@ -269,7 +275,10 @@ impl Named for OneTimePadFheSecretMask {
 /// FHE-encrypted pad whose noise has been squashed, so that it can be decrypted with the noise
 /// squashing key.
 ///
-/// It is obtained with [`SquashNoise::squash_noise`] on a [`OneTimePadFheSecretMask`].
+/// It is obtained with [`SquashNoise::squash_noise`] on a [`OneTimePadFheSecretMask`]. The
+/// ciphertexts of a pad generated with the default layout are packed by pairs before being
+/// squashed, so such a pad must hold an even number of ciphertexts (a multiple of 4 bits with the
+/// default parameters).
 /// Use [`Self::compress`] to get a [`CompressedSquashedNoiseOneTimePadFheSecretMask`] that
 /// can be serialized.
 pub struct SquashedNoiseOneTimePadFheSecretMask {
@@ -426,22 +435,29 @@ impl CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
     }
 }
 
-/// Conformance params for a mask generated with the full plaintext space of the server key
-/// parameters, which is the layout used by [`OneTimePadFheSecretMask::new_random`].
+/// Conformance params for the squashed noise version of a mask generated with the message space
+/// of the server key parameters, which is the layout used by
+/// [`OneTimePadFheSecretMask::new_random`].
 impl TryFrom<&ServerKey> for CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams {
     type Error = crate::Error;
 
     fn try_from(sks: &ServerKey) -> Result<Self, Self::Error> {
         let list_params = CompressedSquashedNoiseCiphertextListConformanceParams::try_from(sks)?;
-        let layout = KeyStreamLayout::full_space(
-            list_params.params.message_modulus,
-            list_params.params.carry_modulus,
+        let pbs_key = &sks.key.pbs_key().key;
+        let mask_layout =
+            KeyStreamLayout::message_space(pbs_key.message_modulus).ok_or_else(|| {
+                crate::Error::new(
+                    "The server key parameters are not compatible with otp mask generation"
+                        .to_owned(),
+                )
+            })?;
+        let layout = packed_squashed_layout(
+            &mask_layout,
+            pbs_key.message_modulus,
+            pbs_key.carry_modulus,
+            pbs_key.max_noise_level,
         )
-        .ok_or_else(|| {
-            crate::Error::new(
-                "The server key parameters are not compatible with otp mask generation".to_owned(),
-            )
-        })?;
+        .unwrap_or(mask_layout);
 
         Ok(Self::new(list_params, layout))
     }

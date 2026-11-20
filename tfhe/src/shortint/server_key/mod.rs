@@ -702,6 +702,36 @@ impl ServerKey {
     }
 }
 
+/// Checks that parameters with `message_modulus`, `carry_modulus` and `max_noise_level` allow
+/// packing a ciphertext with noise level `high_ct_noise` in the carry part of a ciphertext with
+/// noise level `low_ct_noise`, with [`GenericServerKey::unchecked_pack_pair_assign`].
+pub(crate) fn is_pack_possible(
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    max_noise_level: MaxNoiseLevel,
+    low_ct_noise: NoiseLevel,
+    high_ct_noise: NoiseLevel,
+) -> crate::Result<()> {
+    if carry_modulus.0 < message_modulus.0 {
+        return Err(crate::error!(
+            "Cannot pack if carry modulus is smaller than message modulus"
+        ));
+    }
+
+    let final_noise = high_ct_noise * message_modulus.0 + low_ct_noise;
+    max_noise_level
+        .validate(final_noise)
+        .map_err(|e| crate::error!("{}", e))?;
+
+    if u8::try_from(message_modulus.0).is_err() {
+        return Err(crate::error!(
+            "Cannot pack with a message modulus {message_modulus:?} above 255"
+        ));
+    }
+
+    Ok(())
+}
+
 impl<AP: AtomicPattern> GenericServerKey<AP> {
     pub fn ciphertext_lwe_dimension(&self) -> LweDimension {
         self.atomic_pattern.ciphertext_lwe_dimension()
@@ -716,6 +746,18 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             max_noise_level: self.max_noise_level,
             ciphertext_modulus: self.ciphertext_modulus,
         }
+    }
+
+    /// Packs the low ciphertext in the message part of the high ciphertext and moves the high
+    /// ciphertext into the carry part.
+    ///
+    /// This requires the parameters to have enough room for two ciphertexts, so a carry modulus
+    /// at least as big as the message modulus, and the carry part of `high` to be empty.
+    pub(crate) fn unchecked_pack_pair_assign(&self, low: &Ciphertext, high: &mut Ciphertext) {
+        debug_assert!(high.degree.get() < high.message_modulus.0);
+
+        self.unchecked_scalar_mul_assign(high, high.message_modulus.0 as u8);
+        self.unchecked_add_assign(high, low);
     }
 
     /// Deconstruct a [`ServerKey`] into its constituents.

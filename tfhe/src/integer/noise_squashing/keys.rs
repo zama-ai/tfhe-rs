@@ -11,7 +11,6 @@ use crate::integer::ClientKey;
 use crate::named::Named;
 use crate::shortint::noise_squashing::NoiseSquashingKeyConformanceParams;
 use crate::shortint::parameters::NoiseSquashingParameters;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -306,17 +305,8 @@ impl NoiseSquashingKey {
         blocks: &[crate::shortint::Ciphertext],
         src_server_key: &ServerKey,
     ) -> crate::Result<Vec<crate::shortint::ciphertext::SquashedNoiseCiphertext>> {
-        blocks
-            .par_chunks(2)
-            .map(|two_values| {
-                let packed = src_server_key
-                    .can_pack_block_chunk(two_values)
-                    .map(|two_values| src_server_key.pack_block_chunk(two_values))?;
-
-                self.key
-                    .checked_squash_ciphertext_noise(&packed, &src_server_key.key)
-            })
-            .collect::<crate::Result<Vec<_>>>()
+        self.key
+            .checked_pack_and_squash_ciphertexts_noise(blocks, &src_server_key.key)
     }
 
     pub fn squash_radix_ciphertext_noise(
