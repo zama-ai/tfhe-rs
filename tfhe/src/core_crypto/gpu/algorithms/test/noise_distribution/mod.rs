@@ -4,6 +4,7 @@ use crate::core_crypto::algorithms::test::noise_distribution::{
     test_allocate_and_generate_binary_lwe_secret_key_with_half_hamming_weight,
 };
 
+#[cfg(feature = "gpu-ext-pbs")]
 mod lwe_multi_bit_programmable_bootstrapping_noise;
 mod lwe_programmable_bootstrapping_noise;
 
@@ -31,6 +32,7 @@ pub const NOISE_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: ClassicTestPara
         message_modulus_log: MessageModulusLog(4),
         ciphertext_modulus: CiphertextModulus::new_native(),
     };
+#[cfg(feature = "gpu-ext-pbs")]
 #[allow(clippy::excessive_precision)]
 pub const NOISE_TEST_PARAMS_GPU_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN:
     MultiBitTestParams<u64> = MultiBitTestParams {
@@ -51,6 +53,7 @@ pub const NOISE_TEST_PARAMS_GPU_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_GAU
     thread_count: ThreadCount(1),
 };
 
+#[cfg(feature = "gpu-ext-pbs")]
 #[allow(clippy::excessive_precision)]
 pub const NOISE_TEST_PARAMS_GPU_MULTI_BIT_GROUP_3_4_BITS_NATIVE_U64_132_BITS_TUNIFORM:
     MultiBitTestParams<u64> = MultiBitTestParams {

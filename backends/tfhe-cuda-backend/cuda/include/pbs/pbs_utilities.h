@@ -453,11 +453,6 @@ __device__ T *get_ith_body_kth_block(T *ptr, int i, int k, int level,
                                      uint32_t polynomial_size,
                                      int glwe_dimension, uint32_t level_count);
 
-template <typename T>
-__device__ const T *get_multi_bit_ith_lwe_gth_group_kth_block(
-    const T *ptr, int g, int i, int k, int level, uint32_t grouping_factor,
-    uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t level_count);
-
 #endif
 
 #endif // CUDA_BOOTSTRAP_UTILITIES_H

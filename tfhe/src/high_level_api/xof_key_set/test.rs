@@ -121,6 +121,7 @@ mod gpu {
     use super::*;
 
     // Triggers rerand with KS (V1.5 legacy params have dedicated re_randomization_parameters)
+    #[cfg(feature = "gpu-ext-pbs")]
     #[test]
     fn test_xof_key_set_legacy_rerand_multibit_group_4_small_pke() {
         run_xof_key_set_test(
@@ -132,6 +133,7 @@ mod gpu {
     }
 
     // Triggers rerand with KS (V1.5 legacy params have dedicated re_randomization_parameters)
+    #[cfg(feature = "gpu-ext-pbs")]
     #[test]
     fn test_xof_key_set_legacy_rerand_multibit_group_4_big_pke() {
         run_xof_key_set_test(
@@ -143,6 +145,7 @@ mod gpu {
     }
 
     // Triggers rerand without KS (V1.6 params have no re_randomization_parameters)
+    #[cfg(feature = "gpu-ext-pbs")]
     #[test]
     fn test_xof_key_set_multibit_group_4_small_pke() {
         run_xof_key_set_test(
@@ -155,6 +158,7 @@ mod gpu {
     }
 
     // Triggers rerand without KS (V1.6 params have no re_randomization_parameters)
+    #[cfg(feature = "gpu-ext-pbs")]
     #[test]
     fn test_xof_key_set_multibit_group_4_big_pke() {
         run_xof_key_set_test(

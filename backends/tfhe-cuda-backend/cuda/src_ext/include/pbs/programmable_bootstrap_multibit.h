@@ -1,8 +1,8 @@
 #ifndef CUDA_MULTI_BIT_H
 #define CUDA_MULTI_BIT_H
 
-#include "bootstrap_key_params.h"
-#include "pbs_enums.h"
+#include "pbs/bootstrap_key_params.h"
+#include "pbs/pbs_enums.h"
 #include "stdint.h"
 
 extern "C" {

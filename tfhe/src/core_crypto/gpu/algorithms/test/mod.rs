@@ -5,7 +5,9 @@ mod fft;
 mod glwe_dot_product_with_clear;
 mod glwe_sample_extraction;
 mod lwe_keyswitch;
+#[cfg(feature = "gpu-ext-pbs")]
 mod lwe_multi_bit_programmable_bootstrapping;
+#[cfg(feature = "gpu-ext-pbs")]
 mod lwe_multi_bit_programmable_bootstrapping_128;
 mod lwe_packing_keyswitch;
 mod lwe_programmable_bootstrapping;
@@ -84,6 +86,7 @@ pub(crate) fn is_sanitizer_run() -> bool {
 
 /// Counterpart of [`MULTI_BIT_2_2_2_PARAMS`] and [`MULTI_BIT_2_2_3_PARAMS`] for a grouping factor
 /// of 4, which only the GPU backend implements: the parameters actually used with it.
+#[cfg(feature = "gpu-ext-pbs")]
 pub const MULTI_BIT_2_2_4_PARAMS: MultiBitTestParams<u64> =
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
