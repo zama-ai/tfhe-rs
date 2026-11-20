@@ -10,7 +10,37 @@ use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey}
 use crate::integer::gpu::{cuda_backend_unchecked_scalar_comparison, ComparisonType};
 use crate::shortint::ciphertext::Degree;
 
+enum ScalarDispatch<T> {
+    OutOfBounds(std::cmp::Ordering),
+    NegativeInRange(T),
+    Backend,
+}
+
 impl CudaServerKey {
+    fn dispatch_scalar<Scalar, T>(
+        &self,
+        ct: &T,
+        scalar: Scalar,
+        streams: &CudaStreams,
+    ) -> ScalarDispatch<T>
+    where
+        T: CudaIntegerRadixCiphertext,
+        Scalar: DecomposableInto<u64>,
+    {
+        if let Some(ordering) = self.is_scalar_out_of_bounds(ct, scalar) {
+            return ScalarDispatch::OutOfBounds(ordering);
+        }
+        // The backend takes a non-negative scalar. A negative scalar in range (signed ciphertexts
+        // only) is used as a trivial ciphertext.
+        if scalar < Scalar::ZERO {
+            let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+            let scalar_as_trivial =
+                unsafe { self.create_trivial_radix_async(scalar, num_blocks, streams) };
+            return ScalarDispatch::NegativeInRange(scalar_as_trivial);
+        }
+        ScalarDispatch::Backend
+    }
+
     /// Returns whether the clear scalar is outside of the
     /// value range the ciphertext can hold.
     ///
@@ -211,8 +241,8 @@ impl CudaServerKey {
         let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
         if T::IS_SIGNED {
-            match self.is_scalar_out_of_bounds(ct, scalar) {
-                Some(std::cmp::Ordering::Greater) => {
+            match self.dispatch_scalar(ct, scalar, streams) {
+                ScalarDispatch::OutOfBounds(std::cmp::Ordering::Greater) => {
                     // Scalar is greater than the bounds, so ciphertext is smaller
                     let result: T = match op {
                         ComparisonType::LT | ComparisonType::LE => {
@@ -224,9 +254,9 @@ impl CudaServerKey {
                             streams,
                         ),
                     };
-                    return CudaBooleanBlock::from_cuda_radix_ciphertext(result.into_inner());
+                    CudaBooleanBlock::from_cuda_radix_ciphertext(result.into_inner())
                 }
-                Some(std::cmp::Ordering::Less) => {
+                ScalarDispatch::OutOfBounds(std::cmp::Ordering::Less) => {
                     // Scalar is smaller than the bounds, so ciphertext is bigger
                     let result: T = match op {
                         ComparisonType::GT | ComparisonType::GE => {
@@ -238,19 +268,16 @@ impl CudaServerKey {
                             streams,
                         ),
                     };
-                    return CudaBooleanBlock::from_cuda_radix_ciphertext(result.into_inner());
+                    CudaBooleanBlock::from_cuda_radix_ciphertext(result.into_inner())
                 }
-                Some(std::cmp::Ordering::Equal) => unreachable!("Internal error: invalid value"),
-                None => {
-                    // scalar is in range, fallthrough
+                ScalarDispatch::OutOfBounds(std::cmp::Ordering::Equal) => {
+                    unreachable!("Internal error: invalid value")
                 }
-            }
-
-            if scalar >= Scalar::ZERO {
-                self.unchecked_signed_and_unsigned_scalar_comparison(ct, scalar, op, true, streams)
-            } else {
-                let scalar_as_trivial = self.create_trivial_radix(scalar, num_blocks, streams);
-                self.unchecked_comparison(ct, &scalar_as_trivial, op, streams)
+                ScalarDispatch::NegativeInRange(scalar_as_trivial) => {
+                    self.unchecked_comparison(ct, &scalar_as_trivial, op, streams)
+                }
+                ScalarDispatch::Backend => self
+                    .unchecked_signed_and_unsigned_scalar_comparison(ct, scalar, op, true, streams),
             }
         } else {
             // Unsigned
@@ -269,6 +296,28 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
+        // As on the CPU, a scalar outside the range of the ciphertext selects one operand without
+        // computation, and a selected scalar is taken at the width of the ciphertext.
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let is_max = matches!(op, ComparisonType::MAX);
+        match self.dispatch_scalar(ct, scalar, streams) {
+            ScalarDispatch::OutOfBounds(ordering) => {
+                return if (ordering == std::cmp::Ordering::Greater) == is_max {
+                    unsafe { self.create_trivial_radix_async(scalar, num_blocks, streams) }
+                } else {
+                    ct.duplicate(streams)
+                };
+            }
+            ScalarDispatch::NegativeInRange(scalar_as_trivial) => {
+                return if is_max {
+                    self.unchecked_max(ct, &scalar_as_trivial, streams)
+                } else {
+                    self.unchecked_min(ct, &scalar_as_trivial, streams)
+                };
+            }
+            ScalarDispatch::Backend => {}
+        }
+
         let message_modulus = self.message_modulus.0;
 
         let scalar_blocks =
