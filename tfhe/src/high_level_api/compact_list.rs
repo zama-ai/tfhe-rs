@@ -374,9 +374,9 @@ impl CompactCiphertextList {
                         cpu_inner, streams,
                     )?;
 
-                let ksk = cuda_key.cpk_key_switching_key();
-                let expander =
-                    gpu_inner.expand(&ksk, crate::integer::gpu::ZKType::Casting, streams)?;
+                let expander = cuda_key.with_compact_list_expansion_key(|key| {
+                    gpu_inner.expand_with_key(key, streams)
+                })?;
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
@@ -408,12 +408,6 @@ impl CompactCiphertextList {
                 }
 
                 // CUDA data, CUDA key case
-                assert!(
-                    cuda_key.key.cpk_key_switching_key_material.is_some(),
-                    "cpk_key_switching_key_material must not be None"
-                );
-
-                let ksk = cuda_key.cpk_key_switching_key();
                 let streams = &cuda_key.streams;
                 // The list may be on another GPU than the key, e.g. if the key changed
                 let gpu_inner = if streams.is_on_first_gpu(gpu_inner.gpu_indexes()) {
@@ -421,8 +415,9 @@ impl CompactCiphertextList {
                 } else {
                     MaybeCloned::Cloned(gpu_inner.duplicate(streams))
                 };
-                let expander =
-                    gpu_inner.expand(&ksk, crate::integer::gpu::ZKType::Casting, streams)?;
+                let expander = cuda_key.with_compact_list_expansion_key(|key| {
+                    gpu_inner.expand_with_key(key, streams)
+                })?;
 
                 Ok(CompactCiphertextListExpander {
                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
@@ -843,30 +838,25 @@ pub(crate) mod zk {
                         }
                     };
 
-                    let ksk = gpu_key.cpk_key_switching_key();
-                    let expander = match (verification_materials, re_randomization_materials) {
-                        (Some((crs, pk, metadata)), Some((_, seed))) => proven_ct
-                            .verify_re_randomize_and_expand(
-                                crs,
-                                &pk.key.key,
-                                metadata,
-                                &ksk,
-                                seed,
-                                streams,
-                            ),
-                        (Some((crs, pk, metadata)), None) => {
-                            proven_ct.verify_and_expand(crs, &pk.key.key, metadata, &ksk, streams)
-                        }
-
-                        (None, Some((pk, seed))) => proven_ct
-                            .re_randomize_and_expand_without_verification(
-                                &ksk,
-                                &pk.key.key,
-                                seed,
-                                streams,
-                            ),
-                        (None, None) => proven_ct.expand_without_verification(&ksk, streams),
-                    }?;
+                    let verification = verification_materials
+                        .map(|(crs, pk, metadata)| (crs, &pk.key.key, metadata));
+                    // As on the CPU, the verification public key is also used for the
+                    // re-randomization when both are given
+                    let re_randomization =
+                        match (verification_materials, re_randomization_materials) {
+                            (Some((_, pk, _)), Some((_, seed))) | (None, Some((pk, seed))) => {
+                                Some((&pk.key.key, seed))
+                            }
+                            (_, None) => None,
+                        };
+                    let expander = gpu_key.with_compact_list_expansion_key(|key| {
+                        proven_ct.maybe_verify_maybe_re_randomize_and_expand(
+                            verification,
+                            re_randomization,
+                            key,
+                            streams,
+                        )
+                    })?;
 
                     Ok(CompactCiphertextListExpander {
                         inner: InnerCompactCiphertextListExpander::Cuda(expander),
@@ -1537,6 +1527,114 @@ mod tests {
                 assert_eq!(decrypted, 17);
             }
         }
+    }
+
+    #[cfg(feature = "gpu")]
+    fn check_expander_without_casting_key(
+        expander: &CompactCiphertextListExpander,
+        ck: &crate::ClientKey,
+    ) {
+        let a: FheUint32 = expander.get(0).unwrap().unwrap();
+        let b: FheInt64 = expander.get(1).unwrap().unwrap();
+        let c: FheBool = expander.get(2).unwrap().unwrap();
+        let d: FheBool = expander.get(3).unwrap().unwrap();
+
+        let a: u32 = a.decrypt(ck);
+        assert_eq!(a, 17);
+        let b: i64 = b.decrypt(ck);
+        assert_eq!(b, -1);
+        assert!(c.decrypt(ck));
+        assert!(!d.decrypt(ck));
+        assert!(expander.get::<FheBool>(4).unwrap().is_none());
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_compact_list_without_casting_key() {
+        for params in [
+            AtomicPatternParameters::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        ] {
+            let config = crate::ConfigBuilder::with_custom_parameters(params).build();
+
+            let ck = crate::ClientKey::generate(config);
+            let gpu_sk = CompressedServerKey::new(&ck).decompress_to_gpu();
+            let pk = crate::CompactPublicKey::new(&ck);
+
+            set_server_key(gpu_sk);
+
+            let compact_list = CompactCiphertextList::builder(&pk)
+                .push(17u32)
+                .push(-1i64)
+                .push(true)
+                .push(false)
+                .build_packed();
+
+            let mut moved = compact_list.clone();
+            moved.move_to_current_device().unwrap();
+            assert!(matches!(moved.current_device(), crate::Device::CudaGpu));
+
+            for list in [&compact_list, &moved] {
+                let expander = list.expand().unwrap();
+                check_expander_without_casting_key(&expander, &ck);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_compact_list_without_casting_key_rejects_ks32_key() {
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        )
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let gpu_sk = CompressedServerKey::new(&ck).decompress_to_gpu();
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(gpu_sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .build_packed();
+
+        assert!(compact_list.expand().is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_casting_key_rejects_compact_list_without_casting() {
+        let casting_config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ))
+        .build();
+        let casting_ck = crate::ClientKey::generate(casting_config);
+        set_server_key(CompressedServerKey::new(&casting_ck).decompress_to_gpu());
+
+        let ck = crate::ClientKey::generate(
+            crate::ConfigBuilder::with_custom_parameters(
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+            .build(),
+        );
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .build_packed();
+
+        let Err(err) = compact_list.expand() else {
+            panic!("expanding a list that does not require casting with a casting key must fail");
+        };
+        assert!(
+            err.to_string().contains("does not require casting"),
+            "{err}"
+        );
     }
 
     #[cfg(feature = "extended-types")]

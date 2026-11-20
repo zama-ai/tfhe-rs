@@ -101,7 +101,7 @@ template <typename Torus> struct expand_job {
 template <typename Torus> struct zk_expand_mem {
   int_radix_params computing_params;
   int_radix_params casting_params;
-  bool casting_key_type;
+  KS_TYPE casting_key_type;
   uint32_t num_lwes;
   uint32_t num_compact_lists;
 
@@ -312,13 +312,15 @@ template <typename Torus> struct zk_expand_mem {
         free(h_lut_indexes);
 
         // SANITY_CHECK panics on SMALL_TO_BIG, so this buffer is only needed
-        // on the full casting path.
-        tmp_ksed_small_to_big_expanded_lwes =
-            (Torus *)cuda_malloc_with_size_tracking_async(
-                safe_mul_sizeof<Torus>(num_lwes,
-                                       casting_params.big_lwe_dimension + 1),
-                streams.stream(0), streams.gpu_index(0), size_tracker,
-                allocate_gpu_memory);
+        // on the full casting path with a SMALL_TO_BIG casting key.
+        if (casting_key_type == SMALL_TO_BIG) {
+          tmp_ksed_small_to_big_expanded_lwes =
+              (Torus *)cuda_malloc_with_size_tracking_async(
+                  safe_mul_sizeof<Torus>(num_lwes,
+                                         casting_params.big_lwe_dimension + 1),
+                  streams.stream(0), streams.gpu_index(0), size_tracker,
+                  allocate_gpu_memory);
+        }
       }
 
       // The expanded LWEs will always be on the casting key format
