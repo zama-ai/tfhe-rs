@@ -6,6 +6,7 @@ use crate::integer::ciphertext::{
     BooleanBlock, RadixCiphertext, SignedRadixCiphertext, SquashedNoiseBooleanBlock,
     SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
 };
+use crate::integer::noise_squashing::check_blocks_can_be_packed_and_squashed;
 use crate::integer::server_key::ServerKey;
 use crate::integer::ClientKey;
 use crate::named::Named;
@@ -306,12 +307,36 @@ impl NoiseSquashingKey {
         blocks: &[crate::shortint::Ciphertext],
         src_server_key: &ServerKey,
     ) -> crate::Result<Vec<crate::shortint::ciphertext::SquashedNoiseCiphertext>> {
+        // Reject mismatched blocks before packing: the carry checks below and the packing itself
+        // rely on the blocks having the moduli of the noise squashing key
+        for block in blocks {
+            if block.message_modulus != self.key.message_modulus()
+                || block.carry_modulus != self.key.carry_modulus()
+            {
+                return Err(crate::error!(
+                    "Mismatched moduli between Ciphertext ({:?}, {:?}) and NoiseSquashingKey \
+                    ({:?}, {:?}).",
+                    block.message_modulus,
+                    block.carry_modulus,
+                    self.key.message_modulus(),
+                    self.key.carry_modulus(),
+                ));
+            }
+        }
+
+        check_blocks_can_be_packed_and_squashed(
+            blocks
+                .iter()
+                .map(|block| (block.degree, block.noise_level())),
+            self.key.message_modulus(),
+            self.key.carry_modulus(),
+            src_server_key.key.max_noise_level,
+        )?;
+
         blocks
             .par_chunks(2)
             .map(|two_values| {
-                let packed = src_server_key
-                    .can_pack_block_chunk(two_values)
-                    .map(|two_values| src_server_key.pack_block_chunk(two_values))?;
+                let packed = src_server_key.pack_block_chunk(two_values);
 
                 self.key
                     .checked_squash_ciphertext_noise(&packed, &src_server_key.key)
@@ -354,6 +379,16 @@ impl NoiseSquashingKey {
         src_server_key: &ServerKey,
         boolean_block: &BooleanBlock,
     ) -> crate::Result<SquashedNoiseBooleanBlock> {
+        // A boolean block goes through the same checks as the last block of a radix with an odd
+        // block count, its carry must be empty as the squashed boolean is decrypted as
+        // `value != 0` over the whole message and carry space
+        check_blocks_can_be_packed_and_squashed(
+            [(boolean_block.0.degree, boolean_block.0.noise_level())],
+            self.key.message_modulus(),
+            self.key.carry_modulus(),
+            src_server_key.key.max_noise_level,
+        )?;
+
         Ok(SquashedNoiseBooleanBlock {
             ciphertext: self
                 .key

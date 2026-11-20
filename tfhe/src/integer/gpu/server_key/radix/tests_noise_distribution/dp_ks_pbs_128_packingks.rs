@@ -354,9 +354,14 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
                 params.carry_modulus(),
             );
 
-            let squashed = cuda_noise_squashing_key
-                .squash_radix_ciphertext_noise(&cuda_sks, &d_ct_input2.ciphertext, local_streams)
-                .unwrap();
+            // The scalar mul makes the degree go over the message modulus (the encrypted value is
+            // 0 so the padding bit is never reached), use the unchecked version which does not
+            // require clean carries
+            let squashed = cuda_noise_squashing_key.unchecked_squash_ciphertext_noise(
+                &d_ct_input2.ciphertext,
+                &cuda_sks,
+                local_streams,
+            );
             local_streams.synchronize();
             squashed
         })
