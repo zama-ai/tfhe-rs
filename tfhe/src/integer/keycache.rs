@@ -1,3 +1,5 @@
+#[cfg(feature = "experimental")]
+use crate::integer::CrtServerKey;
 use crate::integer::{ClientKey, IntegerKeyKind, ServerKey};
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 
@@ -24,18 +26,36 @@ impl IntegerKeyCache {
     where
         P: Into<AtomicPatternParameters>,
     {
+        let (client_key, server_key) = Self::get_shortint_keys(params);
+
+        let server_key = match key_kind {
+            IntegerKeyKind::Radix => ServerKey::new_radix_server_key_from_shortint(server_key),
+        };
+
+        (client_key, server_key)
+    }
+
+    #[cfg(feature = "experimental")]
+    pub fn get_crt_from_params<P>(&self, params: P) -> (ClientKey, CrtServerKey)
+    where
+        P: Into<AtomicPatternParameters>,
+    {
+        let (client_key, server_key) = Self::get_shortint_keys(params);
+
+        (client_key, CrtServerKey::from_shortint(server_key))
+    }
+
+    fn get_shortint_keys<P>(params: P) -> (ClientKey, crate::shortint::ServerKey)
+    where
+        P: Into<AtomicPatternParameters>,
+    {
         let cache = &crate::shortint::keycache::KEY_CACHE;
 
         let keys = cache.get_from_param(params);
         let (client_key, server_key) = (keys.client_key(), keys.server_key());
 
         let client_key = ClientKey::from(client_key.clone());
-        let server_key = match key_kind {
-            IntegerKeyKind::Radix => {
-                ServerKey::new_radix_server_key_from_shortint(server_key.clone())
-            }
-            IntegerKeyKind::CRT => ServerKey::new_crt_server_key_from_shortint(server_key.clone()),
-        };
+        let server_key = server_key.clone();
 
         // For cargo nextest which runs in separate processes we load keys once per process, this
         // allows to remove the copy loaded in the keycache to avoid OOM errors, the nice effect of

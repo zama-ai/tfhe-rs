@@ -1,6 +1,6 @@
-use crate::integer::{CrtCiphertext, ServerKey};
+use crate::integer::{CrtCiphertext, CrtServerKey};
 
-impl ServerKey {
+impl CrtServerKey {
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
