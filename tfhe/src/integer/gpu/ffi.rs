@@ -3832,6 +3832,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
         bsk_params,
         ksk_params,
         num_blocks,
+        u32::try_from(radix_shift.d_blocks.lwe_ciphertext_count().0).unwrap(),
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::RightShift as u32,
@@ -3931,6 +3932,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
         bsk_params,
         ksk_params,
         num_blocks,
+        u32::try_from(radix_shift.d_blocks.lwe_ciphertext_count().0).unwrap(),
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::LeftShift as u32,
@@ -4035,6 +4037,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
         bsk_params,
         ksk_params,
         num_blocks,
+        u32::try_from(radix_rotation.d_blocks.lwe_ciphertext_count().0).unwrap(),
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::RightRotate as u32,
@@ -4139,6 +4142,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
         bsk_params,
         ksk_params,
         num_blocks,
+        u32::try_from(radix_rotation.d_blocks.lwe_ciphertext_count().0).unwrap(),
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::LeftRotate as u32,
@@ -4267,6 +4271,7 @@ pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
+    num_shift_blocks: u32,
     is_signed: bool,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -4279,6 +4284,7 @@ pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
             bsk_params,
             ksk_params,
             num_blocks,
+            num_shift_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::RightShift as u32,
@@ -4300,6 +4306,7 @@ pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
+    num_shift_blocks: u32,
     is_signed: bool,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -4312,6 +4319,7 @@ pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
             bsk_params,
             ksk_params,
             num_blocks,
+            num_shift_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::LeftShift as u32,
@@ -4333,6 +4341,7 @@ pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
+    num_shift_blocks: u32,
     is_signed: bool,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -4345,6 +4354,7 @@ pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
             bsk_params,
             ksk_params,
             num_blocks,
+            num_shift_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::RightRotate as u32,
@@ -4366,6 +4376,7 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
+    num_shift_blocks: u32,
     is_signed: bool,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
@@ -4378,6 +4389,7 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
             bsk_params,
             ksk_params,
             num_blocks,
+            num_shift_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::LeftRotate as u32,
