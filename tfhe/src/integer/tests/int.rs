@@ -94,6 +94,11 @@ impl Int {
         Self::new(self.value.wrapping_add(other.value), self.bits)
     }
 
+    pub(crate) fn overflowing_add(self, other: Self) -> (Self, bool) {
+        self.assert_same_width(other);
+        self.overflowing_scalar_add(other)
+    }
+
     pub(crate) fn wrapping_sub(self, other: Self) -> Self {
         self.assert_same_width(other);
         Self::new(self.value.wrapping_sub(other.value), self.bits)
@@ -298,6 +303,10 @@ mod tests {
                 assert_eq!(ia < ib, a < b, "{a} < {b}");
                 assert_eq!(ia <= ib, a <= b, "{a} <= {b}");
                 assert_eq!(ia.wrapping_add(ib).value(), i128::from(a.wrapping_add(b)));
+                let (sum, overflowed) = ia.overflowing_add(ib);
+                let (expected_sum, expected_overflow) = a.overflowing_add(b);
+                assert_eq!(sum.value(), i128::from(expected_sum), "{a} + {b}");
+                assert_eq!(overflowed, expected_overflow, "{a} + {b}");
                 assert_eq!(ia.wrapping_sub(ib).value(), i128::from(a.wrapping_sub(b)));
                 let (diff, overflowed) = ia.overflowing_sub(ib);
                 let (expected_diff, expected_overflow) = a.overflowing_sub(b);

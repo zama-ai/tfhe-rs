@@ -33,9 +33,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::test_harness::{
     RadixInputSize, TestContext, TestScalar,
 };
-use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, MAX_NB_CTXT, NB_CTXT,
-};
+use crate::integer::server_key::radix_parallel::tests_unsigned::{nb_tests_for_params, NB_CTXT};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::int::Int;
 use crate::integer::IntegerKeyKind;
