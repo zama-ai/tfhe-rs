@@ -209,9 +209,11 @@ __host__ void host_boolean_bitnot(CudaStreams streams,
                                   CudaRadixCiphertextFFI *lwe_array,
                                   boolean_bitnot_buffer<Torus> *mem_ptr,
                                   void *const *bsks, KSTorus *const *ksks) {
+  // A boolean block encodes its value modulo 2: like the CPU, clean it as soon
+  // as its degree reaches 2 (not the parameters' message modulus)
   bool carries_empty = true;
   for (size_t i = 0; i < lwe_array->num_radix_blocks; ++i) {
-    if (lwe_array->degrees[i] >= mem_ptr->params.message_modulus) {
+    if (lwe_array->degrees[i] >= 2) {
       carries_empty = false;
       break;
     }
