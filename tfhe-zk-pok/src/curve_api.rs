@@ -449,9 +449,6 @@ impl PairingGroupOps<bls12_446::Zp, bls12_446::G1, bls12_446::G2> for bls12_446:
     }
 
     fn pairing(x: bls12_446::G1, y: bls12_446::G2) -> Self {
-        if x == bls12_446::G1::ZERO || y == bls12_446::G2::ZERO {
-            return Self::pairing(bls12_446::G1::ZERO, bls12_446::G2::GENERATOR);
-        }
         Self::pairing(x, y)
     }
 }

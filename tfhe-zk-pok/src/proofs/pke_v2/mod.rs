@@ -4314,12 +4314,33 @@ pub(crate) mod tests {
                 inner: point_on_curve_wrong_subgroup(rng),
             });
 
+            let verify_fails = |proof: &Proof<Curve>| {
+                [
+                    VerificationPairingMode::TwoSteps,
+                    VerificationPairingMode::Batched,
+                ]
+                .into_iter()
+                .all(|pairing_mode| {
+                    verify(
+                        proof,
+                        (&public_param, &public_commit),
+                        &testcase.metadata,
+                        pairing_mode,
+                    )
+                    .is_err()
+                })
+            };
+
+            assert!(!verify_fails(&valid_proof));
+
             {
                 let mut proof = valid_proof.clone();
                 proof.C_hat_e = not_on_curve_g2;
                 assert!(!proof.is_usable());
                 proof.C_hat_e = not_in_group_g2;
                 assert!(!proof.is_usable());
+                proof.C_hat_e = bls12_446::G2::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4328,6 +4349,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.C_e = not_in_group_g1;
                 assert!(!proof.is_usable());
+                proof.C_e = bls12_446::G1::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4336,6 +4359,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.C_r_tilde = not_in_group_g1;
                 assert!(!proof.is_usable());
+                proof.C_r_tilde = bls12_446::G1::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4344,6 +4369,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.C_R = not_in_group_g1;
                 assert!(!proof.is_usable());
+                proof.C_R = bls12_446::G1::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4352,6 +4379,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.C_hat_bin = not_in_group_g2;
                 assert!(!proof.is_usable());
+                proof.C_hat_bin = bls12_446::G2::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4360,6 +4389,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.C_y = not_in_group_g1;
                 assert!(!proof.is_usable());
+                proof.C_y = bls12_446::G1::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4368,6 +4399,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.C_h1 = not_in_group_g1;
                 assert!(!proof.is_usable());
+                proof.C_h1 = bls12_446::G1::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4376,6 +4409,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.C_h2 = not_in_group_g1;
                 assert!(!proof.is_usable());
+                proof.C_h2 = bls12_446::G1::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4384,6 +4419,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.C_hat_t = not_in_group_g2;
                 assert!(!proof.is_usable());
+                proof.C_hat_t = bls12_446::G2::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4392,6 +4429,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.pi = not_in_group_g1;
                 assert!(!proof.is_usable());
+                proof.pi = bls12_446::G1::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             {
@@ -4400,6 +4439,8 @@ pub(crate) mod tests {
                 assert!(!proof.is_usable());
                 proof.pi_kzg = not_in_group_g1;
                 assert!(!proof.is_usable());
+                proof.pi_kzg = bls12_446::G1::ZERO;
+                assert!(verify_fails(&proof));
             }
 
             if let Some(ref valid_compute_proof_fields) = valid_proof.compute_load_proof_fields {
@@ -4417,6 +4458,12 @@ pub(crate) mod tests {
                     });
 
                     assert!(!proof.is_usable());
+
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        C_hat_h3: bls12_446::G2::ZERO,
+                        C_hat_w: valid_compute_proof_fields.C_hat_w,
+                    });
+                    assert!(verify_fails(&proof));
                 }
 
                 {
@@ -4434,6 +4481,12 @@ pub(crate) mod tests {
                     });
 
                     assert!(!proof.is_usable());
+
+                    proof.compute_load_proof_fields = Some(ComputeLoadProofFields {
+                        C_hat_h3: valid_compute_proof_fields.C_hat_h3,
+                        C_hat_w: bls12_446::G2::ZERO,
+                    });
+                    assert!(verify_fails(&proof));
                 }
             }
         }
