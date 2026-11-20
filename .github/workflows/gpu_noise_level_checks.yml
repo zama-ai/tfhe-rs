@@ -16,7 +16,6 @@ env:
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   GPU_FEATURE: gpu-debug-noise-check
   FAST_TESTS: TRUE
-  NIGHTLY_TESTS: FALSE
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
 

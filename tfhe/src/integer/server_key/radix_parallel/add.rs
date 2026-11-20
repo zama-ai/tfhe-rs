@@ -1416,7 +1416,7 @@ mod tests {
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
     #[test]
-    fn test_propagate_single_carry_on_empty_input_ci_run_filter() {
+    fn test_propagate_single_carry_on_empty_input() {
         // Parameters and num blocks do not matter here
         let (_, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, 4);
 
@@ -1425,7 +1425,7 @@ mod tests {
     }
 
     #[test]
-    fn test_propagation_choice_ci_run_filter() {
+    fn test_propagation_choice() {
         struct ExpectedChoices {
             num_threads: usize,
             bit_sizes: Vec<(usize, bool)>,

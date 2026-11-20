@@ -7,10 +7,9 @@ function usage() {
     echo
     echo "--help                    Print this message"
     echo "--rust-toolchain          The toolchain to run the tests with default: stable"
-    echo "--multi-bit               Run multi-bit tests only: default off"
+    echo "--multi-bit               Run multi-bit tests only, gpu backend: default off"
     echo "--unsigned-only           Run only unsigned integer tests, by default both signed and unsigned tests are run"
     echo "--signed-only             Run only signed integer tests, by default both signed and unsigned tests are run"
-    echo "--nightly-tests           Run integer tests configured for nightly runs (3_3 params)"
     echo "--fast-tests              Run integer set but skip a subset of longer tests"
     echo "--long-tests              Run only long run integer tests"
     echo "--all-but-noise           Run all tests except noise tests"
@@ -26,9 +25,7 @@ multi_bit_argument=
 sign_argument=
 fast_tests_argument=
 long_tests_argument=
-nightly_tests_argument=
 all_but_noise_argument=
-no_big_params_argument=
 no_big_params_argument_gpu=
 tier_arguments=()
 cargo_profile="release"
@@ -113,24 +110,17 @@ if [[ "${LONG_TESTS}" == TRUE ]]; then
     long_tests_argument=--long-tests
 fi
 
-if [[ "${NIGHTLY_TESTS}" == TRUE ]]; then
-    nightly_tests_argument=--nightly-tests
-fi
-
-if [[ "${ALL_BUT_NOISE}" == TRUE ]]; then
-    all_but_noise_argument=--all-but-noise
-fi
-
-if [[ "${NO_BIG_PARAMS}" == TRUE ]]; then
-    no_big_params_argument=--no-big-params
-fi
-
 if [[ "${NO_BIG_PARAMS_GPU}" == TRUE ]]; then
     no_big_params_argument_gpu=--no-big-params-gpu
 fi
 
-# Comma separated parameter tiers, e.g. TIERS=0 or TIERS=1,2
+# Comma separated parameter tiers of the CPU tests, e.g. TIERS=0 or TIERS=1,2
 TIERS="${TIERS// /}"
+# The CPU tests are selected by tier, tier 0 (prod params) when none is given.
+# The long run tests are not part of the tiers
+if [[ "${backend}" == "cpu" && -z "${TIERS}" && "${LONG_TESTS}" != TRUE ]]; then
+    TIERS=0
+fi
 for tier in ${TIERS//,/ }; do
     tier_arguments+=(--tier "${tier}")
 done
@@ -182,24 +172,18 @@ if [[ -n "${DOCTEST_THREADS}" ]]; then
     doctest_threads="${DOCTEST_THREADS}"
 fi
 
-filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${nightly_tests_argument:+$nightly_tests_argument} ${all_but_noise_argument:+$all_but_noise_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} ${no_big_params_argument:+$no_big_params_argument} "${tier_arguments[@]}")
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${all_but_noise_argument:+$all_but_noise_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} "${tier_arguments[@]}")
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
     echo "Running 'fast' test set"
-elif [[ "${LONG_TESTS}" == "FALSE" ]]; then
-    echo "Running 'slow' test set"
 fi
 
 if [[ "${LONG_TESTS}" == "TRUE" ]]; then
     echo "Running 'long run' test set"
 fi
 
-if [[ "${NIGHTLY_TESTS}" == "TRUE" ]]; then
-    echo "Running 'nightly' test set"
-fi
-
 if [[ -n "${TIERS}" ]]; then
-    echo "Running tier(s) ${TIERS} test set, with the ${TFHE_RS_TEST_PROFILE:-default} test profile"
+    echo "Running tier(s) ${TIERS} test set, with the ${TFHE_RS_TEST_PROFILE:-cpu_baseline} test profile"
 
     # Run the check that checks that no CPU integer test is left behind (not run)
     # due to bad filtering
