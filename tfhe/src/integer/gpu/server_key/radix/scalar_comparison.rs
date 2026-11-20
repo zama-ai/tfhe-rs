@@ -269,6 +269,45 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
         Scalar: DecomposableInto<u64>,
     {
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+
+        // Resolve out-of-bounds scalars on the host, mirroring the CPU's
+        // `ServerKey::scalar_compare`; the backend requires
+        // num_scalar_blocks <= num_radix_blocks.
+        match self.is_scalar_out_of_bounds(ct, scalar) {
+            Some(std::cmp::Ordering::Greater) => {
+                // Scalar is greater than the ciphertext's max value
+                return match op {
+                    ComparisonType::MAX => self.create_trivial_radix(scalar, num_blocks, streams),
+                    ComparisonType::MIN => ct.duplicate(streams),
+                    _ => panic!("Invalid comparison type for unchecked_scalar_minmax"),
+                };
+            }
+            Some(std::cmp::Ordering::Less) => {
+                // Scalar is smaller than the ciphertext's min value
+                return match op {
+                    ComparisonType::MAX => ct.duplicate(streams),
+                    ComparisonType::MIN => self.create_trivial_radix(scalar, num_blocks, streams),
+                    _ => panic!("Invalid comparison type for unchecked_scalar_minmax"),
+                };
+            }
+            Some(std::cmp::Ordering::Equal) => unreachable!("Internal error: invalid value"),
+            None => {
+                // Scalar is in range, fallthrough
+            }
+        }
+
+        if T::IS_SIGNED && scalar < Scalar::ZERO {
+            // Negative scalars decompose sign-extended (no early stop), so go through
+            // the ct x ct path with a trivial, as unchecked_scalar_comparison does.
+            let scalar_as_trivial: T = self.create_trivial_radix(scalar, num_blocks, streams);
+            return match op {
+                ComparisonType::MAX => self.unchecked_max(ct, &scalar_as_trivial, streams),
+                ComparisonType::MIN => self.unchecked_min(ct, &scalar_as_trivial, streams),
+                _ => panic!("Invalid comparison type for unchecked_scalar_minmax"),
+            };
+        }
+
         let message_modulus = self.message_modulus.0;
 
         let scalar_blocks =
