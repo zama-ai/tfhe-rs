@@ -1,9 +1,11 @@
+use super::legacy_default_tests::{
+    legacy_signed_default_overflowing_sub_test, legacy_signed_default_sub_test,
+};
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_sub::{
-    signed_default_overflowing_sub_test, signed_default_sub_test,
     signed_unchecked_overflowing_sub_test, signed_unchecked_sub_test,
 };
 use crate::shortint::parameters::test_params::*;
@@ -28,7 +30,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::sub);
-    signed_default_sub_test(param, executor);
+    legacy_signed_default_sub_test(param, executor);
 }
 
 fn integer_unchecked_signed_overflowing_sub<P>(param: P)
@@ -44,5 +46,5 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::signed_overflowing_sub);
-    signed_default_overflowing_sub_test(param, executor);
+    legacy_signed_default_overflowing_sub_test(param, executor);
 }

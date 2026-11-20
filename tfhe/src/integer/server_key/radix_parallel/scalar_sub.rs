@@ -3,7 +3,6 @@ use crate::core_crypto::prelude::{Cleartext, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::radix::neg::NegatedDegreeIter;
-use crate::integer::server_key::radix::scalar_sub::TwosComplementNegation;
 use crate::integer::{BooleanBlock, CheckError, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::{Ciphertext, PaddingBit};
 use rayon::prelude::*;
@@ -45,7 +44,7 @@ impl ServerKey {
     pub fn scalar_sub_parallelized<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8>,
     {
         let mut ct_res = ct.clone();
         self.scalar_sub_assign_parallelized(&mut ct_res, scalar);
@@ -55,7 +54,7 @@ impl ServerKey {
     pub fn scalar_sub_assign_parallelized<T, Scalar>(&self, ct: &mut T, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8>,
     {
         self.clean_inplace_for_default_op(ct);
 
@@ -63,7 +62,26 @@ impl ServerKey {
             return;
         }
 
-        self.scalar_add_assign_parallelized(ct, scalar.twos_complement_negation());
+        // ct - scalar <=> ct + !scalar + 1, with the scalar first extended to the radix width:
+        // negating it in its own type is wrong when it is narrower than the radix, and
+        // overflows for the minimum of a signed type
+        let max_block_value = (self.message_modulus().0 - 1) as u8;
+        let flipped_scalar_blocks = BlockDecomposer::with_block_count(
+            scalar,
+            self.message_modulus().0.ilog2(),
+            ct.blocks().len(),
+        )
+        .iter_as::<u8>()
+        .map(|block| max_block_value - block)
+        .collect();
+        const INPUT_CARRY: bool = true;
+        const COMPUTE_OVERFLOW: bool = false;
+        self.add_assign_scalar_blocks_parallelized(
+            ct,
+            flipped_scalar_blocks,
+            INPUT_CARRY,
+            COMPUTE_OVERFLOW,
+        );
     }
 
     pub fn unchecked_left_scalar_sub<Scalar, T>(&self, scalar: Scalar, rhs: &T) -> T

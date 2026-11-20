@@ -1535,6 +1535,15 @@ pub(crate) fn default_scalar_fixed_cases<T: ScalarType>(
     .collect()
 }
 
+/// The `cases` of an operation between a radix and a scalar, for the same operation with the
+/// scalar on the left (e.g. `left_scalar_sub`).
+pub(crate) fn scalar_on_the_left<R, S>(cases: Vec<(R, S)>) -> Vec<(S, R)> {
+    cases
+        .into_iter()
+        .map(|(radix, scalar)| (scalar, radix))
+        .collect()
+}
+
 /// Clear model of a shift or rotation amount
 ///
 /// We use this type to have better control over the randomness
