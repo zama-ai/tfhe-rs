@@ -665,6 +665,10 @@ template <typename Torus> struct int_comparison_buffer {
             lut->get_lut_indexes(0, 0), h_indexes.data(),
             safe_mul_sizeof<Torus>(n_groups), streams.stream(0),
             streams.gpu_index(0), allocate_gpu_memory);
+        // Keep the CPU copy equal to the GPU one (used to set the output
+        // degrees)
+        memcpy(lut->h_lut_indexes, h_indexes.data(),
+               safe_mul_sizeof<Torus>(n_groups));
         lut->broadcast_lut(active_streams, false);
 
         cuda_memcpy_with_size_tracking_async_to_gpu(

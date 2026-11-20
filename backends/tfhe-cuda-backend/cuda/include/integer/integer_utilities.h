@@ -1311,7 +1311,8 @@ private:
   /// @param generator       Function/lambda that fills the index buffer
   /// @param num_indexes     Number of indexes to generate (must equal
   /// num_blocks)
-  /// @param h_buffer        Optional CPU buffer; if nullptr, uses h_lut_indexes
+  /// @param h_buffer        Optional CPU staging buffer; if nullptr, uses
+  /// h_lut_indexes. h_lut_indexes is updated in both cases.
   template <typename IndexGenerator>
   void set_lut_indexes(CudaStreams streams, IndexGenerator generator,
                        uint32_t num_indexes, InputTorus *h_buffer = nullptr) {
@@ -1327,6 +1328,10 @@ private:
     generate_lut_indexes<InputTorus>(streams, generator, get_lut_indexes(0, 0),
                                      num_indexes, num_luts, index_buffer,
                                      gpu_memory_allocated);
+    // Keep the CPU copy equal to the GPU one (used to set the output degrees)
+    if (index_buffer != h_lut_indexes)
+      memcpy(h_lut_indexes, index_buffer,
+             safe_mul_sizeof<InputTorus>(num_indexes));
   }
 
   /// Sets all LUT indexes to a constant value on both CPU and GPU.
@@ -1351,17 +1356,36 @@ private:
   }
 
 public:
-  /// Copies precomputed LUT indexes from a GPU buffer to this LUT's GPU index
-  /// buffer.
+  /// @brief Sets the LUT indexes from indexes already on the GPU, without
+  /// reading them back.
   ///
-  /// @param streams              CUDA streams for async operations
-  /// @param d_src_lut_indexes    Source GPU buffer containing precomputed
-  /// indexes
-  /// @param num_indexes          Number of indexes to copy
-  void
-  set_lut_indexes_and_broadcast_from_gpu(CudaStreams streams,
-                                         InputTorus const *d_src_lut_indexes,
-                                         uint32_t num_indexes) {
+  /// @param streams           CUDA streams for async operations
+  /// @param d_src_lut_indexes GPU buffer holding the new indexes
+  /// @param h_src_lut_indexes CPU copy of the same indexes, kept in
+  /// h_lut_indexes for the output degrees. Can be nullptr only if all the
+  /// LUTs have the same degree.
+  /// @param num_indexes       Number of indexes to copy
+  void set_lut_indexes_and_broadcast_from_gpu(
+      CudaStreams streams, InputTorus const *d_src_lut_indexes,
+      InputTorus const *h_src_lut_indexes, uint32_t num_indexes) {
+    GPU_ASSERT(num_indexes <= num_blocks,
+               "num_indexes (%u) must not exceed num_blocks (%u)", num_indexes,
+               num_blocks);
+    if (gpu_memory_allocated) {
+      // Keep the CPU buffer equal to the GPU one
+      if (h_src_lut_indexes != nullptr) {
+        memcpy(h_lut_indexes, h_src_lut_indexes,
+               safe_mul_sizeof<InputTorus>(num_indexes));
+      } else {
+        for (uint32_t i = 1; i < num_luts; i++) {
+          GPU_ASSERT(degrees[i] == degrees[0],
+                     "No CPU LUT indexes given but LUT %u has degree %llu "
+                     "instead of %llu",
+                     i, (unsigned long long)degrees[i],
+                     (unsigned long long)degrees[0]);
+        }
+      }
+    }
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         get_lut_indexes(0, 0), d_src_lut_indexes,
         safe_mul_sizeof<InputTorus>(num_indexes), streams.stream(0),
@@ -2762,7 +2786,8 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
   // needed for the division to update the lut indexes
   void update_lut_indexes(CudaStreams streams, Torus *new_lut_indexes,
-                          Torus *new_scalars, uint32_t new_num_blocks) {
+                          Torus const *h_new_lut_indexes, Torus *new_scalars,
+                          uint32_t new_num_blocks) {
     GPU_ASSERT(new_num_blocks <= propagation_cum_sums->num_radix_blocks,
                "Cuda error: update_lut_indexes new_num_blocks=%u exceeds "
                "h_scalar_array_cum_sum/scalar_array_cum_sum allocation=%u",
@@ -2770,7 +2795,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     auto new_active_streams = streams.active_gpu_subset(
         new_num_blocks, luts_array_second_step->params.pbs_type());
     luts_array_second_step->set_lut_indexes_and_broadcast_from_gpu(
-        new_active_streams, new_lut_indexes, new_num_blocks);
+        new_active_streams, new_lut_indexes, h_new_lut_indexes, new_num_blocks);
 
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         scalar_array_cum_sum, new_scalars,
@@ -3182,11 +3207,12 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
 
   // needed for the division to update the lut indexes
   void update_lut_indexes(CudaStreams streams, Torus *new_lut_indexes,
+                          Torus const *h_new_lut_indexes,
                           uint32_t new_num_blocks) {
     auto new_active_streams = streams.active_gpu_subset(
         new_num_blocks, luts_array_first_step->params.pbs_type());
     luts_array_first_step->set_lut_indexes_and_broadcast_from_gpu(
-        new_active_streams, new_lut_indexes, new_num_blocks);
+        new_active_streams, new_lut_indexes, h_new_lut_indexes, new_num_blocks);
   }
   void release(CudaStreams streams) {
 
@@ -3299,12 +3325,16 @@ template <typename Torus> struct int_borrow_prop_memory {
 
   // needed for the division to update the lut indexes
   void update_lut_indexes(CudaStreams streams, Torus *first_indexes_for_div,
-                          Torus *second_indexes_for_div, Torus *scalars_for_div,
-                          uint32_t new_num_blocks) {
+                          Torus const *h_first_indexes_for_div,
+                          Torus *second_indexes_for_div,
+                          Torus const *h_second_indexes_for_div,
+                          Torus *scalars_for_div, uint32_t new_num_blocks) {
     shifted_blocks_borrow_state_mem->update_lut_indexes(
-        streams, first_indexes_for_div, new_num_blocks);
+        streams, first_indexes_for_div, h_first_indexes_for_div,
+        new_num_blocks);
     prop_simu_group_carries_mem->update_lut_indexes(
-        streams, second_indexes_for_div, scalars_for_div, new_num_blocks);
+        streams, second_indexes_for_div, h_second_indexes_for_div,
+        scalars_for_div, new_num_blocks);
   }
   void release(CudaStreams streams) {
 

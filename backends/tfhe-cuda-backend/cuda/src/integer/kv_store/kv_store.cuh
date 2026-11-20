@@ -228,8 +228,9 @@ __host__ void host_kv_store_compute_eq_selectors_small_map(
     // the LUT per level.
     auto active =
         streams.active_gpu_subset(total_chunks, mem_ptr->params.pbs_type());
+    // No CPU copy needed: all the is_max_value LUTs have degree 1
     is_max_value_lut->set_lut_indexes_and_broadcast_from_gpu(
-        active, mem_ptr->d_level_lut_indexes[level], total_chunks);
+        active, mem_ptr->d_level_lut_indexes[level], nullptr, total_chunks);
 
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, tree_pbs_output, tree_accumulator, bsks, ksks,
