@@ -237,6 +237,10 @@ keyswitch(KSTorus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
         local_lwe_out_even = -rounded_downscaled_body;
       }
     }
+    if (blockIdx.x == gridDim.x - 1 && tid == 0 && threadIdx.y == 0) {
+      Torus next_elem = block_lwe_array_in[lwe_dimension_in + 1];
+      local_lwe_out_even += (KSTorus)(next_elem & 0xF);
+    }
     const Torus mask_mod_b = (1ll << base_log) - 1ll;
 
     const int pack_size = (lwe_dimension_in + blockDim.y - 1) / blockDim.y;
@@ -580,25 +584,12 @@ void execute_keyswitch_async(CudaStreams streams,
     Torus *current_lwe_input_indexes =
         get_variant_element(lwe_input_indexes, i);
 
-    const bool supports_gemm_ks =
-        gpu_supports_split_k_gemm_keyswitch<KSTorus>(streams.gpu_index(i));
-
-    if (supports_gemm_ks) {
-      // Compute Keyswitch via fused GEMM path
-      host_gemm_keyswitch_lwe_ciphertext_vector<Torus, KSTorus>(
-          streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
-          current_lwe_output_indexes, current_lwe_array_in,
-          current_lwe_input_indexes, ksks[i], lwe_dimension_in,
-          lwe_dimension_out, base_log, level_count, num_samples_on_gpu,
-          uses_trivial_indices);
-    } else {
-      // Compute Keyswitch
-      host_keyswitch_lwe_ciphertext_vector<Torus, KSTorus>(
-          streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
-          current_lwe_output_indexes, current_lwe_array_in,
-          current_lwe_input_indexes, ksks[i], lwe_dimension_in,
-          lwe_dimension_out, base_log, level_count, num_samples_on_gpu);
-    }
+    // Always use the plain keyswitch kernel, the GEMM path is never selected.
+    host_keyswitch_lwe_ciphertext_vector<Torus, KSTorus>(
+        streams.stream(i), streams.gpu_index(i), current_lwe_array_out,
+        current_lwe_output_indexes, current_lwe_array_in,
+        current_lwe_input_indexes, ksks[i], lwe_dimension_in,
+        lwe_dimension_out, base_log, level_count, num_samples_on_gpu);
   }
 }
 

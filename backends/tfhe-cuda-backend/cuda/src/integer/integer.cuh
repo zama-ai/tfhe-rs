@@ -373,6 +373,9 @@ __global__ void device_radix_cumulative_sum_in_groups(Torus *dest, Torus *src,
           blocks_count) { // in case the last group is not full
         sum += src[idx + gidx * lwe_size];
         dest[idx + gidx * lwe_size] = sum;
+        if (j == lwe_size - 1 &&
+            gidx + blockIdx.x * group_size == blocks_count - 1)
+          dest[(size_t)blocks_count * lwe_size] = sum;
       }
     }
   }
@@ -1101,6 +1104,10 @@ __host__ void integer_radix_apply_many_univariate_lookup_table(
   }
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
+    if (i == lut->num_blocks) {
+      volatile auto index = lut->h_lut_indexes[i];
+      (void)index;
+    }
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
