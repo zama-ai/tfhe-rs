@@ -1,6 +1,7 @@
 #pragma once
 #include "integer/block_shift_and_rotate.h"
 #include "integer/comparison.h"
+#include "integer/scalar_div.h"
 #include "integer_utilities.h"
 
 /// @brief Buffers and LUTs of the bit-level barrel shifter, which explodes
@@ -128,6 +129,46 @@ template <typename Torus> struct int_shift_and_rotate_by_bits_buffer {
   }
 };
 
+/// @brief Scratch of the remainder amount % total_nb_bits a rotation runs
+/// before its barrel shifter, see host_reduce_rotation_amount.
+template <typename Torus> struct int_rotation_amount_reduction_buffer {
+  bool gpu_memory_allocated;
+
+  /// @brief Scratch of the scalar division by total_nb_bits.
+  int_unsigned_scalar_div_rem_buffer<Torus> *div_rem_mem;
+  /// @brief The division works in place: holds the amount on entry and its
+  /// quotient on exit, which nothing reads.
+  CudaRadixCiphertextFFI quotient;
+  /// @brief The amount modulo total_nb_bits, what the barrel shifter reads.
+  CudaRadixCiphertextFFI reduced_amount;
+
+  int_rotation_amount_reduction_buffer(
+      CudaStreams streams, int_radix_params params, uint32_t num_radix_blocks,
+      const CudaScalarDivisorFFI *scalar_divisor_ffi,
+      uint32_t active_bits_divisor, bool allocate_gpu_memory,
+      uint64_t &size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
+
+    div_rem_mem = new int_unsigned_scalar_div_rem_buffer<Torus>(
+        streams, params, num_radix_blocks, scalar_divisor_ffi,
+        active_bits_divisor, allocate_gpu_memory, size_tracker);
+
+    for (auto ct : {&quotient, &reduced_amount})
+      create_zero_radix_ciphertext_async<Torus>(
+          streams.stream(0), streams.gpu_index(0), ct, num_radix_blocks,
+          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+  }
+
+  void release(CudaStreams streams) {
+    div_rem_mem->release(streams);
+    delete div_rem_mem;
+
+    for (auto ct : {&quotient, &reduced_amount})
+      release_radix_ciphertext_async(streams.stream(0), streams.gpu_index(0),
+                                     ct, gpu_memory_allocated);
+  }
+};
+
 /// @brief Scratch for a shift or rotation by an encrypted amount.
 ///
 /// Holds what both algorithms share -- the cleaning LUT and the overshift
@@ -151,6 +192,11 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
   int_shift_and_rotate_by_block_buffer<Torus> *block_mem;
   /// @brief Bit-level path scratch; null when use_block_path.
   int_shift_and_rotate_by_bits_buffer<Torus> *bits_mem;
+
+  /// @brief Reduces the amount before either path runs. Null for shifts, and
+  /// for rotations of a power of two bit width, where the barrel shifter does
+  /// the reduction by reading only the low bits of the amount.
+  int_rotation_amount_reduction_buffer<Torus> *amount_reduction_mem;
 
   /// @brief Refreshes a block's noise and drops its carries. Shared by both
   /// paths, and the final step of a rotation.
@@ -197,6 +243,8 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
                               SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
                               int_radix_params params,
                               uint32_t num_radix_blocks,
+                              const CudaScalarDivisorFFI *scalar_divisor_ffi,
+                              uint32_t active_bits_divisor,
                               bool allocate_gpu_memory,
                               uint64_t &size_tracker) {
     this->shift_type = shift_type;
@@ -217,6 +265,18 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
       max_num_bits_that_tell_shift += 1;
 
     offset = (shift_type == LEFT_SHIFT ? 0 : total_nb_bits);
+
+    amount_reduction_mem = nullptr;
+    bool is_rotation =
+        (shift_type == LEFT_ROTATE || shift_type == RIGHT_ROTATE);
+    if (is_rotation && !is_power_of_two(total_nb_bits)) {
+      PANIC_IF_FALSE(scalar_divisor_ffi != nullptr,
+                     "Cuda error: rotating a bit width that is not a power of "
+                     "two requires the scalar divisor of that bit width");
+      amount_reduction_mem = new int_rotation_amount_reduction_buffer<Torus>(
+          streams, params, num_radix_blocks, scalar_divisor_ffi,
+          active_bits_divisor, allocate_gpu_memory, size_tracker);
+    }
 
     // The block-level barrel shifter costs roughly half the PBS of the
     // bit-level one, but it requires blocks holding a power-of-two number of
@@ -384,6 +444,11 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
     if (bits_mem != nullptr) {
       bits_mem->release(streams);
       delete bits_mem;
+    }
+
+    if (amount_reduction_mem != nullptr) {
+      amount_reduction_mem->release(streams);
+      delete amount_reduction_mem;
     }
 
     cleaning_lut->release(streams);

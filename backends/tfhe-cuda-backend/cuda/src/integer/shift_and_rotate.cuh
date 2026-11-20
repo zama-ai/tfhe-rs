@@ -7,6 +7,7 @@
 #include "integer/block_shift_and_rotate.cuh"
 #include "integer/integer_utilities.h"
 #include "integer/scalar_comparison.cuh"
+#include "integer/scalar_div.cuh"
 #include "integer/shift_and_rotate.h"
 #include "pbs/programmable_bootstrap_classic.cuh"
 #include "pbs/programmable_bootstrap_multibit.cuh"
@@ -16,11 +17,14 @@ template <typename Torus>
 __host__ uint64_t scratch_cuda_shift_and_rotate(
     CudaStreams streams, int_shift_and_rotate_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
-    SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed, bool allocate_gpu_memory) {
+    SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint32_t active_bits_divisor, bool allocate_gpu_memory) {
   uint64_t size_tracker = 0;
   *mem_ptr = new int_shift_and_rotate_buffer<Torus>(
       streams, shift_type, is_signed, params, num_radix_blocks,
-      allocate_gpu_memory, size_tracker);
+      scalar_divisor_ffi, active_bits_divisor, allocate_gpu_memory,
+      size_tracker);
   return size_tracker;
 }
 
@@ -103,29 +107,94 @@ __host__ void host_apply_overshift_cleanup(
       num_radix_blocks);
 }
 
+/**
+ * @brief Reduces the amount of a rotation modulo the bit width of the rotated
+ * value, into mem_ptr->reduced_amount.
+ *
+ * The barrel shifter only reads the low ceil(log2(total_nb_bits)) bits of the
+ * amount. That truncation is the reduction a rotation expects when
+ * total_nb_bits is a power of two, and another one otherwise: rotating 6 bits
+ * by 8 would rotate by 8 % 8 = 0 instead of 8 % 6 = 2.
+ *
+ * The caller prepares the clear operands of that division, as its magic
+ * numbers need integers twice as wide as the amount, which the backend does
+ * not have.
+ *
+ * @param lwe_shift Encrypted rotation amount, without carries.
+ * @param scalar_divisor_ffi Magic numbers of the division by total_nb_bits,
+ * for a numerator as wide as the amount.
+ * @param divisor_has_at_least_one_set For each bit position inside a block,
+ * whether total_nb_bits has a bit set there in any of its blocks.
+ * @param decomposed_divisor Bits of total_nb_bits, least significant first.
+ * @param num_scalars_divisor Length of decomposed_divisor.
+ */
 template <typename Torus, typename KSTorus>
-__host__ void
-host_shift_and_rotate_inplace(CudaStreams streams,
-                              CudaRadixCiphertextFFI *lwe_array,
-                              CudaRadixCiphertextFFI const *lwe_shift,
-                              int_shift_and_rotate_buffer<Torus> *mem,
-                              void *const *bsks, KSTorus *const *ksks) {
-  if (mem->use_block_path) {
-    auto block_mem = mem->block_mem;
+__host__ void host_reduce_rotation_amount(
+    CudaStreams streams, CudaRadixCiphertextFFI const *lwe_shift,
+    int_rotation_amount_reduction_buffer<Torus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint64_t const *divisor_has_at_least_one_set,
+    uint64_t const *decomposed_divisor, uint32_t num_scalars_divisor) {
+  copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
+                                     &mem_ptr->quotient, lwe_shift);
+  // The clear blocks only serve power of two divisors, which the barrel
+  // shifter handles without this reduction
+  host_integer_unsigned_scalar_div_rem_radix<Torus, KSTorus>(
+      streams, &mem_ptr->quotient, &mem_ptr->reduced_amount,
+      mem_ptr->div_rem_mem, bsks, ksks, scalar_divisor_ffi,
+      divisor_has_at_least_one_set, decomposed_divisor, num_scalars_divisor,
+      nullptr, nullptr, 0);
+}
+
+/**
+ * @brief Shifts or rotates lwe_array in place by the encrypted amount
+ * lwe_shift.
+ *
+ * The four divisor parameters are the clear operands of the reduction of the
+ * amount, see host_reduce_rotation_amount. Only rotations of a bit width that
+ * is not a power of two read them, so shifts and the other rotations pass
+ * null pointers and 0.
+ *
+ * @param lwe_array Value to shift or rotate, without carries.
+ * @param lwe_shift Encrypted amount, same block count as lwe_array.
+ * @param scalar_divisor_ffi Magic numbers of the division by total_nb_bits.
+ * @param divisor_has_at_least_one_set Bit positions inside a block where
+ * total_nb_bits has a bit set.
+ * @param decomposed_divisor Bits of total_nb_bits, least significant first.
+ * @param num_scalars_divisor Length of decomposed_divisor.
+ */
+template <typename Torus, typename KSTorus>
+__host__ void host_shift_and_rotate_inplace(
+    CudaStreams streams, CudaRadixCiphertextFFI *lwe_array,
+    CudaRadixCiphertextFFI const *lwe_shift,
+    int_shift_and_rotate_buffer<Torus> *mem_ptr, void *const *bsks,
+    KSTorus *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint64_t const *divisor_has_at_least_one_set,
+    uint64_t const *decomposed_divisor, uint32_t num_scalars_divisor) {
+  if (mem_ptr->amount_reduction_mem != nullptr) {
+    host_reduce_rotation_amount<Torus, KSTorus>(
+        streams, lwe_shift, mem_ptr->amount_reduction_mem, bsks, ksks,
+        scalar_divisor_ffi, divisor_has_at_least_one_set, decomposed_divisor,
+        num_scalars_divisor);
+    lwe_shift = &mem_ptr->amount_reduction_mem->reduced_amount;
+  }
+
+  if (mem_ptr->use_block_path) {
+    auto block_mem = mem_ptr->block_mem;
     host_block_shift_and_rotate<Torus, KSTorus>(streams, lwe_array, lwe_shift,
                                                 block_mem, bsks, ksks);
     // The result still carries the noise accumulated by the rounds, so a
     // cleaning PBS is due anyway; for a shift it also applies the overshift
     // selection for free.
-    if (mem->handle_overshift) {
+    if (mem_ptr->handle_overshift) {
       host_compute_overshift_condition<Torus, KSTorus>(
-          streams, lwe_shift, &block_mem->sign_block, mem, bsks, ksks);
+          streams, lwe_shift, &block_mem->sign_block, mem_ptr, bsks, ksks);
       host_apply_overshift_cleanup<Torus, KSTorus>(
-          streams, lwe_array, &block_mem->messages, mem, bsks, ksks);
+          streams, lwe_array, &block_mem->messages, mem_ptr, bsks, ksks);
     } else {
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, lwe_array, &block_mem->messages, bsks, ksks,
-          mem->cleaning_lut, lwe_array->num_radix_blocks);
+          mem_ptr->cleaning_lut, lwe_array->num_radix_blocks);
     }
     return;
   }
@@ -133,7 +202,7 @@ host_shift_and_rotate_inplace(CudaStreams streams,
   // The barrel shifter packs three bits (control | previous | current) into a
   // single block for the mux LUT, so it needs the control bit at plaintext
   // position 2 (value 4). This only fits when a block holds at least 3 bits.
-  if (mem->params.message_modulus * mem->params.carry_modulus < 8)
+  if (mem_ptr->params.message_modulus * mem_ptr->params.carry_modulus < 8)
     PANIC("Cuda error: shift/rotate by an encrypted amount requires "
           "message_modulus * carry_modulus >= 8 (1_1 parameters are not "
           "supported)")
@@ -147,34 +216,32 @@ host_shift_and_rotate_inplace(CudaStreams streams,
 
   auto num_radix_blocks = lwe_array->num_radix_blocks;
 
-  uint32_t bits_per_block = log2_int(mem->params.message_modulus);
+  uint32_t bits_per_block = log2_int(mem_ptr->params.message_modulus);
   uint32_t total_nb_bits = bits_per_block * num_radix_blocks;
   if (total_nb_bits == 0)
     return;
 
-  auto big_lwe_dimension = mem->params.big_lwe_dimension;
+  auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
 
   if (lwe_array->lwe_dimension != big_lwe_dimension)
     PANIC("Cuda error: lwe_shift lwe_dimension must be equal to "
           "big_lwe_dimension")
 
   // Extract all bits
-  auto bits = &mem->bits_mem->tmp_bits;
+  auto bits = &mem_ptr->bits_mem->tmp_bits;
   extract_n_bits<Torus>(streams, bits, lwe_array, bsks, ksks,
                         num_radix_blocks * bits_per_block, num_radix_blocks,
-                        mem->bits_mem->bit_extract_luts);
+                        mem_ptr->bits_mem->bit_extract_luts);
 
   // Extract shift bits
-  auto shift_bits = &mem->bits_mem->tmp_shift_bits;
+  auto shift_bits = &mem_ptr->bits_mem->tmp_shift_bits;
   auto is_power_of_two = [](uint32_t n) {
     return (n > 0) && ((n & (n - 1)) == 0);
   };
 
-  // This effectively means, that if the block parameters
-  // give a total_nb_bits that is not a power of two,
-  // then the behaviour of shifting won't be the same
-  // if shift >= total_nb_bits compared to when total_nb_bits
-  // is a power of two, as will 'capture' more bits in `shift_bits`
+  // ceil(log2(total_nb_bits)), the bits of the amount the shifter reads. Shifts
+  // decide overshifts on the whole amount, rotations get theirs already reduced
+  // modulo total_nb_bits
   uint32_t max_num_bits_that_tell_shift = log2_int(total_nb_bits);
   if (!is_power_of_two(total_nb_bits))
     max_num_bits_that_tell_shift += 1;
@@ -183,7 +250,7 @@ host_shift_and_rotate_inplace(CudaStreams streams,
   // and we reduce noise growth
   extract_n_bits<Torus>(streams, shift_bits, lwe_shift, bsks, ksks,
                         max_num_bits_that_tell_shift, num_radix_blocks,
-                        mem->bits_mem->bit_extract_luts_with_offset_2);
+                        mem_ptr->bits_mem->bit_extract_luts_with_offset_2);
 
   // If signed, do an "arithmetic shift" by padding with the sign bit
   CudaRadixCiphertextFFI last_bit;
@@ -191,11 +258,11 @@ host_shift_and_rotate_inplace(CudaStreams streams,
                                    total_nb_bits);
 
   // Apply op
-  auto rotated_input = &mem->bits_mem->tmp_rotated;
-  auto input_bits_a = &mem->bits_mem->tmp_input_bits_a;
-  auto input_bits_b = &mem->bits_mem->tmp_input_bits_b;
-  auto mux_lut = mem->bits_mem->mux_lut;
-  auto mux_inputs = &mem->bits_mem->tmp_mux_inputs;
+  auto rotated_input = &mem_ptr->bits_mem->tmp_rotated;
+  auto input_bits_a = &mem_ptr->bits_mem->tmp_input_bits_a;
+  auto input_bits_b = &mem_ptr->bits_mem->tmp_input_bits_b;
+  auto mux_lut = mem_ptr->bits_mem->mux_lut;
+  auto mux_inputs = &mem_ptr->bits_mem->tmp_mux_inputs;
 
   copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                      input_bits_a, bits);
@@ -206,7 +273,7 @@ host_shift_and_rotate_inplace(CudaStreams streams,
     copy_radix_ciphertext_async<Torus>(streams.stream(0), streams.gpu_index(0),
                                        input_bits_b, input_bits_a);
     auto rotations = 1 << d;
-    switch (mem->shift_type) {
+    switch (mem_ptr->shift_type) {
     case LEFT_SHIFT:
       // rotate right as the blocks are from LSB to MSB
       if (input_bits_b->num_radix_blocks != total_nb_bits)
@@ -224,7 +291,7 @@ host_shift_and_rotate_inplace(CudaStreams streams,
       host_radix_blocks_rotate_left<Torus>(streams, rotated_input, input_bits_b,
                                            rotations, total_nb_bits);
 
-      if (mem->is_signed)
+      if (mem_ptr->is_signed)
         for (int i = 0; i < rotations; i++) {
           copy_radix_ciphertext_slice_async<Torus>(
               streams.stream(0), streams.gpu_index(0), rotated_input,
@@ -256,12 +323,13 @@ host_shift_and_rotate_inplace(CudaStreams streams,
     host_pack_bivariate_blocks<Torus>(
         streams, mux_inputs, mux_lut->lwe_indexes_out, rotated_input,
         input_bits_a, mux_lut->lwe_indexes_in, 2, total_nb_bits,
-        mem->params.message_modulus, mem->params.carry_modulus);
+        mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
 
     // The shift bit is already properly aligned/positioned
     host_add_the_same_block_to_all_blocks<Torus>(
         streams.stream(0), streams.gpu_index(0), mux_inputs, mux_inputs,
-        &shift_bit, mem->params.message_modulus, mem->params.carry_modulus);
+        &shift_bit, mem_ptr->params.message_modulus,
+        mem_ptr->params.carry_modulus);
 
     // we have
     // control_bit|b|a
@@ -269,11 +337,11 @@ host_shift_and_rotate_inplace(CudaStreams streams,
         streams, input_bits_a, mux_inputs, bsks, ksks, mux_lut, total_nb_bits);
   }
 
-  if (mem->handle_overshift) {
+  if (mem_ptr->handle_overshift) {
     // lwe array number of blocks is the same as the shift amount number of
     // blocks
     host_compute_overshift_condition<Torus, KSTorus>(
-        streams, lwe_shift, &last_bit, mem, bsks, ksks);
+        streams, lwe_shift, &last_bit, mem_ptr, bsks, ksks);
   }
 
   // Initializes the output
@@ -288,8 +356,8 @@ host_shift_and_rotate_inplace(CudaStreams streams,
   // Bitshift and add the other bits
   for (int i = bits_per_block - 2; i >= 0; i--) {
     host_integer_small_scalar_mul_radix<Torus>(streams, lwe_array, lwe_array, 2,
-                                               mem->params.message_modulus,
-                                               mem->params.carry_modulus);
+                                               mem_ptr->params.message_modulus,
+                                               mem_ptr->params.carry_modulus);
     for (int j = 0; j < num_radix_blocks; j++) {
       CudaRadixCiphertextFFI block;
       CudaRadixCiphertextFFI bit_to_add;
@@ -297,9 +365,9 @@ host_shift_and_rotate_inplace(CudaStreams streams,
       as_radix_ciphertext_slice<Torus>(&bit_to_add, input_bits_a,
                                        i + j * bits_per_block,
                                        i + j * bits_per_block + 1);
-      host_addition<Torus>(streams.stream(0), streams.gpu_index(0), &block,
-                           &block, &bit_to_add, 1, mem->params.message_modulus,
-                           mem->params.carry_modulus);
+      host_addition<Torus>(
+          streams.stream(0), streams.gpu_index(0), &block, &block, &bit_to_add,
+          1, mem_ptr->params.message_modulus, mem_ptr->params.carry_modulus);
     }
 
     // To give back a clean ciphertext.
@@ -307,11 +375,11 @@ host_shift_and_rotate_inplace(CudaStreams streams,
     // overshift selection: we add `cond` (packed in the carry) to every block
     // and use the overshift cleanup LUT, which both resets the noise and
     // selects the overshift result in a single PBS (no extra PBS round).
-    if (i == 0 && mem->handle_overshift) {
-      host_apply_overshift_cleanup<Torus, KSTorus>(streams, lwe_array,
-                                                   lwe_array, mem, bsks, ksks);
+    if (i == 0 && mem_ptr->handle_overshift) {
+      host_apply_overshift_cleanup<Torus, KSTorus>(
+          streams, lwe_array, lwe_array, mem_ptr, bsks, ksks);
     } else {
-      auto cleaning_lut = mem->cleaning_lut;
+      auto cleaning_lut = mem_ptr->cleaning_lut;
       integer_radix_apply_univariate_lookup_table<Torus>(
           streams, lwe_array, lwe_array, bsks, ksks, cleaning_lut,
           num_radix_blocks);
@@ -321,9 +389,9 @@ host_shift_and_rotate_inplace(CudaStreams streams,
   // 1-bit-message blocks: the reassembly loop above does not run, so the
   // overshift selection could not be fused into a cleaning PBS; apply it as a
   // standalone step instead.
-  if (bits_per_block == 1 && mem->handle_overshift) {
+  if (bits_per_block == 1 && mem_ptr->handle_overshift) {
     host_apply_overshift_cleanup<Torus, KSTorus>(streams, lwe_array, lwe_array,
-                                                 mem, bsks, ksks);
+                                                 mem_ptr, bsks, ksks);
   }
 }
 #endif

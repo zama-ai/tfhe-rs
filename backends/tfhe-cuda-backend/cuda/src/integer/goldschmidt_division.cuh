@@ -306,7 +306,8 @@ __host__ void goldschmidt_normalize(CudaStreams streams,
   copy_radix_ciphertext_async<Torus>(stream, gpu_index, &mem->shifted_d,
                                      denominator);
   host_shift_and_rotate_inplace<Torus, KSTorus>(
-      streams, &mem->shifted_d, &narrow_amount, mem->shift_d_mem, bsks, ksks);
+      streams, &mem->shifted_d, &narrow_amount, mem->shift_d_mem, bsks, ksks,
+      nullptr, nullptr, nullptr, 0);
   goldschmidt_blockshift<Torus>(streams, &mem->current_d, &mem->shifted_d,
                                 (int32_t)(fp_blocks - num_blocks));
 
@@ -314,7 +315,8 @@ __host__ void goldschmidt_normalize(CudaStreams streams,
   goldschmidt_blockshift<Torus>(streams, &mem->shift_amount,
                                 &mem->leading_zeros, 0);
   host_shift_and_rotate_inplace<Torus, KSTorus>(
-      streams, &mem->wide_n, &mem->shift_amount, mem->shift_n_mem, bsks, ksks);
+      streams, &mem->wide_n, &mem->shift_amount, mem->shift_n_mem, bsks, ksks,
+      nullptr, nullptr, nullptr, 0);
   goldschmidt_blockshift<Torus>(streams, &mem->current_n, &mem->wide_n,
                                 (int32_t)fp_blocks - 2 * (int32_t)num_blocks);
   POP_RANGE()
