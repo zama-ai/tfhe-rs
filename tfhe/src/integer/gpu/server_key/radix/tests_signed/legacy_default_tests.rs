@@ -2,7 +2,7 @@
 //!
 //! FIXME(gpu): the CPU tests for these operations moved to `radix_parallel::test_harness`
 //! (see `radix_parallel::tests_signed::test_scalar_shift`, `test_scalar_rotate`,
-//! `test_shift`, `test_rotate`, `test_scalar_add`, `test_scalar_sub`, `test_neg`,
+//! `test_shift`, `test_rotate`, `test_add`, `test_scalar_add`, `test_scalar_sub`, `test_neg`,
 //! `test_comparison`, `test_bitwise_op` and `test_scalar_bitwise_op`), which also exercises
 //! inputs at the maximum degree and noise level. The GPU
 //! full propagation cannot take blocks at the maximum degree yet. The overflowing scalar tests also
@@ -1817,5 +1817,114 @@ where
 
         let expected_result = signed_add_under_modulus(clear_0, clear_2, modulus) ^ clear_1;
         assert_eq!(dec_res, expected_result);
+    }
+}
+
+pub(crate) fn legacy_signed_default_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<
+        (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
+        SignedRadixCiphertext,
+    >,
+{
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let mut clear;
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        let half_modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
+        if half_modulus <= 1 {
+            // The half_modulus (i.e modulus without sign bit) is such that the set of values
+            // is empty
+            continue;
+        }
+
+        for _ in 0..nb_tests_smaller {
+            let clear_0 = rng.gen::<i64>() % half_modulus;
+            let clear_1 = rng.gen::<i64>() % half_modulus;
+
+            let ctxt_0 = cks.as_ref().encrypt_signed_radix(clear_0, num_blocks);
+            let ctxt_1 = cks.as_ref().encrypt_signed_radix(clear_1, num_blocks);
+
+            let mut ct_res = executor.execute((&ctxt_0, &ctxt_1));
+            let tmp_ct = executor.execute((&ctxt_0, &ctxt_1));
+            assert!(ct_res.block_carries_are_empty());
+            assert_eq!(ct_res, tmp_ct);
+
+            clear = signed_add_under_modulus(clear_0, clear_1, half_modulus);
+
+            // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
+            // add multiple times to raise the degree
+            for _ in 0..nb_tests_smaller {
+                ct_res = executor.execute((&ct_res, &ctxt_0));
+                assert!(ct_res.block_carries_are_empty());
+                clear = signed_add_under_modulus(clear, clear_0, half_modulus);
+
+                let dec_res: i64 = cks.decrypt_signed(&ct_res);
+
+                // println!("clear = {}, dec_res = {}", clear, dec_res);
+                assert_eq!(clear, dec_res);
+            }
+        }
+    }
+}
+
+pub(crate) fn legacy_signed_default_scalar_add_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    sks.set_deterministic_pbs_execution(true);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+    let sks = Arc::new(sks);
+
+    executor.setup(&cks, sks);
+
+    let cks: crate::integer::ClientKey = cks.into();
+
+    let mut clear;
+
+    let mut rng = rand::thread_rng();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
+
+        for _ in 0..nb_tests_smaller {
+            let clear_0 = rng.gen::<i64>() % modulus;
+            let clear_1 = rng.gen::<i64>() % modulus;
+
+            let ctxt_0 = cks.encrypt_signed_radix(clear_0, num_blocks);
+
+            let mut ct_res = executor.execute((&ctxt_0, clear_1));
+            assert!(ct_res.block_carries_are_empty());
+
+            clear = signed_add_under_modulus(clear_0, clear_1, modulus);
+
+            // add multiple times to raise the degree
+            for _ in 0..nb_tests_smaller {
+                let tmp = executor.execute((&ct_res, clear_1));
+                ct_res = executor.execute((&ct_res, clear_1));
+                assert!(ct_res.block_carries_are_empty());
+                assert_eq!(ct_res, tmp);
+                clear = signed_add_under_modulus(clear, clear_1, modulus);
+
+                let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
+                assert_eq!(clear, dec_res);
+            }
+        }
     }
 }
