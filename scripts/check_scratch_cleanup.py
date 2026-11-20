@@ -51,13 +51,13 @@ RUST_CALL_SITES = [
 # ---------------------------------------------------------------------------
 
 # Bindings parsed from bindings.rs
-EXPECTED_SCRATCH_COUNT = 86
+EXPECTED_SCRATCH_COUNT = 87
 
 # Cuda operation functions
-EXPECTED_CUDA_COUNT = 125
+EXPECTED_CUDA_COUNT = 126
 
 # Cleanup functions
-EXPECTED_CLEANUP_COUNT = 86
+EXPECTED_CLEANUP_COUNT = 87
 
 # Check 3: Rust call-site scanning
 # Number of functions in ffi.rs files

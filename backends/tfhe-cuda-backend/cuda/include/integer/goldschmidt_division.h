@@ -158,9 +158,9 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
   /// @brief Scratch for the denominator == 0 check.
   int_comparison_buffer<Torus> *is_zero_mem;
   /// @brief Shifter for the denominator, at operand width.
-  int_shift_and_rotate_buffer<Torus> *shift_d_mem;
+  int_shift_buffer<Torus> *shift_d_mem;
   /// @brief Shifter for the widened numerator, at twice the operand width.
-  int_shift_and_rotate_buffer<Torus> *shift_n_mem;
+  int_shift_buffer<Torus> *shift_n_mem;
   /// @brief Scratch for the seed table lookup.
   int_unchecked_match_buffer<Torus> *seed_lut_mem;
   /// @brief One multiply-add per shape: the seed step plus the three rounds.
@@ -304,10 +304,10 @@ template <typename Torus> struct int_goldschmidt_division_buffer {
         allocate_gpu_memory, size_tracker);
     // Two shifters: the denominator stays at operand width, the numerator is
     // widened first so that shifting it left cannot lose its top bits.
-    shift_d_mem = new int_shift_and_rotate_buffer<Torus>(
+    shift_d_mem = new int_shift_buffer<Torus>(
         streams, LEFT_SHIFT, false, params, num_blocks, allocate_gpu_memory,
         size_tracker);
-    shift_n_mem = new int_shift_and_rotate_buffer<Torus>(
+    shift_n_mem = new int_shift_buffer<Torus>(
         streams, LEFT_SHIFT, false, params, 2 * num_blocks, allocate_gpu_memory,
         size_tracker);
 

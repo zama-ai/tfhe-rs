@@ -17,7 +17,6 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-        let is_signed = T::IS_SIGNED;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -43,7 +42,6 @@ impl CudaServerKey {
                 &self.bootstrapping_key,
                 computing_ks_key.params_ffi(),
                 lwe_ciphertext_count.0 as u32,
-                is_signed,
             );
         }
     }
@@ -72,7 +70,6 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-        let is_signed = T::IS_SIGNED;
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
@@ -98,7 +95,6 @@ impl CudaServerKey {
                 &self.bootstrapping_key,
                 computing_ks_key.params_ffi(),
                 lwe_ciphertext_count.0 as u32,
-                is_signed,
             );
         }
     }
@@ -412,7 +408,6 @@ impl CudaServerKey {
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
-            T::IS_SIGNED,
         );
         actual_full_prop_mem.max(rotate_mem)
     }
@@ -471,7 +466,6 @@ impl CudaServerKey {
             &self.bootstrapping_key,
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
-            T::IS_SIGNED,
         );
         actual_full_prop_mem.max(rotate_mem)
     }
