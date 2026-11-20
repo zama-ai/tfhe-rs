@@ -1,6 +1,6 @@
 use super::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params, overflowing_mul_under_modulus,
-    random_non_zero_value, MAX_NB_CTXT,
+    random_non_zero_value,
 };
 use crate::integer::block_decomposition::BlockDecomposer;
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
@@ -54,8 +54,6 @@ pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_prince::{
     prince_decrypt_kat_test, prince_encrypt_decrypt_random_test, prince_encrypt_kat_test,
 };
-#[cfg(feature = "gpu")]
-pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::default_sub_test;
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::unchecked_sub_test;
 #[cfg(feature = "gpu")]
 pub(crate) use crate::integer::server_key::radix_parallel::tests_unsigned::test_vector_find::{
@@ -709,57 +707,6 @@ where
 //=============================================================================
 // Default Scalar Tests
 //=============================================================================
-
-pub(crate) fn default_scalar_sub_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
-
-    let mut rng = rand::thread_rng();
-
-    executor.setup(&cks, sks);
-
-    let cks: crate::integer::ClientKey = cks.into();
-
-    let mut clear;
-
-    for num_blocks in 1..MAX_NB_CTXT {
-        // message_modulus^vec_length
-        let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
-
-        for _ in 0..nb_tests_smaller {
-            let clear_0 = rng.gen::<u64>() % modulus;
-            let clear_1 = rng.gen::<u64>() % modulus;
-
-            let ctxt_0 = cks.encrypt_radix(clear_0, num_blocks);
-
-            let mut ct_res = executor.execute((&ctxt_0, clear_1));
-            assert!(ct_res.block_carries_are_empty());
-
-            clear = (clear_0.wrapping_sub(clear_1)) % modulus;
-
-            // Sub multiple times to raise the degree
-            for _ in 0..nb_tests_smaller {
-                let tmp = executor.execute((&ct_res, clear_1));
-                ct_res = executor.execute((&ct_res, clear_1));
-                assert!(ct_res.block_carries_are_empty());
-                assert_eq!(ct_res, tmp);
-                clear = (clear.wrapping_sub(clear_1)) % modulus;
-
-                let dec_res: u64 = cks.decrypt_radix(&ct_res);
-                assert_eq!(clear, dec_res);
-            }
-        }
-    }
-}
 
 pub(crate) fn default_scalar_mul_test<P, T>(param: P, mut executor: T)
 where

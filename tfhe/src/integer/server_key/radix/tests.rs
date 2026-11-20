@@ -375,6 +375,36 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     let dec_res = cks.decrypt_radix(&ct_res);
 
     assert_eq!(clear_0.wrapping_sub(scalar as u128), dec_res);
+
+    // Check subtraction of a negative signed scalar
+    // ---------------------------------------------
+    // Its opposite is positive, so its upper blocks are zeros, on a signed radix as on an
+    // unsigned one. The minimum is included, its opposite does not fit in the scalar type.
+    for scalar in [i64::MIN, -1, rng.gen_range(i64::MIN..0)] {
+        let clear_0 = rng.gen::<i128>();
+        let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+
+        let ct_res = sks.unchecked_scalar_sub(&ct_0, scalar);
+        let dec_res: i128 = cks.decrypt_signed_radix(&ct_res);
+
+        assert_eq!(
+            clear_0.wrapping_sub(i128::from(scalar)),
+            dec_res,
+            "Invalid result for {clear_0} - {scalar} on a signed radix"
+        );
+
+        let clear_0 = rng.gen::<u128>();
+        let ct_0 = cks.encrypt_radix(clear_0, num_block);
+
+        let ct_res = sks.unchecked_scalar_sub(&ct_0, scalar);
+        let dec_res: u128 = cks.decrypt_radix(&ct_res);
+
+        assert_eq!(
+            clear_0.wrapping_sub(i128::from(scalar) as u128),
+            dec_res,
+            "Invalid result for {clear_0} - {scalar} on an unsigned radix"
+        );
+    }
 }
 
 fn integer_create_trivial_min_max(param: impl Into<TestParameters>) {

@@ -50,6 +50,7 @@ use crate::integer::server_key::radix_parallel::test_harness::{
 };
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
+use crate::integer::tests::int::Int;
 use crate::integer::tests::uint::Uint;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::MaxDegree;
@@ -354,6 +355,8 @@ fn panic_if_any_block_info_exceeds_max_degree_or_noise(
 /// - Its degree is <= message_modulus - 1
 /// - Its decrypted_value is <= its degree
 /// - Its noise level is nominal
+// Only the GPU legacy tests still use it
+#[cfg(feature = "gpu")]
 #[track_caller]
 pub(crate) fn panic_if_any_block_is_not_clean<T, C>(ct: &T, cks: &C)
 where
@@ -1027,4 +1030,31 @@ fn test_sequential_propagation_does_not_depend_on_key_max_degree() {
             assert!(ct.block_carries_are_empty());
         }
     }
+}
+
+/// Block counts for the tests of a scalar narrower than the radix: one block, the scalar's
+/// width, one block past it and twice it.
+pub(crate) fn narrow_scalar_input_sizes(ctx: &TestContext) -> Vec<RadixInputSize> {
+    let scalar_width = u8::BITS.div_ceil(ctx.bits_per_block());
+    [1, scalar_width, scalar_width + 1, 2 * scalar_width]
+        .map(RadixInputSize::new)
+        .to_vec()
+}
+
+/// Cases for a signed scalar narrower than the unsigned radix: the radix edges against the
+/// `i8` bounds, one and minus one. A negative scalar has to be sign extended to the radix
+/// width, a zero extension turns `-1i8` into `255` on any radix wider than 8 bits.
+pub(crate) fn narrow_signed_scalar_on_unsigned_radix_cases(
+    input_size: RadixInputSize,
+    ctx: &TestContext,
+) -> Vec<(Uint, TestScalar<i8>)> {
+    let radix_bits = ctx.radix_bits(input_size.n_blocks);
+    let scalars = [i8::MIN, -1, 1, i8::MAX]
+        .map(|scalar| TestScalar::<i8>::new(Int::new(scalar.into(), i8::BITS)));
+    let radix_edges = [
+        Uint::zero(radix_bits),
+        Uint::one(radix_bits),
+        Uint::max(radix_bits),
+    ];
+    iproduct!(radix_edges, scalars).collect()
 }

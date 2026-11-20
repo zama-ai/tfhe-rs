@@ -91,35 +91,11 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_rhs;
+        let rhs = self.clean_for_default_binary_assign_op(ctxt_left, ctxt_right);
 
-        let (lhs, rhs) = match (
-            ctxt_left.block_carries_are_empty(),
-            ctxt_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ctxt_left, ctxt_right),
-            (true, false) => {
-                tmp_rhs = ctxt_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ctxt_left, &tmp_rhs)
-            }
-            (false, true) => {
-                self.full_propagate_parallelized(ctxt_left);
-                (ctxt_left, ctxt_right)
-            }
-            (false, false) => {
-                tmp_rhs = ctxt_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(ctxt_left),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (ctxt_left, &tmp_rhs)
-            }
-        };
-
-        let neg = self.unchecked_neg(rhs);
+        let neg = self.unchecked_neg(&*rhs);
         self.advanced_add_assign_with_carry_parallelized(
-            lhs.blocks_mut(),
+            ctxt_left.blocks_mut(),
             neg.blocks(),
             None,
             OutputFlag::None,
@@ -162,36 +138,9 @@ impl ServerKey {
         ctxt_left: &RadixCiphertext,
         ctxt_right: &RadixCiphertext,
     ) -> (RadixCiphertext, BooleanBlock) {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
+        let (lhs, rhs) = self.clean_for_default_binary_op(ctxt_left, ctxt_right);
 
-        let (lhs, rhs) = match (
-            ctxt_left.block_carries_are_empty(),
-            ctxt_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ctxt_left, ctxt_right),
-            (true, false) => {
-                tmp_rhs = ctxt_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ctxt_left, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = ctxt_left.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, ctxt_right)
-            }
-            (false, false) => {
-                tmp_lhs = ctxt_left.clone();
-                tmp_rhs = ctxt_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_unsigned_overflowing_sub_parallelized(lhs, rhs)
+        self.unchecked_unsigned_overflowing_sub_parallelized(&lhs, &rhs)
     }
 
     pub fn unchecked_unsigned_overflowing_sub_parallelized(
@@ -664,35 +613,8 @@ impl ServerKey {
         ctxt_right: &SignedRadixCiphertext,
         algorithm: CarryPropagationAlgorithm,
     ) -> (SignedRadixCiphertext, BooleanBlock) {
-        let mut tmp_lhs;
-        let mut tmp_rhs;
+        let (lhs, rhs) = self.clean_for_default_binary_op(ctxt_left, ctxt_right);
 
-        let (lhs, rhs) = match (
-            ctxt_left.block_carries_are_empty(),
-            ctxt_right.block_carries_are_empty(),
-        ) {
-            (true, true) => (ctxt_left, ctxt_right),
-            (true, false) => {
-                tmp_rhs = ctxt_right.clone();
-                self.full_propagate_parallelized(&mut tmp_rhs);
-                (ctxt_left, &tmp_rhs)
-            }
-            (false, true) => {
-                tmp_lhs = ctxt_left.clone();
-                self.full_propagate_parallelized(&mut tmp_lhs);
-                (&tmp_lhs, ctxt_right)
-            }
-            (false, false) => {
-                tmp_lhs = ctxt_left.clone();
-                tmp_rhs = ctxt_right.clone();
-                rayon::join(
-                    || self.full_propagate_parallelized(&mut tmp_lhs),
-                    || self.full_propagate_parallelized(&mut tmp_rhs),
-                );
-                (&tmp_lhs, &tmp_rhs)
-            }
-        };
-
-        self.unchecked_signed_overflowing_sub_parallelized_with_choice(lhs, rhs, algorithm)
+        self.unchecked_signed_overflowing_sub_parallelized_with_choice(&lhs, &rhs, algorithm)
     }
 }
