@@ -766,15 +766,16 @@ __host__ void host_scalar_equality_check(
       scalar_pack_blocks(lsb_streams.stream(0), streams.gpu_index(0),
                          &packed_scalar, scalar_blocks, num_scalar_blocks,
                          message_modulus);
+      // No CPU copy of the packed scalar: all the EQ/NE LUTs have degree 1
       scalar_comparison_luts->set_lut_indexes_and_broadcast_from_gpu(
-          active_lsb_streams, (Torus const *)packed_scalar.ptr,
+          active_lsb_streams, (Torus const *)packed_scalar.ptr, nullptr,
           num_halved_scalar_blocks);
     } else if (num_lsb_radix_blocks == 1) {
       copy_radix_ciphertext_slice_async<Torus>(
           lsb_streams.stream(0), lsb_streams.gpu_index(0), packed_blocks, 0, 1,
           lwe_array_in, 0, 1);
       scalar_comparison_luts->set_lut_indexes_and_broadcast_from_gpu(
-          active_lsb_streams, scalar_blocks, num_halved_scalar_blocks);
+          active_lsb_streams, scalar_blocks, nullptr, num_halved_scalar_blocks);
     }
 
     integer_radix_apply_univariate_lookup_table<Torus>(

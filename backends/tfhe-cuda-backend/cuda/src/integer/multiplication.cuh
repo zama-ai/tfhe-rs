@@ -474,9 +474,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           active_streams, current_blocks, radix_lwe_out, bsks, ksks,
           luts_message_carry, num_blocks_in_apply_lut, true);
     }
-    calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
-                            num_radix_blocks, num_radix_in_vec, chunk_size,
-                            mem_ptr->params.message_modulus);
+    // The PBS above wrote the messages to [0, n) and the carries to
+    // [n + 1, 2n], block n stays zero: set the CPU metadata to match, as the
+    // addition below computes the output degrees and noise levels from it
+    for (uint32_t i = 0; i < num_radix_blocks; i++) {
+      current_blocks->degrees[i] = luts_message_carry->degrees[0];
+      current_blocks->noise_levels[i] = NoiseLevel::NOMINAL;
+      current_blocks->degrees[num_radix_blocks + i] =
+          (i == 0) ? 0 : luts_message_carry->degrees[1];
+      current_blocks->noise_levels[num_radix_blocks + i] =
+          (i == 0) ? NoiseLevel::ZERO : NoiseLevel::NOMINAL;
+    }
     cuda_set_device(streams.gpu_index(0));
     CudaRadixCiphertextFFI current_blocks_slice;
     as_radix_ciphertext_slice<Torus>(&current_blocks_slice, current_blocks,

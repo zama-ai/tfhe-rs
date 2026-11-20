@@ -151,11 +151,15 @@ __host__ void host_unsigned_integer_div_rem_block_by_block_2_2(
                             CudaRadixCiphertextFFI *low,
                             CudaRadixCiphertextFFI *rem, Torus *first_indexes,
                             Torus *second_indexes, Torus *scalar_indexes) {
+      size_t h_indexes_id = rem->num_radix_blocks - 1;
       uint32_t compute_overflow = 1;
       uint32_t uses_input_borrow = 0;
       sub_result->num_radix_blocks = low->num_radix_blocks;
       overflow_sub_mem->update_lut_indexes(
-          streams.get_ith(gpu_index), first_indexes, second_indexes,
+          streams.get_ith(gpu_index), first_indexes,
+          mem_ptr->h_first_indexes_for_overflow_sub[h_indexes_id],
+          second_indexes,
+          mem_ptr->h_second_indexes_for_overflow_sub[h_indexes_id],
           scalar_indexes, rem->num_radix_blocks);
       host_integer_overflowing_sub<uint64_t>(
           streams.get_ith(gpu_index), sub_result, rem, low, sub_overflowed,
@@ -749,8 +753,15 @@ __host__ void host_unsigned_integer_div_rem(
       auto scalar_indexes =
           mem_ptr->scalars_for_overflow_sub
               [merged_interesting_remainder->num_radix_blocks - 1];
+      auto h_first_indexes =
+          mem_ptr->h_first_indexes_for_overflow_sub
+              [merged_interesting_remainder->num_radix_blocks - 1];
+      auto h_second_indexes =
+          mem_ptr->h_second_indexes_for_overflow_sub
+              [merged_interesting_remainder->num_radix_blocks - 1];
       mem_ptr->overflow_sub_mem->update_lut_indexes(
-          streams, first_indexes, second_indexes, scalar_indexes,
+          streams, first_indexes, h_first_indexes, second_indexes,
+          h_second_indexes, scalar_indexes,
           merged_interesting_remainder->num_radix_blocks);
       host_integer_overflowing_sub<uint64_t>(
           streams, new_remainder, merged_interesting_remainder,
