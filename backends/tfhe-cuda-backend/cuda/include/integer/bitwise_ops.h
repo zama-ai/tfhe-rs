@@ -189,15 +189,12 @@ template <typename Torus> struct boolean_bitnot_buffer {
     unchecked = is_unchecked;
     this->params = params;
 
-    auto message_modulus = params.message_modulus;
-
     if (!unchecked) {
       message_extract_lut =
           new int_radix_lut<Torus>(streams, params, 1, lwe_ciphertext_count,
                                    gpu_memory_allocated, size_tracker);
-      auto lut_f_message_extract = [message_modulus](Torus x) -> Torus {
-        return x % message_modulus;
-      };
+      // Boolean value: extract the bit modulo 2
+      auto lut_f_message_extract = [](Torus x) -> Torus { return x % 2; };
 
       auto active_streams =
           streams.active_gpu_subset(lwe_ciphertext_count, params.pbs_type());

@@ -474,9 +474,25 @@ __host__ void host_integer_partial_sum_ciphertexts_vec(
           active_streams, current_blocks, radix_lwe_out, bsks, ksks,
           luts_message_carry, num_blocks_in_apply_lut, true);
     }
-    calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
-                            num_radix_blocks, num_radix_in_vec, chunk_size,
-                            mem_ptr->params.message_modulus);
+    // Label the PBS outputs that the addition below sums: the raw PBS above
+    // writes no metadata, and the multi-GPU apply labels its outputs by
+    // position, not by the scatter of prepare_final_pbs_indexes. That layout
+    // puts the message LUT (0) output of block i in slot i, the carry LUT (1)
+    // output of block i in slot n + 1 + i, and leaves the zeroed slot n as the
+    // carry into block 0. The carry of the last block (slot 2n) is dropped.
+    const uint64_t message_degree = *luts_message_carry->get_degree(0);
+    const uint64_t carry_degree = *luts_message_carry->get_degree(1);
+    for (uint32_t i = 0; i < num_radix_blocks; i++) {
+      current_blocks->degrees[i] = message_degree;
+      current_blocks->noise_levels[i] = NoiseLevel::NOMINAL;
+    }
+    current_blocks->degrees[num_radix_blocks] = 0;
+    current_blocks->noise_levels[num_radix_blocks] = NoiseLevel::ZERO;
+    for (uint32_t i = 0; i + 1 < num_radix_blocks; i++) {
+      current_blocks->degrees[num_radix_blocks + 1 + i] = carry_degree;
+      current_blocks->noise_levels[num_radix_blocks + 1 + i] =
+          NoiseLevel::NOMINAL;
+    }
     cuda_set_device(streams.gpu_index(0));
     CudaRadixCiphertextFFI current_blocks_slice;
     as_radix_ciphertext_slice<Torus>(&current_blocks_slice, current_blocks,

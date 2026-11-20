@@ -33,6 +33,12 @@ impl CudaServerKey {
         ct: &mut T,
         streams: &CudaStreams,
     ) {
+        // The backend computes (message_modulus - 1) - x and labels every block with degree
+        // message_modulus - 1: a block with carries would wrap into the padding bit
+        assert!(
+            ct.block_carries_are_empty(),
+            "unchecked_bitnot needs blocks without carries (degree < message modulus)"
+        );
         unsafe {
             cuda_backend_unchecked_bitnot_assign(
                 streams,
@@ -326,6 +332,12 @@ impl CudaServerKey {
         ct: &mut CudaBooleanBlock,
         streams: &CudaStreams,
     ) {
+        // The backend computes 1 - x and labels the block with degree 1: a block of degree 2 or
+        // more would wrap into the padding bit
+        assert!(
+            ct.0.ciphertext.info.blocks[0].degree.get() <= 1,
+            "unchecked_boolean_bitnot needs a boolean block of degree <= 1"
+        );
         self.cuda_boolean_bitnot_assign(ct, true, streams);
     }
 
