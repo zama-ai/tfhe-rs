@@ -214,12 +214,16 @@ uint64_t scratch_cuda_shift_and_rotate_64_inplace_async(
     CudaLweBootstrapKeyParamsFFI bsk_params,
     CudaLweKeyswitchKeyParamsFFI ksk_params, uint32_t num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus,
-    SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed, bool allocate_gpu_memory);
+    SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint32_t active_bits_divisor, bool allocate_gpu_memory);
 
 void cuda_shift_and_rotate_64_inplace_async(
     CudaStreamsFFI streams, CudaRadixCiphertextFFI *lwe_array,
     CudaRadixCiphertextFFI const *lwe_shift, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks);
+    void *const *ksks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint64_t const *divisor_has_at_least_one_set,
+    uint64_t const *decomposed_divisor, uint32_t num_scalars_divisor);
 
 void cleanup_cuda_shift_and_rotate_64_inplace(CudaStreamsFFI streams,
                                               int8_t **mem_ptr_void);

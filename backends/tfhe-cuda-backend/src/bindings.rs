@@ -793,6 +793,8 @@ unsafe extern "C" {
         carry_modulus: u32,
         shift_type: SHIFT_OR_ROTATE_TYPE,
         is_signed: bool,
+        scalar_divisor_ffi: *const CudaScalarDivisorFFI,
+        active_bits_divisor: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
 }
@@ -804,6 +806,10 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        scalar_divisor_ffi: *const CudaScalarDivisorFFI,
+        divisor_has_at_least_one_set: *const u64,
+        decomposed_divisor: *const u64,
+        num_scalars_divisor: u32,
     );
 }
 unsafe extern "C" {
