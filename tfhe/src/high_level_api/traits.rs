@@ -283,6 +283,14 @@ where
 pub trait SizeOnGpu<Rhs = Self> {
     fn get_size_on_gpu(&self) -> u64;
 }
+
+/// GPU memory (in bytes) that `cast_into` to `Into` allocates for `self`, computed without
+/// allocating on the GPU. `cast_into` consumes its input: a copy made to keep it (as in
+/// `a.clone().cast_into()`) is not counted.
+#[cfg(feature = "gpu")]
+pub trait CastIntoSizeOnGpu<Into> {
+    fn get_cast_into_size_on_gpu(&self) -> u64;
+}
 #[cfg(feature = "gpu")]
 pub trait AddSizeOnGpu<Rhs = Self> {
     fn get_add_size_on_gpu(&self, amount: Rhs) -> u64;

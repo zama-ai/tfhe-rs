@@ -178,15 +178,15 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         let lwe_ciphertext_count = ct.as_ref().d_blocks.lwe_ciphertext_count();
-        if scalar == Scalar::ZERO {
-            return 0;
-        }
-
-        if scalar == Scalar::ONE || lwe_ciphertext_count.0 == 0 {
-            return 0;
+        // scalar_mul duplicates ct into the output, then multiplies it in place
+        let output = self.get_ciphertext_size_on_gpu(ct);
+        if scalar == Scalar::ZERO || scalar == Scalar::ONE || lwe_ciphertext_count.0 == 0 {
+            // The output copy only (zeroed for 0, unchanged for 1)
+            return output;
         }
 
         if scalar.is_power_of_two() {
+            // Includes the output
             // Shifting cost one bivariate PBS so its always faster
             // than multiplying
             return self.get_scalar_left_shift_size_on_gpu(ct, streams);
@@ -212,7 +212,7 @@ impl CudaServerKey {
             .iter_as::<u64>()
             .collect::<Vec<_>>();
         if decomposed_scalar.is_empty() {
-            return 0;
+            return output;
         }
         assert_eq!(
             computing_ks_key.output_key_lwe_size().to_lwe_dimension(),
@@ -228,6 +228,6 @@ impl CudaServerKey {
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
         );
-        full_prop_mem.max(scalar_mul_mem)
+        output + full_prop_mem.max(scalar_mul_mem)
     }
 }
