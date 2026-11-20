@@ -6,17 +6,24 @@ pub mod prelude;
 mod re_randomization;
 #[cfg(test)]
 mod tests;
+#[cfg(feature = "zk-pok")]
+mod zk;
 
 pub use crate::core_crypto::prelude::NormalizedHammingWeightBound;
 
 #[cfg(feature = "zk-pok")]
-pub use compact_ciphertext_list::{CompactCiphertextListBuilder, ProvenCompactCiphertextList};
+pub use compact_ciphertext_list::{
+    CompactCiphertextListBuilder, NistCompactable, ProvenCompactCiphertextList,
+    ProvenCompactCiphertextListConformanceParams,
+};
 pub use parameters::*;
 pub use re_randomization::{preproc_eval, NistSubmissionReRandomize};
 
 // ZK proof types
 #[cfg(feature = "zk-pok")]
-pub use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+pub use crate::zk::{ZkComputeLoad, ZkPkeV2SupportedHashConfig};
+#[cfg(feature = "zk-pok")]
+pub use zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 
 // Config
 pub use crate::high_level_api::config::{Config, ConfigBuilder};
