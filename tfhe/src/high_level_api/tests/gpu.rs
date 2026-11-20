@@ -161,6 +161,149 @@ fn test_gpu_selection() {
     assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
 }
 
+/// Regression test: with the CPU server key set, an assign operator on a ciphertext that lives
+/// on the GPU has to bring it back to the CPU (it used to retry the move forever)
+#[test]
+fn test_gpu_ciphertext_assign_op_with_cpu_server_key() {
+    let config = ConfigBuilder::default().build();
+    let keys = ClientKey::generate(config);
+    let compressed_server_keys = CompressedServerKey::new(&keys);
+
+    let mut rng = rand::thread_rng();
+    let clear: u8 = rng.gen();
+    let scalar: u8 = rng.gen();
+    let divisor: u8 = rng.gen_range(1..=u8::MAX);
+
+    set_server_key(compressed_server_keys.decompress_to_gpu());
+    let mut a = FheUint8::encrypt(clear, &keys);
+    a.move_to_current_device();
+    assert_eq!(a.current_device(), Device::CudaGpu);
+    let mut b = FheBool::encrypt(true, &keys);
+    b.move_to_current_device();
+    assert_eq!(b.current_device(), Device::CudaGpu);
+
+    // Checked before the assign operators, so that a regression fails here instead of hanging
+    let mut a_on_cpu = a.clone();
+    a_on_cpu.move_to_device(Device::Cpu);
+    assert_eq!(a_on_cpu.current_device(), Device::Cpu);
+    let decrypted: u8 = a_on_cpu.decrypt(&keys);
+    assert_eq!(decrypted, clear);
+
+    let mut b_on_cpu = b.clone();
+    b_on_cpu.move_to_device(Device::Cpu);
+    assert_eq!(b_on_cpu.current_device(), Device::Cpu);
+    assert!(b_on_cpu.decrypt(&keys));
+
+    set_server_key(compressed_server_keys.decompress());
+
+    a *= scalar;
+    assert_eq!(a.current_device(), Device::Cpu);
+    let decrypted: u8 = a.decrypt(&keys);
+    assert_eq!(decrypted, clear.wrapping_mul(scalar));
+
+    a /= divisor;
+    let decrypted: u8 = a.decrypt(&keys);
+    assert_eq!(decrypted, clear.wrapping_mul(scalar) / divisor);
+
+    b &= &FheBool::encrypt(false, &keys);
+    assert_eq!(b.current_device(), Device::Cpu);
+    assert!(!b.decrypt(&keys));
+}
+
+/// Regression test: squashed noise ciphertexts and compressed lists that live on the GPU have to
+/// end up on the CPU when moved there (they used to stay on the GPU)
+#[test]
+fn test_gpu_squashed_noise_and_compressed_lists_move_to_cpu() {
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .enable_noise_squashing(NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .enable_noise_squashing_compression(
+                NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+            .build();
+    let keys = ClientKey::generate(config);
+    let compressed_server_keys = CompressedServerKey::new(&keys);
+
+    let mut rng = rand::thread_rng();
+    let clear_u: u32 = rng.gen();
+    let clear_i: i32 = rng.gen();
+    let clear_b: bool = rng.gen();
+
+    set_server_key(compressed_server_keys.decompress_to_gpu());
+
+    let mut u = FheUint32::encrypt(clear_u, &keys);
+    u.move_to_current_device();
+    let mut i = FheInt32::encrypt(clear_i, &keys);
+    i.move_to_current_device();
+    let mut b = FheBool::encrypt(clear_b, &keys);
+    b.move_to_current_device();
+
+    // squash_noise returns its result on the CPU even with a GPU key, hence the explicit moves
+    let mut ns_u = u.squash_noise().unwrap();
+    ns_u.move_to_device(Device::CudaGpu);
+    assert_eq!(ns_u.current_device(), Device::CudaGpu);
+    ns_u.move_to_device(Device::Cpu);
+    assert_eq!(ns_u.current_device(), Device::Cpu);
+    let decrypted: u32 = ns_u.decrypt(&keys);
+    assert_eq!(decrypted, clear_u);
+
+    let mut ns_i = i.squash_noise().unwrap();
+    ns_i.move_to_device(Device::CudaGpu);
+    assert_eq!(ns_i.current_device(), Device::CudaGpu);
+    ns_i.move_to_device(Device::Cpu);
+    assert_eq!(ns_i.current_device(), Device::Cpu);
+    let decrypted: i32 = ns_i.decrypt(&keys);
+    assert_eq!(decrypted, clear_i);
+
+    let mut ns_b = b.squash_noise().unwrap();
+    ns_b.move_to_device(Device::CudaGpu);
+    assert_eq!(ns_b.current_device(), Device::CudaGpu);
+    ns_b.move_to_device(Device::Cpu);
+    assert_eq!(ns_b.current_device(), Device::Cpu);
+    assert_eq!(ns_b.decrypt(&keys), clear_b);
+
+    let mut compressed = CompressedCiphertextListBuilder::new()
+        .push(u.clone())
+        .push(i.clone())
+        .push(b.clone())
+        .build()
+        .unwrap();
+    assert_eq!(compressed.current_device(), Device::CudaGpu);
+    let mut squashed_compressed = CompressedSquashedNoiseCiphertextList::builder()
+        .push(u.squash_noise().unwrap())
+        .push(i.squash_noise().unwrap())
+        .push(b.squash_noise().unwrap())
+        .build()
+        .unwrap();
+    assert_eq!(squashed_compressed.current_device(), Device::CudaGpu);
+
+    // The lists only expose a move to the device of the current server key
+    set_server_key(compressed_server_keys.decompress());
+
+    compressed.move_to_current_device().unwrap();
+    assert_eq!(compressed.current_device(), Device::Cpu);
+    let u_out: FheUint32 = compressed.get(0).unwrap().unwrap();
+    let decrypted: u32 = u_out.decrypt(&keys);
+    assert_eq!(decrypted, clear_u);
+    let i_out: FheInt32 = compressed.get(1).unwrap().unwrap();
+    let decrypted: i32 = i_out.decrypt(&keys);
+    assert_eq!(decrypted, clear_i);
+    let b_out: FheBool = compressed.get(2).unwrap().unwrap();
+    assert_eq!(b_out.decrypt(&keys), clear_b);
+
+    squashed_compressed.move_to_current_device().unwrap();
+    assert_eq!(squashed_compressed.current_device(), Device::Cpu);
+    let ns_u: SquashedNoiseFheUint = squashed_compressed.get(0).unwrap().unwrap();
+    let decrypted: u32 = ns_u.decrypt(&keys);
+    assert_eq!(decrypted, clear_u);
+    let ns_i: SquashedNoiseFheInt = squashed_compressed.get(1).unwrap().unwrap();
+    let decrypted: i32 = ns_i.decrypt(&keys);
+    assert_eq!(decrypted, clear_i);
+    let ns_b: SquashedNoiseFheBool = squashed_compressed.get(2).unwrap().unwrap();
+    assert_eq!(ns_b.decrypt(&keys), clear_b);
+}
+
 #[test]
 fn test_gpu_selection_2() {
     // The purpose of if this is to test that we can set_server_key using a cuda key that is on GpuY
