@@ -6,8 +6,14 @@
 //! `test_sum`, `test_neg` and `test_comparison`), which also exercises inputs at the maximum
 //! degree and noise level.
 //! The GPU full propagation cannot take blocks at the maximum degree yet.
-//! Once it is aligned with the CPU one point the GPU wrappers at the harness
-//! tests and delete this file.
+//!
+//! The rotations by an encrypted amount also differ: the CPU reduces the amount modulo the
+//! number of bits (see `unchecked_rotate_bits_assign` in `radix_parallel::rotate`), the GPU
+//! only reads its low ⌈log₂(num_bits)⌉ bits, i.e. reduces it modulo the next power of two,
+//! which the rotate tests of this file (unchecked ones included) still model.
+//!
+//! Once both are aligned with the CPU point the GPU wrappers at the harness tests and the CPU
+//! unchecked tests, and delete this file.
 use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::{IntegerCiphertext, IntegerRadixCiphertext};
@@ -1150,6 +1156,116 @@ where
                 let expected = rotate_right_helper(clear, clear_shift % nb_bits, true_nb_bits);
                 assert_eq!(expected, decrypted_result);
             }
+        }
+    }
+}
+
+pub(crate) fn legacy_unchecked_rotate_left_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..nb_tests {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_rotate = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_rotate as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_left_helper(clear, clear_rotate, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_rotate = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_rotate as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_left_helper(clear, clear_rotate % nb_bits, true_nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+    }
+}
+
+pub(crate) fn legacy_unchecked_rotate_right_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
+    assert!(modulus.is_power_of_two());
+    let nb_bits = modulus.ilog2();
+
+    executor.setup(&cks, sks);
+
+    for _ in 0..nb_tests {
+        let clear = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u32>();
+
+        let ct = cks.encrypt(clear);
+
+        // case when 0 <= rotate < nb_bits
+        {
+            let clear_rotate = clear_shift % nb_bits;
+            let shift = cks.encrypt(clear_rotate as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            let expected = rotate_right_helper(clear, clear_rotate, nb_bits);
+            assert_eq!(expected, decrypted_result);
+        }
+
+        // case when shift >= nb_bits
+        {
+            let clear_rotate = clear_shift.saturating_add(nb_bits);
+            let shift = cks.encrypt(clear_rotate as u64);
+            let encrypted_result = executor.execute((&ct, &shift));
+            let decrypted_result: u64 = cks.decrypt(&encrypted_result);
+            // When nb_bits is not a power of two
+            // then the behaviour is not the same
+            let true_nb_bits = nb_bits;
+            let mut nb_bits = nb_bits;
+            if !nb_bits.is_power_of_two() {
+                nb_bits = nb_bits.next_power_of_two();
+            }
+            let expected = rotate_right_helper(clear, clear_rotate % nb_bits, true_nb_bits);
+            assert_eq!(expected, decrypted_result);
         }
     }
 }
