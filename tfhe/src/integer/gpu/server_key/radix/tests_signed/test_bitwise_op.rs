@@ -1,11 +1,13 @@
+use super::legacy_default_tests::{
+    legacy_signed_default_bitand_test, legacy_signed_default_bitnot_test,
+    legacy_signed_default_bitor_test, legacy_signed_default_bitxor_test,
+};
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_bitwise_op::{
-    signed_default_bitand_test, signed_default_bitnot_test, signed_default_bitor_test,
-    signed_default_bitxor_test, signed_unchecked_bitand_test, signed_unchecked_bitor_test,
-    signed_unchecked_bitxor_test,
+    signed_unchecked_bitand_test, signed_unchecked_bitor_test, signed_unchecked_bitxor_test,
 };
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
@@ -47,7 +49,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitnot);
-    signed_default_bitnot_test(param, executor);
+    legacy_signed_default_bitnot_test(param, executor);
 }
 
 fn integer_signed_default_bitand<P>(param: P)
@@ -55,7 +57,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitand);
-    signed_default_bitand_test(param, executor);
+    legacy_signed_default_bitand_test(param, executor);
 }
 
 fn integer_signed_default_bitor<P>(param: P)
@@ -63,7 +65,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitor);
-    signed_default_bitor_test(param, executor);
+    legacy_signed_default_bitor_test(param, executor);
 }
 
 fn integer_signed_default_bitxor<P>(param: P)
@@ -71,5 +73,5 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitxor);
-    signed_default_bitxor_test(param, executor);
+    legacy_signed_default_bitxor_test(param, executor);
 }
