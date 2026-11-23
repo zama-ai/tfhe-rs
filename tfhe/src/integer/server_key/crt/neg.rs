@@ -21,16 +21,16 @@ impl CrtServerKey {
     ///
     /// let mut ctxt = cks.encrypt(clear);
     ///
-    /// sks.unchecked_crt_neg_assign(&mut ctxt);
+    /// sks.unchecked_neg_assign(&mut ctxt);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt);
     /// assert_eq!(16, res);
     /// ```
-    pub fn unchecked_crt_neg(&self, ctxt: &CrtCiphertext) -> CrtCiphertext {
+    pub fn unchecked_neg(&self, ctxt: &CrtCiphertext) -> CrtCiphertext {
         let mut result = ctxt.clone();
 
-        self.unchecked_crt_neg_assign(&mut result);
+        self.unchecked_neg_assign(&mut result);
 
         result
     }
@@ -41,7 +41,7 @@ impl CrtServerKey {
     /// capacity of the ciphertext.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
-    pub fn unchecked_crt_neg_assign(&self, ctxt: &mut CrtCiphertext) {
+    pub fn unchecked_neg_assign(&self, ctxt: &mut CrtCiphertext) {
         for ct_i in ctxt.blocks.iter_mut() {
             self.key.unchecked_neg_assign(ct_i);
         }
