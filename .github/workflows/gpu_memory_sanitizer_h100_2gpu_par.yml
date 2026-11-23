@@ -47,7 +47,7 @@ jobs:
               - tfhe/Cargo.toml
               - tfhe/build.rs
               - backends/tfhe-cuda-backend/**
-              - scripts/check_memory_errors.sh
+              - scripts/gpu/check_memory_errors.sh
               - tfhe/src/core_crypto/gpu/**
               - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
