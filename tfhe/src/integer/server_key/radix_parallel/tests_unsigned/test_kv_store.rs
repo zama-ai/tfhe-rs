@@ -5,7 +5,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
 use crate::integer::server_key::KVStore;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::{TestParameters, *};
 use std::collections::BTreeMap;
@@ -209,7 +209,7 @@ pub fn default_kv_store_get_update_test<Key, P, T1, T2>(
     >,
 {
     let params = params.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -302,7 +302,7 @@ where
     >,
 {
     let params = params.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -458,7 +458,7 @@ pub fn default_kv_store_contains_test<Key, P, T1>(
     >,
 {
     let params = params.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -517,7 +517,7 @@ where
     >,
 {
     let params = params.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -576,7 +576,7 @@ pub fn default_kv_store_contains_clear_value_test<Key, P, T1>(
     T1: for<'a> FunctionExecutor<(&'a KVStore<Key, RadixCiphertext>, u64), BooleanBlock>,
 {
     let params = params.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);

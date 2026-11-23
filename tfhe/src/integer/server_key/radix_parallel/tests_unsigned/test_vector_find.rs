@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::panic_if_any_block_is_not_clean_or_trivial;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -364,7 +364,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -510,7 +510,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -582,7 +582,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -687,7 +687,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
 
     sks.set_deterministic_pbs_execution(true);
 
@@ -752,7 +752,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -822,7 +822,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -890,7 +890,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -953,7 +953,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -1017,7 +1017,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1074,7 +1074,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -1132,7 +1132,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1197,7 +1197,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -1262,7 +1262,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1327,7 +1327,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -1394,7 +1394,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1468,7 +1468,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -1540,7 +1540,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1609,7 +1609,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -1678,7 +1678,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1757,7 +1757,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -1838,7 +1838,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1912,7 +1912,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);

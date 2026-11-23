@@ -12,7 +12,6 @@ use std::cmp::max;
 use std::hint::black_box;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::oprf::{OprfPrivateKey, OprfServerKey};
-use tfhe::integer::IntegerKeyKind;
 use tfhe::keycache::NamedParam;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use tfhe::{get_pbs_count, reset_pbs_count};
@@ -51,7 +50,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
         match bench_type {
             BenchmarkType::Latency => {
                 bench_group.bench_function(&bench_id_oprf, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
                     let oprf_pk = OprfPrivateKey::new(&cks);
                     let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
 
@@ -67,7 +66,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 });
 
                 bench_group.bench_function(&bench_id_oprf_bounded, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
                     let oprf_pk = OprfPrivateKey::new(&cks);
                     let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
 
@@ -84,7 +83,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
                 let oprf_pk = OprfPrivateKey::new(&cks);
                 let oprf_sk = OprfServerKey::new(&oprf_pk, &cks).unwrap();
 
@@ -210,8 +209,7 @@ pub mod cuda {
                     let streams = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id_oprf, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
                         let oprf_pk = OprfPrivateKey::new(&cks);
                         let compressed_oprf_sk =
@@ -232,8 +230,7 @@ pub mod cuda {
                     });
 
                     bench_group.bench_function(&bench_id_oprf_bounded, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
                         let oprf_pk = OprfPrivateKey::new(&cks);
                         let compressed_oprf_sk =
@@ -256,7 +253,7 @@ pub mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_sks_vec = cuda_local_keys(&cks);
                     let cpu_oprf_pk = OprfPrivateKey::new(&cks);
                     let cpu_oprf_sk = OprfServerKey::new(&cpu_oprf_pk, &cks).unwrap();

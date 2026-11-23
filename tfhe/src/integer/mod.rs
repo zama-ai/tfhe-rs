@@ -92,19 +92,12 @@ pub use client_key::{ClientKey, RadixClientKey};
 pub use public_key::{CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey};
 pub use server_key::{CheckError, CompressedServerKey, ServerKey};
 
-/// Enum to indicate which kind of computations the [`ServerKey`] will be performing, this changes
-/// the parameterization of the key to manage carries in the Radix case.
-#[derive(Clone, Copy, Debug)]
-pub enum IntegerKeyKind {
-    Radix,
-}
-
 /// Generate a couple of client and server keys with given parameters
 ///
 /// * the client key is used to encrypt and decrypt and has to be kept secret;
 /// * the server key is used to perform homomorphic operations on the server side and it is meant to
 ///   be published (the client sends it to the server).
-pub(crate) fn gen_keys<P>(parameters_set: P, key_kind: IntegerKeyKind) -> (ClientKey, ServerKey)
+pub(crate) fn gen_keys<P>(parameters_set: P) -> (ClientKey, ServerKey)
 where
     P: Into<crate::shortint::parameters::AtomicPatternParameters>,
 {
@@ -113,14 +106,12 @@ where
 
     #[cfg(any(test, feature = "internal-keycache"))]
     {
-        keycache::KEY_CACHE.get_from_params(shortint_parameters_set, key_kind)
+        keycache::KEY_CACHE.get_from_params(shortint_parameters_set)
     }
     #[cfg(all(not(test), not(feature = "internal-keycache")))]
     {
         let cks = ClientKey::new(shortint_parameters_set);
-        let sks = match key_kind {
-            IntegerKeyKind::Radix => ServerKey::new_radix_server_key(&cks),
-        };
+        let sks = ServerKey::new_radix_server_key(&cks);
 
         (cks, sks)
     }
@@ -143,7 +134,7 @@ pub fn gen_keys_radix<P>(parameters_set: P, num_blocks: usize) -> (RadixClientKe
 where
     P: Into<crate::shortint::parameters::AtomicPatternParameters>,
 {
-    let (cks, sks) = gen_keys(parameters_set, IntegerKeyKind::Radix);
+    let (cks, sks) = gen_keys(parameters_set);
 
     (RadixClientKey::from((cks, num_blocks)), sks)
 }

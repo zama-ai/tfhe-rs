@@ -2,7 +2,7 @@ use crate::integer::ciphertext::compressed_ciphertext_list::*;
 use crate::integer::ciphertext::{ReRandomizationContext, ReRandomizationKey};
 use crate::integer::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
 use crate::integer::{
-    gen_keys, BooleanBlock, CompactPrivateKey, CompactPublicKey, IntegerKeyKind, RadixCiphertext,
+    gen_keys, BooleanBlock, CompactPrivateKey, CompactPublicKey, RadixCiphertext,
     SignedRadixCiphertext,
 };
 use crate::shortint::parameters::test_params::{
@@ -59,7 +59,7 @@ fn test_ciphertext_re_randomization_after_compression_impl(
     cpk_params: Option<CompactPublicKeyEncryptionParameters>,
     rerand_params: ReRandomizationParameters,
 ) {
-    let (cks, sks) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+    let (cks, sks) = gen_keys::<AtomicPatternParameters>(params);
 
     let private_compression_key = cks.new_compression_private_key(comp_params);
 

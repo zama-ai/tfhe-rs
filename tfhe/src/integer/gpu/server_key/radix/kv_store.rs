@@ -765,9 +765,7 @@ mod tests {
 
     use super::*;
     use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
-    use crate::integer::{
-        gen_keys, ClientKey, IntegerKeyKind, RadixCiphertext, SignedRadixCiphertext,
-    };
+    use crate::integer::{gen_keys, ClientKey, RadixCiphertext, SignedRadixCiphertext};
     use crate::shortint::parameters::test_params::{
         TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -811,7 +809,7 @@ mod tests {
         let params =
             TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
 
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let private_compression_key = cks.new_compression_private_key(
             TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -892,7 +890,7 @@ mod tests {
         let params =
             TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
 
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let private_compression_key = cks.new_compression_private_key(
             TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -944,7 +942,7 @@ mod tests {
     fn test_kv_store_get() {
         let params =
             TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let streams = CudaStreams::new_multi_gpu();
         let sks = CudaServerKey::new(&cks, &streams);
@@ -1019,7 +1017,7 @@ mod tests {
     fn test_kv_store_contains_key() {
         let params =
             TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let streams = CudaStreams::new_multi_gpu();
         let sks = CudaServerKey::new(&cks, &streams);
@@ -1073,7 +1071,7 @@ mod tests {
     fn test_kv_store_contains_value() {
         let params =
             TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let streams = CudaStreams::new_multi_gpu();
         let sks = CudaServerKey::new(&cks, &streams);
@@ -1120,7 +1118,7 @@ mod tests {
     fn test_kv_store_contains_clear_value() {
         let params =
             TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let streams = CudaStreams::new_multi_gpu();
         let sks = CudaServerKey::new(&cks, &streams);
@@ -1159,7 +1157,7 @@ mod tests {
         // kv_store_map cannot use the generic test templates, hence this dedicated test.
         let params =
             TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let streams = CudaStreams::new_multi_gpu();
         let sks = CudaServerKey::new(&cks, &streams);

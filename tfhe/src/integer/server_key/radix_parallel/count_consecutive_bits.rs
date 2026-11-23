@@ -555,7 +555,7 @@ pub(crate) struct CountConsecutiveBitsResult {
 mod test {
     use super::*;
     use crate::integer::keycache::KEY_CACHE;
-    use crate::integer::{ClientKey, IntegerKeyKind, RadixCiphertext};
+    use crate::integer::{ClientKey, RadixCiphertext};
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
     use rand::{thread_rng, Rng};
 
@@ -563,7 +563,7 @@ mod test {
     fn test_unchecked_new_count_consecutive_bits_trivial_input_param_message_2_carry_2() {
         let param = PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 
-        let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let (cks, sks) = KEY_CACHE.get_from_params(param);
 
         for direction in [Direction::Leading, Direction::Trailing] {
             for bit_value in [BitValue::Zero, BitValue::One] {

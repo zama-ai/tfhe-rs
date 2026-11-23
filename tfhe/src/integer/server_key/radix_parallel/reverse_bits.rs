@@ -66,7 +66,7 @@ mod tests {
     use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
     use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
     use crate::integer::tests::create_parameterized_test;
-    use crate::integer::{IntegerKeyKind, RadixClientKey};
+    use crate::integer::RadixClientKey;
     #[cfg(tarpaulin)]
     use crate::shortint::parameters::coverage_parameters::*;
     use crate::shortint::parameters::test_params::*;
@@ -80,7 +80,7 @@ mod tests {
         T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
     {
         let param = param.into();
-        let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let (cks, sks) = KEY_CACHE.get_from_params(param);
         let sks = Arc::new(sks);
 
         let nb_blocks = 4;
