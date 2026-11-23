@@ -25,27 +25,23 @@ impl CrtServerKey {
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// sks.unchecked_crt_scalar_mul_assign_parallelized(&mut ctxt_1, clear_2);
+    /// sks.unchecked_scalar_mul_assign_parallelized(&mut ctxt_1, clear_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_crt_scalar_mul_parallelized(
+    pub fn unchecked_scalar_mul_parallelized(
         &self,
         ctxt: &CrtCiphertext,
         scalar: u64,
     ) -> CrtCiphertext {
         let mut ct_result = ctxt.clone();
-        self.unchecked_crt_scalar_mul_assign_parallelized(&mut ct_result, scalar);
+        self.unchecked_scalar_mul_assign_parallelized(&mut ct_result, scalar);
         ct_result
     }
 
-    pub fn unchecked_crt_scalar_mul_assign_parallelized(
-        &self,
-        ctxt: &mut CrtCiphertext,
-        scalar: u64,
-    ) {
+    pub fn unchecked_scalar_mul_assign_parallelized(&self, ctxt: &mut CrtCiphertext, scalar: u64) {
         ctxt.blocks
             .par_iter_mut()
             .zip(ctxt.moduli.par_iter())

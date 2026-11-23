@@ -1,7 +1,7 @@
 use crate::integer::{CrtCiphertext, CrtServerKey};
 
 impl CrtServerKey {
-    /// Computes homomorphically a subtraction between a ciphertext and a scalar.
+    /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
     /// This function computes the operation without checking if it exceeds the capacity of the
     /// ciphertext.
@@ -20,27 +20,34 @@ impl CrtServerKey {
     /// let (cks, sks) = gen_keys_crt(PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128, basis);
     ///
     /// let clear_1 = 14;
-    /// let clear_2 = 7;
+    /// let clear_2 = 14;
     /// // Encrypt two messages
     /// let mut ctxt_1 = cks.encrypt(clear_1);
     ///
-    /// sks.unchecked_crt_scalar_sub_assign(&mut ctxt_1, clear_2);
+    /// sks.unchecked_scalar_add_assign(&mut ctxt_1, clear_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
-    /// assert_eq!((clear_1 - clear_2) % modulus, res);
+    /// assert_eq!((clear_1 + clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_crt_scalar_sub(&self, ct: &CrtCiphertext, scalar: u64) -> CrtCiphertext {
+    pub fn unchecked_scalar_add(&self, ct: &CrtCiphertext, scalar: u64) -> CrtCiphertext {
         let mut result = ct.clone();
-        self.unchecked_crt_scalar_sub_assign(&mut result, scalar);
+        self.unchecked_scalar_add_assign(&mut result, scalar);
         result
     }
 
-    pub fn unchecked_crt_scalar_sub_assign(&self, ct: &mut CrtCiphertext, scalar: u64) {
-        //Put each decomposition into a new ciphertext
+    /// Computes homomorphically an addition between a scalar and a ciphertext.
+    ///
+    /// This function computes the operation without checking if it exceeds the capacity of the
+    /// ciphertext.
+    ///
+    /// The result is assigned to the `ct_left` ciphertext.
+    pub fn unchecked_scalar_add_assign(&self, ct: &mut CrtCiphertext, scalar: u64) {
+        //Add the crt representation of the scalar to the ciphertext
         for (ct_i, mod_i) in ct.blocks.iter_mut().zip(ct.moduli.iter()) {
-            let neg_scalar = (mod_i - scalar % mod_i) % mod_i;
-            self.key.unchecked_scalar_add_assign(ct_i, neg_scalar as u8);
+            let scalar_i = scalar % mod_i;
+
+            self.key.unchecked_scalar_add_assign(ct_i, scalar_i as u8);
         }
     }
 }

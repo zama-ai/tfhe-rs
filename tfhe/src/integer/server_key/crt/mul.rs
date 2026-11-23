@@ -25,12 +25,12 @@ impl CrtServerKey {
     /// let ctxt_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// sks.unchecked_crt_mul_assign_parallelized(&mut ctxt_1, &ctxt_2);
+    /// sks.unchecked_mul_assign_parallelized(&mut ctxt_1, &ctxt_2);
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt_1);
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_crt_mul_assign_parallelized(
+    pub fn unchecked_mul_assign_parallelized(
         &self,
         ct_left: &mut CrtCiphertext,
         ct_right: &CrtCiphertext,
@@ -57,13 +57,13 @@ impl CrtServerKey {
             });
     }
 
-    pub fn unchecked_crt_mul_parallelized(
+    pub fn unchecked_mul_parallelized(
         &self,
         ct_left: &CrtCiphertext,
         ct_right: &CrtCiphertext,
     ) -> CrtCiphertext {
         let mut ct_res = ct_left.clone();
-        self.unchecked_crt_mul_assign_parallelized(&mut ct_res, ct_right);
+        self.unchecked_mul_assign_parallelized(&mut ct_res, ct_right);
         ct_res
     }
 }
