@@ -1204,6 +1204,11 @@ fn zopt_ks64_benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
             .iter()
             .map(|(params, _, name)| (*params, *name)),
     )
+    // The default again at the end, to measure the effect of the order.
+    .chain(std::iter::once((
+        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_LAST",
+    )))
     .map(|(params, name)| (name.to_string(), params.into()))
     .collect()
 }
