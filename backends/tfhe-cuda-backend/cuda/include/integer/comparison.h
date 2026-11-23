@@ -3,6 +3,14 @@
 #include "cmux.h"
 #include "integer_utilities.h"
 
+/// @brief Number of blocks left after packing adjacent pairs of blocks. The
+/// last block of an odd count is kept alone.
+/// @param num_blocks Number of blocks before packing.
+/// @return ceil(num_blocks / 2).
+inline uint32_t num_packed_pairs(uint32_t num_blocks) {
+  return num_blocks / 2 + num_blocks % 2;
+}
+
 template <typename Torus> struct int_are_all_block_true_buffer {
   COMPARISON_TYPE op;
   int_radix_params params;
@@ -311,10 +319,12 @@ template <typename Torus> struct int_comparison_diff_buffer {
       }
     };
 
+    // Holds both packed operands
     tmp_packed = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams.stream(0), streams.gpu_index(0), tmp_packed, num_radix_blocks,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+        streams.stream(0), streams.gpu_index(0), tmp_packed,
+        2 * num_packed_pairs(num_radix_blocks), params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
 
     tree_buffer = new int_tree_sign_reduction_buffer<Torus>(
         streams, operator_f, params, num_radix_blocks, allocate_gpu_memory,
@@ -439,12 +449,13 @@ template <typename Torus> struct int_comparison_buffer {
     diff_borrow_mem = nullptr;
     lut_borrow_flag_cmp = nullptr;
     // When we are in the fast path we can avoid calculating the luts for the
-    // tree reduction.
+    // tree reduction. The borrow propagation needs at least two blocks.
     use_borrow_fast_path =
         allow_borrow_fast_path &&
         (op == COMPARISON_TYPE::GT || op == COMPARISON_TYPE::GE ||
          op == COMPARISON_TYPE::LT || op == COMPARISON_TYPE::LE) &&
-        !is_signed && params.message_modulus == 4 && params.carry_modulus == 4;
+        !is_signed && params.message_modulus == 4 &&
+        params.carry_modulus == 4 && num_radix_blocks >= 2;
     // Null the sign-tree members so release() can safely skip them.
     diff_buffer = nullptr;
     eq_buffer = nullptr;
@@ -489,13 +500,17 @@ template <typename Torus> struct int_comparison_buffer {
             2 * num_radix_blocks, params.big_lwe_dimension, size_tracker,
             allocate_gpu_memory);
 
-        // Cleaning LUT
-        identity_lut =
-            new int_radix_lut<Torus>(streams, params, 1, num_radix_blocks,
-                                     allocate_gpu_memory, size_tracker);
+        // Cleaning LUT, applied on both packed operands at once
+        uint32_t num_packed_operand_blocks =
+            2 * num_packed_pairs(num_radix_blocks);
+        identity_lut = new int_radix_lut<Torus>(
+            streams, params, 1, num_packed_operand_blocks, allocate_gpu_memory,
+            size_tracker);
 
         identity_lut->generate_and_broadcast_lut(
-            active_streams, {0}, {identity_lut_f}, LUT_0_FOR_ALL_BLOCKS);
+            streams.active_gpu_subset(num_packed_operand_blocks,
+                                      params.pbs_type()),
+            {0}, {identity_lut_f}, LUT_0_FOR_ALL_BLOCKS);
 
         uint32_t total_modulus = params.message_modulus * params.carry_modulus;
         auto is_zero_f = [total_modulus](Torus x) -> Torus {

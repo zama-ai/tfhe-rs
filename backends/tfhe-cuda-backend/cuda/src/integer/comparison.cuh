@@ -408,6 +408,8 @@ compare_radix_blocks(CudaStreams streams, CudaRadixCiphertextFFI *lwe_array_out,
                      int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
                      KSTorus *const *ksks, uint32_t num_radix_blocks) {
 
+  if (num_radix_blocks == 0)
+    return;
   if (lwe_array_out->lwe_dimension != lwe_array_left->lwe_dimension ||
       lwe_array_out->lwe_dimension != lwe_array_right->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
@@ -564,59 +566,52 @@ __host__ void host_difference_check(
   auto message_modulus = params.message_modulus;
   auto carry_modulus = params.carry_modulus;
 
+  // tmp_packed holds the packed left operand in its first half and the packed
+  // right operand in its second half
+  uint32_t packed_operand_size = num_packed_pairs(num_radix_blocks);
   uint32_t packed_num_radix_blocks = num_radix_blocks;
   CudaRadixCiphertextFFI lhs;
   as_radix_ciphertext_slice<Torus>(&lhs, diff_buffer->tmp_packed, 0,
-                                   num_radix_blocks / 2);
+                                   packed_operand_size);
   CudaRadixCiphertextFFI rhs;
   as_radix_ciphertext_slice<Torus>(&rhs, diff_buffer->tmp_packed,
-                                   num_radix_blocks / 2, num_radix_blocks);
-  if (carry_modulus >= message_modulus) {
-    // Packing is possible
+                                   packed_operand_size,
+                                   2 * packed_operand_size);
+  // A signed ciphertext of one block only has its sign block, which is not
+  // packed
+  bool use_packing = carry_modulus >= message_modulus &&
+                     (!mem_ptr->is_signed || num_radix_blocks >= 2);
+  if (use_packing) {
     // Pack inputs
     // In case the ciphertext is signed, the sign block and the one before it
     // are handled separately
     if (mem_ptr->is_signed) {
       packed_num_radix_blocks -= 2;
     }
-    // Packs adjacent blocks from lwe_array_left into lhs:
-    // tmp_packed[0..num_radix_blocks/2] = lhs[0..num_radix_blocks/2] <-
+    // Packs adjacent blocks from lwe_array_left into lhs, the last block of
+    // an odd count is copied as is:
+    // lhs <-
     //     [pack(lwe_array_left[0], lwe_array_left[1]),
     //      pack(lwe_array_left[2], lwe_array_left[3]),
-    //            ....
-    //      pack(lwe_array_left[num_radix_blocks-2],
-    //      lwe_array_left[num_radix_blocks-1])]
-    // the last pack for num_radix_blocks-2,num_radix_blocks-1 is not performed
-    // for signed inputs
+    //            ....]
+    // The sign block and the one before it are not packed for signed inputs
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), &lhs,
                        lwe_array_left, packed_num_radix_blocks, message_modulus,
                        message_modulus, carry_modulus);
-    // tmp_packed[num_radix_blocks/2..num_radix_blocks] =
-    // rhs[0..num_radix_blocks/2] <-
-    //     [pack(lwe_array_right[0], lwe_array_right[1]),
-    //      pack(lwe_array_right[2], lwe_array_right[3]),
-    //            ....
-    //      pack(lwe_array_right[num_radix_blocks-2],
-    //      lwe_array_right[num_radix_blocks-1])]
-    // the last pack for num_radix_blocks-2,num_radix_blocks-1 is not performed
-    // for signed inputs
+    // Same for lwe_array_right into rhs
     pack_blocks<Torus>(streams.stream(0), streams.gpu_index(0), &rhs,
                        lwe_array_right, packed_num_radix_blocks,
                        message_modulus, message_modulus, carry_modulus);
-    // From this point we have half number of blocks
-    packed_num_radix_blocks /= 2;
+    packed_num_radix_blocks = num_packed_pairs(packed_num_radix_blocks);
 
     // Clean noise
-    // At this point tmp_packed contains num_radix_blocks packed ciphertexts
-    // but the (num_radix_blocks/2-1)th and (num_radix_blocks-1)-th ones may be
-    // 0 for signed inputs To clean the noise all num_radix_blocks must be
-    // cleaned: packed_num_radix_blocks is now equal to (num_radix_blocks-2)/2
-    // in the signed case.
-
+    // Both operands are cleaned in one batch. For signed inputs the last slot
+    // of each operand is not a packed block yet: it receives the block before
+    // the sign block below.
     auto identity_lut = mem_ptr->identity_lut;
     integer_radix_apply_univariate_lookup_table<Torus>(
         streams, diff_buffer->tmp_packed, diff_buffer->tmp_packed, bsks, ksks,
-        identity_lut, num_radix_blocks);
+        identity_lut, 2 * packed_operand_size);
   } else {
     as_radix_ciphertext_slice<Torus>(&lhs, lwe_array_left, 0,
                                      lwe_array_left->num_radix_blocks);
@@ -637,9 +632,8 @@ __host__ void host_difference_check(
                                 ksks, packed_num_radix_blocks);
     num_comparisons = packed_num_radix_blocks;
   } else {
-    // Packing is possible
-    if (carry_modulus >= message_modulus) {
-      // Compare (num_radix_blocks - 2) / 2 packed blocks
+    if (use_packing) {
+      // Compare the packed blocks
       compare_radix_blocks<Torus>(streams, comparisons, &lhs, &rhs, mem_ptr,
                                   bsks, ksks, packed_num_radix_blocks);
 
@@ -660,8 +654,8 @@ __host__ void host_difference_check(
       CudaRadixCiphertextFFI last_right_block_before_sign_block;
       as_radix_ciphertext_slice<Torus>(
           &last_right_block_before_sign_block, diff_buffer->tmp_packed,
-          num_radix_blocks / 2 + packed_num_radix_blocks,
-          num_radix_blocks / 2 + packed_num_radix_blocks + 1);
+          packed_operand_size + packed_num_radix_blocks,
+          packed_operand_size + packed_num_radix_blocks + 1);
       CudaRadixCiphertextFFI shifted_lwe_array_right;
       as_radix_ciphertext_slice<Torus>(&shifted_lwe_array_right,
                                        lwe_array_right, num_radix_blocks - 2,

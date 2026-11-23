@@ -51,15 +51,15 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
 
     executor.setup(&cks, sks);
 
-    // Test with low number of blocks, as they take a different branches
+    // Test with low and odd numbers of blocks, as they take different branches
     // (regression tests)
-    for num_block in [num_block, 1, 2] {
+    for num_block in [num_block, 1, 2, 3] {
         let max = Scalar::MAX >> (Scalar::BITS - (num_block * num_bits_per_block));
         for _ in 0..num_test {
             let clear_a = rng.gen::<Scalar>() & max;
             let clear_b = rng.gen::<Scalar>() & max;
-            let a = cks.encrypt(clear_a);
-            let b = cks.encrypt(clear_b);
+            let a: RadixCiphertext = cks.as_ref().encrypt_radix(clear_a, num_block);
+            let b: RadixCiphertext = cks.as_ref().encrypt_radix(clear_b, num_block);
 
             {
                 let result = executor.execute((&a, &b));
@@ -231,15 +231,15 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
 
     executor.setup(&cks, sks);
 
-    // Test with low number of blocks, as they take a different branches
+    // Test with low and odd numbers of blocks, as they take different branches
     // (regression tests)
-    for num_block in [num_block, 1, 2] {
+    for num_block in [num_block, 1, 2, 3] {
         let max = Scalar::MAX >> (Scalar::BITS - (num_block * num_bits_per_block));
         for _ in 0..num_test {
             let clear_a = rng.gen::<Scalar>() & max;
             let clear_b = rng.gen::<Scalar>() & max;
-            let a = cks.encrypt(clear_a);
-            let b = cks.encrypt(clear_b);
+            let a: RadixCiphertext = cks.as_ref().encrypt_radix(clear_a, num_block);
+            let b: RadixCiphertext = cks.as_ref().encrypt_radix(clear_b, num_block);
 
             {
                 let result = executor.execute((&a, &b));

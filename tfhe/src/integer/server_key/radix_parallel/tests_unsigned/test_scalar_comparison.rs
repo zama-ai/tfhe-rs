@@ -3,7 +3,9 @@ use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 use crate::integer::ciphertext::RadixCiphertext;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
+use crate::integer::server_key::radix_parallel::tests_unsigned::{
+    panic_if_any_block_is_not_clean_or_trivial, CpuFunctionExecutor, NB_CTXT,
+};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, I256, U256};
 #[cfg(tarpaulin)]
@@ -602,9 +604,150 @@ pub(crate) fn test_default_scalar_minmax<P, T, ClearF, Scalar>(
     }
 }
 
+/// Function to test a scalar min or max function with a clear scalar of type `Scalar` that may be
+/// outside the range of values the ciphertext can represent.
+///
+/// A scalar outside the range selects one of the operands without computation, and a selected
+/// scalar is taken at the width of the ciphertext (e.g. max(5u8, 256) == 0).
+///
+/// The executor always receives the scalar as a u64, whatever `Scalar` is: every value passed
+/// fits in `Scalar`, so the tested function can narrow it back to `Scalar` losslessly. This lets
+/// one executor input type cover all the scalar widths.
+///
+/// Two ciphertext widths are tested:
+/// - narrower than `Scalar`: scalars can be out of range
+/// - wider than `Scalar`: every scalar is in range, and decomposes into fewer blocks than the
+///   ciphertext has
+///
+/// `clear_fn` is applied on the full-width values, the result is then reduced modulo
+/// the ciphertext's message modulus.
+pub(crate) fn test_scalar_minmax_out_of_range<Scalar, P, T, ClearF>(
+    param: P,
+    mut executor: T,
+    clear_fn: ClearF,
+) where
+    Scalar: UnsignedNumeric + Into<u64>,
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
+    ClearF: Fn(u128, u128) -> u128,
+{
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
+    let scalar_bits = Scalar::BITS as u32;
+    // At least one bit narrower than the scalar, at most 4 blocks to keep the test fast
+    let num_blocks_narrow = ((scalar_bits - 1) / bits_per_block).clamp(1, 4) as usize;
+    let num_blocks_wide = (scalar_bits.div_ceil(bits_per_block) + 1) as usize;
+    let cks = RadixClientKey::from((cks, num_blocks_narrow));
+
+    executor.setup(&cks, Arc::new(sks));
+
+    let scalar_name = std::any::type_name::<Scalar>();
+    let scalar_max = u128::from(Scalar::MAX.into());
+
+    for num_blocks in [num_blocks_narrow, num_blocks_wide] {
+        let num_bits = num_blocks as u32 * bits_per_block;
+        let modulus = 1u128 << num_bits;
+        let ct_max = modulus - 1;
+
+        let scalars = [0, 1, ct_max, ct_max + 1, ct_max + 45, scalar_max]
+            .into_iter()
+            .filter(|scalar| *scalar <= scalar_max)
+            .map(|scalar| scalar as u64);
+
+        for clear in [0, 1, ct_max / 2, ct_max] {
+            let ct = cks.as_ref().encrypt_radix(clear, num_blocks);
+            for scalar in scalars.clone() {
+                let result = executor.execute((&ct, scalar));
+                assert_eq!(
+                    result.blocks.len(),
+                    num_blocks,
+                    "Invalid number of blocks for ct {clear} and {scalar_name} scalar {scalar}"
+                );
+                panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
+                let decrypted: u128 = cks.as_ref().decrypt_radix(&result);
+                let expected = clear_fn(clear, u128::from(scalar)) % modulus;
+                assert_eq!(
+                    decrypted, expected,
+                    "Invalid result for ct {clear} and {scalar_name} scalar {scalar} \
+                     ({num_bits} bits ciphertext): expected {expected}, got {decrypted}"
+                );
+            }
+        }
+    }
+}
+
 #[cfg(not(tarpaulin))]
 mod no_coverage {
     use super::*;
+
+    fn integer_unchecked_scalar_min_out_of_range_parallelized(
+        params: crate::shortint::ClassicPBSParameters,
+    ) {
+        let executor =
+            CpuFunctionExecutor::new(|sks: &ServerKey, ct: &RadixCiphertext, scalar: u64| {
+                sks.unchecked_scalar_min_parallelized(ct, u8::try_from(scalar).unwrap())
+            });
+        test_scalar_minmax_out_of_range::<u8, _, _, _>(params, executor, std::cmp::min::<u128>);
+
+        let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_min_parallelized);
+        test_scalar_minmax_out_of_range::<u64, _, _, _>(params, executor, std::cmp::min::<u128>);
+    }
+
+    fn integer_unchecked_scalar_max_out_of_range_parallelized(
+        params: crate::shortint::ClassicPBSParameters,
+    ) {
+        let executor =
+            CpuFunctionExecutor::new(|sks: &ServerKey, ct: &RadixCiphertext, scalar: u64| {
+                sks.unchecked_scalar_max_parallelized(ct, u8::try_from(scalar).unwrap())
+            });
+        test_scalar_minmax_out_of_range::<u8, _, _, _>(params, executor, std::cmp::max::<u128>);
+
+        let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_max_parallelized);
+        test_scalar_minmax_out_of_range::<u64, _, _, _>(params, executor, std::cmp::max::<u128>);
+    }
+
+    fn integer_scalar_min_out_of_range_parallelized(params: crate::shortint::ClassicPBSParameters) {
+        let executor =
+            CpuFunctionExecutor::new(|sks: &ServerKey, ct: &RadixCiphertext, scalar: u64| {
+                sks.scalar_min_parallelized(ct, u8::try_from(scalar).unwrap())
+            });
+        test_scalar_minmax_out_of_range::<u8, _, _, _>(params, executor, std::cmp::min::<u128>);
+
+        let executor = CpuFunctionExecutor::new(&ServerKey::scalar_min_parallelized);
+        test_scalar_minmax_out_of_range::<u64, _, _, _>(params, executor, std::cmp::min::<u128>);
+    }
+
+    fn integer_scalar_max_out_of_range_parallelized(params: crate::shortint::ClassicPBSParameters) {
+        let executor =
+            CpuFunctionExecutor::new(|sks: &ServerKey, ct: &RadixCiphertext, scalar: u64| {
+                sks.scalar_max_parallelized(ct, u8::try_from(scalar).unwrap())
+            });
+        test_scalar_minmax_out_of_range::<u8, _, _, _>(params, executor, std::cmp::max::<u128>);
+
+        let executor = CpuFunctionExecutor::new(&ServerKey::scalar_max_parallelized);
+        test_scalar_minmax_out_of_range::<u64, _, _, _>(params, executor, std::cmp::max::<u128>);
+    }
+
+    create_parameterized_test!(integer_unchecked_scalar_min_out_of_range_parallelized {
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    });
+    create_parameterized_test!(integer_unchecked_scalar_max_out_of_range_parallelized {
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    });
+    create_parameterized_test!(integer_scalar_min_out_of_range_parallelized {
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    });
+    create_parameterized_test!(integer_scalar_max_out_of_range_parallelized {
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    });
 
     fn integer_unchecked_scalar_min_parallelized_u256(
         params: crate::shortint::ClassicPBSParameters,

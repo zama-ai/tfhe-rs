@@ -2210,9 +2210,9 @@ __host__ void pack_blocks(cudaStream_t stream, uint32_t gpu_index,
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
     PANIC("Cuda error: the number of blocks to pack should be lower or equal "
           "to the number of blocks of the input")
-  if (lwe_array_out->num_radix_blocks < num_radix_blocks / 2)
+  if (lwe_array_out->num_radix_blocks < num_packed_pairs(num_radix_blocks))
     PANIC("Cuda error: the number of output blocks should be greater or equal "
-          "to the number of blocks to pack / 2")
+          "to the number of packed blocks")
   if (num_radix_blocks == 0)
     return;
   auto lwe_dimension = lwe_array_in->lwe_dimension;
@@ -2249,9 +2249,9 @@ __host__ void scalar_pack_blocks(cudaStream_t stream, uint32_t gpu_index,
                                  CudaRadixCiphertextFFI *lwe_array_out,
                                  Torus const *scalar_array_in,
                                  uint32_t num_radix_blocks, uint32_t factor) {
-  if (lwe_array_out->num_radix_blocks < num_radix_blocks / 2)
+  if (lwe_array_out->num_radix_blocks < num_packed_pairs(num_radix_blocks))
     PANIC("Cuda error: the number of output blocks should be greater or equal "
-          "to the number of blocks to pack / 2")
+          "to the number of packed blocks")
   if (num_radix_blocks == 0)
     return;
   cuda_set_device(gpu_index);
@@ -2351,7 +2351,7 @@ reduce_signs(CudaStreams streams, CudaRadixCiphertextFFI *signs_array_out,
             num_sign_blocks / 2, num_sign_blocks / 2 + 1, signs_b,
             num_sign_blocks / 2, num_sign_blocks / 2 + 1);
 
-      num_sign_blocks = (num_sign_blocks / 2) + (num_sign_blocks % 2);
+      num_sign_blocks = num_packed_pairs(num_sign_blocks);
     }
   }
 
