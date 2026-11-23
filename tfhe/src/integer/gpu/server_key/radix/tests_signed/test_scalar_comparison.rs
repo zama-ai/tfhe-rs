@@ -3,10 +3,11 @@ use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
-use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
+use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_scalar_comparison::{
     test_signed_default_scalar_function, test_signed_default_scalar_minmax,
-    test_signed_unchecked_scalar_function, test_signed_unchecked_scalar_minmax,
+    test_signed_scalar_minmax_out_of_range, test_signed_unchecked_scalar_function,
+    test_signed_unchecked_scalar_minmax,
 };
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
@@ -105,55 +106,101 @@ create_gpu_parameterized_test!(integer_signed_scalar_min_i128 {
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
 
-fn integer_signed_scalar_minmax_out_of_range_and_negative_scalar<P>(param: P)
+fn integer_signed_unchecked_scalar_min_out_of_range<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let streams = CudaStreams::new_multi_gpu();
-    let (cks, sks) = gen_keys_gpu(param, &streams);
-
-    let clear = 10i16;
-    let num_blocks = 8;
-    let ct = cks.encrypt_signed_radix(clear, num_blocks);
-    let d_ct = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct, &streams);
-
-    let decrypt = |d_result: CudaSignedRadixCiphertext| -> i16 {
-        cks.decrypt_signed_radix(&d_result.to_signed_radix_ciphertext(&streams))
-    };
-
-    let narrower_negative = -1i8;
-    assert_eq!(
-        decrypt(sks.scalar_max(&d_ct, narrower_negative, &streams)),
-        clear
+    let param = param.into();
+    let executor = GpuFunctionExecutor::new(
+        |sks: &CudaServerKey,
+         ct: &CudaSignedRadixCiphertext,
+         scalar: i64,
+         streams: &CudaStreams| {
+            sks.unchecked_scalar_min(ct, i8::try_from(scalar).unwrap(), streams)
+        },
     );
-    assert_eq!(
-        decrypt(sks.scalar_min(&d_ct, narrower_negative, &streams)),
-        i16::from(narrower_negative)
-    );
+    test_signed_scalar_minmax_out_of_range::<i8, _, _, _>(param, executor, std::cmp::min::<i128>);
 
-    for out_of_range in [70000i64, -70000i64] {
-        let truncated = out_of_range as i16;
-        let (expected_max, expected_min) = if out_of_range > 0 {
-            (truncated, clear)
-        } else {
-            (clear, truncated)
-        };
-        assert_eq!(
-            decrypt(sks.scalar_max(&d_ct, out_of_range, &streams)),
-            expected_max
-        );
-        assert_eq!(
-            decrypt(sks.scalar_min(&d_ct, out_of_range, &streams)),
-            expected_min
-        );
-    }
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_min);
+    test_signed_scalar_minmax_out_of_range::<i64, _, _, _>(param, executor, std::cmp::min::<i128>);
 }
 
-create_gpu_parameterized_test!(
-    integer_signed_scalar_minmax_out_of_range_and_negative_scalar {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    }
-);
+create_gpu_parameterized_test!(integer_signed_unchecked_scalar_min_out_of_range {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+
+fn integer_signed_unchecked_scalar_max_out_of_range<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let param = param.into();
+    let executor = GpuFunctionExecutor::new(
+        |sks: &CudaServerKey,
+         ct: &CudaSignedRadixCiphertext,
+         scalar: i64,
+         streams: &CudaStreams| {
+            sks.unchecked_scalar_max(ct, i8::try_from(scalar).unwrap(), streams)
+        },
+    );
+    test_signed_scalar_minmax_out_of_range::<i8, _, _, _>(param, executor, std::cmp::max::<i128>);
+
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_max);
+    test_signed_scalar_minmax_out_of_range::<i64, _, _, _>(param, executor, std::cmp::max::<i128>);
+}
+
+create_gpu_parameterized_test!(integer_signed_unchecked_scalar_max_out_of_range {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+
+fn integer_signed_scalar_min_out_of_range<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let param = param.into();
+    let executor = GpuFunctionExecutor::new(
+        |sks: &CudaServerKey,
+         ct: &CudaSignedRadixCiphertext,
+         scalar: i64,
+         streams: &CudaStreams| {
+            sks.scalar_min(ct, i8::try_from(scalar).unwrap(), streams)
+        },
+    );
+    test_signed_scalar_minmax_out_of_range::<i8, _, _, _>(param, executor, std::cmp::min::<i128>);
+
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_min);
+    test_signed_scalar_minmax_out_of_range::<i64, _, _, _>(param, executor, std::cmp::min::<i128>);
+}
+
+create_gpu_parameterized_test!(integer_signed_scalar_min_out_of_range {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+
+fn integer_signed_scalar_max_out_of_range<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let param = param.into();
+    let executor = GpuFunctionExecutor::new(
+        |sks: &CudaServerKey,
+         ct: &CudaSignedRadixCiphertext,
+         scalar: i64,
+         streams: &CudaStreams| {
+            sks.scalar_max(ct, i8::try_from(scalar).unwrap(), streams)
+        },
+    );
+    test_signed_scalar_minmax_out_of_range::<i8, _, _, _>(param, executor, std::cmp::max::<i128>);
+
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_max);
+    test_signed_scalar_minmax_out_of_range::<i64, _, _, _>(param, executor, std::cmp::max::<i128>);
+}
+
+create_gpu_parameterized_test!(integer_signed_scalar_max_out_of_range {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
 
 define_gpu_signed_scalar_comparison_test_functions!(eq, i128);
 define_gpu_signed_scalar_comparison_test_functions!(ne, i128);
