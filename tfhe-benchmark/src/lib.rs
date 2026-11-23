@@ -5,5 +5,7 @@ pub mod high_level_api;
 pub mod params;
 pub mod params_aliases;
 pub mod utilities;
+#[cfg(feature = "shortint")]
+pub mod zopt_ks64_params;
 
 pub use crypto_record::{BenchPackingKsParams, BenchPbsParams};

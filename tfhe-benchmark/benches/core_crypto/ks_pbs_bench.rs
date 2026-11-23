@@ -1,6 +1,6 @@
-use benchmark::params::{
-    core_benchmark_parameters, core_multi_bit_benchmark_parameters, multi_bit_num_threads,
-};
+#[cfg(feature = "gpu")]
+use benchmark::params::core_benchmark_parameters;
+use benchmark::params::{core_multi_bit_benchmark_parameters, multi_bit_num_threads};
 
 use benchmark::utilities::{get_param_type, write_to_json, OperatorType, ParamType};
 use benchmark::BenchPbsParams;
@@ -1187,7 +1187,25 @@ use cuda::{cuda_ks_pbs_group, cuda_multi_bit_ks_pbs_group};
 
 pub fn ks_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    ks_pbs(&mut criterion, &core_benchmark_parameters());
+    ks_pbs(&mut criterion, &zopt_ks64_benchmark_parameters());
+}
+
+/// The default 2_2 KS_PBS parameters, as the baseline, then the zopt parameters of the
+/// blockchain circuit on KS_PBS (zopt_ks64_params).
+fn zopt_ks64_benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
+    use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use benchmark::zopt_ks64_params::ZOPT_KS64_PARAMS;
+    std::iter::once((
+        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+    ))
+    .chain(
+        ZOPT_KS64_PARAMS
+            .iter()
+            .map(|(params, _, name)| (*params, *name)),
+    )
+    .map(|(params, name)| (name.to_string(), params.into()))
+    .collect()
 }
 
 pub fn multi_bit_ks_pbs_group() {

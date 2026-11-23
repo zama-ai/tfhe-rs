@@ -3,16 +3,28 @@ use benchmark::params_aliases::{
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use benchmark::utilities::{write_to_json, OperatorType};
-use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, CoreCryptoBench};
-use criterion::Criterion;
+use benchmark::zopt_ks64_params::ZOPT_KS64_PARAMS;
+use benchmark_spec::{get_bench_type, BenchmarkSpec, BenchmarkType, CoreCryptoBench};
+use criterion::{Criterion, Throughput};
 use dyn_stack::PodStack;
+use rayon::prelude::*;
 use std::hint::black_box;
 use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::parameters::NoiseSquashingParameters;
+use tfhe::shortint::ClassicPBSParameters;
 
-fn pbs_128(c: &mut Criterion) {
+/// The squashing bootstrap of a ciphertext of the compute parameters `base_params` (its LWE
+/// dimension, its noise and its modulus) to the noise squashing parameters `noise_params`.
+fn pbs_128(
+    c: &mut Criterion,
+    base_params: ClassicPBSParameters,
+    noise_params: NoiseSquashingParameters,
+    param_name: &str,
+) {
     let cc_bench = CoreCryptoBench::Pbs128;
+    let bench_type = get_bench_type();
     let mut bench_group = c.benchmark_group(cc_bench.to_string());
     bench_group
         .sample_size(10)
@@ -21,10 +33,7 @@ fn pbs_128(c: &mut Criterion) {
     type InputScalar = u64;
     type OutputScalar = u128;
 
-    let noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let base_params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-    let lwe_dimension = base_params.lwe_dimension; // From PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    let lwe_dimension = base_params.lwe_dimension;
     let glwe_dimension = noise_params.glwe_dimension();
     let polynomial_size = noise_params.polynomial_size();
     let lwe_noise_distribution = base_params.lwe_noise_distribution;
@@ -78,6 +87,7 @@ fn pbs_128(c: &mut Criterion) {
         pbs_level,
     );
     convert_standard_lwe_bootstrap_key_to_fourier_128(&bsk, &mut fourier_bsk);
+    drop(bsk);
 
     let message_modulus: InputScalar = 1 << 4;
 
@@ -87,15 +97,6 @@ fn pbs_128(c: &mut Criterion) {
 
     let plaintext = Plaintext(input_message * delta);
 
-    let lwe_ciphertext_in: LweCiphertextOwned<InputScalar> =
-        allocate_and_encrypt_new_lwe_ciphertext(
-            &input_lwe_secret_key,
-            plaintext,
-            lwe_noise_distribution,
-            input_ciphertext_modulus,
-            &mut encryption_generator,
-        );
-
     let accumulator: GlweCiphertextOwned<OutputScalar> = GlweCiphertextOwned::new(
         OutputScalar::ONE,
         glwe_dimension.to_glwe_size(),
@@ -103,44 +104,113 @@ fn pbs_128(c: &mut Criterion) {
         output_ciphertext_modulus,
     );
 
-    let mut out_pbs_ct: LweCiphertext<Vec<OutputScalar>> = LweCiphertext::new(
-        OutputScalar::ZERO,
-        output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-        output_ciphertext_modulus,
-    );
-
     let fft = Fft128::new(polynomial_size);
     let fft = fft.as_view();
 
-    let mut buffers = vec![
-        0u8;
-        bootstrap_scratch::<OutputScalar>(
-            fourier_bsk.glwe_size(),
-            fourier_bsk.polynomial_size(),
-            fft
-        )
-        .unaligned_bytes_required()
-    ];
+    let scratch_bytes = bootstrap_scratch::<OutputScalar>(
+        fourier_bsk.glwe_size(),
+        fourier_bsk.polynomial_size(),
+        fft,
+    )
+    .unaligned_bytes_required();
 
-    let param_name = noise_params.name();
-
-    let benchmark_spec =
-        BenchmarkSpec::new_core_crypto(cc_bench, &param_name, BenchmarkMetric::Latency);
+    let benchmark_spec = BenchmarkSpec::new_core_crypto(cc_bench, param_name, bench_type);
     let id = benchmark_spec.to_string();
-    bench_group.bench_function(&id, |b| {
-        b.iter(|| {
-            fourier_bsk.bootstrap(
-                &mut out_pbs_ct,
-                &lwe_ciphertext_in,
-                &accumulator,
-                fft,
-                PodStack::new(&mut buffers),
-            );
-            black_box(&mut out_pbs_ct);
-        });
-    });
 
-    // TODO Add throughput benchmark case
+    match bench_type {
+        BenchmarkType::Latency => {
+            let lwe_ciphertext_in: LweCiphertextOwned<InputScalar> =
+                allocate_and_encrypt_new_lwe_ciphertext(
+                    &input_lwe_secret_key,
+                    plaintext,
+                    lwe_noise_distribution,
+                    input_ciphertext_modulus,
+                    &mut encryption_generator,
+                );
+
+            let mut out_pbs_ct: LweCiphertext<Vec<OutputScalar>> = LweCiphertext::new(
+                OutputScalar::ZERO,
+                output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                output_ciphertext_modulus,
+            );
+
+            let mut buffers = vec![0u8; scratch_bytes];
+
+            bench_group.bench_function(&id, |b| {
+                b.iter(|| {
+                    fourier_bsk.bootstrap(
+                        &mut out_pbs_ct,
+                        &lwe_ciphertext_in,
+                        &accumulator,
+                        fft,
+                        PodStack::new(&mut buffers),
+                    );
+                    black_box(&mut out_pbs_ct);
+                });
+            });
+        }
+        BenchmarkType::Throughput => {
+            let mut setup = |batch_size: usize| {
+                let inputs = (0..batch_size)
+                    .map(|_| {
+                        allocate_and_encrypt_new_lwe_ciphertext(
+                            &input_lwe_secret_key,
+                            plaintext,
+                            lwe_noise_distribution,
+                            input_ciphertext_modulus,
+                            &mut encryption_generator,
+                        )
+                    })
+                    .collect::<Vec<LweCiphertextOwned<InputScalar>>>();
+                let outputs = (0..batch_size)
+                    .map(|_| {
+                        LweCiphertext::new(
+                            OutputScalar::ZERO,
+                            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                            output_ciphertext_modulus,
+                        )
+                    })
+                    .collect::<Vec<LweCiphertextOwned<OutputScalar>>>();
+                let buffers = (0..batch_size)
+                    .map(|_| vec![0u8; scratch_bytes])
+                    .collect::<Vec<_>>();
+                (inputs, outputs, buffers)
+            };
+            type Res = (
+                Vec<LweCiphertextOwned<u64>>,
+                Vec<LweCiphertextOwned<u128>>,
+                Vec<Vec<u8>>,
+            );
+            let run = |inputs: &mut Res| {
+                inputs
+                    .0
+                    .par_iter()
+                    .zip(inputs.1.par_iter_mut())
+                    .zip(inputs.2.par_iter_mut())
+                    .for_each(|((input, output), buffer)| {
+                        fourier_bsk.bootstrap(
+                            output,
+                            input,
+                            &accumulator,
+                            fft,
+                            PodStack::new(buffer),
+                        );
+                    })
+            };
+            let elements = {
+                use benchmark::find_optimal_batch::find_optimal_batch;
+                find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
+            };
+            bench_group.throughput(Throughput::Elements(elements));
+            bench_group.bench_function(&id, |b| {
+                b.iter_batched(
+                    || setup(elements as usize),
+                    |mut inputs| run(&mut inputs),
+                    criterion::BatchSize::SmallInput,
+                )
+            });
+        }
+    }
 
     let bit_size = (message_modulus as u32).ilog2();
     write_to_json(
@@ -684,9 +754,21 @@ mod cuda {
 #[cfg(feature = "gpu")]
 use cuda::{cuda_multi_bit_pbs128_group, cuda_pbs128_group};
 
+/// The default 2_2 noise squashing, as the baseline, then the noise squashing of the zopt
+/// parameters of the blockchain circuit on KS_PBS (zopt_ks64_params), each from the LWE of its
+/// compute parameters.
 pub fn pbs128_group() {
     let mut criterion: Criterion<_> = Criterion::default().configure_from_args();
-    pbs_128(&mut criterion);
+    let noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    pbs_128(
+        &mut criterion,
+        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        noise_params,
+        &noise_params.name(),
+    );
+    for (base_params, noise_params, name) in ZOPT_KS64_PARAMS.iter() {
+        pbs_128(&mut criterion, *base_params, *noise_params, name);
+    }
 }
 
 #[cfg(feature = "gpu")]
