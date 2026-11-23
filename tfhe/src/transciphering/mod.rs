@@ -77,6 +77,8 @@ pub use ciphers::kreyvium::{
     KreyviumFheKey, KreyviumFheState, KreyviumIV, KreyviumPlainKey, KreyviumPlainState,
     SerializableKreyviumFheKey,
 };
+#[cfg(feature = "integer")]
+pub(crate) use ciphers::one_time_pad::packed_squashed_layout;
 pub use ciphers::one_time_pad::{
     CompressedSquashedNoiseOneTimePadFheSecretMask,
     CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
@@ -643,6 +645,20 @@ impl KeyStreamLayout {
 
         let bits_per_ct = u8::try_from(msg_mod.0.ilog2() + carry_mod.0.ilog2())
             .expect("the sum of two log2 of u64 fits in a u8");
+
+        Self::try_new(NonZeroU8::new(bits_per_ct)?)
+    }
+
+    /// A layout where only the message space of the parameters is used.
+    ///
+    /// Returns `None` if the number of bits of the message space does not divide 8, or
+    /// if `msg_mod` is 0 or is not a power of 2.
+    pub fn message_space(msg_mod: MessageModulus) -> Option<Self> {
+        if msg_mod.0 == 0 || !msg_mod.0.is_power_of_two() {
+            return None;
+        }
+
+        let bits_per_ct = u8::try_from(msg_mod.0.ilog2()).expect("the log2 of u64 fits in a u8");
 
         Self::try_new(NonZeroU8::new(bits_per_ct)?)
     }

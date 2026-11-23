@@ -609,6 +609,14 @@ mod test {
 
         // A decompressed mask is under the compression key, so it cannot be compressed again
         assert!(decompressed.compress().is_err());
+
+        // The pad ciphertexts are squashed by pairs, so the pad must hold a multiple of 4 bits
+        let odd_mask = OneTimePadFheSecretMask::try_encrypt(
+            OneTimePadPlainSecretMask::new(vec![0; 9], 66),
+            &client_key,
+        )
+        .unwrap();
+        assert!(odd_mask.squash_noise().is_err());
     }
 
     #[test]
