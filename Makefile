@@ -401,7 +401,7 @@ semgrep_and_lint_gpu_code: semgrep_lint_setup_venv
 		| grep -v '/cmake-build-debug/' \
 		| grep -v '/build/' \
 		| xargs $(SEMGREP_LINT_VENV)/bin/semgrep --error --config "$(TFHECUDA_SRC)/.semgrep/release-ordering.yaml" --scan-unknown-extensions
-	$(SEMGREP_LINT_VENV)/bin/python "scripts/check_scratch_cleanup.py"
+	$(SEMGREP_LINT_VENV)/bin/python "scripts/gpu/check_scratch_cleanup.py"
 
 .PHONY: semver_check_cuda_backend # Run semver checks on tfhe-cuda-backend
 semver_check_cuda_backend:
@@ -1079,15 +1079,17 @@ test_integer_gpu_debug:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --doc --profile release_lto_off \
 		--features=integer,gpu-debug -p tfhe -- integer::gpu::server_key::
 
+GPU_CHECK_MEMORY_SCRIPT=scripts/gpu/check_memory_errors.sh
+
 .PHONY: test_high_level_api_gpu_valgrind # Run the tests of the integer module with Debug flags for CUDA
 test_high_level_api_gpu_valgrind: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
-	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --cpu
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && "$(GPU_CHECK_MEMORY_SCRIPT)" --cpu
 
 .PHONY: test_high_level_api_gpu_memcheck # Run compute-sanitizer memcheck on high-level API GPU tests
 test_high_level_api_gpu_memcheck: install_cargo_nextest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
-	export CARGO_PROFILE="$(CARGO_PROFILE)" && scripts/check_memory_errors.sh --memcheck
+	export CARGO_PROFILE="$(CARGO_PROFILE)" && "$(GPU_CHECK_MEMORY_SCRIPT)" --memcheck
 
 .PHONY: build_gpu_sanitizer_gtest # Build the CUDA backend GTest binary used by the compute-sanitizer targets
 build_gpu_sanitizer_gtest:
@@ -1101,21 +1103,21 @@ test_gpu_racecheck: install_cargo_nextest build_gpu_sanitizer_gtest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
 	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
-		scripts/check_memory_errors.sh --racecheck
+		"$(GPU_CHECK_MEMORY_SCRIPT)" --racecheck
 
 .PHONY: test_gpu_initcheck # Run compute-sanitizer initcheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
 test_gpu_initcheck: install_cargo_nextest build_gpu_sanitizer_gtest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
 	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
-		scripts/check_memory_errors.sh --initcheck
+		"$(GPU_CHECK_MEMORY_SCRIPT)" --initcheck
 
 .PHONY: test_gpu_synccheck # Run compute-sanitizer synccheck on GPU tests (Rust u128 PBS + CUDA backend GTest PBS/KS)
 test_gpu_synccheck: install_cargo_nextest build_gpu_sanitizer_gtest
 	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" && \
 	SANITIZER_GTEST_EXE="$(CURDIR)/$(TFHECUDA_BUILD)/tests_and_benchmarks/tests/test_tfhe_cuda_backend" \
-		scripts/check_memory_errors.sh --synccheck
+		"$(GPU_CHECK_MEMORY_SCRIPT)" --synccheck
 
 # The relaxed flavor is opted into process-wide, and the 128-bit PBS panics on any
 # shape other than the noise-squashing one, so the filter is narrowed to the single
@@ -1127,7 +1129,7 @@ test_gpu_racecheck_relaxed_pbs128: install_cargo_nextest
 	export TFHE_RS_GPU_PBS128_RELAXED=1 && \
 	export SANITIZER_TEST_FILTER_GPU_RACECHECK='test_bootstrap_u128_with_squashing' && \
 	export SANITIZER_TEST_EXCLUDES_GPU_RACECHECK='' && \
-		scripts/check_memory_errors.sh --racecheck
+		"$(GPU_CHECK_MEMORY_SCRIPT)" --racecheck
 
 .PHONY: test_gpu_initcheck_relaxed_pbs128 # Run compute-sanitizer initcheck on the 128-bit PBS with the relaxed (host-driven TBC) flavor
 test_gpu_initcheck_relaxed_pbs128: install_cargo_nextest
@@ -1136,7 +1138,7 @@ test_gpu_initcheck_relaxed_pbs128: install_cargo_nextest
 	export TFHE_RS_GPU_PBS128_RELAXED=1 && \
 	export SANITIZER_TEST_FILTER_GPU_INITCHECK='test_bootstrap_u128_with_squashing' && \
 	export SANITIZER_TEST_EXCLUDES_GPU_INITCHECK='' && \
-		scripts/check_memory_errors.sh --initcheck
+		"$(GPU_CHECK_MEMORY_SCRIPT)" --initcheck
 
 .PHONY: test_gpu_synccheck_relaxed_pbs128 # Run compute-sanitizer synccheck on the 128-bit PBS with the relaxed (host-driven TBC) flavor
 test_gpu_synccheck_relaxed_pbs128: install_cargo_nextest
@@ -1145,7 +1147,7 @@ test_gpu_synccheck_relaxed_pbs128: install_cargo_nextest
 	export TFHE_RS_GPU_PBS128_RELAXED=1 && \
 	export SANITIZER_TEST_FILTER_GPU_SYNCCHECK='test_bootstrap_u128_with_squashing' && \
 	export SANITIZER_TEST_EXCLUDES_GPU_SYNCCHECK='' && \
-		scripts/check_memory_errors.sh --synccheck
+		"$(GPU_CHECK_MEMORY_SCRIPT)" --synccheck
 
 .PHONY: test_zk_pok_gpu_sanitizer # Run compute-sanitizer memcheck on Rust zk-pok GPU tests
 test_zk_pok_gpu_sanitizer: install_cargo_nextest
@@ -1156,7 +1158,7 @@ test_zk_pok_gpu_sanitizer: install_cargo_nextest
 	export SANITIZER_TEST_FILTER_GPU='gpu::' && \
 	export SANITIZER_TEST_EXCLUDES_GPU='conversion_roundtrip|scalar_validation|long_run' && \
 	export SANITIZER_TEST_EXE_GLOB='tfhe_zk_pok-*' && \
-		scripts/check_memory_errors.sh --gpu
+		"$(GPU_CHECK_MEMORY_SCRIPT)" --gpu
 
 .PHONY: test_zk_pok_gpu_valgrind # Run valgrind on Rust zk-pok GPU tests (CPU-side leaks)
 test_zk_pok_gpu_valgrind: install_cargo_nextest
@@ -1168,7 +1170,7 @@ test_zk_pok_gpu_valgrind: install_cargo_nextest
 	export SANITIZER_TEST_EXCLUDES_CPU='conversion_roundtrip|scalar_validation|long_run' && \
 	export SANITIZER_TEST_EXE_GLOB='tfhe_zk_pok-*' && \
 	export TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE && \
-		scripts/check_memory_errors.sh --cpu
+		"$(GPU_CHECK_MEMORY_SCRIPT)" --cpu
 
 .PHONY: test_integer_hl_test_gpu_check_warnings
 test_integer_hl_test_gpu_check_warnings:

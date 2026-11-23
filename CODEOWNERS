@@ -30,6 +30,8 @@
 
 /ci/                                    @zama-ai/tfhe-rs-devops
 /scripts/                               @zama-ai/tfhe-rs-devops
+# GPU specific scripts
+scripts/gpu/                            @zama-ai/gpu
 
 # Protect manifests
 **/Cargo.toml                           @zama-ai/tfhe-rs-devops
