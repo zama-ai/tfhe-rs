@@ -19,7 +19,6 @@ pub mod cuda {
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::CudaServerKey;
     use tfhe::integer::keycache::KEY_CACHE;
-    use tfhe::integer::IntegerKeyKind;
     use tfhe::keycache::NamedParam;
     use tfhe::shortint::AtomicPatternParameters;
 
@@ -51,7 +50,7 @@ pub mod cuda {
         let streams = CudaStreams::new_multi_gpu();
 
         for (atomic_param, param_name) in param_sets() {
-            let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
+            let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param);
             let sks = CudaServerKey::new(&cpu_cks, &streams);
 
             // Full-width operands: the cost is data independent, but a random

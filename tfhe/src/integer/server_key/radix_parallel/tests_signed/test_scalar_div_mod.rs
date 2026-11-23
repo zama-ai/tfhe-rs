@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -36,7 +36,7 @@ where
         > + std::panic::UnwindSafe,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
     let cks = RadixClientKey::from((cks, NB_CTXT));

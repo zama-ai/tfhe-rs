@@ -17,7 +17,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::test_signed_rand
 use crate::integer::server_key::radix_parallel::tests_long_run::{
     get_user_defined_seed, RandomOpSequenceDataGenerator, NB_CTXT_LONG_RUN,
 };
-use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext};
+use crate::integer::{RadixClientKey, ServerKey, SignedRadixCiphertext};
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, Tag};
@@ -89,7 +89,7 @@ where
     P: Into<TestParameters>,
 {
     let param = param.into();
-    let (cks0, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks0, mut sks) = KEY_CACHE.get_from_params(param);
     let oprf_private_key = OprfPrivateKey::new(&cks0);
 
     let cks = ClientKey::from_raw_parts(

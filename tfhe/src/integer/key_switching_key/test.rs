@@ -2,8 +2,8 @@ use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::{
-    ClientKey, CompactPrivateKey, CompactPublicKey, IntegerCiphertext, IntegerKeyKind,
-    RadixCiphertext, RadixClientKey, ServerKey,
+    ClientKey, CompactPrivateKey, CompactPublicKey, IntegerCiphertext, RadixCiphertext,
+    RadixClientKey, ServerKey,
 };
 use crate::shortint::parameters::test_params::{
     TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -27,10 +27,8 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
     );
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        IntegerKeyKind::Radix,
-    );
+    let (client_key_2, server_key_2) =
+        KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     let client_key_2 = RadixClientKey::from((client_key_2, num_block));
 
     assert_eq!(
@@ -65,15 +63,11 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
     expected = "Attempt to build a KeySwitchingKey between integer key pairs with different message modulus and carry"
 )]
 fn gen_multi_keys_test_rdxinteger_to_rdxinteger_fail_ci_run_filter() {
-    let (client_key_1, server_key_1) = KEY_CACHE.get_from_params(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        IntegerKeyKind::Radix,
-    );
+    let (client_key_1, server_key_1) =
+        KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
 
-    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        IntegerKeyKind::Radix,
-    );
+    let (client_key_2, server_key_2) =
+        KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
 
     assert_eq!(
         client_key_1.parameters().encryption_key_choice(),
@@ -100,10 +94,8 @@ fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
     let client_key_1 = ClientKey::new(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
 
     // We generate a set of client/server keys, using the default parameters:
-    let (client_key_2, server_key_2) = KEY_CACHE.get_from_params(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        IntegerKeyKind::Radix,
-    );
+    let (client_key_2, server_key_2) =
+        KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
 
     assert_eq!(
         client_key_1.parameters().encryption_key_choice(),

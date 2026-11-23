@@ -1,6 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey};
+use crate::integer::{RadixCiphertext, RadixClientKey};
 use crate::shortint::parameters::TestParameters;
 use crate::transciphering::{KreyviumPlainState, StreamCipher};
 use rand::Rng;
@@ -59,7 +59,7 @@ where
     >,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, 1));
     let sks = Arc::new(sks);
     executor.setup(&cks, sks);
@@ -94,7 +94,7 @@ where
     >,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, 1));
     let sks = Arc::new(sks);
     executor.setup(&cks, sks);
@@ -145,7 +145,7 @@ where
     >,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, 1));
     let sks = Arc::new(sks);
     executor.setup(&cks, sks);

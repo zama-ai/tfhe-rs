@@ -15,9 +15,7 @@ use super::tests_unsigned::{blocks_not_clean_or_trivial, MAX_NB_CTXT};
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::tests::int::Int;
 use crate::integer::tests::uint::Uint;
-use crate::integer::{
-    BooleanBlock, ClientKey, IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::{BooleanBlock, ClientKey, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::parameters::*;
 use crate::shortint::Ciphertext;
@@ -334,7 +332,7 @@ impl TestContext {
         let profile = TestProfile::from_env();
         println!("{}", ReproductionConfig { profile, seed });
 
-        let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+        let (cks, mut sks) = KEY_CACHE.get_from_params(params);
         // The harness checks operations are deterministic
         sks.set_deterministic_pbs_execution(true);
 
