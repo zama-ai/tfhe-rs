@@ -866,3 +866,432 @@ fn test_gpu_integer_kv_store_get_batched_trivial() {
 fn test_gpu_integer_kv_store_get_batched_trivial_large_map() {
     run_kv_store_get_batched_trivial::<u16>(300, 5, |raw| raw as u16);
 }
+
+/// Shared driver for the three bitwise opcodes (fheBitAnd / fheBitOr / fheBitXor).
+fn run_bitwise_batched_trivial(
+    name: &str,
+    gpu_op: fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, &CudaUnsignedRadixCiphertext, &CudaStreams)
+        -> CudaUnsignedRadixCiphertext,
+    clear_op: fn(u64, u64) -> u64,
+) {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let expected_body = clear_op(clear_0, clear_1) % modulus;
+
+        let (ct0, tv0) = cks.encrypt_radix_batched_trivial(clear_0, num_blocks, &mut rng);
+        let (ct1, tv1) = cks.encrypt_radix_batched_trivial(clear_1, num_blocks, &mut rng);
+
+        let d_ct0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct0, &streams);
+        let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+
+        let d_result = gpu_op(&sks, &d_ct0, &d_ct1, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+
+        let expected_slots: Vec<u64> = tv0
+            .iter()
+            .zip(tv1.iter())
+            .map(|(&a, &b)| clear_op(a, b) % modulus)
+            .collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("op", name.len() as u64), ("a", clear_0), ("b", clear_1)],
+            &[("a", &tv0), ("b", &tv1)],
+        );
+    }
+}
+
+#[test]
+fn test_gpu_integer_bitand_batched_trivial() {
+    run_bitwise_batched_trivial("bitand", CudaServerKey::bitand, |a, b| a & b);
+}
+
+#[test]
+fn test_gpu_integer_bitor_batched_trivial() {
+    run_bitwise_batched_trivial("bitor", CudaServerKey::bitor, |a, b| a | b);
+}
+
+#[test]
+fn test_gpu_integer_bitxor_batched_trivial() {
+    run_bitwise_batched_trivial("bitxor", CudaServerKey::bitxor, |a, b| a ^ b);
+}
+
+/// Shared driver for min / max.
+fn run_min_max_batched_trivial(
+    name: &str,
+    gpu_op: fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, &CudaUnsignedRadixCiphertext, &CudaStreams)
+        -> CudaUnsignedRadixCiphertext,
+    clear_op: fn(u64, u64) -> u64,
+) {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.gen::<u64>() % modulus;
+        let expected_body = clear_op(clear_0, clear_1);
+
+        let (ct0, tv0) = cks.encrypt_radix_batched_trivial(clear_0, num_blocks, &mut rng);
+        let (ct1, tv1) = cks.encrypt_radix_batched_trivial(clear_1, num_blocks, &mut rng);
+
+        let d_ct0 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct0, &streams);
+        let d_ct1 = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct1, &streams);
+
+        let d_result = gpu_op(&sks, &d_ct0, &d_ct1, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+
+        let expected_slots: Vec<u64> = tv0
+            .iter()
+            .zip(tv1.iter())
+            .map(|(&a, &b)| clear_op(a, b))
+            .collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("op", name.len() as u64), ("a", clear_0), ("b", clear_1)],
+            &[("a", &tv0), ("b", &tv1)],
+        );
+    }
+}
+
+#[test]
+fn test_gpu_integer_min_batched_trivial() {
+    run_min_max_batched_trivial("min", CudaServerKey::min, u64::min);
+}
+
+#[test]
+fn test_gpu_integer_max_batched_trivial() {
+    run_min_max_batched_trivial("max", CudaServerKey::max, u64::max);
+}
+
+/// TFHE-rs shift semantics (matches `unchecked_left_shift_test` /
+/// `unchecked_right_shift_test`): if `amount < nb_bits` the result is the ordinary
+/// shift, otherwise the result is 0. With `num_blocks = 4` at 2 bits/block the
+/// payload is 8 bits, so values fit in a `u8` and we can use `wrapping_shl`/`shr`
+/// for the in-range case.
+fn shift_expected(value: u64, amount: u64, nb_bits: u32, left: bool) -> u64 {
+    if (amount as u32) < nb_bits {
+        if left {
+            (value as u8).wrapping_shl(amount as u32) as u64
+        } else {
+            (value as u8).wrapping_shr(amount as u32) as u64
+        }
+    } else {
+        0
+    }
+}
+
+fn run_shift_batched_trivial(
+    name: &str,
+    gpu_op: fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, &CudaUnsignedRadixCiphertext, &CudaStreams)
+        -> CudaUnsignedRadixCiphertext,
+    left: bool,
+) {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+    let nb_bits = modulus.ilog2();
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear_value = rng.gen::<u64>() % modulus;
+        let clear_shift = rng.gen::<u64>() % modulus;
+        let expected_body = shift_expected(clear_value, clear_shift, nb_bits, left);
+
+        let (ct_v, tv_v) = cks.encrypt_radix_batched_trivial(clear_value, num_blocks, &mut rng);
+        let (ct_s, tv_s) = cks.encrypt_radix_batched_trivial(clear_shift, num_blocks, &mut rng);
+
+        let d_v = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_v, &streams);
+        let d_s = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_s, &streams);
+
+        let d_result = gpu_op(&sks, &d_v, &d_s, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+
+        let expected_slots: Vec<u64> = tv_v
+            .iter()
+            .zip(tv_s.iter())
+            .map(|(&v, &s)| shift_expected(v, s, nb_bits, left))
+            .collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("op", name.len() as u64), ("v", clear_value), ("s", clear_shift)],
+            &[("v", &tv_v), ("s", &tv_s)],
+        );
+    }
+}
+
+#[test]
+fn test_gpu_integer_left_shift_batched_trivial() {
+    run_shift_batched_trivial("shl", CudaServerKey::left_shift, true);
+}
+
+#[test]
+fn test_gpu_integer_right_shift_batched_trivial() {
+    run_shift_batched_trivial("shr", CudaServerKey::right_shift, false);
+}
+
+/// Rotate expected value for an 8-bit payload: TFHE-rs reduces the amount mod
+/// `nb_bits` (power-of-two width).
+fn rotate_expected(value: u64, amount: u64, nb_bits: u32, left: bool) -> u64 {
+    let n = (amount as u32) % nb_bits;
+    if left {
+        (value as u8).rotate_left(n) as u64
+    } else {
+        (value as u8).rotate_right(n) as u64
+    }
+}
+
+fn run_rotate_batched_trivial(
+    name: &str,
+    gpu_op: fn(&CudaServerKey, &CudaUnsignedRadixCiphertext, &CudaUnsignedRadixCiphertext, &CudaStreams)
+        -> CudaUnsignedRadixCiphertext,
+    left: bool,
+) {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+    let nb_bits = modulus.ilog2();
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear_value = rng.gen::<u64>() % modulus;
+        let clear_amount = rng.gen::<u64>() % modulus;
+        let expected_body = rotate_expected(clear_value, clear_amount, nb_bits, left);
+
+        let (ct_v, tv_v) = cks.encrypt_radix_batched_trivial(clear_value, num_blocks, &mut rng);
+        let (ct_a, tv_a) = cks.encrypt_radix_batched_trivial(clear_amount, num_blocks, &mut rng);
+
+        let d_v = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_v, &streams);
+        let d_a = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_a, &streams);
+
+        let d_result = gpu_op(&sks, &d_v, &d_a, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+
+        let expected_slots: Vec<u64> = tv_v
+            .iter()
+            .zip(tv_a.iter())
+            .map(|(&v, &a)| rotate_expected(v, a, nb_bits, left))
+            .collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("op", name.len() as u64), ("v", clear_value), ("a", clear_amount)],
+            &[("v", &tv_v), ("a", &tv_a)],
+        );
+    }
+}
+
+#[test]
+fn test_gpu_integer_rotate_left_batched_trivial() {
+    run_rotate_batched_trivial("rotl", CudaServerKey::rotate_left, true);
+}
+
+#[test]
+fn test_gpu_integer_rotate_right_batched_trivial() {
+    run_rotate_batched_trivial("rotr", CudaServerKey::rotate_right, false);
+}
+
+#[test]
+fn test_gpu_integer_neg_batched_trivial() {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+
+    let neg = |v: u64| -> u64 { v.wrapping_neg() % modulus };
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear = rng.gen::<u64>() % modulus;
+        let (ct, tv) = cks.encrypt_radix_batched_trivial(clear, num_blocks, &mut rng);
+        let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+
+        let d_result = sks.neg(&d_ct, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+
+        let expected_body = neg(clear);
+        let expected_slots: Vec<u64> = tv.iter().map(|&v| neg(v)).collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("x", clear)],
+            &[("x", &tv)],
+        );
+    }
+}
+
+#[test]
+fn test_gpu_integer_bitnot_batched_trivial() {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+
+    let not = |v: u64| -> u64 { (!v) & (modulus - 1) };
+
+    for _ in 0..batched_trivial_num_iterations() {
+        let clear = rng.gen::<u64>() % modulus;
+        let (ct, tv) = cks.encrypt_radix_batched_trivial(clear, num_blocks, &mut rng);
+        let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+
+        let d_result = sks.bitnot(&d_ct, &streams);
+        let result = d_result.to_radix_ciphertext(&streams);
+
+        let expected_body = not(clear);
+        let expected_slots: Vec<u64> = tv.iter().map(|&v| not(v)).collect();
+
+        cks.decrypt_and_check_radix_batched_trivial(
+            &result,
+            expected_body,
+            &expected_slots,
+            &[("x", clear)],
+            &[("x", &tv)],
+        );
+    }
+}
+
+/// fheSum: variadic add. Checks collection sizes 1, 2, 5, 10. Size 0 is a valid
+/// host-executor input (produces encrypted zero) but the GPU `sum_ciphertexts`
+/// API returns `None` on an empty input, so it is not exercised here.
+#[test]
+fn test_gpu_integer_sum_batched_trivial() {
+    let (cks, _) = KEY_CACHE.get_from_params(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        IntegerKeyKind::Radix,
+    );
+
+    let streams = CudaStreams::new_multi_gpu();
+    let sks = CudaServerKey::new(&cks, &streams);
+    streams.synchronize();
+
+    let mut rng = rand::thread_rng();
+    let num_blocks = 4usize;
+    let p = cks.parameters().message_modulus().0 as u64;
+    let modulus = p.pow(num_blocks as u32);
+
+    for _ in 0..batched_trivial_num_iterations() {
+        for &n in &[1usize, 2, 5, 10] {
+            let clears: Vec<u64> = (0..n).map(|_| rng.gen::<u64>() % modulus).collect();
+            let mut tvs: Vec<Vec<u64>> = Vec::with_capacity(n);
+            let mut d_cts: Vec<CudaUnsignedRadixCiphertext> = Vec::with_capacity(n);
+            for &c in &clears {
+                let (ct, tv) = cks.encrypt_radix_batched_trivial(c, num_blocks, &mut rng);
+                d_cts.push(CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                    &ct, &streams,
+                ));
+                tvs.push(tv);
+            }
+
+            let d_result = sks.sum_ciphertexts(d_cts, &streams).unwrap();
+            let result = d_result.to_radix_ciphertext(&streams);
+
+            let expected_body = clears
+                .iter()
+                .fold(0u64, |acc, &c| acc.wrapping_add(c))
+                % modulus;
+            let lwe_dimension = tvs[0].len();
+            let expected_slots: Vec<u64> = (0..lwe_dimension)
+                .map(|j| {
+                    tvs.iter()
+                        .fold(0u64, |acc, tv| acc.wrapping_add(tv[j]))
+                        % modulus
+                })
+                .collect();
+
+            // The slot_inputs arg takes fixed-size slice references; collect the
+            // labels and vector refs into owned storage first and then borrow.
+            let labels: Vec<String> = (0..n).map(|i| format!("x{i}")).collect();
+            let body_inputs: Vec<(&str, u64)> = labels
+                .iter()
+                .zip(clears.iter())
+                .map(|(l, &c)| (l.as_str(), c))
+                .chain(std::iter::once(("n", n as u64)))
+                .collect();
+            let slot_inputs: Vec<(&str, &[u64])> = labels
+                .iter()
+                .zip(tvs.iter())
+                .map(|(l, tv)| (l.as_str(), tv.as_slice()))
+                .collect();
+
+            cks.decrypt_and_check_radix_batched_trivial(
+                &result,
+                expected_body,
+                &expected_slots,
+                &body_inputs,
+                &slot_inputs,
+            );
+        }
+    }
+}
