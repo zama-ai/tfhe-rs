@@ -1246,9 +1246,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::integer::{
-        gen_keys, ClientKey, CompactPublicKey, IntegerKeyKind, RadixCiphertext, ServerKey,
-    };
+    use crate::integer::{gen_keys, ClientKey, CompactPublicKey, RadixCiphertext, ServerKey};
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -1256,10 +1254,7 @@ mod tests {
 
     #[test]
     fn test_expand_list_with_more_blocks_in_metadata_than_ciphertexts() {
-        let (cks, sks) = gen_keys(
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            IntegerKeyKind::Radix,
-        );
+        let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
         let pk = CompactPublicKey::new(&cks);
 
         let mut builder = CompactCiphertextList::builder(&pk);
@@ -1279,10 +1274,7 @@ mod tests {
     /// ciphertext, expanding it must be an error
     #[test]
     fn test_expand_list_with_metadata_but_no_ciphertext() {
-        let (cks, sks) = gen_keys(
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            IntegerKeyKind::Radix,
-        );
+        let (cks, sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
         let pk = CompactPublicKey::new(&cks);
 
         let list = CompactCiphertextList {
@@ -1359,10 +1351,7 @@ mod tests {
     #[test]
     fn test_expand_without_key_needs_an_unpacked_list() {
         let num_blocks = 4;
-        let (cks, _sks) = gen_keys(
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            IntegerKeyKind::Radix,
-        );
+        let (cks, _sks) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
         let pk = CompactPublicKey::new(&cks);
 
         let mut builder = CompactCiphertextList::builder(&pk);

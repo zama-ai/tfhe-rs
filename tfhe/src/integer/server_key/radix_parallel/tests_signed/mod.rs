@@ -38,7 +38,6 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::int::Int;
-use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -57,7 +56,7 @@ create_parameterized_test!(integer_signed_encrypt_decrypt_128_bits);
 fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<TestParameters>) {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
     let num_block =
@@ -76,7 +75,7 @@ fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<TestParameters>) {
 fn integer_signed_encrypt_decrypt(param: impl Into<TestParameters>) {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
 
@@ -113,7 +112,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<TestParameters>) {
 create_parameterized_test!(integer_signed_unchecked_scalar_div_rem_floor);
 
 fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<TestParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
 
@@ -222,7 +221,7 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<TestParameters
 create_parameterized_test!(integer_signed_default_scalar_div_rem);
 
 fn integer_signed_default_scalar_div_rem(param: impl Into<TestParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();

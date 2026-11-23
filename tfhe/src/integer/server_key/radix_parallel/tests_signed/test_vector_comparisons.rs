@@ -1,9 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
-use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::{BooleanBlock, RadixClientKey, ServerKey, SignedRadixCiphertext};
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use std::sync::Arc;
@@ -32,7 +30,7 @@ where
         BooleanBlock,
     >,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -64,7 +62,7 @@ where
         BooleanBlock,
     >,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);

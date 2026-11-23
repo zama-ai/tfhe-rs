@@ -491,8 +491,7 @@ mod test {
         // The goal is to test that encrypting a value stored in a type
         // for which the bit count does not match the target block count of the encrypted
         // radix properly applies upcasting/downcasting
-        let (cks, sks) = crate::integer::keycache::KEY_CACHE
-            .get_from_params(param, crate::integer::IntegerKeyKind::Radix);
+        let (cks, sks) = crate::integer::keycache::KEY_CACHE.get_from_params(param);
         let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
         let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
 
@@ -578,8 +577,7 @@ mod test {
         let compression_parameters =
             TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let (cks, sks) = crate::integer::keycache::KEY_CACHE
-            .get_from_params(param, crate::integer::IntegerKeyKind::Radix);
+        let (cks, sks) = crate::integer::keycache::KEY_CACHE.get_from_params(param);
         let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
         let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
         let noise_squashing_compression_private_key =

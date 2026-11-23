@@ -13,9 +13,7 @@ use std::env;
 use tfhe::core_crypto::prelude::CastFrom;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
-use tfhe::integer::{
-    IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256, U256,
-};
+use tfhe::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext, I256, U256};
 use tfhe::keycache::NamedParam;
 use tfhe::{get_pbs_count, reset_pbs_count};
 
@@ -59,7 +57,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                     let ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -76,7 +74,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 let setup = |batch_size: usize| {
                     let mut rng = rand::thread_rng();
@@ -171,7 +169,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let clear_1 = rng.gen_range(0u128..u128::from(bit_size));
 
@@ -190,7 +188,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 // Execute the operation once to know its cost.
                 let clear_1 = rng.gen_range(0u128..u128::from(bit_size));
@@ -281,7 +279,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                     (sks, ct_0)
@@ -295,7 +293,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 // Execute the operation once to know its cost.
                 let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -365,7 +363,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let condition = cks.encrypt_bool(rng.gen_bool(0.5));
                     let true_ct = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -382,7 +380,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 // Execute the operation once to know its cost.
                 let cond = cks.encrypt_bool(rng.gen_bool(0.5));
@@ -914,7 +912,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
         match get_bench_type() {
             BenchmarkType::Latency => {
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let encrypt_one_value = || {
                         let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -938,7 +936,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 // Execute the operation once to know its cost.
                 let mut ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -1094,7 +1092,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let clear_0 = gen_random_i256(&mut rng);
                     let clear_1 = gen_random_i256(&mut rng);
@@ -1115,7 +1113,7 @@ fn signed_flip_parallelized(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 // Execute the operation once to know its cost.
                 let clear_0 = gen_random_i256(&mut rng);
@@ -1535,7 +1533,7 @@ fn bench_server_key_signed_cast_function<F>(
             );
             let bench_id = benchmark_spec.to_string();
             bench_group.bench_function(&bench_id, |b| {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 let encrypt_one_value =
                     || cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_blocks);
@@ -1638,8 +1636,7 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_two_values = || {
@@ -1673,7 +1670,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
@@ -1814,8 +1811,7 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_one_value = || {
@@ -1837,7 +1833,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
@@ -1962,8 +1958,7 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_one_value = || {
@@ -1991,7 +1986,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
@@ -2147,8 +2142,7 @@ mod cuda {
                     let streams = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
 
                         let encrypt_two_values = || {
@@ -2181,7 +2175,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
@@ -2317,8 +2311,7 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_tree_values = || {
@@ -2350,7 +2343,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
@@ -2865,7 +2858,7 @@ mod cuda {
                 );
                 let bench_id = benchmark_spec.to_string();
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, _sks) = KEY_CACHE.get_from_params(param);
                     let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                     let encrypt_one_value = || -> CudaSignedRadixCiphertext {

@@ -51,7 +51,7 @@ use crate::integer::server_key::radix_parallel::test_harness::{
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::uint::Uint;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -922,8 +922,7 @@ where
 #[cfg(not(tarpaulin))]
 fn test_non_regression_clone_from() {
     // Issue: https://github.com/zama-ai/tfhe-rs/issues/410
-    let (client_key, server_key) =
-        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2, IntegerKeyKind::Radix);
+    let (client_key, server_key) = KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2);
     let num_block: usize = 4;
     let a: u8 = 248;
     let b: u8 = 249;
@@ -1042,10 +1041,8 @@ pub(crate) fn narrow_scalar_cases(
 /// regardless of the max degree the server key was built with.
 #[test]
 fn test_sequential_propagation_does_not_depend_on_key_max_degree() {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        IntegerKeyKind::Radix,
-    );
+    let (cks, mut sks) =
+        KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     // Allow blocks to be full, so that they cannot receive a carry
     sks.key.max_degree =
         MaxDegree::from_msg_carry_modulus(sks.message_modulus(), sks.carry_modulus());

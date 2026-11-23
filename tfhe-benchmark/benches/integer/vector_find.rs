@@ -4,7 +4,7 @@ use benchmark_spec::{get_bench_type, BenchmarkSpec, IntegerBench, PrecisionTag, 
 use criterion::Criterion;
 use std::hint::black_box;
 use tfhe::integer::keycache::KEY_CACHE;
-use tfhe::integer::{IntegerKeyKind, RadixClientKey};
+use tfhe::integer::RadixClientKey;
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::AtomicPatternParameters;
 use tfhe::MatchValues;
@@ -22,7 +22,7 @@ pub fn match_value(c: &mut Criterion) {
     let atomic_param: AtomicPatternParameters = param.into();
     let param_name = param.name();
 
-    let (cpu_cks, cpu_sks) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
+    let (cpu_cks, cpu_sks) = KEY_CACHE.get_from_params(atomic_param);
 
     for (bits, num_elements, num_blocks) in match_value_scenarios() {
         let spec = BenchmarkSpec::new_integer(
@@ -77,7 +77,7 @@ pub mod cuda {
 
         let streams = CudaStreams::new_multi_gpu();
 
-        let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
+        let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param);
         let sks = CudaServerKey::new(&cpu_cks, &streams);
 
         for (bits, num_elements, num_blocks) in match_value_scenarios() {

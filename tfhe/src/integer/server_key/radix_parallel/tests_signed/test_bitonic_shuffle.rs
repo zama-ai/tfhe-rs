@@ -3,7 +3,7 @@ use crate::integer::server_key::radix_parallel::bitonic_shuffle::{
     bitonic_network, BitonicShuffleKeySize,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, SignedRadixCiphertext};
+use crate::integer::{RadixCiphertext, RadixClientKey, SignedRadixCiphertext};
 use crate::shortint::parameters::TestParameters;
 use rand::Rng;
 use std::sync::Arc;
@@ -68,7 +68,7 @@ where
     >,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NUM_DATA_BLOCKS));
     let sks = Arc::new(sks);
 
@@ -114,7 +114,7 @@ where
     >,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NUM_DATA_BLOCKS));
     let sks = Arc::new(sks);
 
@@ -160,7 +160,7 @@ where
     >,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NUM_DATA_BLOCKS));
     let sks = Arc::new(sks);
 

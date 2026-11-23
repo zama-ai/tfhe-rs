@@ -12,7 +12,6 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_shift::{
     left_shift_amount_of_another_width_test, right_shift_amount_of_another_width_test,
     unchecked_left_shift_test, unchecked_right_shift_test,
 };
-use crate::integer::IntegerKeyKind;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
@@ -110,10 +109,7 @@ fn test_gpu_integer_shift_and_rotate_size_and_empty_radix_with_amount_of_another
         &CudaStreams,
     );
 
-    let (cks, _) = KEY_CACHE.get_from_params(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        IntegerKeyKind::Radix,
-    );
+    let (cks, _) = KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
     let streams = CudaStreams::new_multi_gpu();
     let sks = CudaServerKey::new(&cks, &streams);
 

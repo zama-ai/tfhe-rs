@@ -11,8 +11,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFuncti
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuOprfExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
-    gen_keys, ClientKey, CompactPrivateKey, CompactPublicKey, IntegerKeyKind, RadixClientKey,
-    ServerKey,
+    gen_keys, ClientKey, CompactPrivateKey, CompactPublicKey, RadixClientKey, ServerKey,
 };
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::oprf::test_utils::{cleartext_prf, gen_prf_inputs};
@@ -552,7 +551,7 @@ impl CpuOprfReRandTestRunner {
 
 impl OprfReRandTestRunner for CpuOprfReRandTestRunner {
     fn setup(&mut self, param: TestParameters) -> ClientKey {
-        let (cks, sks) = gen_keys(param, IntegerKeyKind::Radix);
+        let (cks, sks) = gen_keys(param);
 
         // Derived compact public key, re-using the compute secret key
         // legacy rerand not covered by this test

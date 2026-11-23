@@ -9,7 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     CpuOprfExecutor, OpSequenceCpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, MatchValues, Tag};
 use std::cmp::{max, min};
@@ -634,7 +634,7 @@ where
     P: Into<TestParameters>,
 {
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let oprf_priv_key = OprfPrivateKey::new(&cks);
 
     let temp_cks = ClientKey::from_raw_parts(
@@ -1369,7 +1369,7 @@ where
     P: Into<TestParameters> + Clone,
 {
     let param = param.into();
-    let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, _sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
     let datagen = RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(1000, &cks);

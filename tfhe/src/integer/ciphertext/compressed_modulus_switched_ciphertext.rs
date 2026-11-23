@@ -173,16 +173,14 @@ impl ParameterSetConformant for CompressedModulusSwitchedRadixCiphertextGeneric 
 mod tests {
     use super::*;
     use crate::integer::keycache::KEY_CACHE;
-    use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey};
+    use crate::integer::{RadixCiphertext, ServerKey};
     use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     #[test]
     fn test_even_blocks_rejects_unexpected_last_block_conformance() {
         let num_blocks = 4;
-        let (cks, sks) = KEY_CACHE.get_from_params(
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            IntegerKeyKind::Radix,
-        );
+        let (cks, sks) =
+            KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let conformance_params = CompressedModulusSwitchedRadixCiphertextConformanceParams {
             shortint_params: sks.key.compressed_modswitched_conformance_params(),
@@ -231,10 +229,8 @@ mod tests {
     #[test]
     fn test_even_blocks_extra_last_block_does_not_panic_after_conformance() {
         let num_blocks = 4;
-        let (cks, sks) = KEY_CACHE.get_from_params(
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            IntegerKeyKind::Radix,
-        );
+        let (cks, sks) =
+            KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let conformance_params = CompressedModulusSwitchedRadixCiphertextConformanceParams {
             shortint_params: sks.key.compressed_modswitched_conformance_params(),
