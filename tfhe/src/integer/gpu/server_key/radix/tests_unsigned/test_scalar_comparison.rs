@@ -5,8 +5,8 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
 };
 use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_unsigned::test_scalar_comparison::{
-    test_default_scalar_function, test_default_scalar_minmax, test_unchecked_scalar_function,
-    test_unchecked_scalar_minmax,
+    test_default_scalar_function, test_default_scalar_minmax, test_scalar_minmax_out_of_range,
+    test_unchecked_scalar_function, test_unchecked_scalar_minmax,
 };
 use crate::integer::U256;
 use crate::shortint::parameters::test_params::*;
@@ -322,28 +322,36 @@ where
     }
 }
 
-fn integer_scalar_minmax_wider_out_of_range_scalar<P>(param: P)
+fn integer_unchecked_scalar_min_out_of_range<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let streams = CudaStreams::new_multi_gpu();
-    let (cks, sks) = gen_keys_gpu(param, &streams);
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_min);
+    test_scalar_minmax_out_of_range(param, executor, std::cmp::min::<u128>);
+}
 
-    let clear = 3u8;
-    let num_blocks = 4;
-    let ct = cks.encrypt_radix(clear, num_blocks);
-    let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &streams);
+fn integer_unchecked_scalar_max_out_of_range<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_max);
+    test_scalar_minmax_out_of_range(param, executor, std::cmp::max::<u128>);
+}
 
-    let decrypt = |d_result: CudaUnsignedRadixCiphertext| -> u8 {
-        cks.decrypt_radix(&d_result.to_radix_ciphertext(&streams))
-    };
+fn integer_scalar_min_out_of_range<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_min);
+    test_scalar_minmax_out_of_range(param, executor, std::cmp::min::<u128>);
+}
 
-    let scalar = 1000u64;
-    assert_eq!(
-        decrypt(sks.scalar_max(&d_ct, scalar, &streams)),
-        scalar as u8
-    );
-    assert_eq!(decrypt(sks.scalar_min(&d_ct, scalar, &streams)), clear);
+fn integer_scalar_max_out_of_range<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_max);
+    test_scalar_minmax_out_of_range(param, executor, std::cmp::max::<u128>);
 }
 
 create_gpu_parameterized_test!(integer_unchecked_scalar_min_u256 {
@@ -378,6 +386,19 @@ create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge_one_blo
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
-create_gpu_parameterized_test!(integer_scalar_minmax_wider_out_of_range_scalar {
+create_gpu_parameterized_test!(integer_unchecked_scalar_min_out_of_range {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_unchecked_scalar_max_out_of_range {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_scalar_min_out_of_range {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+});
+create_gpu_parameterized_test!(integer_scalar_max_out_of_range {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 });
