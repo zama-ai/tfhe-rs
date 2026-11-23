@@ -2414,7 +2414,7 @@ bench_hlapi_erc7984_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc7984 \
-	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark --
+	--features=integer,internal-keycache,hpu,hpu-v80,pbs-stats -p tfhe-benchmark -- --quick
 
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
 bench_tfhe_zk_pok: install_rs_check_toolchain
