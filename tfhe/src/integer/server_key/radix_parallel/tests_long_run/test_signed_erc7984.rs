@@ -6,8 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
-    BooleanBlock, IntegerCiphertext, IntegerKeyKind, RadixClientKey, ServerKey,
-    SignedRadixCiphertext,
+    BooleanBlock, IntegerCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 use crate::shortint::parameters::*;
 use rand::Rng;
@@ -78,7 +77,7 @@ pub(crate) fn signed_whitepaper_erc7984_test<P, T1, T2, T3, T4>(
     >,
 {
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
 
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
@@ -181,7 +180,7 @@ pub(crate) fn signed_no_cmux_erc7984_test<P, T1, T2, T3, T4>(
     >,
 {
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
 
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);

@@ -4,8 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, unsigned_modulus, CpuFunctionExecutor, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::{
-    BooleanBlock, IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey,
-    ServerKey,
+    BooleanBlock, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey, ServerKey,
 };
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
@@ -119,7 +118,7 @@ where
     P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a [RadixCiphertext]), BooleanBlock>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -226,7 +225,7 @@ where
     P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a [RadixCiphertext]), BooleanBlock>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -245,7 +244,7 @@ where
     P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a [RadixCiphertext]), BooleanBlock>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);

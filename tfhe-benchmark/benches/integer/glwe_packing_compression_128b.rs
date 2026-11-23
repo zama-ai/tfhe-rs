@@ -21,7 +21,6 @@ mod cpu {
     };
     use tfhe::integer::keycache::KEY_CACHE;
     use tfhe::integer::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
-    use tfhe::integer::IntegerKeyKind;
     use tfhe::keycache::NamedParam;
 
     fn default_config(lwe_per_glwe: usize, bits_per_block: u32) -> Vec<u32> {
@@ -68,7 +67,7 @@ mod cpu {
         if cases.is_empty() {
             return;
         }
-        let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let (cks, sks) = KEY_CACHE.get_from_params(param);
         let squashing_private_key = NoiseSquashingPrivateKey::new(
             BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         );

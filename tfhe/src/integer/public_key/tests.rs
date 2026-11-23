@@ -1,6 +1,6 @@
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{gen_keys, IntegerKeyKind, RadixCiphertext};
+use crate::integer::{gen_keys, RadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -38,7 +38,7 @@ fn small_radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameter
 }
 
 fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
-    let (cks, sks) = gen_keys(params, IntegerKeyKind::Radix);
+    let (cks, sks) = gen_keys(params);
     let pk = crate::integer::public_key::CompactPublicKey::new(&cks);
 
     let mut rng = rand::thread_rng();

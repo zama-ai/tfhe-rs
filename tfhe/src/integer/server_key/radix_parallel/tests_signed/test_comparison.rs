@@ -9,7 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::int::Int;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -46,7 +46,7 @@ pub(crate) fn test_signed_unchecked_function<P, T, ClearF, Scalar>(
 {
     let mut rng = rand::thread_rng();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
     let cks = RadixClientKey::from((cks, num_block));
@@ -257,7 +257,7 @@ pub(crate) fn test_signed_unchecked_minmax<P, T, ClearF, Scalar>(
 {
     let mut rng = rand::thread_rng();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
     let cks = RadixClientKey::from((cks, num_block));
@@ -426,7 +426,7 @@ pub(crate) fn extensive_trivial_signed_default_comparisons_test<P, E1, E2, E3, E
     >,
 {
     let params = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);

@@ -6,7 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     MAX_NB_CTXT, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::TestParameters;
 use rand::{thread_rng, Rng};
 use std::sync::Arc;
@@ -52,7 +52,7 @@ where
 {
     let params = params.into();
     let nb_tests = nb_tests_smaller_for_params(params);
-    let (cks, sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params);
 
     let sks = Arc::new(sks);
 
@@ -106,7 +106,7 @@ where
 {
     let params = params.into();
     let nb_tests = nb_tests_smaller_for_params(params);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -181,7 +181,7 @@ pub(crate) fn default_boolean_scalar_one_hot_dot_prod_test_case<P, E>(
 {
     let params = params.into();
     let nb_tests = nb_tests_smaller_for_params(params);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);

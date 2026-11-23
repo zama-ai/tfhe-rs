@@ -527,9 +527,7 @@ mod tests {
     use rand::Rng;
 
     use super::*;
-    use crate::integer::{
-        gen_keys, ClientKey, IntegerKeyKind, RadixCiphertext, SignedRadixCiphertext,
-    };
+    use crate::integer::{gen_keys, ClientKey, RadixCiphertext, SignedRadixCiphertext};
     use crate::shortint::parameters::test_params::{
         TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -564,7 +562,7 @@ mod tests {
     fn test_compression_serialization_unsigned() {
         let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
 
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let private_compression_key = cks
             .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
@@ -631,7 +629,7 @@ mod tests {
     fn test_compression_serialization_signed() {
         let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
 
-        let (cks, _) = gen_keys::<AtomicPatternParameters>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<AtomicPatternParameters>(params);
 
         let private_compression_key = cks
             .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);

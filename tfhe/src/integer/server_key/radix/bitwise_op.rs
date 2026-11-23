@@ -146,7 +146,7 @@ impl ServerKey {
 mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::tests::create_parameterized_test;
-    use crate::integer::{BooleanBlock, IntegerKeyKind};
+    use crate::integer::BooleanBlock;
     #[cfg(tarpaulin)]
     use crate::shortint::parameters::coverage_parameters::*;
     use crate::shortint::parameters::test_params::*;
@@ -160,7 +160,7 @@ mod tests {
         [(false, false), (false, true), (true, false), (true, true)];
 
     fn boolean_bitxor(params: impl Into<TestParameters>) {
-        let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
+        let (cks, sks) = KEY_CACHE.get_from_params(params.into());
 
         for (clear_0, clear_1) in INPUT_BOOLEANS {
             let mut ctxt_0 = cks.encrypt_one_block(u64::from(clear_0));
@@ -183,7 +183,7 @@ mod tests {
     }
 
     fn boolean_bitor(params: impl Into<TestParameters>) {
-        let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
+        let (cks, sks) = KEY_CACHE.get_from_params(params.into());
 
         for (clear_0, clear_1) in INPUT_BOOLEANS {
             let mut ctxt_0 = cks.encrypt_one_block(u64::from(clear_0));
@@ -206,7 +206,7 @@ mod tests {
     }
 
     fn boolean_bitand(params: impl Into<TestParameters>) {
-        let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
+        let (cks, sks) = KEY_CACHE.get_from_params(params.into());
 
         for (clear_0, clear_1) in INPUT_BOOLEANS {
             let mut ctxt_0 = cks.encrypt_one_block(u64::from(clear_0));

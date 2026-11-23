@@ -19,7 +19,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     random_non_zero_value, rotate_left_helper, rotate_right_helper, unsigned_modulus, MAX_NB_CTXT,
     NB_CTXT,
 };
-use crate::integer::{BooleanBlock, ClientKey, IntegerKeyKind, RadixCiphertext, RadixClientKey};
+use crate::integer::{BooleanBlock, ClientKey, RadixCiphertext, RadixClientKey};
 use crate::shortint::parameters::*;
 use rand::distributions::Standard;
 use rand::prelude::*;
@@ -33,7 +33,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -95,7 +95,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -218,7 +218,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -275,7 +275,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -336,7 +336,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -401,7 +401,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -475,7 +475,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -549,7 +549,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
@@ -617,7 +617,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -680,7 +680,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -773,7 +773,7 @@ pub(crate) fn legacy_default_comparison_test<P, T, ClearF, Scalar>(
 {
     let mut rng = rand::thread_rng();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
     let cks = RadixClientKey::from((cks, num_block));
@@ -859,7 +859,7 @@ pub(crate) fn legacy_default_minmax_test<P, T, ClearF, Scalar>(
 {
     let mut rng = rand::thread_rng();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
     let cks = RadixClientKey::from((cks, num_block));
@@ -930,7 +930,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -989,7 +989,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1041,7 +1041,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
@@ -1101,7 +1101,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 

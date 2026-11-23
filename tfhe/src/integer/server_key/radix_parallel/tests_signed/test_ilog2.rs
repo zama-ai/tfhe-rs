@@ -9,7 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
+    BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -95,7 +95,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -249,7 +249,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -384,7 +384,7 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
