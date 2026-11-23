@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests;
 
-mod add_crt;
-mod mul_crt;
-mod neg_crt;
-mod pbs_crt;
-mod scalar_add_crt;
-mod scalar_mul_crt;
-mod scalar_sub_crt;
-mod sub_crt;
+mod add;
+mod mul;
+mod neg;
+mod pbs;
+mod scalar_add;
+mod scalar_mul;
+mod scalar_sub;
+mod sub;
 
 use crate::integer::client_key::ClientKey;
 

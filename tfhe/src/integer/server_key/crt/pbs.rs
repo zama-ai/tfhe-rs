@@ -23,7 +23,7 @@ impl CrtServerKey {
     /// let ctxt_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// sks.unchecked_crt_add_assign(&mut ctxt_1, &ctxt_2);
+    /// sks.unchecked_add_assign(&mut ctxt_1, &ctxt_2);
     ///
     /// sks.full_extract_message_assign_parallelized(&mut ctxt_1);
     ///

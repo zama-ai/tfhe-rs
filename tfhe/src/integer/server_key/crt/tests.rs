@@ -21,7 +21,7 @@ const PARAM: ClassicPBSParameters = TEST_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN
 const PARAM: ClassicPBSParameters = COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
 #[test]
-fn integer_unchecked_crt_add_32_bits() {
+fn integer_unchecked_add_32_bits() {
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
@@ -37,7 +37,7 @@ fn integer_unchecked_crt_add_32_bits() {
         let ct_zero = cks.encrypt(clear_0 as u64);
         let ct_one = cks.encrypt(clear_1 as u64);
 
-        let ct_res = sks.unchecked_crt_add(&ct_zero, &ct_one);
+        let ct_res = sks.unchecked_add(&ct_zero, &ct_one);
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -49,7 +49,7 @@ fn integer_unchecked_crt_add_32_bits() {
 }
 
 #[test]
-fn integer_unchecked_crt_neg_32_bits() {
+fn integer_unchecked_neg_32_bits() {
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
@@ -63,7 +63,7 @@ fn integer_unchecked_crt_neg_32_bits() {
 
         let ct_zero = cks.encrypt(clear_0 as u64);
 
-        let ct_res = sks.unchecked_crt_neg(&ct_zero);
+        let ct_res = sks.unchecked_neg(&ct_zero);
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -72,7 +72,7 @@ fn integer_unchecked_crt_neg_32_bits() {
 }
 
 #[test]
-fn integer_unchecked_crt_sub_32_bits() {
+fn integer_unchecked_sub_32_bits() {
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
@@ -88,7 +88,7 @@ fn integer_unchecked_crt_sub_32_bits() {
         let ct_zero = cks.encrypt(clear_0 as u64);
         let ct_one = cks.encrypt(clear_1 as u64);
 
-        let ct_res = sks.unchecked_crt_sub(&ct_zero, &ct_one);
+        let ct_res = sks.unchecked_sub(&ct_zero, &ct_one);
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -100,7 +100,7 @@ fn integer_unchecked_crt_sub_32_bits() {
 }
 
 #[test]
-fn integer_unchecked_crt_scalar_add_32_bits() {
+fn integer_unchecked_scalar_add_32_bits() {
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
@@ -115,7 +115,7 @@ fn integer_unchecked_crt_scalar_add_32_bits() {
 
         let ct_zero = cks.encrypt(clear_0 as u64);
 
-        let ct_res = sks.unchecked_crt_scalar_add(&ct_zero, clear_1 as u64);
+        let ct_res = sks.unchecked_scalar_add(&ct_zero, clear_1 as u64);
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -127,7 +127,7 @@ fn integer_unchecked_crt_scalar_add_32_bits() {
 }
 
 #[test]
-fn integer_unchecked_crt_scalar_sub_32_bits() {
+fn integer_unchecked_scalar_sub_32_bits() {
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
@@ -142,7 +142,7 @@ fn integer_unchecked_crt_scalar_sub_32_bits() {
 
         let ct_zero = cks.encrypt(clear_0 as u64);
 
-        let ct_res = sks.unchecked_crt_scalar_sub(&ct_zero, clear_1 as u64);
+        let ct_res = sks.unchecked_scalar_sub(&ct_zero, clear_1 as u64);
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -154,7 +154,7 @@ fn integer_unchecked_crt_scalar_sub_32_bits() {
 }
 
 #[test]
-fn integer_unchecked_crt_mul_parallelized_32_bits() {
+fn integer_unchecked_mul_parallelized_32_bits() {
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
@@ -171,7 +171,7 @@ fn integer_unchecked_crt_mul_parallelized_32_bits() {
         let ct_one = cks.encrypt(clear_1 as u64);
 
         // multiply the two ciphertexts
-        let ct_res = sks.unchecked_crt_mul_parallelized(&ct_zero, &ct_one);
+        let ct_res = sks.unchecked_mul_parallelized(&ct_zero, &ct_one);
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -183,7 +183,7 @@ fn integer_unchecked_crt_mul_parallelized_32_bits() {
 }
 
 #[test]
-fn integer_unchecked_crt_scalar_mul_parallelized_32_bits() {
+fn integer_unchecked_scalar_mul_parallelized_32_bits() {
     // Define CRT basis, and global modulus
     let basis = [3u64, 11, 13, 19, 23, 29, 31, 32];
 
@@ -198,7 +198,7 @@ fn integer_unchecked_crt_scalar_mul_parallelized_32_bits() {
 
         let ct_zero = cks.encrypt(clear_0 as u64);
 
-        let ct_res = sks.unchecked_crt_scalar_mul_parallelized(&ct_zero, clear_1 as u64);
+        let ct_res = sks.unchecked_scalar_mul_parallelized(&ct_zero, clear_1 as u64);
 
         let dec_res = cks.decrypt(&ct_res);
 
@@ -210,7 +210,7 @@ fn integer_unchecked_crt_scalar_mul_parallelized_32_bits() {
 }
 
 #[test]
-fn integer_unchecked_crt_scalar_mul_noise_check_uses_reduced_scalar() {
+fn integer_unchecked_scalar_mul_noise_check_uses_reduced_scalar() {
     // Each block is multiplied by the scalar reduced modulo its basis element, so the noise check
     // must use that reduced scalar too.
     // With 2_2 params (max degree 15, max noise level 5) and fresh blocks (degree <= 4, nominal
@@ -227,7 +227,7 @@ fn integer_unchecked_crt_scalar_mul_noise_check_uses_reduced_scalar() {
     let scalar = 32;
     let ct = cks.encrypt(clear);
 
-    let ct_res = sks.unchecked_crt_scalar_mul_parallelized(&ct, scalar);
+    let ct_res = sks.unchecked_scalar_mul_parallelized(&ct, scalar);
 
     for (block, modulus_i) in ct_res.blocks.iter().zip(basis) {
         // The linear path multiplies the noise by the reduced scalar, a PBS resets it to nominal
