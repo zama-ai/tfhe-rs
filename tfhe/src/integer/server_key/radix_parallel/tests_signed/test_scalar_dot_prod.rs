@@ -6,9 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::{BooleanBlock, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -47,7 +45,7 @@ pub(crate) fn signed_unchecked_boolean_scalar_dot_prod_test_case<P, E>(
 {
     let params = params.into();
     let nb_tests = nb_tests_smaller_for_params(params);
-    let (cks, sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(params);
 
     let sks = Arc::new(sks);
 
@@ -106,7 +104,7 @@ pub(crate) fn signed_default_boolean_scalar_dot_prod_test_case<P, E>(
 {
     let params = params.into();
     let nb_tests = nb_tests_smaller_for_params(params);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);

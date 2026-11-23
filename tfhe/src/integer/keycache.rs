@@ -1,4 +1,4 @@
-use crate::integer::{ClientKey, IntegerKeyKind, ServerKey};
+use crate::integer::{ClientKey, ServerKey};
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 
 #[cfg(feature = "hpu")]
@@ -20,17 +20,16 @@ impl IntegerKeyCache {
         }
     }
 
-    pub fn get_from_params<P>(&self, params: P, key_kind: IntegerKeyKind) -> (ClientKey, ServerKey)
+    pub fn get_from_params<P>(&self, params: P) -> (ClientKey, ServerKey)
     where
         P: Into<AtomicPatternParameters>,
     {
         let (client_key, server_key) = Self::get_shortint_keys(params);
 
-        let server_key = match key_kind {
-            IntegerKeyKind::Radix => ServerKey::new_radix_server_key_from_shortint(server_key),
-        };
-
-        (client_key, server_key)
+        (
+            client_key,
+            ServerKey::new_radix_server_key_from_shortint(server_key),
+        )
     }
 
     #[cfg(feature = "experimental")]
@@ -104,7 +103,7 @@ impl IntegerKeyCache {
             );
 
             // Get current client key
-            let (cks, _) = self.get_from_params(param, IntegerKeyKind::Radix);
+            let (cks, _) = self.get_from_params(param);
             // Generate associated compressed ServerKey
             let sks_compressed = super::CompressedServerKey::new_radix_compressed_server_key(&cks);
 

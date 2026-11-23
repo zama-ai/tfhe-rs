@@ -10,7 +10,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
+    BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 use crate::shortint::parameters::*;
 use crate::{ClientKey, CompressedServerKey, Tag};
@@ -666,7 +666,7 @@ where
         + signed_oprf_bounded_ops.len();
 
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let oprf_private_key = OprfPrivateKey::new(&cks);
 
     let temp_cks = ClientKey::from_raw_parts(

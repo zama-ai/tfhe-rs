@@ -11,9 +11,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::int::Int;
-use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::{BooleanBlock, RadixClientKey, ServerKey, SignedRadixCiphertext};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -59,7 +57,7 @@ where
 {
     let param = param.into();
     let nb_unchecked_tests = nb_unchecked_tests_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let ctxt_zero = sks.create_trivial_radix(0i64, NB_CTXT);
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));

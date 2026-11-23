@@ -5,7 +5,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::integer::{RadixClientKey, ServerKey};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -31,7 +31,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
 
     let num_block =
         (32f64 / (cks.parameters().message_modulus().0 as f64).log(2.0)).ceil() as usize;

@@ -15,7 +15,7 @@ pub mod cuda {
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::CudaServerKey;
     use tfhe::integer::keycache::KEY_CACHE;
-    use tfhe::integer::{IntegerKeyKind, RadixClientKey};
+    use tfhe::integer::RadixClientKey;
     use tfhe::keycache::NamedParam;
     use tfhe::shortint::AtomicPatternParameters;
 
@@ -50,7 +50,7 @@ pub mod cuda {
 
         for (atomic_param, param_name) in params {
             let streams = CudaStreams::new_multi_gpu();
-            let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
+            let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param);
             let sks = CudaServerKey::new(&cpu_cks, &streams);
             let cks = RadixClientKey::from((cpu_cks, 1));
 

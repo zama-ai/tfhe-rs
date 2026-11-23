@@ -5,7 +5,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_slice::{
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test_classical_params;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
+use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -51,7 +51,7 @@ create_parameterized_test_classical_params!(integer_scalar_blockslice);
 create_parameterized_test_classical_params!(integer_scalar_blockslice_assign);
 
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
 
@@ -69,7 +69,7 @@ fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
 }
 
 fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
     let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
@@ -85,7 +85,7 @@ fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
 }
 
 fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
     {
@@ -133,7 +133,7 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters)
 }
 
 fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(param);
 
     let num_block = 256u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
     {
@@ -157,7 +157,7 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters)
 }
 
 fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
     let num_block = 256u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
@@ -181,7 +181,7 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
     // for which the bit count does not match the target block count of the encrypted
     // radix properly applies upcasting/downcasting
 
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(param);
     let mut rng = rand::thread_rng();
 
     let num_blocks = 32u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
@@ -231,7 +231,7 @@ fn integer_unchecked_add(param: ClassicPBSParameters) {
 }
 
 fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
 
@@ -257,7 +257,7 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
 }
 
 fn integer_blockshift(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
 
@@ -284,7 +284,7 @@ fn integer_blockshift(param: ClassicPBSParameters) {
 }
 
 fn integer_blockshift_right(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let mut rng = rand::thread_rng();
 
@@ -352,7 +352,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     // Check addition
     // --------------
@@ -378,7 +378,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
 }
 
 fn integer_create_trivial_min_max(param: impl Into<TestParameters>) {
-    let (_, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (_, sks) = KEY_CACHE.get_from_params(param);
 
     let num_bits_in_one_block = sks.message_modulus().0.ilog2();
     // The test only involves trivial types so we can afford to test more
@@ -439,7 +439,7 @@ fn integer_signed_decryption_correctly_sign_extend(param: impl Into<TestParamete
     // clear type of M bits where M > N, the sign extension is correctly done
     //
     // Specifically here we take N = 64 bits, M = 128 bits
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
     let num_bits_in_one_block = sks.message_modulus().0.ilog2();
     let num_blocks = 64u32.div_ceil(num_bits_in_one_block);

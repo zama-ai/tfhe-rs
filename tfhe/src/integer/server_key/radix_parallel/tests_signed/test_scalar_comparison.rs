@@ -5,7 +5,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, I256};
+use crate::integer::{BooleanBlock, RadixClientKey, ServerKey, I256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -33,7 +33,7 @@ pub(crate) fn test_signed_unchecked_scalar_function<P, T, ClearF, Scalar>(
 {
     let mut rng = rand::thread_rng();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
 
     let sks = Arc::new(sks);
@@ -101,7 +101,7 @@ pub(crate) fn test_signed_default_scalar_function<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
     assert_eq!(
         Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
@@ -221,7 +221,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
 }
 
 fn integer_signed_is_scalar_out_of_bounds(param: ClassicPBSParameters) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     let mut rng = rand::thread_rng();
@@ -296,7 +296,7 @@ pub(crate) fn test_signed_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
 {
     let mut rng = rand::thread_rng();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
 
     let sks = Arc::new(sks);
@@ -360,7 +360,7 @@ pub(crate) fn test_signed_default_scalar_minmax<P, T, ClearF, Scalar>(
     ClearF: Fn(Scalar, Scalar) -> Scalar,
     Standard: Distribution<Scalar>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
     assert_eq!(
         Scalar::BITS as u32 % cks.parameters().message_modulus().0.ilog2(),
@@ -583,7 +583,7 @@ pub(crate) fn extensive_trivial_signed_default_scalar_comparisons_test<P, E1, E2
     E6: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i128), SignedRadixCiphertext>,
 {
     let params = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     let cks = RadixClientKey::from((cks, 4));
 
     sks.set_deterministic_pbs_execution(true);

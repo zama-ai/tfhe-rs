@@ -4,9 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, unsigned_modulus, CpuFunctionExecutor, MAX_VEC_LEN, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{
-    BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
-};
+use crate::integer::{BooleanBlock, RadixClientKey, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::parameters::TestParameters;
 use rand::{thread_rng, Rng};
@@ -56,7 +54,7 @@ pub(crate) fn signed_default_boolean_one_hot_dot_prod_test_case<P, E>(
 {
     let params = params.into();
     let nb_tests = nb_tests_smaller_for_params(params);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);

@@ -10,7 +10,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
-    ClientKey, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
+    ClientKey, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
@@ -49,7 +49,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);
@@ -128,7 +128,7 @@ where
 {
     let param = param.into();
     let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     sks.set_deterministic_pbs_execution(true);
 
     let sks = Arc::new(sks);

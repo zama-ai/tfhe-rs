@@ -181,14 +181,14 @@ fn bitonic_shuffle_cpu_gpu_same_permutation() {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::oprf::{CompressedOprfServerKey, OprfPrivateKey, OprfServerKey};
     use crate::integer::server_key::radix_parallel::bitonic_shuffle::BitonicShuffleKeySize;
-    use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey};
+    use crate::integer::{RadixCiphertext, RadixClientKey};
     use tfhe_csprng::seeders::Seed;
 
     const NUM_DATA_BLOCKS: usize = 8;
 
     let param: TestParameters = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
 
-    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NUM_DATA_BLOCKS));
 
     let oprf_priv = OprfPrivateKey::new(cks.as_ref());
