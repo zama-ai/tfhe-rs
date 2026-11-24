@@ -704,7 +704,6 @@ mod test {
             ap_key,
             server_key.message_modulus,
             server_key.carry_modulus,
-            server_key.max_degree,
             server_key.max_noise_level,
         );
 

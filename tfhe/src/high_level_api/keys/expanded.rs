@@ -88,7 +88,6 @@ pub(crate) fn compute_key_to_cpu(
         atomic_pattern_key,
         compute_key.message_modulus,
         compute_key.carry_modulus,
-        compute_key.max_degree,
         compute_key.max_noise_level,
     ))
 }

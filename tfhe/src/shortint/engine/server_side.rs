@@ -8,7 +8,6 @@ use crate::core_crypto::commons::traits::{CastInto, Container, UnsignedInteger};
 use crate::core_crypto::entities::*;
 use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
-use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::parameters::KeySwitch32PBSParameters;
 use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{
@@ -17,13 +16,15 @@ use crate::shortint::{
 
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
-        // Plaintext Max Value
-        let max_degree = MaxDegree::from_msg_carry_modulus(
-            cks.parameters().message_modulus(),
-            cks.parameters().carry_modulus(),
-        );
+        let ap_key = AtomicPatternServerKey::new(cks, self);
 
-        self.new_server_key_with_max_degree(cks, max_degree)
+        ServerKey {
+            atomic_pattern: ap_key,
+            message_modulus: cks.parameters().message_modulus(),
+            carry_modulus: cks.parameters().carry_modulus(),
+            max_noise_level: cks.parameters().max_noise_level(),
+            ciphertext_modulus: cks.parameters().ciphertext_modulus(),
+        }
     }
 
     pub(crate) fn get_thread_count_for_multi_bit_pbs(
@@ -55,24 +56,6 @@ impl ShortintEngine {
                     "Currently shortint only supports grouping factor 2, 3 and 4 for multi bit PBS"
                 )
             }
-        }
-    }
-
-    pub(crate) fn new_server_key_with_max_degree(
-        &mut self,
-        cks: &ClientKey,
-        max_degree: MaxDegree,
-    ) -> ServerKey {
-        let ap_key = AtomicPatternServerKey::new(cks, self);
-
-        // Pack the keys in the server key set:
-        ServerKey {
-            atomic_pattern: ap_key,
-            message_modulus: cks.parameters().message_modulus(),
-            carry_modulus: cks.parameters().carry_modulus(),
-            max_degree,
-            max_noise_level: cks.parameters().max_noise_level(),
-            ciphertext_modulus: cks.parameters().ciphertext_modulus(),
         }
     }
 
@@ -254,20 +237,6 @@ impl ShortintEngine {
     }
 
     pub(crate) fn new_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
-        // Plaintext Max Value
-        let max_value =
-            cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0 - 1;
-
-        // The maximum number of operations before we need to clean the carry buffer
-        let max = MaxDegree::new(max_value);
-        self.new_compressed_server_key_with_max_degree(cks, max)
-    }
-
-    pub(crate) fn new_compressed_server_key_with_max_degree(
-        &mut self,
-        cks: &ClientKey,
-        max_degree: MaxDegree,
-    ) -> CompressedServerKey {
         let compressed_ap_server_key = CompressedAtomicPatternServerKey::new(cks, self);
 
         let params = cks.parameters();
@@ -275,12 +244,10 @@ impl ShortintEngine {
         let carry_modulus = params.carry_modulus();
         let max_noise_level = params.max_noise_level();
 
-        // Pack the keys in the server key set:
         CompressedServerKey {
             compressed_ap_server_key,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
         }
     }
