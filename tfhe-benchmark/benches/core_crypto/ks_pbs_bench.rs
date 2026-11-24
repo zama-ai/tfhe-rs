@@ -190,23 +190,10 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                         })
                         .collect::<Vec<_>>();
 
+                    // Each worker allocates and touches its own scratch (see SCRATCH below),
+                    // as the thread-local engine of shortint does.
                     let buffers = (0..batch_size)
-                        .map(|_| {
-                            let mut buffer = ComputationBuffers::new();
-
-                            buffer.resize(
-                                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<
-                                    Scalar,
-                                >(
-                                    fourier_bsk.glwe_size(),
-                                    fourier_bsk.polynomial_size(),
-                                    fft.as_view(),
-                                )
-                                .unaligned_bytes_required(),
-                            );
-
-                            buffer
-                        })
+                        .map(|_| ComputationBuffers::new())
                         .collect::<Vec<_>>();
 
                     (
@@ -224,6 +211,20 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                     Vec<GlweCiphertext<Vec<Scalar>>>, // accumulators
                     Vec<ComputationBuffers>,          // buffers
                 );
+                // The scratch of the PBS, allocated and first touched by each worker on
+                // its own NUMA node: allocated by the main thread, it would all land on
+                // the main thread's node.
+                thread_local! {
+                    static SCRATCH: std::cell::RefCell<ComputationBuffers> =
+                        std::cell::RefCell::new(ComputationBuffers::new());
+                }
+                let scratch_bytes =
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<Scalar>(
+                        fourier_bsk.glwe_size(),
+                        fourier_bsk.polynomial_size(),
+                        fft.as_view(),
+                    )
+                    .unaligned_bytes_required();
                 // ZOPT_KS64_NUMA=replicate copies the keys once per NUMA node, each
                 // operation using the copy of the node it runs on.
                 let replicas = (std::env::var("ZOPT_KS64_NUMA").as_deref() == Ok("replicate"))
@@ -249,6 +250,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                                 (((input_ks_ct, output_ks_ct), output_pbs_ct), accumulator),
                                 buffer,
                             )| {
+                                let _ = buffer;
                                 let (ksk, bsk) = match &replicas {
                                     Some(replicas) => {
                                         let (ksk, bsk) = replicas.local();
@@ -257,14 +259,17 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                                     None => (&ksk_big_to_small, &fourier_bsk),
                                 };
                                 keyswitch_lwe_ciphertext(ksk, input_ks_ct, output_ks_ct);
-                                programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                                    output_ks_ct,
-                                    output_pbs_ct,
-                                    &accumulator.as_view(),
-                                    bsk,
-                                    fft.as_view(),
-                                    buffer.stack(),
-                                );
+                                SCRATCH.with_borrow_mut(|scratch| {
+                                    scratch.resize(scratch_bytes);
+                                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                                        output_ks_ct,
+                                        output_pbs_ct,
+                                        &accumulator.as_view(),
+                                        bsk,
+                                        fft.as_view(),
+                                        scratch.stack(),
+                                    );
+                                });
                             },
                         )
                 };

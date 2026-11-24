@@ -171,9 +171,9 @@ fn pbs_128(
                         )
                     })
                     .collect::<Vec<LweCiphertextOwned<OutputScalar>>>();
-                let buffers = (0..batch_size)
-                    .map(|_| vec![0u8; scratch_bytes])
-                    .collect::<Vec<_>>();
+                // Each worker allocates and touches its own scratch (see SCRATCH below),
+                // as the thread-local engine of shortint does.
+                let buffers = (0..batch_size).map(|_| Vec::new()).collect::<Vec<_>>();
                 (inputs, outputs, buffers)
             };
             type Res = (
@@ -181,6 +181,13 @@ fn pbs_128(
                 Vec<LweCiphertextOwned<u128>>,
                 Vec<Vec<u8>>,
             );
+            // The scratch of the PBS, allocated and first touched by each worker on its own
+            // NUMA node: allocated by the main thread, it would all land on the main
+            // thread's node.
+            thread_local! {
+                static SCRATCH: std::cell::RefCell<Vec<u8>> =
+                    const { std::cell::RefCell::new(Vec::new()) };
+            }
             // ZOPT_KS64_NUMA=replicate copies the key once per NUMA node, each operation
             // using the copy of the node it runs on.
             let replicas = (std::env::var("ZOPT_KS64_NUMA").as_deref() == Ok("replicate"))
@@ -198,13 +205,17 @@ fn pbs_128(
                         let fourier_bsk = replicas
                             .as_ref()
                             .map_or(&fourier_bsk, |replicas| replicas.local());
-                        fourier_bsk.bootstrap(
-                            output,
-                            input,
-                            &accumulator,
-                            fft,
-                            PodStack::new(buffer),
-                        );
+                        let _: &mut Vec<u8> = buffer;
+                        SCRATCH.with_borrow_mut(|scratch| {
+                            scratch.resize(scratch_bytes, 0);
+                            fourier_bsk.bootstrap(
+                                output,
+                                input,
+                                &accumulator,
+                                fft,
+                                PodStack::new(scratch),
+                            );
+                        });
                     })
             };
             // ZOPT_KS64_BATCH pins the batch, find_optimal_batch picks it noisily.
