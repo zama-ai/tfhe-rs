@@ -21,7 +21,7 @@ use crate::shortint::atomic_pattern::expanded::{
     ExpandedAtomicPatternServerKey, ExpandedKS32AtomicPatternServerKey,
     ExpandedStandardAtomicPatternServerKey,
 };
-use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
+use crate::shortint::ciphertext::MaxNoiseLevel;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::oprf::ExpandedOprfBootstrappingKey;
@@ -183,8 +183,6 @@ pub struct CudaServerKey {
     pub message_modulus: MessageModulus,
     // Size of the carry buffer
     pub carry_modulus: CarryModulus,
-    // Maximum number of operations that can be done before emptying the operation buffer
-    pub max_degree: MaxDegree,
     pub max_noise_level: MaxNoiseLevel,
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
@@ -231,21 +229,7 @@ impl CudaServerKey {
     where
         C: AsRef<ClientKey>,
     {
-        // It should remain just enough space to add a carry
-        let client_key = cks.as_ref();
-        let max_degree = MaxDegree::integer_radix_server_key(
-            client_key.key.parameters().message_modulus(),
-            client_key.key.parameters().carry_modulus(),
-        );
-        Self::new_server_key_with_max_degree(client_key, max_degree, encryption_generator, streams)
-    }
-
-    pub(crate) fn new_server_key_with_max_degree(
-        cks: &ClientKey,
-        max_degree: MaxDegree,
-        encryption_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
-        streams: &CudaStreams,
-    ) -> Self {
+        let cks = cks.as_ref();
         // Generate a regular keyset and convert to the GPU
         let AtomicPatternClientKey::Standard(std_cks) = &cks.key.atomic_pattern else {
             panic!("Only the standard atomic pattern is supported on GPU")
@@ -327,13 +311,11 @@ impl CudaServerKey {
             PBSOrder::KeyswitchBootstrap
         ));
 
-        // Pack the keys in the server key set:
         Self {
             key_switching_key: CudaDynamicKeyswitchingKey::Standard(d_key_switching_key),
             bootstrapping_key: d_bootstrapping_key,
             message_modulus: std_cks.parameters.message_modulus(),
             carry_modulus: std_cks.parameters.carry_modulus(),
-            max_degree,
             max_noise_level: std_cks.parameters.max_noise_level(),
             ciphertext_modulus: std_cks.parameters.ciphertext_modulus(),
             pbs_order: std_cks.parameters.encryption_key_choice().into(),
@@ -384,7 +366,6 @@ impl CudaServerKey {
             compressed_ap_server_key,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
         } = &cpu_key.key;
 
@@ -394,7 +375,6 @@ impl CudaServerKey {
             atomic_pattern: expanded_ap,
             message_modulus: *message_modulus,
             carry_modulus: *carry_modulus,
-            max_degree: *max_degree,
             max_noise_level: *max_noise_level,
             ciphertext_modulus: compressed_ap_server_key.ciphertext_modulus(),
         };
@@ -414,7 +394,6 @@ impl CudaServerKey {
     ) -> crate::Result<Self> {
         let message_modulus = expanded.message_modulus;
         let carry_modulus = expanded.carry_modulus;
-        let max_degree = expanded.max_degree;
         let max_noise_level = expanded.max_noise_level;
 
         match &expanded.atomic_pattern {
@@ -439,7 +418,6 @@ impl CudaServerKey {
                     bootstrapping_key: cuda_bootstrapping_key,
                     message_modulus,
                     carry_modulus,
-                    max_degree,
                     max_noise_level,
                     ciphertext_modulus,
                     pbs_order: *pbs_order,
@@ -466,7 +444,6 @@ impl CudaServerKey {
                     bootstrapping_key: cuda_bootstrapping_key,
                     message_modulus,
                     carry_modulus,
-                    max_degree,
                     max_noise_level,
                     ciphertext_modulus: *ciphertext_modulus,
                     pbs_order: PBSOrder::KeyswitchBootstrap,

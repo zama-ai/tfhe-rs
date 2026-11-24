@@ -472,8 +472,6 @@ pub struct GenericServerKey<AP> {
     pub message_modulus: MessageModulus,
     // Size of the carry buffer
     pub carry_modulus: CarryModulus,
-    // Maximum number of operations that can be done before emptying the operation buffer
-    pub max_degree: MaxDegree,
     pub max_noise_level: MaxNoiseLevel,
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
@@ -492,7 +490,6 @@ impl<AP: Clone> GenericServerKey<&AP> {
             atomic_pattern: self.atomic_pattern.clone(),
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
-            max_degree: self.max_degree,
             max_noise_level: self.max_noise_level,
             ciphertext_modulus: self.ciphertext_modulus,
         }
@@ -519,7 +516,6 @@ impl From<StandardServerKey> for ServerKey {
             atomic_pattern,
             message_modulus: value.message_modulus,
             carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
             max_noise_level: value.max_noise_level,
             ciphertext_modulus: value.ciphertext_modulus,
         }
@@ -549,7 +545,6 @@ impl TryFrom<ServerKey> for StandardServerKey {
             atomic_pattern,
             message_modulus: value.message_modulus,
             carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
             max_noise_level: value.max_noise_level,
             ciphertext_modulus: value.ciphertext_modulus,
         })
@@ -568,7 +563,6 @@ impl<'key> TryFrom<ServerKeyView<'key>> for StandardServerKeyView<'key> {
             atomic_pattern,
             message_modulus: value.message_modulus,
             carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
             max_noise_level: value.max_noise_level,
             ciphertext_modulus: value.ciphertext_modulus,
         })
@@ -587,7 +581,6 @@ impl<'key> TryFrom<ServerKeyView<'key>> for KS32ServerKeyView<'key> {
             atomic_pattern,
             message_modulus: value.message_modulus,
             carry_modulus: value.carry_modulus,
-            max_degree: value.max_degree,
             max_noise_level: value.max_noise_level,
             ciphertext_modulus: value.ciphertext_modulus,
         })
@@ -667,13 +660,6 @@ impl ServerKey {
         ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks))
     }
 
-    /// Generate a server key with a chosen maximum degree
-    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_server_key_with_max_degree(cks, max_degree)
-        })
-    }
-
     /// Returns a view of the server key's bootstrapping key that can be used
     /// for OPRF generation.
     pub fn as_oprf_key_view(&self) -> crate::shortint::oprf::OprfServerKeyView<'_> {
@@ -749,7 +735,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             atomic_pattern: &self.atomic_pattern,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
-            max_degree: self.max_degree,
             max_noise_level: self.max_noise_level,
             ciphertext_modulus: self.ciphertext_modulus,
         }
@@ -768,12 +753,11 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     }
 
     /// Deconstruct a [`ServerKey`] into its constituents.
-    pub fn into_raw_parts(self) -> (AP, MessageModulus, CarryModulus, MaxDegree, MaxNoiseLevel) {
+    pub fn into_raw_parts(self) -> (AP, MessageModulus, CarryModulus, MaxNoiseLevel) {
         let Self {
             atomic_pattern,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
             ciphertext_modulus: _,
         } = self;
@@ -782,37 +766,23 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
             atomic_pattern,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
         )
     }
 
     /// Construct a [`ServerKey`] from its constituents.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the constituents are not compatible with each others.
     pub fn from_raw_parts(
         atomic_pattern_key: AP,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
-        max_degree: MaxDegree,
         max_noise_level: MaxNoiseLevel,
     ) -> Self {
-        let max_max_degree = MaxDegree::from_msg_carry_modulus(message_modulus, carry_modulus);
-
-        assert!(
-            max_degree.get() <= max_max_degree.get(),
-            "Maximum valid MaxDegree is {max_max_degree:?}, got ({max_degree:?})"
-        );
-
         let ciphertext_modulus = atomic_pattern_key.ciphertext_modulus();
 
         Self {
             atomic_pattern: atomic_pattern_key,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
             ciphertext_modulus,
         }
@@ -1874,20 +1844,18 @@ where
 }
 
 impl ParameterSetConformant for ServerKey {
-    type ParameterSet = (AtomicPatternParameters, MaxDegree);
+    type ParameterSet = AtomicPatternParameters;
 
-    fn is_conformant(&self, (parameter_set, expected_max_degree): &Self::ParameterSet) -> bool {
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
             message_modulus,
             atomic_pattern,
             carry_modulus,
-            max_degree,
             max_noise_level,
             ciphertext_modulus,
         } = self;
 
         atomic_pattern.is_conformant(parameter_set)
-            && *max_degree == *expected_max_degree
             && *message_modulus == parameter_set.message_modulus()
             && *carry_modulus == parameter_set.carry_modulus()
             && *max_noise_level == parameter_set.max_noise_level()

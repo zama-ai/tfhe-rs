@@ -922,7 +922,6 @@ impl IntegerCompressedServerKey {
             atomic_pattern: shortint_sk.compressed_ap_server_key.expand(),
             message_modulus: shortint_sk.message_modulus,
             carry_modulus: shortint_sk.carry_modulus,
-            max_degree: shortint_sk.max_degree,
             max_noise_level: shortint_sk.max_noise_level,
             ciphertext_modulus: shortint_sk.ciphertext_modulus(),
         };

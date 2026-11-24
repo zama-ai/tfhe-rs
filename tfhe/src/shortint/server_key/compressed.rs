@@ -1,6 +1,6 @@
 //! Module with the definition of the CompressedServerKey.
 
-use super::{MaxDegree, PBSConformanceParams, PbsTypeConformanceParams};
+use super::{PBSConformanceParams, PbsTypeConformanceParams};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
@@ -256,8 +256,6 @@ pub struct CompressedServerKey {
     pub message_modulus: MessageModulus,
     // Size of the carry buffer
     pub carry_modulus: CarryModulus,
-    // Maximum number of operations that can be done before emptying the operation buffer
-    pub max_degree: MaxDegree,
     pub max_noise_level: MaxNoiseLevel,
 }
 
@@ -286,13 +284,11 @@ impl CompressedServerKey {
             compressed_ap_server_key,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
         } = self;
 
         let message_modulus = *message_modulus;
         let carry_modulus = *carry_modulus;
-        let max_degree = *max_degree;
         let max_noise_level = *max_noise_level;
         let ciphertext_modulus = compressed_ap_server_key.ciphertext_modulus();
 
@@ -300,7 +296,6 @@ impl CompressedServerKey {
             atomic_pattern: compressed_ap_server_key.decompress(),
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
             ciphertext_modulus,
         }
@@ -313,14 +308,12 @@ impl CompressedServerKey {
         CompressedAtomicPatternServerKey,
         MessageModulus,
         CarryModulus,
-        MaxDegree,
         MaxNoiseLevel,
     ) {
         let Self {
             compressed_ap_server_key,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
         } = self;
 
@@ -328,45 +321,23 @@ impl CompressedServerKey {
             compressed_ap_server_key,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
         )
     }
 
     /// Construct a [`CompressedServerKey`] from its constituents.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the constituents are not compatible with each others.
-    #[allow(clippy::too_many_arguments)]
     pub fn from_raw_parts(
         compressed_ap_server_key: CompressedAtomicPatternServerKey,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
-        max_degree: MaxDegree,
         max_noise_level: MaxNoiseLevel,
     ) -> Self {
-        let max_max_degree = MaxDegree::from_msg_carry_modulus(message_modulus, carry_modulus);
-
-        assert!(
-            max_degree.get() <= max_max_degree.get(),
-            "Maximum valid MaxDegree is {max_max_degree:?}, got ({max_degree:?})"
-        );
-
         Self {
             compressed_ap_server_key,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
         }
-    }
-
-    /// Generate a compressed server key with a chosen maximum degree
-    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> Self {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_compressed_server_key_with_max_degree(cks, max_degree)
-        })
     }
 
     pub(crate) fn as_compressed_standard_atomic_pattern_server_key(
@@ -488,21 +459,19 @@ where
 }
 
 impl ParameterSetConformant for CompressedServerKey {
-    type ParameterSet = (AtomicPatternParameters, MaxDegree);
+    type ParameterSet = AtomicPatternParameters;
 
-    fn is_conformant(&self, (parameter_set, expected_max_degree): &Self::ParameterSet) -> bool {
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
             compressed_ap_server_key,
             message_modulus,
             carry_modulus,
-            max_degree,
             max_noise_level,
         } = self;
 
         let compressed_ap_server_key_ok = compressed_ap_server_key.is_conformant(parameter_set);
 
         compressed_ap_server_key_ok
-            && *max_degree == *expected_max_degree
             && *message_modulus == parameter_set.message_modulus()
             && *carry_modulus == parameter_set.carry_modulus()
             && *max_noise_level == parameter_set.max_noise_level()
