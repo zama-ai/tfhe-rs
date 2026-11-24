@@ -12,11 +12,35 @@ use crate::integer::gpu::{
     cuda_backend_get_propagate_single_carry_assign_size_on_gpu,
     cuda_backend_scalar_addition_assign,
 };
+use crate::integer::server_key::radix_parallel::scalar_add::ScalarOverflowFlagSource;
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NoiseLevel;
 
 impl CudaServerKey {
+    /// Turns the overflow flag computed by an overflowing scalar addition or subtraction, on the
+    /// scalar truncated to the radix width, into the final one (see [`ScalarOverflowFlagSource`]).
+    pub(crate) fn scalar_overflow_flag(
+        &self,
+        flag_source: ScalarOverflowFlagSource,
+        fhe_flag: CudaBooleanBlock,
+        streams: &CudaStreams,
+    ) -> CudaBooleanBlock {
+        match flag_source {
+            ScalarOverflowFlagSource::TriviallyTrue => {
+                let trivial_one: CudaUnsignedRadixCiphertext =
+                    self.create_trivial_radix(1, 1, streams);
+                CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_one.ciphertext)
+            }
+            ScalarOverflowFlagSource::InvertedFhe => {
+                let mut flag = fhe_flag;
+                self.boolean_bitnot_assign(&mut flag, streams);
+                flag
+            }
+            ScalarOverflowFlagSource::Fhe => fhe_flag,
+        }
+    }
+
     #[cfg(test)]
     /// Computes homomorphically an addition between a scalar and a ciphertext.
     ///
@@ -49,31 +73,44 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if scalar != Scalar::ZERO {
-            let bits_in_message = self.message_modulus.0.ilog2();
-            let mut d_decomposed_scalar = unsafe {
-                CudaVec::<u64>::new_async(ct.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0)
-            };
             let decomposed_scalar =
-                BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message)
+                BlockDecomposer::with_early_stop_at_zero(scalar, self.message_modulus.0.ilog2())
                     .iter_as::<u64>()
-                    .take(d_decomposed_scalar.len())
+                    .take(ct.as_ref().d_blocks.lwe_ciphertext_count().0)
                     .collect::<Vec<_>>();
-            unsafe {
-                d_decomposed_scalar.copy_from_cpu_async(decomposed_scalar.as_slice(), streams, 0);
-            }
             // If the scalar is decomposed using less than the number of blocks our ciphertext
             // has, we just don't touch ciphertext's last blocks
-            unsafe {
-                cuda_backend_scalar_addition_assign(
-                    streams,
-                    ct.as_mut(),
-                    &d_decomposed_scalar,
-                    &decomposed_scalar,
-                    decomposed_scalar.len() as u32,
-                    self.message_modulus.0 as u32,
-                    self.carry_modulus.0 as u32,
-                );
-            }
+            self.unchecked_scalar_blocks_add_assign(ct, &decomposed_scalar, streams);
+        }
+    }
+
+    /// Adds the blocks of an already decomposed scalar to the first blocks of `ct`.
+    fn unchecked_scalar_blocks_add_assign<T>(
+        &self,
+        ct: &mut T,
+        decomposed_scalar: &[u64],
+        streams: &CudaStreams,
+    ) where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        assert!(
+            decomposed_scalar.len() <= num_blocks,
+            "the scalar has {} blocks, the radix only {num_blocks}",
+            decomposed_scalar.len()
+        );
+        let mut d_decomposed_scalar = unsafe { CudaVec::<u64>::new_async(num_blocks, streams, 0) };
+        unsafe {
+            d_decomposed_scalar.copy_from_cpu_async(decomposed_scalar, streams, 0);
+            cuda_backend_scalar_addition_assign(
+                streams,
+                ct.as_mut(),
+                &d_decomposed_scalar,
+                decomposed_scalar,
+                decomposed_scalar.len() as u32,
+                self.message_modulus.0 as u32,
+                self.carry_modulus.0 as u32,
+            );
         }
     }
 
@@ -220,24 +257,36 @@ impl CudaServerKey {
     where
         Scalar: DecomposableInto<u8> + CastInto<u64>,
     {
-        self.unchecked_scalar_add_assign(ct_left, scalar, stream);
+        let num_blocks = ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0;
+        let flag_source =
+            ScalarOverflowFlagSource::for_unsigned_radix(scalar, num_blocks, self.message_modulus);
+
+        if scalar != Scalar::ZERO {
+            // Sign extended (or zero extended) to the radix width when the scalar is narrower: a
+            // negative scalar narrower than the radix also changes the radix blocks above its width
+            let decomposed_scalar = BlockDecomposer::with_block_count(
+                scalar,
+                self.message_modulus.0.ilog2(),
+                num_blocks,
+            )
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+            self.unchecked_scalar_blocks_add_assign(ct_left, &decomposed_scalar, stream);
+        }
         let mut carry_out;
         carry_out = self.propagate_single_carry_assign(ct_left, stream, None, OutputFlag::Carry);
 
-        let num_scalar_blocks =
-            BlockDecomposer::with_early_stop_at_zero(scalar, self.message_modulus.0.ilog2())
-                .count();
-
-        if num_scalar_blocks > ct_left.ciphertext.d_blocks.0.lwe_ciphertext_count.0 {
-            let trivial: CudaUnsignedRadixCiphertext = self.create_trivial_radix(1, 1, stream);
-            CudaBooleanBlock::from_cuda_radix_ciphertext(trivial.ciphertext)
-        } else {
-            if ct_left.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO {
-                carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::ZERO);
-            }
-
-            CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext)
+        if ct_left.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO {
+            carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::ZERO);
         }
+
+        // The carry out is the flag of the addition with the scalar truncated to the radix
+        // width, which is only exact for scalars in the radix range
+        self.scalar_overflow_flag(
+            flag_source,
+            CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext),
+            stream,
+        )
     }
 
     /// ```rust
@@ -282,7 +331,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock)
     where
-        Scalar: SignedNumeric + DecomposableInto<u64> + CastInto<u64>,
+        Scalar: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8> + CastInto<u64>,
     {
         let mut tmp_lhs;
         tmp_lhs = ct_left.duplicate(streams);
@@ -291,34 +340,16 @@ impl CudaServerKey {
             self.full_propagate_assign(&mut tmp_lhs, streams);
         }
 
-        let trivial: CudaSignedRadixCiphertext = self.create_trivial_radix(
-            scalar,
-            ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0,
-            streams,
-        );
+        // The scalar is truncated (or sign extended) to the radix width: the result is exact,
+        // but the overflow flag is only exact for scalars in the radix range
+        let num_blocks = ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0;
+        let trivial: CudaSignedRadixCiphertext =
+            self.create_trivial_radix(scalar, num_blocks, streams);
         let (result, overflowed) = self.signed_overflowing_add(&tmp_lhs, &trivial, streams);
 
-        let mut extra_scalar_block_iter =
-            BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
-                .iter_as::<u64>()
-                .skip(ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0);
-
-        // FIXME(gpu): use `ScalarOverflowFlagSource`
-        let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
-            extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 - 1))
-        } else {
-            extra_scalar_block_iter.all(|block| block == 0)
-        };
-
-        if extra_blocks_have_correct_value {
-            (result, overflowed)
-        } else {
-            let trivial_one: CudaSignedRadixCiphertext = self.create_trivial_radix(1, 1, streams);
-            // Scalar has more blocks so addition counts as overflowing
-            (
-                result,
-                CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_one.ciphertext),
-            )
-        }
+        let flag_source =
+            ScalarOverflowFlagSource::for_signed_radix(scalar, num_blocks, self.message_modulus);
+        let overflowed = self.scalar_overflow_flag(flag_source, overflowed, streams);
+        (result, overflowed)
     }
 }

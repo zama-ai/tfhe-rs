@@ -12,7 +12,7 @@ mod modulus_switch_compression;
 mod mul;
 mod neg;
 mod rotate;
-mod scalar_add;
+pub(crate) mod scalar_add;
 mod scalar_bitwise_op;
 mod scalar_comparison;
 pub(crate) mod scalar_div_mod;

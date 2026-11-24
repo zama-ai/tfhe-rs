@@ -1,9 +1,10 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{Numeric, SignedNumeric};
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext};
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::server_key::radix_parallel::scalar_add::ScalarOverflowFlagSource;
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::server_key::TwosComplementNegation;
 use crate::prelude::CastInto;
@@ -162,7 +163,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock)
     where
-        Scalar: SignedNumeric + DecomposableInto<u64> + CastInto<u64>,
+        Scalar: SignedNumeric + DecomposableInto<u64> + DecomposableInto<u8> + CastInto<u64>,
     {
         let mut tmp_lhs;
         tmp_lhs = ct_left.duplicate(streams);
@@ -171,34 +172,17 @@ impl CudaServerKey {
             self.full_propagate_assign(&mut tmp_lhs, streams);
         }
 
-        let trivial: CudaSignedRadixCiphertext = self.create_trivial_radix(
-            scalar,
-            ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0,
-            streams,
-        );
+        // The scalar is truncated (or sign extended) to the radix width: the result is exact,
+        // but the overflow flag is only exact for scalars in the radix range
+        let num_blocks = ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0;
+        let trivial: CudaSignedRadixCiphertext =
+            self.create_trivial_radix(scalar, num_blocks, streams);
         let (result, overflowed) = self.signed_overflowing_sub(&tmp_lhs, &trivial, streams);
 
-        let mut extra_scalar_block_iter =
-            BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
-                .iter_as::<u64>()
-                .skip(ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0);
-
-        // FIXME(gpu): use `ScalarOverflowFlagSource`
-        let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
-            extra_scalar_block_iter.all(|block| block == (self.message_modulus.0 - 1))
-        } else {
-            extra_scalar_block_iter.all(|block| block == 0)
-        };
-
-        if extra_blocks_have_correct_value {
-            (result, overflowed)
-        } else {
-            let trivial_one: CudaSignedRadixCiphertext = self.create_trivial_radix(1, 1, streams);
-            // Scalar has more blocks so addition counts as overflowing
-            (
-                result,
-                CudaBooleanBlock::from_cuda_radix_ciphertext(trivial_one.ciphertext),
-            )
-        }
+        // Decided on the scalar itself, the subtraction works on the scalar, not on its negation
+        let flag_source =
+            ScalarOverflowFlagSource::for_signed_radix(scalar, num_blocks, self.message_modulus);
+        let overflowed = self.scalar_overflow_flag(flag_source, overflowed, streams);
+        (result, overflowed)
     }
 }
