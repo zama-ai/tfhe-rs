@@ -127,6 +127,10 @@ jobs:
         run: |
           bash ci/wait_for_apt_lock.sh
 
+          # Outbound port 80 is blocked by the instance security group, fetch apt sources over HTTPS.
+          sudo find /etc/apt -maxdepth 2 -type f \( -name '*.list' -o -name '*.sources' \) \
+            -exec sed -i 's|http://|https://|g' {} +
+
           sudo apt-get update
           sudo apt-get install -y git-lfs protobuf-compiler
           git lfs install
