@@ -1038,14 +1038,11 @@ pub(crate) fn narrow_scalar_cases(
 }
 
 /// The sequential carry propagation must keep room in each block for the carry it receives, in
-/// its degree and its noise level, regardless of the max degree the server key was built with.
+/// its degree and its noise level.
 #[test]
 fn test_sequential_propagation_at_block_limits() {
-    let (cks, mut sks) =
-        KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-    // Allow blocks to be full, so that they cannot receive a carry
-    sks.key.max_degree =
-        MaxDegree::from_msg_carry_modulus(sks.message_modulus(), sks.carry_modulus());
+    let (cks, sks) = KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+    let max_degree = sks.key.max_degree();
 
     // A single thread makes the parallel propagation slower, so the sequential one is used
     let pool = rayon::ThreadPoolBuilder::new()
@@ -1072,8 +1069,7 @@ fn test_sequential_propagation_at_block_limits() {
             assert!(ct
                 .blocks
                 .iter()
-                // Remember we changed the max degree earlier to be == true max
-                .all(|block| block.degree.get() == sks.key.max_degree.get()));
+                .all(|block| block.degree.get() == max_degree.get()));
 
             pool.install(|| sks.full_propagate_parallelized(&mut ct));
 

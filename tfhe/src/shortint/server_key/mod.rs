@@ -482,7 +482,7 @@ pub struct GenericServerKey<AP> {
 impl<AP> GenericServerKey<AP> {
     /// Maximum degree a ciphertext can reach before its carry buffer must be emptied.
     pub fn max_degree(&self) -> MaxDegree {
-        self.max_degree
+        MaxDegree::from_msg_carry_modulus(self.message_modulus, self.carry_modulus)
     }
 }
 

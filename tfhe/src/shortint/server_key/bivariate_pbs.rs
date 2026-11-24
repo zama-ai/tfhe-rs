@@ -1,7 +1,6 @@
 use super::{CheckError, CiphertextNoiseDegree, LookupTable};
 use crate::core_crypto::prelude::container::Container;
 use crate::shortint::atomic_pattern::AtomicPattern;
-use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::server_key::add::unchecked_add_assign;
 use crate::shortint::server_key::GenericServerKey;
 use crate::shortint::{Ciphertext, MessageModulus};
@@ -31,11 +30,7 @@ fn ciphertexts_can_be_packed_without_exceeding_space_or_noise<AP: AtomicPattern>
 ) -> Result<(), CheckError> {
     let final_degree = (lhs.degree * factor) + rhs.degree;
 
-    // Do not use server key max degree as it may be smaller (to keep carry propagation margin)
-    let max_degree =
-        MaxDegree::from_msg_carry_modulus(server_key.message_modulus, server_key.carry_modulus);
-
-    max_degree.validate(final_degree)?;
+    server_key.max_degree().validate(final_degree)?;
 
     let final_noise_level = (lhs.noise_level * factor) + rhs.noise_level;
 
