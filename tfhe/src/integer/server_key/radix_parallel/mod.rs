@@ -165,13 +165,9 @@ impl ServerKey {
                 self.propagate_single_carry_parallelized(&mut blocks[..]);
             }
         } else {
-            // A block must keep room for the carry it receives,
-            // The carry will at most be `carry_modulus - 1`, because it's
-            // extracted from a block of degree at most `message_modulus * carry_modulus - 1`.
-            let max_degree_to_receive_carry = MaxDegree::new(
-                MaxDegree::from_msg_carry_modulus(self.key.message_modulus, self.key.carry_modulus)
-                    .get()
-                    - (self.key.carry_modulus.0 - 1),
+            let max_degree_to_receive_carry = MaxDegree::before_sequential_carry_prop(
+                self.message_modulus(),
+                self.carry_modulus(),
             );
             // A carry is a fresh ciphertext, adding it increases the noise level by NOMINAL.
             let max_noise_level_to_receive_carry =
