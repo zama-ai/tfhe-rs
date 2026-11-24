@@ -1,3 +1,4 @@
+use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::radix_parallel::bit_extractor::BitExtractor;
 use crate::integer::{BooleanBlock, ServerKey};
@@ -223,15 +224,9 @@ impl ServerKey {
         assert!(carry_bits_per_block >= message_bits_per_block);
 
         let num_bits = ct.blocks().len() * message_bits_per_block as usize;
-        let mut max_num_bits_that_tell_shift = num_bits.ilog2() as u64;
-        // This effectively means, that if the block parameters
-        // give a total_nb_bits that is not a power of two,
-        // then the behaviour of shifting won't be the same
-        // if shift >= total_nb_bits compared to when total_nb_bits
-        // is a power of two, as will 'capture' more bits in `shift_bits`
-        if !num_bits.is_power_of_two() {
-            max_num_bits_that_tell_shift += 1;
-        }
+        // Number of low bits of the amount the shifter reads. Shifts decide overshifts on the
+        // whole amount, rotations reduce the amount modulo `num_bits` beforehand
+        let max_num_bits_that_tell_shift = u64::from(num_bits.ceil_ilog2());
 
         if message_bits_per_block == 1 {
             *ct = self.barrel_shift_bits_1_bit(
@@ -1004,15 +999,9 @@ impl ServerKey {
                 bit_extractor.extract_all_bits()
             },
             || {
-                let mut max_num_bits_that_tell_shift = total_nb_bits.ilog2() as u64;
-                // This effectively means, that if the block parameters
-                // give a total_nb_bits that is not a power of two,
-                // then the behaviour of shifting won't be the same
-                // if shift >= total_nb_bits compared to when total_nb_bits
-                // is a power of two, as will 'capture' more bits in `shift_bits`
-                if !total_nb_bits.is_power_of_two() {
-                    max_num_bits_that_tell_shift += 1;
-                }
+                // Number of low bits of the amount the shifter reads, see
+                // `unchecked_shift_rotate_bits_assign`
+                let max_num_bits_that_tell_shift = u64::from(total_nb_bits.ceil_ilog2());
 
                 // Extracts bits and put them in the bit index 2 (=> bit number 3)
                 // so that it is already aligned to the correct position of the cmux input
@@ -1157,10 +1146,7 @@ impl ServerKey {
         let message_bits_per_block = self.key.message_modulus.0.ilog2() as u64;
         let num_bits = num_blocks as u64 * message_bits_per_block;
 
-        let mut max_num_bits_that_tell_shift = num_bits.ilog2();
-        if !num_bits.is_power_of_two() {
-            max_num_bits_that_tell_shift += 1;
-        }
+        let max_num_bits_that_tell_shift = num_bits.ceil_ilog2();
         let split = (max_num_bits_that_tell_shift as usize)
             .div_ceil(message_bits_per_block as usize)
             .min(amount.blocks.len());
