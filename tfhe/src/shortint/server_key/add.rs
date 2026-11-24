@@ -195,7 +195,8 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         ct_left: CiphertextNoiseDegree,
         ct_right: CiphertextNoiseDegree,
     ) -> Result<(), CheckError> {
-        self.max_degree.validate(ct_left.degree + ct_right.degree)?;
+        self.max_degree()
+            .validate(ct_left.degree + ct_right.degree)?;
 
         self.max_noise_level
             .validate(ct_left.noise_level + ct_right.noise_level)?;

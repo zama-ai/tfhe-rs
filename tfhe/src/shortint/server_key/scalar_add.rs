@@ -181,6 +181,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ) -> Result<(), CheckError> {
         let final_degree = u64::from(scalar) + ct.degree.get();
 
-        self.max_degree.validate(Degree::new(final_degree))
+        self.max_degree().validate(Degree::new(final_degree))
     }
 }
