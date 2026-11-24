@@ -76,26 +76,28 @@ per_node() {
     [ -x "${exe}" ] || { echo "no benchmark executable" >&2; exit 1; }
     barrier=$(mktemp -d)
     echo "=== variant ${tag}: ${NODES} processes of batch $((batch / NODES)), ${exe}"
+    # Waits for the benchmark processes only: a bare wait would also wait for the
+    # monitor, which never ends. Each line of output is prefixed with its node.
+    local pids=()
     for n in $(seq 0 $((NODES - 1))); do
         (cd tfhe-benchmark && ZOPT_KS64_TAG="${tag}_N${n}" ZOPT_KS64_BATCH=$((batch / NODES)) \
             ZOPT_KS64_BARRIER_DIR="${barrier}" ZOPT_KS64_BARRIER_N="${NODES}" \
             CARGO_TARGET_DIR="$(pwd)/../target" \
-            numactl --cpunodebind="${n}" --membind="${n}" "${exe}" --bench \
-            > "${barrier}.${n}.log" 2>&1) &
+            numactl --cpunodebind="${n}" --membind="${n}" "${exe}" --bench 2>&1 \
+            | sed -u "s/^/[node ${n}] /") &
+        pids+=($!)
     done
-    wait
-    for n in $(seq 0 $((NODES - 1))); do
-        echo "=== node ${n}"
-        cat "${barrier}.${n}.log"
+    local status=0
+    for pid in "${pids[@]}"; do
+        wait "${pid}" || status=$?
     done
+    echo "=== variant ${tag} done, status ${status}"
 }
 
-# FIRST_TOUCH runs one set alone without interleaving, to sample where its keys land.
 case "${BENCH}" in
 ks_pbs)
     export ZOPT_KS64_BATCH=2048
     ZOPT_KS64_ONLY=none cargo_bench
-    ZOPT_KS64_ONLY=ZOPT_KS64_160_S125_2M160_BOOTSTRAP_COST variant _FIRST_TOUCH env
     variant _INTERLEAVE numactl --interleave=all
     per_node _PER_NODE 2048
     ;;
@@ -103,7 +105,6 @@ pbs128)
     # One squashing PBS per core per iteration: the largest keys take seconds each.
     export ZOPT_KS64_BATCH=192
     ZOPT_KS64_ONLY=none cargo_bench
-    ZOPT_KS64_ONLY=ZOPT_KS64_160_S125_2M160_COST variant _FIRST_TOUCH env
     variant _INTERLEAVE numactl --interleave=all
     per_node _PER_NODE 192
     ;;
