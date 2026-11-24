@@ -175,14 +175,13 @@ impl ServerKey {
             );
 
             // The first block is not checked as it won't receive any carry.
-            // A carry is a fresh ciphertext, adding it increases the noise level by NOMINAL, an
-            // extra NOMINAL of margin is kept.
+            // A carry is a fresh ciphertext, adding it increases the noise level by NOMINAL.
             let all_blocks_can_receive_carry = blocks[1..].iter().all(|b| {
                 max_degree_to_receive_carry.validate(b.degree).is_ok()
                     && self
                         .key
                         .max_noise_level
-                        .validate(b.noise_level() + NoiseLevel::NOMINAL * 2)
+                        .validate(b.noise_level() + NoiseLevel::NOMINAL)
                         .is_ok()
             });
 
