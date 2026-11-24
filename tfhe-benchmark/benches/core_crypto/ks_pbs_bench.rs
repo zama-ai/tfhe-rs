@@ -275,6 +275,7 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                         }
                     }
                 };
+                benchmark::zopt_ks64_params::zopt_ks64_barrier(&bench_id);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
                     b.iter_batched(

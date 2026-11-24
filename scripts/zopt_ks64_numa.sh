@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Checks where the zopt KS64 benchmarks place their keys over the NUMA nodes and how
-# the throughput depends on it: runs a benchmark with and without the memory
-# interleaved over the nodes, at a pinned batch, and samples every 15 s the memory of
-# the benchmark process per node (all of it, and its largest mapping: the key).
+# Compares two NUMA placements of the zopt KS64 keys at a pinned batch: one process with
+# the memory interleaved over the nodes, and one process per node with its own copy of
+# the keys. Samples every 15 s the memory of a benchmark process per node (all of it,
+# and its largest mapping: the key). The first-touch runs are in the history.
 #
 # Usage: scripts/zopt_ks64_numa.sh <ks_pbs|pbs128> <cargo toolchain argument>
 set -euo pipefail
@@ -63,21 +63,43 @@ variant() {
     ZOPT_KS64_TAG="$1" "${@:2}" bash -c "$(declare -f cargo_bench); BENCH=${BENCH} TOOLCHAIN=${TOOLCHAIN} cargo_bench"
 }
 
+NODES=$(ls -d /sys/devices/system/node/node[0-9]* | wc -l)
+
+# One process per NUMA node, each on the cores and the memory of its node, so with its
+# own copy of the keys, at 1/NODES of the batch. A barrier before each set keeps the
+# processes on the same set; the machine throughput is the sum of the processes'.
+per_node() {
+    local tag="$1" batch="$2" exe barrier n
+    exe=$(cargo "${TOOLCHAIN}" bench --no-run --message-format=json --bench "core_crypto-${BENCH//_/-}" \
+        --features=boolean,shortint,internal-keycache -p tfhe-benchmark \
+        | grep -o '"executable":"[^"]*deps/core_crypto_[^"]*"' | tail -1 | cut -d'"' -f4)
+    barrier=$(mktemp -d)
+    echo "=== variant ${tag}: ${NODES} processes of batch $((batch / NODES)), ${exe}"
+    for n in $(seq 0 $((NODES - 1))); do
+        (cd tfhe-benchmark && ZOPT_KS64_TAG="${tag}_N${n}" ZOPT_KS64_BATCH=$((batch / NODES)) \
+            ZOPT_KS64_BARRIER_DIR="${barrier}" ZOPT_KS64_BARRIER_N="${NODES}" \
+            CARGO_TARGET_DIR="$(pwd)/../target" \
+            numactl --cpunodebind="${n}" --membind="${n}" "${exe}" --bench \
+            > "${barrier}.${n}.log" 2>&1) &
+    done
+    wait
+    for n in $(seq 0 $((NODES - 1))); do
+        echo "=== node ${n}"
+        cat "${barrier}.${n}.log"
+    done
+}
+
 case "${BENCH}" in
 ks_pbs)
     export ZOPT_KS64_BATCH=2048
     ZOPT_KS64_ONLY=none cargo_bench
-    for name in BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128 \
-        ZOPT_KS64_160_S125_2M160_BOOTSTRAP_COST; do
-        export ZOPT_KS64_ONLY="${name}"
-        variant _NUMA_FIRST_TOUCH env
-        variant _NUMA_INTERLEAVE numactl --interleave=all
-    done
+    variant _INTERLEAVE numactl --interleave=all
+    per_node _PER_NODE 2048
     ;;
 pbs128)
     # One squashing PBS per core per iteration: the largest keys take seconds each.
     export ZOPT_KS64_BATCH=192
     variant _INTERLEAVE numactl --interleave=all
-    variant _FIRST_TOUCH env
+    per_node _PER_NODE 192
     ;;
 esac

@@ -205,6 +205,7 @@ fn pbs_128(
                     find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
                 }
             };
+            benchmark::zopt_ks64_params::zopt_ks64_barrier(&id);
             bench_group.throughput(Throughput::Elements(elements));
             bench_group.bench_function(&id, |b| {
                 b.iter_batched(

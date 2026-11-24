@@ -414,3 +414,45 @@ pub const ZOPT_KS64_PARAMS: [(ClassicPBSParameters, NoiseSquashingParameters, &s
         "ZOPT_KS64_160_S125_2M160_BOOTSTRAP_COST",
     ),
 ];
+
+/// Waits until `ZOPT_KS64_BARRIER_N` processes reach the barrier of `id` in the directory
+/// `ZOPT_KS64_BARRIER_DIR` (no-op without it), so that the processes of a per-NUMA-node
+/// run measure the same set at the same time.
+pub fn zopt_ks64_barrier(id: &str) {
+    let Ok(dir) = std::env::var("ZOPT_KS64_BARRIER_DIR") else {
+        return;
+    };
+    let n: usize = std::env::var("ZOPT_KS64_BARRIER_N")
+        .expect("ZOPT_KS64_BARRIER_N")
+        .parse()
+        .expect("ZOPT_KS64_BARRIER_N");
+    let prefix: String = id
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    // The tag differs between the processes: drop it from the barrier name.
+    let prefix = match std::env::var("ZOPT_KS64_TAG") {
+        Ok(tag) if !tag.is_empty() => prefix.replace(&tag, ""),
+        _ => prefix,
+    };
+    let dir = std::path::PathBuf::from(dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(format!("{prefix}.{}", std::process::id())), b"").unwrap();
+    loop {
+        let arrived = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter(|entry| {
+                entry
+                    .as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(&format!("{prefix}."))
+            })
+            .count();
+        if arrived >= n {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
