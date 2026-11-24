@@ -619,11 +619,26 @@ impl CudaServerKey {
         &self.key.key
     }
 
-    /// Returns the ksk needed to keyswitch from cpk to compute params
-    pub(crate) fn cpk_key_switching_key(&self) -> CudaKeySwitchingKey<'_> {
-        CudaKeySwitchingKey {
-            key_switching_key_material: self.key.cpk_key_switching_key_material.as_ref().unwrap(),
-            dest_server_key: &self.key.key,
+    /// Calls `f` with the key that expands compact lists: the casting key if the key has one,
+    /// otherwise the computing key, as the CPU does in
+    /// [ServerKey::integer_compact_ciphertext_list_expansion_mode]
+    pub(in crate::high_level_api) fn with_compact_list_expansion_key<R>(
+        &self,
+        f: impl FnOnce(&CudaCompactCiphertextListExpansionKey<'_>) -> R,
+    ) -> R {
+        match self.key.cpk_key_switching_key_material.as_ref() {
+            Some(key_switching_key_material) => {
+                let casting_key = CudaKeySwitchingKey {
+                    key_switching_key_material,
+                    dest_server_key: &self.key.key,
+                };
+                f(&CudaCompactCiphertextListExpansionKey::CastAndUnpack(
+                    &casting_key,
+                ))
+            }
+            None => f(&CudaCompactCiphertextListExpansionKey::UnpackAndSanitize(
+                &self.key.key,
+            )),
         }
     }
 
@@ -833,6 +848,8 @@ mod hpu {
 
 use crate::high_level_api::keys::inner::IntegerServerKeyConformanceParams;
 
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::compact_list::CudaCompactCiphertextListExpansionKey;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::key_switching_key::{CudaKeySwitchingKey, CudaKeySwitchingKeyMaterial};
 #[cfg(feature = "gpu")]
