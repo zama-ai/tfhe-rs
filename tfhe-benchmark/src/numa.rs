@@ -14,25 +14,51 @@ pub struct NumaReplicated<T> {
     replica_of_cpu: Vec<usize>,
 }
 
+/// The address and the length in bytes of `slice`, a memory region to bind.
+pub fn region<T>(slice: &[T]) -> (usize, usize) {
+    (slice.as_ptr() as usize, std::mem::size_of_val(slice))
+}
+
 impl<T: Clone + Send + Sync> NumaReplicated<T> {
     /// One copy of `value` per NUMA node the process may run on.
+    ///
+    /// The copies are only allocated on their nodes: the automatic NUMA balancing of Linux
+    /// may move their pages later, see [`Self::new_bound`].
     pub fn new(value: &T) -> Self {
+        Self::new_bound(value, |_| Vec::new())
+    }
+
+    /// One copy of `value` per NUMA node the process may run on, the memory `regions` of
+    /// each copy bound to its node.
+    ///
+    /// Without the binding, a thread that moves to another node during an operation reads
+    /// the copy of its former node from afar, and the automatic NUMA balancing moves the
+    /// pages of that copy toward it: over time, the copies get mixed over the nodes.
+    pub fn new_bound(value: &T, regions: impl Fn(&T) -> Vec<(usize, usize)> + Sync) -> Self {
         let nodes = linux::nodes();
         if nodes.len() < 2 {
             return Self::single(value.clone());
         }
-        Self::on_nodes(value, &nodes)
+        Self::on_nodes(value, &nodes, &regions)
     }
 
     /// One copy of `value` per node of `nodes`.
-    fn on_nodes(value: &T, nodes: &[linux::Node]) -> Self {
+    fn on_nodes(
+        value: &T,
+        nodes: &[linux::Node],
+        regions: &(impl Fn(&T) -> Vec<(usize, usize)> + Sync),
+    ) -> Self {
         let replicas = std::thread::scope(|scope| {
             let handles: Vec<_> = nodes
                 .iter()
                 .map(|node| {
                     scope.spawn(move || {
                         linux::bind_current_thread(node);
-                        value.clone()
+                        let replica = value.clone();
+                        for (address, len) in regions(&replica) {
+                            linux::bind_memory(address, len, node);
+                        }
+                        replica
                     })
                 })
                 .collect();
@@ -173,6 +199,41 @@ mod linux {
         }
     }
 
+    /// Binds the whole pages of the `len` bytes at `address` to the memory of `node`, moving
+    /// them there if needed. Pages with this policy are not moved by the NUMA balancing.
+    pub fn bind_memory(address: usize, len: usize, node: &Node) {
+        const MPOL_BIND: libc::c_ulong = 2;
+        const MPOL_MF_MOVE: libc::c_ulong = 1 << 1;
+        // SAFETY: sysconf has no preconditions.
+        let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+        let start = address.next_multiple_of(page);
+        let end = (address + len) / page * page;
+        if end <= start {
+            return;
+        }
+        let mut mask = vec![0u64; node.id / 64 + 1];
+        mask[node.id / 64] |= 1 << (node.id % 64);
+        // SAFETY: the range is mapped memory of the value, the mask outlives the call.
+        let result = unsafe {
+            libc::syscall(
+                libc::SYS_mbind,
+                start,
+                end - start,
+                MPOL_BIND,
+                mask.as_ptr(),
+                mask.len() * 64 + 1,
+                MPOL_MF_MOVE,
+            )
+        };
+        assert_eq!(
+            result,
+            0,
+            "mbind on node {}: {}",
+            node.id,
+            std::io::Error::last_os_error()
+        );
+    }
+
     /// The CPU the calling thread runs on.
     pub fn current_cpu() -> Option<usize> {
         // SAFETY: no arguments, returns -1 on error.
@@ -193,6 +254,8 @@ mod linux {
     }
 
     pub fn bind_current_thread(_node: &Node) {}
+
+    pub fn bind_memory(_address: usize, _len: usize, _node: &Node) {}
 
     pub fn current_cpu() -> Option<usize> {
         None
@@ -235,16 +298,18 @@ mod tests {
                 cpus: node.cpus[half..].to_vec(),
             },
         ];
-        let replicated = NumaReplicated::on_nodes(&vec![7u8; 4096], &nodes);
+        let value = vec![7u8; 1 << 20];
+        let replicated =
+            NumaReplicated::on_nodes(&value, &nodes, &|replica: &Vec<u8>| vec![region(replica)]);
         assert_eq!(replicated.len(), 2);
         std::thread::scope(|scope| {
             for (replica, fake) in nodes.iter().enumerate() {
-                let replicated = &replicated;
+                let (replicated, value) = (&replicated, &value);
                 scope.spawn(move || {
                     linux::bind_current_thread(fake);
                     let local = replicated.local();
                     assert!(std::ptr::eq(local, &replicated.replicas[replica]));
-                    assert_eq!(local, &vec![7u8; 4096]);
+                    assert_eq!(local, value);
                 });
             }
         });

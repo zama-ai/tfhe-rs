@@ -229,10 +229,13 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                 // operation using the copy of the node it runs on.
                 let replicas = (std::env::var("ZOPT_KS64_NUMA").as_deref() == Ok("replicate"))
                     .then(|| {
-                        benchmark::numa::NumaReplicated::new(&(
-                            ksk_big_to_small.clone(),
-                            fourier_bsk.clone(),
-                        ))
+                        benchmark::numa::NumaReplicated::new_bound(
+                            &(ksk_big_to_small.clone(), fourier_bsk.clone()),
+                            |(ksk, bsk)| {
+                                use benchmark::numa::region;
+                                vec![region(ksk.as_ref()), region(bsk.as_view().data())]
+                            },
+                        )
                     });
                 if let Some(replicas) = &replicas {
                     println!("{bench_id}: keys copied on {} NUMA nodes", replicas.len());

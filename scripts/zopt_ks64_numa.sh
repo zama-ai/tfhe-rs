@@ -95,12 +95,23 @@ per_node() {
     echo "=== variant ${tag} done, status ${status}"
 }
 
+# Runs a command with the automatic NUMA balancing of Linux off, to check that the
+# binding of the key copies keeps it from moving them.
+no_balancing() {
+    local before
+    before=$(cat /proc/sys/kernel/numa_balancing)
+    sudo sysctl -qw kernel.numa_balancing=0 || { echo "=== no sudo, skipped: $*"; return 0; }
+    "$@"
+    sudo sysctl -qw kernel.numa_balancing="${before}"
+}
+
 case "${BENCH}" in
 ks_pbs)
     export ZOPT_KS64_BATCH=2048
     ZOPT_KS64_ONLY=none cargo_bench
     variant _INTERLEAVE numactl --interleave=all
     variant _REPLICATED env ZOPT_KS64_NUMA=replicate
+    no_balancing variant _REPLICATED_NO_BALANCING env ZOPT_KS64_NUMA=replicate
     per_node _PER_NODE 2048
     ;;
 pbs128)
@@ -109,6 +120,7 @@ pbs128)
     ZOPT_KS64_ONLY=none cargo_bench
     variant _INTERLEAVE numactl --interleave=all
     variant _REPLICATED env ZOPT_KS64_NUMA=replicate
+    no_balancing variant _REPLICATED_NO_BALANCING env ZOPT_KS64_NUMA=replicate
     per_node _PER_NODE 192
     ;;
 esac

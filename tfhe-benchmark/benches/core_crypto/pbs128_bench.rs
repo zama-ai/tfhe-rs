@@ -190,8 +190,14 @@ fn pbs_128(
             }
             // ZOPT_KS64_NUMA=replicate copies the key once per NUMA node, each operation
             // using the copy of the node it runs on.
-            let replicas = (std::env::var("ZOPT_KS64_NUMA").as_deref() == Ok("replicate"))
-                .then(|| benchmark::numa::NumaReplicated::new(&fourier_bsk));
+            let replicas =
+                (std::env::var("ZOPT_KS64_NUMA").as_deref() == Ok("replicate")).then(|| {
+                    benchmark::numa::NumaReplicated::new_bound(&fourier_bsk, |bsk| {
+                        use benchmark::numa::region;
+                        let (re0, re1, im0, im1) = bsk.as_view().data();
+                        vec![region(re0), region(re1), region(im0), region(im1)]
+                    })
+                });
             if let Some(replicas) = &replicas {
                 println!("{id}: key copied on {} NUMA nodes", replicas.len());
             }
