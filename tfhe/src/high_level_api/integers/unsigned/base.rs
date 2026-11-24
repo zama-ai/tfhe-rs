@@ -1267,7 +1267,17 @@ where
                     streams,
                 );
                 let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
-                if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
+                let current_num_blocks = result.ciphertext.d_blocks.lwe_ciphertext_count().0;
+                if target_num_blocks >= current_num_blocks {
+                    let result = if target_num_blocks > current_num_blocks {
+                        cuda_key.key.key.extend_radix_with_trivial_zero_blocks_msb(
+                            &result,
+                            target_num_blocks - current_num_blocks,
+                            streams,
+                        )
+                    } else {
+                        result
+                    };
                     Ok((
                         FheUint::new(
                             result,
@@ -1418,7 +1428,17 @@ where
                     streams,
                 );
                 let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
-                if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
+                let current_num_blocks = result.ciphertext.d_blocks.lwe_ciphertext_count().0;
+                if target_num_blocks >= current_num_blocks {
+                    let result = if target_num_blocks > current_num_blocks {
+                        cuda_key.key.key.extend_radix_with_trivial_zero_blocks_msb(
+                            &result,
+                            target_num_blocks - current_num_blocks,
+                            streams,
+                        )
+                    } else {
+                        result
+                    };
                     Ok(FheUint::new(
                         result,
                         cuda_key.tag.clone(),
