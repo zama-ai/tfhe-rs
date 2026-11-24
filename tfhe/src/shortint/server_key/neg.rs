@@ -208,6 +208,6 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
         let mut z = ct.degree.get().div_ceil(msg_mod);
         z = z.wrapping_mul(msg_mod);
 
-        self.max_degree.validate(Degree::new(z))
+        self.max_degree().validate(Degree::new(z))
     }
 }

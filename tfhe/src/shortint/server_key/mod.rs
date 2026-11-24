@@ -479,6 +479,13 @@ pub struct GenericServerKey<AP> {
     pub ciphertext_modulus: CiphertextModulus,
 }
 
+impl<AP> GenericServerKey<AP> {
+    /// Maximum degree a ciphertext can reach before its carry buffer must be emptied.
+    pub fn max_degree(&self) -> MaxDegree {
+        self.max_degree
+    }
+}
+
 impl<AP: Clone> GenericServerKey<&AP> {
     pub fn owned(&self) -> GenericServerKey<AP> {
         GenericServerKey {

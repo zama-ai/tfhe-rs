@@ -189,7 +189,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
         let final_operation_count = ct_left.degree.get() + z;
 
-        self.max_degree
+        self.max_degree()
             .validate(Degree::new(final_operation_count))?;
 
         self.max_noise_level
