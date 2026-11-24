@@ -165,28 +165,29 @@ impl ServerKey {
                 self.propagate_single_carry_parallelized(&mut blocks[..]);
             }
         } else {
-            let maybe_highest_degree =
-                // We do not care about degree of 'first' block as it won't receive any carries
-                blocks[1..]
-                    .iter()
-                    .max_by(|block_a, block_b| block_a.degree.get().cmp(&block_b.degree.get()))
-                    .map(|block| block.degree.get());
-
             // A block must keep room for the carry it receives,
             // The carry will at most be `carry_modulus - 1`, because it's
             // extracted from a block of degree at most `message_modulus * carry_modulus - 1`.
-            let max_degree_to_receive_carry =
+            let max_degree_to_receive_carry = MaxDegree::new(
                 MaxDegree::from_msg_carry_modulus(self.key.message_modulus, self.key.carry_modulus)
                     .get()
-                    - (self.key.carry_modulus.0 - 1);
+                    - (self.key.carry_modulus.0 - 1),
+            );
+
+            // The first block is not checked as it won't receive any carry.
+            // A carry is a fresh ciphertext, adding it increases the noise level by NOMINAL, an
+            // extra NOMINAL of margin is kept.
+            let all_blocks_can_receive_carry = blocks[1..].iter().all(|b| {
+                max_degree_to_receive_carry.validate(b.degree).is_ok()
+                    && self
+                        .key
+                        .max_noise_level
+                        .validate(b.noise_level() + NoiseLevel::NOMINAL * 2)
+                        .is_ok()
+            });
 
             let mut start_index = 0;
-            if maybe_highest_degree.is_some_and(|degree| degree > max_degree_to_receive_carry)
-                || blocks[1..]
-                    .iter()
-                    // We need to be able to add a carry, which is a fresh ciphertext
-                    .any(|b| b.noise_level().get() >= self.key.max_noise_level.get() - 1)
-            {
+            if !all_blocks_can_receive_carry {
                 // At least one of the blocks than can receive a carry, won't be able to,
                 // so we need to do a first 'partial' round
                 let (mut message_blocks, carry_blocks) = extract_message_and_carry_blocks(blocks);
