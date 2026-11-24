@@ -1,6 +1,6 @@
-Similarly to the [CPU benchmarks](../cpu/cpu-erc7984.md), the latency and throughput of a confidential ERC7984 token transfer can be measured on a single HPU:
+Similarly to the [CPU benchmarks](../cpu/cpu-erc7984.md), the latency and throughput of a confidential ERC7984 token transfer can be measured on a cluster of x8 HPU:
 
-![](../../../.gitbook/assets/hpu-hlapi-erc7984-benchmark-hpux1-latency-throughput.svg)
+![](../../../.gitbook/assets/hpu-hlapi-erc7984-benchmark-hpux8-latency-throughput-ciphertext.svg)
 
 The whitepaper version of the ERC7984 is the same implementation than on CPU or GPU using a selection between the amount to be transferred and 0 based on result of comparison between this amount and from_amount followed by an addition and a subtraction. The hpu_optim version is very much the same processing but with a single HPU instruction (IOp) doing the complete ERC7984 processing.
 

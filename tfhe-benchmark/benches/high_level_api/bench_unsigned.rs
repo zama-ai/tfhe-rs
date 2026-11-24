@@ -58,8 +58,13 @@ fn main() {
         let config_path = ShellString::new(
             "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
         );
-        let hpu_device =
-            HpuDevice::from_config(&config_path.expand(), false).expect("Hpu device init failed");
+        let hpu_config = HpuConfig::from_toml(config_path.expand().as_str());
+        let hpu_device = HpuDevice::new(
+            hpu_config.clone(),
+            false,
+            &tfhe::core_crypto::hpu::create_hpu_lookuptable,
+        )
+        .expect("Hpu device init failed");
 
         let config = Config::from_hpu_device(&hpu_device);
         let cks = ClientKey::generate(config);

@@ -10,7 +10,11 @@ The cryptographic parameters `HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M12
 
 ## 8xHPU
 Below are the execution results for a cluster of 8x Alveo v80 boards.
-Currently, the [Zama HPU Compiler](https://github.com/zama-ai/zhc) does not automatically split large operations across multiple HPU, though we can manually split large operations (such as multiplication) across 2 to 4 HPU. Because of this limitation, the latency on an 8x HPU cluster is currently identical to that of a single HPU. Consequently, the data below highlights only the operation throughput of the 8x HPU cluster.
+Starting with TFHE-rs v1.9.0, the associated [Zama HPU Compiler](https://github.com/zama-ai/zhc) can automatically split large operations across multiple HPUs. Because its integration with the standard TFHE-rs benchmarks is still incomplete, latency on an 8x HPU cluster must be measured using the [fw_dyn](https://github.com/zama-ai/tfhe-rs/blob/main/tfhe/examples/hpu/fw_dyn.rs) example. Consequently, we include only a small subset of operations here to illustrate how multi-HPU parallelization significantly reduces latency for heavy operations—such as multiplication and division—while offering minimal gains for smaller ones like addition and bit shifts.
+
+### Encrypted/encrypted operations latency
+
+![](../../../.gitbook/assets/hpu-integer-benchmark-hpux8-tuniform-2m128-latency-ciphertext.svg)
 
 ### Encrypted/encrypted operations throughput
 
