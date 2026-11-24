@@ -353,6 +353,12 @@ impl TestContext {
         self.cpu_sks.clone()
     }
 
+    /// The client key GPU executors build their own server key from.
+    #[cfg(feature = "gpu")]
+    pub(crate) fn client_key(&self) -> &ClientKey {
+        &self.cks
+    }
+
     /// The rng for clear values, input states and dirtying amounts, derived from the seed.
     /// Meant to be called once per run.
     pub(crate) fn new_rng(&self) -> StdRng {

@@ -38,7 +38,7 @@ use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::gpu::{CudaOprfServerKey, CudaServerKey};
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 pub use crate::integer::server_key::radix_parallel::MatchValues;
-use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
+use crate::integer::{BooleanBlock, ClientKey, RadixCiphertext, RadixClientKey, ServerKey, U256};
 use std::sync::Arc;
 // Macro to generate tests for all parameter sets
 macro_rules! create_gpu_parameterized_test{
@@ -102,9 +102,18 @@ impl<F> GpuFunctionExecutor<F> {
 
 impl<F> GpuFunctionExecutor<F> {
     pub(crate) fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
+        self.setup_with_client_key(cks.as_ref());
+    }
+
+    /// Setup for the tests written with the radix test harness, from the context's client key
+    /// (`TestContext::client_key`).
+    ///
+    /// The GPU server key is generated from the client key, the CPU server key of the context
+    /// is not used.
+    pub(crate) fn setup_with_client_key(&mut self, cks: &ClientKey) {
         let streams = CudaStreams::new_multi_gpu();
 
-        let sks = CudaServerKey::new(cks.as_ref(), &streams);
+        let sks = CudaServerKey::new(cks, &streams);
         streams.synchronize();
         let context = GpuContext {
             streams,
@@ -586,6 +595,74 @@ where
             CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.1, &context.streams);
 
         let d_res = (self.func)(&context.sks, &d_ctxt_1, &d_ctxt_2, &context.streams);
+
+        (
+            d_res.0.to_radix_ciphertext(&context.streams),
+            d_res.1.to_boolean_block(&context.streams),
+        )
+    }
+}
+
+/// For unsigned overflowing scalar operations with a signed scalar
+/// (the radix test harness checks the overflow flag of negative and out of range scalars)
+impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, i64), (RadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        i64,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a RadixCiphertext, i64)) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
+
+        (
+            d_res.0.to_radix_ciphertext(&context.streams),
+            d_res.1.to_boolean_block(&context.streams),
+        )
+    }
+}
+
+/// For unsigned overflowing scalar operations with a scalar narrower than the radix
+/// (the radix test harness checks the scalar is correctly extended to the radix width)
+impl<'a, F> FunctionExecutor<(&'a RadixCiphertext, u8), (RadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaUnsignedRadixCiphertext,
+        u8,
+        &CudaStreams,
+    ) -> (CudaUnsignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(&mut self, input: (&'a RadixCiphertext, u8)) -> (RadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaUnsignedRadixCiphertext =
+            CudaUnsignedRadixCiphertext::from_radix_ciphertext(input.0, &context.streams);
+
+        let d_res = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
 
         (
             d_res.0.to_radix_ciphertext(&context.streams),

@@ -561,6 +561,43 @@ where
     }
 }
 
+/// For signed overflowing scalar operations with a scalar narrower than the radix
+/// (the radix test harness checks the scalar is correctly sign extended to the radix width)
+impl<'a, F> FunctionExecutor<(&'a SignedRadixCiphertext, i8), (SignedRadixCiphertext, BooleanBlock)>
+    for GpuFunctionExecutor<F>
+where
+    F: Fn(
+        &CudaServerKey,
+        &CudaSignedRadixCiphertext,
+        i8,
+        &CudaStreams,
+    ) -> (CudaSignedRadixCiphertext, CudaBooleanBlock),
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, &sks);
+    }
+
+    fn execute(
+        &mut self,
+        input: (&'a SignedRadixCiphertext, i8),
+    ) -> (SignedRadixCiphertext, BooleanBlock) {
+        let context = self
+            .context
+            .as_ref()
+            .expect("setup was not properly called");
+
+        let d_ctxt_1: CudaSignedRadixCiphertext =
+            CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input.0, &context.streams);
+
+        let (d_res, d_res_bool) = (self.func)(&context.sks, &d_ctxt_1, input.1, &context.streams);
+
+        (
+            d_res.to_signed_radix_ciphertext(&context.streams),
+            d_res_bool.to_boolean_block(&context.streams),
+        )
+    }
+}
+
 // for signed overflowing scalar ops
 impl<'a, F>
     FunctionExecutor<(&'a SignedRadixCiphertext, i64), (SignedRadixCiphertext, BooleanBlock)>
