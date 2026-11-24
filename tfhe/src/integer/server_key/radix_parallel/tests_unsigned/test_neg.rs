@@ -75,7 +75,8 @@ where
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     let max_noise_level = sks.key.max_noise_level;
-    let max_degree = sks.key.max_degree;
+    let max_degree =
+        MaxDegree::before_sequential_carry_prop(sks.message_modulus(), sks.carry_modulus());
 
     let trivial0 = sks.create_trivial_radix(0u64, NB_CTXT);
     executor.setup(&cks, sks);

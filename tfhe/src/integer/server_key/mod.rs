@@ -70,6 +70,27 @@ impl MaxDegree {
     }
 }
 
+impl MaxDegree {
+    /// Maximum degree a block of a [`RadixCiphertext`](`crate::integer::RadixCiphertext`) can
+    /// have so that it can still receive the carry extracted from the preceding block during the
+    /// sequential carry propagation.
+    ///
+    /// That carry is at most `carry_modulus - 1`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either modulus is 0.
+    pub(crate) fn before_sequential_carry_prop(
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Self {
+        let full_max_degree = Self::from_msg_carry_modulus(message_modulus, carry_modulus);
+        let max_carry = carry_modulus.0 - 1;
+
+        Self::new(full_max_degree.get() - max_carry)
+    }
+}
+
 impl ServerKey {
     /// Generates a server key.
     ///
@@ -289,6 +310,14 @@ mod test {
     use super::*;
     use crate::integer::RadixClientKey;
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
+
+    #[test]
+    fn test_max_degree_before_sequential_carry_prop() {
+        // msg_mod = 4, carry_mod = 4, (msg_mod * carry_mod - 1) - (carry_mod - 1) = 12
+        let max_degree =
+            MaxDegree::before_sequential_carry_prop(MessageModulus(4), CarryModulus(4));
+        assert_eq!(max_degree.get(), 12);
+    }
 
     /// https://github.com/zama-ai/tfhe-rs/issues/460
     /// Problem with CompressedServerKey degree being set to shortint MaxDegree not accounting for

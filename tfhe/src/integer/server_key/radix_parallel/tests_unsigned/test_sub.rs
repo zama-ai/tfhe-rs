@@ -9,6 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::shortint::ciphertext::MaxDegree;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -191,7 +192,8 @@ where
     );
 
     let max_noise_level = sks.key.max_noise_level;
-    let max_degree = sks.key.max_degree;
+    let max_degree =
+        MaxDegree::before_sequential_carry_prop(sks.message_modulus(), sks.carry_modulus());
 
     executor.setup(&cks, sks);
 
