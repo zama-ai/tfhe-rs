@@ -35,10 +35,10 @@
  * shift bit.
  *
  * This costs about half the PBS of the bit-level barrel shifter; see
- * int_shift_and_rotate_buffer::use_block_path for when it is selected.
+ * int_barrel_shifter_buffer::use_block_path for when it is selected.
  *
  * Only the rounds live here. The result is left in mem->messages, uncleaned,
- * and host_shift_and_rotate_inplace finishes it with the one PBS both paths
+ * and host_barrel_shift_finish finishes it with the one PBS both paths
  * share: the cleaning LUT for a rotation, the overshift selection for a shift.
  * For an arithmetic right shift the input's sign bit is left in
  * mem->sign_block, which that overshift selection reads.
@@ -62,13 +62,6 @@ host_block_shift_and_rotate(CudaStreams streams,
   auto gpu_index = streams.gpu_index(0);
   uint32_t bits_per_block = log2_int(message_modulus);
   auto num_blocks = lwe_array->num_radix_blocks;
-
-  if (lwe_array->num_radix_blocks != lwe_shift->num_radix_blocks)
-    PANIC("Cuda error: lwe_shift and lwe_array num radix blocks must be "
-          "the same")
-  if (lwe_array->lwe_dimension != lwe_shift->lwe_dimension)
-    PANIC("Cuda error: lwe_shift and lwe_array lwe_dimension must be "
-          "the same")
 
   bool is_left =
       (mem->shift_type == LEFT_SHIFT || mem->shift_type == LEFT_ROTATE);

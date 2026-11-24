@@ -783,7 +783,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn scratch_cuda_shift_and_rotate_64_inplace_async(
+    pub fn scratch_cuda_shift_64_inplace_async(
         streams: CudaStreamsFFI,
         mem_ptr: *mut *mut i8,
         bsk_params: CudaLweBootstrapKeyParamsFFI,
@@ -797,7 +797,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
-    pub fn cuda_shift_and_rotate_64_inplace_async(
+    pub fn cuda_shift_64_inplace_async(
         streams: CudaStreamsFFI,
         lwe_array: *mut CudaRadixCiphertextFFI,
         lwe_shift: *const CudaRadixCiphertextFFI,
@@ -807,10 +807,39 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cleanup_cuda_shift_and_rotate_64_inplace(
+    pub fn cleanup_cuda_shift_64_inplace(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_rotate_64_inplace_async(
         streams: CudaStreamsFFI,
-        mem_ptr_void: *mut *mut i8,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        rotate_type: SHIFT_OR_ROTATE_TYPE,
+        scalar_divisor_ffi: *const CudaScalarDivisorFFI,
+        active_bits_divisor: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_rotate_64_inplace_async(
+        streams: CudaStreamsFFI,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        lwe_shift: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        scalar_divisor_ffi: *const CudaScalarDivisorFFI,
+        divisor_has_at_least_one_set: *const u64,
+        decomposed_divisor: *const u64,
+        num_scalars_divisor: u32,
     );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_rotate_64_inplace(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
     pub fn scratch_cuda_integer_comparison_64_async(

@@ -10,6 +10,7 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
     GlweDimension, LweCiphertextCount, LweDimension, Numeric, PolynomialSize, UnsignedInteger,
 };
+use crate::integer::bigint::U2048;
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext, KsType};
@@ -120,6 +121,200 @@ pub(crate) fn prepare_default_scalar_divisor() -> CudaScalarDivisorFFI {
         divisor_has_more_bits_than_numerator: false,
         is_chosen_multiplier_geq_two_pow_numerator: false,
     }
+}
+
+/// Clear operands of an unsigned scalar div rem, laid out as the backend reads them.
+///
+/// Owns the buffers scalar_divisor points to, so it has to outlive the backend calls.
+pub(crate) struct UnsignedScalarDivRemOperands {
+    scalar_divisor: CudaScalarDivisorFFI,
+    decomposed_divisor: Vec<u64>,
+    divisor_has_at_least_one_set: Vec<u64>,
+    active_bits_divisor: u32,
+    _decomposed_multiplier: Vec<u64>,
+    _multiplier_has_at_least_one_set: Vec<u64>,
+}
+
+impl UnsignedScalarDivRemOperands {
+    /// Prepares the division by divisor of a numerator of num_blocks blocks.
+    pub(crate) fn new<Scalar>(
+        divisor: Scalar,
+        message_modulus: MessageModulus,
+        num_blocks: u32,
+    ) -> Self
+    where
+        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    {
+        let msg_bits = message_modulus.0.ilog2() as usize;
+        let numerator_bits = u32::try_from(msg_bits).unwrap() * num_blocks;
+
+        let mut scalar_divisor = prepare_default_scalar_divisor();
+
+        let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
+        let log2_divisor_exceeds_threshold =
+            MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
+        let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
+
+        let shift_pre = if chosen_multiplier.multiplier
+            >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+            && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+            && !is_divisor_power_of_two
+            && !log2_divisor_exceeds_threshold
+        {
+            let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
+            let two_pow_e = divisor_dp
+                & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
+            let e = MiniUnsignedInteger::ilog2(two_pow_e);
+            let divisor_odd_dp = divisor_dp / two_pow_e;
+
+            assert!(numerator_bits > e && e <= u32::try_from(Scalar::BITS).unwrap());
+            let divisor_odd: Scalar = divisor_odd_dp.cast_into();
+            chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
+            e as u64
+        } else {
+            0
+        };
+
+        scalar_divisor.shift_pre = shift_pre;
+        scalar_divisor.shift_post = chosen_multiplier.shift_post;
+        scalar_divisor.is_chosen_multiplier_geq_two_pow_numerator = chosen_multiplier.multiplier
+            >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+        scalar_divisor.chosen_multiplier_num_bits = chosen_multiplier.l;
+
+        let rhs = if scalar_divisor.is_chosen_multiplier_geq_two_pow_numerator {
+            chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+        } else {
+            chosen_multiplier.multiplier
+        };
+
+        let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        let multiplier_has_at_least_one_set =
+            has_at_least_one_set_per_bit_position(&decomposed_multiplier, msg_bits);
+
+        scalar_divisor.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
+        scalar_divisor.chosen_multiplier_has_at_least_one_set =
+            multiplier_has_at_least_one_set.as_ptr();
+        scalar_divisor.num_scalars = u32::try_from(decomposed_multiplier.len()).unwrap();
+        scalar_divisor.active_bits =
+            count_set_bits(&decomposed_multiplier, 2 * msg_bits * num_blocks as usize);
+        scalar_divisor.is_chosen_multiplier_pow2 = MiniUnsignedInteger::is_power_of_two(rhs);
+        scalar_divisor.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+        scalar_divisor.is_chosen_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+        scalar_divisor.ilog2_chosen_multiplier = if scalar_divisor.is_chosen_multiplier_pow2 {
+            MiniUnsignedInteger::ilog2(rhs)
+        } else {
+            0
+        };
+
+        let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        let divisor_has_at_least_one_set =
+            has_at_least_one_set_per_bit_position(&decomposed_divisor, msg_bits);
+
+        scalar_divisor.is_divisor_pow2 = is_divisor_power_of_two;
+        scalar_divisor.is_abs_divisor_one = divisor == Scalar::ONE;
+        scalar_divisor.ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
+        scalar_divisor.divisor_has_more_bits_than_numerator = log2_divisor_exceeds_threshold;
+
+        Self {
+            scalar_divisor,
+            active_bits_divisor: count_set_bits(
+                &decomposed_divisor,
+                msg_bits * num_blocks as usize,
+            ),
+            decomposed_divisor,
+            divisor_has_at_least_one_set,
+            _decomposed_multiplier: decomposed_multiplier,
+            _multiplier_has_at_least_one_set: multiplier_has_at_least_one_set,
+        }
+    }
+
+    fn num_scalars_divisor(&self) -> u32 {
+        u32::try_from(self.decomposed_divisor.len()).unwrap()
+    }
+}
+
+/// Clear operands of the remainder by the bit width of a rotated ciphertext, which brings
+/// the encrypted amount of the rotation in the range its barrel shifter handles.
+///
+/// The backend only runs that remainder when the bit width is not a power of two, as the
+/// shifter reduces the amount by itself otherwise. Nothing is prepared in that case, and
+/// the accessors hand the backend null pointers and zeros.
+struct RotationModulus(Option<UnsignedScalarDivRemOperands>);
+
+impl RotationModulus {
+    fn new(message_modulus: MessageModulus, num_blocks: u32) -> Self {
+        let num_bits = message_modulus.0.ilog2() * num_blocks;
+        if num_bits.is_power_of_two() {
+            return Self(None);
+        }
+        // The divisor type has to be at least as wide as the numerator, here the amount, which
+        // has as many blocks as the rotated ciphertext. U2048 is the widest one, so it serves
+        // every width, where the CPU picks the smallest type that fits
+        assert!(
+            num_bits <= U2048::BITS,
+            "rotations by an amount that encrypts more than 2048 bits are not supported, \
+            got {num_bits} bits"
+        );
+        Self(Some(UnsignedScalarDivRemOperands::new(
+            U2048::from(u64::from(num_bits)),
+            message_modulus,
+            num_blocks,
+        )))
+    }
+
+    fn scalar_divisor(&self) -> *const CudaScalarDivisorFFI {
+        self.0.as_ref().map_or(std::ptr::null(), |operands| {
+            &raw const operands.scalar_divisor
+        })
+    }
+
+    fn active_bits_divisor(&self) -> u32 {
+        self.0
+            .as_ref()
+            .map_or(0, |operands| operands.active_bits_divisor)
+    }
+
+    fn divisor_has_at_least_one_set(&self) -> *const u64 {
+        self.0.as_ref().map_or(std::ptr::null(), |operands| {
+            operands.divisor_has_at_least_one_set.as_ptr()
+        })
+    }
+
+    fn decomposed_divisor(&self) -> *const u64 {
+        self.0.as_ref().map_or(std::ptr::null(), |operands| {
+            operands.decomposed_divisor.as_ptr()
+        })
+    }
+
+    fn num_scalars_divisor(&self) -> u32 {
+        self.0
+            .as_ref()
+            .map_or(0, UnsignedScalarDivRemOperands::num_scalars_divisor)
+    }
+}
+
+/// For each bit position inside a block of msg_bits bits, whether any block of the
+/// decomposed scalar has that bit set.
+fn has_at_least_one_set_per_bit_position(decomposed_scalar: &[u64], msg_bits: usize) -> Vec<u64> {
+    let mut has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, &bit) in decomposed_scalar.iter().enumerate() {
+        if bit == 1 {
+            has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+    has_at_least_one_set
+}
+
+fn count_set_bits(decomposed_scalar: &[u64], num_bits: usize) -> u32 {
+    let set_bits = decomposed_scalar
+        .iter()
+        .take(num_bits)
+        .filter(|&&bit| bit == 1);
+    u32::try_from(set_bits.count()).unwrap()
 }
 
 fn prepare_cuda_lwe_ct_ffi<T: UnsignedInteger>(
@@ -2714,94 +2909,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<T: UnsignedI
 {
     let bsk_params = bsk.params_ffi();
     let num_blocks = u32::try_from(quotient.d_blocks.lwe_ciphertext_count().0).unwrap();
-    let msg_bits = message_modulus.0.ilog2() as usize;
-    let numerator_bits = u32::try_from(msg_bits).unwrap() * num_blocks;
-
-    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
-
-    let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
-    let log2_divisor_exceeds_threshold = MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
-    let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
-
-    let shift_pre = if chosen_multiplier.multiplier
-        >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
-        && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
-        && !is_divisor_power_of_two
-        && !log2_divisor_exceeds_threshold
-    {
-        let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
-        let two_pow_e =
-            divisor_dp & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
-        let e = MiniUnsignedInteger::ilog2(two_pow_e);
-        let divisor_odd_dp = divisor_dp / two_pow_e;
-
-        assert!(numerator_bits > e && e <= u32::try_from(Scalar::BITS).unwrap());
-        let divisor_odd: Scalar = divisor_odd_dp.cast_into();
-        chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
-        e as u64
-    } else {
-        0
-    };
-
-    scalar_divisor_ffi.shift_pre = shift_pre;
-    scalar_divisor_ffi.shift_post = chosen_multiplier.shift_post;
-    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator =
-        chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
-    scalar_divisor_ffi.chosen_multiplier_num_bits = chosen_multiplier.l;
-
-    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
-        chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
-    } else {
-        chosen_multiplier.multiplier
-    };
-
-    let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-    let decomposer_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-    let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_rhs.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            multiplier_has_at_least_one_set[i % msg_bits] = 1;
-        }
-    }
-
-    scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
-    scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
-        multiplier_has_at_least_one_set.as_ptr();
-    scalar_divisor_ffi.num_scalars = u32::try_from(decomposed_multiplier.len()).unwrap();
-    scalar_divisor_ffi.active_bits = u32::try_from(
-        decomposed_multiplier
-            .iter()
-            .take(2 * msg_bits * num_blocks as usize)
-            .filter(|&&bit| bit == 1u64)
-            .count(),
-    )
-    .unwrap();
-    scalar_divisor_ffi.is_chosen_multiplier_pow2 = MiniUnsignedInteger::is_power_of_two(rhs);
-    scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
-    scalar_divisor_ffi.is_chosen_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
-    scalar_divisor_ffi.ilog2_chosen_multiplier = if scalar_divisor_ffi.is_chosen_multiplier_pow2 {
-        MiniUnsignedInteger::ilog2(rhs)
-    } else {
-        0
-    };
-
-    let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-    let decomposer_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
-    let mut divisor_has_at_least_one_set = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_divisor.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            divisor_has_at_least_one_set[i % msg_bits] = 1;
-        }
-    }
-
-    scalar_divisor_ffi.is_divisor_pow2 = is_divisor_power_of_two;
-    scalar_divisor_ffi.is_abs_divisor_one = divisor == Scalar::ONE;
-    scalar_divisor_ffi.ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
-    scalar_divisor_ffi.divisor_has_more_bits_than_numerator = log2_divisor_exceeds_threshold;
+    let operands = UnsignedScalarDivRemOperands::new(divisor, message_modulus, num_blocks);
 
     let h_clear_blocks =
         BlockDecomposer::with_early_stop_at_zero(divisor - Scalar::ONE, message_modulus.0.ilog2())
@@ -2833,16 +2941,6 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<T: UnsignedI
         &mut remainder_noise_levels,
     );
 
-    let num_scalars_divisor = u32::try_from(decomposed_divisor.len()).unwrap();
-    let active_bits_divisor = u32::try_from(
-        decomposed_divisor
-            .iter()
-            .take(msg_bits * num_blocks as usize)
-            .filter(|&&bit| bit == 1u64)
-            .count(),
-    )
-    .unwrap();
-
     scratch_cuda_integer_unsigned_scalar_div_rem_radix_64_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
@@ -2851,8 +2949,8 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<T: UnsignedI
         num_blocks,
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
-        &raw const scalar_divisor_ffi,
-        active_bits_divisor,
+        &raw const operands.scalar_divisor,
+        operands.active_bits_divisor,
         true,
     );
 
@@ -2863,10 +2961,10 @@ pub(crate) unsafe fn cuda_backend_unchecked_unsigned_scalar_div_rem<T: UnsignedI
         mem_ptr,
         bsk.ptrs().as_ptr(),
         ksks.ptr.as_ptr(),
-        &raw const scalar_divisor_ffi,
-        divisor_has_at_least_one_set.as_ptr(),
-        decomposed_divisor.as_ptr(),
-        num_scalars_divisor,
+        &raw const operands.scalar_divisor,
+        operands.divisor_has_at_least_one_set.as_ptr(),
+        operands.decomposed_divisor.as_ptr(),
+        operands.num_scalars_divisor(),
         clear_blocks.as_c_ptr(0),
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
         min(u32::try_from(clear_blocks.len()).unwrap(), num_blocks),
@@ -3070,67 +3168,7 @@ where
     Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
 {
     let bsk_params = bsk.params_ffi();
-    let numerator_bits = message_modulus.0.ilog2() * num_blocks;
-    let msg_bits = message_modulus.0.ilog2() as usize;
-
-    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
-
-    let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
-    scalar_divisor_ffi.is_divisor_pow2 = is_divisor_power_of_two;
-    scalar_divisor_ffi.is_abs_divisor_one = divisor == Scalar::ONE;
-    scalar_divisor_ffi.divisor_has_more_bits_than_numerator =
-        MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
-
-    let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-    let active_bits_divisor = u32::try_from(
-        decomposed_divisor
-            .iter()
-            .take(msg_bits * num_blocks as usize)
-            .filter(|&&bit| bit == 1u64)
-            .count(),
-    )
-    .unwrap();
-
-    let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
-
-    if chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
-        && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
-        && !scalar_divisor_ffi.is_divisor_pow2
-        && !scalar_divisor_ffi.divisor_has_more_bits_than_numerator
-    {
-        let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
-        let two_pow_e =
-            divisor_dp & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
-        let e = MiniUnsignedInteger::ilog2(two_pow_e);
-        let divisor_odd_dp = divisor_dp / two_pow_e;
-
-        assert!(numerator_bits > e && e <= u32::try_from(Scalar::BITS).unwrap());
-        let divisor_odd: Scalar = divisor_odd_dp.cast_into();
-        chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
-    }
-
-    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator =
-        chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
-
-    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
-        chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
-    } else {
-        chosen_multiplier.multiplier
-    };
-
-    let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-    scalar_divisor_ffi.active_bits = u32::try_from(
-        decomposed_rhs
-            .iter()
-            .take(2 * msg_bits * num_blocks as usize)
-            .filter(|&&rhs_bit| rhs_bit == 1u64)
-            .count(),
-    )
-    .unwrap();
+    let operands = UnsignedScalarDivRemOperands::new(divisor, message_modulus, num_blocks);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -3143,8 +3181,8 @@ where
             num_blocks,
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
-            &raw const scalar_divisor_ffi,
-            active_bits_divisor,
+            &raw const operands.scalar_divisor,
+            operands.active_bits_divisor,
             false,
         )
     };
@@ -3824,7 +3862,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
     );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_shift_and_rotate_64_inplace_async(
+    scratch_cuda_shift_64_inplace_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         bsk_params,
@@ -3836,7 +3874,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
         is_signed,
         true,
     );
-    cuda_shift_and_rotate_64_inplace_async(
+    cuda_shift_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
@@ -3844,7 +3882,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_right_shift_assign<T: UnsignedIntege
         bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -3923,7 +3961,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
     );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_shift_and_rotate_64_inplace_async(
+    scratch_cuda_shift_64_inplace_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         bsk_params,
@@ -3935,7 +3973,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
         is_signed,
         true,
     );
-    cuda_shift_and_rotate_64_inplace_async(
+    cuda_shift_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
@@ -3943,7 +3981,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_left_shift_assign<T: UnsignedInteger
         bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
     );
-    cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -3963,9 +4001,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    is_signed: bool,
 ) {
     let bsk_params = bsk.params_ffi();
+    let rotation_modulus = RotationModulus::new(message_modulus, num_blocks);
     assert_eq!(
         streams.gpu_indexes[0],
         radix_input.d_blocks.0.d_vec.gpu_index(0),
@@ -4027,7 +4065,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
     );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_shift_and_rotate_64_inplace_async(
+    scratch_cuda_rotate_64_inplace_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         bsk_params,
@@ -4036,18 +4074,23 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_right_assign<T: UnsignedInteg
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::RightRotate as u32,
-        is_signed,
+        rotation_modulus.scalar_divisor(),
+        rotation_modulus.active_bits_divisor(),
         true,
     );
-    cuda_shift_and_rotate_64_inplace_async(
+    cuda_rotate_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
         bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        rotation_modulus.scalar_divisor(),
+        rotation_modulus.divisor_has_at_least_one_set(),
+        rotation_modulus.decomposed_divisor(),
+        rotation_modulus.num_scalars_divisor(),
     );
-    cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -4067,9 +4110,9 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    is_signed: bool,
 ) {
     let bsk_params = bsk.params_ffi();
+    let rotation_modulus = RotationModulus::new(message_modulus, num_blocks);
     assert_eq!(
         streams.gpu_indexes[0],
         radix_input.d_blocks.0.d_vec.gpu_index(0),
@@ -4131,7 +4174,7 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
     );
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_shift_and_rotate_64_inplace_async(
+    scratch_cuda_rotate_64_inplace_async(
         streams.ffi(),
         std::ptr::addr_of_mut!(mem_ptr),
         bsk_params,
@@ -4140,18 +4183,23 @@ pub(crate) unsafe fn cuda_backend_unchecked_rotate_left_assign<T: UnsignedIntege
         u32::try_from(message_modulus.0).unwrap(),
         u32::try_from(carry_modulus.0).unwrap(),
         ShiftRotateType::LeftRotate as u32,
-        is_signed,
+        rotation_modulus.scalar_divisor(),
+        rotation_modulus.active_bits_divisor(),
         true,
     );
-    cuda_shift_and_rotate_64_inplace_async(
+    cuda_rotate_64_inplace_async(
         streams.ffi(),
         &raw mut cuda_ffi_radix_lwe_left,
         &raw const cuda_ffi_radix_shift,
         mem_ptr,
         bsk.ptrs().as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        rotation_modulus.scalar_divisor(),
+        rotation_modulus.divisor_has_at_least_one_set(),
+        rotation_modulus.decomposed_divisor(),
+        rotation_modulus.num_scalars_divisor(),
     );
-    cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    cleanup_cuda_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
@@ -4271,7 +4319,7 @@ pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_shift_and_rotate_64_inplace_async(
+        scratch_cuda_shift_64_inplace_async(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             bsk_params,
@@ -4285,7 +4333,7 @@ pub(crate) fn cuda_backend_get_right_shift_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -4304,7 +4352,7 @@ pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_shift_and_rotate_64_inplace_async(
+        scratch_cuda_shift_64_inplace_async(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             bsk_params,
@@ -4318,7 +4366,7 @@ pub(crate) fn cuda_backend_get_left_shift_size_on_gpu(
         )
     };
     unsafe {
-        cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_shift_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -4331,13 +4379,13 @@ pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    is_signed: bool,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
+    let rotation_modulus = RotationModulus::new(message_modulus, num_blocks);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_shift_and_rotate_64_inplace_async(
+        scratch_cuda_rotate_64_inplace_async(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             bsk_params,
@@ -4346,12 +4394,13 @@ pub(crate) fn cuda_backend_get_rotate_right_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::RightRotate as u32,
-            is_signed,
+            rotation_modulus.scalar_divisor(),
+            rotation_modulus.active_bits_divisor(),
             false,
         )
     };
     unsafe {
-        cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
@@ -4364,13 +4413,13 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
     bsk: &impl CudaBootstrapKey,
     ksk_params: CudaLweKeyswitchKeyParamsFFI,
     num_blocks: u32,
-    is_signed: bool,
 ) -> u64 {
     let bsk_params = bsk.params_ffi();
+    let rotation_modulus = RotationModulus::new(message_modulus, num_blocks);
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
-        scratch_cuda_shift_and_rotate_64_inplace_async(
+        scratch_cuda_rotate_64_inplace_async(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
             bsk_params,
@@ -4379,12 +4428,13 @@ pub(crate) fn cuda_backend_get_rotate_left_size_on_gpu(
             u32::try_from(message_modulus.0).unwrap(),
             u32::try_from(carry_modulus.0).unwrap(),
             ShiftRotateType::LeftRotate as u32,
-            is_signed,
+            rotation_modulus.scalar_divisor(),
+            rotation_modulus.active_bits_divisor(),
             false,
         )
     };
     unsafe {
-        cleanup_cuda_shift_and_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+        cleanup_cuda_rotate_64_inplace(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
     }
     size_tracker
 }
