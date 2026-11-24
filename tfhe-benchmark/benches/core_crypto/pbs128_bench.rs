@@ -197,9 +197,13 @@ fn pbs_128(
                         );
                     })
             };
-            let elements = {
-                use benchmark::find_optimal_batch::find_optimal_batch;
-                find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
+            // ZOPT_KS64_BATCH pins the batch, find_optimal_batch picks it noisily.
+            let elements = match std::env::var("ZOPT_KS64_BATCH") {
+                Ok(batch) => batch.parse().expect("ZOPT_KS64_BATCH"),
+                Err(_) => {
+                    use benchmark::find_optimal_batch::find_optimal_batch;
+                    find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
+                }
             };
             bench_group.throughput(Throughput::Elements(elements));
             bench_group.bench_function(&id, |b| {
@@ -759,16 +763,31 @@ use cuda::{cuda_multi_bit_pbs128_group, cuda_pbs128_group};
 /// compute parameters.
 pub fn pbs128_group() {
     let mut criterion: Criterion<_> = Criterion::default().configure_from_args();
+    // ZOPT_KS64_TAG suffixes the names to tell the NUMA variants apart; the default is
+    // measured again last.
+    let tag = std::env::var("ZOPT_KS64_TAG").unwrap_or_default();
     let noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let default_name = noise_params.name();
     pbs_128(
         &mut criterion,
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         noise_params,
-        &noise_params.name(),
+        &format!("{default_name}{tag}"),
     );
     for (base_params, noise_params, name) in ZOPT_KS64_PARAMS.iter() {
-        pbs_128(&mut criterion, *base_params, *noise_params, name);
+        pbs_128(
+            &mut criterion,
+            *base_params,
+            *noise_params,
+            &format!("{name}{tag}"),
+        );
     }
+    pbs_128(
+        &mut criterion,
+        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        noise_params,
+        &format!("{default_name}_LAST{tag}"),
+    );
 }
 
 #[cfg(feature = "gpu")]

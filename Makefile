@@ -2254,7 +2254,7 @@ bench_pbs_gpu: install_rs_check_toolchain
 .PHONY: bench_ks_pbs # Run benchmarks for KS-PBS
 bench_ks_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) \
-	./scripts/zopt_ks64_order.sh $(CARGO_RS_CHECK_TOOLCHAIN)
+	./scripts/zopt_ks64_numa.sh ks_pbs $(CARGO_RS_CHECK_TOOLCHAIN)
 
 .PHONY: bench_ks_pbs_gpu # Run benchmarks for KS-PBS on GPU backend
 bench_ks_pbs_gpu: install_rs_check_toolchain
@@ -2265,10 +2265,7 @@ bench_ks_pbs_gpu: install_rs_check_toolchain
 
 .PHONY: bench_pbs128 # Run benchmarks for PBS using FFT 128 bits
 bench_pbs128: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench core_crypto-pbs128 \
-	--features=boolean,shortint,internal-keycache -p tfhe-benchmark
+	RUSTFLAGS="$(RUSTFLAGS)" ./scripts/zopt_ks64_numa.sh pbs128 $(CARGO_RS_CHECK_TOOLCHAIN)
 
 .PHONY: bench_pbs128_gpu # Run benchmarks for PBS using FFT 128 bits on GPU
 bench_pbs128_gpu: install_rs_check_toolchain
