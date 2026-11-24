@@ -51,8 +51,8 @@ use crate::integer::server_key::radix_parallel::test_harness::{
 use crate::integer::server_key::radix_parallel::tests_long_run::OpSequenceFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::uint::Uint;
-use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
-use crate::shortint::ciphertext::MaxDegree;
+use crate::integer::{IntegerRadixCiphertext, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::shortint::ciphertext::{MaxDegree, NoiseLevel};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -1037,10 +1037,10 @@ pub(crate) fn narrow_scalar_cases(
     iproduct!(lhs_values, scalars).collect()
 }
 
-/// The sequential carry propagation must keep room in each block for the carry it receives,
-/// regardless of the max degree the server key was built with.
+/// The sequential carry propagation must keep room in each block for the carry it receives, in
+/// its degree and its noise level, regardless of the max degree the server key was built with.
 #[test]
-fn test_sequential_propagation_does_not_depend_on_key_max_degree() {
+fn test_sequential_propagation_at_block_limits() {
     let (cks, mut sks) =
         KEY_CACHE.get_from_params(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     // Allow blocks to be full, so that they cannot receive a carry
@@ -1080,6 +1080,27 @@ fn test_sequential_propagation_does_not_depend_on_key_max_degree() {
             let decrypted: u64 = cks.decrypt_radix(&ct);
             assert_eq!(decrypted, (5 * (modulus - 1)) % modulus);
             assert!(ct.block_carries_are_empty());
+        }
+
+        // Blocks have room for the carry in their degree, only the noise level can trigger a
+        // first extraction: max - 1 can receive a carry, max cannot
+        let max_noise_level = sks.key.max_noise_level;
+        for noise_level in [max_noise_level.get() - 1, max_noise_level.get()] {
+            let mut ct = cks.encrypt_radix(modulus - 1, num_blocks);
+            for block in ct.blocks.iter_mut() {
+                // Each block holds 0 in its message and 1 in its carry
+                sks.key.unchecked_scalar_add_assign(block, 1);
+                block.set_noise_level(NoiseLevel(noise_level), max_noise_level);
+            }
+
+            pool.install(|| sks.full_propagate_parallelized(&mut ct));
+
+            let added: u64 = (0..num_blocks as u32)
+                .map(|i| sks.message_modulus().0.pow(i))
+                .sum();
+            let decrypted: u64 = cks.decrypt_radix(&ct);
+            assert_eq!(decrypted, (modulus - 1 + added) % modulus);
+            assert!(ct.is_clean());
         }
     }
 }

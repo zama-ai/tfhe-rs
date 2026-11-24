@@ -185,7 +185,12 @@ impl ServerKey {
                 || blocks[1..]
                     .iter()
                     // We need to be able to add a carry, which is a fresh ciphertext
-                    .any(|b| b.noise_level().get() >= self.key.max_noise_level.get() - 1)
+                    .any(|b| {
+                        self.key
+                            .max_noise_level
+                            .validate(b.noise_level() + NoiseLevel::NOMINAL)
+                            .is_err()
+                    })
             {
                 // At least one of the blocks than can receive a carry, won't be able to,
                 // so we need to do a first 'partial' round
