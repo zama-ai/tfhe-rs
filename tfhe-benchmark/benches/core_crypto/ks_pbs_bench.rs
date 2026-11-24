@@ -263,8 +263,16 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                     }
                     #[cfg(not(any(feature = "gpu", feature = "hpu")))]
                     {
-                        use benchmark::find_optimal_batch::find_optimal_batch;
-                        find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup) as u64
+                        // ZOPT_KS64_BATCH pins the batch size, to compare the sets
+                        // at the same batch.
+                        match std::env::var("ZOPT_KS64_BATCH") {
+                            Ok(batch) => batch.parse().expect("ZOPT_KS64_BATCH"),
+                            Err(_) => {
+                                use benchmark::find_optimal_batch::find_optimal_batch;
+                                find_optimal_batch(|inputs, _batch_size| run(inputs), &mut setup)
+                                    as u64
+                            }
+                        }
                     }
                 };
                 bench_group.throughput(Throughput::Elements(elements));
@@ -1195,7 +1203,7 @@ pub fn ks_pbs_group() {
 fn zopt_ks64_benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
     use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use benchmark::zopt_ks64_params::ZOPT_KS64_PARAMS;
-    std::iter::once((
+    let mut sets = std::iter::once((
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
     ))
@@ -1209,8 +1217,19 @@ fn zopt_ks64_benchmark_parameters() -> Vec<(String, BenchPbsParams<u64>)> {
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         "BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_LAST",
     )))
-    .map(|(params, name)| (name.to_string(), params.into()))
-    .collect()
+    // Order investigation: ZOPT_KS64_ONLY keeps the named set alone (one process per
+    // set), ZOPT_KS64_REVERSE reverses the order and ZOPT_KS64_TAG suffixes the names to
+    // keep the variants apart in one job.
+    .filter(|(_, name)| std::env::var("ZOPT_KS64_ONLY").map_or(true, |only| only == *name))
+    .map(|(params, name)| {
+        let tag = std::env::var("ZOPT_KS64_TAG").unwrap_or_default();
+        (format!("{name}{tag}"), params.into())
+    })
+    .collect::<Vec<_>>();
+    if std::env::var("ZOPT_KS64_REVERSE").is_ok() {
+        sets.reverse();
+    }
+    sets
 }
 
 pub fn multi_bit_ks_pbs_group() {
