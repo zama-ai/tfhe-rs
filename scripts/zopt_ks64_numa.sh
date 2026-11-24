@@ -28,7 +28,7 @@ numactl --hardware
 # The memory of the benchmark process per node, in MB, from its numa_maps.
 numa_sample() {
     local pid
-    pid=$(pgrep -n -f 'target/release/deps/core_crypto_') || return 0
+    pid=$(pgrep -n -f '/core_crypto_[a-z0-9_]+-[0-9a-f]{16}( |$)') || return 0
     awk '
         {
             kb = 4; t = 0; delete m
@@ -72,7 +72,8 @@ per_node() {
     local tag="$1" batch="$2" exe barrier n
     exe=$(cargo "${TOOLCHAIN}" bench --no-run --message-format=json --bench "core_crypto-${BENCH//_/-}" \
         --features=boolean,shortint,internal-keycache -p tfhe-benchmark \
-        | grep -o '"executable":"[^"]*deps/core_crypto_[^"]*"' | tail -1 | cut -d'"' -f4)
+        | grep -o '"executable":"[^"]*/core_crypto_[^"]*"' | tail -1 | cut -d'"' -f4)
+    [ -x "${exe}" ] || { echo "no benchmark executable" >&2; exit 1; }
     barrier=$(mktemp -d)
     echo "=== variant ${tag}: ${NODES} processes of batch $((batch / NODES)), ${exe}"
     for n in $(seq 0 $((NODES - 1))); do
@@ -89,16 +90,20 @@ per_node() {
     done
 }
 
+# FIRST_TOUCH runs one set alone without interleaving, to sample where its keys land.
 case "${BENCH}" in
 ks_pbs)
     export ZOPT_KS64_BATCH=2048
     ZOPT_KS64_ONLY=none cargo_bench
+    ZOPT_KS64_ONLY=ZOPT_KS64_160_S125_2M160_BOOTSTRAP_COST variant _FIRST_TOUCH env
     variant _INTERLEAVE numactl --interleave=all
     per_node _PER_NODE 2048
     ;;
 pbs128)
     # One squashing PBS per core per iteration: the largest keys take seconds each.
     export ZOPT_KS64_BATCH=192
+    ZOPT_KS64_ONLY=none cargo_bench
+    ZOPT_KS64_ONLY=ZOPT_KS64_160_S125_2M160_COST variant _FIRST_TOUCH env
     variant _INTERLEAVE numactl --interleave=all
     per_node _PER_NODE 192
     ;;

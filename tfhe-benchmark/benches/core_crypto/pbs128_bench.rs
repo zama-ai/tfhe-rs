@@ -764,31 +764,32 @@ use cuda::{cuda_multi_bit_pbs128_group, cuda_pbs128_group};
 /// compute parameters.
 pub fn pbs128_group() {
     let mut criterion: Criterion<_> = Criterion::default().configure_from_args();
-    // ZOPT_KS64_TAG suffixes the names to tell the NUMA variants apart; the default is
-    // measured again last.
+    // ZOPT_KS64_TAG suffixes the names to tell the NUMA variants apart, ZOPT_KS64_ONLY keeps
+    // the named set alone; the default is measured again last.
     let tag = std::env::var("ZOPT_KS64_TAG").unwrap_or_default();
-    let noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let default_name = noise_params.name();
-    pbs_128(
-        &mut criterion,
-        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        noise_params,
-        &format!("{default_name}{tag}"),
-    );
-    for (base_params, noise_params, name) in ZOPT_KS64_PARAMS.iter() {
+    let keep = |name: &str| std::env::var("ZOPT_KS64_ONLY").map_or(true, |only| only == name);
+    let default_params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let default_noise_params = BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let default_name = default_noise_params.name();
+    let sets = std::iter::once((default_params, default_noise_params, default_name.clone()))
+        .chain(
+            ZOPT_KS64_PARAMS
+                .iter()
+                .map(|(params, noise_params, name)| (*params, *noise_params, name.to_string())),
+        )
+        .chain(std::iter::once((
+            default_params,
+            default_noise_params,
+            format!("{default_name}_LAST"),
+        )));
+    for (params, noise_params, name) in sets.filter(|(_, _, name)| keep(name)) {
         pbs_128(
             &mut criterion,
-            *base_params,
-            *noise_params,
+            params,
+            noise_params,
             &format!("{name}{tag}"),
         );
     }
-    pbs_128(
-        &mut criterion,
-        BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        noise_params,
-        &format!("{default_name}_LAST{tag}"),
-    );
 }
 
 #[cfg(feature = "gpu")]
