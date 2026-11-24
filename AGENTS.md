@@ -28,7 +28,7 @@ Each layer is a module in `tfhe/src/`, built only on the layers below it. `core_
 | Layer | Works on | Responsibility |
 |---|---|---|
 | `core_crypto` | LWE/GLWE ciphertexts and keys | Cryptographic primitives: encryption, keyswitch, programmable bootstrap (PBS), FFT. No notion of message semantics |
-| `shortint` (and the independent `boolean`) | One LWE ciphertext holding a few message and carry bits | Small-integer arithmetic and lookup tables via PBS; owns the parameter sets and tracks noise |
+| `shortint` (and the independent, legacy `boolean`: add no new features to it) | One LWE ciphertext holding a few message and carry bits | Small-integer arithmetic and lookup tables via PBS; owns the parameter sets and tracks noise |
 | `integer` | Vectors of shortint blocks (radix or CRT) | Arbitrary-size integer arithmetic, carry propagation, parallel algorithms; `gpu/` and `hpu/` hold the backend variants |
 | `high_level_api` | `FheUint*`, `FheInt*`, `FheBool`, … (re-exported at the crate root) | Typed user API with operator overloading, key management and backend dispatch |
 
@@ -134,7 +134,7 @@ Serialized data from past releases must stay readable. This is the most common s
 - Match the surrounding code: naming, comment density, module structure. When an established in-repo pattern exists for a situation, copy it rather than inventing a variant. When you introduce a new helper or constant, replace every existing occurrence it covers instead of leaving mixed conventions.
 - Extend existing functions, helpers and parameterized tests to cover the new case. Do not copy them. Reuse test helpers from lower layers. Versioned type snapshots are the exception: they are copies on purpose.
 - Use the narrowest visibility that works: no modifier if only the module and its descendants use an item, then `pub(super)`, `pub(in path)`, and `pub(crate)` only for real crate-wide use.
-- Prefer making the code explicit (naming, types, a small function) over commenting it. Comment only what the code can't say: why, non-obvious invariants, spec or paper references. For a workaround of an upstream limitation, link the upstream issue. Comments and identifiers describe the code as it stands: never mention the change, the request or a previous version ("now uses…", "fixed…", `new_*`, `*_v2`). This does not apply to versioned type snapshots (`FooV2`) or to `new_*` constructors.
+- Prefer making the code explicit (naming, types, a small function) over commenting it. Comment only what the code can't say: why, non-obvious invariants, spec or paper references. For a workaround of an upstream limitation, link the upstream issue. Comments and identifiers describe the code as it stands: never mention the change, the request or a previous version ("now uses…", "fixed…", a `new_foo` or `foo_v2` next to the `foo` it replaces). Versioned type snapshots (`FooV0`, `FooV1`, …) are the exception.
 
 ## Conventions
 
