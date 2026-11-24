@@ -49,7 +49,7 @@ impl CrtServerKey {
                 let scalar_i = (scalar % mod_i) as u8;
                 if self
                     .key
-                    .max_degree
+                    .max_degree()
                     .validate(ct_i.degree * u64::from(scalar_i))
                     .is_ok()
                     && self

@@ -376,7 +376,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ) -> Result<(), CheckError> {
         let final_operation_count = ct1.degree.get() << shift as usize;
 
-        self.max_degree
+        self.max_degree()
             .validate(Degree::new(final_operation_count))?;
 
         self.max_noise_level
