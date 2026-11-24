@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Compares two NUMA placements of the zopt KS64 keys at a pinned batch: one process with
-# the memory interleaved over the nodes, and one process per node with its own copy of
-# the keys. Samples every 15 s the memory of a benchmark process per node (all of it,
+# Compares three NUMA placements of the zopt KS64 keys at a pinned batch: one process with
+# the memory interleaved over the nodes, one process with a copy of the keys per node
+# (each operation using the copy of its node, ZOPT_KS64_NUMA=replicate), and one process
+# per node with its own copy of the keys. Samples every 15 s the memory of a benchmark process per node (all of it,
 # and its largest mapping: the key). The first-touch runs are in the history.
 #
 # Usage: scripts/zopt_ks64_numa.sh <ks_pbs|pbs128> <cargo toolchain argument>
@@ -99,6 +100,7 @@ ks_pbs)
     export ZOPT_KS64_BATCH=2048
     ZOPT_KS64_ONLY=none cargo_bench
     variant _INTERLEAVE numactl --interleave=all
+    variant _REPLICATED env ZOPT_KS64_NUMA=replicate
     per_node _PER_NODE 2048
     ;;
 pbs128)
@@ -106,6 +108,7 @@ pbs128)
     export ZOPT_KS64_BATCH=192
     ZOPT_KS64_ONLY=none cargo_bench
     variant _INTERLEAVE numactl --interleave=all
+    variant _REPLICATED env ZOPT_KS64_NUMA=replicate
     per_node _PER_NODE 192
     ;;
 esac

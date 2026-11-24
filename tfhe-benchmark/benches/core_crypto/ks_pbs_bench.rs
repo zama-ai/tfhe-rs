@@ -224,6 +224,18 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                     Vec<GlweCiphertext<Vec<Scalar>>>, // accumulators
                     Vec<ComputationBuffers>,          // buffers
                 );
+                // ZOPT_KS64_NUMA=replicate copies the keys once per NUMA node, each
+                // operation using the copy of the node it runs on.
+                let replicas = (std::env::var("ZOPT_KS64_NUMA").as_deref() == Ok("replicate"))
+                    .then(|| {
+                        benchmark::numa::NumaReplicated::new(&(
+                            ksk_big_to_small.clone(),
+                            fourier_bsk.clone(),
+                        ))
+                    });
+                if let Some(replicas) = &replicas {
+                    println!("{bench_id}: keys copied on {} NUMA nodes", replicas.len());
+                }
                 let run = |inputs: &mut Res<Scalar>| {
                     inputs
                         .0
@@ -237,16 +249,19 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                                 (((input_ks_ct, output_ks_ct), output_pbs_ct), accumulator),
                                 buffer,
                             )| {
-                                keyswitch_lwe_ciphertext(
-                                    &ksk_big_to_small,
-                                    input_ks_ct,
-                                    output_ks_ct,
-                                );
+                                let (ksk, bsk) = match &replicas {
+                                    Some(replicas) => {
+                                        let (ksk, bsk) = replicas.local();
+                                        (ksk, bsk)
+                                    }
+                                    None => (&ksk_big_to_small, &fourier_bsk),
+                                };
+                                keyswitch_lwe_ciphertext(ksk, input_ks_ct, output_ks_ct);
                                 programmable_bootstrap_lwe_ciphertext_mem_optimized(
                                     output_ks_ct,
                                     output_pbs_ct,
                                     &accumulator.as_view(),
-                                    &fourier_bsk,
+                                    bsk,
                                     fft.as_view(),
                                     buffer.stack(),
                                 );

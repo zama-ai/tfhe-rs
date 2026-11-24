@@ -181,6 +181,13 @@ fn pbs_128(
                 Vec<LweCiphertextOwned<u128>>,
                 Vec<Vec<u8>>,
             );
+            // ZOPT_KS64_NUMA=replicate copies the key once per NUMA node, each operation
+            // using the copy of the node it runs on.
+            let replicas = (std::env::var("ZOPT_KS64_NUMA").as_deref() == Ok("replicate"))
+                .then(|| benchmark::numa::NumaReplicated::new(&fourier_bsk));
+            if let Some(replicas) = &replicas {
+                println!("{id}: key copied on {} NUMA nodes", replicas.len());
+            }
             let run = |inputs: &mut Res| {
                 inputs
                     .0
@@ -188,6 +195,9 @@ fn pbs_128(
                     .zip(inputs.1.par_iter_mut())
                     .zip(inputs.2.par_iter_mut())
                     .for_each(|((input, output), buffer)| {
+                        let fourier_bsk = replicas
+                            .as_ref()
+                            .map_or(&fourier_bsk, |replicas| replicas.local());
                         fourier_bsk.bootstrap(
                             output,
                             input,

@@ -1,5 +1,6 @@
 pub mod crypto_record;
 pub mod find_optimal_batch;
+pub mod numa;
 #[cfg(feature = "integer")]
 pub mod high_level_api;
 pub mod params;
