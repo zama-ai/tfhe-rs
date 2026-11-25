@@ -1,11 +1,220 @@
+use crate::integer::ciphertext::{
+    SquashedNoiseBooleanBlock, SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
+};
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
-use crate::integer::IntegerKeyKind;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::{
+    BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext,
+};
+use crate::shortint::ciphertext::{Degree, SquashedNoiseCiphertext};
+use crate::shortint::parameters::test_params::TestParameters;
 use crate::shortint::parameters::{
     NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use rand::prelude::*;
+use std::sync::Arc;
+
+/// The function executor that squashes the noise of its input with a CPU noise squashing key
+struct CpuNoiseSquashingExecutor<'key> {
+    noise_squashing_private_key: &'key NoiseSquashingPrivateKey,
+    /// The keys are set later, when the test case calls setup
+    keys: Option<(NoiseSquashingKey, Arc<ServerKey>)>,
+}
+
+impl<'key> CpuNoiseSquashingExecutor<'key> {
+    fn new(noise_squashing_private_key: &'key NoiseSquashingPrivateKey) -> Self {
+        Self {
+            noise_squashing_private_key,
+            keys: None,
+        }
+    }
+
+    fn setup_from_keys(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        let noise_squashing_key =
+            NoiseSquashingKey::new(cks.as_ref(), self.noise_squashing_private_key);
+        self.keys = Some((noise_squashing_key, sks));
+    }
+}
+
+impl<'a> FunctionExecutor<&'a RadixCiphertext, SquashedNoiseRadixCiphertext>
+    for CpuNoiseSquashingExecutor<'_>
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, sks);
+    }
+
+    fn execute(&mut self, input: &'a RadixCiphertext) -> SquashedNoiseRadixCiphertext {
+        let (noise_squashing_key, sks) = self.keys.as_ref().expect("setup was not properly called");
+        noise_squashing_key
+            .squash_radix_ciphertext_noise(sks, input)
+            .unwrap()
+    }
+}
+
+impl<'a> FunctionExecutor<&'a SignedRadixCiphertext, SquashedNoiseSignedRadixCiphertext>
+    for CpuNoiseSquashingExecutor<'_>
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, sks);
+    }
+
+    fn execute(&mut self, input: &'a SignedRadixCiphertext) -> SquashedNoiseSignedRadixCiphertext {
+        let (noise_squashing_key, sks) = self.keys.as_ref().expect("setup was not properly called");
+        noise_squashing_key
+            .squash_signed_radix_ciphertext_noise(sks, input)
+            .unwrap()
+    }
+}
+
+impl<'a> FunctionExecutor<&'a BooleanBlock, SquashedNoiseBooleanBlock>
+    for CpuNoiseSquashingExecutor<'_>
+{
+    fn setup(&mut self, cks: &RadixClientKey, sks: Arc<ServerKey>) {
+        self.setup_from_keys(cks, sks);
+    }
+
+    fn execute(&mut self, input: &'a BooleanBlock) -> SquashedNoiseBooleanBlock {
+        let (noise_squashing_key, sks) = self.keys.as_ref().expect("setup was not properly called");
+        noise_squashing_key
+            .squash_boolean_block_noise(sks, input)
+            .unwrap()
+    }
+}
+
+#[test]
+fn test_noise_squashing_degrees() {
+    let noise_squashing_private_key = NoiseSquashingPrivateKey::new(
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
+    let executor = CpuNoiseSquashingExecutor::new(&noise_squashing_private_key);
+    noise_squashing_degrees_test(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        &noise_squashing_private_key,
+        executor,
+    );
+}
+
+/// Checks the degree that noise squashing records on each output block, and the decrypted values.
+///
+/// Noise squashing packs the input blocks by pairs as `low + message_modulus * high`. Each output
+/// block must have the degree of its packed input: `low_degree + message_modulus * high_degree`
+/// for a pair, and the degree of the input block for a block without a pair.
+///
+/// The executor must squash the noise with a key generated from `noise_squashing_private_key`,
+/// which decrypts the outputs.
+///
+/// The cases are written for a message modulus of 4.
+pub(crate) fn noise_squashing_degrees_test<P, T>(
+    param: P,
+    noise_squashing_private_key: &NoiseSquashingPrivateKey,
+    mut executor: T,
+) where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<&'a RadixCiphertext, SquashedNoiseRadixCiphertext>
+        + for<'a> FunctionExecutor<&'a SignedRadixCiphertext, SquashedNoiseSignedRadixCiphertext>
+        + for<'a> FunctionExecutor<&'a BooleanBlock, SquashedNoiseBooleanBlock>,
+{
+    let param = param.into();
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let sks = Arc::new(sks);
+    // Each encryption gives its block count. The block count of this key is not used.
+    let cks = RadixClientKey::from((cks, 1));
+
+    // The three implementations of the executor have the same setup
+    FunctionExecutor::<&RadixCiphertext, SquashedNoiseRadixCiphertext>::setup(
+        &mut executor,
+        &cks,
+        sks.clone(),
+    );
+
+    let degrees = |blocks: &[SquashedNoiseCiphertext]| {
+        blocks
+            .iter()
+            .map(|block| block.degree())
+            .collect::<Vec<_>>()
+    };
+
+    let message_modulus = cks.parameters().message_modulus().0;
+    let fresh_degree = Degree::new(message_modulus - 1);
+    let packed_fresh_degree = Degree::new(message_modulus * message_modulus - 1);
+
+    // Fresh blocks, with an even and an odd block count. The last packed block of an odd block
+    // count holds a single input block
+    for num_blocks in [1usize, 3, 4, 8] {
+        let mut expected_degrees = vec![packed_fresh_degree; num_blocks / 2];
+        if num_blocks % 2 == 1 {
+            expected_degrees.push(fresh_degree);
+        }
+
+        let clear = 0x9C27u64 % message_modulus.pow(num_blocks as u32);
+        let ct = cks.as_ref().encrypt_radix(clear, num_blocks);
+        let squashed: SquashedNoiseRadixCiphertext = executor.execute(&ct);
+        assert_eq!(
+            degrees(squashed.packed_blocks()),
+            expected_degrees,
+            "Invalid degrees for an unsigned radix of {num_blocks} fresh blocks"
+        );
+        let decrypted: u64 = noise_squashing_private_key
+            .decrypt_radix(&squashed)
+            .unwrap();
+        assert_eq!(decrypted, clear);
+
+        let clear = -1i16;
+        let ct = cks.as_ref().encrypt_signed_radix(clear, num_blocks);
+        let squashed: SquashedNoiseSignedRadixCiphertext = executor.execute(&ct);
+        assert_eq!(
+            degrees(squashed.packed_blocks()),
+            expected_degrees,
+            "Invalid degrees for a signed radix of {num_blocks} fresh blocks"
+        );
+        let decrypted: i16 = noise_squashing_private_key
+            .decrypt_signed_radix(&squashed)
+            .unwrap();
+        assert_eq!(decrypted, clear);
+    }
+
+    // Trivial blocks: the degree of a trivial block is its value. The blocks of this value are
+    // 0, 2 and 1, so the input degrees are below the degree of a fresh block. The fourth block,
+    // when there is one, is 0 and does not change the degree of the second packed block
+    let clear = message_modulus * (2 + message_modulus);
+    let expected_degrees = [Degree::new(2 * message_modulus), Degree::new(1)];
+    for num_blocks in [3, 4] {
+        let ct: RadixCiphertext = sks.create_trivial_radix(clear, num_blocks);
+        let squashed: SquashedNoiseRadixCiphertext = executor.execute(&ct);
+        assert_eq!(
+            degrees(squashed.packed_blocks()),
+            expected_degrees,
+            "Invalid degrees for an unsigned radix of {num_blocks} trivial blocks"
+        );
+        let decrypted: u64 = noise_squashing_private_key
+            .decrypt_radix(&squashed)
+            .unwrap();
+        assert_eq!(decrypted, clear);
+    }
+
+    // Boolean blocks, with the degree of a fresh encryption (1) and with a degree of 2. A boolean
+    // block is not packed, so the output block keeps the degree of the input block
+    for (clear, scalar) in [(false, 0), (true, 0), (true, 1)] {
+        let mut boolean_block = cks.as_ref().encrypt_bool(clear);
+        sks.key
+            .unchecked_scalar_add_assign(&mut boolean_block.0, scalar);
+        let input_degree = boolean_block.0.degree;
+        assert_eq!(input_degree, Degree::new(1 + u64::from(scalar)));
+
+        let squashed: SquashedNoiseBooleanBlock = executor.execute(&boolean_block);
+        assert_eq!(
+            squashed.packed_blocks().degree(),
+            input_degree,
+            "Invalid degree for a boolean block of degree {input_degree:?}"
+        );
+        assert_eq!(
+            noise_squashing_private_key.decrypt_bool(&squashed).unwrap(),
+            clear
+        );
+    }
+}
 
 #[test]
 fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
