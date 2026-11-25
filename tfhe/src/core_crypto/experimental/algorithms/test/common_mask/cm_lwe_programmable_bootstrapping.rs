@@ -15,10 +15,7 @@ use cm_fft64::programmable_bootstrap_cm_lwe_ciphertext;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 100;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn generate_test_cm_pbs_keys(
     params: &CmApParams,

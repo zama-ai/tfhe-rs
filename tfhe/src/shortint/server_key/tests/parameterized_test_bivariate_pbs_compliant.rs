@@ -9,16 +9,9 @@ use crate::shortint::server_key::tests::parameterized_test::create_parameterized
 use rand::Rng;
 
 /// Number of assert in randomized tests
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 200;
 
-// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
-// instrumentation
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
-
 //Macro to generate tests for parameters sets compatible with the bivariate pbs
-#[cfg(not(tarpaulin))]
 macro_rules! create_parameterized_test_bivariate_pbs_compliant{
     ($name:ident { $($param:ident),* }) => {
         ::paste::paste! {
@@ -56,29 +49,6 @@ macro_rules! create_parameterized_test_bivariate_pbs_compliant{
             TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
             TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
             TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
-        });
-    };
-}
-
-// Test against a small subset of parameters to speed up coverage tests
-#[cfg(tarpaulin)]
-macro_rules! create_parameterized_test_bivariate_pbs_compliant{
-    ($name:ident { $($param:ident),* }) => {
-        ::paste::paste! {
-            $(
-            #[test]
-            fn [<test_ $name _ $param:lower>]() {
-                $name($param)
-            }
-            )*
-        }
-    };
-    ($name:ident)=> {
-        create_parameterized_test!($name
-        {
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
         });
     };
 }

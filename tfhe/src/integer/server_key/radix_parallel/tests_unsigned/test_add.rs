@@ -13,8 +13,6 @@ use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::uint::Uint;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
@@ -26,12 +24,8 @@ create_parameterized_test!(integer_default_add);
 create_parameterized_test!(integer_extensive_trivial_default_add);
 create_parameterized_test!(integer_default_overflowing_add);
 create_parameterized_test!(integer_extensive_trivial_default_overflowing_add);
-create_parameterized_test!(integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits {
-    coverage => {
-        COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
-    },
-    no_coverage => {
+create_parameterized_test!(
+    integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
@@ -41,14 +35,10 @@ create_parameterized_test!(integer_advanced_overflowing_add_assign_with_carry_at
         TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
-});
+);
 create_parameterized_test!(integer_advanced_add_assign_with_carry_sequential);
-create_parameterized_test!(integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits {
-    coverage => {
-        COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-        COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS
-    },
-    no_coverage => {
+create_parameterized_test!(
+    integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
@@ -58,7 +48,7 @@ create_parameterized_test!(integer_extensive_trivial_overflowing_advanced_add_as
         TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
     }
-});
+);
 create_parameterized_test!(
     integer_extensive_trivial_advanced_overflowing_add_assign_with_carry_sequential
 );

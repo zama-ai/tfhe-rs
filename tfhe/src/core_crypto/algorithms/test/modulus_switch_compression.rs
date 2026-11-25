@@ -2,10 +2,7 @@ use super::*;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use itertools::Itertools;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn encryption_ms_decryption<
     Scalar: UnsignedTorus + Sync + Send + CastInto<u64> + CastFrom<usize>,
@@ -67,11 +64,6 @@ fn encryption_ms_decryption<
             let decoded = round_decode(decrypted.0, delta) % msg_modulus;
             assert_eq!(decoded, msg);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does
-        // not yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 

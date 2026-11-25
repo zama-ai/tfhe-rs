@@ -1,23 +1,13 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::IntegerKeyKind;
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
 /// Number of loop iteration within randomized tests
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 30;
-// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
-// instrumentation
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
-#[cfg(not(tarpaulin))]
 const PARAM: ClassicPBSParameters = TEST_PARAM_MESSAGE_5_CARRY_1_KS_PBS_GAUSSIAN_2M128;
-#[cfg(tarpaulin)]
-const PARAM: ClassicPBSParameters = COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS;
 
 #[test]
 fn integer_unchecked_crt_add_parallelized_32_bits() {

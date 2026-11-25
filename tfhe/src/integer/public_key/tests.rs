@@ -1,33 +1,17 @@
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{gen_keys, IntegerKeyKind, RadixCiphertext};
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
-create_parameterized_test!(
-    big_radix_encrypt_decrypt_compact_128_bits_list {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
-        }
-    }
-);
+create_parameterized_test!(big_radix_encrypt_decrypt_compact_128_bits_list {
+    TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
+});
 
-create_parameterized_test!(
-    small_radix_encrypt_decrypt_compact_128_bits_list {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
-        }
-    }
-);
+create_parameterized_test!(small_radix_encrypt_decrypt_compact_128_bits_list {
+    TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
+});
 
 fn big_radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
     radix_encrypt_decrypt_compact_128_bits_list(params);

@@ -192,11 +192,6 @@ jobs:
         run: |
           make build_tfhe_msrv
 
-      - name: Build coverage tests
-        if: inputs.run-build
-        run: |
-          make build_tfhe_coverage
-
       - name: Build Release core
         if: inputs.run-build-layers
         run: |

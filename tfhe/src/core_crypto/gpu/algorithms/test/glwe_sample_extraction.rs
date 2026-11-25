@@ -6,10 +6,7 @@ use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
 use itertools::Itertools;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     params: ClassicTestParams<Scalar>,

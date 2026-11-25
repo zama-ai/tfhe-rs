@@ -1,4 +1,0 @@
-coverage:
-  status:
-    # Disable patch checks in GitHub until all tfhe-rs layers have coverage implemented.
-    patch: false

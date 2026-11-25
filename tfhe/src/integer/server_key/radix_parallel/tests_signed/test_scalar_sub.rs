@@ -15,8 +15,6 @@ use crate::integer::tests::int::Int;
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;

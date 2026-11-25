@@ -2,10 +2,7 @@ use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::test_tools::random_usize_between;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn test_seeded_and_chunked_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
     ciphertext_modulus: CiphertextModulus<Scalar>,

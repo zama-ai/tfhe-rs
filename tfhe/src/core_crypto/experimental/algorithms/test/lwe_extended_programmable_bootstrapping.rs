@@ -324,11 +324,6 @@ fn lwe_encrypt_extended_pbs_decrypt(params: ExtendedPBSTestParameters) {
 
             assert_eq!(decoded, f(msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 

@@ -4,10 +4,7 @@ use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::math::random::{CompressionSeed, Uniform};
 use crate::core_crypto::commons::test_tools;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
     ciphertext_modulus: CiphertextModulus<Scalar>,
@@ -232,11 +229,6 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
 
             assert_eq!(decoded.0, msg);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -300,11 +292,6 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 
             assert_eq!(decoded.0, msg);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -371,11 +358,6 @@ fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(decoded.0, msg);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -442,11 +424,6 @@ fn ggsw_seeded_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Sen
 
             assert_eq!(decoded.0, msg);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 

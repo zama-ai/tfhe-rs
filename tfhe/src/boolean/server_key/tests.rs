@@ -6,22 +6,13 @@ use crate::boolean::server_key::{BinaryBooleanGates, BinaryBooleanGatesAssign, S
 use crate::boolean::{random_boolean, random_integer};
 
 /// Number of assert in randomized tests
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 128;
-
-// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
-// instrumentation
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 /// Number of ciphertext in the deep circuit test
 const NB_CT: usize = 8;
 
 /// Number of gates computed in the deep circuit test
-#[cfg(not(tarpaulin))]
 const NB_GATE: usize = 1 << 11;
-#[cfg(tarpaulin)]
-const NB_GATE: usize = 1 << 5;
 
 mod default_parameters_tests {
     use super::*;
@@ -69,7 +60,6 @@ mod default_parameters_tests {
     }
 }
 
-#[cfg(not(tarpaulin))]
 mod low_prob_parameters_tests {
     use super::*;
     use crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
@@ -162,7 +152,6 @@ mod default_parameters_ks_pbs_tests {
     }
 }
 
-#[cfg(not(tarpaulin))]
 mod low_prob_parameters_ks_pbs_tests {
     use super::*;
     use crate::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS;
@@ -209,7 +198,6 @@ mod low_prob_parameters_ks_pbs_tests {
     }
 }
 
-#[cfg(not(tarpaulin))]
 mod tfhe_lib_parameters_tests {
     use super::*;
     use crate::boolean::parameters::TFHE_LIB_PARAMETERS;

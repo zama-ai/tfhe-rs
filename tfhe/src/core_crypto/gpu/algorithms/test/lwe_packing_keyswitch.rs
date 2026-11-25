@@ -146,11 +146,6 @@ where
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -263,11 +258,6 @@ where
 
             assert_eq!(decrypted_plaintext_list, input_plaintext_list);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 

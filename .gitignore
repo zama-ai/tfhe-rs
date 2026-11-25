@@ -23,9 +23,6 @@ tfhe/src/shortint/parameters/v*_orig/
 # dieharder run log
 dieharder_run.log
 
-# Coverage reports
-/coverage/
-
 # Cuda local build
 backends/tfhe-cuda-backend/cuda/cmake-build-debug/
 backends/tfhe-cuda-backend/cuda/build/

@@ -15,7 +15,6 @@ AVX512_SUPPORT?=OFF
 WASM_RUSTFLAGS:=
 BIG_TESTS_INSTANCE?=FALSE
 GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSE
-GEN_KEY_CACHE_COVERAGE_ONLY?=FALSE
 PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 BIT_SIZES_SET?=ALL
@@ -93,7 +92,6 @@ CARGO_CROSS_VERSION=0.2.5
 CARGO_DENY_VERSION=0.20.2
 CARGO_MLC_VERSION=1.3.0
 CARGO_NEXTEST_VERSION=0.9.151
-CARGO_TARPAULIN_VERSION=0.37.6
 # This is done to avoid forgetting it, we still precise the RUSTFLAGS in the commands to be able to
 # copy paste the command in the terminal and change them if required without forgetting the flags
 export RUSTFLAGS?=-C target-cpu=native
@@ -113,12 +111,6 @@ else
 		MULTI_BIT_ONLY=
 endif
 
-ifeq ($(GEN_KEY_CACHE_COVERAGE_ONLY),TRUE)
-		COVERAGE_ONLY=--coverage-only
-else
-		COVERAGE_ONLY=
-endif
-
 # Variables used only for regex_engine example
 REGEX_STRING?=''
 REGEX_PATTERN?=''
@@ -133,22 +125,6 @@ ZKCUDARS_SRC=backends/zk-cuda-backend/src
 # tfhe-hpu-backend
 HPU_CONFIG=v80
 HPU_SIM_DFLT=TOKIO_WORKER_THREADS=1 hpu_sim --duration 500_s --timing-mode lt --timescale 1_ns
-
-# Exclude these files from coverage reports
-define COVERAGE_EXCLUDED_FILES
---exclude-files apps/trivium/src/trivium/* \
---exclude-files apps/trivium/src/kreyvium/* \
---exclude-files apps/trivium/src/static_deque/* \
---exclude-files apps/trivium/src/trans_ciphering/* \
---exclude-files tasks/src/* \
---exclude-files tfhe/benches/boolean/* \
---exclude-files tfhe/benches/core_crypto/* \
---exclude-files tfhe/benches/shortint/* \
---exclude-files tfhe/benches/integer/* \
---exclude-files tfhe/benches/* \
---exclude-files tfhe/examples/regex_engine/* \
---exclude-files tfhe/examples/utilities/*
-endef
 
 # Prints out recipe name at the beginning of the execution and print it out again at the end if a failure occurs.
 define run_recipe_with_details
@@ -260,10 +236,6 @@ install_dieharder:
 	elif [[ "$(OS)" == "Darwin" ]]; then\
 		brew install dieharder; \
 	fi || ( echo "Unable to install dieharder, unknown error." && exit 1 )
-
-.PHONY: install_tarpaulin # Install tarpaulin to perform code coverage
-install_tarpaulin:
-	cargo install --locked --version $(CARGO_TARPAULIN_VERSION) cargo-tarpaulin
 
 .PHONY: install_cargo_audit # Check dependencies
 install_cargo_audit:
@@ -946,11 +918,6 @@ build_tfhe_full:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer -p tfhe --all-targets
 
-.PHONY: build_tfhe_coverage # Build with test coverage enabled
-build_tfhe_coverage:
-	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo build --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache -p tfhe --tests
-
 # As of 05/08/2025 this is the set of features that can be easily compiled without additional
 # toolkits
 .PHONY: build_tfhe_msrv # Build with msrv compiler
@@ -994,22 +961,6 @@ test_core_crypto:
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 			--features=experimental,zk-pok -p tfhe -- core_crypto::; \
-	fi
-
-.PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
-test_core_crypto_cov: install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
-		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
-		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
-		--no-default-features \
-		--features=experimental,internal-keycache \
-		-p tfhe -- core_crypto::
-	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
-		RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
-			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
-			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
-			--features=experimental,internal-keycache,avx512 \
-			-p tfhe -- -Z unstable-options --report-time core_crypto::; \
 	fi
 
 .PHONY: test_cuda_backend # Run the internal tests of the CUDA backend
@@ -1345,14 +1296,6 @@ test_boolean:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=boolean -p tfhe -- boolean::
 
-.PHONY: test_boolean_cov # Run the tests of the boolean module with code coverage
-test_boolean_cov: install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
-		--out xml --output-dir coverage/boolean --line --engine llvm --timeout 500 \
-		$(COVERAGE_EXCLUDED_FILES) \
-		--features=boolean,internal-keycache \
-		-p tfhe -- -Z unstable-options --report-time boolean::
-
 .PHONY: test_c_api_rs # Run the rust tests for the C API
 test_c_api_rs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -1394,14 +1337,6 @@ test_shortint:
 test_transciphering:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=shortint -p tfhe -- transciphering::
-
-.PHONY: test_shortint_cov # Run the tests of the shortint module with code coverage
-test_shortint_cov: install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
-		--out xml --output-dir coverage/shortint --line --engine llvm --timeout 500 \
-		$(COVERAGE_EXCLUDED_FILES) \
-		--features=shortint,internal-keycache \
-		-p tfhe -- -Z unstable-options --report-time shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci
 test_integer_ci: install_cargo_nextest
@@ -1503,15 +1438,6 @@ test_zk: install_cargo_nextest
 test_integer:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--features=integer,internal-keycache -p tfhe -- integer::
-
-.PHONY: test_integer_cov # Run the tests of the integer module with code coverage
-test_integer_cov: install_tarpaulin
-	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
-		--out xml --output-dir coverage/integer --line --engine llvm --timeout 500 \
-		--implicit-test-threads \
-		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
-		--features=integer,internal-keycache \
-		-p tfhe -- -Z unstable-options --report-time integer::
 
 .PHONY: test_graph_api # Run all the tests for the experimental Graph API
 test_graph_api:
@@ -2627,10 +2553,10 @@ bench_custom: install_rs_check_toolchain
 
 .PHONY: gen_key_cache # Run the script to generate keys and cache them for shortint tests
 gen_key_cache:
-	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo run --profile $(CARGO_PROFILE) \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
 		--features=boolean,shortint,experimental,internal-keycache -p tfhe \
-		-- $(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
+		-- $(MULTI_BIT_ONLY)
 
 .PHONY: gen_key_cache_core_crypto # Run function to generate keys and cache them for core_crypto tests
 gen_key_cache_core_crypto:

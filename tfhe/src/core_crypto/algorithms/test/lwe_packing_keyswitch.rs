@@ -2,10 +2,7 @@ use super::*;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn generate_keys<Scalar: UnsignedTorus + Sync + Send + Serialize + DeserializeOwned>(
     params: PackingKeySwitchTestParams<Scalar>,
@@ -107,11 +104,6 @@ where
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -213,11 +205,6 @@ where
 
             assert_eq!(decrypted_plaintext_list, input_plaintext_list);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 

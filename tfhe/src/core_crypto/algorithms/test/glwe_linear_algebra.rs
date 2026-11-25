@@ -1,9 +1,6 @@
 use super::*;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn glwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -76,11 +73,6 @@ fn glwe_encrypt_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert!(decoded.iter().all(|&x| x == (msg + msg) % msg_modulus));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -157,11 +149,6 @@ fn glwe_encrypt_add_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
 
             assert!(decoded.iter().all(|&x| x == (msg + msg) % msg_modulus));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -236,11 +223,6 @@ fn glwe_encrypt_plaintext_list_add_assign_decrypt_custom_mod<Scalar: UnsignedTor
 
             assert!(decoded.iter().all(|&x| x == (msg + msg) % msg_modulus));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -315,11 +297,6 @@ fn glwe_encrypt_plaintext_list_sub_assign_decrypt_custom_mod<Scalar: UnsignedTor
 
             assert!(decoded.iter().all(|&x| x == Scalar::ZERO));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -395,11 +372,6 @@ fn glwe_encrypt_plaintext_add_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert!(decoded.iter().all(|&x| x == (msg + msg) % msg_modulus));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -475,11 +447,6 @@ fn glwe_encrypt_plaintext_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert!(decoded.iter().all(|&x| x == Scalar::ZERO));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -556,11 +523,6 @@ fn glwe_encrypt_opposite_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 .iter()
                 .all(|&x| x == msg.wrapping_neg() % msg_modulus));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -638,11 +600,6 @@ fn glwe_encrypt_cleartext_mul_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 .iter()
                 .all(|&x| x == (msg * cleartext.0) % msg_modulus));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -722,11 +679,6 @@ fn glwe_encrypt_cleartext_mul_decrypt_custom_mod<Scalar: UnsignedTorus>(
                 .iter()
                 .all(|&x| x == (msg * cleartext.0) % msg_modulus));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -803,11 +755,6 @@ fn glwe_encrypt_sub_assign_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert!(decoded.iter().all(|&x| x == Scalar::ZERO));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -884,11 +831,6 @@ fn glwe_encrypt_sub_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
 
             assert!(decoded.iter().all(|&x| x == Scalar::ZERO));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 

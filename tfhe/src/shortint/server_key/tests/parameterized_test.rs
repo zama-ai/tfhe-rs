@@ -6,7 +6,6 @@ use crate::shortint::server_key::{LookupTableOwned, ManyLookupTableOwned};
 use rand::Rng;
 
 // Macro to generate tests for all parameter sets
-#[cfg(not(tarpaulin))]
 macro_rules! create_parameterized_test{
     ($name:ident { $($param:ident),* $(,)? }) => {
         ::paste::paste! {
@@ -71,29 +70,6 @@ macro_rules! create_parameterized_stringified_test{
             }
             )*
         }
-    };
-}
-
-// Test against a small subset of parameters to speed up coverage tests
-#[cfg(tarpaulin)]
-macro_rules! create_parameterized_test{
-    ($name:ident { $($param:ident),*$(,)? }) => {
-        ::paste::paste! {
-            $(
-            #[test]
-            fn [<test_ $name _ $param:lower>]() {
-                $name($param)
-            }
-            )*
-        }
-    };
-    ($name:ident)=> {
-        create_parameterized_test!($name
-        {
-            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
-        });
     };
 }
 

@@ -147,8 +147,6 @@ mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::tests::create_parameterized_test;
     use crate::integer::{BooleanBlock, IntegerKeyKind};
-    #[cfg(tarpaulin)]
-    use crate::shortint::parameters::coverage_parameters::*;
     use crate::shortint::parameters::test_params::*;
     use crate::shortint::parameters::*;
 

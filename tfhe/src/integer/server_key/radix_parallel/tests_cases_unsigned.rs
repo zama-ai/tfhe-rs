@@ -13,10 +13,7 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
 
-#[cfg(not(tarpaulin))]
 pub(crate) const NB_CTXT: usize = 4;
-#[cfg(tarpaulin)]
-pub(crate) const NB_CTXT: usize = 2;
 
 /// This trait is to be implemented by a struct that is capable
 /// of executing a particular function to be tested.

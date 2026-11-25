@@ -9,8 +9,6 @@ use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::int::Int;
 use crate::integer::tests::uint::Uint;
 use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey};
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use itertools::iproduct;
