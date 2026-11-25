@@ -3644,6 +3644,7 @@ dependencies = [
  "tfhe-hpu-backend",
  "tfhe-ntt",
  "tfhe-safe-serialize",
+ "tfhe-test-results",
  "tfhe-versionable",
  "tfhe-zk-pok",
  "tracing-subscriber",
@@ -3845,6 +3846,14 @@ dependencies = [
  "bincode",
  "serde",
  "tfhe-versionable",
+]
+
+[[package]]
+name = "tfhe-test-results"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

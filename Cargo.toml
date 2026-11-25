@@ -35,6 +35,7 @@ members = [
     "utils/wasm-par-mq/examples/msm",
     "utils/wasm-par-mq/web_tests",
     "utils/tfhe-data-extractor",
+    "utils/tfhe-test-results",
 ]
 
 exclude = [
