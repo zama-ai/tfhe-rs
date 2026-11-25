@@ -26,19 +26,21 @@ use tfhe::{
     set_server_key, AesFheKey, ClientKey, CompactCiphertextList, CompactCiphertextListBuilder,
     CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
-    CompressedKVStore, CompressedServerKey, CompressedSquashedNoiseCiphertextList,
-    CompressedSquashedNoiseCiphertextListBuilder, CompressedSquashedNoiseOneTimePadFheSecretMask,
-    FheBool, FheInt8, FheUint32, FheUint64, FheUint8, HlStreamCipher, HlTranscipherer,
-    KreyviumFheKey, OneTimePadFheSecretMask, ReRandomizationContext, ReRandomizationMode,
-    ReRandomizationSupport, Seed, ServerKey, SquashedNoiseFheBool, SquashedNoiseFheInt,
-    SquashedNoiseFheUint, StreamCiphertext, StreamCiphertextList, TranscipherSession,
+    CompressedKVStore, CompressedOneTimePadFheSecretMask, CompressedServerKey,
+    CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder,
+    CompressedSquashedNoiseOneTimePadFheSecretMask, FheBool, FheInt8, FheUint32, FheUint64,
+    FheUint8, HlStreamCipher, HlTranscipherer, KreyviumFheKey, OneTimePadFheSecretMask,
+    ReRandomizationContext, ReRandomizationMode, ReRandomizationSupport, Seed, ServerKey,
+    SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, StreamCiphertext,
+    StreamCiphertextList, TranscipherSession,
 };
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
     DataKind, HlAesFheKeyTest, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
-    HlCompressedKVStoreTest, HlCompressedSquashedNoiseCiphertextListTest,
+    HlCompressedKVStoreTest, HlCompressedOneTimePadFheSecretMaskTest,
+    HlCompressedSquashedNoiseCiphertextListTest,
     HlCompressedSquashedNoiseOneTimePadFheSecretMaskTest, HlCompressedXofKeySetTest,
     HlHeterogeneousCiphertextListTest, HlKreyviumFheKeyTest, HlOneTimePadFheSecretMaskTest,
     HlPublicKeyTest, HlSeededCompactCiphertextListTest, HlServerKeyTest, HlSignedCiphertextTest,
@@ -1228,6 +1230,42 @@ fn test_hl_compressed_squashed_noise_one_time_pad_fhe_secret_mask(
     )
 }
 
+/// Test HL compressed one time pad: loads the mask, decompresses it and checks that it matches
+/// the one in the metadata.
+fn test_hl_compressed_one_time_pad_fhe_secret_mask(
+    dir: &Path,
+    test: &HlCompressedOneTimePadFheSecretMaskTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let client_key: ClientKey = load_client_key(dir, test, format)?;
+    set_server_key(client_key.generate_server_key());
+
+    let fhe_mask: CompressedOneTimePadFheSecretMask = load_and_unversionize(dir, test, format)?;
+
+    if fhe_mask.tag() != client_key.tag() {
+        return Err(test.failure(
+            format!(
+                "Invalid {} tag:\n Expected :\n{:?}\nGot:\n{:?}",
+                format,
+                client_key.tag(),
+                fhe_mask.tag()
+            ),
+            format,
+        ));
+    }
+
+    let fhe_mask = fhe_mask.decompress().map_err(|e| test.failure(e, format))?;
+
+    let pad = OneTimePadPlainSecretMask::new(test.pad.to_vec(), test.n_bits as usize);
+
+    check_recovered_key(
+        &mut OneTimePadPlainState::new(pad),
+        &mut OneTimePadPlainState::new(fhe_mask.decrypt(&client_key)),
+        test,
+        format,
+    )
+}
+
 /// Test HL stream ciphertext: loads the ciphertext and compare the decrypted value to the one in
 /// the metadata. This type holds no FHE data, so the plain cipher is replayed from the metadata.
 fn test_hl_stream_ciphertext(
@@ -1380,6 +1418,10 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlStreamCiphertextList(test) => {
                 test_hl_stream_ciphertext_list(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlCompressedOneTimePadFheSecretMask(test) => {
+                test_hl_compressed_one_time_pad_fhe_secret_mask(test_dir.as_ref(), test, format)
+                    .into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);

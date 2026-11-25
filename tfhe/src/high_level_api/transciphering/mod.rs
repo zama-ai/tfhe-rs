@@ -30,6 +30,7 @@ mod stream_ciphertext_list;
 pub use aes::AesFheKey;
 pub use kreyvium::KreyviumFheKey;
 pub use one_time_pad::{
+    CompressedOneTimePadFheSecretMask, CompressedOneTimePadFheSecretMaskConformanceParams,
     CompressedSquashedNoiseOneTimePadFheSecretMask,
     CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
     OneTimePadFheSecretMaskConformanceParams, SquashedNoiseOneTimePadFheSecretMask,
@@ -933,12 +934,13 @@ mod test {
     #[test]
     fn test_tag_propagation() {
         use super::{
-            CompressedSquashedNoiseOneTimePadFheSecretMask, HlStreamCipher, HlTranscipherer,
-            OneTimePadFheSecretMask, TranscipherSession,
+            CompressedOneTimePadFheSecretMask, CompressedSquashedNoiseOneTimePadFheSecretMask,
+            HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession,
         };
         use crate::prelude::*;
         use crate::safe_serialization::{safe_deserialize, safe_serialize};
         use crate::shortint::parameters::current_params::{
+            V1_9_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -956,6 +958,7 @@ mod test {
         .enable_noise_squashing_compression(
             V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         )
+        .enable_compression(V1_9_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
         .enable_transciphering(TranscipheringParameters::SameAsCompute);
         let mut client_key = ClientKey::generate(config);
         client_key.tag_mut().set_u64(KEY_SET);
@@ -991,6 +994,19 @@ mod test {
         let decompressed = compressed.decompress().unwrap();
         assert_eq!(decompressed.tag().as_u64(), KEY_SET);
 
+        // Check that the tag survives the compression of the pad for storage
+        let stored = fhe_mask.compress().unwrap();
+        assert_eq!(stored.tag().as_u64(), KEY_SET);
+
+        let mut serialized = vec![];
+        safe_serialize(&stored, &mut serialized, SIZE_LIMIT).unwrap();
+        let stored: CompressedOneTimePadFheSecretMask =
+            safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
+        assert_eq!(stored.tag().as_u64(), KEY_SET);
+
+        let fhe_mask = stored.decompress().unwrap();
+        assert_eq!(fhe_mask.tag().as_u64(), KEY_SET);
+
         let mut sym = OneTimePadPlainState::new(fhe_mask.decrypt(&client_key));
         let sym_cipher = sym.try_encrypt(42u64).unwrap();
 
@@ -1004,8 +1020,9 @@ mod test {
         assert_eq!(recovered, 42);
     }
 
-    /// The pad is generated server-side by the OPRF, then decrypted by the
-    /// client, which is the direction the transciphering protocol uses.
+    /// The pad is generated once server-side by the OPRF, then compressed to be stored. The client
+    /// gets the decrypted pad and encrypts its input with it. The stored pad is later decompressed
+    /// to transcipher the input, which is the flow the transciphering protocol uses.
     #[test]
     fn test_one_time_pad_using_oprf() {
         for params in [
@@ -1019,37 +1036,49 @@ mod test {
     }
 
     fn test_one_time_pad_using_oprf_impl(params: TranscipheringParameters) {
-        use super::{HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession};
+        use super::{
+            CompressedOneTimePadFheSecretMask, CompressedOneTimePadFheSecretMaskConformanceParams,
+            HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession,
+        };
+        use crate::conformance::ParameterSetConformant;
         use crate::prelude::*;
+        use crate::shortint::parameters::{
+            COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
         use crate::transciphering::{OneTimePadPlainSecretMask, OneTimePadPlainState};
         use crate::{generate_keys, set_server_key, ConfigBuilder, Seed};
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
 
-        let (client_key, server_key) =
-            generate_keys(ConfigBuilder::default().enable_transciphering(params));
+        let config =
+            ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .enable_transciphering(params);
+        let (client_key, server_key) = generate_keys(config);
+        let conformance_params =
+            CompressedOneTimePadFheSecretMaskConformanceParams::try_from(&server_key).unwrap();
         set_server_key(server_key);
 
-        // Server: generate a random FHE pad.
-        let seed = rng.gen();
-        let fhe_mask = OneTimePadFheSecretMask::new_random(Seed(seed), 64).unwrap();
+        // Server: generate a random FHE pad and compress it to store it.
+        let fhe_mask = OneTimePadFheSecretMask::new_random(Seed(rng.gen()), 64).unwrap();
+        let mut stored = vec![];
+        safe_serialize(&fhe_mask.compress().unwrap(), &mut stored, SIZE_LIMIT).unwrap();
 
-        // The pad crosses the wire: round-trip it through versioned serialization.
-        let mut serialized = vec![];
-        safe_serialize(&fhe_mask, &mut serialized, SIZE_LIMIT).unwrap();
-        let fhe_mask: OneTimePadFheSecretMask =
-            safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
-
-        // Client: decrypt the pad, then encrypt with it.
+        // Client: get the decrypted pad, then encrypt with it.
         let plain_mask: OneTimePadPlainSecretMask = fhe_mask.decrypt(&client_key);
         let mut sym = OneTimePadPlainState::new(plain_mask);
 
         let input: u64 = rng.gen();
         let sym_cipher = sym.try_encrypt(input).unwrap();
 
-        // Server: re-generate the pad using the same seed and transcipher.
-        let fhe_mask = OneTimePadFheSecretMask::new_random(Seed(seed), 64).unwrap();
+        // Server: load the stored pad, decompress it and transcipher.
+        let stored: CompressedOneTimePadFheSecretMask =
+            safe_deserialize(stored.as_slice(), SIZE_LIMIT).unwrap();
+        assert!(stored.is_conformant(&conformance_params));
+
+        let fhe_mask = stored.decompress().unwrap();
         let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
         let transciphered: FheUint64 = fhe_stream.transcipher(&sym_cipher).unwrap();
 
