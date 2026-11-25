@@ -354,6 +354,13 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
                 params.carry_modulus(),
             );
 
+            // The scalar mul makes the tracked degree go over the message modulus, but the
+            // encrypted value is 0, so set the degree to its actual value to go through the
+            // checked version, which still validates the noise
+            for block in d_ct_input2.ciphertext.info.blocks.iter_mut() {
+                block.degree = crate::shortint::ciphertext::Degree::new(0);
+            }
+
             let squashed = cuda_noise_squashing_key
                 .squash_radix_ciphertext_noise(&cuda_sks, &d_ct_input2.ciphertext, local_streams)
                 .unwrap();

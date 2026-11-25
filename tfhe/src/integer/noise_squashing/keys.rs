@@ -6,6 +6,7 @@ use crate::integer::ciphertext::{
     BooleanBlock, RadixCiphertext, SignedRadixCiphertext, SquashedNoiseBooleanBlock,
     SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
 };
+use crate::integer::noise_squashing::check_blocks_can_be_packed_and_squashed;
 use crate::integer::server_key::ServerKey;
 use crate::integer::ClientKey;
 use crate::named::Named;
@@ -344,6 +345,16 @@ impl NoiseSquashingKey {
         src_server_key: &ServerKey,
         boolean_block: &BooleanBlock,
     ) -> crate::Result<SquashedNoiseBooleanBlock> {
+        // A boolean block goes through the same checks as the last block of a radix with an odd
+        // block count, its carry must be empty as the squashed boolean is decrypted as
+        // `value != 0` over the whole message and carry space
+        check_blocks_can_be_packed_and_squashed(
+            [(boolean_block.0.degree, boolean_block.0.noise_level())],
+            self.key.message_modulus(),
+            self.key.carry_modulus(),
+            src_server_key.key.max_noise_level,
+        )?;
+
         Ok(SquashedNoiseBooleanBlock {
             ciphertext: self
                 .key

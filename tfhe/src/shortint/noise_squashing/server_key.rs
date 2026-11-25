@@ -473,9 +473,14 @@ impl<AP: NoiseSquashingAtomicPattern> GenericNoiseSquashingKey<AP> {
         });
 
         // If the number of ciphertexts is odd, the last one is squashed on its own
-        let last = remainder
-            .par_iter()
-            .map(|ct| self.checked_squash_ciphertext_noise(ct, src_server_key));
+        let last = remainder.par_iter().map(|ct| {
+            if !ct.carry_is_empty() {
+                return Err(crate::error!(
+                    "Cannot squash unpaired block: need carry to be empty."
+                ));
+            }
+            self.checked_squash_ciphertext_noise(ct, src_server_key)
+        });
 
         packed.chain(last).collect()
     }
