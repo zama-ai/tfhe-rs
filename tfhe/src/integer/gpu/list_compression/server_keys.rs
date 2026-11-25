@@ -557,17 +557,29 @@ impl CudaCompressionKey {
         let compressed_polynomial_size = lwe_pksk.output_polynomial_size();
         let compressed_glwe_size = lwe_pksk.output_glwe_size();
 
-        cuda_backend_get_compression_size_on_gpu(
-            streams,
-            message_modulus,
-            carry_modulus,
+        // The packed list returned by the compression
+        let per_glwe_uncompressed = glwe_mask_size(
             compressed_glwe_size.to_glwe_dimension(),
             compressed_polynomial_size,
-            lwe_dimension,
-            lwe_pksk.params_ffi(),
-            self.lwe_per_glwe.0 as u32,
-            num_lwes,
-        )
+        ) + self.lwe_per_glwe.0;
+        let per_glwe_packed =
+            (per_glwe_uncompressed * self.storage_log_modulus.0).div_ceil(u64::BITS as usize);
+        let packed_len = (num_lwes as usize).div_ceil(self.lwe_per_glwe.0) * per_glwe_packed;
+        // The inputs are flattened into a single list before being compressed
+        let flattened_len = num_lwes as usize * lwe_dimension.to_lwe_size().0;
+
+        ((packed_len + flattened_len) * std::mem::size_of::<u64>()) as u64
+            + cuda_backend_get_compression_size_on_gpu(
+                streams,
+                message_modulus,
+                carry_modulus,
+                compressed_glwe_size.to_glwe_dimension(),
+                compressed_polynomial_size,
+                lwe_dimension,
+                lwe_pksk.params_ffi(),
+                self.lwe_per_glwe.0 as u32,
+                num_lwes,
+            )
     }
 }
 
@@ -726,17 +738,26 @@ impl CudaDecompressionKey {
                 "Decompression key should not do modulus switch noise reduction"
             );
         }
-        cuda_backend_get_decompression_size_on_gpu(
-            streams,
-            message_modulus,
-            carry_modulus,
-            encryption_glwe_dimension,
-            encryption_polynomial_size,
-            compression_glwe_dimension,
-            compression_polynomial_size,
-            &self.blind_rotate_key,
-            indexes_array_len.0 as u32,
-        )
+        // The decompressed blocks
+        let output_size = indexes_array_len.0
+            * encryption_glwe_dimension
+                .to_equivalent_lwe_dimension(encryption_polynomial_size)
+                .to_lwe_size()
+                .0
+            * std::mem::size_of::<u64>();
+
+        output_size as u64
+            + cuda_backend_get_decompression_size_on_gpu(
+                streams,
+                message_modulus,
+                carry_modulus,
+                encryption_glwe_dimension,
+                encryption_polynomial_size,
+                compression_glwe_dimension,
+                compression_polynomial_size,
+                &self.blind_rotate_key,
+                indexes_array_len.0 as u32,
+            )
     }
     pub fn get_cpu_list_unpack_size_on_gpu(
         &self,
@@ -769,17 +790,26 @@ impl CudaDecompressionKey {
                 "Decompression key should not do modulus switch noise reduction"
             );
         }
-        cuda_backend_get_decompression_size_on_gpu(
-            streams,
-            message_modulus,
-            carry_modulus,
-            encryption_glwe_dimension,
-            encryption_polynomial_size,
-            compression_glwe_dimension,
-            compression_polynomial_size,
-            &self.blind_rotate_key,
-            indexes_array_len.0 as u32,
-        )
+        // The decompressed blocks
+        let output_size = indexes_array_len.0
+            * encryption_glwe_dimension
+                .to_equivalent_lwe_dimension(encryption_polynomial_size)
+                .to_lwe_size()
+                .0
+            * std::mem::size_of::<u64>();
+
+        output_size as u64
+            + cuda_backend_get_decompression_size_on_gpu(
+                streams,
+                message_modulus,
+                carry_modulus,
+                encryption_glwe_dimension,
+                encryption_polynomial_size,
+                compression_glwe_dimension,
+                compression_polynomial_size,
+                &self.blind_rotate_key,
+                indexes_array_len.0 as u32,
+            )
     }
 }
 

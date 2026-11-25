@@ -17,9 +17,9 @@ use crate::integer::gpu::{
     cuda_backend_apply_many_univariate_lut, cuda_backend_apply_univariate_lut,
     cuda_backend_cast_to_signed, cuda_backend_cast_to_unsigned,
     cuda_backend_extend_radix_with_trivial_zero_blocks_msb, cuda_backend_full_propagate_assign,
-    cuda_backend_get_cast_to_unsigned_size_on_gpu, cuda_backend_noise_squashing,
-    cuda_backend_propagate_single_carry_assign, cuda_backend_trim_radix_blocks_lsb,
-    cuda_backend_trim_radix_blocks_msb, CudaServerKey,
+    cuda_backend_get_cast_to_unsigned_size_on_gpu, cuda_backend_get_noise_squashing_size_on_gpu,
+    cuda_backend_noise_squashing, cuda_backend_propagate_single_carry_assign,
+    cuda_backend_trim_radix_blocks_lsb, cuda_backend_trim_radix_blocks_msb, CudaServerKey,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -1083,5 +1083,30 @@ impl CudaServerKey {
             info.degree = Degree(output_degrees[i]);
             info.noise_level = NoiseLevel(output_noise_levels[i]);
         }
+    }
+
+    /// Returns the size of the scratch buffer allocated by [`Self::apply_noise_squashing`] for an
+    /// input of `num_blocks` blocks (nothing is allocated on the GPU)
+    pub(crate) fn get_apply_noise_squashing_size_on_gpu(
+        &self,
+        num_blocks: usize,
+        squashing_key: &CudaNoiseSquashingKey,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        cuda_backend_get_noise_squashing_size_on_gpu(
+            streams,
+            &squashing_key.bootstrapping_key,
+            self.bootstrapping_key.glwe_size().to_glwe_dimension(),
+            self.bootstrapping_key.polynomial_size(),
+            computing_ks_key.params_ffi(),
+            num_blocks.div_ceil(2) as u32,
+            num_blocks as u32,
+            self.message_modulus,
+            self.carry_modulus,
+        )
     }
 }

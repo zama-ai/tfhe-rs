@@ -291,6 +291,12 @@ pub trait SizeOnGpu<Rhs = Self> {
 pub trait CastIntoSizeOnGpu<Into> {
     fn get_cast_into_size_on_gpu(&self) -> u64;
 }
+/// GPU memory (in bytes) that `squash_noise` allocates for `self`, computed without allocating on
+/// the GPU, or 0 when the current server key is not a GPU key.
+#[cfg(feature = "gpu")]
+pub trait SquashNoiseSizeOnGpu {
+    fn get_squash_noise_size_on_gpu(&self) -> crate::Result<u64>;
+}
 #[cfg(feature = "gpu")]
 pub trait AddSizeOnGpu<Rhs = Self> {
     fn get_add_size_on_gpu(&self, amount: Rhs) -> u64;

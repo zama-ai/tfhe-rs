@@ -17,9 +17,15 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::U256;
 use crate::prelude::*;
+use crate::shortint::parameters::{
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 use crate::{
-    ClientKey, FheBool, FheInt128, FheInt32, FheInt8, FheUint128, FheUint16, FheUint160, FheUint2,
-    FheUint256, FheUint32, FheUint64, FheUint8, Seed,
+    set_server_key, ClientKey, CompressedCiphertextList, CompressedCiphertextListBuilder,
+    CompressedServerKey, ConfigBuilder, FheBool, FheInt128, FheInt32, FheInt8, FheUint128,
+    FheUint16, FheUint160, FheUint2, FheUint256, FheUint32, FheUint64, FheUint8, Seed,
 };
 use std::ffi::c_void;
 
@@ -1004,6 +1010,81 @@ fn test_gpu_size_estimates_cover_peak() {
         );
         check_coprocessor_bool_and_u160(&ck, &t);
     }
+    let failures = FAILURES.lock().unwrap();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// Noise squashing, compression and decompression, with the inputs on the GPU and on the CPU
+#[test]
+fn test_gpu_squash_noise_and_compression_size_estimates_cover_peak() {
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .enable_noise_squashing(NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .build();
+    let ck = ClientKey::generate(config);
+    set_server_key(CompressedServerKey::new(&ck).decompress_to_gpu());
+
+    let cpu_u256 = FheUint256::encrypt(U256::MAX, &ck);
+    let cpu_i32 = FheInt32::encrypt(-3i32, &ck);
+    let cpu_bool = FheBool::encrypt(true, &ck);
+    let (mut u256, mut i32, mut bool) = (cpu_u256.clone(), cpu_i32.clone(), cpu_bool.clone());
+    u256.move_to_current_device();
+    i32.move_to_current_device();
+    bool.move_to_current_device();
+
+    for (device, u256, i32, bool) in [
+        ("gpu", &u256, &i32, &bool),
+        ("cpu", &cpu_u256, &cpu_i32, &cpu_bool),
+    ] {
+        check(
+            &format!("FheUint256 {device} squash_noise"),
+            || u256.get_squash_noise_size_on_gpu().unwrap(),
+            || u256.squash_noise().unwrap(),
+        );
+        check(
+            &format!("FheInt32 {device} squash_noise"),
+            || i32.get_squash_noise_size_on_gpu().unwrap(),
+            || i32.squash_noise().unwrap(),
+        );
+        check(
+            &format!("FheBool {device} squash_noise"),
+            || bool.get_squash_noise_size_on_gpu().unwrap(),
+            || bool.squash_noise().unwrap(),
+        );
+
+        let mut builder = CompressedCiphertextListBuilder::new();
+        builder
+            .push(u256.clone())
+            .push(i32.clone())
+            .push(bool.clone());
+        check(
+            &format!("{device} inputs compression"),
+            || builder.get_size_on_gpu().unwrap(),
+            || builder.build().unwrap(),
+        );
+    }
+
+    let mut builder = CompressedCiphertextListBuilder::new();
+    builder.push(u256).push(i32).push(bool);
+    let gpu_list = builder.build().unwrap();
+    let cpu_list: CompressedCiphertextList =
+        bincode::deserialize(&bincode::serialize(&gpu_list).unwrap()).unwrap();
+    assert_eq!(gpu_list.current_device(), crate::Device::CudaGpu);
+    assert_eq!(cpu_list.current_device(), crate::Device::Cpu);
+    for (device, list) in [("gpu", &gpu_list), ("cpu", &cpu_list)] {
+        check(
+            &format!("{device} list decompression of FheUint256"),
+            || list.get_decompression_size_on_gpu(0).unwrap().unwrap(),
+            || list.get::<FheUint256>(0).unwrap().unwrap(),
+        );
+        check(
+            &format!("{device} list decompression of FheBool"),
+            || list.get_decompression_size_on_gpu(2).unwrap().unwrap(),
+            || list.get::<FheBool>(2).unwrap().unwrap(),
+        );
+    }
+
     let failures = FAILURES.lock().unwrap();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

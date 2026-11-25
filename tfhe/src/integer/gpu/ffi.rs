@@ -6581,6 +6581,44 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, KST: Unsig
     cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
 
+/// Returns the size of the scratch buffer allocated by `cuda_backend_noise_squashing`
+/// (nothing is allocated on the GPU).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cuda_backend_get_noise_squashing_size_on_gpu(
+    streams: &CudaStreams,
+    bsk: &impl CudaBootstrapKey,
+    input_glwe_dimension: GlweDimension,
+    input_polynomial_size: PolynomialSize,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    original_num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_apply_noise_squashing_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            u32::try_from(input_glwe_dimension.0).unwrap(),
+            u32::try_from(input_polynomial_size.0).unwrap(),
+            ksk_params,
+            num_blocks,
+            original_num_blocks,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///

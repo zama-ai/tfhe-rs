@@ -31,5 +31,5 @@ pub use crate::high_level_api::traits::{
     CastIntoSizeOnGpu, DivRemSizeOnGpu, DivSizeOnGpu, FheEqSizeOnGpu, FheMaxSizeOnGpu,
     FheMinSizeOnGpu, FheOrdSizeOnGpu, IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu,
     RemSizeOnGpu, RerandSizeOnGpu, RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu,
-    ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
+    ShrSizeOnGpu, SizeOnGpu, SquashNoiseSizeOnGpu, SubSizeOnGpu,
 };
