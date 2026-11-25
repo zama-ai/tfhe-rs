@@ -298,7 +298,10 @@ __global__ void extract(Torus *glwe_array_out, Torus const *array_in,
   auto i = threadIdx.x + blockIdx.x * blockDim.x;
   if (i < initial_out_len) {
     // Unpack
-    Torus mask = ((Torus)1 << log_modulus) - 1;
+    // The mask has log_modulus low bits set. This form has a shift amount of
+    // 0 when log_modulus == nbits. A left shift of 1 by nbits is not defined
+    // in C++.
+    Torus mask = ~static_cast<Torus>(0) >> (nbits - log_modulus);
     auto start = i * log_modulus;
     auto end = (i + 1) * log_modulus;
 

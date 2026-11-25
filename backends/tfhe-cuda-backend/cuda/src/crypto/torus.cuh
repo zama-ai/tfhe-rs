@@ -133,6 +133,13 @@ template <typename T>
 __device__ __forceinline__ void modulus_switch(const T input, T &output,
                                                uint32_t log_modulus) {
   constexpr uint32_t BITS = sizeof(T) * 8;
+  // When log_modulus == BITS, the output is the input, as in the CPU
+  // implementation. The shifts below are defined in C++ only when
+  // log_modulus < BITS.
+  if (log_modulus == BITS) {
+    output = input;
+    return;
+  }
   output = input + (((T)1) << (BITS - log_modulus - 1));
   output >>= (BITS - log_modulus);
 }
