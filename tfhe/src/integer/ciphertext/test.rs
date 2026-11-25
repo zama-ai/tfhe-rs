@@ -1,22 +1,34 @@
 use crate::integer::ciphertext::compressed_ciphertext_list::*;
-use crate::integer::ciphertext::{ReRandomizationContext, ReRandomizationKey};
-use crate::integer::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
-use crate::integer::{
-    gen_keys, BooleanBlock, CompactPrivateKey, CompactPublicKey, RadixCiphertext,
-    SignedRadixCiphertext,
+use crate::integer::ciphertext::{
+    CompressedSquashedNoiseCiphertextList, NoiseSquashingCompressionPrivateKey,
+    ReRandomizationContext, ReRandomizationKey, SquashedNoiseBooleanBlock,
+    SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
 };
+use crate::integer::key_switching_key::{KeySwitchingKeyBuildHelper, KeySwitchingKeyMaterial};
+use crate::integer::keycache::KEY_CACHE;
+use crate::integer::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+use crate::integer::{
+    gen_keys, BooleanBlock, CompactPrivateKey, CompactPublicKey, RadixCiphertext, RadixClientKey,
+    ServerKey, SignedRadixCiphertext,
+};
+use crate::shortint::ciphertext::{Degree, MaxDegree};
 use crate::shortint::parameters::test_params::{
-    TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TestParameters, TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
 };
 use crate::shortint::parameters::{
-    CompactPublicKeyEncryptionParameters, CompressionParameters, ReRandomizationParameters,
+    CompactPublicKeyEncryptionParameters, CompressionParameters,
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters, ReRandomizationParameters,
 };
 use crate::shortint::AtomicPatternParameters;
 use itertools::Itertools;
 use rand::Rng;
+use std::sync::Arc;
 
 const NB_TESTS: usize = 10;
 const NUM_BLOCKS: usize = 32;
@@ -474,4 +486,167 @@ mod zk {
 
         assert!(cpu_list == gpu_on_cpu);
     }
+}
+
+/// The function executor that extracts ciphertexts from a compressed squashed noise list on the
+/// CPU
+struct CpuSquashedNoiseListExtractionExecutor;
+
+impl<'a>
+    FunctionExecutor<
+        &'a CompressedSquashedNoiseCiphertextList,
+        (
+            SquashedNoiseRadixCiphertext,
+            SquashedNoiseSignedRadixCiphertext,
+            SquashedNoiseBooleanBlock,
+        ),
+    > for CpuSquashedNoiseListExtractionExecutor
+{
+    // The extraction from a list uses no key
+    fn setup(&mut self, _cks: &RadixClientKey, _sks: Arc<ServerKey>) {}
+
+    fn execute(
+        &mut self,
+        list: &'a CompressedSquashedNoiseCiphertextList,
+    ) -> (
+        SquashedNoiseRadixCiphertext,
+        SquashedNoiseSignedRadixCiphertext,
+        SquashedNoiseBooleanBlock,
+    ) {
+        (
+            list.get(0).unwrap().unwrap(),
+            list.get(1).unwrap().unwrap(),
+            list.get(2).unwrap().unwrap(),
+        )
+    }
+}
+
+#[test]
+fn test_compressed_squashed_noise_ciphertext_list_extraction_degrees() {
+    compressed_squashed_noise_list_extraction_degrees_test(
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        CpuSquashedNoiseListExtractionExecutor,
+    );
+}
+
+/// Checks the degree recorded on each block extracted from a compressed squashed noise list, and
+/// the decrypted values.
+///
+/// The compression does not store the degrees, so the extraction must record the maximum degree
+/// of the message and carry space on every block.
+///
+/// The executor receives a list that holds, in this order, an unsigned radix, a signed radix and
+/// a boolean block. It must return the three ciphertexts that it extracts from the list.
+pub(crate) fn compressed_squashed_noise_list_extraction_degrees_test<P, T>(
+    param: P,
+    noise_squashing_parameters: NoiseSquashingParameters,
+    noise_squashing_compression_parameters: NoiseSquashingCompressionParameters,
+    mut executor: T,
+) where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<
+        &'a CompressedSquashedNoiseCiphertextList,
+        (
+            SquashedNoiseRadixCiphertext,
+            SquashedNoiseSignedRadixCiphertext,
+            SquashedNoiseBooleanBlock,
+        ),
+    >,
+{
+    let param = param.into();
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let sks = Arc::new(sks);
+    // Each encryption gives its block count. The block count of this key is not used.
+    let cks = RadixClientKey::from((cks, 1));
+
+    executor.setup(&cks, sks.clone());
+
+    let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
+    let noise_squashing_key = NoiseSquashingKey::new(cks.as_ref(), &noise_squashing_private_key);
+
+    let compression_private_key =
+        NoiseSquashingCompressionPrivateKey::new(noise_squashing_compression_parameters);
+    let compression_key =
+        noise_squashing_private_key.new_noise_squashing_compression_key(&compression_private_key);
+    let decryption_key = compression_private_key.private_key_view();
+
+    let bits_per_block = cks.parameters().message_modulus().0.ilog2();
+    let num_unsigned_blocks = u8::BITS.div_ceil(bits_per_block) as usize;
+    // The signed radix has 3 blocks, an odd block count, so its last packed block holds a single
+    // input block
+    let clear_unsigned = u8::MAX;
+    let clear_signed = -3i8;
+    let clear_bool = true;
+
+    let squashed_unsigned = noise_squashing_key
+        .squash_radix_ciphertext_noise(
+            &sks,
+            &cks.as_ref()
+                .encrypt_radix(clear_unsigned, num_unsigned_blocks),
+        )
+        .unwrap();
+    let squashed_signed = noise_squashing_key
+        .squash_signed_radix_ciphertext_noise(
+            &sks,
+            &cks.as_ref().encrypt_signed_radix(clear_signed, 3),
+        )
+        .unwrap();
+    let squashed_bool = noise_squashing_key
+        .squash_boolean_block_noise(&sks, &cks.as_ref().encrypt_bool(clear_bool))
+        .unwrap();
+
+    let list = CompressedSquashedNoiseCiphertextList::builder()
+        .push(squashed_unsigned)
+        .push(squashed_signed)
+        .push(squashed_bool)
+        .build(&compression_key);
+
+    let (extracted_unsigned, extracted_signed, extracted_bool) = executor.execute(&list);
+
+    let max_degree = Degree::new(
+        MaxDegree::from_msg_carry_modulus(
+            cks.parameters().message_modulus(),
+            cks.parameters().carry_modulus(),
+        )
+        .get(),
+    );
+
+    let degrees = extracted_unsigned
+        .packed_blocks()
+        .iter()
+        .map(|block| block.degree())
+        .collect_vec();
+    assert_eq!(
+        degrees,
+        vec![max_degree; num_unsigned_blocks.div_ceil(2)],
+        "Invalid degrees for the unsigned radix"
+    );
+    let decrypted: u8 = decryption_key.decrypt_radix(&extracted_unsigned).unwrap();
+    assert_eq!(decrypted, clear_unsigned);
+
+    let degrees = extracted_signed
+        .packed_blocks()
+        .iter()
+        .map(|block| block.degree())
+        .collect_vec();
+    assert_eq!(
+        degrees, [max_degree; 2],
+        "Invalid degrees for the signed radix"
+    );
+    let decrypted: i8 = decryption_key
+        .decrypt_signed_radix(&extracted_signed)
+        .unwrap();
+    assert_eq!(decrypted, clear_signed);
+
+    assert_eq!(
+        extracted_bool.packed_blocks().degree(),
+        max_degree,
+        "Invalid degree for the boolean block"
+    );
+    assert_eq!(
+        decryption_key.decrypt_bool(&extracted_bool).unwrap(),
+        clear_bool
+    );
 }

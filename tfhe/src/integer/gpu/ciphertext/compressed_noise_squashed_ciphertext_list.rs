@@ -15,7 +15,9 @@ use crate::integer::gpu::cuda_backend_decompress_128;
 use crate::integer::gpu::list_compression::server_keys::{
     CudaNoiseSquashingCompressionKey, CudaPackedGlweCiphertextList,
 };
-use crate::shortint::ciphertext::{CompressedSquashedNoiseCiphertextListMeta, Degree, NoiseLevel};
+use crate::shortint::ciphertext::{
+    CompressedSquashedNoiseCiphertextListMeta, Degree, MaxDegree, NoiseLevel,
+};
 use crate::shortint::{AtomicPatternKind, PBSOrder};
 use crate::{shortint, GpuIndex};
 use itertools::Itertools;
@@ -295,7 +297,6 @@ impl CudaCompressedSquashedNoiseCiphertextList {
     }
     pub fn unpack(
         &self,
-        kind: DataKind,
         start_block_index: usize,
         end_block_index: usize,
         streams: &CudaStreams,
@@ -351,12 +352,11 @@ impl CudaCompressedSquashedNoiseCiphertextList {
             );
         }
         streams.synchronize();
-        let degree = match kind {
-            DataKind::Unsigned(_) | DataKind::Signed(_) | DataKind::String { .. } => {
-                Degree::new(message_modulus.0 - 1)
-            }
-            DataKind::Boolean => Degree::new(1),
-        };
+        // Each ciphertext of the list is a packed block that can use the whole message and carry
+        // space. The list does not store the degrees, so the extraction records the maximum, same
+        // as on the CPU.
+        let degree =
+            Degree::new(MaxDegree::from_msg_carry_modulus(message_modulus, carry_modulus).get());
 
         let first_block_info = CudaBlockInfo {
             degree,
@@ -410,12 +410,7 @@ impl CudaCompressedSquashedNoiseCiphertextList {
             ));
         }
 
-        let (unpacked, info) = self.unpack(
-            current_data_kind,
-            block_range.start,
-            block_range.end - 1,
-            streams,
-        )?;
+        let (unpacked, info) = self.unpack(block_range.start, block_range.end - 1, streams)?;
 
         Ok(Some((unpacked, info, current_data_kind)))
     }
@@ -434,9 +429,11 @@ impl CudaCompressedSquashedNoiseCiphertextList {
 mod test {
     use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::gpu::CudaStreams;
+    use crate::integer::ciphertext::test::compressed_squashed_noise_list_extraction_degrees_test;
     use crate::integer::ciphertext::{
         CompressedSquashedNoiseCiphertextList, NoiseSquashingCompressionPrivateKey,
-        SquashedNoiseRadixCiphertext,
+        SquashedNoiseBooleanBlock, SquashedNoiseRadixCiphertext,
+        SquashedNoiseSignedRadixCiphertext,
     };
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use crate::integer::gpu::ciphertext::squashed_noise::{
@@ -450,7 +447,8 @@ mod test {
     use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
     use crate::integer::gpu::{gen_keys_radix_gpu, CudaServerKey};
     use crate::integer::noise_squashing::NoiseSquashingPrivateKey;
-    use crate::integer::{ClientKey, CompressedServerKey, RadixClientKey};
+    use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+    use crate::integer::{ClientKey, CompressedServerKey, RadixClientKey, ServerKey};
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -460,6 +458,7 @@ mod test {
     use crate::shortint::AtomicPatternParameters;
     use itertools::Itertools;
     use rand::Rng;
+    use std::sync::Arc;
 
     #[test]
     fn test_cuda_compressed_noise_squashed_ciphertext_list() {
@@ -762,6 +761,81 @@ mod test {
                 );
             }
         }
+    }
+
+    /// The function executor that moves a compressed squashed noise list to the GPU and extracts
+    /// its ciphertexts on the GPU
+    struct GpuSquashedNoiseListExtractionExecutor {
+        /// The streams are set later, when the test case calls setup
+        streams: Option<CudaStreams>,
+    }
+
+    impl GpuSquashedNoiseListExtractionExecutor {
+        fn new() -> Self {
+            Self { streams: None }
+        }
+    }
+
+    impl<'a>
+        FunctionExecutor<
+            &'a CompressedSquashedNoiseCiphertextList,
+            (
+                SquashedNoiseRadixCiphertext,
+                SquashedNoiseSignedRadixCiphertext,
+                SquashedNoiseBooleanBlock,
+            ),
+        > for GpuSquashedNoiseListExtractionExecutor
+    {
+        // The extraction from a list uses no key
+        fn setup(&mut self, _cks: &RadixClientKey, _sks: Arc<ServerKey>) {
+            self.streams = Some(CudaStreams::new_multi_gpu());
+        }
+
+        fn execute(
+            &mut self,
+            list: &'a CompressedSquashedNoiseCiphertextList,
+        ) -> (
+            SquashedNoiseRadixCiphertext,
+            SquashedNoiseSignedRadixCiphertext,
+            SquashedNoiseBooleanBlock,
+        ) {
+            let streams = self
+                .streams
+                .as_ref()
+                .expect("setup was not properly called");
+            let cuda_list =
+                CudaCompressedSquashedNoiseCiphertextList::from_compressed_squashed_noise_ciphertext_list(
+                    list, streams,
+                )
+                .unwrap();
+            (
+                cuda_list
+                    .get::<CudaSquashedNoiseRadixCiphertext>(0, streams)
+                    .unwrap()
+                    .unwrap()
+                    .to_squashed_noise_radix_ciphertext(streams),
+                cuda_list
+                    .get::<CudaSquashedNoiseSignedRadixCiphertext>(1, streams)
+                    .unwrap()
+                    .unwrap()
+                    .to_squashed_noise_signed_radix_ciphertext(streams),
+                cuda_list
+                    .get::<CudaSquashedNoiseBooleanBlock>(2, streams)
+                    .unwrap()
+                    .unwrap()
+                    .to_squashed_noise_boolean_block(streams),
+            )
+        }
+    }
+
+    #[test]
+    fn test_cuda_compressed_squashed_noise_ciphertext_list_extraction_degrees() {
+        compressed_squashed_noise_list_extraction_degrees_test(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            GpuSquashedNoiseListExtractionExecutor::new(),
+        );
     }
 
     const NB_TESTS: usize = 5;

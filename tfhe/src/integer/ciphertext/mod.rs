@@ -11,7 +11,7 @@ mod integer_ciphertext;
 mod re_randomization;
 mod squashed_noise;
 #[cfg(test)]
-mod test;
+pub(crate) mod test;
 mod utils;
 
 pub use base::*;
