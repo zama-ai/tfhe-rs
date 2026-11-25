@@ -3200,8 +3200,10 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
     /// Synchronize all GPUs
     streams.synchronize();
   }
-  for (uint i = 0; i < lut->num_blocks; i++) {
-    lwe_array_out->degrees[i] = lut->degrees[0];
+  // The squashing LUT is the identity function. Thus each output block keeps
+  // the degree that pack_blocks recorded for the packed input block.
+  for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
+    lwe_array_out->degrees[i] = lwe_array_pbs_in->degrees[i];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
     CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
                       params.carry_modulus);

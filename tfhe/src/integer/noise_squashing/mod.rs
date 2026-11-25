@@ -1,6 +1,6 @@
 mod keys;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub use keys::*;
 
