@@ -8,8 +8,8 @@
 //! ```
 pub use crate::high_level_api::traits::{
     BitSlice, CiphertextList, DivRem, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch, FheMax, FheMin,
-    FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, FheWait, Flip,
-    FusedMulScalarDiv, FusedScalarMulScalarDiv, IfThenElse, IfThenZero, OverflowingAdd,
+    FheOrd, FheSliceDotProduct, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, FheWait,
+    Flip, FusedMulScalarDiv, FusedScalarMulScalarDiv, IfThenElse, IfThenZero, OverflowingAdd,
     OverflowingMul, OverflowingNeg, OverflowingSub, ReRandomize, RotateLeft, RotateLeftAssign,
     RotateRight, RotateRightAssign, ScalarIfThenElse, SquashNoise, Tagged,
 };
@@ -18,8 +18,6 @@ pub use crate::high_level_api::traits::{FheHpu, HpuHandle};
 
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};
 pub use tfhe_safe_serialize::ParameterSetConformant;
-
-pub use crate::high_level_api::array::traits::FheSliceDotProduct;
 
 #[cfg(feature = "gpu")]
 pub use crate::high_level_api::gpu_utils::*;

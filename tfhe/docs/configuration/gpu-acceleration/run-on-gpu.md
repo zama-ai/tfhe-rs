@@ -30,7 +30,6 @@ The GPU backend is designed to speed up server-side FHE operations and supports 
 
 - [FHE ciphertext operations](./gpu-operations.md)
 - [Ciphertext compression](./compressing-ciphertexts.md)
-- [Ciphertext arrays](array-type.md)
 - [Compact ciphertext expansion](zk-pok.md)
 - [Zero-knowledge proof generation and verification](zk-pok.md)
 - [Noise Squashing](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.squash_noise)
@@ -55,7 +54,6 @@ The GPU TFHE-rs integer API is mostly identical to the CPU API: both integer dat
 The key differences between the CPU API and the GPU API are:
 * The GPU backend only supports compressed server keys that must be decompressed on a GPU selected by the user.
 * For ciphertext compression the cryptographic parameters must be chosen by the user from the GPU parameter set.
-* For ciphertext arrays, GPU-specific ciphertext array types must be used instead of CPU ones.
 
 ## Project configuration
 

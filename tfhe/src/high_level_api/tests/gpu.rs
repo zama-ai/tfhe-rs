@@ -1,6 +1,5 @@
 use rand::Rng;
 
-use crate::array::{GpuFheBoolArray, GpuFheUint32Array};
 use crate::core_crypto::gpu::get_number_of_gpus;
 use crate::high_level_api::global_state::CustomMultiGpuIndexes;
 use crate::prelude::*;
@@ -495,10 +494,6 @@ fn test_server_key_moved_to_another_gpu() {
         kv_store.insert_with_clear_key(i as u8, FheUint32::encrypt(*value, &keys));
     }
 
-    let clear_array: Vec<u32> = (0..4).map(|_| rng.gen()).collect();
-    let array = GpuFheUint32Array::try_encrypt(clear_array.as_slice(), &keys).unwrap();
-    let bool_array = GpuFheBoolArray::try_encrypt(&[true, false][..], &keys).unwrap();
-
     let mut compact_list = CompactCiphertextList::builder(&pk)
         .push(clear_a)
         .build_packed();
@@ -544,15 +539,6 @@ fn test_server_key_moved_to_another_gpu() {
     assert!(is_some.decrypt(&keys));
     let decrypted: u32 = value.decrypt(&keys);
     assert_eq!(decrypted, new_value);
-
-    // Arrays on GPU 0 are copied on the fly
-    let doubled = &array + &array;
-    let decrypted: Vec<u32> = doubled.decrypt(&keys);
-    let expected: Vec<u32> = clear_array.iter().map(|v| v.wrapping_add(*v)).collect();
-    assert_eq!(decrypted, expected);
-    let negated = !&bool_array;
-    let decrypted: Vec<bool> = negated.decrypt(&keys);
-    assert_eq!(decrypted, vec![false, true]);
 
     // Expanding a compact list stored on GPU 0
     let expander = compact_list.expand().unwrap();

@@ -248,6 +248,11 @@ pub trait CiphertextList {
 
 pub trait FheId: Copy + Default {}
 
+// Trait to overload `dot_product` free functions
+pub trait FheSliceDotProduct<Lhs, Rhs> {
+    fn dot_product(lhs: &[Lhs], rhs: &[Rhs]) -> Self;
+}
+
 pub trait SquashNoise {
     type Output;
 

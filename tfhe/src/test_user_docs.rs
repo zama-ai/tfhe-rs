@@ -148,7 +148,6 @@ mod test_cpu_doc {
     );
 
     // TYPES
-    doctest!("../docs/fhe-computation/types/array.md", types_array);
     doctest!("../docs/fhe-computation/types/strings.md", types_strings);
     doctest!("../docs/fhe-computation/types/kv-store.md", types_kv_store);
 
@@ -253,10 +252,6 @@ mod test_gpu_doc {
     doctest!(
         "../docs/configuration/gpu-acceleration/compressing-ciphertexts.md",
         configuration_gpu_acceleration_compressing_ciphertexts
-    );
-    doctest!(
-        "../docs/configuration/gpu-acceleration/array-type.md",
-        configuration_gpu_acceleration_array_type
     );
     doctest!(
         "../docs/configuration/gpu-acceleration/multi-gpu.md",
