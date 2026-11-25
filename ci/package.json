@@ -1,0 +1,7 @@
+{
+  "name": "CI deps from npm",
+  "private": true,
+  "devDependencies": {
+    "prettier": "3.3.3"
+  }
+}

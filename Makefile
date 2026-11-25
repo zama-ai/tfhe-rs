@@ -83,8 +83,6 @@ WEB_SERVER_DIR=tfhe/web_wasm_parallel_tests
 TAPLO_VERSION=0.10.0
 TYPOS_VERSION=1.48.0
 ZIZMOR_VERSION=1.22.0
-# Same formatter as the JS projects and the YAML language server
-PRETTIER_VERSION=3.3.3
 WORKFLOW_YAML_FILES='.github/**/*.{yml,yaml}'
 CARGO_SEMVER_CHECKS_VERSION=0.47.0
 CARGO_AFL_VERSION=0.18.2
@@ -517,12 +515,16 @@ lint_workflow: check_actionlint_installed
 	actionlint
 
 .PHONY: fmt_workflow # Format GitHub workflows and actions YAML files
-fmt_workflow:
-	npx --yes prettier@$(PRETTIER_VERSION) --write $(WORKFLOW_YAML_FILES)
+fmt_workflow: check_nvm_installed
+	$(activate_node) && npm ci --prefix ci --ignore-scripts && \
+	ci/node_modules/.bin/prettier --write $(WORKFLOW_YAML_FILES)
 
+# Check does not go through the nvm install, since the GH runner already has npm available
+# however we do make sure safe chain is activated to benefit from the protection
 .PHONY: check_fmt_workflow # Check GitHub workflows and actions YAML files format
 check_fmt_workflow:
-	@npx --yes prettier@$(PRETTIER_VERSION) --check $(WORKFLOW_YAML_FILES) || \
+	$(activate_safe_chain) && npm ci --prefix ci --ignore-scripts && \
+	ci/node_modules/.bin/prettier --check $(WORKFLOW_YAML_FILES) || \
 	{ echo "Workflow files format check failed. Please run 'make fmt_workflow'"; exit 1; }
 
 .PHONY: check_workflow_security # Run zizmor security checker on GitHub workflows

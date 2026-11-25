@@ -29,6 +29,11 @@ jobs:
       - name: Setup Python
         uses: ./.github/actions/setup_python
 
+      # Install after python, npm/node already on the GH runner
+      - name: Install Safe-Chain
+        run: |
+          make install_aikido_safe_chain
+
       - name: Get actionlint
         run: |
           wget "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
@@ -68,10 +73,6 @@ jobs:
           allowlist: |
             slsa-framework/slsa-github-generator
             ./
-
-      - name: Install Safe-Chain
-        run: |
-          make install_aikido_safe_chain
 
       - name: Check Python requirements lock files are up to date
         run: |
