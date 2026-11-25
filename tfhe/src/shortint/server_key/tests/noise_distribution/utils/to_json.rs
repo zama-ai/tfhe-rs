@@ -66,17 +66,23 @@ impl<'a> TestJsonGuard<'a> {
         warning: Option<String>,
         results: TestResult,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let test_id = format!("{test_module_path}::{test_name}").to_lowercase();
-        let short_name = test_module_path
-            .rsplit_once("::")
-            .map_or(test_module_path, |(_, p)| p);
-        let output_data =
-            TestJsonOutput::new(&test_id, short_name, pass, warning, meta_param, results);
-        let serialized_output = serde_json::to_string_pretty(&output_data)?;
         let mut path = PathBuf::new();
         path.push("tests_results");
         fs::create_dir_all(&path)?;
+        let test_id = format!("{test_module_path}::{test_name}").to_lowercase();
         path.push(format!("{test_id}.json"));
+        let short_name = test_module_path
+            .rsplit_once("::")
+            .map_or(test_module_path, |(_, p)| p);
+        let output_data = TestJsonOutput::new(
+            test_id,
+            short_name.to_string(),
+            pass,
+            warning,
+            meta_param,
+            results,
+        );
+        let serialized_output = serde_json::to_string_pretty(&output_data)?;
         fs::write(&path, serialized_output)?;
         Ok(())
     }

@@ -1,6 +1,6 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(untagged)] // https://serde.rs/enum-representations.html#untagged
 pub enum TestResult {
     NoiseCheckWithNormalityCheck(Box<NoiseCheckWithNormalityCheck>),
@@ -10,10 +10,10 @@ pub enum TestResult {
 }
 
 /// String is used to make it easier to parse from other languages like js
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Measurement {
-    measured: String,
-    expected: String,
+    pub measured: String,
+    pub expected: String,
 }
 
 impl Measurement {
@@ -22,10 +22,10 @@ impl Measurement {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Log2Measurement {
-    measured: ValueWithLog2,
-    expected: ValueWithLog2,
+    pub measured: ValueWithLog2,
+    pub expected: ValueWithLog2,
 }
 
 impl Log2Measurement {
@@ -34,17 +34,17 @@ impl Log2Measurement {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)] // https://serde.rs/enum-representations.html#untagged
 pub enum ConfidenceInterval {
     Bounded(StringConfidenceInterval),
     NoBounds(NoBounds),
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct StringConfidenceInterval {
-    lower: String,
-    upper: String,
+    pub lower: String,
+    pub upper: String,
 }
 
 pub struct StringConfidenceIntervalBuilder {
@@ -80,9 +80,9 @@ impl StringConfidenceIntervalBuilder {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct NoBounds {
-    reason: String,
+    pub reason: String,
 }
 
 impl NoBounds {
@@ -94,10 +94,10 @@ impl NoBounds {
 }
 
 /// String is used to make it easier to parse from other languages like js
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BoundedMeasurement {
-    value: Measurement,
-    confidence_interval: ConfidenceInterval,
+    pub value: Measurement,
+    pub confidence_interval: ConfidenceInterval,
 }
 
 impl BoundedMeasurement {
@@ -113,20 +113,19 @@ impl BoundedMeasurement {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)] // untagged removed useless precision of the enum in the json file
 pub enum ConfidenceIntervalWithLog2 {
     Bounded(StringConfidenceIntervalWithLog2),
     NoBounds(NoBounds),
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct StringConfidenceIntervalWithLog2 {
-    lower: ValueWithLog2,
-    upper: ValueWithLog2,
+    pub lower: ValueWithLog2,
+    pub upper: ValueWithLog2,
 }
 
-#[derive(Serialize)]
 pub struct StringConfidenceIntervalWithLog2Builder {
     lower: Option<ValueWithLog2>,
     upper: Option<ValueWithLog2>,
@@ -160,10 +159,10 @@ impl StringConfidenceIntervalWithLog2Builder {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BoundedLog2Measurement {
-    value: Log2Measurement,
-    confidence_interval: ConfidenceIntervalWithLog2,
+    pub value: Log2Measurement,
+    pub confidence_interval: ConfidenceIntervalWithLog2,
 }
 
 impl BoundedLog2Measurement {
@@ -180,10 +179,10 @@ impl BoundedLog2Measurement {
 }
 
 /// String is used to make it easier to parse from other languages like js
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ValueWithLog2 {
-    raw: String,
-    log2: String,
+    pub raw: String,
+    pub log2: String,
 }
 
 impl ValueWithLog2 {
@@ -192,11 +191,11 @@ impl ValueWithLog2 {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct NoiseCheckWithNormalityCheck {
-    after_ms_variance: BoundedMeasurement,
-    after_ms_mean: BoundedMeasurement,
-    before_ms_normality_check: bool,
+    pub after_ms_variance: BoundedMeasurement,
+    pub after_ms_mean: BoundedMeasurement,
+    pub before_ms_normality_check: bool,
 }
 
 impl NoiseCheckWithNormalityCheck {
@@ -213,10 +212,10 @@ impl NoiseCheckWithNormalityCheck {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct NoiseCheckWithoutNormalityCheck {
-    after_ms_variance: BoundedMeasurement,
-    after_ms_mean: BoundedMeasurement,
+    pub after_ms_variance: BoundedMeasurement,
+    pub after_ms_mean: BoundedMeasurement,
 }
 
 impl NoiseCheckWithoutNormalityCheck {
@@ -228,12 +227,12 @@ impl NoiseCheckWithoutNormalityCheck {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PfailMetadata {
-    pfail_with_original_precision: ValueWithLog2,
-    pfail_with_test_precision: ValueWithLog2,
-    expected_fails_with_test_precision: String,
-    total_runs: String,
+    pub pfail_with_original_precision: ValueWithLog2,
+    pub pfail_with_test_precision: ValueWithLog2,
+    pub expected_fails_with_test_precision: String,
+    pub total_runs: String,
 }
 
 impl PfailMetadata {
@@ -252,12 +251,12 @@ impl PfailMetadata {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PfailTestResultJson {
-    pfail_parameters: PfailMetadata,
-    fails: Measurement,
-    pfail_with_test_precision: BoundedMeasurement,
-    equivalent_pfail_with_original_precision: BoundedLog2Measurement,
+    pub pfail_parameters: PfailMetadata,
+    pub fails: Measurement,
+    pub pfail_with_test_precision: BoundedMeasurement,
+    pub equivalent_pfail_with_original_precision: BoundedLog2Measurement,
 }
 
 impl PfailTestResultJson {
@@ -280,23 +279,23 @@ impl PfailTestResultJson {
     }
 }
 
-#[derive(Serialize)]
-pub struct TestJsonOutput<'a, P> {
-    test: &'a str,
-    name: &'a str,
-    pass: bool,
-    warning: Option<String>,
-    parameters: &'a P,
-    results: TestResult,
+#[derive(Serialize, Deserialize)]
+pub struct TestJsonOutput<P> {
+    pub test: String,
+    pub name: String,
+    pub pass: bool,
+    pub warning: Option<String>,
+    pub parameters: P,
+    pub results: TestResult,
 }
 
-impl<'a, P> TestJsonOutput<'a, P> {
+impl<P> TestJsonOutput<P> {
     pub fn new(
-        test: &'a str,
-        name: &'a str,
+        test: String,
+        name: String,
         pass: bool,
         warning: Option<String>,
-        parameters: &'a P,
+        parameters: P,
         results: TestResult,
     ) -> Self {
         Self {
