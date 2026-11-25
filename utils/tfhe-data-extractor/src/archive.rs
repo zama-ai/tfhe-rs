@@ -13,8 +13,8 @@ use benchmark_spec::tfhe::hlapi::dex::{Dex, DexFlavor};
 use benchmark_spec::tfhe::hlapi::erc7984::{Erc7984, TransferFlavor};
 use benchmark_spec::tfhe::hlapi::noise_squash::NoiseSquashingKind;
 use benchmark_spec::{
-    BenchPath, BenchmarkMetric, ComputeLoad, HlapiBench, IntegerBench, IntegerOp, IntegerOpBySign,
-    IntegerPackingOp, TfheLayer, TypeTag, ZkPkeBench, ZkPkeConfig, ZkProofVariant,
+    Backend, BenchPath, BenchmarkMetric, ComputeLoad, HlapiBench, IntegerBench, IntegerOp,
+    IntegerOpBySign, IntegerPackingOp, TfheLayer, TypeTag, ZkPkeBench, ZkPkeConfig, ZkProofVariant,
 };
 
 use crate::db::like_escape;
@@ -44,7 +44,30 @@ pub struct ArchiveOp {
     /// Type tag to pin, for the benches whose width lives there rather than in
     /// `bit_size`. `None` takes any.
     pub type_tag: Option<TypeTag>,
+    pub harness: Harness,
 }
+
+/// What ran a benchmark: the backend in the id, and the tail of its stored
+/// name. The server and browser proofs share their bench path, so without it
+/// the browser figures would compete for `zkpok_server`.
+pub struct Harness {
+    pub backends: &'static [Backend],
+    /// The tail ending the stored name, after the type tag.
+    pub name_suffix: &'static str,
+}
+
+/// Criterion, on the CPU and GPU machines.
+const SERVER: Harness = Harness {
+    backends: &[Backend::Cpu, Backend::Cuda],
+    name_suffix: "_mean_avx512",
+};
+
+/// The web client in Chrome. The webdriver appends the browser after the
+/// statistic, so this also leaves out the `_mean_cross_origin_chrome` runs.
+const BROWSER: Harness = Harness {
+    backends: &[Backend::Wasm],
+    name_suffix: "_mean_chrome",
+};
 
 /// "4 euint64 / proof with 2048 bit CRS": the only proven list size the
 /// archive publishes, out of the three the zk benches measure.
@@ -69,7 +92,7 @@ const fn hlapi(bench: HlapiBench) -> BenchPath {
     BenchPath::Tfhe(TfheLayer::Hlapi(bench))
 }
 
-/// Every row the archive publishes, save the one the spec cannot spell.
+/// Every row the archive publishes.
 ///
 /// Listed whether or not the database can answer today. An entry whose
 /// benchmark still stores pre-spec ids comes back as `missing`, and that line
@@ -90,6 +113,7 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ],
         bit_size: Some(64),
         type_tag: None,
+        harness: SERVER,
     },
     ArchiveOp {
         label: "mul",
@@ -99,6 +123,7 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ],
         bit_size: Some(64),
         type_tag: None,
+        harness: SERVER,
     },
     ArchiveOp {
         label: "div",
@@ -108,6 +133,7 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ],
         bit_size: Some(64),
         type_tag: None,
+        harness: SERVER,
     },
     ArchiveOp {
         label: "comparison",
@@ -117,6 +143,7 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ],
         bit_size: Some(64),
         type_tag: None,
+        harness: SERVER,
     },
     // The compression and zero-knowledge benchmarks store no width of their
     // own, hence no `bit_size` to pin: the zk type tag carries it instead.
@@ -127,6 +154,7 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ))],
         bit_size: None,
         type_tag: None,
+        harness: SERVER,
     },
     ArchiveOp {
         label: "decompress",
@@ -135,6 +163,7 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ))],
         bit_size: None,
         type_tag: None,
+        harness: SERVER,
     },
     ArchiveOp {
         label: "zkpok_server",
@@ -148,6 +177,22 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ],
         bit_size: None,
         type_tag: Some(ZK_PUBLISHED_TAG),
+        harness: SERVER,
+    },
+    // The same paths as `zkpok_server`, told apart by the harness.
+    ArchiveOp {
+        label: "zkpok_browser",
+        paths: &[
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V2(
+                ComputeLoad::Proof,
+            )))),
+            integer(IntegerBench::Zk(ZkPkeBench::Proof(ZkProofVariant::V2(
+                ComputeLoad::Verify,
+            )))),
+        ],
+        bit_size: None,
+        type_tag: Some(ZK_PUBLISHED_TAG),
+        harness: BROWSER,
     },
     // `Verify` rather than `VerifyAndExpand`, the archive publishing the
     // verification alone. A reading of the label: the stored figures do not
@@ -164,6 +209,7 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ],
         bit_size: None,
         type_tag: Some(ZK_PUBLISHED_TAG),
+        harness: SERVER,
     },
     ArchiveOp {
         label: "sns",
@@ -172,6 +218,7 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         ))],
         bit_size: None,
         type_tag: None,
+        harness: SERVER,
     },
     ArchiveOp {
         label: "erc7984_transfer",
@@ -180,42 +227,27 @@ pub const ARCHIVE_OPS: &[ArchiveOp] = &[
         )))],
         bit_size: None,
         type_tag: None,
+        harness: SERVER,
     },
     ArchiveOp {
         label: "batch_swap_intents",
         paths: &[hlapi(HlapiBench::Dex(Dex::SwapRequest(DexFlavor::NoCmux)))],
         bit_size: None,
         type_tag: None,
+        harness: SERVER,
     },
     ArchiveOp {
         label: "redistribute_swap_tokens",
         paths: &[hlapi(HlapiBench::Dex(Dex::SwapClaim(DexFlavor::NoCmux)))],
         bit_size: None,
         type_tag: None,
+        harness: SERVER,
     },
 ];
 
-/// The rows no catalogue entry can express, with the id they would come from.
-///
-/// Only the browser proof: it shares its path with `zkpok_server` and an
-/// [`ArchiveOp`] elects on paths alone, so it needs a backend filter first.
-pub struct PendingOp {
-    /// The `op` column it would fill.
-    pub label: &'static str,
-    /// The id it would read, in the spelling the database holds.
-    pub stored_id: &'static str,
-}
-
-pub const PENDING_OPS: &[PendingOp] = &[PendingOp {
-    label: "zkpok_browser",
-    stored_id: "tfhe::integer::zk::proof::*::wasm::*_mean_chrome",
-}];
-
-/// Every row the published page carries, whether this tool can fill it or not.
-/// Spelled out here rather than added up at the call site, the split between
-/// the two lists being an implementation detail of the catalogue.
+/// Every row the published page carries.
 pub fn published_rows() -> usize {
-    ARCHIVE_OPS.len() + PENDING_OPS.len()
+    ARCHIVE_OPS.len()
 }
 
 pub struct Machine {
@@ -359,7 +391,10 @@ pub fn build(measured: &[Measured]) -> Archive {
         let mut rates: Vec<&Measured> = Vec::new();
 
         for (m, path) in measured.iter().zip(&paths) {
+            // The query already narrowed on the suffix, but rows fetched for one
+            // label land in the pool every label reads.
             if !wanted.contains(path)
+                || !op.harness.backends.contains(&m.spec.backend())
                 || op.bit_size.is_some_and(|bits| bits != m.bit_size)
                 || op
                     .type_tag
@@ -436,13 +471,6 @@ impl Archive {
             );
         }
 
-        for op in PENDING_OPS {
-            eprintln!(
-                "note: `{}` stays manual, `{}` has no path in the spec",
-                op.label, op.stored_id,
-            );
-        }
-
         if !self.notes.is_empty() {
             eprintln!(
                 "note: {} row(s) where the election is worth a look:",
@@ -508,10 +536,13 @@ pub fn render(archive: &Archive, quarter: Quarter) -> String {
 ///
 /// Same shape as [`Resolved::like_patterns`](crate::profile::Resolved::like_patterns):
 /// the path is exact and the single `%` is the hole left for the backend, the
-/// metric, the parameter set and the type. One per spelling, so there are more
-/// of them than there are published rows, and `LIKE ANY` sends them in one bind
-/// whatever their number.
-pub fn like_patterns(name_suffix: &str) -> Vec<String> {
+/// metric, the parameter set and the type. One per spelling and harness, so
+/// there are more of them than there are published rows, and `LIKE ANY` sends
+/// them in one bind whatever their number.
+///
+/// The suffix comes from each label's [`Harness`], not from `--name-suffix`:
+/// the browser and server figures end differently and are read in one run.
+pub fn like_patterns() -> Vec<String> {
     ARCHIVE_OPS
         .iter()
         .flat_map(|op| {
@@ -519,7 +550,7 @@ pub fn like_patterns(name_suffix: &str) -> Vec<String> {
                 format!(
                     "{}::%{}",
                     like_escape(&path.to_string()),
-                    like_escape(name_suffix)
+                    like_escape(op.harness.name_suffix)
                 )
             })
         })
@@ -528,6 +559,8 @@ pub fn like_patterns(name_suffix: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    use benchmark_spec::MeasuredId;
+
     use super::*;
 
     /// Existence is now the compiler's problem; spelling is not. A segment
@@ -562,6 +595,8 @@ mod tests {
                 "decompress: tfhe::integer::packing_compression::unpack",
                 "zkpok_server: tfhe::integer::zk::proof::v2::compute_load_proof \
                  tfhe::integer::zk::proof::v2::compute_load_verify",
+                "zkpok_browser: tfhe::integer::zk::proof::v2::compute_load_proof \
+                 tfhe::integer::zk::proof::v2::compute_load_verify",
                 "zkpok_verify: tfhe::integer::zk::verify::v2::compute_load_proof \
                  tfhe::integer::zk::verify::v2::compute_load_verify",
                 "sns: tfhe::hlapi::noise_squashing::noise_squash",
@@ -577,7 +612,6 @@ mod tests {
     #[test]
     fn a_label_is_never_published_twice() {
         let mut labels: Vec<&str> = ARCHIVE_OPS.iter().map(|op| op.label).collect();
-        labels.extend(PENDING_OPS.iter().map(|op| op.label));
         let count = labels.len();
 
         labels.sort_unstable();
@@ -597,6 +631,73 @@ mod tests {
             assert!(
                 spelling.parse::<Quarter>().is_err(),
                 "`{spelling}` should not parse",
+            );
+        }
+    }
+
+    fn measured(id: &str, value: f64, hardware: &str) -> Measured {
+        let parsed: MeasuredId = id.parse().unwrap_or_else(|e| panic!("parse {id:?}: {e:?}"));
+        Measured {
+            spec: parsed.spec,
+            bit_size: 0,
+            value,
+            hardware: hardware.to_string(),
+        }
+    }
+
+    /// The two proofs share a bench path, so only the harness keeps each
+    /// figure in its own row.
+    #[test]
+    fn server_and_browser_proofs_do_not_mix() {
+        const PARAM: &str = "PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128";
+
+        let rows = [
+            measured(
+                &format!(
+                    "tfhe::integer::zk::proof::v2::compute_load_verify::{PARAM}\
+                     ::256_bits_packed::2048_bits_crs_mean_avx512"
+                ),
+                40_000_000.0,
+                "hpc8a.96xlarge",
+            ),
+            measured(
+                &format!(
+                    "tfhe::integer::zk::proof::v2::compute_load_verify::wasm::{PARAM}\
+                     ::256_bits_packed::2048_bits_crs_mean_chrome"
+                ),
+                900_000_000.0,
+                "m6i.4xlarge",
+            ),
+        ];
+
+        let archive = build(&rows);
+        let row = |label: &str| {
+            archive
+                .rows
+                .iter()
+                .find(|r| r.op == label)
+                .unwrap_or_else(|| panic!("no `{label}` row"))
+        };
+
+        let server = row("zkpok_server");
+        assert_eq!(server.latency_ns, Some(40_000_000.0));
+        assert_eq!(server.hardware, "hpc8a.96xlarge");
+
+        let browser = row("zkpok_browser");
+        assert_eq!(browser.latency_ns, Some(900_000_000.0));
+        assert_eq!(browser.hardware, "m6i.4xlarge");
+    }
+
+    #[test]
+    fn each_harness_reads_its_own_tail() {
+        let patterns = like_patterns();
+        for expected in [
+            r"tfhe::integer::zk::proof::v2::compute\_load\_proof::%\_mean\_avx512",
+            r"tfhe::integer::zk::proof::v2::compute\_load\_proof::%\_mean\_chrome",
+        ] {
+            assert!(
+                patterns.iter().any(|p| p == expected),
+                "missing pattern {expected}"
             );
         }
     }
