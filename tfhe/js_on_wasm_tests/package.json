@@ -1,6 +1,7 @@
 {
   "name": "js_on_wasm_tests",
   "version": "1.0.0",
+  "private": true,
   "description": "JS API tests",
   "main": "index.js",
   "scripts": {
