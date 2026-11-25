@@ -261,6 +261,7 @@ mod tests {
     use crate::core_crypto::entities::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
     use crate::core_crypto::prelude::{CiphertextModulusLog, NonZeroLweCiphertextCount};
     use crate::integer::{gen_keys, IntegerKeyKind};
+    use crate::shortint::ciphertext::Degree;
     use crate::shortint::parameters::test_params::{
         TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -527,6 +528,7 @@ mod tests {
                         let decompressed = compressed.get(i, &decompression_key).unwrap().unwrap();
                         let decrypted = cks.decrypt_bool(&decompressed);
                         assert_eq!(decrypted, *message);
+                        assert_eq!(decompressed.0.degree, Degree::new(1));
                     }
                 }
 
