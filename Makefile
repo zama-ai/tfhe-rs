@@ -100,6 +100,7 @@ include utils/tfhe-lints/Makefile
 include make/transciphering.mk
 include make/compatibility.mk
 include make/python.mk
+include make/noise_check.mk
 
 # venv to use for this Makefile
 # Not taken from the environment on purpose, pass it on the command line: make ... PYTHON_VENV=path

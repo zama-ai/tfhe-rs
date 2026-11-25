@@ -3,7 +3,7 @@ use super::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey,
     NoiseSimulationModulusSwitchConfig,
 };
-use super::utils::to_json::{TestJsonGuard, TestResult};
+use super::utils::to_json::{TestJsonGuard, TestKind, TestResult};
 use super::utils::traits::*;
 use super::utils::{
     mean_and_variance_check, noise_check, normality_check, pfail_check, update_ap_params_for_pfail,
@@ -380,7 +380,12 @@ fn noise_check_encrypt_cpk_rerand_ks_any_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_cpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    );
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -543,7 +548,12 @@ fn noise_check_encrypt_cpk_rerand_ks_any_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_cpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    );
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -751,7 +761,12 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_worst_case(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_cpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    );
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -940,9 +955,7 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_worst_case(
         },
     );
 
-    guard
-        .write_results(all_decryptions_are_correct, None, TestResult::Empty {})
-        .unwrap();
+    guard.write_results(all_decryptions_are_correct, None, TestResult::Empty {});
 
     let mut all_ok = true;
 
@@ -1026,7 +1039,12 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_pbs(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_cpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    );
     let (params, cpk_params, ksk_ds_params, orig_cast_mode) = {
         let compute_params = meta_params
             .compute_parameters
@@ -1168,9 +1186,7 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_pbs(
         .iter()
         .all(|(lhs, rhs)| lhs.as_lwe_64() == rhs.ct.as_view());
 
-    guard
-        .write_results(all_result_match, None, TestResult::Empty {})
-        .unwrap();
+    guard.write_results(all_result_match, None, TestResult::Empty {});
 
     // We check each step to preserve failure details and print the invalid case if one occurs
     for (pbs_result, shortint_res) in results.iter() {

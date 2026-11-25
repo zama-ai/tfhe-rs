@@ -33,7 +33,7 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    TestJsonGuard, TestResult,
+    TestJsonGuard, TestKind, TestResult,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, noise_check, post_squashing_and_packing_noise_check,
@@ -50,7 +50,12 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    );
     let (atomic_params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -197,13 +202,11 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
     // Bodies that were not filled are discarded
     after_packing.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
 
-    guard
-        .write_results(
-            after_packing.as_view() == extracted_glwe.as_view(),
-            None,
-            TestResult::Empty {},
-        )
-        .unwrap();
+    guard.write_results(
+        after_packing.as_view() == extracted_glwe.as_view(),
+        None,
+        TestResult::Empty {},
+    );
 
     assert_eq!(after_packing.as_view(), extracted_glwe.as_view());
 }
@@ -216,7 +219,12 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    );
     let (params, noise_squashing_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
@@ -391,13 +399,11 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
         })
         .collect();
 
-    guard
-        .write_results(
-            vector_pattern_cpu == vector_non_pattern_cpu,
-            None,
-            TestResult::Empty {},
-        )
-        .unwrap();
+    guard.write_results(
+        vector_pattern_cpu == vector_non_pattern_cpu,
+        None,
+        TestResult::Empty {},
+    );
 
     // Compare that all the results are equivalent
     assert_eq!(vector_pattern_cpu, vector_non_pattern_cpu);
@@ -756,7 +762,12 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    );
     let (atomic_params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (

@@ -41,7 +41,9 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::public_key::compact::{CompactPrivateKey, CompactPublicKey};
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::NoiseSimulationModulus;
-use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    TestJsonGuard, TestKind,
+};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
 use crate::shortint::server_key::ServerKey;
 use crate::shortint::{Ciphertext, PaddingBit};
@@ -525,7 +527,12 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_cpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    );
     let (compute_params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -771,7 +778,12 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_cpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    );
     let (compute_params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -899,7 +911,12 @@ create_parameterized_stringified_test!(noise_check_encrypt_br_rerand_dp_ks_ms_pf
 
 fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_cpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    );
     let (compute_params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -1080,9 +1097,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs(meta_params: MetaParameters, file
         .iter()
         .all(|(lhs, rhs)| lhs.as_lwe_64() == rhs.ct.as_view());
 
-    guard
-        .write_results(all_result_match, None, TestResult::Empty {})
-        .unwrap();
+    guard.write_results(all_result_match, None, TestResult::Empty {});
 
     // We check each step to preserve failure details and print the invalid case if one occurs
     for (pbs_result, shortint_res) in results.iter() {

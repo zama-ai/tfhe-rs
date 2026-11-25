@@ -10,6 +10,15 @@ env:
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
+    inputs:
+      profile:
+        description: "Instance type"
+        required: true
+        type: choice
+        default: "aws::bench (hpc7a.96xlarge)"
+        options:
+          - "aws::bench (hpc7a.96xlarge)"
+          - "aws::bench-hpc8 (hpc8a.96xlarge)"
 
 permissions:
   contents: read
@@ -17,13 +26,40 @@ permissions:
 # zizmor: ignore[concurrency-limits] only Zama organization members can trigger this workflow
 
 jobs:
+  parse-inputs:
+    name: aws_tfhe_noise_checks/parse-inputs
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.parse_profile_and_hardware_name.outputs.backend }}
+      profile: ${{ steps.parse_profile_and_hardware_name.outputs.profile }}
+      hardware_name: ${{ steps.parse_profile_and_hardware_name.outputs.hardware }}
+    steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: "false"
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Setup Python
+        uses: ./.github/actions/setup_python
+
+      - name: Setup Python venv
+        run: |
+          make setup_python_venv
+
+      - name: Parse profile and hardware name
+        id: parse_profile_and_hardware_name
+        env:
+          INPUTS_PROFILE: ${{ inputs.profile }}
+        run: venv/bin/python ci/parse_benchmark_profile.py "$INPUTS_PROFILE" "$GITHUB_OUTPUT"
+
   setup-instance:
     name: aws_tfhe_noise_checks/setup-instance
+    needs: parse-inputs
     uses: ./.github/workflows/slab_setup.yml
     with:
-      backend: aws
-      # We want an hpc7a more compute, will be faster
-      profile: bench
+      backend: ${{ needs.parse-inputs.outputs.backend }}
+      profile: ${{ needs.parse-inputs.outputs.profile }}
     permissions:
       contents: read
       id-token: write # Needed to join the Slab tailnet via OIDC
@@ -36,7 +72,7 @@ jobs:
 
   noise-checks:
     name: aws_tfhe_noise_checks/noise-checks
-    needs: setup-instance
+    needs: [parse-inputs, setup-instance]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440
     steps:
@@ -51,10 +87,24 @@ jobs:
         with:
           toolchain: stable
 
+      # GITHUB_SHA, GITHUB_REF_NAME, GITHUB_RUN_ID and GITHUB_RUN_ATTEMPT are read too,
+      # see run_context_from_env in tfhe/src/shortint/server_key/tests/noise_distribution/utils/to_json/
       - name: Run noise checks
         timeout-minutes: 1440
+        env:
+          TFHE_RS_TEST_RECORD_RESULTS: "1"
+          TFHE_RS_TEST_MACHINE: ${{ needs.parse-inputs.outputs.hardware_name }}
         run: |
-          make test_noise_check
+          TFHE_RS_TEST_COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict "${GITHUB_SHA}")"
+          export TFHE_RS_TEST_COMMIT_DATE
+          make test_noise_check_recorded
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: noise_checks_results
+          path: tfhe/tests_results
 
       - name: Slack Notification
         if: ${{ !success() }}
