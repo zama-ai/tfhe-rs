@@ -18,4 +18,4 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 serde = { workspace = true, features = ["derive"] }
 toml = "1.1"
 anyhow = "1"
-chrono = { version = "0.4", default-features = false, features = ["std"] }
+jiff = { version = "1", default-features = false, features = ["std"] }
