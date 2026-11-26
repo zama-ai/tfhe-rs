@@ -316,12 +316,22 @@ impl HpuHw {
             .expect("dma-ctl q start idx 0 h2c failed");
 
         // Write stage2 PDI through QDMA
-        let qdma_h2c = OpenOptions::new()
-            .read(false)
-            .write(true)
-            .create(false)
-            .open(format!("/dev/qdma{dev}001-MM-0"))
-            .map_err(|e| format!("Unable to open Qdma queue 0: {e}"))?;
+        let mut tries = 0;
+        let qdma_h2c = loop {
+            match OpenOptions::new()
+                .read(false)
+                .write(true)
+                .create(false)
+                .open(format!("/dev/qdma{dev}001-MM-0"))
+            {
+                Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied && tries < 10 => {
+                    tries += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                }
+                res => break res.unwrap_or_else(|e| panic!("Unable to open Qdma queue 0: {e}")),
+            }
+        };
+
         let ret = nix::sys::uio::pwrite(&qdma_h2c, stg2_data, 0x000102100000_i64)
             .map_err(|e| format!("pwrite failed: {e}"))?;
         if ret != stg2_data.len() {
