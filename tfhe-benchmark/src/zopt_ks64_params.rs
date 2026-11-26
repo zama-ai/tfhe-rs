@@ -456,3 +456,31 @@ pub fn zopt_ks64_barrier(id: &str) {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 }
+
+/// The batch size recorded for `id` in the file `ZOPT_HL_BATCH_FILE`, or `compute()`'s,
+/// recorded there, so that the runs of several NUMA placements measure the same batch.
+/// Without the variable, `compute()`.
+pub fn zopt_recorded_batch(id: &str, compute: impl FnOnce() -> u64) -> u64 {
+    let Ok(path) = std::env::var("ZOPT_HL_BATCH_FILE") else {
+        return compute();
+    };
+    let recorded = std::fs::read_to_string(&path).unwrap_or_default();
+    if let Some(batch) = recorded
+        .lines()
+        .filter_map(|line| line.rsplit_once(' '))
+        .find(|(name, _)| *name == id)
+        .and_then(|(_, batch)| batch.parse().ok())
+    {
+        println!("zopt batch {id}: {batch} (recorded)");
+        return batch;
+    }
+    let batch = compute();
+    println!("zopt batch {id}: {batch}");
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .unwrap();
+    std::io::Write::write_all(&mut file, format!("{id} {batch}\n").as_bytes()).unwrap();
+    batch
+}

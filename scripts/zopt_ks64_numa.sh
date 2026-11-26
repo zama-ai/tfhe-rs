@@ -5,15 +5,24 @@
 # per node with its own copy of the keys. Samples every 15 s the memory of a benchmark process per node (all of it,
 # and its largest mapping: the key). The first-touch runs are in the history.
 #
-# Usage: scripts/zopt_ks64_numa.sh <ks_pbs|pbs128> <cargo toolchain argument>
+# hlapi compares, for high-level integer operations on the TFHE-rs default parameters, first
+# touch (the default), interleaving and a copy of the keys per node, in latency and in
+# throughput at the batch picked by the first-touch run.
+#
+# Usage: scripts/zopt_ks64_numa.sh <ks_pbs|pbs128|hlapi> <cargo toolchain argument>
 set -euo pipefail
 
 BENCH="$1"
 TOOLCHAIN="$2"
 
 cargo_bench() {
-    cargo "${TOOLCHAIN}" bench --bench "core_crypto-${BENCH//_/-}" \
-        --features=boolean,shortint,internal-keycache -p tfhe-benchmark
+    if [ "${BENCH}" = hlapi ]; then
+        cargo "${TOOLCHAIN}" bench --bench hlapi_unsigned \
+            --features=integer,internal-keycache,pbs-stats -p tfhe-benchmark
+    else
+        cargo "${TOOLCHAIN}" bench --bench "core_crypto-${BENCH//_/-}" \
+            --features=boolean,shortint,internal-keycache -p tfhe-benchmark
+    fi
 }
 
 echo "=== machine"
@@ -29,7 +38,7 @@ numactl --hardware
 # The memory of the benchmark process per node, in MB, from its numa_maps.
 numa_sample() {
     local pid
-    pid=$(pgrep -n -f '/core_crypto_[a-z0-9_]+-[0-9a-f]{16}( |$)') || return 0
+    pid=$(pgrep -n -f '/(core_crypto_[a-z0-9_]+|hlapi_unsigned)-[0-9a-f]{16}( |$)') || return 0
     awk '
         {
             kb = 4; t = 0; delete m
@@ -56,8 +65,6 @@ numa_sample() {
 ) &
 MONITOR=$!
 trap 'kill ${MONITOR}' EXIT
-
-export __TFHE_RS_BENCH_TYPE=THROUGHPUT
 
 variant() {
     echo "=== variant $1"
@@ -107,6 +114,7 @@ no_balancing() {
 
 case "${BENCH}" in
 ks_pbs)
+    export __TFHE_RS_BENCH_TYPE=THROUGHPUT
     export ZOPT_KS64_BATCH=2048
     ZOPT_KS64_ONLY=none cargo_bench
     variant _INTERLEAVE numactl --interleave=all
@@ -115,6 +123,7 @@ ks_pbs)
     per_node _PER_NODE 2048
     ;;
 pbs128)
+    export __TFHE_RS_BENCH_TYPE=THROUGHPUT
     # One squashing PBS per core per iteration: the largest keys take seconds each.
     export ZOPT_KS64_BATCH=192
     ZOPT_KS64_ONLY=none cargo_bench
@@ -122,5 +131,16 @@ pbs128)
     variant _REPLICATED env ZOPT_KS64_NUMA=replicate
     no_balancing variant _REPLICATED_NO_BALANCING env ZOPT_KS64_NUMA=replicate
     per_node _PER_NODE 192
+    ;;
+hlapi)
+    export ZOPT_HL_NUMA=1
+    ZOPT_HL_BATCH_FILE=$(mktemp)
+    export ZOPT_HL_BATCH_FILE
+    for type in LATENCY THROUGHPUT; do
+        export __TFHE_RS_BENCH_TYPE="${type}"
+        variant "_FIRST_TOUCH_${type}" env
+        variant "_INTERLEAVE_${type}" numactl --interleave=all
+        variant "_REPLICATED_${type}" env ZOPT_NUMA=replicate
+    done
     ;;
 esac

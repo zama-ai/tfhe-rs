@@ -2276,10 +2276,7 @@ bench_pbs128_gpu: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_unsigned # Run benchmarks for integer operations
 bench_hlapi_unsigned: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench hlapi_unsigned \
-	--features=integer,internal-keycache,pbs-stats -p tfhe-benchmark --
+	RUSTFLAGS="$(RUSTFLAGS)" ./scripts/zopt_ks64_numa.sh hlapi $(CARGO_RS_CHECK_TOOLCHAIN)
 
 .PHONY: bench_hlapi_signed # Run benchmarks for signed integer operations
 bench_hlapi_signed: install_rs_check_toolchain

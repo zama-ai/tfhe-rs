@@ -16,6 +16,8 @@ use tfhe::{
     FheUint64, FheUint8,
 };
 
+#[cfg(not(feature = "hpu"))]
+mod numa_key_copies;
 mod oprf;
 
 #[macro_use]
@@ -78,12 +80,48 @@ fn main() {
         let compressed_sks = CompressedServerKey::new(&cks);
 
         let sks = compressed_sks.decompress();
+        // ZOPT_NUMA=replicate: one copy of the keys per NUMA node, each PBS using the
+        // copy of its node.
+        let sks = if env::var("ZOPT_NUMA").as_deref() == Ok("replicate") {
+            numa_key_copies::replicate(sks)
+        } else {
+            sks
+        };
         rayon::broadcast(|_| set_server_key(sks.clone()));
         set_server_key(sks);
+        if env::var("ZOPT_NUMA").as_deref() == Ok("replicate") {
+            // The copies give the same results as the key.
+            let (a, b) = (FheUint8::encrypt(200u8, &cks), FheUint8::encrypt(7u8, &cks));
+            let quotient: u8 = (&a / &b).decrypt(&cks);
+            let product: u8 = (&a * &b).decrypt(&cks);
+            assert_eq!((quotient, product), (200 / 7, 200u8.wrapping_mul(7)));
+        }
         (cks, tfhe::Device::Cpu)
     };
 
     let mut c = Criterion::default().configure_from_args();
+
+    // ZOPT_HL_NUMA: the operations compared across NUMA placements, on 8, 64 and 128 bits.
+    #[cfg(not(feature = "hpu"))]
+    if env::var("ZOPT_HL_NUMA").is_ok() {
+        macro_rules! numa_benches {
+            ($($fhe_type:ident),+) => {
+                $(
+                    ::paste::paste! {
+                        [<bench_ $fhe_type:snake _add>](&mut c, &cks);
+                        [<bench_ $fhe_type:snake _bitand>](&mut c, &cks);
+                        [<bench_ $fhe_type:snake _gt>](&mut c, &cks);
+                        [<bench_ $fhe_type:snake _shl>](&mut c, &cks);
+                        [<bench_ $fhe_type:snake _mul>](&mut c, &cks);
+                        [<bench_ $fhe_type:snake _div>](&mut c, &cks);
+                    }
+                )+
+            };
+        }
+        numa_benches!(FheUint8, FheUint64, FheUint128);
+        c.final_summary();
+        return;
+    }
 
     match env_config.bit_sizes_set {
         BitSizesSet::Fast => {

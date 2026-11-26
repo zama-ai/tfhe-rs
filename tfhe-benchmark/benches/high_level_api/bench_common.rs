@@ -84,7 +84,10 @@ pub fn bench_fhe_type_op<FheType, Op>(
                             black_box(res);
                         });
                     };
-                    find_optimal_batch(run, setup) as u64
+                    // The same batch for every NUMA placement compared.
+                    benchmark::zopt_ks64_params::zopt_recorded_batch(&bench_id, || {
+                        find_optimal_batch(run, setup) as u64
+                    })
                 }
             } else {
                 0
