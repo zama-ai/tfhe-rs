@@ -625,55 +625,58 @@ template <typename Torus> struct int_comparison_buffer {
         bool seq = mem_simu_group_carries
                        ->use_sequential_algorithm_to_resolve_group_carries;
 
-        // Mirror second_step_lut_index_generator / h_scalar_array_cum_sum for a
-        // single cumulative-sum position (see
-        // int_prop_simu_group_carries_memory).
-        auto lut_index_for = [group_size, seq](uint32_t pos) -> Torus {
-          uint32_t group_index = pos / group_size;
-          uint32_t pos_in_group = pos % group_size;
-          if (group_index == 0)
-            return (Torus)pos_in_group;
-          else if (pos_in_group == group_size - 1)
-            return seq ? (Torus)((group_index - 1) % (group_size - 1) +
-                                 2 * group_size)
-                       : (Torus)(2 * group_size);
-          else
-            return (Torus)(pos_in_group + group_size);
+        // Group g uses the LUT index and the corrector that
+        // int_prop_simu_group_carries_memory uses at the last position of the
+        // group (at the simulator position for the last group). The comparison
+        // only applies this LUT to the first n_groups blocks, the other
+        // indexes are set to 0: the LUT can no longer be used for the generic
+        // borrow propagation.
+        auto group_pos = [=](uint32_t g) -> uint32_t {
+          return (g + 1 < n_groups) ? (g + 1) * group_size - 1
+                                    : num_radix_blocks - 2;
         };
-        auto corrector_for = [group_size, seq](uint32_t pos) -> Torus {
-          uint32_t group_index = pos / group_size;
-          uint32_t pos_in_group = pos % group_size;
-          if (group_index == 0 || pos_in_group != group_size - 1)
-            return (Torus)0;
-          return seq ? ((Torus)1 << ((group_index - 1) % (group_size - 1)))
-                     : (Torus)1;
-        };
-
-        std::vector<Torus> h_indexes(n_groups);
-        std::vector<Torus> h_scalar_corrector(n_groups);
-        for (uint32_t g = 0; g + 1 < n_groups; g++) {
-          uint32_t pos = (g + 1) * group_size - 1;
-          h_indexes[g] = lut_index_for(pos);
-          h_scalar_corrector[g] = corrector_for(pos);
-        }
-        uint32_t simulator_pos = num_radix_blocks - 2;
-        h_indexes[n_groups - 1] = lut_index_for(simulator_pos);
-        h_scalar_corrector[n_groups - 1] = corrector_for(simulator_pos);
-
         auto *lut = mem_simu_group_carries->luts_array_second_step;
-        cuda_memcpy_with_size_tracking_async_to_gpu(
-            lut->get_lut_indexes(0, 0), h_indexes.data(),
-            safe_mul_sizeof<Torus>(n_groups), streams.stream(0),
-            streams.gpu_index(0), allocate_gpu_memory);
+        lut->set_lut_indexes(
+            active_streams,
+            [&](Torus *h_indexes, uint32_t num_indexes) {
+              for (uint32_t i = 0; i < num_indexes; i++)
+                h_indexes[i] = 0;
+              for (uint32_t g = 0; g < n_groups; g++) {
+                uint32_t pos = group_pos(g);
+                uint32_t group_index = pos / group_size;
+                uint32_t pos_in_group = pos % group_size;
+                if (group_index == 0) {
+                  h_indexes[g] = pos_in_group;
+                } else if (pos_in_group == group_size - 1) {
+                  uint32_t inner_index =
+                      seq ? (group_index - 1) % (group_size - 1) : 0;
+                  h_indexes[g] = 2 * group_size + inner_index;
+                } else {
+                  h_indexes[g] = pos_in_group + group_size;
+                }
+              }
+            },
+            lut->num_blocks);
         lut->broadcast_lut(active_streams, false);
 
+        // h_scalar_corrector is the source of the asynchronous copy, it lives
+        // until the borrow memory is released
+        Torus *h_scalar_corrector =
+            mem_simu_group_carries->h_scalar_array_cum_sum;
+        for (uint32_t g = 0; g < n_groups; g++) {
+          uint32_t pos = group_pos(g);
+          uint32_t group_index = pos / group_size;
+          h_scalar_corrector[g] = 0;
+          if (group_index != 0 && pos % group_size == group_size - 1) {
+            uint32_t inner_index =
+                seq ? (group_index - 1) % (group_size - 1) : 0;
+            h_scalar_corrector[g] = (Torus)1 << inner_index;
+          }
+        }
         cuda_memcpy_with_size_tracking_async_to_gpu(
-            mem_simu_group_carries->scalar_array_cum_sum,
-            h_scalar_corrector.data(), safe_mul_sizeof<Torus>(n_groups),
-            streams.stream(0), streams.gpu_index(0), allocate_gpu_memory);
-        for (uint32_t i = 0; i < n_groups; i++)
-          mem_simu_group_carries->h_scalar_array_cum_sum[i] =
-              h_scalar_corrector[i];
+            mem_simu_group_carries->scalar_array_cum_sum, h_scalar_corrector,
+            safe_mul_sizeof<Torus>(n_groups), streams.stream(0),
+            streams.gpu_index(0), allocate_gpu_memory);
       }
     }
 

@@ -49,12 +49,10 @@ __host__ void prince_set_lut_indexes(CudaStreams streams,
                                      const int_radix_params &params,
                                      int_radix_lut<Torus> *lut,
                                      const radix_index_table<Torus> &lut_idx) {
-  memcpy(lut->h_lut_indexes, lut_idx.h_table,
-         safe_mul_sizeof<Torus>((size_t)lut->num_blocks));
   auto active_streams =
       streams.active_gpu_subset(lut->num_blocks, params.pbs_type());
   lut->set_lut_indexes_and_broadcast_from_gpu(active_streams, lut_idx.d_table,
-                                              lut->num_blocks);
+                                              lut_idx.h_table, lut->num_blocks);
 }
 
 template <typename Torus>

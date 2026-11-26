@@ -79,6 +79,10 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
   Torus **first_indexes_for_overflow_sub_gpu_0;
   Torus **second_indexes_for_overflow_sub_gpu_0;
   Torus **scalars_for_overflow_sub_gpu_0;
+  /// @brief CPU copy of the first indexes, used for the output degrees
+  Torus **h_first_indexes_for_overflow_sub;
+  /// @brief CPU copy of the second indexes, used for the output degrees
+  Torus **h_second_indexes_for_overflow_sub;
 
   Torus **first_indexes_for_overflow_sub_gpu_1;
   Torus **second_indexes_for_overflow_sub_gpu_1;
@@ -480,7 +484,11 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     scalars_for_overflow_sub_gpu_0 =
         (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
 
-    Torus *h_lut_indexes = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
+    // CPU copies of the LUT indexes, kept for update_lut_indexes
+    h_first_indexes_for_overflow_sub =
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
+    h_second_indexes_for_overflow_sub =
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
     Torus *h_scalar = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
 
     // Extra indexes for the luts in first step
@@ -510,10 +518,12 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         }
       };
 
-      generate_lut_indexes<Torus>(streams, index_generator,
-                                  first_indexes_for_overflow_sub_gpu_0[nb - 1],
-                                  nb, 2 * group_size + 1, h_lut_indexes,
-                                  allocate_gpu_memory);
+      h_first_indexes_for_overflow_sub[nb - 1] =
+          (Torus *)malloc(safe_mul_sizeof<Torus>(nb));
+      generate_lut_indexes<Torus>(
+          streams, index_generator,
+          first_indexes_for_overflow_sub_gpu_0[nb - 1], nb, 2 * group_size + 1,
+          h_first_indexes_for_overflow_sub[nb - 1], allocate_gpu_memory);
     }
     // Extra indexes for the luts in second step
     uint32_t num_extra_luts = use_seq ? (group_size - 1) : 1;
@@ -550,9 +560,12 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
         }
       };
 
+      h_second_indexes_for_overflow_sub[nb - 1] =
+          (Torus *)malloc(safe_mul_sizeof<Torus>(nb));
       generate_lut_indexes<Torus>(streams, index_generator,
                                   second_indexes_for_overflow_sub_gpu_0[nb - 1],
-                                  nb, num_luts_second_step, h_lut_indexes,
+                                  nb, num_luts_second_step,
+                                  h_second_indexes_for_overflow_sub[nb - 1],
                                   allocate_gpu_memory);
 
       for (int index = 0; index < nb; index++) {
@@ -578,7 +591,6 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
           allocate_gpu_memory);
     }
     cuda_synchronize_stream(streams.stream(0), streams.gpu_index(0));
-    free(h_lut_indexes);
     free(h_scalar);
   };
 
@@ -844,6 +856,12 @@ template <typename Torus> struct unsigned_int_div_rem_2_2_memory {
     free(first_indexes_for_overflow_sub_gpu_2);
     free(second_indexes_for_overflow_sub_gpu_2);
     free(scalars_for_overflow_sub_gpu_2);
+    for (int i = 0; i < max_indexes_to_erase; i++) {
+      free(h_first_indexes_for_overflow_sub[i]);
+      free(h_second_indexes_for_overflow_sub[i]);
+    }
+    free(h_first_indexes_for_overflow_sub);
+    free(h_second_indexes_for_overflow_sub);
 
     check_cuda_error(cudaEventDestroy(create_indexes_done));
 
@@ -899,6 +917,10 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
   Torus **first_indexes_for_overflow_sub;
   Torus **second_indexes_for_overflow_sub;
   Torus **scalars_for_overflow_sub;
+  /// @brief CPU copy of the first indexes, used for the output degrees
+  Torus **h_first_indexes_for_overflow_sub;
+  /// @brief CPU copy of the second indexes, used for the output degrees
+  Torus **h_second_indexes_for_overflow_sub;
   uint32_t max_indexes_to_erase;
   bool gpu_memory_allocated;
 
@@ -1173,7 +1195,11 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     scalars_for_overflow_sub =
         (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
 
-    Torus *h_lut_indexes = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
+    // CPU copies of the LUT indexes, kept for update_lut_indexes
+    h_first_indexes_for_overflow_sub =
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
+    h_second_indexes_for_overflow_sub =
+        (Torus **)malloc(safe_mul_sizeof<Torus *>(num_blocks));
     Torus *h_scalar = (Torus *)malloc(safe_mul_sizeof<Torus>(num_blocks));
 
     // Extra indexes for the luts in first step
@@ -1203,9 +1229,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         }
       };
 
+      h_first_indexes_for_overflow_sub[nb - 1] =
+          (Torus *)malloc(safe_mul_sizeof<Torus>(nb));
       generate_lut_indexes<Torus>(
           streams, index_generator, first_indexes_for_overflow_sub[nb - 1], nb,
-          2 * group_size + 1, h_lut_indexes, allocate_gpu_memory);
+          2 * group_size + 1, h_first_indexes_for_overflow_sub[nb - 1],
+          allocate_gpu_memory);
     }
     // Extra indexes for the luts in second step
     uint32_t num_extra_luts = use_seq ? (group_size - 1) : 1;
@@ -1242,9 +1271,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         }
       };
 
+      h_second_indexes_for_overflow_sub[nb - 1] =
+          (Torus *)malloc(safe_mul_sizeof<Torus>(nb));
       generate_lut_indexes<Torus>(
           streams, index_generator, second_indexes_for_overflow_sub[nb - 1], nb,
-          num_luts_second_step, h_lut_indexes, allocate_gpu_memory);
+          num_luts_second_step, h_second_indexes_for_overflow_sub[nb - 1],
+          allocate_gpu_memory);
 
       for (int index = 0; index < nb; index++) {
         uint32_t grouping_index = index / group_size;
@@ -1268,7 +1300,6 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           safe_mul_sizeof<Torus>(nb), streams.stream(0), streams.gpu_index(0),
           allocate_gpu_memory);
     }
-    free(h_lut_indexes);
     free(h_scalar);
   };
 
@@ -1419,6 +1450,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     free(first_indexes_for_overflow_sub);
     free(second_indexes_for_overflow_sub);
     free(scalars_for_overflow_sub);
+    for (int i = 0; i < max_indexes_to_erase; i++) {
+      free(h_first_indexes_for_overflow_sub[i]);
+      free(h_second_indexes_for_overflow_sub[i]);
+    }
+    free(h_first_indexes_for_overflow_sub);
+    free(h_second_indexes_for_overflow_sub);
   }
 };
 template <typename Torus> struct int_div_rem_memory {
