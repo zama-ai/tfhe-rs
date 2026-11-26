@@ -7,7 +7,6 @@ env:
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
   FAST_TESTS: TRUE
-  NIGHTLY_TESTS: FALSE
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   # Secrets will be available only to zama-ai organization members
@@ -119,13 +118,6 @@ jobs:
       - name: Enable nvidia multi-process service
         run: |
           nvidia-cuda-mps-control -d
-      - name: Should run nightly tests
-        if: github.event_name == 'schedule'
-        run: |
-          {
-            echo "FAST_TESTS=FALSE";
-            echo "NIGHTLY_TESTS=TRUE";
-          } >> "${GITHUB_ENV}"
 
       - name: Run unsigned integer classical tests
         run: |

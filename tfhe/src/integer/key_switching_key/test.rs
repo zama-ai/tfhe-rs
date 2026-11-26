@@ -18,7 +18,7 @@ use crate::shortint::parameters::{
 };
 
 #[test]
-fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
+fn gen_multi_keys_test_rdxinteger_to_rdxinteger() {
     let num_block = 4;
 
     let client_key_1 = RadixClientKey::new(
@@ -61,7 +61,7 @@ fn gen_multi_keys_test_rdxinteger_to_rdxinteger_ci_run_filter() {
 }
 
 #[test]
-fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
+fn gen_multi_keys_test_crtinteger_to_crtinteger() {
     let basis = vec![2, 3, 5, 7, 11];
 
     let client_key_1 = CrtClientKey::new(
@@ -107,7 +107,7 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_ci_run_filter() {
 #[should_panic(
     expected = "Attempt to build a KeySwitchingKey between integer key pairs with different message modulus and carry"
 )]
-fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
+fn gen_multi_keys_test_crtinteger_to_crtinteger_fail() {
     let basis = vec![2, 3, 5, 7, 11];
 
     let (client_key_1, server_key_1) = KEY_CACHE.get_from_params(
@@ -142,7 +142,7 @@ fn gen_multi_keys_test_crtinteger_to_crtinteger_fail_ci_run_filter() {
 }
 
 #[test]
-fn gen_multi_keys_test_integer_to_integer_ci_run_filter() {
+fn gen_multi_keys_test_integer_to_integer() {
     // We generate a set of client keys, using the default parameters:
     let client_key_1 = ClientKey::new(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
 
@@ -247,7 +247,7 @@ fn test_case_cpk_encrypt_cast_compute(
 }
 
 #[test]
-fn test_cpk_encrypt_cast_to_small_compute_big_ci_run_filter() {
+fn test_cpk_encrypt_cast_to_small_compute_big() {
     test_case_cpk_encrypt_cast_compute(
         TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -256,7 +256,7 @@ fn test_cpk_encrypt_cast_to_small_compute_big_ci_run_filter() {
 }
 
 #[test]
-fn test_cpk_encrypt_cast_to_big_compute_big_ci_run_filter() {
+fn test_cpk_encrypt_cast_to_big_compute_big() {
     test_case_cpk_encrypt_cast_compute(
         TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
