@@ -4,6 +4,15 @@ ignore = [
     "RUSTSEC-2024-0436",
     # Ignoring unmaintained 'bincode' crate. Getting rid of it would be too complex on the short term.
     "RUSTSEC-2025-0141",
+    # Ignoring unmaintained 'chrono'. It is not built by default: only pulled by the 'hpu' features
+    # (tera 1.x via hw_regmap, for generated file dates) and the internal tfhe-data-extractor tool.
+    # It is also depended upon by ark-serialize, via serde-with, but this is lockfile only and never
+    # built.
+    "RUSTSEC-2026-0543",
+    # Ignoring unmaintained 'chrono-tz' and 'chrono-tz-build', only pulled by tera 1.x via
+    # hw_regmap ('hpu' features). Can be removed once hw_regmap moves to tera 2.
+    "RUSTSEC-2026-0555",
+    "RUSTSEC-2026-0559",
 ]
 
 [output]
