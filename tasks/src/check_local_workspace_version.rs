@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
-use cargo_metadata::MetadataCommand;
 use cargo_metadata::semver::{Comparator, Op, Version, VersionReq};
+use cargo_metadata::{DependencyKind, MetadataCommand};
 
 #[derive(Debug, Clone)]
 struct WorkspaceData {
@@ -62,6 +62,12 @@ enum DepStatus {
     Star,
 }
 
+/// Whether a local `*` dependency of this kind forbids publishing its parent crate.
+/// `cargo publish` strips dev-dependencies without a version, so they are harmless.
+fn star_blocks_publishing(kind: DependencyKind) -> bool {
+    kind != DependencyKind::Development
+}
+
 /// Check whether a local dependency requirement is acceptable.
 /// Local deps must either use `*` or pin the exact workspace version.
 fn check_dep_status(dep_req: &VersionReq, ws_version: &Version) -> DepStatus {
@@ -106,7 +112,7 @@ pub fn check_local_workspace_version() {
                             ws_version: ws.version.clone(),
                         });
                     }
-                    DepStatus::Star if pkg_is_publishable => {
+                    DepStatus::Star if pkg_is_publishable && star_blocks_publishing(dep.kind) => {
                         publishable_with_star.insert(pkg.name.to_string());
                     }
                     DepStatus::Star => {}
@@ -220,5 +226,18 @@ mod tests {
             check_dep_status(&req, &Version::new(1, 0, 0)),
             DepStatus::Star
         );
+    }
+
+    // ---- star_blocks_publishing ----
+
+    #[test]
+    fn star_dev_dependency_allows_publishing() {
+        assert!(!star_blocks_publishing(DependencyKind::Development));
+    }
+
+    #[test]
+    fn star_normal_and_build_dependencies_block_publishing() {
+        assert!(star_blocks_publishing(DependencyKind::Normal));
+        assert!(star_blocks_publishing(DependencyKind::Build));
     }
 }
