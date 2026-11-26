@@ -8,6 +8,13 @@ pub enum TestKind {
     Pfail,
 }
 
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Backend {
+    Cpu,
+    Gpu,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)] // https://serde.rs/enum-representations.html#untagged
 pub enum TestResult {
@@ -293,6 +300,7 @@ pub struct TestJsonOutput<P> {
     pub name: String,
     pub kind: TestKind,
     pub layer: String,
+    pub backend: Backend,
     pub param_name: String,
     pub pass: bool,
     pub warning: Option<String>,

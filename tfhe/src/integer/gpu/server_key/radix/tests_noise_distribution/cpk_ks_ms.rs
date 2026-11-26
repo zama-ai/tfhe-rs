@@ -278,7 +278,7 @@ fn cpk_ks_any_ms_pfail_helper_gpu(
 
 fn noise_check_encrypt_cpk_ks_ms_noise_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -450,7 +450,7 @@ create_gpu_parameterized_stringified_test!(noise_check_encrypt_cpk_ks_ms_noise_g
 
 fn noise_check_encrypt_cpk_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -570,7 +570,7 @@ create_gpu_parameterized_stringified_test!(noise_check_encrypt_cpk_ks_ms_pfail_g
 
 fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),

@@ -6,10 +6,10 @@
 
 use serde_json::{Value, json};
 use tfhe_test_results::{
-    BoundedLog2Measurement, BoundedMeasurement, ConfidenceInterval, ConfidenceIntervalWithLog2,
-    Measurement, NoBounds, NoiseCheckWithNormalityCheck, NoiseCheckWithoutNormalityCheck,
-    PfailMetadata, PfailTestResultJson, StringConfidenceInterval, StringConfidenceIntervalWithLog2,
-    TestJsonOutput, TestKind, TestResult, ValueWithLog2,
+    Backend, BoundedLog2Measurement, BoundedMeasurement, ConfidenceInterval,
+    ConfidenceIntervalWithLog2, Measurement, NoBounds, NoiseCheckWithNormalityCheck,
+    NoiseCheckWithoutNormalityCheck, PfailMetadata, PfailTestResultJson, StringConfidenceInterval,
+    StringConfidenceIntervalWithLog2, TestJsonOutput, TestKind, TestResult, ValueWithLog2,
 };
 
 const TEST: &str = "shortint::some_check::test_meta_param";
@@ -29,6 +29,7 @@ fn output(
         name: NAME.to_string(),
         kind,
         layer: LAYER.to_string(),
+        backend: Backend::Cpu,
         param_name: PARAM_NAME.to_string(),
         pass,
         warning: warning.map(str::to_string),
@@ -43,6 +44,7 @@ fn expected(kind: &str, pass: bool, warning: Option<&str>, results: Value) -> Va
         "name": NAME,
         "kind": kind,
         "layer": LAYER,
+        "backend": "cpu",
         "param_name": PARAM_NAME,
         "pass": pass,
         "warning": warning,

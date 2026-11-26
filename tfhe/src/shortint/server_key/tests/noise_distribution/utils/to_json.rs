@@ -20,20 +20,42 @@ pub struct TestJsonGuard<'a> {
     param_name: &'a str,
     function_name: &'a str,
     kind: TestKind,
+    backend: Backend,
 }
 
 impl<'a> TestJsonGuard<'a> {
-    pub fn new(
+    pub fn new_cpu(
         meta_param: &'a MetaParameters,
         param_name: &'a str,
         function_name: &'a str,
         kind: TestKind,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::new(meta_param, param_name, function_name, kind, Backend::Cpu)
+    }
+
+    #[cfg(feature = "gpu")]
+    pub fn new_gpu(
+        meta_param: &'a MetaParameters,
+        param_name: &'a str,
+        function_name: &'a str,
+        kind: TestKind,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::new(meta_param, param_name, function_name, kind, Backend::Gpu)
+    }
+
+    fn new(
+        meta_param: &'a MetaParameters,
+        param_name: &'a str,
+        function_name: &'a str,
+        kind: TestKind,
+        backend: Backend,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let guard = Self {
             meta_param,
             param_name,
             function_name,
             kind,
+            backend,
         };
         guard.write_results(false, None, TestResult::Empty {})?;
         Ok(guard)
@@ -55,6 +77,7 @@ impl<'a> TestJsonGuard<'a> {
             name: name.to_string(),
             kind: self.kind,
             layer: layer.to_string(),
+            backend: self.backend,
             param_name: self.param_name.to_string(),
             pass,
             warning,

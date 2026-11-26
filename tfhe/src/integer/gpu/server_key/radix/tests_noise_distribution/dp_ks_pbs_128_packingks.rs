@@ -50,7 +50,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -222,7 +222,7 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -761,7 +761,7 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),

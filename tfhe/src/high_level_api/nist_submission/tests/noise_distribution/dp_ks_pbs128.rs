@@ -188,7 +188,7 @@ fn encrypt_dp_ks_pbs128_noise_helper(
 
 fn noise_check_encrypt_dp_ks_pbs128_noise(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),

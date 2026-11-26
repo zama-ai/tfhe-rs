@@ -121,7 +121,7 @@ pub(crate) fn sanity_check_encrypt_br_dp_ks_pbs(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -340,7 +340,7 @@ pub(crate) fn noise_check_encrypt_br_dp_ks_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -472,7 +472,7 @@ pub(crate) fn noise_check_encrypt_br_dp_ks_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),

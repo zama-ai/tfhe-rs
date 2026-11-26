@@ -380,7 +380,7 @@ fn noise_check_encrypt_cpk_rerand_ks_any_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -549,7 +549,7 @@ fn noise_check_encrypt_cpk_rerand_ks_any_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -763,7 +763,7 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_worst_case(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -1044,7 +1044,7 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_pbs(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),

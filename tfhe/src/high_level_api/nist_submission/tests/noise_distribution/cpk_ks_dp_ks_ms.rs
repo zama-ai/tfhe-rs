@@ -289,7 +289,7 @@ fn cpk_ks_dp_ks_any_ms_noise_helper(
 
 fn noise_check_encrypt_cpk_ks_dp_ks_ms_noise(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -450,7 +450,7 @@ create_parameterized_stringified_test!(noise_check_encrypt_cpk_ks_dp_ks_ms_noise
 
 fn noise_check_encrypt_cpk_ks_dp_ks_ms_pfail(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),

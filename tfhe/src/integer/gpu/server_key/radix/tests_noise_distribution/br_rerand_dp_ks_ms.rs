@@ -503,7 +503,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -778,7 +778,7 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -933,7 +933,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),

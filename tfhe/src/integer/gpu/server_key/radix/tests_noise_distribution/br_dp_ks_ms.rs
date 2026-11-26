@@ -42,7 +42,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 /// implemented in shortint for GPU
 fn sanity_check_encrypt_br_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -377,7 +377,7 @@ fn encrypt_br_dp_ks_any_ms_pfail_helper_gpu(
 
 fn noise_check_encrypt_br_dp_ks_ms_noise(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -540,7 +540,7 @@ create_gpu_parameterized_stringified_test!(noise_check_encrypt_br_dp_ks_ms_noise
 
 fn noise_check_encrypt_br_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_gpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),

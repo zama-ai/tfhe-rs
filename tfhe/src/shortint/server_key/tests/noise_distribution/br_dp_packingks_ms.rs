@@ -100,7 +100,7 @@ where
 
 fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -398,7 +398,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
@@ -548,7 +548,7 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(
+    let guard = TestJsonGuard::new_cpu(
         &meta_params,
         filename_suffix,
         function_name.as_str(),
