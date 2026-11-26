@@ -14,7 +14,9 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     DynLwe, NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweKeyswitchKey, NoiseSimulationModulus, NoiseSimulationModulusSwitchConfig,
 };
-use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    TestJsonGuard, TestKind,
+};
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, noise_check, normality_check, pfail_check, update_ap_params_for_pfail,
     DecryptionAndNoiseResult, NoiseSample, PfailTestMeta, PfailTestResult,
@@ -307,7 +309,13 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
     let (compute_params, re_rand_parameters) = {
         let compute_params = meta_params
             .compute_parameters
@@ -524,7 +532,13 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    )
+    .unwrap();
     let (compute_params, re_rand_parameters) = {
         let compute_params = meta_params
             .compute_parameters

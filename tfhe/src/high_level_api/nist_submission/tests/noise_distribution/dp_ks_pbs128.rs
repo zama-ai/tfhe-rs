@@ -13,7 +13,9 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     DynLwe, NoiseSimulationGenericBootstrapKey128, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
-use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    TestJsonGuard, TestKind,
+};
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, noise_check, post_squashing_noise_check, DecryptionAndNoiseResult,
     NoiseSample,
@@ -186,7 +188,13 @@ fn encrypt_dp_ks_pbs128_noise_helper(
 
 fn noise_check_encrypt_dp_ks_pbs128_noise(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
 
     let (params, noise_squashing_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();

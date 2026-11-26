@@ -728,6 +728,11 @@ clippy_param_dedup: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p param_dedup -- --no-deps -D warnings
 
+.PHONY: clippy_tfhe_test_results # Run clippy lints on tfhe-test-results
+clippy_tfhe_test_results: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-test-results -- --no-deps -D warnings
+
 .PHONY: clippy_fuzz # Run clippy lints on fuzzing crates
 clippy_fuzz: install_rs_check_toolchain
 	@find utils/fuzz -name Cargo.toml -not -path '*/target/*' | while read crate; do \
@@ -863,7 +868,7 @@ clippy_test_vectors: install_rs_check_toolchain
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_zk_pok_wasm clippy_trivium clippy_princev2 \
-clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
+clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup clippy_tfhe_test_results \
 clippy_benchmark_spec clippy_benchmark_spec_js clippy_benchmark_parser clippy_data_extractor clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq \
 clippy_fuzz
 
@@ -1759,6 +1764,11 @@ test_versionable:
 test_safe_serialize:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
 		--all-targets -p tfhe-safe-serialize
+
+.PHONY: test_tfhe_test_results # Run tests for tfhe-test-results subcrate
+test_tfhe_test_results:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
+		--all-targets -p tfhe-test-results
 
 # The backward compat data folder holds historical binary data but also rust code to generate and load them.
 .PHONY: gen_backward_compat_data # Re-generate backward compatibility data
@@ -2780,11 +2790,13 @@ pcc_batch_6:
 	$(call run_recipe_with_details,clippy_versionable)
 	$(call run_recipe_with_details,clippy_safe_serialize)
 	$(call run_recipe_with_details,clippy_param_dedup)
+	$(call run_recipe_with_details,clippy_tfhe_test_results)
 	$(call run_recipe_with_details,clippy_benchmark_spec)
 	$(call run_recipe_with_details,clippy_benchmark_spec_js)
 	$(call run_recipe_with_details,clippy_benchmark_parser)
 	$(call run_recipe_with_details,clippy_data_extractor)
 	$(call run_recipe_with_details,test_benchmark_utils)
+	$(call run_recipe_with_details,test_tfhe_test_results)
 	$(call run_recipe_with_details,docs)
 
 .PHONY: pcc_batch_7 # duration: 7'50'' (currently PCC execution bottleneck)

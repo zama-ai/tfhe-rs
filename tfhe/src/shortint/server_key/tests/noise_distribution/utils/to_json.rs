@@ -17,29 +17,26 @@ macro_rules! this_function_name {
 
 pub struct TestJsonGuard<'a> {
     meta_param: &'a MetaParameters,
-    test_name: &'a str,
-    test_module_path: &'a str,
+    param_name: &'a str,
+    function_name: &'a str,
+    kind: TestKind,
 }
 
 impl<'a> TestJsonGuard<'a> {
     pub fn new(
         meta_param: &'a MetaParameters,
-        test_name: &'a str,
-        test_module_path: &'a str,
+        param_name: &'a str,
+        function_name: &'a str,
+        kind: TestKind,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        Self::write_json_file(
+        let guard = Self {
             meta_param,
-            test_name,
-            test_module_path,
-            false,
-            None,
-            TestResult::Empty {},
-        )?;
-        Ok(TestJsonGuard {
-            meta_param,
-            test_name,
-            test_module_path,
-        })
+            param_name,
+            function_name,
+            kind,
+        };
+        guard.write_results(false, None, TestResult::Empty {})?;
+        Ok(guard)
     }
 
     pub fn write_results(
@@ -48,42 +45,38 @@ impl<'a> TestJsonGuard<'a> {
         warning: Option<String>,
         results: TestResult,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        Self::write_json_file(
-            self.meta_param,
-            self.test_name,
-            self.test_module_path,
-            pass,
-            warning,
-            results,
-        )
-    }
-
-    fn write_json_file(
-        meta_param: &MetaParameters,
-        test_name: &str,
-        test_module_path: &str,
-        pass: bool,
-        warning: Option<String>,
-        results: TestResult,
-    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut path = PathBuf::new();
         path.push("tests_results");
         fs::create_dir_all(&path)?;
-        let test_id = format!("{test_module_path}::{test_name}").to_lowercase();
-        path.push(format!("{test_id}.json"));
-        let short_name = test_module_path
-            .rsplit_once("::")
-            .map_or(test_module_path, |(_, p)| p);
-        let output_data = TestJsonOutput::new(
-            test_id,
-            short_name.to_string(),
+        path.push(format!("{}.json", self.file_name()));
+        let (layer, name) = self.layer_and_name();
+        let output_data = TestJsonOutput {
+            test: self.test_id(),
+            name: name.to_string(),
+            kind: self.kind,
+            layer: layer.to_string(),
+            param_name: self.param_name.to_string(),
             pass,
             warning,
-            meta_param,
+            parameters: self.meta_param,
             results,
-        );
+        };
         let serialized_output = serde_json::to_string_pretty(&output_data)?;
         fs::write(&path, serialized_output)?;
         Ok(())
+    }
+
+    fn test_id(&self) -> String {
+        format!("{}::{}", self.function_name, self.param_name).to_lowercase()
+    }
+
+    fn file_name(&self) -> String {
+        self.test_id().replace("::", "-")
+    }
+
+    fn layer_and_name(&self) -> (&str, &str) {
+        self.function_name
+            .split_once("::")
+            .unwrap_or(("", self.function_name))
     }
 }

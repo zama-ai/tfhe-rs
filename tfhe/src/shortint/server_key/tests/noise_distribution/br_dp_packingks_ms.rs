@@ -1,5 +1,5 @@
 use super::utils::noise_simulation::*;
-use super::utils::to_json::TestResult;
+use super::utils::to_json::{TestKind, TestResult};
 use super::utils::traits::*;
 use super::utils::{
     expected_pfail_for_precision, mean_and_variance_check, noise_check, normality_check,
@@ -100,7 +100,13 @@ where
 
 fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    )
+    .unwrap();
     let (params, comp_params) = (
         meta_params
             .compute_parameters
@@ -392,7 +398,13 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
     let (params, comp_params) = (
         meta_params
             .compute_parameters
@@ -536,7 +548,13 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    )
+    .unwrap();
     let (pfail_test_meta, params, comp_params) = {
         let (mut params, comp_params) = (
             meta_params

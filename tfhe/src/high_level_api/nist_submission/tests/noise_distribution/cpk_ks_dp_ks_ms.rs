@@ -12,7 +12,9 @@ use crate::shortint::server_key::tests::noise_distribution::dp_ks_ms::dp_ks_any_
 use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulation::{
     DynLwe, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
-use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    TestJsonGuard, TestKind,
+};
 use crate::shortint::server_key::tests::noise_distribution::utils::traits::{
     AllocateCenteredBinaryShiftedStandardModSwitchResult,
     AllocateDriftTechniqueStandardModSwitchResult, AllocateLweKeyswitchResult,
@@ -287,7 +289,13 @@ fn cpk_ks_dp_ks_any_ms_noise_helper(
 
 fn noise_check_encrypt_cpk_ks_dp_ks_ms_noise(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
     let (params, cpk_params, ksk_from_cpk_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -442,7 +450,13 @@ create_parameterized_stringified_test!(noise_check_encrypt_cpk_ks_dp_ks_ms_noise
 
 fn noise_check_encrypt_cpk_ks_dp_ks_ms_pfail(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    )
+    .unwrap();
 
     let (params, cpk_params, ksk_from_cpk_params) = {
         let compute_params = meta_params

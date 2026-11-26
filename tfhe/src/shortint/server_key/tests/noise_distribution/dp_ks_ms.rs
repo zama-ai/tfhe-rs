@@ -16,7 +16,9 @@ use crate::shortint::parameters::test_params::{
     TEST_META_PARAM_GPU_2_2_MULTI_BIT_GROUP_4_KS_PBS_PKE_TO_SMALL_ZKV2_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus, MetaParameters};
-use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    TestJsonGuard, TestKind,
+};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
 use crate::shortint::server_key::ServerKey;
 use crate::shortint::Ciphertext;
@@ -171,7 +173,13 @@ where
 /// implemented in shortint
 fn sanity_check_encrypt_dp_ks_pbs(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    )
+    .unwrap();
     let params = meta_params
         .compute_parameters
         .with_deterministic_execution();
@@ -349,7 +357,13 @@ fn encrypt_dp_ks_any_ms_pfail_helper(
 
 fn noise_check_encrypt_dp_ks_ms_noise(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
     let params = meta_params
         .compute_parameters
         .with_deterministic_execution();
@@ -453,7 +467,13 @@ create_parameterized_stringified_test!(noise_check_encrypt_dp_ks_ms_noise {
 
 fn noise_check_encrypt_dp_ks_ms_pfail(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    )
+    .unwrap();
     let (pfail_test_meta, params) = {
         let mut ap_params = meta_params
             .compute_parameters

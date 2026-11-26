@@ -25,7 +25,7 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     DynLwe, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    TestJsonGuard, TestResult,
+    TestJsonGuard, TestKind, TestResult,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     mean_and_variance_check, noise_check, normality_check, pfail_check, update_ap_params_for_pfail,
@@ -43,7 +43,13 @@ use rayon::prelude::*;
 /// implemented in shortint
 fn sanity_check_encrypt_dp_ks_pbs_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    )
+    .unwrap();
     let block_params = meta_params.compute_parameters;
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
@@ -350,7 +356,13 @@ fn encrypt_dp_ks_any_ms_pfail_helper_gpu(
 /// GPU version of the noise checking test
 fn noise_check_encrypt_dp_ks_ms_noise_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
     let params = meta_params.compute_parameters;
     let noise_simulation_ksk =
         NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
@@ -480,7 +492,13 @@ create_gpu_parameterized_stringified_test!(noise_check_encrypt_dp_ks_ms_noise_gp
 
 fn noise_check_encrypt_dp_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    )
+    .unwrap();
     let mut ap_params = meta_params.compute_parameters;
     let (pfail_test_meta, params) = {
         let original_message_modulus = ap_params.message_modulus();

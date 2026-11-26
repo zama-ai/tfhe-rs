@@ -6,5 +6,7 @@ publish = false
 rust-version.workspace = true
 
 [dependencies]
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive", "std"] }
+
+[dev-dependencies]
 serde_json.workspace = true

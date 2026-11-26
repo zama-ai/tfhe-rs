@@ -3,7 +3,7 @@ use super::utils::noise_simulation::{
     DynLwe, DynLweSecretKeyView, NoiseSimulationLwe, NoiseSimulationLweKeyswitchKey,
     NoiseSimulationModulusSwitchConfig,
 };
-use super::utils::to_json::{TestJsonGuard, TestResult};
+use super::utils::to_json::{TestJsonGuard, TestKind, TestResult};
 use super::utils::traits::*;
 use super::utils::{
     mean_and_variance_check, noise_check, normality_check, pfail_check, update_ap_params_for_pfail,
@@ -380,7 +380,13 @@ fn noise_check_encrypt_cpk_rerand_ks_any_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -543,7 +549,13 @@ fn noise_check_encrypt_cpk_rerand_ks_any_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    )
+    .unwrap();
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -751,7 +763,13 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_worst_case(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    )
+    .unwrap();
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -1026,7 +1044,13 @@ fn sanity_check_encrypt_cpk_rerand_ks_any_ms_pbs(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    )
+    .unwrap();
     let (params, cpk_params, ksk_ds_params, orig_cast_mode) = {
         let compute_params = meta_params
             .compute_parameters

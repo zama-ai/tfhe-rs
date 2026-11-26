@@ -3,7 +3,7 @@ use super::utils::noise_simulation::{
     NoiseSimulationGenericBootstrapKey, NoiseSimulationGlwe, NoiseSimulationLwe,
     NoiseSimulationLweKeyswitchKey, NoiseSimulationModulusSwitchConfig,
 };
-use super::utils::to_json::TestResult;
+use super::utils::to_json::{TestKind, TestResult};
 use super::utils::traits::*;
 use super::utils::{
     mean_and_variance_check, noise_check, normality_check, pfail_check, update_ap_params_for_pfail,
@@ -121,7 +121,13 @@ pub(crate) fn sanity_check_encrypt_br_dp_ks_pbs(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    )
+    .unwrap();
 
     let params = meta_params
         .compute_parameters
@@ -334,7 +340,13 @@ pub(crate) fn noise_check_encrypt_br_dp_ks_ms_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
     let params = meta_params
         .compute_parameters
         .with_deterministic_execution();
@@ -460,7 +472,13 @@ pub(crate) fn noise_check_encrypt_br_dp_ks_ms_pfail(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    )
+    .unwrap();
     let (pfail_test_meta, params) = {
         let mut ap_params = meta_params
             .compute_parameters

@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TestKind {
+    Sanity,
+    Noise,
+    Pfail,
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)] // https://serde.rs/enum-representations.html#untagged
 pub enum TestResult {
@@ -283,28 +291,11 @@ impl PfailTestResultJson {
 pub struct TestJsonOutput<P> {
     pub test: String,
     pub name: String,
+    pub kind: TestKind,
+    pub layer: String,
+    pub param_name: String,
     pub pass: bool,
     pub warning: Option<String>,
     pub parameters: P,
     pub results: TestResult,
-}
-
-impl<P> TestJsonOutput<P> {
-    pub fn new(
-        test: String,
-        name: String,
-        pass: bool,
-        warning: Option<String>,
-        parameters: P,
-        results: TestResult,
-    ) -> Self {
-        Self {
-            test,
-            name,
-            pass,
-            warning,
-            parameters,
-            results,
-        }
-    }
 }

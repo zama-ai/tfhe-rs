@@ -26,7 +26,9 @@ use crate::shortint::parameters::test_params::{
 use crate::shortint::parameters::{
     AtomicPatternParameters, MetaParameters, NoiseSquashingCompressionParameters,
 };
-use crate::shortint::server_key::tests::noise_distribution::utils::to_json::TestJsonGuard;
+use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
+    TestJsonGuard, TestKind,
+};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_stringified_test;
 use crate::shortint::server_key::ServerKey;
 use crate::this_function_name;
@@ -251,7 +253,13 @@ fn sanity_check_encrypt_dp_ks_standard_pbs128_packing_ks(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    )
+    .unwrap();
 
     let (params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
@@ -618,7 +626,13 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    )
+    .unwrap();
     let (params, noise_squashing_params, noise_squashing_compression_params) = {
         let meta_noise_squashing_params = meta_params.noise_squashing_parameters.unwrap();
         (
