@@ -4,6 +4,7 @@ use crate::integer::server_key::radix_parallel::test_harness::{
     TestContext,
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_shift::amount_of_another_width_test;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, rotate_left_helper, rotate_right_helper, CpuFunctionExecutor,
 };
@@ -24,6 +25,52 @@ create_parameterized_test!(integer_unchecked_rotate_left);
 create_parameterized_test!(integer_default_rotate_right);
 
 create_parameterized_test!(integer_default_rotate_left);
+
+create_parameterized_test!(integer_rotate_left_amount_of_another_width {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+});
+
+create_parameterized_test!(integer_rotate_right_amount_of_another_width {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+});
+
+fn integer_rotate_left_amount_of_another_width<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::rotate_left_parallelized);
+    rotate_left_amount_of_another_width_test(param, executor);
+}
+
+fn integer_rotate_right_amount_of_another_width<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::rotate_right_parallelized);
+    rotate_right_amount_of_another_width_test(param, executor);
+}
+
+pub(crate) fn rotate_left_amount_of_another_width_test<P, T>(param: P, executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    amount_of_another_width_test(param, executor, |value, amount, nb_bits| {
+        rotate_left_helper(value, (amount % u64::from(nb_bits)) as u32, nb_bits)
+    });
+}
+
+pub(crate) fn rotate_right_amount_of_another_width_test<P, T>(param: P, executor: T)
+where
+    P: Into<TestParameters>,
+    T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
+{
+    amount_of_another_width_test(param, executor, |value, amount, nb_bits| {
+        rotate_right_helper(value, (amount % u64::from(nb_bits)) as u32, nb_bits)
+    });
+}
 
 fn integer_unchecked_rotate_right<P>(param: P)
 where
