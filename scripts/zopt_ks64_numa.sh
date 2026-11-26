@@ -136,7 +136,7 @@ hlapi)
     export ZOPT_HL_NUMA=1
     ZOPT_HL_BATCH_FILE=$(mktemp)
     export ZOPT_HL_BATCH_FILE
-    for type in LATENCY THROUGHPUT; do
+    for type in ${ZOPT_HL_TYPES:-THROUGHPUT}; do
         export __TFHE_RS_BENCH_TYPE="${type}"
         variant "_FIRST_TOUCH_${type}" env
         variant "_INTERLEAVE_${type}" numactl --interleave=all

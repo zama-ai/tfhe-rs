@@ -101,7 +101,7 @@ fn main() {
 
     let mut c = Criterion::default().configure_from_args();
 
-    // ZOPT_HL_NUMA: the operations compared across NUMA placements, on 8, 64 and 128 bits.
+    // ZOPT_HL_NUMA: add, mul and div compared across NUMA placements, on 8, 64 and 128 bits.
     #[cfg(not(feature = "hpu"))]
     if env::var("ZOPT_HL_NUMA").is_ok() {
         macro_rules! numa_benches {
@@ -109,9 +109,6 @@ fn main() {
                 $(
                     ::paste::paste! {
                         [<bench_ $fhe_type:snake _add>](&mut c, &cks);
-                        [<bench_ $fhe_type:snake _bitand>](&mut c, &cks);
-                        [<bench_ $fhe_type:snake _gt>](&mut c, &cks);
-                        [<bench_ $fhe_type:snake _shl>](&mut c, &cks);
                         [<bench_ $fhe_type:snake _mul>](&mut c, &cks);
                         [<bench_ $fhe_type:snake _div>](&mut c, &cks);
                     }
