@@ -28,7 +28,7 @@ impl QueryInputs {
     pub fn from_args(args: &Args, mode: &Mode) -> Self {
         let bench_date = args
             .bench_date
-            .map(|date| date.format(BENCH_DATE_FORMAT).to_string());
+            .map(|date| date.strftime(BENCH_DATE_FORMAT).to_string());
 
         match mode {
             Mode::Archive(_) => Self {
