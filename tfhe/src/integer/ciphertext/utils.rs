@@ -1,5 +1,6 @@
 use super::{BooleanBlock, IntegerRadixCiphertext};
 use crate::integer::backward_compatibility::ciphertext::DataKindVersions;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::{Ciphertext, MessageModulus};
 use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
@@ -203,7 +204,19 @@ impl Expandable for BooleanBlock {
             DataKind::Signed(_) => Err(crate::Error::new(
                 "Tried to expand a boolean block while a signed radix was stored".to_string(),
             )),
-            DataKind::Boolean => Ok(Self::new_unchecked(blocks[0].clone())),
+            DataKind::Boolean => {
+                let [block] = <[Ciphertext; 1]>::try_from(blocks).map_err(|blocks| {
+                    crate::error!(
+                        "Tried to expand a boolean block while {} blocks are stored in this slot",
+                        blocks.len(),
+                    )
+                })?;
+
+                let mut boolean_block = Self::new_unchecked(block);
+                // We know the value is a boolean one (via the data kind)
+                boolean_block.0.degree = Degree::new(1);
+                Ok(boolean_block)
+            }
             DataKind::String { .. } => Err(crate::Error::new(
                 "Tried to expand a boolean block while a string is stored".to_string(),
             )),

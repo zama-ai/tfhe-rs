@@ -183,16 +183,7 @@ impl Expandable for FheBool {
                 ))
             }
             DataKind::Boolean => {
-                let [block] = <[Ciphertext; 1]>::try_from(blocks).map_err(|blocks| {
-                    crate::error!(
-                        "Tried to expand a FheBool while {} blocks are stored in this slot",
-                        blocks.len(),
-                    )
-                })?;
-
-                let mut boolean_block = BooleanBlock::new_unchecked(block);
-                // We know the value is a boolean one (via the data kind)
-                boolean_block.0.degree = crate::shortint::ciphertext::Degree::new(1);
+                let boolean_block = BooleanBlock::from_expanded_blocks(blocks, kind)?;
 
                 // The expander will be responsible for setting the correct tag and metadata
                 Ok(Self::new(

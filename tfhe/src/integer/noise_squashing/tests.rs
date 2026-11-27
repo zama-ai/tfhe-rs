@@ -207,8 +207,7 @@ fn test_noise_squashing_rejects_unpackable_inputs() {
         let squashed = nsk.squash_boolean_block_noise(&sks, &b).unwrap();
         assert!(nspk.decrypt_bool(&squashed).unwrap());
     }
-    // BooleanBlock from a list expanded without key keeps the degree of the list blocks
-    // (message_modulus - 1) while holding a value in {0, 1}, it must be accepted
+    // BooleanBlock from a list expanded without key has degree 1 and must be accepted
     {
         use crate::integer::ciphertext::CompactCiphertextList;
         use crate::integer::{BooleanBlock, CompactPublicKey};
@@ -221,7 +220,8 @@ fn test_noise_squashing_rejects_unpackable_inputs() {
         let expander = list.expand_without_key().unwrap();
         for (i, expected) in [false, true].into_iter().enumerate() {
             let b: BooleanBlock = expander.get(i).unwrap().unwrap();
-            assert!(b.0.degree.get() > 1 && b.0.carry_is_empty());
+            assert_eq!(b.0.degree.get(), 1);
+            assert!(b.0.carry_is_empty());
             let squashed = nsk.squash_boolean_block_noise(&sks, &b).unwrap();
             assert_eq!(nspk.decrypt_bool(&squashed).unwrap(), expected);
         }
