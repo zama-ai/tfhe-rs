@@ -7,7 +7,7 @@ template <typename Torus> struct int_compression {
   int_radix_params compression_params;
   // Compression
   int8_t *fp_ks_buffer;
-  Torus *tmp_lwe;
+  Torus *tmp_lwe = nullptr;
   Torus *tmp_glwe_array_out;
   bool gpu_memory_allocated;
   uint32_t num_lwes_stored_per_glwe;
@@ -31,12 +31,14 @@ template <typename Torus> struct int_compression {
     // num_lwes_stored_per_glwe.
     max_num_glwes = CEIL_DIV(num_radix_blocks, num_lwes_stored_per_glwe);
 
-    tmp_lwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
-        safe_mul_sizeof<Torus>(
-            (size_t)num_radix_blocks,
-            (size_t)(compression_params.small_lwe_dimension + 1)),
-        streams.stream(0), streams.gpu_index(0), size_tracker,
-        allocate_gpu_memory));
+    if constexpr (std::is_same_v<Torus, uint64_t>) {
+      tmp_lwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
+          safe_mul_sizeof<Torus>(
+              (size_t)num_radix_blocks,
+              (size_t)(compression_params.small_lwe_dimension + 1)),
+          streams.stream(0), streams.gpu_index(0), size_tracker,
+          allocate_gpu_memory));
+    }
     tmp_glwe_array_out =
         static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
             safe_mul_sizeof<Torus>((size_t)max_num_glwes,
