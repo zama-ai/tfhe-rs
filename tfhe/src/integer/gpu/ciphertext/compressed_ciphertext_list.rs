@@ -1,4 +1,4 @@
-use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::ciphertext::{CompressedCiphertextList, DataKind};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -8,14 +8,12 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::list_compression::server_keys::{
     CudaCompressionKey, CudaDecompressionKey, CudaPackedGlweCiphertextList,
-    CudaPackedGlweCiphertextListMeta,
 };
 use crate::shortint::ciphertext::{
     CompressedCiphertextList as ShortintCompressedCiphertextList, CompressedCiphertextListMeta,
 };
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::{MessageModulus, PBSOrder};
-use itertools::Itertools;
 use std::num::NonZeroUsize;
 use std::ops::Range;
 
@@ -384,47 +382,11 @@ impl CompressedCiphertextList {
         &self,
         streams: &CudaStreams,
     ) -> CudaCompressedCiphertextList {
-        let modulus_switched_glwe_ciphertext_list =
-            &self.packed_list.modulus_switched_glwe_ciphertext_list;
-
-        let flat_cpu_data = modulus_switched_glwe_ciphertext_list
-            .iter()
-            .flat_map(|ct| ct.packed_integers().packed_coeffs().to_vec())
-            .collect_vec();
-
-        let flat_gpu_data = unsafe {
-            let v = CudaVec::from_cpu_async(flat_cpu_data.as_slice(), streams, 0);
-            streams.synchronize();
-            v
-        };
-
-        let initial_len = self.packed_list.len();
-
-        let meta = self.packed_list.meta.as_ref().and_then(|cpu_meta| {
-            let lwe_per_glwe = cpu_meta.lwe_per_glwe;
-            let message_modulus = cpu_meta.message_modulus;
-            let carry_modulus = cpu_meta.carry_modulus;
-
-            modulus_switched_glwe_ciphertext_list
-                .first()
-                .map(|first_ct| CudaPackedGlweCiphertextListMeta {
-                    glwe_dimension: first_ct.glwe_dimension(),
-                    polynomial_size: first_ct.polynomial_size(),
-                    message_modulus,
-                    carry_modulus,
-                    ciphertext_modulus: cpu_meta.ciphertext_modulus,
-                    storage_log_modulus: first_ct.packed_integers().log_modulus(),
-                    lwe_per_glwe,
-                    total_lwe_bodies_count: self.packed_list.len(),
-                    initial_len,
-                })
-        });
-
         CudaCompressedCiphertextList {
-            packed_list: CudaPackedGlweCiphertextList {
-                data: flat_gpu_data,
-                meta,
-            },
+            packed_list: CudaPackedGlweCiphertextList::from_compressed_ciphertext_list(
+                &self.packed_list,
+                streams,
+            ),
             info: self.info.clone(),
         }
     }
@@ -537,6 +499,7 @@ mod tests {
     use crate::integer::{ClientKey, RadixCiphertext, RadixClientKey};
     use crate::shortint::parameters::*;
     use crate::shortint::AtomicPatternParameters;
+    use itertools::Itertools;
     use rand::Rng;
 
     const NB_TESTS: usize = 10;

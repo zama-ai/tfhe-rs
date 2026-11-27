@@ -1137,12 +1137,18 @@ mod test {
 
     /// The CPU scenario with a server key on GPU. The pad also goes through each conversion of
     /// its GPU variant: decryption, serialization (which clones it), encryption. The pad sent to
-    /// the client and the one used to transcipher may come from different devices, so a seed must
-    /// give the same pad on CPU and on GPU.
+    /// the client, the stored one and the one used to transcipher may come from different
+    /// devices. So a seed must give the same pad on CPU and on GPU, and a pad stored by one device
+    /// must be usable by the other.
     #[cfg(feature = "gpu")]
     fn test_gpu_one_time_pad_using_oprf_impl(params: TranscipheringParameters) {
-        use super::{HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession};
+        use super::{
+            CompressedOneTimePadFheSecretMask, CompressedOneTimePadFheSecretMaskConformanceParams,
+            HlStreamCipher, HlTranscipherer, OneTimePadFheSecretMask, TranscipherSession,
+        };
+        use crate::conformance::ParameterSetConformant;
         use crate::prelude::*;
+        use crate::shortint::parameters::COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         use crate::transciphering::{OneTimePadPlainSecretMask, OneTimePadPlainState};
         use crate::{set_server_key, ClientKey, CompressedServerKey, Seed};
         use rand::Rng;
@@ -1151,17 +1157,30 @@ mod test {
 
         let mut rng = rand::thread_rng();
 
-        let mut client_key = ClientKey::generate(gpu_config().enable_transciphering(params));
+        let mut client_key = ClientKey::generate(
+            gpu_config()
+                .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+                .enable_transciphering(params),
+        );
         client_key.tag_mut().set_u64(KEY_SET);
         let compressed_server_key = CompressedServerKey::new(&client_key);
+        let cpu_server_key = compressed_server_key.decompress();
+        // A stored pad is checked against the CPU parameters, whichever device stored it
+        let conformance_params =
+            CompressedOneTimePadFheSecretMaskConformanceParams::try_from(&cpu_server_key).unwrap();
 
-        // Server: generate a random FHE pad on CPU, then on GPU with the same seed
+        // Server: generate a random FHE pad and store it, on CPU, then on GPU with the same seed
         let seed = rng.gen();
-        set_server_key(compressed_server_key.decompress());
+        set_server_key(cpu_server_key);
         let cpu_mask = OneTimePadFheSecretMask::new_random(Seed(seed), 64).unwrap();
+        let stored_by_cpu = cpu_mask.compress().unwrap();
         set_server_key(compressed_server_key.decompress_to_gpu());
         let fhe_mask = OneTimePadFheSecretMask::new_random(Seed(seed), 64).unwrap();
         assert_eq!(fhe_mask.tag().as_u64(), KEY_SET);
+        let mut stored = vec![];
+        safe_serialize(&fhe_mask.compress().unwrap(), &mut stored, SIZE_LIMIT).unwrap();
+        // The pad generated on CPU is not on the device of the server key
+        assert!(cpu_mask.compress().is_err());
 
         let plain_mask: OneTimePadPlainSecretMask = fhe_mask.decrypt(&client_key);
         assert!(cpu_mask.decrypt(&client_key) == plain_mask);
@@ -1185,15 +1204,27 @@ mod test {
             OneTimePadFheSecretMask::try_encrypt(empty_mask.clone(), &client_key).unwrap();
         assert!(encrypted.decrypt(&client_key) == empty_mask);
 
+        // The pad stored by the CPU decompresses on GPU into the same pad
+        let from_cpu_storage = stored_by_cpu.decompress().unwrap();
+        assert!(from_cpu_storage.decrypt(&client_key) == plain_mask);
+
         // Client: encrypt with the pad
         let mut sym = OneTimePadPlainState::new(plain_mask);
         let input: u64 = rng.gen();
         let sym_cipher = sym.try_encrypt(input).unwrap();
 
-        // Server: transcipher on GPU, with the pad re-generated from the same seed, then with the
-        // deserialized pad, which the session moves to the GPU
+        // Server: load the pad stored by the GPU and decompress it
+        let stored: CompressedOneTimePadFheSecretMask =
+            safe_deserialize(stored.as_slice(), SIZE_LIMIT).unwrap();
+        assert!(stored.is_conformant(&conformance_params));
+        assert_eq!(stored.tag().as_u64(), KEY_SET);
+        let from_storage = stored.decompress().unwrap();
+        assert_eq!(from_storage.tag().as_u64(), KEY_SET);
+
+        // Server: transcipher on GPU, with the stored pad, then with the pad re-generated from the
+        // same seed, then with the deserialized pad, which the session moves to the GPU
         let regenerated = OneTimePadFheSecretMask::new_random(Seed(seed), 64).unwrap();
-        for fhe_mask in [regenerated, deserialized] {
+        for fhe_mask in [from_storage, regenerated, deserialized] {
             let mut fhe_stream = TranscipherSession::one_time_pad(fhe_mask).unwrap();
             let transciphered: FheUint64 = fhe_stream.transcipher(&sym_cipher).unwrap();
             assert_eq!(transciphered.tag().as_u64(), KEY_SET);
@@ -1338,5 +1369,70 @@ mod test {
 
         let empty_expander = fhe_stream.transcipher_list(&empty_list).unwrap();
         assert_eq!(empty_expander.len(), 0);
+    }
+
+    /// The CPU test with the pad on GPU: squash and compression run on GPU, the KMS side
+    /// (conformance, decompression, decryption) stays on CPU and must not see a difference.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_one_time_pad_squashed_noise() {
+        use super::{
+            CompressedSquashedNoiseOneTimePadFheSecretMask,
+            CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams,
+            OneTimePadFheSecretMask,
+        };
+        use crate::conformance::ParameterSetConformant;
+        use crate::prelude::*;
+        use crate::shortint::parameters::current_params::{
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        };
+        use crate::transciphering::OneTimePadPlainSecretMask;
+        use crate::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder};
+        use rand::Rng;
+
+        let config = ConfigBuilder::with_custom_parameters(
+            V1_9_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .enable_noise_squashing(V1_9_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+        .enable_noise_squashing_compression(
+            V1_9_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .build();
+        let client_key = ClientKey::generate(config);
+        let compressed_server_key = CompressedServerKey::new(&client_key);
+        // The KMS checks the compressed pad against the CPU parameters
+        let conformance_params =
+            CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams::try_from(
+                &compressed_server_key.decompress(),
+            )
+            .unwrap();
+        set_server_key(compressed_server_key.decompress_to_gpu());
+
+        let mut rng = rand::thread_rng();
+        let n_bits = 64;
+        let pad_bytes: Vec<u8> = (0..n_bits / 8).map(|_| rng.gen()).collect();
+        let plain_mask = OneTimePadPlainSecretMask::new(pad_bytes, n_bits);
+
+        // Server, on GPU
+        let squashed = OneTimePadFheSecretMask::try_encrypt(plain_mask.clone(), &client_key)
+            .unwrap()
+            .squash_noise()
+            .unwrap();
+        assert!(squashed.decrypt(&client_key) == plain_mask);
+
+        let compressed = squashed.compress().unwrap();
+
+        // KMS, on CPU
+        let mut serialized = vec![];
+        safe_serialize(&compressed, &mut serialized, SIZE_LIMIT).unwrap();
+        let compressed: CompressedSquashedNoiseOneTimePadFheSecretMask =
+            safe_deserialize(serialized.as_slice(), SIZE_LIMIT).unwrap();
+        assert!(compressed.is_conformant(&conformance_params));
+        assert!(compressed.decrypt(&client_key) == plain_mask);
+
+        let decompressed = compressed.decompress().unwrap();
+        assert!(decompressed.decrypt(&client_key) == plain_mask);
     }
 }

@@ -19,7 +19,7 @@ use crate::high_level_api::{
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::transciphering::ciphers::one_time_pad::{
-    CudaOneTimePadFheSecretMask, CudaOneTimePadState,
+    CudaOneTimePadFheSecretMask, CudaOneTimePadState, CudaSquashedNoiseOneTimePadFheSecretMask,
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::transciphering::CudaTranscipherSession;
@@ -200,10 +200,27 @@ impl OneTimePadFheSecretMask {
                     tag: cpu_key.tag.clone(),
                 })
             }
+            #[cfg(feature = "gpu")]
+            (InnerOneTimePadFheSecretMask::Cuda(mask), Some(InternalServerKey::Cuda(cuda_key))) => {
+                let compression_key = cuda_key
+                    .key
+                    .compression_key
+                    .as_ref()
+                    .ok_or_else(|| crate::error!("Compression key not set in server key"))?;
+
+                Ok(CompressedOneTimePadFheSecretMask {
+                    inner: mask.compress(compression_key, &cuda_key.streams)?,
+                    tag: cuda_key.tag.clone(),
+                })
+            }
+            #[cfg(feature = "hpu")]
+            (_, Some(InternalServerKey::Hpu(_))) => Err(crate::error!(
+                "OneTimePadFheSecretMask::compress is not supported on HPU",
+            )),
             (_, None) => Err(UninitializedServerKey.into()),
-            #[cfg(any(feature = "gpu", feature = "hpu"))]
+            #[cfg(feature = "gpu")]
             _ => Err(crate::error!(
-                "OneTimePadFheSecretMask::compress is only supported on CPU",
+                "compress needs the mask and the server key on the same device",
             )),
         })
     }
@@ -355,9 +372,24 @@ impl CompressedOneTimePadFheSecretMask {
                 ))
             }
             #[cfg(feature = "gpu")]
-            Some(InternalServerKey::Cuda(_)) => Err(crate::error!(
-                "CompressedOneTimePadFheSecretMask::decompress is not yet supported on GPU",
-            )),
+            Some(InternalServerKey::Cuda(cuda_key)) => {
+                let decompression_key = cuda_key
+                    .key
+                    .decompression_key
+                    .as_ref()
+                    .ok_or_else(|| crate::error!("Decompression key not set in server key"))?;
+
+                Ok(OneTimePadFheSecretMask {
+                    inner: InnerOneTimePadFheSecretMask::Cuda(
+                        CudaOneTimePadFheSecretMask::decompress(
+                            &self.inner,
+                            decompression_key,
+                            &cuda_key.streams,
+                        )?,
+                    ),
+                    tag: self.tag.clone(),
+                })
+            }
             #[cfg(feature = "hpu")]
             Some(InternalServerKey::Hpu(_)) => Err(crate::error!(
                 "CompressedOneTimePadFheSecretMask::decompress is not supported on HPU",
@@ -438,14 +470,53 @@ impl Named for CompressedOneTimePadFheSecretMask {
 /// Use [`Self::compress`] to get a [`CompressedSquashedNoiseOneTimePadFheSecretMask`] that
 /// can be serialized.
 pub struct SquashedNoiseOneTimePadFheSecretMask {
-    inner: TranscipheringSquashedNoiseOneTimePadFheSecretMask,
+    inner: InnerSquashedNoiseOneTimePadFheSecretMask,
     state: SquashedNoiseCiphertextState,
     tag: Tag,
 }
 
+/// Squashed on the device of the server key, it stays there until compression
+enum InnerSquashedNoiseOneTimePadFheSecretMask {
+    Cpu(TranscipheringSquashedNoiseOneTimePadFheSecretMask),
+    #[cfg(feature = "gpu")]
+    Cuda(CudaSquashedNoiseOneTimePadFheSecretMask),
+}
+
+impl InnerSquashedNoiseOneTimePadFheSecretMask {
+    fn on_cpu(&self) -> MaybeCloned<'_, TranscipheringSquashedNoiseOneTimePadFheSecretMask> {
+        match self {
+            Self::Cpu(mask) => MaybeCloned::Borrowed(mask),
+            // No server key at hand when decrypting, so the streams are those of the GPUs
+            // holding the mask
+            #[cfg(feature = "gpu")]
+            Self::Cuda(mask) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(mask.gpu_indexes(), |streams| {
+                    MaybeCloned::Cloned(mask.to_cpu(streams))
+                })
+            }
+        }
+    }
+}
+
+impl From<InnerSquashedNoiseOneTimePadFheSecretMask>
+    for TranscipheringSquashedNoiseOneTimePadFheSecretMask
+{
+    fn from(value: InnerSquashedNoiseOneTimePadFheSecretMask) -> Self {
+        match value {
+            InnerSquashedNoiseOneTimePadFheSecretMask::Cpu(mask) => mask,
+            #[cfg(feature = "gpu")]
+            InnerSquashedNoiseOneTimePadFheSecretMask::Cuda(mask) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(mask.gpu_indexes(), |streams| {
+                    mask.to_cpu(streams)
+                })
+            }
+        }
+    }
+}
+
 impl SquashedNoiseOneTimePadFheSecretMask {
     pub fn into_raw_parts(self) -> (TranscipheringSquashedNoiseOneTimePadFheSecretMask, Tag) {
-        (self.inner, self.tag)
+        (self.inner.into(), self.tag)
     }
 
     /// Compress the squashed mask using the noise squashing compression key of the current
@@ -459,8 +530,11 @@ impl SquashedNoiseOneTimePadFheSecretMask {
             ));
         }
 
-        try_with_internal_keys(|keys| match keys {
-            Some(InternalServerKey::Cpu(cpu_key)) => {
+        try_with_internal_keys(|keys| match (&self.inner, keys) {
+            (
+                InnerSquashedNoiseOneTimePadFheSecretMask::Cpu(mask),
+                Some(InternalServerKey::Cpu(cpu_key)),
+            ) => {
                 let compression_key = cpu_key
                     .key
                     .noise_squashing_compression_key
@@ -472,19 +546,39 @@ impl SquashedNoiseOneTimePadFheSecretMask {
                     })?;
 
                 Ok(CompressedSquashedNoiseOneTimePadFheSecretMask {
-                    inner: self.inner.compress(&compression_key.key),
+                    inner: mask.compress(&compression_key.key),
                     tag: cpu_key.tag.clone(),
                 })
             }
             #[cfg(feature = "gpu")]
-            Some(InternalServerKey::Cuda(_)) => Err(crate::error!(
-                "SquashedNoiseOneTimePadFheSecretMask::compress is not yet supported on GPU",
-            )),
+            (
+                InnerSquashedNoiseOneTimePadFheSecretMask::Cuda(mask),
+                Some(InternalServerKey::Cuda(cuda_key)),
+            ) => {
+                let compression_key = cuda_key
+                    .key
+                    .noise_squashing_compression_key
+                    .as_ref()
+                    .ok_or_else(|| {
+                        crate::error!(
+                            "Compression key for squashed noise data not set in server key",
+                        )
+                    })?;
+
+                Ok(CompressedSquashedNoiseOneTimePadFheSecretMask {
+                    inner: mask.compress(compression_key, &cuda_key.streams)?,
+                    tag: cuda_key.tag.clone(),
+                })
+            }
             #[cfg(feature = "hpu")]
-            Some(InternalServerKey::Hpu(_)) => Err(crate::error!(
+            (_, Some(InternalServerKey::Hpu(_))) => Err(crate::error!(
                 "SquashedNoiseOneTimePadFheSecretMask::compress is not supported on HPU",
             )),
-            None => Err(UninitializedServerKey.into()),
+            (_, None) => Err(UninitializedServerKey.into()),
+            #[cfg(feature = "gpu")]
+            _ => Err(crate::error!(
+                "compress needs the squashed mask and the server key on the same device",
+            )),
         })
     }
 }
@@ -502,15 +596,35 @@ impl SquashNoise for OneTimePadFheSecretMask {
                     .ok_or(UninitializedNoiseSquashing)?;
 
                 Ok(SquashedNoiseOneTimePadFheSecretMask {
-                    inner: mask.squash_noise(&noise_squashing_key.key, &cpu_key.key.key.key)?,
+                    inner: InnerSquashedNoiseOneTimePadFheSecretMask::Cpu(
+                        mask.squash_noise(&noise_squashing_key.key, &cpu_key.key.key.key)?,
+                    ),
                     state: SquashedNoiseCiphertextState::Normal,
                     tag: cpu_key.tag.clone(),
+                })
+            }
+            #[cfg(feature = "gpu")]
+            (InnerOneTimePadFheSecretMask::Cuda(mask), Some(InternalServerKey::Cuda(cuda_key))) => {
+                let noise_squashing_key = cuda_key
+                    .key
+                    .noise_squashing_key
+                    .as_ref()
+                    .ok_or(UninitializedNoiseSquashing)?;
+
+                Ok(SquashedNoiseOneTimePadFheSecretMask {
+                    inner: InnerSquashedNoiseOneTimePadFheSecretMask::Cuda(mask.squash_noise(
+                        noise_squashing_key,
+                        cuda_key.pbs_key(),
+                        &cuda_key.streams,
+                    )?),
+                    state: SquashedNoiseCiphertextState::Normal,
+                    tag: cuda_key.tag.clone(),
                 })
             }
             (_, None) => Err(UninitializedServerKey.into()),
             #[cfg(any(feature = "gpu", feature = "hpu"))]
             _ => Err(crate::error!(
-                "OneTimePadFheSecretMask::squash_noise is only supported on CPU",
+                "squash_noise needs the mask and the server key on the same device",
             )),
         })
     }
@@ -519,7 +633,9 @@ impl SquashNoise for OneTimePadFheSecretMask {
 impl FheDecrypt<OneTimePadPlainSecretMask> for SquashedNoiseOneTimePadFheSecretMask {
     fn decrypt(&self, key: &ClientKey) -> OneTimePadPlainSecretMask {
         let decryption_key = key.private_noise_squashing_decryption_key(self.state);
-        self.inner.decrypt_with_key_view(&decryption_key.key)
+        self.inner
+            .on_cpu()
+            .decrypt_with_key_view(&decryption_key.key)
     }
 }
 
@@ -544,7 +660,7 @@ impl CompressedSquashedNoiseOneTimePadFheSecretMask {
     /// Extracts the squashed mask from the compressed one. This does not require any key.
     pub fn decompress(&self) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
         Ok(SquashedNoiseOneTimePadFheSecretMask {
-            inner: self.inner.decompress()?,
+            inner: InnerSquashedNoiseOneTimePadFheSecretMask::Cpu(self.inner.decompress()?),
             state: SquashedNoiseCiphertextState::PostDecompression,
             tag: self.tag.clone(),
         })

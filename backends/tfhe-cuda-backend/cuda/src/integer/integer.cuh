@@ -3120,25 +3120,33 @@ integer_radix_apply_noise_squashing(CudaStreams streams,
   auto ks_level = params.ks_level;
   auto ks_base_log = params.ks_base_log;
 
-  if (lwe_array_out->num_radix_blocks !=
-      (lwe_array_in->num_radix_blocks + 1) / 2)
-    PANIC("Cuda error: num output radix blocks should be "
-          "half ceil the number input radix blocks")
+  // As many output blocks as input blocks means no packing, for blocks that
+  // use their carry space like a one time pad mask with a custom layout. A
+  // lone block is copied by pack_blocks anyway, so both modes agree on it.
+  const bool pack =
+      lwe_array_out->num_radix_blocks != lwe_array_in->num_radix_blocks;
+  if (pack && lwe_array_out->num_radix_blocks !=
+                  (lwe_array_in->num_radix_blocks + 1) / 2)
+    PANIC("Cuda error: num output radix blocks should be half ceil the number "
+          "input radix blocks, or equal to it without packing")
 
   /// For multi GPU execution we create vectors of pointers for inputs and
   /// outputs
-  auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
+  CudaRadixCiphertextFFI const *lwe_array_pbs_in = lwe_array_in;
   std::vector<InputTorus *> lwe_array_in_vec = lut->lwe_array_in_vec;
   std::vector<InputTorus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
   std::vector<__uint128_t *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<InputTorus *> lwe_trivial_indexes_vec =
       lut->lwe_trivial_indexes_vec;
 
-  // We know carry is empty so we can pack two blocks in one
-  pack_blocks<InputTorus>(
-      streams.stream(0), streams.gpu_index(0), lwe_array_pbs_in, lwe_array_in,
-      lwe_array_in->num_radix_blocks, params.message_modulus,
-      params.message_modulus, params.carry_modulus);
+  if (pack) {
+    // We know carry is empty so we can pack two blocks in one
+    pack_blocks<InputTorus>(
+        streams.stream(0), streams.gpu_index(0), lut->tmp_lwe_before_ks,
+        lwe_array_in, lwe_array_in->num_radix_blocks, params.message_modulus,
+        params.message_modulus, params.carry_modulus);
+    lwe_array_pbs_in = lut->tmp_lwe_before_ks;
+  }
 
   // Since the radix ciphertexts are packed, we have to use the num_radix_blocks
   // from the output ct

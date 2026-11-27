@@ -20,9 +20,26 @@
 #[cfg(test)]
 mod test;
 
+use std::num::NonZeroUsize;
+use std::slice;
+
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::core_crypto::prelude::LweCiphertextCount;
+use crate::integer::ciphertext::DataKind;
+use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList;
+use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
+use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
+use crate::integer::gpu::ciphertext::{
+    CudaCompressedSquashedNoiseCiphertextList, CudaIntegerRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
+};
+use crate::integer::gpu::list_compression::server_keys::{
+    CudaCompressionKey, CudaDecompressionKey, CudaNoiseSquashingCompressionKey,
+    CudaPackedGlweCiphertextList,
+};
+use crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
 use crate::integer::gpu::transciphering::{CudaFheKeyStream, CudaIntegerTranscipherer};
 use crate::integer::gpu::{
     cuda_backend_copy_radix_ciphertext_slice, CudaOprfServerKey, CudaServerKey,
@@ -30,8 +47,10 @@ use crate::integer::gpu::{
 use crate::integer::RadixCiphertext;
 use crate::shortint::oprf::OprfSeed;
 use crate::transciphering::{
-    FheKeyStreamError, InsufficientKeystream, KeyStreamLayout, MaskGenerationError,
-    OneTimePadFheSecretMask, StreamCipherKind,
+    packed_squashed_layout, CompressedOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMask, FheKeyStreamError, InsufficientKeystream,
+    KeyStreamLayout, MaskGenerationError, OneTimePadFheSecretMask,
+    SquashedNoiseOneTimePadFheSecretMask, StreamCipherKind,
 };
 
 /// GPU counterpart of [OneTimePadFheSecretMask]. The radix is only a container, its blocks are the
@@ -42,6 +61,28 @@ pub struct CudaOneTimePadFheSecretMask {
 }
 
 impl CudaOneTimePadFheSecretMask {
+    /// Same checks as [OneTimePadFheSecretMask::try_new], on the degree and noise level of each
+    /// block
+    pub fn try_new(
+        secret_mask: CudaUnsignedRadixCiphertext,
+        layout: KeyStreamLayout,
+    ) -> crate::Result<Self> {
+        OneTimePadFheSecretMask::check_ciphertexts(
+            secret_mask
+                .as_ref()
+                .info
+                .blocks
+                .iter()
+                .map(|block| (block.degree, block.noise_level)),
+            &layout,
+        )?;
+
+        Ok(Self {
+            secret_mask,
+            layout,
+        })
+    }
+
     /// Same bits as [OneTimePadFheSecretMask::new_random] for the same seed and OPRF key. The mask
     /// sent to the KMS and the one used for transciphering may come from different devices.
     pub fn new_random(
@@ -131,10 +172,175 @@ impl CudaOneTimePadFheSecretMask {
         }
     }
 
+    /// Same list as [OneTimePadFheSecretMask::compress], built on GPU. The result is the CPU type,
+    /// since it is what gets stored. A mask compressed on one device can then be decompressed on
+    /// the other.
+    pub fn compress(
+        &self,
+        comp_key: &CudaCompressionKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<CompressedOneTimePadFheSecretMask> {
+        let blocks = self.secret_mask.as_ref();
+        // As on CPU, an empty mask is compressed into an empty list without any check
+        let ciphertexts = match blocks.info.blocks.first() {
+            Some(first) => {
+                OneTimePadFheSecretMask::check_compressible(
+                    &self.layout,
+                    first.message_modulus,
+                    first.carry_modulus,
+                )?;
+                slice::from_ref(blocks)
+            }
+            None => &[],
+        };
+
+        let packed_list = comp_key.compress_ciphertexts_into_list(ciphertexts, streams);
+        let list = CudaCompressedCiphertextList {
+            packed_list,
+            info: Vec::new(),
+        }
+        .to_compressed_ciphertext_list(streams)?
+        .packed_list;
+
+        Ok(CompressedOneTimePadFheSecretMask::from_compressed_list(
+            list,
+            self.layout.clone(),
+        ))
+    }
+
+    /// GPU counterpart of [CompressedOneTimePadFheSecretMask::decompress]. All the mask
+    /// ciphertexts are decompressed in one call to the backend.
+    pub fn decompress(
+        compressed: &CompressedOneTimePadFheSecretMask,
+        decomp_key: &CudaDecompressionKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<Self> {
+        let packed_list = CudaPackedGlweCiphertextList::from_compressed_ciphertext_list(
+            compressed.compressed_list(),
+            streams,
+        );
+
+        let secret_mask = match NonZeroUsize::new(packed_list.bodies_count()) {
+            Some(ct_count) => CudaUnsignedRadixCiphertext {
+                ciphertext: decomp_key.unpack(
+                    &packed_list,
+                    DataKind::Unsigned(ct_count),
+                    0,
+                    ct_count.get() - 1,
+                    streams,
+                )?,
+            },
+            // The backend cannot decompress an empty list
+            None => CudaUnsignedRadixCiphertext::new(
+                CudaLweCiphertextList::new(
+                    decomp_key.blind_rotate_key.output_lwe_dimension(),
+                    LweCiphertextCount(0),
+                    decomp_key.ciphertext_modulus,
+                    streams,
+                ),
+                CudaRadixCiphertextInfo { blocks: Vec::new() },
+            ),
+        };
+
+        Self::try_new(secret_mask, compressed.layout().clone())
+    }
+
+    /// GPU counterpart of [OneTimePadFheSecretMask::squash_noise], first step towards the KMS.
+    /// Same choice as on CPU, a mask that uses the message space is packed by pairs when the
+    /// parameters allow it, any other mask is squashed block by block.
+    pub fn squash_noise(
+        &self,
+        nsk: &CudaNoiseSquashingKey,
+        sks: &CudaServerKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaSquashedNoiseOneTimePadFheSecretMask> {
+        let packed_layout = packed_squashed_layout(
+            &self.layout,
+            sks.message_modulus,
+            sks.carry_modulus,
+            sks.max_noise_level,
+        );
+
+        let Some(layout) = packed_layout else {
+            let secret_mask =
+                nsk.checked_squash_blocks_noise(self.secret_mask.as_ref(), sks, streams)?;
+            return Ok(CudaSquashedNoiseOneTimePadFheSecretMask {
+                secret_mask,
+                layout: self.layout.clone(),
+            });
+        };
+
+        let ct_count = self.secret_mask.as_ref().d_blocks.lwe_ciphertext_count().0;
+        if !ct_count.is_multiple_of(2) {
+            return Err(crate::error!(
+                "This mask is squashed by pairs of ciphertexts, so it must hold a multiple of {} \
+                bits (got {})",
+                layout.bits_per_ct(),
+                self.bit_count(),
+            ));
+        }
+
+        let secret_mask =
+            nsk.checked_squash_ciphertext_noise(self.secret_mask.as_ref(), sks, streams)?;
+        Ok(CudaSquashedNoiseOneTimePadFheSecretMask {
+            secret_mask,
+            layout,
+        })
+    }
+
     /// Number of input bits this mask can encrypt
     fn bit_count(&self) -> u64 {
         let ct_count = self.secret_mask.as_ref().d_blocks.lwe_ciphertext_count().0;
         u64::try_from(ct_count).unwrap() * u64::from(self.layout.bits_per_ct().get())
+    }
+}
+
+/// GPU counterpart of [SquashedNoiseOneTimePadFheSecretMask]. The radix is only a container, its
+/// blocks are the squashed mask ciphertexts, with the layout chosen by
+/// [CudaOneTimePadFheSecretMask::squash_noise].
+pub struct CudaSquashedNoiseOneTimePadFheSecretMask {
+    secret_mask: CudaSquashedNoiseRadixCiphertext,
+    layout: KeyStreamLayout,
+}
+
+impl CudaSquashedNoiseOneTimePadFheSecretMask {
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        self.secret_mask.gpu_indexes()
+    }
+
+    /// For decryption, which only exists on CPU
+    pub fn to_cpu(&self, streams: &CudaStreams) -> SquashedNoiseOneTimePadFheSecretMask {
+        let blocks = self
+            .secret_mask
+            .to_squashed_noise_radix_ciphertext(streams)
+            .packed_blocks;
+        SquashedNoiseOneTimePadFheSecretMask::from_squashed_ciphertexts(blocks, self.layout.clone())
+    }
+
+    /// Same list as [SquashedNoiseOneTimePadFheSecretMask::compress], built on GPU. The result is
+    /// the CPU type, since it is what the KMS receives.
+    pub fn compress(
+        &self,
+        comp_key: &CudaNoiseSquashingCompressionKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<CompressedSquashedNoiseOneTimePadFheSecretMask> {
+        let packed_list = comp_key.compress_noise_squashed_ciphertexts_into_list(
+            slice::from_ref(&self.secret_mask),
+            streams,
+        );
+        let list = CudaCompressedSquashedNoiseCiphertextList {
+            packed_list,
+            info: Vec::new(),
+        }
+        .to_compressed_squashed_noise_ciphertext_list(streams)?
+        .list;
+
+        Ok(
+            CompressedSquashedNoiseOneTimePadFheSecretMask::from_compressed_list(
+                list,
+                self.layout.clone(),
+            ),
+        )
     }
 }
 

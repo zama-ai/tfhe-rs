@@ -415,6 +415,55 @@ where
     CudaLweCiphertextList::from_cuda_vec(d_vec, lwe_ciphertext_count, ciphertext_modulus)
 }
 
+impl CudaPackedGlweCiphertextList<u64> {
+    /// Copies a list compressed on CPU to the GPU. The GLWEs keep the CPU sizes, the last one is
+    /// not padded.
+    pub(crate) fn from_compressed_ciphertext_list(
+        list: &CompressedCiphertextList,
+        streams: &CudaStreams,
+    ) -> Self {
+        let modulus_switched_glwe_ciphertext_list = &list.modulus_switched_glwe_ciphertext_list;
+
+        let flat_cpu_data = modulus_switched_glwe_ciphertext_list
+            .iter()
+            .flat_map(|ct| ct.packed_integers().packed_coeffs().to_vec())
+            .collect_vec();
+
+        let flat_gpu_data = unsafe {
+            let v = CudaVec::from_cpu_async(flat_cpu_data.as_slice(), streams, 0);
+            streams.synchronize();
+            v
+        };
+
+        let initial_len = list.len();
+
+        let meta = list.meta.as_ref().and_then(|cpu_meta| {
+            let lwe_per_glwe = cpu_meta.lwe_per_glwe;
+            let message_modulus = cpu_meta.message_modulus;
+            let carry_modulus = cpu_meta.carry_modulus;
+
+            modulus_switched_glwe_ciphertext_list
+                .first()
+                .map(|first_ct| CudaPackedGlweCiphertextListMeta {
+                    glwe_dimension: first_ct.glwe_dimension(),
+                    polynomial_size: first_ct.polynomial_size(),
+                    message_modulus,
+                    carry_modulus,
+                    ciphertext_modulus: cpu_meta.ciphertext_modulus,
+                    storage_log_modulus: first_ct.packed_integers().log_modulus(),
+                    lwe_per_glwe,
+                    total_lwe_bodies_count: list.len(),
+                    initial_len,
+                })
+        });
+
+        Self {
+            data: flat_gpu_data,
+            meta,
+        }
+    }
+}
+
 impl CudaCompressionKey {
     pub fn from_compression_key(compression_key: &CompressionKey, streams: &CudaStreams) -> Self {
         Self {

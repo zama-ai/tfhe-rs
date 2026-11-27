@@ -29,6 +29,84 @@ impl CudaNoiseSquashingKey {
         src_server_key: &CudaServerKey,
         streams: &CudaStreams,
     ) -> crate::Result<CudaSquashedNoiseRadixCiphertext> {
+        self.check_squash_input(ciphertext)?;
+
+        // The CUDA backend packs blocks by pairs before the noise squashing PBS, the checks on
+        // carries and noise must be done on the packed chunks, same as on the CPU
+        check_blocks_can_be_packed_and_squashed(
+            ciphertext
+                .info
+                .blocks
+                .iter()
+                .map(|block| (block.degree, block.noise_level)),
+            self.message_modulus,
+            self.carry_modulus,
+            src_server_key.max_noise_level,
+        )?;
+
+        Ok(self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key, streams))
+    }
+
+    /// Squashes each block alone, with the checks of checked_squash_ciphertext_noise. Packing
+    /// blocks by pairs needs clean carries, a one time pad mask may use its carry space. As on
+    /// CPU, each output block keeps the degree of its input block.
+    pub(crate) fn checked_squash_blocks_noise(
+        &self,
+        ciphertext: &CudaRadixCiphertext,
+        src_server_key: &CudaServerKey,
+        streams: &CudaStreams,
+    ) -> crate::Result<CudaSquashedNoiseRadixCiphertext> {
+        self.check_squash_input(ciphertext)?;
+
+        // No packing here, so the noise is checked block by block
+        for block in ciphertext.info.blocks.iter() {
+            if src_server_key
+                .max_noise_level
+                .validate(block.noise_level)
+                .is_err()
+            {
+                return Err(crate::error!(
+                    "squash_blocks_noise requires the input Ciphertext to have at most {:?} noise \
+                    got {:?}.",
+                    src_server_key.max_noise_level,
+                    block.noise_level
+                ));
+            }
+        }
+
+        let block_count = ciphertext.d_blocks.lwe_ciphertext_count().0;
+        let mut squashed_output = CudaSquashedNoiseRadixCiphertext::new_zero(
+            self.bootstrapping_key.output_lwe_dimension().to_lwe_size(),
+            LweCiphertextCount(block_count),
+            self.output_ciphertext_modulus,
+            self.message_modulus,
+            self.carry_modulus,
+            block_count,
+            streams,
+        );
+        if block_count == 0 {
+            return Ok(squashed_output);
+        }
+
+        // As many output blocks as input blocks, so the backend does not pack
+        src_server_key.apply_noise_squashing(&mut squashed_output, ciphertext, self, streams);
+
+        // The backend sets the degree of its identity LUT, the largest value of the block
+        for (output, input) in squashed_output
+            .info
+            .blocks
+            .iter_mut()
+            .zip(&ciphertext.info.blocks)
+        {
+            output.degree = input.degree;
+        }
+
+        Ok(squashed_output)
+    }
+
+    /// Checks shared by the packed and the block by block squash, the noise is checked by each
+    /// of them as it depends on the packing
+    fn check_squash_input(&self, ciphertext: &CudaRadixCiphertext) -> crate::Result<()> {
         for block in ciphertext.info.blocks.iter() {
             if block.message_modulus != self.message_modulus {
                 return Err(crate::error!(
@@ -46,20 +124,7 @@ impl CudaNoiseSquashingKey {
             }
         }
 
-        // The CUDA backend packs blocks by pairs before the noise squashing PBS, the checks on
-        // carries and noise must be done on the packed chunks, same as on the CPU
-        check_blocks_can_be_packed_and_squashed(
-            ciphertext
-                .info
-                .blocks
-                .iter()
-                .map(|block| (block.degree, block.noise_level)),
-            self.message_modulus,
-            self.carry_modulus,
-            src_server_key.max_noise_level,
-        )?;
-
-        Ok(self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key, streams))
+        Ok(())
     }
 
     pub(crate) fn unchecked_squash_ciphertext_noise(

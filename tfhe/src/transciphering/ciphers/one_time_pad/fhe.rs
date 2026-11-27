@@ -7,8 +7,8 @@ use tfhe_versionable::Versionize;
 use crate::conformance::ParameterSetConformant;
 use crate::named::Named;
 use crate::shortint::ciphertext::{
-    Ciphertext, CompressedCiphertextList, CompressedSquashedNoiseCiphertextList, DegreeConformance,
-    NoiseLevel, NoiseLevelConformance, SquashedNoiseCiphertext,
+    Ciphertext, CompressedCiphertextList, CompressedSquashedNoiseCiphertextList, Degree,
+    DegreeConformance, NoiseLevel, NoiseLevelConformance, SquashedNoiseCiphertext,
 };
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::list_compression::{
@@ -72,24 +72,38 @@ impl OneTimePadFheSecretMask {
     /// `secret_mask` must hold Ciphertexts following `layout`, each a fresh encryption of
     /// `layout.bits_per_ct()` bits.
     pub fn try_new(secret_mask: Vec<Ciphertext>, layout: KeyStreamLayout) -> crate::Result<Self> {
-        for ct in &secret_mask {
-            if ct.degree != layout.expected_degree() {
-                return Err(crate::error!(
-                    "Mask ciphertexts does not follow the required layout (got {}, expected \
-                    {}).",
-                    ct.degree.get(),
-                    layout.expected_degree().get(),
-                ));
-            }
-            if ct.noise_level() != NoiseLevel::NOMINAL {
-                return Err(crate::error!("Mask ciphertexts must have nominal noise."));
-            }
-        }
+        Self::check_ciphertexts(
+            secret_mask.iter().map(|ct| (ct.degree, ct.noise_level())),
+            &layout,
+        )?;
 
         Ok(Self {
             secret_mask,
             layout,
         })
+    }
+
+    /// Checks of [Self::try_new] on the degree and noise level of each mask ciphertext. Shared
+    /// with the GPU, so that both devices accept the same masks.
+    pub(crate) fn check_ciphertexts(
+        ciphertexts: impl Iterator<Item = (Degree, NoiseLevel)>,
+        layout: &KeyStreamLayout,
+    ) -> crate::Result<()> {
+        for (degree, noise_level) in ciphertexts {
+            if degree != layout.expected_degree() {
+                return Err(crate::error!(
+                    "Mask ciphertexts does not follow the required layout (got {}, expected \
+                    {}).",
+                    degree.get(),
+                    layout.expected_degree().get(),
+                ));
+            }
+            if noise_level != NoiseLevel::NOMINAL {
+                return Err(crate::error!("Mask ciphertexts must have nominal noise."));
+            }
+        }
+
+        Ok(())
     }
 
     /// # Panics
@@ -244,32 +258,44 @@ impl OneTimePadFheSecretMask {
         comp_key: &CompressionKey,
     ) -> crate::Result<CompressedOneTimePadFheSecretMask> {
         if let Some(first) = self.secret_mask.first() {
-            // Decompression only supports lists where the message and carry moduli are equal
-            if first.message_modulus.0 != first.carry_modulus.0 {
-                return Err(crate::error!(
-                    "Only masks with equal message and carry moduli can be compressed (got \
-                    {:?} and {:?})",
-                    first.message_modulus,
-                    first.carry_modulus,
-                ));
-            }
-
-            let message_space = KeyStreamLayout::message_space(first.message_modulus);
-
-            if message_space.as_ref() != Some(&self.layout) {
-                return Err(crate::error!(
-                    "Only masks using the message space of the parameters can be compressed (got \
-                    {} bits per ciphertext, expected {:?})",
-                    self.layout.bits_per_ct(),
-                    message_space.map(|layout| layout.bits_per_ct()),
-                ));
-            }
+            Self::check_compressible(&self.layout, first.message_modulus, first.carry_modulus)?;
         }
 
         Ok(CompressedOneTimePadFheSecretMask {
             secret_mask: comp_key.compress_ciphertexts_into_list(&self.secret_mask),
             layout: self.layout.clone(),
         })
+    }
+
+    /// Checks of [Self::compress] on the layout of a mask and the moduli of its ciphertexts.
+    /// Shared with the GPU, so that both devices compress the same masks.
+    pub(crate) fn check_compressible(
+        layout: &KeyStreamLayout,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> crate::Result<()> {
+        // Decompression only supports lists where the message and carry moduli are equal
+        if message_modulus.0 != carry_modulus.0 {
+            return Err(crate::error!(
+                "Only masks with equal message and carry moduli can be compressed (got \
+                {:?} and {:?})",
+                message_modulus,
+                carry_modulus,
+            ));
+        }
+
+        let message_space = KeyStreamLayout::message_space(message_modulus);
+
+        if message_space.as_ref() != Some(layout) {
+            return Err(crate::error!(
+                "Only masks using the message space of the parameters can be compressed (got \
+                {} bits per ciphertext, expected {:?})",
+                layout.bits_per_ct(),
+                message_space.map(|layout| layout.bits_per_ct()),
+            ));
+        }
+
+        Ok(())
     }
 
     /// Squash the noise of the mask, so that it can be decrypted with the noise squashing key.
@@ -396,6 +422,24 @@ pub struct CompressedOneTimePadFheSecretMask {
 }
 
 impl CompressedOneTimePadFheSecretMask {
+    /// For the GPU, which compresses the mask into the same list as the CPU
+    #[cfg(feature = "gpu")]
+    pub(crate) fn from_compressed_list(
+        secret_mask: CompressedCiphertextList,
+        layout: KeyStreamLayout,
+    ) -> Self {
+        Self {
+            secret_mask,
+            layout,
+        }
+    }
+
+    /// For the GPU, which decompresses the list with its own key
+    #[cfg(feature = "gpu")]
+    pub(crate) fn compressed_list(&self) -> &CompressedCiphertextList {
+        &self.secret_mask
+    }
+
     /// Decompress the mask with the decompression key, so that it can be used for transciphering.
     pub fn decompress(
         &self,
@@ -456,6 +500,18 @@ pub struct SquashedNoiseOneTimePadFheSecretMask {
 }
 
 impl SquashedNoiseOneTimePadFheSecretMask {
+    /// For the GPU, which squashes the mask into the same ciphertexts as the CPU
+    #[cfg(feature = "gpu")]
+    pub(crate) fn from_squashed_ciphertexts(
+        secret_mask: Vec<SquashedNoiseCiphertext>,
+        layout: KeyStreamLayout,
+    ) -> Self {
+        Self {
+            secret_mask,
+            layout,
+        }
+    }
+
     pub fn decrypt(&self, key: &NoiseSquashingPrivateKey) -> OneTimePadPlainSecretMask {
         self.decrypt_with_key_view(&key.as_view())
     }
@@ -503,6 +559,18 @@ pub struct CompressedSquashedNoiseOneTimePadFheSecretMask {
 }
 
 impl CompressedSquashedNoiseOneTimePadFheSecretMask {
+    /// For the GPU, which compresses the mask into the same list as the CPU
+    #[cfg(feature = "gpu")]
+    pub(crate) fn from_compressed_list(
+        secret_mask: CompressedSquashedNoiseCiphertextList,
+        layout: KeyStreamLayout,
+    ) -> Self {
+        Self {
+            secret_mask,
+            layout,
+        }
+    }
+
     /// Extracts the squashed mask, which is encrypted under the noise squashing compression key.
     pub fn decompress(&self) -> crate::Result<SquashedNoiseOneTimePadFheSecretMask> {
         let secret_mask = self.secret_mask.unpack_range(0..self.secret_mask.len())?;
