@@ -566,12 +566,6 @@ clippy_core: install_rs_check_toolchain
 		--features=zk-pok \
 		-p tfhe -- --no-deps -D warnings
 
-.PHONY: clippy_boolean # Run clippy lints enabling the boolean features
-clippy_boolean: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean \
-		-p tfhe -- --no-deps -D warnings
-
 .PHONY: clippy_shortint # Run clippy lints enabling the shortint features
 clippy_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
@@ -704,6 +698,7 @@ clippy_tfhe_csprng: install_rs_check_toolchain
 .PHONY: clippy_experimental # Run clippy lints on tfhe-experimental
 clippy_experimental: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=boolean,internal-keycache \
 		-p tfhe-experimental -- --no-deps -D warnings
 
 .PHONY: clippy_zk_pok # Run clippy lints on tfhe-zk-pok
@@ -878,7 +873,7 @@ clippy_test_vectors: install_rs_check_toolchain
 # WARNING: This target is not directly run in CI. When adding a subtarget here,
 # MAKE SURE TO ALSO ADD IT TO A PCC BATCH BELOW
 .PHONY: clippy_all # Run all clippy targets
-clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
+clippy_all: clippy_rustdoc clippy clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_experimental clippy_zk_pok clippy_zk_pok_wasm clippy_trivium clippy_princev2 \
 clippy_versionable clippy_safe_serialize clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
 clippy_benchmark_spec clippy_benchmark_spec_js clippy_benchmark_parser clippy_data_extractor clippy_test_vectors clippy_backward_compat_data clippy_wasm_par_mq \
@@ -943,10 +938,10 @@ build_core_experimental:
 			--features=experimental,avx512 -p tfhe; \
 	fi
 
-.PHONY: build_boolean # Build with boolean enabled
+.PHONY: build_boolean # Build the boolean module of tfhe-experimental
 build_boolean:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo build --profile $(CARGO_PROFILE) \
-		--features=boolean -p tfhe --all-targets
+		--features=boolean -p tfhe-experimental --all-targets
 
 .PHONY: build_shortint # Build with shortint enabled
 build_shortint:
@@ -1350,18 +1345,18 @@ test_multi_hpu_sim_ci_fast: install_cargo_nextest install_hpu_sim
 	kill -- -$$HPU_SIM_PID 2>/dev/null; \
 	exit $$RET
 
-.PHONY: test_boolean # Run the tests of the boolean module
+.PHONY: test_boolean # Run the tests of the boolean module of tfhe-experimental
 test_boolean:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) \
-		--features=boolean -p tfhe -- boolean::
+		--features=boolean,internal-keycache -p tfhe-experimental -- boolean::
 
-.PHONY: test_boolean_cov # Run the tests of the boolean module with code coverage
+.PHONY: test_boolean_cov # Run the tests of the boolean module of tfhe-experimental with code coverage
 test_boolean_cov: install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo tarpaulin --profile $(CARGO_PROFILE) \
 		--out xml --output-dir coverage/boolean --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
 		--features=boolean,internal-keycache \
-		-p tfhe -- -Z unstable-options --report-time boolean::
+		-p tfhe-experimental -- -Z unstable-options --report-time boolean::
 
 .PHONY: test_c_api_rs # Run the rust tests for the C API
 test_c_api_rs: install_rs_check_toolchain
@@ -2738,7 +2733,6 @@ pcc_batch_5:
 .PHONY: pcc_batch_6 # duration: 6'32''
 pcc_batch_6:
 	$(call run_recipe_with_details,clippy_experimental)
-	$(call run_recipe_with_details,clippy_boolean)
 	$(call run_recipe_with_details,clippy_c_api)
 	$(call run_recipe_with_details,clippy_tasks)
 	$(call run_recipe_with_details,clippy_tfhe_csprng)

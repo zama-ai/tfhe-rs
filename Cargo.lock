@@ -3710,6 +3710,7 @@ dependencies = [
  "tfhe",
  "tfhe-benchmark-parser",
  "tfhe-csprng",
+ "tfhe-experimental",
  "tfhe-zk-pok",
 ]
 
@@ -3778,7 +3779,13 @@ dependencies = [
 name = "tfhe-experimental"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "paste",
+ "rand 0.8.6",
+ "rayon",
+ "serde",
  "tfhe",
+ "tfhe-versionable",
 ]
 
 [[package]]

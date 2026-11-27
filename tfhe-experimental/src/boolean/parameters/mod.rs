@@ -5,8 +5,8 @@
 //! sets.
 //!
 //! Two parameter sets are provided:
-//!  * `tfhe::boolean::parameters::DEFAULT_PARAMETERS`
-//!  * `tfhe::boolean::parameters::TFHE_LIB_PARAMETERS`
+//!  * `tfhe_experimental::boolean::parameters::DEFAULT_PARAMETERS`
+//!  * `tfhe_experimental::boolean::parameters::TFHE_LIB_PARAMETERS`
 //!
 //! They ensure the correctness of the Boolean circuit evaluation result (up to a certain
 //! probability) along with 128-bits of security.
@@ -20,12 +20,12 @@
 
 pub mod params;
 
-pub use crate::core_crypto::commons::dispersion::StandardDev;
-pub use crate::core_crypto::commons::parameters::{
+pub use params::*;
+pub use tfhe::core_crypto::commons::dispersion::StandardDev;
+pub use tfhe::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice,
     GlweDimension, LweDimension, PolynomialSize,
 };
-pub use params::*;
 
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;

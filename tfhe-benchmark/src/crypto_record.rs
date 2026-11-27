@@ -55,7 +55,7 @@ pub struct BenchPackingKsParams<Scalar: UnsignedInteger> {
 #[cfg(feature = "boolean")]
 mod boolean_impls {
     use super::*;
-    use tfhe::boolean::parameters::BooleanParameters;
+    use tfhe_experimental::boolean::parameters::BooleanParameters;
 
     impl From<BooleanParameters> for BenchPbsParams<u32> {
         fn from(params: BooleanParameters) -> Self {

@@ -1,8 +1,10 @@
 use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, BooleanBench, CsvResultWriter, KeyKind};
 use std::path::Path;
-use tfhe::boolean::parameters::{DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165};
-use tfhe::boolean::{client_key, server_key};
+use tfhe_experimental::boolean::parameters::{
+    DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+};
+use tfhe_experimental::boolean::{client_key, server_key};
 
 fn client_server_key_sizes(results_file: &Path) {
     let boolean_params_vec = [

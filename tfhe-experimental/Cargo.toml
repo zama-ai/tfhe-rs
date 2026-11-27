@@ -12,10 +12,22 @@ rust-version.workspace = true
 
 [dependencies]
 tfhe = { version = "1.9.0", path = "../tfhe", default-features = false }
+tfhe-versionable = { version = "0.8.2", path = "../utils/tfhe-versionable" }
+serde = { workspace = true, features = ["default", "derive"] }
+rayon = { workspace = true, optional = true }
+paste = { workspace = true, optional = true }
+
+[dev-dependencies]
+tfhe = { path = "../tfhe", default-features = false, features = ["internal-keycache"] }
+paste = { workspace = true }
+rand = { workspace = true }
+bincode = { workspace = true }
 
 [features]
 default = ["avx512"]
 avx512 = ["tfhe/avx512"]
+boolean = ["dep:rayon"]
+internal-keycache = ["tfhe/internal-keycache", "dep:paste"]
 
 [package.metadata.docs.rs]
 all-features = true

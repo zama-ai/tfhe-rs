@@ -1,7 +1,7 @@
 #[cfg(feature = "boolean")]
 pub mod boolean_params {
     use crate::crypto_record::BenchPbsParams;
-    use tfhe::boolean::parameters::{
+    use tfhe_experimental::boolean::parameters::{
         DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
     };
 

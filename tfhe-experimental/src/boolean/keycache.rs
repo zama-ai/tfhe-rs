@@ -2,8 +2,8 @@ use std::sync::LazyLock;
 
 use crate::boolean::parameters::*;
 use crate::boolean::{ClientKey, ServerKey};
-use crate::keycache::utils::named_params_impl;
-use crate::keycache::*;
+use tfhe::keycache::utils::named_params_impl;
+use tfhe::keycache::*;
 
 named_params_impl!( BooleanParameters =>
     DEFAULT_PARAMETERS,

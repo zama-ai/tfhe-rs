@@ -15,8 +15,8 @@
 //! homomorphically.
 //!
 //! ```rust
-//! use tfhe::boolean::gen_keys;
-//! use tfhe::boolean::prelude::*;
+//! use tfhe_experimental::boolean::gen_keys;
+//! use tfhe_experimental::boolean::prelude::*;
 //!
 //! // We generate a set of client/server keys, using the default parameters:
 //! let (client_key, server_key) = gen_keys();
@@ -106,7 +106,7 @@ pub(crate) fn random_integer() -> u32 {
 ///   be published (the client sends it to the server).
 ///
 /// ```rust
-/// use tfhe::boolean::gen_keys;
+/// use tfhe_experimental::boolean::gen_keys;
 /// // generate the client key and the server key:
 /// let (cks, sks) = gen_keys();
 /// ```

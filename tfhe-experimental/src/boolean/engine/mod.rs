@@ -7,15 +7,15 @@ use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::engine::bootstrapping::{Bootstrapper, CompressedServerKey, ServerKey};
 use crate::boolean::parameters::{BooleanKeySwitchingParameters, BooleanParameters};
 use crate::boolean::{ClientKey, PLAINTEXT_FALSE, PLAINTEXT_TRUE};
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::generators::{
+use std::cell::RefCell;
+use tfhe::core_crypto::algorithms::*;
+use tfhe::core_crypto::commons::generators::{
     DeterministicSeeder, EncryptionRandomGenerator, SecretRandomGenerator,
 };
-use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder};
-use crate::core_crypto::commons::parameters::*;
-use crate::core_crypto::entities::*;
-use crate::core_crypto::seeders::new_seeder;
-use std::cell::RefCell;
+use tfhe::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder};
+use tfhe::core_crypto::commons::parameters::*;
+use tfhe::core_crypto::entities::*;
+use tfhe::core_crypto::seeders::new_seeder;
 
 pub mod bootstrapping;
 
@@ -246,10 +246,10 @@ impl BooleanEngine {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::boolean::engine::BooleanEngine;
     /// use tfhe::core_crypto::commons::generators::DeterministicSeeder;
     /// use tfhe::core_crypto::commons::math::random::Seed;
     /// use tfhe::core_crypto::prelude::DefaultRandomGenerator;
+    /// use tfhe_experimental::boolean::engine::BooleanEngine;
     ///
     /// // WARNING: Using a deterministic seed is not recommended
     /// // as it renders the random generation insecure
@@ -261,7 +261,7 @@ impl BooleanEngine {
     /// BooleanEngine::replace_thread_local(boolean_engine);
     ///
     /// // This uses the engine create earlier
-    /// let (cks, sks) = tfhe::boolean::gen_keys();
+    /// let (cks, sks) = tfhe_experimental::boolean::gen_keys();
     /// ```
     pub fn replace_thread_local(new_engine: Self) {
         Self::with_thread_local_mut(|local_engine| {
