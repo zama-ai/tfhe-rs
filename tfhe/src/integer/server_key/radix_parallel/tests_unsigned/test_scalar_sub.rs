@@ -25,7 +25,7 @@ create_parameterized_test!(integer_default_scalar_sub);
 create_parameterized_test!(integer_unchecked_left_scalar_sub);
 create_parameterized_test!(integer_default_left_scalar_sub);
 create_parameterized_test!(integer_default_overflowing_scalar_sub);
-create_parameterized_test!(integer_default_overflowing_scalar_sub_u8);
+create_parameterized_test!(integer_default_overflowing_scalar_sub_narrow_u8);
 
 fn integer_default_scalar_sub<P>(param: P)
 where
@@ -62,7 +62,7 @@ where
     default_overflowing_scalar_sub_test(&ctx, executor);
 }
 
-fn integer_default_overflowing_scalar_sub_u8<P>(param: P)
+fn integer_default_overflowing_scalar_sub_narrow_u8<P>(param: P)
 where
     P: Into<TestParameters>,
 {

@@ -1,5 +1,4 @@
 use super::{CrtCiphertext, RadixCiphertext, SignedRadixCiphertext};
-use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::Ciphertext;
 
 pub trait IntegerCiphertext: Clone {
@@ -30,9 +29,7 @@ pub trait IntegerRadixCiphertext: IntegerCiphertext + Sync + Send + From<Vec<Cip
     ///
     /// [`full_propagate_parallelized`]: crate::integer::ServerKey::full_propagate_parallelized
     fn is_clean(&self) -> bool {
-        self.blocks()
-            .iter()
-            .all(|block| block.carry_is_empty() && block.noise_level() <= NoiseLevel::NOMINAL)
+        self.blocks().iter().all(Ciphertext::is_clean)
     }
 
     /// Returns whether the ciphertext _seems_ like it holds/encrypts

@@ -17,7 +17,7 @@ use itertools::iproduct;
 
 create_parameterized_test!(integer_default_scalar_add);
 create_parameterized_test!(integer_default_overflowing_scalar_add);
-create_parameterized_test!(integer_default_overflowing_scalar_add_u8);
+create_parameterized_test!(integer_default_overflowing_scalar_add_narrow_u8);
 create_parameterized_test!(integer_default_overflowing_scalar_add_signed_scalar);
 
 fn integer_default_scalar_add<P>(param: P)
@@ -117,7 +117,7 @@ where
         });
 }
 
-fn integer_default_overflowing_scalar_add_u8<P>(param: P)
+fn integer_default_overflowing_scalar_add_narrow_u8<P>(param: P)
 where
     P: Into<TestParameters>,
 {
