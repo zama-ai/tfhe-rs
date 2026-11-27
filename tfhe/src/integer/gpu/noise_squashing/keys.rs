@@ -153,17 +153,27 @@ impl CudaNoiseSquashingKey {
 
 #[cfg(test)]
 mod tests {
+    use super::CudaNoiseSquashingKey;
     use crate::core_crypto::gpu::CudaStreams;
+    use crate::integer::ciphertext::{
+        SquashedNoiseBooleanBlock, SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
+    };
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     use crate::integer::gpu::CudaServerKey;
+    use crate::integer::noise_squashing::tests::noise_squashing_degrees_test;
     use crate::integer::noise_squashing::NoiseSquashingPrivateKey;
-    use crate::integer::{ClientKey, CompressedServerKey, IntegerCiphertext, ServerKey};
+    use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
+    use crate::integer::{
+        BooleanBlock, ClientKey, CompressedServerKey, IntegerCiphertext, RadixCiphertext,
+        RadixClientKey, ServerKey, SignedRadixCiphertext,
+    };
     use crate::shortint::ciphertext::NoiseLevel;
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    use std::sync::Arc;
 
     /// The checked GPU noise squashing must reject the same inputs as the CPU one
     #[test]
@@ -261,5 +271,108 @@ mod tests {
                 .to_squashed_noise_boolean_block(&streams);
             assert_eq!(nspk.decrypt_bool(&squashed).unwrap(), val);
         }
+    }
+
+    /// The function executor that squashes the noise of its input with a GPU noise squashing key
+    struct GpuNoiseSquashingExecutor<'key> {
+        noise_squashing_private_key: &'key NoiseSquashingPrivateKey,
+        /// The context is set later, when the test case calls setup
+        context: Option<(CudaStreams, CudaServerKey, CudaNoiseSquashingKey)>,
+    }
+
+    impl<'key> GpuNoiseSquashingExecutor<'key> {
+        fn new(noise_squashing_private_key: &'key NoiseSquashingPrivateKey) -> Self {
+            Self {
+                noise_squashing_private_key,
+                context: None,
+            }
+        }
+
+        fn setup_from_keys(&mut self, cks: &RadixClientKey) {
+            let streams = CudaStreams::new_multi_gpu();
+            let cuda_sks = CudaServerKey::new(cks.as_ref(), &streams);
+            let cuda_noise_squashing_key = cks
+                .as_ref()
+                .new_compressed_noise_squashing_key(self.noise_squashing_private_key)
+                .decompress_to_cuda(&streams);
+            streams.synchronize();
+            self.context = Some((streams, cuda_sks, cuda_noise_squashing_key));
+        }
+    }
+
+    impl<'a> FunctionExecutor<&'a RadixCiphertext, SquashedNoiseRadixCiphertext>
+        for GpuNoiseSquashingExecutor<'_>
+    {
+        fn setup(&mut self, cks: &RadixClientKey, _sks: Arc<ServerKey>) {
+            self.setup_from_keys(cks);
+        }
+
+        fn execute(&mut self, input: &'a RadixCiphertext) -> SquashedNoiseRadixCiphertext {
+            let (streams, cuda_sks, cuda_noise_squashing_key) = self
+                .context
+                .as_ref()
+                .expect("setup was not properly called");
+            let d_input = CudaUnsignedRadixCiphertext::from_radix_ciphertext(input, streams);
+            cuda_noise_squashing_key
+                .squash_radix_ciphertext_noise(cuda_sks, &d_input.ciphertext, streams)
+                .unwrap()
+                .to_squashed_noise_radix_ciphertext(streams)
+        }
+    }
+
+    impl<'a> FunctionExecutor<&'a SignedRadixCiphertext, SquashedNoiseSignedRadixCiphertext>
+        for GpuNoiseSquashingExecutor<'_>
+    {
+        fn setup(&mut self, cks: &RadixClientKey, _sks: Arc<ServerKey>) {
+            self.setup_from_keys(cks);
+        }
+
+        fn execute(
+            &mut self,
+            input: &'a SignedRadixCiphertext,
+        ) -> SquashedNoiseSignedRadixCiphertext {
+            let (streams, cuda_sks, cuda_noise_squashing_key) = self
+                .context
+                .as_ref()
+                .expect("setup was not properly called");
+            let d_input = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(input, streams);
+            cuda_noise_squashing_key
+                .squash_signed_radix_ciphertext_noise(cuda_sks, &d_input, streams)
+                .unwrap()
+                .to_squashed_noise_signed_radix_ciphertext(streams)
+        }
+    }
+
+    impl<'a> FunctionExecutor<&'a BooleanBlock, SquashedNoiseBooleanBlock>
+        for GpuNoiseSquashingExecutor<'_>
+    {
+        fn setup(&mut self, cks: &RadixClientKey, _sks: Arc<ServerKey>) {
+            self.setup_from_keys(cks);
+        }
+
+        fn execute(&mut self, input: &'a BooleanBlock) -> SquashedNoiseBooleanBlock {
+            let (streams, cuda_sks, cuda_noise_squashing_key) = self
+                .context
+                .as_ref()
+                .expect("setup was not properly called");
+            let d_input = CudaBooleanBlock::from_boolean_block(input, streams);
+            cuda_noise_squashing_key
+                .squash_boolean_block_noise(cuda_sks, &d_input, streams)
+                .unwrap()
+                .to_squashed_noise_boolean_block(streams)
+        }
+    }
+
+    #[test]
+    fn test_cuda_noise_squashing_degrees() {
+        let noise_squashing_private_key = NoiseSquashingPrivateKey::new(
+            TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        );
+        let executor = GpuNoiseSquashingExecutor::new(&noise_squashing_private_key);
+        noise_squashing_degrees_test(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            &noise_squashing_private_key,
+            executor,
+        );
     }
 }
