@@ -9,5 +9,5 @@
 # pip-audit depends on pip, keep the one installed in the tooling venv aligned with the pip pinned
 # for every venv
 -c pip_requirements.in
-uv==0.13.4
+uv==0.13.9
 pip-audit==2.10.1
