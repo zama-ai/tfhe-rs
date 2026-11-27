@@ -17,7 +17,7 @@ pub mod cuda {
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::CudaServerKey;
     use tfhe::integer::keycache::KEY_CACHE;
-    use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey};
+    use tfhe::integer::{RadixCiphertext, RadixClientKey};
     use tfhe::keycache::NamedParam;
     use tfhe::shortint::{AtomicPatternParameters, Ciphertext};
 
@@ -91,7 +91,7 @@ pub mod cuda {
         let iv_bits = vec![0u64; KREYVIUM_KEY_BITS];
 
         let streams = CudaStreams::new_multi_gpu();
-        let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
+        let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param);
         let sks = CudaServerKey::new(&cpu_cks, &streams);
         let cks = RadixClientKey::from((cpu_cks, 1));
 
@@ -217,7 +217,7 @@ pub mod cuda {
         let key_bits = vec![0u64; KREYVIUM_KEY_BITS * num_inputs];
         let iv_bits = vec![0u64; KREYVIUM_KEY_BITS * num_inputs];
 
-        let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param, IntegerKeyKind::Radix);
+        let (cpu_cks, _) = KEY_CACHE.get_from_params(atomic_param);
         let sks = CudaServerKey::new(&cpu_cks, &streams);
         let cks = RadixClientKey::from((cpu_cks, 1));
 

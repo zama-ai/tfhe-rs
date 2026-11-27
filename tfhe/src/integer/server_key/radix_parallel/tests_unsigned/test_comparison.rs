@@ -9,7 +9,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::uint::Uint;
-use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, U256};
+use crate::integer::{BooleanBlock, RadixClientKey, ServerKey, U256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -42,7 +42,7 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
 {
     let mut rng = rand::thread_rng();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let num_bits_per_block = cks.parameters().message_modulus().0.ilog2() as usize;
     let num_block = 256usize.div_ceil(num_bits_per_block);
 
@@ -222,7 +222,7 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
 {
     let mut rng = rand::thread_rng();
 
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let num_bits_per_block = cks.parameters().message_modulus().0.ilog2() as usize;
     let num_block = 256usize.div_ceil(num_bits_per_block);
 
@@ -358,7 +358,7 @@ pub(crate) fn extensive_trivial_default_comparisons_test<P, E1, E2, E3, E4, E5, 
     E6: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let params = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(params);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);

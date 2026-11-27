@@ -30,7 +30,7 @@ use std::cmp::max;
 use std::env;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
-use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, U256};
+use tfhe::integer::{RadixCiphertext, RadixClientKey, ServerKey, U256};
 use tfhe::keycache::NamedParam;
 #[cfg(any(feature = "gpu", feature = "hpu"))]
 use tfhe::{get_pbs_count, reset_pbs_count};
@@ -78,7 +78,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let clear_0 = gen_random_u256(&mut rng);
                     let clear_1 = gen_random_u256(&mut rng);
@@ -96,7 +96,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 bench_group
                     .sample_size(10)
@@ -183,7 +183,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
+        let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param));
 
         let bits = PrecisionTag::Bits(bit_size);
         let benchmark_spec = BenchmarkSpec::new_integer_ops(
@@ -269,7 +269,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let clear_0 = gen_random_u256(&mut rng);
 
@@ -286,7 +286,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 bench_group
                     .sample_size(10)
@@ -384,8 +384,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
         match get_bench_type() {
             BenchmarkType::Latency => {
-                let bench_data =
-                    LazyCell::new(|| KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
+                let bench_data = LazyCell::new(|| KEY_CACHE.get_from_params(param));
 
                 bench_group.bench_function(&bench_id, |b| {
                     let (cks, sks) = (&bench_data.0, &bench_data.1);
@@ -406,7 +405,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 bench_group
                     .sample_size(10)
@@ -529,7 +528,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let clear_0 = gen_random_u256(&mut rng);
                     let clear_1 = gen_random_u256(&mut rng);
@@ -550,7 +549,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 bench_group
                     .sample_size(10)
@@ -643,7 +642,7 @@ fn flip_parallelized(c: &mut Criterion) {
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let bench_data = LazyCell::new(|| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let clear_0 = gen_random_u256(&mut rng);
                     let clear_1 = gen_random_u256(&mut rng);
@@ -664,7 +663,7 @@ fn flip_parallelized(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 bench_group
                     .sample_size(10)
@@ -759,7 +758,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let bench_data = LazyCell::new(|| {
-                        let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                         let clears = (0..len)
                             .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
@@ -782,7 +781,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                     let nb_ctxt = bit_size.div_ceil(param.message_modulus().0.ilog2()) as usize;
                     let cks = RadixClientKey::from((cks, nb_ctxt));
@@ -1291,8 +1290,7 @@ mod cuda {
                     let streams = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
 
                         let encrypt_one_value = || {
@@ -1310,7 +1308,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
@@ -1415,8 +1413,7 @@ mod cuda {
                     let streams = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
 
                         let encrypt_two_values = || {
@@ -1440,7 +1437,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_sks_vec = cuda_local_keys(&cks);
                     let gpu_count = get_number_of_gpus() as usize;
 
@@ -1568,8 +1565,7 @@ mod cuda {
                         .sample_size(15)
                         .measurement_time(std::time::Duration::from_secs(30));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
 
                         let encrypt_one_value = || {
@@ -1592,7 +1588,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
@@ -1698,8 +1694,7 @@ mod cuda {
                     let stream = CudaStreams::new_multi_gpu();
 
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param);
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_tree_values = || {
@@ -1729,7 +1724,7 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
-                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param);
                     let gpu_count = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
@@ -2374,7 +2369,7 @@ mod cuda {
                 );
                 let bench_id = benchmark_spec.to_string();
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let (cks, _sks) = KEY_CACHE.get_from_params(param);
                     let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                     let encrypt_one_value = || -> CudaUnsignedRadixCiphertext {
@@ -2492,7 +2487,7 @@ mod hpu {
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _sks) = KEY_CACHE.get_from_params(param);
                         let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
                         let hpu_device = hpu_device_mutex.lock().unwrap();
                         let (signature, _used_nodes) = hpu_device.get_signature(
@@ -2571,7 +2566,7 @@ mod hpu {
 
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let (cks, _sks) = KEY_CACHE.get_from_params(param);
                         let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
                         let hpu_device = hpu_device_mutex.lock().unwrap();
                         let (signature, _used_nodes) = hpu_device.get_signature(
@@ -3170,7 +3165,7 @@ fn bench_server_key_cast_function<F>(
             );
             let bench_id = benchmark_spec.to_string();
             bench_group.bench_function(&bench_id, |b| {
-                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                let (cks, sks) = KEY_CACHE.get_from_params(param);
 
                 let encrypt_one_value = || cks.encrypt_radix(gen_random_u256(&mut rng), num_blocks);
 

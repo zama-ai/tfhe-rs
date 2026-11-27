@@ -1,4 +1,4 @@
-use crate::integer::{ClientKey, IntegerKeyKind, ServerKey};
+use crate::integer::{ClientKey, ServerKey};
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 
 #[cfg(feature = "hpu")]
@@ -20,7 +20,36 @@ impl IntegerKeyCache {
         }
     }
 
-    pub fn get_from_params<P>(&self, params: P, key_kind: IntegerKeyKind) -> (ClientKey, ServerKey)
+    pub fn get_from_params<P>(&self, params: P) -> (ClientKey, ServerKey)
+    where
+        P: Into<AtomicPatternParameters>,
+    {
+        let (client_key, server_key) = Self::get_shortint_keys(params);
+
+        (
+            client_key,
+            ServerKey::new_radix_server_key_from_shortint(server_key),
+        )
+    }
+
+    #[cfg(feature = "experimental")]
+    pub fn get_crt_from_params<P>(
+        &self,
+        params: P,
+        basis: Vec<u64>,
+    ) -> (crate::integer::CrtClientKey, crate::integer::CrtServerKey)
+    where
+        P: Into<AtomicPatternParameters>,
+    {
+        let (client_key, server_key) = Self::get_shortint_keys(params);
+
+        (
+            crate::integer::CrtClientKey::from((client_key, basis)),
+            crate::integer::CrtServerKey::from_raw_parts(server_key),
+        )
+    }
+
+    fn get_shortint_keys<P>(params: P) -> (ClientKey, crate::shortint::ServerKey)
     where
         P: Into<AtomicPatternParameters>,
     {
@@ -30,12 +59,7 @@ impl IntegerKeyCache {
         let (client_key, server_key) = (keys.client_key(), keys.server_key());
 
         let client_key = ClientKey::from(client_key.clone());
-        let server_key = match key_kind {
-            IntegerKeyKind::Radix => {
-                ServerKey::new_radix_server_key_from_shortint(server_key.clone())
-            }
-            IntegerKeyKind::CRT => ServerKey::new_crt_server_key_from_shortint(server_key.clone()),
-        };
+        let server_key = server_key.clone();
 
         // For cargo nextest which runs in separate processes we load keys once per process, this
         // allows to remove the copy loaded in the keycache to avoid OOM errors, the nice effect of
@@ -79,7 +103,7 @@ impl IntegerKeyCache {
             );
 
             // Get current client key
-            let (cks, _) = self.get_from_params(param, IntegerKeyKind::Radix);
+            let (cks, _) = self.get_from_params(param);
             // Generate associated compressed ServerKey
             let sks_compressed = super::CompressedServerKey::new_radix_compressed_server_key(&cks);
 

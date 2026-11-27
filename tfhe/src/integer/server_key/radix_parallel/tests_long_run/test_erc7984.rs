@@ -5,9 +5,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::{
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{
-    BooleanBlock, IntegerCiphertext, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey,
-};
+use crate::integer::{BooleanBlock, IntegerCiphertext, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
@@ -115,7 +113,7 @@ pub(crate) fn safe_erc7984_test<P, T1, T2, T3, T4>(
     T4: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
 
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
@@ -252,7 +250,7 @@ pub(crate) fn whitepaper_erc7984_test<P, T1, T2, T3, T4>(
     T4: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
 
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
@@ -343,7 +341,7 @@ pub(crate) fn no_cmux_erc7984_test<P, T1, T2, T3, T4>(
     T4: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
 
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
@@ -434,7 +432,7 @@ pub(crate) fn overflow_erc7984_test<P, T1, T2, T3, T4, T5>(
     T5: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
 
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);

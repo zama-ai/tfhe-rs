@@ -1,7 +1,6 @@
-use crate::integer::{CrtCiphertext, ServerKey};
-use rayon::prelude::*;
+use crate::integer::{CrtCiphertext, CrtServerKey};
 
-impl ServerKey {
+impl CrtServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
     ///
     /// This function computes the opposite of a message without checking if it exceeds the
@@ -22,15 +21,17 @@ impl ServerKey {
     ///
     /// let mut ctxt = cks.encrypt(clear);
     ///
-    /// sks.unchecked_crt_neg_assign_parallelized(&mut ctxt);
+    /// sks.unchecked_neg_assign(&mut ctxt);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt);
     /// assert_eq!(16, res);
     /// ```
-    pub fn unchecked_crt_neg_parallelized(&self, ctxt: &CrtCiphertext) -> CrtCiphertext {
+    pub fn unchecked_neg(&self, ctxt: &CrtCiphertext) -> CrtCiphertext {
         let mut result = ctxt.clone();
-        self.unchecked_crt_neg_assign_parallelized(&mut result);
+
+        self.unchecked_neg_assign(&mut result);
+
         result
     }
 
@@ -40,9 +41,9 @@ impl ServerKey {
     /// capacity of the ciphertext.
     ///
     /// The result is assigned to the `ct_left` ciphertext.
-    pub fn unchecked_crt_neg_assign_parallelized(&self, ctxt: &mut CrtCiphertext) {
-        ctxt.blocks.par_iter_mut().for_each(|ct_i| {
+    pub fn unchecked_neg_assign(&self, ctxt: &mut CrtCiphertext) {
+        for ct_i in ctxt.blocks.iter_mut() {
             self.key.unchecked_neg_assign(ct_i);
-        });
+        }
     }
 }

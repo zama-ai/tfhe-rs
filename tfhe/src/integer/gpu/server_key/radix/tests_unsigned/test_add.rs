@@ -14,7 +14,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     unchecked_add_assign_test, unchecked_add_test,
 };
-use crate::integer::{IntegerKeyKind, RadixClientKey};
+use crate::integer::RadixClientKey;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
@@ -111,7 +111,7 @@ where
     P: Into<TestParameters>,
 {
     let param = param.into();
-    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, _) = KEY_CACHE.get_from_params(param);
     let streams = CudaStreams::new_multi_gpu();
     let sks = CudaServerKey::new(&cks, &streams);
 

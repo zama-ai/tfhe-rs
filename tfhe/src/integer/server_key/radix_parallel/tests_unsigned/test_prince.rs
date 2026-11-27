@@ -1,6 +1,6 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey};
+use crate::integer::{RadixCiphertext, RadixClientKey};
 use crate::shortint::parameters::TestParameters;
 use std::sync::Arc;
 
@@ -189,7 +189,7 @@ where
     >,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, 1));
     let sks = Arc::new(sks);
     executor.setup(&cks, sks);
@@ -295,7 +295,7 @@ pub fn prince_encrypt_decrypt_random_test<P, E1, E2>(
     >,
 {
     let param = param.into();
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, 1));
     let sks = Arc::new(sks);
     encrypt_executor.setup(&cks, sks.clone());

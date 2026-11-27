@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_smaller_for_params, CpuFunctionExecutor, MAX_NB_CTXT, NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
-use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
@@ -64,7 +64,7 @@ pub(crate) fn default_count_zeros_ones_test<P, E1, E2>(
 {
     let param = param.into();
     let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -127,7 +127,7 @@ pub(crate) fn default_count_zeros_ones_many_blocks_test<P, E1, E2>(
 {
     let param = param.into();
     let nb_tests = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -185,7 +185,7 @@ pub(crate) fn extensive_trivial_default_count_zeros_ones_test<P, E1, E2>(
     E2: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {
     let param = param.into();
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);

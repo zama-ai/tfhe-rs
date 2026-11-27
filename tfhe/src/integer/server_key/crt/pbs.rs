@@ -1,18 +1,8 @@
-mod add_crt;
-mod mul_crt;
-mod neg_crt;
-mod scalar_add_crt;
-mod scalar_mul_crt;
-mod scalar_sub_crt;
-mod sub_crt;
-#[cfg(test)]
-mod tests;
-
 use crate::integer::ciphertext::CrtCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::CrtServerKey;
 use rayon::prelude::*;
 
-impl ServerKey {
+impl CrtServerKey {
     /// Extract all the messages.
     ///
     /// # Example
@@ -33,7 +23,7 @@ impl ServerKey {
     /// let ctxt_2 = cks.encrypt(clear_2);
     ///
     /// // Compute homomorphically a multiplication
-    /// sks.unchecked_crt_add_assign(&mut ctxt_1, &ctxt_2);
+    /// sks.unchecked_add_assign(&mut ctxt_1, &ctxt_2);
     ///
     /// sks.full_extract_message_assign_parallelized(&mut ctxt_1);
     ///

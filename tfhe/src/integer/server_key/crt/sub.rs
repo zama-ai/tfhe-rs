@@ -1,6 +1,6 @@
-use crate::integer::{CrtCiphertext, ServerKey};
+use crate::integer::{CrtCiphertext, CrtServerKey};
 
-impl ServerKey {
+impl CrtServerKey {
     /// Computes homomorphically a subtraction between two ciphertexts encrypting integer values.
     ///
     /// This function computes the subtraction without checking if it exceeds the capacity of the
@@ -24,19 +24,19 @@ impl ServerKey {
     /// let ctxt_1 = cks.encrypt(clear_1);
     /// let ctxt_2 = cks.encrypt(clear_2);
     ///
-    /// let ctxt = sks.unchecked_crt_sub(&ctxt_1, &ctxt_2);
+    /// let ctxt = sks.unchecked_sub(&ctxt_1, &ctxt_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt);
     /// assert_eq!((clear_1 - clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_crt_sub(
+    pub fn unchecked_sub(
         &self,
         ctxt_left: &CrtCiphertext,
         ctxt_right: &CrtCiphertext,
     ) -> CrtCiphertext {
         let mut result = ctxt_left.clone();
-        self.unchecked_crt_sub_assign(&mut result, ctxt_right);
+        self.unchecked_sub_assign(&mut result, ctxt_right);
         result
     }
 
@@ -63,18 +63,14 @@ impl ServerKey {
     /// let ctxt_1 = cks.encrypt(clear_1);
     /// let ctxt_2 = cks.encrypt(clear_2);
     ///
-    /// let ctxt = sks.unchecked_crt_sub(&ctxt_1, &ctxt_2);
+    /// let ctxt = sks.unchecked_sub(&ctxt_1, &ctxt_2);
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ctxt);
     /// assert_eq!((clear_1 - clear_2) % modulus, res);
     /// ```
-    pub fn unchecked_crt_sub_assign(
-        &self,
-        ctxt_left: &mut CrtCiphertext,
-        ctxt_right: &CrtCiphertext,
-    ) {
-        let neg = self.unchecked_crt_neg(ctxt_right);
-        self.unchecked_crt_add_assign(ctxt_left, &neg);
+    pub fn unchecked_sub_assign(&self, ctxt_left: &mut CrtCiphertext, ctxt_right: &CrtCiphertext) {
+        let neg = self.unchecked_neg(ctxt_right);
+        self.unchecked_add_assign(ctxt_left, &neg);
     }
 }
