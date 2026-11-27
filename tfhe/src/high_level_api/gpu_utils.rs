@@ -11,6 +11,7 @@ use crate::integer::gpu::ciphertext::{
     CudaCompressedSquashedNoiseCiphertextList, CudaIntegerRadixCiphertext,
 };
 use crate::integer::gpu::server_key::radix::kv_store::CudaKVStore;
+use crate::integer::gpu::transciphering::ciphers::one_time_pad::CudaOneTimePadFheSecretMask;
 #[cfg(feature = "zk-pok")]
 use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
 use crate::GpuIndex;
@@ -104,6 +105,7 @@ impl_cuda_duplicate!(
     CudaCompressedCiphertextList,
     CudaCompressedSquashedNoiseCiphertextList,
     CudaFlattenedVecCompactCiphertextList,
+    CudaOneTimePadFheSecretMask,
 );
 
 #[cfg(feature = "zk-pok")]

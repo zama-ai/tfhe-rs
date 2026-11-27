@@ -84,9 +84,10 @@ pub(crate) use ciphers::one_time_pad::packed_squashed_layout;
 pub use ciphers::one_time_pad::{
     CompressedOneTimePadFheSecretMask, CompressedOneTimePadFheSecretMaskConformanceParams,
     CompressedSquashedNoiseOneTimePadFheSecretMask,
-    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, OneTimePadFheSecretMask,
-    OneTimePadFheState, OneTimePadPlainSecretMask, OneTimePadPlainSecretMaskConformanceParams,
-    OneTimePadPlainState, SquashedNoiseOneTimePadFheSecretMask,
+    CompressedSquashedNoiseOneTimePadFheSecretMaskConformanceParams, MaskGenerationError,
+    OneTimePadFheSecretMask, OneTimePadFheState, OneTimePadPlainSecretMask,
+    OneTimePadPlainSecretMaskConformanceParams, OneTimePadPlainState,
+    SquashedNoiseOneTimePadFheSecretMask,
 };
 
 use serde::{Deserialize, Serialize};
