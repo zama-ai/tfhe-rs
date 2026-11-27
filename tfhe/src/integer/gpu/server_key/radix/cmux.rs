@@ -87,6 +87,18 @@ impl CudaServerKey {
         false_ct: &T,
         streams: &CudaStreams,
     ) -> u64 {
+        self.get_if_then_else_size_on_gpu_from_branches(true_ct, false_ct, streams)
+    }
+
+    /// [`Self::get_if_then_else_size_on_gpu`] without the condition, which it does not depend
+    /// on: lets callers that only hold a radix for the condition avoid building a
+    /// `CudaBooleanBlock` (a GPU copy) just to get the estimate.
+    pub(crate) fn get_if_then_else_size_on_gpu_from_branches<T: CudaIntegerRadixCiphertext>(
+        &self,
+        true_ct: &T,
+        false_ct: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
         assert_eq!(
             true_ct.as_ref().d_blocks.lwe_dimension(),
             false_ct.as_ref().d_blocks.lwe_dimension()
@@ -107,15 +119,24 @@ impl CudaServerKey {
             self.message_modulus,
             self.carry_modulus,
         );
-        let actual_full_prop_mem = match (
-            true_ct.block_carries_are_empty(),
-            false_ct.block_carries_are_empty(),
-        ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(true_ct) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(false_ct) + full_prop_mem,
+        // A dirty branch is duplicated and propagated; both copies stay alive during the cmux
+        let true_copy = if true_ct.block_carries_are_empty() {
+            0
+        } else {
+            self.get_ciphertext_size_on_gpu(true_ct)
         };
+        let false_copy = if false_ct.block_carries_are_empty() {
+            0
+        } else {
+            self.get_ciphertext_size_on_gpu(false_ct)
+        };
+        let actual_full_prop_mem = if true_copy + false_copy == 0 {
+            0
+        } else {
+            full_prop_mem
+        };
+        // unchecked_if_then_else returns a new radix
+        let output = self.get_ciphertext_size_on_gpu(true_ct);
 
         let lwe_ciphertext_count = true_ct.as_ref().d_blocks.lwe_ciphertext_count();
 
@@ -137,6 +158,6 @@ impl CudaServerKey {
             computing_ks_key.params_ffi(),
             lwe_ciphertext_count.0 as u32,
         );
-        actual_full_prop_mem.max(cmux_mem)
+        true_copy + false_copy + actual_full_prop_mem.max(output + cmux_mem)
     }
 }

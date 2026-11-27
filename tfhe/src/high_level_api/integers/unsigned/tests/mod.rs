@@ -16,6 +16,8 @@ use std::ops::{Div, Mul};
 mod cpu;
 #[cfg(feature = "gpu")]
 pub(crate) mod gpu;
+#[cfg(feature = "gpu")]
+mod gpu_size_estimates;
 #[cfg(feature = "hpu")]
 mod hpu;
 
@@ -551,6 +553,30 @@ fn test_case_uint32_div_rem(cks: &ClientKey) {
         c %= clear_b;
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a % clear_b);
+    }
+}
+
+fn test_case_uint32_scalar_rem_power_of_two(cks: &ClientKey) {
+    let mut rng = thread_rng();
+    // The remainder by a power of two is computed as `numerator & (divisor - 1)`;
+    // a divisor of 1 is the edge case where that mask is 0
+    let divisors = [1u32, 2, 4, 8, 1 << 16, 1 << 31];
+
+    for clear_a in [rng.gen::<u32>(), u32::MAX] {
+        let a = FheUint32::encrypt(clear_a, cks);
+
+        for clear_d in divisors {
+            let expected = clear_a % clear_d;
+
+            let c = &a % clear_d;
+            let decrypted: u32 = c.decrypt(cks);
+            assert_eq!(decrypted, expected, "{clear_a} % {clear_d}");
+
+            let mut c = a.clone();
+            c %= clear_d;
+            let decrypted: u32 = c.decrypt(cks);
+            assert_eq!(decrypted, expected, "{clear_a} %= {clear_d}");
+        }
     }
 }
 

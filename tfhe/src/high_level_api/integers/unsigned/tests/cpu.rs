@@ -181,6 +181,12 @@ fn test_multi_div_rem() {
 }
 
 #[test]
+fn test_uint32_scalar_rem_power_of_two() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint32_scalar_rem_power_of_two(&client_key);
+}
+
+#[test]
 fn test_small_uint128() {
     let config =
         ConfigBuilder::with_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)

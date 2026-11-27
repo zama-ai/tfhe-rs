@@ -319,13 +319,27 @@ impl CompressedCiphertextListBuilder {
                 let mut message_modulus = MessageModulus(0);
                 let mut carry_modulus = CarryModulus(0);
                 for (element, _) in &self.inner {
-                    if let ToBeCompressed::Cuda(cuda_radix) = element {
-                        num_lwes += cuda_radix.d_blocks.0.lwe_ciphertext_count.0;
-                        lwe_dimension = cuda_radix.d_blocks.0.lwe_dimension;
-                        message_modulus = cuda_radix.info.blocks.first().unwrap().message_modulus;
-                        carry_modulus = cuda_radix.info.blocks.first().unwrap().carry_modulus;
+                    match element {
+                        ToBeCompressed::Cpu(cpu_blocks) => {
+                            if let Some(block) = cpu_blocks.first() {
+                                num_lwes += cpu_blocks.len();
+                                lwe_dimension = block.ct.lwe_size().to_lwe_dimension();
+                                message_modulus = block.message_modulus;
+                                carry_modulus = block.carry_modulus;
+                            }
+                        }
+                        ToBeCompressed::Cuda(cuda_radix) => {
+                            num_lwes += cuda_radix.d_blocks.0.lwe_ciphertext_count.0;
+                            lwe_dimension = cuda_radix.d_blocks.0.lwe_dimension;
+                            message_modulus =
+                                cuda_radix.info.blocks.first().unwrap().message_modulus;
+                            carry_modulus = cuda_radix.info.blocks.first().unwrap().carry_modulus;
+                        }
                     }
                 }
+                // Every input is moved to the GPU or duplicated by the build
+                let copies =
+                    (num_lwes * lwe_dimension.to_lwe_size().0 * std::mem::size_of::<u64>()) as u64;
                 cuda_key
                     .key
                     .compression_key
@@ -334,13 +348,14 @@ impl CompressedCiphertextListBuilder {
                         crate::Error::new("Compression key not set in server key".to_owned())
                     })
                     .map(|compression_key| {
-                        compression_key.get_compression_size_on_gpu(
-                            num_lwes as u32,
-                            lwe_dimension,
-                            message_modulus,
-                            carry_modulus,
-                            streams,
-                        )
+                        copies
+                            + compression_key.get_compression_size_on_gpu(
+                                num_lwes as u32,
+                                lwe_dimension,
+                                message_modulus,
+                                carry_modulus,
+                                streams,
+                            )
                     })
             } else {
                 Ok(0)
@@ -683,7 +698,17 @@ impl CiphertextList for CompressedCiphertextList {
                             crate::Error::new("Compression key not set in server key".to_owned())
                         })
                         .and_then(|decompression_key| {
-                            ct_list.get_decompression_size_on_gpu(index, decompression_key, streams)
+                            // The whole packed list is copied to the GPU before decompressing
+                            let copy = ct_list
+                                .packed_list
+                                .modulus_switched_glwe_ciphertext_list
+                                .iter()
+                                .map(|ct| ct.packed_integers().packed_coeffs().len())
+                                .sum::<usize>()
+                                * std::mem::size_of::<u64>();
+                            ct_list
+                                .get_decompression_size_on_gpu(index, decompression_key, streams)
+                                .map(|size| size.map(|size| size + copy as u64))
                         }),
                     InnerCompressedCiphertextList::Cuda(cuda_ct_list) => cuda_key
                         .key
@@ -693,11 +718,15 @@ impl CiphertextList for CompressedCiphertextList {
                             crate::Error::new("Compression key not set in server key".to_owned())
                         })
                         .and_then(|decompression_key| {
-                            cuda_ct_list.get_decompression_size_on_gpu(
-                                index,
-                                decompression_key,
-                                streams,
-                            )
+                            // A list that is not on the GPU of the key is copied there
+                            let copy = if streams.is_on_first_gpu(cuda_ct_list.gpu_indexes()) {
+                                0
+                            } else {
+                                cuda_ct_list.packed_list.data.len() * std::mem::size_of::<u64>()
+                            };
+                            cuda_ct_list
+                                .get_decompression_size_on_gpu(index, decompression_key, streams)
+                                .map(|size| size.map(|size| size + copy as u64))
                         }),
                 }
             } else {

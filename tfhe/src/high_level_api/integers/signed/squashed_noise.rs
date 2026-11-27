@@ -316,3 +316,30 @@ impl<Id: FheIntId> SquashNoise for FheInt<Id> {
         })
     }
 }
+
+#[cfg(feature = "gpu")]
+impl<Id: FheIntId> crate::high_level_api::traits::SquashNoiseSizeOnGpu for FheInt<Id> {
+    fn get_squash_noise_size_on_gpu(&self) -> crate::Result<u64> {
+        with_internal_keys(|keys| {
+            if let InternalServerKey::Cuda(cuda_key) = keys {
+                let streams = &cuda_key.streams;
+                let noise_squashing_key = cuda_key
+                    .key
+                    .noise_squashing_key
+                    .as_ref()
+                    .ok_or(UninitializedNoiseSquashing)?;
+                let (shape, on_gpu) = self.ciphertext.gpu_shape(streams);
+                // An input that is not on the GPU of the key is copied there
+                let copy = if on_gpu { 0 } else { shape.size_on_gpu };
+                Ok(copy
+                    + noise_squashing_key.get_squash_ciphertext_noise_size_on_gpu(
+                        cuda_key.pbs_key(),
+                        shape.num_blocks,
+                        streams,
+                    ))
+            } else {
+                Ok(0)
+            }
+        })
+    }
+}

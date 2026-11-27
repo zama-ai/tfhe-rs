@@ -2,9 +2,13 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::{
+    CudaIntegerRadixCiphertext, CudaRadixShape, CudaUnsignedRadixCiphertext,
+};
 use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
 use crate::integer::gpu::{
+    cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_unchecked_contains_size_on_gpu,
     cuda_backend_get_unchecked_match_value_or_size_on_gpu,
     cuda_backend_get_unchecked_match_value_size_on_gpu, cuda_backend_unchecked_contains,
     cuda_backend_unchecked_contains_clear, cuda_backend_unchecked_first_index_in_clears,
@@ -507,6 +511,85 @@ impl CudaServerKey {
         };
 
         self.unchecked_contains(cts, value, streams)
+    }
+
+    /// Returns the GPU memory (in bytes) that [`Self::contains`] allocates for these inputs,
+    /// without allocating anything on the GPU.
+    ///
+    /// It covers the copies made to clean inputs whose carries are not empty, the full
+    /// propagation scratch, the boolean output and the scratch of the contains kernel.
+    pub fn get_contains_size_on_gpu<T>(&self, cts: &[T], value: &T, streams: &CudaStreams) -> u64
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let elements = cts.iter().map(CudaRadixShape::of_gpu).collect::<Vec<_>>();
+        self.get_contains_size_on_gpu_from_shapes(&elements, CudaRadixShape::of_gpu(value), streams)
+    }
+
+    /// Same as [`Self::get_contains_size_on_gpu`], from the shapes of the inputs, which can be read
+    /// from ciphertexts that are not on the GPU yet.
+    pub(crate) fn get_contains_size_on_gpu_from_shapes(
+        &self,
+        elements: &[CudaRadixShape],
+        value: CudaRadixShape,
+        streams: &CudaStreams,
+    ) -> u64 {
+        // The output is a single block, with the shape of one block of `value`
+        let num_blocks = value.num_blocks;
+        let output_size = value.size_on_gpu / num_blocks.max(1) as u64;
+        let num_inputs = elements.len();
+        if num_inputs == 0 {
+            return output_size;
+        }
+
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        let elements_are_clean = elements.iter().all(|shape| shape.carries_are_empty);
+        let elements_size = elements.iter().map(|shape| shape.size_on_gpu).sum::<u64>();
+        let value_is_clean = value.carries_are_empty;
+        // contains duplicates every element if one of them is dirty, and the value if it is dirty
+        let elements_copies = if elements_are_clean { 0 } else { elements_size };
+        let value_copy = if value_is_clean { 0 } else { value.size_on_gpu };
+        let full_prop_mem = if elements_are_clean && value_is_clean {
+            0
+        } else {
+            // Each dirty ciphertext is propagated on its own, the largest one dominates
+            let elements_num_blocks = if elements_are_clean {
+                0
+            } else {
+                elements
+                    .iter()
+                    .map(|shape| shape.num_blocks)
+                    .max()
+                    .unwrap_or(0)
+            };
+            let value_num_blocks = if value_is_clean { 0 } else { num_blocks };
+            let full_prop_num_blocks =
+                u32::try_from(elements_num_blocks.max(value_num_blocks)).unwrap();
+            cuda_backend_get_full_propagate_assign_size_on_gpu(
+                streams,
+                &self.bootstrapping_key,
+                computing_ks_key.params_ffi(),
+                full_prop_num_blocks,
+                self.message_modulus,
+                self.carry_modulus,
+            )
+        };
+        let contains_mem = cuda_backend_get_unchecked_contains_size_on_gpu(
+            streams,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+            u32::try_from(num_inputs).unwrap(),
+            u32::try_from(num_blocks).unwrap(),
+            self.message_modulus,
+            self.carry_modulus,
+        );
+
+        // The copies stay alive until the end; the output and the contains scratch are allocated
+        // after the propagations
+        elements_copies + value_copy + full_prop_mem.max(output_size + contains_mem)
     }
 
     /// Returns an encrypted `true` if the clear `value` is found in the encrypted slice

@@ -57,6 +57,7 @@ pub enum ShiftRotateType {
     RightRotate = 3,
 }
 
+#[derive(Clone, Copy)]
 #[repr(u32)]
 pub enum ComparisonType {
     EQ = 0,
@@ -1745,6 +1746,42 @@ pub(crate) fn cuda_backend_get_comparison_size_on_gpu(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Returns the size of the scratch buffer allocated by `cuda_backend_unchecked_scalar_comparison`
+/// (nothing is allocated on the GPU).
+pub(crate) fn cuda_backend_get_scalar_comparison_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    op: ComparisonType,
+    is_signed: bool,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_integer_scalar_comparison_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            num_blocks,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            op as u32,
+            is_signed,
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_integer_scalar_comparison_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
+#[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
 /// - The data must not be moved or dropped while being used by the CUDA kernel.
@@ -2149,6 +2186,117 @@ pub(crate) fn cuda_backend_get_add_and_propagate_single_carry_assign_size_on_gpu
     };
     unsafe {
         cleanup_cuda_add_and_propagate_single_carry_64_inplace(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+    size_tracker
+}
+
+/// Returns the size of the scratch buffer allocated by
+/// `cuda_backend_unchecked_partial_sum_ciphertexts_assign` for `num_radixes` radixes of
+/// `num_blocks` blocks (nothing is allocated on the GPU).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cuda_backend_get_partial_sum_ciphertexts_vec_size_on_gpu(
+    streams: &CudaStreams,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    num_radixes: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    reduce_degrees_for_single_carry_propagation: bool,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_partial_sum_ciphertexts_vec_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            num_blocks,
+            num_radixes,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            reduce_degrees_for_single_carry_propagation,
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_partial_sum_ciphertexts_vec_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
+/// Returns the size of the scratch buffer allocated by `cuda_backend_cast_to_unsigned`
+/// (nothing is allocated on the GPU).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cuda_backend_get_cast_to_unsigned_size_on_gpu(
+    streams: &CudaStreams,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_input_blocks: u32,
+    target_num_blocks: u32,
+    input_is_signed: bool,
+    requires_full_propagate: bool,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_cast_to_unsigned_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            num_input_blocks,
+            target_num_blocks,
+            input_is_signed,
+            requires_full_propagate,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_cast_to_unsigned_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
+/// Returns the size of the scratch buffer allocated by
+/// `cuda_backend_sub_and_propagate_single_carry_assign` (nothing is allocated on the GPU).
+pub(crate) fn cuda_backend_get_sub_and_propagate_single_carry_assign_size_on_gpu(
+    streams: &CudaStreams,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    requested_flag: OutputFlag,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_sub_and_propagate_single_carry_64_inplace_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            num_blocks,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            requested_flag as u32,
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_sub_and_propagate_single_carry_64_inplace(
             streams.ffi(),
             std::ptr::addr_of_mut!(mem_ptr),
         );
@@ -6445,6 +6593,44 @@ pub(crate) unsafe fn cuda_backend_noise_squashing<T: UnsignedInteger, KST: Unsig
     cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 }
 
+/// Returns the size of the scratch buffer allocated by `cuda_backend_noise_squashing`
+/// (nothing is allocated on the GPU).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cuda_backend_get_noise_squashing_size_on_gpu(
+    streams: &CudaStreams,
+    bsk: &impl CudaBootstrapKey,
+    input_glwe_dimension: GlweDimension,
+    input_polynomial_size: PolynomialSize,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_blocks: u32,
+    original_num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_apply_noise_squashing_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            u32::try_from(input_glwe_dimension.0).unwrap(),
+            u32::try_from(input_polynomial_size.0).unwrap(),
+            ksk_params,
+            num_blocks,
+            original_num_blocks,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_apply_noise_squashing(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
+    }
+    size_tracker
+}
+
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
@@ -8381,6 +8567,39 @@ pub(crate) unsafe fn cuda_backend_unchecked_contains<
     cleanup_cuda_unchecked_contains_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr));
 
     update_noise_degree(&mut output.0.ciphertext, &ffi_output);
+}
+
+/// Returns the size of the scratch buffer allocated by `cuda_backend_unchecked_contains`
+/// (nothing is allocated on the GPU).
+pub(crate) fn cuda_backend_get_unchecked_contains_size_on_gpu(
+    streams: &CudaStreams,
+    bsk: &impl CudaBootstrapKey,
+    ksk_params: CudaLweKeyswitchKeyParamsFFI,
+    num_inputs: u32,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+) -> u64 {
+    let bsk_params = bsk.params_ffi();
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let size_tracker = unsafe {
+        scratch_cuda_unchecked_contains_64_async(
+            streams.ffi(),
+            std::ptr::addr_of_mut!(mem_ptr),
+            bsk_params,
+            ksk_params,
+            num_inputs,
+            num_blocks,
+            u32::try_from(message_modulus.0).unwrap(),
+            u32::try_from(carry_modulus.0).unwrap(),
+            false,
+        )
+    };
+
+    unsafe { cleanup_cuda_unchecked_contains_64(streams.ffi(), std::ptr::addr_of_mut!(mem_ptr)) };
+
+    size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]

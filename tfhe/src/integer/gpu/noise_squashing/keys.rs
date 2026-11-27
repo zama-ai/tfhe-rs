@@ -102,6 +102,25 @@ impl CudaNoiseSquashingKey {
         }
     }
 
+    /// Returns the GPU memory (in bytes) that squashing the noise of a radix ciphertext of
+    /// `num_blocks` blocks allocates: the squashed ciphertext and the scratch buffer
+    pub fn get_squash_ciphertext_noise_size_on_gpu(
+        &self,
+        src_server_key: &CudaServerKey,
+        num_blocks: usize,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let squashed_size = num_blocks.div_ceil(2)
+            * self
+                .bootstrapping_key
+                .output_lwe_dimension()
+                .to_lwe_size()
+                .0
+            * std::mem::size_of::<u128>();
+        squashed_size as u64
+            + src_server_key.get_apply_noise_squashing_size_on_gpu(num_blocks, self, streams)
+    }
+
     pub fn squash_radix_ciphertext_noise(
         &self,
         src_server_key: &CudaServerKey,

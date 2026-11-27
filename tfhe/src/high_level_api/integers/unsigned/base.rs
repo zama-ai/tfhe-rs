@@ -587,6 +587,48 @@ where
         crate::high_level_api::array::fhe_array_contains(cts, value)
     }
 
+    /// Returns the GPU memory (in bytes) that [`Self::contains`] allocates for these inputs,
+    /// or 0 when the current server key is not a GPU key.
+    #[cfg(feature = "gpu")]
+    pub fn get_contains_size_on_gpu(cts: &[Self], value: &Self) -> u64 {
+        crate::high_level_api::array::fhe_array_contains_size_on_gpu(cts, value)
+    }
+
+    /// Returns the GPU memory (in bytes) that [`Self::sum`] (and `Iterator::sum` on references)
+    /// allocates for these inputs, or 0 when the current server key is not a GPU key.
+    ///
+    /// It covers the copy of every input made by the sum and the sum itself; for an empty
+    /// collection, the trivial zero it returns.
+    #[cfg(feature = "gpu")]
+    pub fn get_sum_size_on_gpu<'a, C>(collection: C) -> u64
+    where
+        C: AsRef<[&'a Self]>,
+    {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                let sks = &cuda_key.key.key;
+                let collection = collection.as_ref();
+                if collection.is_empty() {
+                    return sks.get_radix_size_on_gpu(Id::num_blocks(cuda_key.message_modulus()));
+                }
+                let cts = collection
+                    .iter()
+                    .map(|ct| ct.ciphertext.on_gpu(streams))
+                    .collect::<Vec<_>>();
+                let refs = cts.iter().map(|ct| &**ct).collect::<Vec<_>>();
+                // The sum duplicates every input before consuming the copies
+                let copies = refs
+                    .iter()
+                    .map(|ct| sks.get_ciphertext_size_on_gpu(*ct))
+                    .sum::<u64>();
+                copies + sks.get_sum_ciphertexts_size_on_gpu(&refs, streams)
+            } else {
+                0
+            }
+        })
+    }
+
     /// Returns the number of leading zeros in the binary representation of self.
     ///
     /// # Example
@@ -1870,6 +1912,50 @@ where
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<FromId, IntoId> crate::high_level_api::traits::CastIntoSizeOnGpu<FheUint<IntoId>>
+    for FheUint<FromId>
+where
+    FromId: FheUintId,
+    IntoId: FheUintId,
+{
+    fn get_cast_into_size_on_gpu(&self) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_cast_to_unsigned_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    IntoId::num_blocks(cuda_key.message_modulus()),
+                    streams,
+                )
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id> crate::high_level_api::traits::CastIntoSizeOnGpu<FheUint<Id>> for FheBool
+where
+    Id: FheUintId,
+{
+    fn get_cast_into_size_on_gpu(&self) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_cast_to_unsigned_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    Id::num_blocks(cuda_key.message_modulus()),
+                    streams,
+                )
+            } else {
+                0
             }
         })
     }

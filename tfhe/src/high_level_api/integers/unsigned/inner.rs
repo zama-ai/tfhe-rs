@@ -10,7 +10,9 @@ use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_
 #[cfg(feature = "hpu")]
 use crate::high_level_api::keys::HpuTaggedDevice;
 #[cfg(feature = "gpu")]
-use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
+use crate::integer::gpu::ciphertext::{
+    CudaIntegerRadixCiphertext, CudaRadixShape, CudaUnsignedRadixCiphertext,
+};
 #[cfg(feature = "hpu")]
 use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 use crate::Device;
@@ -137,6 +139,22 @@ impl RadixCiphertext {
                 let cpu_inner = hpu_ct.to_radix_ciphertext();
                 MaybeCloned::Cloned(cpu_inner)
             }
+        }
+    }
+
+    /// Returns the shape `self` has on the GPU, and whether [`Self::on_gpu`] borrows `self`,
+    /// without allocating anything on the GPU
+    #[cfg(feature = "gpu")]
+    pub(crate) fn gpu_shape(&self, streams: &CudaStreams) -> (CudaRadixShape, bool) {
+        match self {
+            Self::Cuda(ct) => (
+                CudaRadixShape::of_gpu(ct),
+                streams.is_on_first_gpu(ct.gpu_indexes()),
+            ),
+            Self::Cpu(ct) => (CudaRadixShape::of_cpu(ct), false),
+            // An HPU ciphertext is brought to the CPU, not to the GPU, to read its shape
+            #[cfg(feature = "hpu")]
+            Self::Hpu(_) => (CudaRadixShape::of_cpu(&*self.on_cpu()), false),
         }
     }
 

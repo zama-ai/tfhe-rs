@@ -372,15 +372,24 @@ impl CudaServerKey {
             self.message_modulus,
             self.carry_modulus,
         );
-        let actual_full_prop_mem = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
+        // Dirty operands are duplicated then propagated; the copies stay alive until the end. The
+        // output is duplicated from the (clean) lhs after the propagations.
+        let lhs_copy = if ct_left.block_carries_are_empty() {
+            0
+        } else {
+            self.get_ciphertext_size_on_gpu(ct_left)
         };
+        let rhs_copy = if ct_right.block_carries_are_empty() {
+            0
+        } else {
+            self.get_ciphertext_size_on_gpu(ct_right)
+        };
+        let actual_full_prop_mem = if lhs_copy + rhs_copy == 0 {
+            0
+        } else {
+            full_prop_mem
+        };
+        let output_size = self.get_ciphertext_size_on_gpu(ct_left);
 
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
@@ -407,7 +416,7 @@ impl CudaServerKey {
             ct_right.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(shift_mem)
+        lhs_copy + rhs_copy + actual_full_prop_mem.max(output_size + shift_mem)
     }
 
     pub fn get_right_shift_size_on_gpu<T: CudaIntegerRadixCiphertext>(
@@ -432,15 +441,24 @@ impl CudaServerKey {
             self.message_modulus,
             self.carry_modulus,
         );
-        let actual_full_prop_mem = match (
-            ct_left.block_carries_are_empty(),
-            ct_right.block_carries_are_empty(),
-        ) {
-            (true, true) => 0,
-            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
-            (false, true) => full_prop_mem,
-            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
+        // Dirty operands are duplicated then propagated; the copies stay alive until the end. The
+        // output is duplicated from the (clean) lhs after the propagations.
+        let lhs_copy = if ct_left.block_carries_are_empty() {
+            0
+        } else {
+            self.get_ciphertext_size_on_gpu(ct_left)
         };
+        let rhs_copy = if ct_right.block_carries_are_empty() {
+            0
+        } else {
+            self.get_ciphertext_size_on_gpu(ct_right)
+        };
+        let actual_full_prop_mem = if lhs_copy + rhs_copy == 0 {
+            0
+        } else {
+            full_prop_mem
+        };
+        let output_size = self.get_ciphertext_size_on_gpu(ct_left);
 
         let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
         let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
@@ -467,6 +485,6 @@ impl CudaServerKey {
             ct_right.as_ref().d_blocks.lwe_ciphertext_count().0 as u32,
             T::IS_SIGNED,
         );
-        actual_full_prop_mem.max(shift_mem)
+        lhs_copy + rhs_copy + actual_full_prop_mem.max(output_size + shift_mem)
     }
 }

@@ -291,3 +291,29 @@ impl SquashNoise for FheBool {
         })
     }
 }
+
+#[cfg(feature = "gpu")]
+impl crate::high_level_api::traits::SquashNoiseSizeOnGpu for FheBool {
+    fn get_squash_noise_size_on_gpu(&self) -> crate::Result<u64> {
+        with_internal_keys(|keys| {
+            if let InternalServerKey::Cuda(cuda_key) = keys {
+                let streams = &cuda_key.streams;
+                let noise_squashing_key = cuda_key
+                    .key
+                    .noise_squashing_key
+                    .as_ref()
+                    .ok_or(UninitializedNoiseSquashing)?;
+                // The block is always copied: duplicated, or moved to the GPU of the key
+                let copy = cuda_key.pbs_key().get_radix_size_on_gpu(1);
+                Ok(copy
+                    + noise_squashing_key.get_squash_ciphertext_noise_size_on_gpu(
+                        cuda_key.pbs_key(),
+                        1,
+                        streams,
+                    ))
+            } else {
+                Ok(0)
+            }
+        })
+    }
+}

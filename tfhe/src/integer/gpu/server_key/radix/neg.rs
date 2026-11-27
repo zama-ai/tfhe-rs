@@ -3,8 +3,11 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::cuda_backend_unchecked_negate;
-use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::gpu::server_key::{CudaDynamicKeyswitchingKey, CudaServerKey};
+use crate::integer::gpu::{
+    cuda_backend_get_full_propagate_assign_size_on_gpu,
+    cuda_backend_get_propagate_single_carry_assign_size_on_gpu, cuda_backend_unchecked_negate,
+};
 use crate::integer::server_key::radix_parallel::OutputFlag;
 
 impl CudaServerKey {
@@ -96,7 +99,40 @@ impl CudaServerKey {
         ctxt: &T,
         streams: &CudaStreams,
     ) -> u64 {
-        self.get_scalar_add_size_on_gpu(ctxt, streams)
+        let CudaDynamicKeyswitchingKey::Standard(computing_ks_key) = &self.key_switching_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+        let ct_size = self.get_ciphertext_size_on_gpu(ctxt);
+        let num_blocks = ctxt.as_ref().d_blocks.lwe_ciphertext_count().0;
+        // A dirty input is duplicated and propagated first; the copy stays alive while negating
+        let (ct_copy, full_prop_mem) = if ctxt.block_carries_are_empty() {
+            (0, 0)
+        } else {
+            (
+                ct_size,
+                cuda_backend_get_full_propagate_assign_size_on_gpu(
+                    streams,
+                    &self.bootstrapping_key,
+                    computing_ks_key.params_ffi(),
+                    num_blocks as u32,
+                    self.message_modulus,
+                    self.carry_modulus,
+                ),
+            )
+        };
+        // unchecked_neg returns a new radix (the output), then propagate_single_carry_assign
+        // allocates a carry-out and an input-carry block
+        let carry_blocks = 2 * ct_size / num_blocks.max(1) as u64;
+        let single_carry_mem = cuda_backend_get_propagate_single_carry_assign_size_on_gpu(
+            streams,
+            &self.bootstrapping_key,
+            computing_ks_key.params_ffi(),
+            num_blocks as u32,
+            self.message_modulus,
+            self.carry_modulus,
+            OutputFlag::None,
+        );
+        ct_copy + full_prop_mem.max(ct_size + carry_blocks + single_carry_mem)
     }
 
     pub fn overflowing_neg<T>(&self, ctxt: &T, streams: &CudaStreams) -> (T, CudaBooleanBlock)
