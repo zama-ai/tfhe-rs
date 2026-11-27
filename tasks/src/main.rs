@@ -7,6 +7,7 @@ use std::sync::atomic::Ordering::Relaxed;
 mod check_local_workspace_version;
 mod check_tfhe_docs_are_tested;
 mod format_latex_doc;
+mod release_status;
 mod utils;
 
 // -------------------------------------------------------------------------------------------------
@@ -40,6 +41,8 @@ enum Commands {
     CheckTfheDocsAreTested,
     /// Check that local workspace dependency versions are consistent
     CheckLocalWorkspaceVersion,
+    /// Show which released crates need a version bump, a tag or a publish
+    ReleaseStatus(release_status::Args),
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -76,6 +79,12 @@ fn main() -> Result<(), std::io::Error> {
         }
         Commands::CheckLocalWorkspaceVersion => {
             check_local_workspace_version::check_local_workspace_version()
+        }
+        Commands::ReleaseStatus(args) => {
+            let exit_code = release_status::run(&args);
+            if exit_code != 0 {
+                std::process::exit(exit_code);
+            }
         }
     }
 
