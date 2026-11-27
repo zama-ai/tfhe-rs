@@ -111,7 +111,6 @@ tfhe-hpu-backend = { version = "0.8.0", path = "../backends/tfhe-hpu-backend", o
 
 [features]
 default = ["avx512"]
-boolean = []
 shortint = ["dep:sha3", "dep:shake", "dep:blake3"]
 integer = ["shortint", "dep:strum"]
 strings = ["integer"]
@@ -150,9 +149,8 @@ experimental-force_fft_algo_dif4 = []
 __c_api = ["dep:cbindgen"]
 # Can be used in some situations to reduce build time with GPU
 __force_skip_cbindgen = []
-boolean-c-api = ["boolean", "__c_api"]
 shortint-c-api = ["shortint", "__c_api"]
-high-level-c-api = ["boolean-c-api", "shortint-c-api", "integer"]
+high-level-c-api = ["shortint-c-api", "integer"]
 
 __wasm_api = [
     "dep:wasm-bindgen",
@@ -163,7 +161,6 @@ __wasm_api = [
     "getrandom/js",
     "dep:wasm-bindgen-futures",
 ]
-boolean-js-wasm-api = ["boolean", "__wasm_api"]
 shortint-js-wasm-api = ["shortint", "__wasm_api"]
 integer-client-js-wasm-api = ["integer", "__wasm_api"]
 integer-js-wasm-api = ["integer-client-js-wasm-api", "shortint-js-wasm-api"]
@@ -182,7 +179,6 @@ software-prng = ["tfhe-csprng/software-prng"]
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
 features = [
-    "boolean",
     "shortint",
     "integer",
     "gpu",
@@ -199,18 +195,12 @@ rustdoc-args = ["--html-in-header", "katex-header.html"]
 [[example]]
 name = "generates_test_keys"
 path = "examples/utilities/generates_test_keys.rs"
-required-features = ["boolean", "shortint", "internal-keycache"]
-
-[[example]]
-name = "micro_bench_and"
-path = "examples/utilities/micro_bench_and.rs"
-required-features = ["boolean"]
+required-features = ["shortint", "internal-keycache"]
 
 [[example]]
 name = "write_params_to_file"
 path = "examples/utilities/params_to_file.rs"
 required-features = [
-    "boolean",
     "shortint",
     "integer",
     "internal-keycache",
@@ -237,10 +227,6 @@ required-features = ["integer", "internal-keycache"]
 [[example]]
 name = "regex_engine"
 required-features = ["integer"]
-
-[[example]]
-name = "sha256_bool"
-required-features = ["boolean"]
 
 [[example]]
 name = "sha256"

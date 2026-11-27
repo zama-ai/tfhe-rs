@@ -1,7 +1,7 @@
 //! Module with the definition of the prelude.
 //!
 //! The TFHE-rs preludes include convenient imports.
-//! Having `tfhe::boolean::prelude::*;` should be enough to start using the lib.
+//! Having `tfhe_experimental::boolean::prelude::*;` should be enough to start using the lib.
 
 pub use super::ciphertext::{Ciphertext, CompressedCiphertext};
 pub use super::client_key::ClientKey;

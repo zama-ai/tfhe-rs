@@ -53,14 +53,10 @@ fn gen_c_api() {
         // expand
         #[cfg(feature = "__c_api")]
         "__c_api",
-        #[cfg(feature = "boolean-c-api")]
-        "boolean-c-api",
         #[cfg(feature = "shortint-c-api")]
         "shortint-c-api",
         #[cfg(feature = "high-level-c-api")]
         "high-level-c-api",
-        #[cfg(feature = "boolean")]
-        "boolean",
         #[cfg(feature = "shortint")]
         "shortint",
         #[cfg(feature = "integer")]

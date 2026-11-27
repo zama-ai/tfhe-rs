@@ -76,13 +76,6 @@
 #[cfg(feature = "__c_api")]
 pub mod c_api;
 
-#[cfg(feature = "boolean")]
-/// Welcome to the TFHE-rs [`boolean`](`crate::boolean`) module documentation!
-///
-/// # Special module attributes
-/// cbindgen:ignore
-pub mod boolean;
-
 /// Welcome to the TFHE-rs [`core_crypto`](`crate::core_crypto`) module documentation!
 ///
 /// # Special module attributes

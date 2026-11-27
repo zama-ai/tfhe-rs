@@ -10,6 +10,7 @@ members = [
     "tests",
     "tfhe",
     "tfhe-benchmark",
+    "tfhe-experimental",
     "tfhe-csprng",
     "tfhe-fft",
     "tfhe-ntt",

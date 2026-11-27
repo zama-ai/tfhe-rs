@@ -5,7 +5,6 @@ use std::borrow::Cow;
 use std::fs::create_dir_all;
 use std::path::Path;
 
-use tfhe::boolean::engine::BooleanEngine;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::DefaultRandomGenerator;
 use tfhe::prelude::*;
@@ -56,9 +55,6 @@ impl TfhersVersion for V1_9 {
         ShortintEngine::with_thread_local_mut(|local_engine| {
             let _ = std::mem::replace(local_engine, shortint_engine);
         });
-
-        let boolean_engine = BooleanEngine::new_from_seeder(&mut seeder);
-        BooleanEngine::replace_thread_local(boolean_engine);
     }
 
     fn gen_shortint_data<P: AsRef<Path>>(_base_data_dir: P) -> Vec<TestMetadata> {

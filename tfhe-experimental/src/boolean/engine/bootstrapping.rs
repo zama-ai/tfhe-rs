@@ -3,14 +3,14 @@ use crate::boolean::backward_compatibility::server_key::{
 };
 use crate::boolean::ciphertext::Ciphertext;
 use crate::boolean::{ClientKey, PLAINTEXT_TRUE};
-use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::computation_buffers::ComputationBuffers;
-use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
-use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder};
-use crate::core_crypto::commons::parameters::{CiphertextModulus, PBSOrder};
-use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
 use serde::{Deserialize, Serialize};
+use tfhe::core_crypto::algorithms::*;
+use tfhe::core_crypto::commons::computation_buffers::ComputationBuffers;
+use tfhe::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
+use tfhe::core_crypto::commons::math::random::{DefaultRandomGenerator, Seeder};
+use tfhe::core_crypto::commons::parameters::{CiphertextModulus, PBSOrder};
+use tfhe::core_crypto::entities::*;
+use tfhe::core_crypto::fft_impl::fft64::math::fft::Fft;
 use tfhe_versionable::Versionize;
 
 /// Memory used as buffer for the bootstrap
@@ -402,19 +402,7 @@ impl Bootstrapper {
     }
 
     pub(crate) fn new_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
-        #[cfg(not(feature = "__wasm_api"))]
         let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-            &cks.lwe_secret_key,
-            &cks.glwe_secret_key,
-            cks.parameters.pbs_base_log,
-            cks.parameters.pbs_level,
-            cks.parameters.glwe_noise_distribution,
-            CiphertextModulus::new_native(),
-            &mut self.seeder,
-        );
-
-        #[cfg(feature = "__wasm_api")]
-        let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
             &cks.lwe_secret_key,
             &cks.glwe_secret_key,
             cks.parameters.pbs_base_log,

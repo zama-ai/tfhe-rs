@@ -6,9 +6,9 @@
 use crate::boolean::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::boolean::engine::{BooleanEngine, WithThreadLocalEngine};
 use crate::boolean::parameters::{BooleanParameters, DynamicDistribution, EncryptionKeyChoice};
-use crate::core_crypto::entities::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
+use tfhe::core_crypto::entities::*;
 use tfhe_versionable::Versionize;
 
 use super::backward_compatibility::client_key::ClientKeyVersions;
@@ -71,7 +71,7 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::boolean::prelude::*;
+    /// use tfhe_experimental::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys();
@@ -92,7 +92,7 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::boolean::prelude::*;
+    /// use tfhe_experimental::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys();
@@ -115,7 +115,7 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::boolean::prelude::*;
+    /// use tfhe_experimental::boolean::prelude::*;
     ///
     /// // Generate the client key and the server key:
     /// let (cks, sks) = gen_keys();
@@ -136,8 +136,8 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::boolean::client_key::ClientKey;
-    /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
+    /// use tfhe_experimental::boolean::client_key::ClientKey;
+    /// use tfhe_experimental::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
@@ -151,8 +151,8 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::boolean::client_key::ClientKey;
-    /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
+    /// use tfhe_experimental::boolean::client_key::ClientKey;
+    /// use tfhe_experimental::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);
@@ -183,8 +183,8 @@ impl ClientKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::boolean::client_key::ClientKey;
-    /// use tfhe::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
+    /// use tfhe_experimental::boolean::client_key::ClientKey;
+    /// use tfhe_experimental::boolean::parameters::PARAMETERS_ERROR_PROB_2_POW_MINUS_165;
     ///
     /// // Generate the client key:
     /// let cks = ClientKey::new(&PARAMETERS_ERROR_PROB_2_POW_MINUS_165);

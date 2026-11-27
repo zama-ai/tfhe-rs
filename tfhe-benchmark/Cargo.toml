@@ -31,6 +31,7 @@ paste = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 tfhe = { path = "../tfhe", default-features = false }
+tfhe-experimental = { path = "../tfhe-experimental", default-features = false, optional = true }
 tfhe-csprng = { path = "../tfhe-csprng" }
 tfhe-zk-pok = { path = "../tfhe-zk-pok", optional = true }
 cpu-time = "1.0"
@@ -41,7 +42,7 @@ tfhe-benchmark-parser = { path = "../utils/tfhe-benchmark-parser" }
 
 [features]
 default = ["avx512"]
-boolean = ["tfhe/boolean"]
+boolean = ["dep:tfhe-experimental", "tfhe-experimental/boolean"]
 shortint = ["tfhe/shortint"]
 integer = ["shortint", "tfhe/integer"]
 gpu = ["tfhe/gpu", "benchmark_spec/gpu"]
@@ -49,8 +50,11 @@ gpu = ["tfhe/gpu", "benchmark_spec/gpu"]
 gpu-zk = ["gpu", "zk-pok", "tfhe/gpu-zk", "tfhe-zk-pok/gpu"]
 hpu = ["tfhe/hpu", "benchmark_spec/hpu"]
 hpu-v80 = ["tfhe/hpu-v80"]
-internal-keycache = ["tfhe/internal-keycache"]
-avx512 = ["tfhe/avx512"]
+internal-keycache = [
+    "tfhe/internal-keycache",
+    "tfhe-experimental?/internal-keycache",
+]
+avx512 = ["tfhe/avx512", "tfhe-experimental?/avx512"]
 pbs-stats = ["tfhe/pbs-stats"]
 zk-pok = ["tfhe/zk-pok", "dep:tfhe-zk-pok"]
 experimental = ["tfhe/experimental"]

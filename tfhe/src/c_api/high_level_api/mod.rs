@@ -1,5 +1,4 @@
 mod array;
-#[cfg(feature = "boolean")]
 pub mod booleans;
 mod compact_list;
 pub mod compressed_ciphertext_list;

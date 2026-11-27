@@ -12,6 +12,7 @@ Guidance for coding agents working in TFHE-rs. The root `Makefile` is the source
 | `tfhe-fft/`, `tfhe-ntt/` | FFT and NTT primitives used by `core_crypto` |
 | `tfhe-csprng/` | AES-CTR random generators and seeders |
 | `tfhe-zk-pok/` | Zero-knowledge proofs of correct encryption (`zk-pok` feature) |
+| `tfhe-experimental/` | Experimental and legacy features built on the public API of `tfhe`; not for production. Holds the legacy `boolean` module (`boolean` feature): add no new features to it |
 | `backends/` | CUDA backends (C++/CUDA with generated Rust bindings) and the HPU (FPGA) backend |
 | `utils/tfhe-versionable*`, `utils/tfhe-safe-serialize/` | Versioned serialization and safe (size-limited, optionally conformance-checked) deserialization |
 | `utils/tfhe-backward-compat-data/`, `tests/` | Data from past releases and the tests that load it. `tests/` is its own package, distinct from `tfhe/tests` |
@@ -23,12 +24,12 @@ Some crates under `apps/` and `utils/` are excluded from the workspace and have 
 
 ### Layers of the `tfhe` crate
 
-Each layer is a module in `tfhe/src/`, built only on the layers below it. `core_crypto` is always compiled. The other layers need a Cargo feature: `boolean`, `shortint`, `integer`, and `high_level_api` comes with `integer`.
+Each layer is a module in `tfhe/src/`, built only on the layers below it. `core_crypto` is always compiled. The other layers need a Cargo feature: `shortint`, `integer`, and `high_level_api` comes with `integer`.
 
 | Layer | Works on | Responsibility |
 |---|---|---|
 | `core_crypto` | LWE/GLWE ciphertexts and keys | Cryptographic primitives: encryption, keyswitch, programmable bootstrap (PBS), FFT. No notion of message semantics |
-| `shortint` (and the independent, legacy `boolean`: add no new features to it) | One LWE ciphertext holding a few message and carry bits | Small-integer arithmetic and lookup tables via PBS; owns the parameter sets and tracks noise |
+| `shortint` | One LWE ciphertext holding a few message and carry bits | Small-integer arithmetic and lookup tables via PBS; owns the parameter sets and tracks noise |
 | `integer` | Vectors of shortint blocks (radix or CRT) | Arbitrary-size integer arithmetic, carry propagation, parallel algorithms; `gpu/` and `hpu/` hold the backend variants |
 | `high_level_api` | `FheUint*`, `FheInt*`, `FheBool`, … (re-exported at the crate root) | Typed user API with operator overloading, key management and backend dispatch |
 
@@ -110,7 +111,7 @@ RUSTFLAGS="-C target-cpu=native" cargo test --profile devo \
 DOCS_RS=1 make clippy_gpu
 ```
 
-This only checks that the code compiles and lints; it cannot run GPU code. Code behind `cfg(feature = "gpu")` is not seen by a non-GPU build, so lint it this way whenever you touch it. The target covers `boolean`, `shortint`, `integer`, `zk-pok` and GPU code with all targets, so it is also a broad check for other changes. `DOCS_RS=1` also skips the regeneration of the bindings: regenerate `bindings.rs` on a machine with CUDA.
+This only checks that the code compiles and lints; it cannot run GPU code. Code behind `cfg(feature = "gpu")` is not seen by a non-GPU build, so lint it this way whenever you touch it. The target covers `shortint`, `integer`, `zk-pok` and GPU code with all targets, so it is also a broad check for other changes. `DOCS_RS=1` also skips the regeneration of the bindings: regenerate `bindings.rs` on a machine with CUDA.
 
 ## Serialization and backward compatibility
 

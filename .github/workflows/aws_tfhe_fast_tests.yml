@@ -89,7 +89,10 @@ jobs:
               - tfhe/src/core_crypto/**
             boolean:
               - tfhe/src/core_crypto/**
-              - tfhe/src/boolean/**
+              - tfhe/src/keycache/**
+              - tfhe-experimental/Cargo.toml
+              - tfhe-experimental/src/lib.rs
+              - tfhe-experimental/src/boolean/**
             shortint:
               - tfhe/src/core_crypto/**
               - tfhe/src/shortint/**
@@ -106,11 +109,9 @@ jobs:
               - tfhe/js_on_wasm_tests/**
               - tfhe/web_wasm_parallel_tests/**
               - '!tfhe/src/c_api/**'
-              - '!tfhe/src/boolean/**'
             high_level_api:
               - tfhe/src/**
               - '!tfhe/src/c_api/**'
-              - '!tfhe/src/boolean/**'
               - '!tfhe/src/c_api/**'
               - '!tfhe/src/js_on_wasm_api/**'
             user_docs:

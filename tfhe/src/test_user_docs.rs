@@ -166,24 +166,6 @@ mod test_cpu_doc {
         references_fine_grained_apis_quick_start
     );
 
-    // fine-grained-apis/boolean
-    doctest!(
-        "../docs/references/fine-grained-apis/boolean/operations.md",
-        references_fine_grained_apis_boolean_operations
-    );
-    doctest!(
-        "../docs/references/fine-grained-apis/boolean/parameters.md",
-        references_fine_grained_apis_boolean_parameters
-    );
-    doctest!(
-        "../docs/references/fine-grained-apis/boolean/serialization.md",
-        references_fine_grained_apis_boolean_serialization
-    );
-    doctest!(
-        "../docs/references/fine-grained-apis/boolean/README.md",
-        references_fine_grained_apis_boolean_readme
-    );
-
     // fine-grained-apis/shortint
     doctest!(
         "../docs/references/fine-grained-apis/shortint/operations.md",

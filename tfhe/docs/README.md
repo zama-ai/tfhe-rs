@@ -41,7 +41,6 @@ Explore step-by-step guides that walk you through real-world uses of TFHE-rs.&#x
 
 * [Homomorphic parity bit](tutorials/parity-bit.md): Learn how to implement a parity bit calculation over encrypted data
 * [Homomorphic case changing on ASCII string](tutorials/ascii-fhe-string.md): See how to process string data securely by changing cases while keeping the data encrypted.
-* [SHA256 with Boolean API](tutorials/sha256-bool.md): Delve into a more complex example: implementing the SHA256 hash function entirely on encrypted boolean values.
 * [All tutorials](tutorials/see-all-tutorials.md): A complete list of all available tutorials in one place.
 
 ### References & Explanations
@@ -49,7 +48,7 @@ Explore step-by-step guides that walk you through real-world uses of TFHE-rs.&#x
 Take a deep dive into TFHE-rs, exploring APIs from the highest to the lowest level of abstraction and accessing additional resources for in-depth explanations.
 
 * [Rust API reference](https://docs.rs/tfhe/latest/tfhe/): High-level API that abstracts cryptographic complexities and simplifies the development and more
-* [Fine-grained APIs](references/fine-grained-apis/): Mid-level APIs that enable evaluation of Boolean, short integer, and integer circuits
+* [Fine-grained APIs](references/fine-grained-apis/): Mid-level APIs that enable evaluation of short integer and integer circuits
 * [Core crypto API](references/core-crypto-api/): Low-level API with the primitive functions and types of the TFHE scheme
 * [TFHE deep dive](explanations/tfhe-deep-dive.md): Resources that explain the Fully Homomorphic Encryption scheme - TFHE
 * [TFHE-rs handbook](https://github.com/zama-ai/tfhe-rs-handbook): Document describing algorithms implemented in TFHE-rs

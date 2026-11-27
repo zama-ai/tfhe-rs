@@ -2,14 +2,14 @@ use benchmark::utilities::{write_to_json, OperatorType};
 use benchmark_spec::{BenchmarkMetric, BenchmarkSpec, BooleanBench};
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
-use tfhe::boolean::client_key::ClientKey;
-use tfhe::boolean::parameters::{
+use tfhe_experimental::boolean::client_key::ClientKey;
+use tfhe_experimental::boolean::parameters::{
     BooleanParameters, DEFAULT_PARAMETERS, DEFAULT_PARAMETERS_KS_PBS,
     PARAMETERS_ERROR_PROB_2_POW_MINUS_165, PARAMETERS_ERROR_PROB_2_POW_MINUS_165_KS_PBS,
     TFHE_LIB_PARAMETERS,
 };
-use tfhe::boolean::prelude::BinaryBooleanGates;
-use tfhe::boolean::server_key::ServerKey;
+use tfhe_experimental::boolean::prelude::BinaryBooleanGates;
+use tfhe_experimental::boolean::server_key::ServerKey;
 
 criterion_group!(
     gates_benches,
