@@ -2,4 +2,4 @@
 # with an extra (e.g. 'pyjwt[crypto]') fails with the pip bundled in older Pythons (fixed in pip 23.3).
 # Venvs upgrade their pip with this file before installing a lock file, see setup_python_venv in the
 # Makefile.
-pip==26.2.2
+pip==26.3
