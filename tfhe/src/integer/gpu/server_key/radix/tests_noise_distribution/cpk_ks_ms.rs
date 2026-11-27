@@ -16,7 +16,7 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     NoiseSimulationModulusSwitchConfig,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    TestJsonGuard, TestResult,
+    TestJsonGuard, TestKind, TestResult,
 };
 use crate::this_function_name;
 use crate::integer::gpu::server_key::radix::LweCiphertextList;
@@ -278,7 +278,12 @@ fn cpk_ks_any_ms_pfail_helper_gpu(
 
 fn noise_check_encrypt_cpk_ks_ms_noise_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    );
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params.compute_parameters;
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
@@ -444,7 +449,12 @@ create_gpu_parameterized_stringified_test!(noise_check_encrypt_cpk_ks_ms_noise_g
 
 fn noise_check_encrypt_cpk_ks_ms_pfail_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    );
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params.compute_parameters;
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
@@ -558,7 +568,12 @@ create_gpu_parameterized_stringified_test!(noise_check_encrypt_cpk_ks_ms_pfail_g
 
 fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    );
     let (params, cpk_params, ksk_ds_params) = {
         let compute_params = meta_params.compute_parameters;
         let dedicated_cpk_params = meta_params.dedicated_compact_public_key_parameters.unwrap();
@@ -699,9 +714,7 @@ fn sanity_check_encrypt_cpk_ks_ms_pbs_gpu(meta_params: MetaParameters, filename_
 
     let res_cond = results.iter().all(|(lhs, rhs)| lhs == rhs);
 
-    guard
-        .write_results(res_cond, None, TestResult::Empty {})
-        .unwrap();
+    guard.write_results(res_cond, None, TestResult::Empty {});
 
     // We check each step to preserve failure details and print the invalid case if one occurs
     for (pbs_result_list, shortint_res) in results.iter() {

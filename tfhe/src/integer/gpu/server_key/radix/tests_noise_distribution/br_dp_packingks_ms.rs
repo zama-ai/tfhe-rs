@@ -24,7 +24,7 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     NoiseSimulationLwePackingKeyswitchKey, NoiseSimulationModulus,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    TestJsonGuard, TestResult,
+    TestJsonGuard, TestKind, TestResult,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::{
     expected_pfail_for_precision, mean_and_variance_check, noise_check, normality_check,
@@ -42,7 +42,12 @@ pub const SAMPLES_PER_MSG_PACKING_KS_NOISE: usize = 1000;
 
 fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filename_suffix: &str) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    );
     let (params, comp_params) = (
         meta_params.compute_parameters,
         meta_params.compression_parameters.unwrap(),
@@ -144,13 +149,11 @@ fn sanity_check_encrypt_br_dp_packing_ks_ms(meta_params: MetaParameters, filenam
     // Bodies that were not filled are discarded
     after_ms.get_mut_body().as_mut()[lwe_per_glwe.0..].fill(0);
 
-    guard
-        .write_results(
-            after_ms.as_view() == extracted_glwe.as_view(),
-            None,
-            TestResult::Empty {},
-        )
-        .unwrap();
+    guard.write_results(
+        after_ms.as_view() == extracted_glwe.as_view(),
+        None,
+        TestResult::Empty {},
+    );
 
     assert_eq!(after_ms.as_view(), extracted_glwe.as_view());
 }
@@ -419,7 +422,12 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_noise_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    );
     let (params, comp_params) = (
         meta_params.compute_parameters,
         meta_params.compression_parameters.unwrap(),
@@ -614,7 +622,12 @@ fn noise_check_encrypt_br_dp_packing_ks_ms_pfail_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    );
     let (pfail_test_meta, params, comp_params) = {
         let (mut params, comp_params) = (
             meta_params.compute_parameters,

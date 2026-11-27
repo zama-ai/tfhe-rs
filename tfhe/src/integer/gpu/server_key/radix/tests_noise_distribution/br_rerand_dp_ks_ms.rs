@@ -70,7 +70,7 @@ use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCipherte
 use crate::core_crypto::prelude::LweCiphertext;
 use crate::integer::ClientKey;
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    TestJsonGuard, TestResult,
+    TestJsonGuard, TestKind, TestResult,
 };
 
 use crate::this_function_name;
@@ -503,7 +503,12 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_noise_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Noise,
+    );
     let (params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params.compute_parameters;
         (
@@ -772,7 +777,12 @@ fn noise_check_encrypt_br_rerand_dp_ks_ms_pfail_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Pfail,
+    );
     let (params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params.compute_parameters;
         (
@@ -921,7 +931,12 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs_gpu(
     filename_suffix: &str,
 ) {
     let function_name = this_function_name!();
-    let guard = TestJsonGuard::new(&meta_params, filename_suffix, function_name.as_str()).unwrap();
+    let guard = TestJsonGuard::new_gpu(
+        &meta_params,
+        filename_suffix,
+        function_name.as_str(),
+        TestKind::Sanity,
+    );
     let (compute_params, re_rand_parameters, compression_params) = {
         let compute_params = meta_params
             .compute_parameters
@@ -1200,9 +1215,7 @@ fn sanity_check_encrypt_br_rerand_dp_ks_ms_pbs_gpu(
         .iter()
         .all(|(lhs, rhs)| lhs.as_view() == rhs.as_view());
 
-    guard
-        .write_results(res_cond, None, TestResult::Empty {})
-        .unwrap();
+    guard.write_results(res_cond, None, TestResult::Empty {});
     // We check each step to preserve failure details and print the invalid case if one occurs
     for (after_pbs_ct, shortint_res_ct) in results.iter() {
         assert_eq!(after_pbs_ct.as_view(), shortint_res_ct.as_view());

@@ -44,10 +44,8 @@ use crate::shortint::server_key::tests::noise_distribution::utils::noise_simulat
     DynLwe, DynLweSecretKeyView, DynModSwitchedLwe, DynStandardMultiBitModulusSwitchedCt,
 };
 use crate::shortint::server_key::tests::noise_distribution::utils::to_json::{
-    BoundedLog2Measurement, BoundedMeasurement, ConfidenceInterval, ConfidenceIntervalWithLog2,
-    Measurement, NoBounds, NoiseCheckWithNormalityCheck, NoiseCheckWithoutNormalityCheck,
-    PfailMetadata, PfailTestResultJson, StringConfidenceInterval, StringConfidenceIntervalWithLog2,
-    TestJsonGuard, TestResult, ValueWithLog2,
+    BoundedMeasurement, ConfidenceInterval, Interval, Measurement, NoBounds, NoiseCheckResult,
+    PfailMetadata, PfailTestResultJson, TestJsonGuard, ValueWithLog2,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,7 +78,7 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     noise_distribution_used_for_encryption: DynamicDistribution<Scalar>,
     decryption_key_lwe_dimension: LweDimension,
     modulus_as_f64: f64,
-) -> (bool, BoundedMeasurement, BoundedMeasurement) {
+) -> (bool, BoundedMeasurement<String>, BoundedMeasurement<String>) {
     assert!(expected_mean.is_finite(), "Expected mean is infinite");
     assert!(
         expected_variance.0.is_finite(),
@@ -113,24 +111,18 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     let bounded_variance_measurement = BoundedMeasurement::new(
         measured_variance.0.to_string(),
         expected_variance.0.to_string(),
-        ConfidenceInterval::Bounded(
-            StringConfidenceInterval::builder()
-                .lower(variance_ci.lower_bound().0.to_string())
-                .upper(variance_ci.upper_bound().0.to_string())
-                .build()
-                .unwrap(),
-        ),
+        ConfidenceInterval::Bounded(Interval::new(
+            variance_ci.lower_bound().0.to_string(),
+            variance_ci.upper_bound().0.to_string(),
+        )),
     );
     let bounded_mean_measurement = BoundedMeasurement::new(
         measured_mean.to_string(),
         expected_mean.to_string(),
-        ConfidenceInterval::Bounded(
-            StringConfidenceInterval::builder()
-                .lower(mean_ci.lower_bound().to_string())
-                .upper(mean_ci.upper_bound().to_string())
-                .build()
-                .unwrap(),
-        ),
+        ConfidenceInterval::Bounded(Interval::new(
+            mean_ci.lower_bound().to_string(),
+            mean_ci.upper_bound().to_string(),
+        )),
     );
 
     // Expected mean is 0
@@ -298,14 +290,8 @@ impl PfailTestMeta {
 
     pub fn generate_serializable_data(self) -> PfailMetadata {
         PfailMetadata::new(
-            ValueWithLog2::new(
-                self.original_pfail_and_precision.pfail().to_string(),
-                self.original_pfail_and_precision.pfail().log2().to_string(),
-            ),
-            ValueWithLog2::new(
-                self.new_pfail_and_precision.pfail().to_string(),
-                self.new_pfail_and_precision.pfail().log2().to_string(),
-            ),
+            ValueWithLog2::from(self.original_pfail_and_precision.pfail()),
+            ValueWithLog2::from(self.new_pfail_and_precision.pfail()),
             self.expected_fails.to_string(),
             self.total_runs_for_expected_fails.to_string(),
         )
@@ -346,28 +332,17 @@ impl PfailTestMeta {
 
 pub fn noise_check(
     guard: &TestJsonGuard,
-    mean_variance_result: (bool, BoundedMeasurement, BoundedMeasurement),
+    mean_variance_result: (bool, BoundedMeasurement<String>, BoundedMeasurement<String>),
     normality_valid: Option<bool>,
 ) {
     let (mv_ok, bounded_variance, bounded_mean) = mean_variance_result;
+    let valid = mv_ok && normality_valid.unwrap_or(true);
 
-    let (valid, test_result) =
-        match normality_valid {
-            Some(norm_ok) => (
-                mv_ok && norm_ok,
-                TestResult::NoiseCheckWithNormalityCheck(Box::new(
-                    NoiseCheckWithNormalityCheck::new(bounded_variance, bounded_mean, norm_ok),
-                )),
-            ),
-            None => (
-                mv_ok,
-                TestResult::NoiseCheckWithoutNormalityCheck(Box::new(
-                    NoiseCheckWithoutNormalityCheck::new(bounded_variance, bounded_mean),
-                )),
-            ),
-        };
-
-    guard.write_results(valid, None, test_result).unwrap();
+    guard.write_results(
+        valid,
+        None,
+        NoiseCheckResult::new(bounded_variance, bounded_mean, normality_valid),
+    );
     assert!(valid);
 }
 
@@ -492,7 +467,7 @@ pub fn pfail_check(
 
     let fails_serialized = Measurement::new(measured_fails.to_string(), expected_fails.to_string());
 
-    let pfail_serialized_closure = |confidence_interval: ConfidenceInterval| {
+    let pfail_serialized_closure = |confidence_interval: ConfidenceInterval<String>| {
         BoundedMeasurement::new(
             measured_pfail.to_string(),
             expected_pfail.to_string(),
@@ -501,26 +476,20 @@ pub fn pfail_check(
     };
 
     let pfail_original_serialized_closure =
-        |confidence_interval_with_log2: ConfidenceIntervalWithLog2| {
-            BoundedLog2Measurement::new(
-                ValueWithLog2::new(
-                    equivalent_measured_pfail.to_string(),
-                    equivalent_measured_pfail.log2().to_string(),
-                ),
-                ValueWithLog2::new(
-                    original_pfail.to_string(),
-                    original_pfail.log2().to_string(),
-                ),
+        |confidence_interval_with_log2: ConfidenceInterval<ValueWithLog2>| {
+            BoundedMeasurement::new(
+                ValueWithLog2::from(equivalent_measured_pfail),
+                ValueWithLog2::from(original_pfail),
                 confidence_interval_with_log2,
             )
         };
 
-    let write_json = |warning: Option<String>,
-                      pass: bool,
-                      pfail_serialized: BoundedMeasurement,
-                      pfail_original_serialized: BoundedLog2Measurement| {
-        guard
-            .write_results(
+    let write_json =
+        |warning: Option<String>,
+         pass: bool,
+         pfail_serialized: BoundedMeasurement<String>,
+         pfail_original_serialized: BoundedMeasurement<ValueWithLog2>| {
+            guard.write_results(
                 pass,
                 warning,
                 PfailTestResultJson::new(
@@ -528,11 +497,9 @@ pub fn pfail_check(
                     fails_serialized.clone(),
                     pfail_serialized,
                     pfail_original_serialized,
-                )
-                .into_test_result(),
-            )
-            .unwrap();
-    };
+                ),
+            );
+        };
 
     if measured_fails > 0.0 {
         let pfail_confidence_interval = pfail_clopper_pearson_exact_confidence_interval(
@@ -555,26 +522,14 @@ pub fn pfail_check(
             original_precision_with_padding.value,
         );
 
-        let confidence_interval = ConfidenceInterval::Bounded(
-            StringConfidenceInterval::builder()
-                .lower(pfail_lower_bound.to_string())
-                .upper(pfail_upper_bound.to_string())
-                .build()
-                .unwrap(),
-        );
-        let confidence_interval_with_log2 = ConfidenceIntervalWithLog2::Bounded(
-            StringConfidenceIntervalWithLog2::builder()
-                .lower(ValueWithLog2::new(
-                    equivalent_pfail_lower_bound.to_string(),
-                    equivalent_pfail_lower_bound.log2().to_string(),
-                ))
-                .upper(ValueWithLog2::new(
-                    equivalent_pfail_upper_bound.to_string(),
-                    equivalent_pfail_upper_bound.log2().to_string(),
-                ))
-                .build()
-                .unwrap(),
-        );
+        let confidence_interval = ConfidenceInterval::Bounded(Interval::new(
+            pfail_lower_bound.to_string(),
+            pfail_upper_bound.to_string(),
+        ));
+        let confidence_interval_with_log2 = ConfidenceInterval::Bounded(Interval::new(
+            ValueWithLog2::from(equivalent_pfail_lower_bound),
+            ValueWithLog2::from(equivalent_pfail_upper_bound),
+        ));
         println!("pfail_lower_bound={pfail_lower_bound}");
         println!("pfail_upper_bound={pfail_upper_bound}");
 
@@ -613,7 +568,7 @@ pub fn pfail_check(
         let confidence_interval = ConfidenceInterval::NoBounds(NoBounds::new(
             "Unable to compute bounds, 0 fails measured",
         ));
-        let confidence_interval_with_log2 = ConfidenceIntervalWithLog2::NoBounds(NoBounds::new(
+        let confidence_interval_with_log2 = ConfidenceInterval::NoBounds(NoBounds::new(
             "Unable to compute bounds, 0 fails measured",
         ));
         let warning_raw = "measured pfail is 0, it is either a bug or \
