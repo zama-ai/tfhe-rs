@@ -135,10 +135,10 @@ pub struct GenericServerKeyV1 {
     pbs_order: PBSOrder,
 }
 
-impl<AP: 'static> Upgrade<GenericServerKey<AP>> for GenericServerKeyV1 {
+impl<AP: 'static> Upgrade<GenericServerKeyV2<AP>> for GenericServerKeyV1 {
     type Error = Error;
 
-    fn upgrade(self) -> Result<GenericServerKey<AP>, Self::Error> {
+    fn upgrade(self) -> Result<GenericServerKeyV2<AP>, Self::Error> {
         let std_ap = StandardAtomicPatternServerKey::from_raw_parts(
             self.key_switching_key,
             self.bootstrapping_key,
@@ -147,27 +147,27 @@ impl<AP: 'static> Upgrade<GenericServerKey<AP>> for GenericServerKeyV1 {
 
         if TypeId::of::<AP>() == TypeId::of::<AtomicPatternServerKey>() {
             let ap = AtomicPatternServerKey::Standard(std_ap);
-            let sk: Box<dyn Any + 'static> = Box::new(ServerKey::from_raw_parts(
-                ap,
-                self.message_modulus,
-                self.carry_modulus,
-                self.max_degree,
-                self.max_noise_level,
-            ));
-            Ok(*sk.downcast::<GenericServerKey<AP>>().unwrap()) // We know from the TypeId that
-                                                                // AP is of the right type so we
-                                                                // can unwrap
+            let sk: Box<dyn Any + 'static> = Box::new(GenericServerKeyV2 {
+                atomic_pattern: ap,
+                message_modulus: self.message_modulus,
+                carry_modulus: self.carry_modulus,
+                max_degree: self.max_degree,
+                max_noise_level: self.max_noise_level,
+                ciphertext_modulus: self.ciphertext_modulus,
+            });
+            // We know from the TypeId that AP is of the right type so we can unwrap
+            Ok(*sk.downcast::<GenericServerKeyV2<AP>>().unwrap())
         } else if TypeId::of::<AP>() == TypeId::of::<StandardAtomicPatternServerKey>() {
-            let sk: Box<dyn Any + 'static> = Box::new(StandardServerKey::from_raw_parts(
-                std_ap,
-                self.message_modulus,
-                self.carry_modulus,
-                self.max_degree,
-                self.max_noise_level,
-            ));
-            Ok(*sk.downcast::<GenericServerKey<AP>>().unwrap()) // We know from the TypeId that
-                                                                // AP is of the right type so we
-                                                                // can unwrap
+            let sk: Box<dyn Any + 'static> = Box::new(GenericServerKeyV2 {
+                atomic_pattern: std_ap,
+                message_modulus: self.message_modulus,
+                carry_modulus: self.carry_modulus,
+                max_degree: self.max_degree,
+                max_noise_level: self.max_noise_level,
+                ciphertext_modulus: self.ciphertext_modulus,
+            });
+            // We know from the TypeId that AP is of the right type so we can unwrap
+            Ok(*sk.downcast::<GenericServerKeyV2<AP>>().unwrap())
         } else {
             Err(Error::new(
                 "ServerKey from TFHE-rs 1.0 and before can only be deserialized to the standard \
@@ -178,11 +178,48 @@ Atomic Pattern"
     }
 }
 
+#[derive(Version)]
+pub struct GenericServerKeyV2<AP> {
+    atomic_pattern: AP,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    max_degree: MaxDegree,
+    max_noise_level: MaxNoiseLevel,
+    ciphertext_modulus: CiphertextModulus,
+}
+
+impl<AP> Upgrade<GenericServerKey<AP>> for GenericServerKeyV2<AP> {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<GenericServerKey<AP>, Self::Error> {
+        let Self {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            // Always message_modulus * carry_modulus - 1, except for integer radix keys which
+            // stored a smaller value to keep room for a carry. Ops that need that margin now
+            // compute it themselves.
+            max_degree: _,
+            max_noise_level,
+            ciphertext_modulus,
+        } = self;
+
+        Ok(GenericServerKey {
+            atomic_pattern,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            ciphertext_modulus,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum GenericServerKeyVersions<AP> {
     V0(Deprecated<ServerKey>),
     V1(GenericServerKeyV1),
-    V2(GenericServerKey<AP>),
+    V2(GenericServerKeyV2<AP>),
+    V3(GenericServerKey<AP>),
 }
 
 impl<InputScalar: UnsignedInteger> Deprecable for ShortintCompressedBootstrappingKey<InputScalar> {
@@ -303,10 +340,10 @@ pub struct CompressedServerKeyV2 {
     pub pbs_order: PBSOrder,
 }
 
-impl Upgrade<CompressedServerKey> for CompressedServerKeyV2 {
+impl Upgrade<CompressedServerKeyV3> for CompressedServerKeyV2 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<CompressedServerKey, Self::Error> {
+    fn upgrade(self) -> Result<CompressedServerKeyV3, Self::Error> {
         let Self {
             key_switching_key,
             bootstrapping_key,
@@ -326,11 +363,42 @@ impl Upgrade<CompressedServerKey> for CompressedServerKeyV2 {
             ),
         );
 
-        Ok(CompressedServerKey {
+        Ok(CompressedServerKeyV3 {
             compressed_ap_server_key,
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
+        })
+    }
+}
+
+#[derive(Version)]
+pub struct CompressedServerKeyV3 {
+    compressed_ap_server_key: CompressedAtomicPatternServerKey,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    max_degree: MaxDegree,
+    max_noise_level: MaxNoiseLevel,
+}
+
+impl Upgrade<CompressedServerKey> for CompressedServerKeyV3 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedServerKey, Self::Error> {
+        let Self {
+            compressed_ap_server_key,
+            message_modulus,
+            carry_modulus,
+            // See GenericServerKeyV2: the max degree is derived from the moduli
+            max_degree: _,
+            max_noise_level,
+        } = self;
+
+        Ok(CompressedServerKey {
+            compressed_ap_server_key,
+            message_modulus,
+            carry_modulus,
             max_noise_level,
         })
     }
@@ -341,5 +409,6 @@ pub enum CompressedServerKeyVersions {
     V0(Deprecated<CompressedServerKey>),
     V1(Deprecated<CompressedServerKey>),
     V2(CompressedServerKeyV2),
-    V3(CompressedServerKey),
+    V3(CompressedServerKeyV3),
+    V4(CompressedServerKey),
 }

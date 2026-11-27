@@ -26,10 +26,7 @@ impl IntegerKeyCache {
     {
         let (client_key, server_key) = Self::get_shortint_keys(params);
 
-        (
-            client_key,
-            ServerKey::new_radix_server_key_from_shortint(server_key),
-        )
+        (client_key, ServerKey::from_raw_parts(server_key))
     }
 
     #[cfg(feature = "experimental")]

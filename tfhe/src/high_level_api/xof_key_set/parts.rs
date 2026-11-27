@@ -158,7 +158,6 @@ impl XofParts for integer::ServerKey {
                 .decompress_with_pre_seeded_generator(&mut gen),
             message_modulus: shortint_csk.message_modulus,
             carry_modulus: shortint_csk.carry_modulus,
-            max_degree: shortint_csk.max_degree,
             max_noise_level: shortint_csk.max_noise_level,
             ciphertext_modulus: shortint_csk.ciphertext_modulus(),
         };

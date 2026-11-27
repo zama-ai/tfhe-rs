@@ -251,7 +251,7 @@ where
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     let max_noise_level = sks.key.max_noise_level;
-    let max_degree = sks.key.max_degree;
+    let max_degree = sks.key.max_degree();
 
     executor.setup(&cks, sks);
 
@@ -307,7 +307,7 @@ where
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     let max_noise_level = sks.key.max_noise_level;
-    let max_degree = sks.key.max_degree;
+    let max_degree = sks.key.max_degree();
 
     executor.setup(&cks, sks);
 

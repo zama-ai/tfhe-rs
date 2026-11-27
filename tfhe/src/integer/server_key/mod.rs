@@ -48,25 +48,23 @@ impl From<ServerKey> for crate::shortint::ServerKey {
 }
 
 impl MaxDegree {
-    /// Compute the [`MaxDegree`] for an integer server key (compressed or uncompressed).
-    /// To allow carry propagation between shortint blocks in a
-    /// [`RadixCiphertext`](`crate::integer::RadixCiphertext`) (which includes adding the extracted
-    /// carry from one shortint block to the next block), this formula provisions space to add a
-    /// carry.
+    /// Maximum degree a block of a [`RadixCiphertext`](`crate::integer::RadixCiphertext`) can
+    /// have so that it can still receive the carry extracted from the preceding block during the
+    /// sequential carry propagation.
+    ///
+    /// That carry is at most `carry_modulus - 1`.
     ///
     /// # Panics
     ///
     /// Panics if either modulus is 0.
-    pub(crate) fn integer_radix_server_key(
+    pub(crate) fn before_sequential_carry_prop(
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
     ) -> Self {
-        let full_max_degree = Self::from_msg_carry_modulus(message_modulus, carry_modulus).get();
+        let full_max_degree = Self::from_msg_carry_modulus(message_modulus, carry_modulus);
+        let max_carry = carry_modulus.0 - 1;
 
-        let carry_max_degree = carry_modulus.0 - 1;
-
-        // We want to be have a margin to add a carry from another block
-        Self::new(full_max_degree - carry_max_degree)
+        Self::new(full_max_degree.get() - max_carry)
     }
 }
 
@@ -89,49 +87,8 @@ impl ServerKey {
     where
         C: AsRef<ClientKey>,
     {
-        // It should remain just enough space to add a carry
-        let client_key = cks.as_ref();
-        let max_degree = MaxDegree::integer_radix_server_key(
-            client_key.key.parameters().message_modulus(),
-            client_key.key.parameters().carry_modulus(),
-        );
+        let key = crate::shortint::server_key::ServerKey::new(&cks.as_ref().key);
 
-        let sks = crate::shortint::server_key::ServerKey::new_with_max_degree(
-            &client_key.key,
-            max_degree,
-        );
-
-        Self { key: sks }
-    }
-
-    /// Creates a ServerKey destined to be used with
-    /// [`RadixCiphertext`](`crate::integer::RadixCiphertext`) from an already generated
-    /// shortint::ServerKey.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::integer::{ClientKey, ServerKey};
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
-    /// use tfhe::shortint::ServerKey as ShortintServerKey;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-    ///
-    /// // Generate the shortint server key:
-    /// let shortint_sks = ShortintServerKey::new(cks.as_ref());
-    ///
-    /// // Generate the server key:
-    /// let sks = ServerKey::new_radix_server_key_from_shortint(shortint_sks);
-    /// ```
-    pub fn new_radix_server_key_from_shortint(
-        mut key: crate::shortint::server_key::ServerKey,
-    ) -> Self {
-        // It should remain just enough space add a carry
-        let max_degree =
-            MaxDegree::integer_radix_server_key(key.message_modulus, key.carry_modulus);
-
-        key.max_degree = max_degree;
         Self { key }
     }
 
@@ -210,13 +167,7 @@ pub struct CompressedServerKey {
 
 impl CompressedServerKey {
     pub fn new_radix_compressed_server_key(client_key: &ClientKey) -> Self {
-        let max_degree = MaxDegree::integer_radix_server_key(
-            client_key.key.parameters().message_modulus(),
-            client_key.key.parameters().carry_modulus(),
-        );
-
-        let key =
-            crate::shortint::CompressedServerKey::new_with_max_degree(&client_key.key, max_degree);
+        let key = crate::shortint::CompressedServerKey::new(&client_key.key);
         Self { key }
     }
 
@@ -260,12 +211,7 @@ impl ParameterSetConformant for ServerKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
 
-        let expected_max_degree = MaxDegree::integer_radix_server_key(
-            parameter_set.message_modulus(),
-            parameter_set.carry_modulus(),
-        );
-
-        key.is_conformant(&(*parameter_set, expected_max_degree))
+        key.is_conformant(parameter_set)
     }
 }
 
@@ -275,71 +221,19 @@ impl ParameterSetConformant for CompressedServerKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
 
-        let expected_max_degree = MaxDegree::integer_radix_server_key(
-            parameter_set.message_modulus(),
-            parameter_set.carry_modulus(),
-        );
-
-        key.is_conformant(&(*parameter_set, expected_max_degree))
+        key.is_conformant(parameter_set)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::integer::RadixClientKey;
-    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2;
 
-    /// https://github.com/zama-ai/tfhe-rs/issues/460
-    /// Problem with CompressedServerKey degree being set to shortint MaxDegree not accounting for
-    /// the necessary carry bits for e.g. Radix carry propagation.
     #[test]
-    fn test_compressed_server_key_max_degree() {
-        {
-            let cks = ClientKey::new(
-                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            );
-            // msg_mod = 4, carry_mod = 4, (msg_mod * carry_mod - 1) - (carry_mod - 1) = 12
-            let expected_radix_max_degree = MaxDegree::new(12);
-
-            let sks = ServerKey::new_radix_server_key(&cks);
-            assert_eq!(sks.key.max_degree, expected_radix_max_degree);
-
-            let csks = CompressedServerKey::new_radix_compressed_server_key(&cks);
-            assert_eq!(csks.key.max_degree, expected_radix_max_degree);
-
-            let decompressed_sks: ServerKey = csks.decompress();
-            assert_eq!(decompressed_sks.key.max_degree, expected_radix_max_degree);
-        }
-
-        #[cfg(feature = "experimental")]
-        {
-            let cks = ClientKey::new(
-                crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            );
-            // msg_mod = 4, carry_mod = 4, msg_mod * carrymod - 1 = 15
-            let expected_crt_max_degree = MaxDegree::new(15);
-
-            let sks = CrtServerKey::new(&cks);
-            assert_eq!(sks.key.max_degree, expected_crt_max_degree);
-        }
-
-        // Repro case from the user
-        {
-            let client_key = RadixClientKey::new(PARAM_MESSAGE_2_CARRY_2, 14);
-            let compressed_eval_key =
-                CompressedServerKey::new_radix_compressed_server_key(client_key.as_ref());
-            let evaluation_key = compressed_eval_key.decompress();
-            let modulus = (client_key.parameters().message_modulus().0 as u128)
-                .pow(client_key.num_blocks() as u32);
-
-            let ct = client_key.encrypt(modulus - 1);
-            let mut res_ct = ct.clone();
-            for _ in 0..5 {
-                res_ct = evaluation_key.add_parallelized(&res_ct, &ct);
-            }
-            let res: u128 = client_key.decrypt(&res_ct);
-            assert_eq!(modulus - 6, res);
-        }
+    fn test_max_degree_before_sequential_carry_prop() {
+        // msg_mod = 4, carry_mod = 4, (msg_mod * carry_mod - 1) - (carry_mod - 1) = 12
+        let max_degree =
+            MaxDegree::before_sequential_carry_prop(MessageModulus(4), CarryModulus(4));
+        assert_eq!(max_degree.get(), 12);
     }
 }

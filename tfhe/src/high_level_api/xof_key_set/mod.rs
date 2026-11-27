@@ -34,7 +34,6 @@ use tfhe_csprng::generators::aes_ctr::{AesCtrParams, TableIndex};
 
 use crate::core_crypto::commons::generators::NoiseRandomGenerator;
 use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
-use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use tfhe_csprng::seeders::XofSeed;
 use tfhe_versionable::Versionize;
@@ -250,17 +249,11 @@ impl CompressedXofKeySet {
                     &mut encryption_rand_gen,
                 );
 
-            let max_degree = MaxDegree::integer_radix_server_key(
-                computation_parameters.message_modulus(),
-                computation_parameters.carry_modulus(),
-            );
-
             integer::CompressedServerKey::from_raw_parts(
                 shortint::CompressedServerKey::from_raw_parts(
                     compressed_ap_server_key,
                     computation_parameters.message_modulus(),
                     computation_parameters.carry_modulus(),
-                    max_degree,
                     computation_parameters.max_noise_level(),
                 ),
             )
