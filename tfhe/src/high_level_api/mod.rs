@@ -24,29 +24,6 @@ macro_rules! expand_pub_use_fhe_type(
     }
 );
 
-macro_rules! export_concrete_array_types {
-    (
-        pub use $module_path:path { $($fhe_type_name:ident),* $(,)? };
-
-    ) => {
-          ::paste::paste! {
-            pub use $module_path::{
-                $(
-                    // DynBackend
-                    [<$fhe_type_name Array>],
-                    [<$fhe_type_name Slice>],
-                    [<$fhe_type_name SliceMut>],
-
-                    // CpuBackend
-                    [<Cpu $fhe_type_name Array>],
-                    [<Cpu $fhe_type_name Slice>],
-                    [<Cpu $fhe_type_name SliceMut>],
-                )*
-            };
-        }
-    };
-}
-
 pub use crate::core_crypto::commons::math::random::{Seed, Seeder, XofSeed};
 pub use crate::high_level_api::integers::oprf::RangeForRandom;
 pub use crate::high_level_api::integers::shuffle::{
@@ -115,18 +92,9 @@ expand_pub_use_fhe_type!(
         FheInt64, FheInt128, FheInt160, FheInt256, FheInt512, FheInt1024, FheInt2048,
     };
 );
-pub use array::{
-    fhe_array_contains, ClearArray, CpuFheIntArray, CpuFheIntSlice, CpuFheIntSliceMut,
-    CpuFheUintArray, CpuFheUintSlice, CpuFheUintSliceMut, FheBoolId, FheIntArray, FheIntSlice,
-    FheIntSliceMut, FheUintArray, FheUintSlice, FheUintSliceMut,
-};
-export_concrete_array_types!(
-    pub use array{
-        FheBool,
-        FheUint2, FheUint4, FheUint8, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
-        FheInt2, FheInt4, FheInt8, FheInt16, FheInt32, FheInt64, FheInt128, FheInt256,
-    };
-);
+pub use integers::slice_ops::fhe_array_contains;
+#[cfg(feature = "high-level-c-api")]
+pub(crate) use integers::slice_ops::{fhe_uint_array_contains_sub_slice, fhe_uint_array_eq};
 
 pub use crate::integer::parameters::CompactCiphertextListConformanceParams;
 pub use crate::integer::transciphering::{
@@ -192,7 +160,6 @@ mod utils;
 #[cfg(feature = "gpu")]
 mod gpu_utils;
 
-pub mod array;
 pub mod backward_compatibility;
 pub(crate) mod compact_list;
 mod kv_store;

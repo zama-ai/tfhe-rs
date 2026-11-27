@@ -584,7 +584,7 @@ where
     /// assert!(decrypted);
     /// ```
     pub fn contains(cts: &[Self], value: &Self) -> FheBool {
-        crate::high_level_api::array::fhe_array_contains(cts, value)
+        crate::high_level_api::integers::slice_ops::fhe_array_contains(cts, value)
     }
 
     /// Returns the number of leading zeros in the binary representation of self.

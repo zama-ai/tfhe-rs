@@ -41,14 +41,14 @@ macro_rules! impl_array_fn {
 
 impl_array_fn!(
     name: array_eq,
-    inner_func: crate::high_level_api::array::fhe_uint_array_eq,
+    inner_func: crate::high_level_api::fhe_uint_array_eq,
     output_type_name: FheBool,
     type_name: FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
 );
 
 impl_array_fn!(
     name: array_contains_sub_slice,
-    inner_func: crate::high_level_api::array::fhe_uint_array_contains_sub_slice,
+    inner_func: crate::high_level_api::fhe_uint_array_contains_sub_slice,
     output_type_name: FheBool,
     type_name: FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint256,
 );

@@ -45,6 +45,7 @@ pub use unsigned::{CompressedFheUint, FheUint, FheUintId, SquashedNoiseFheUint};
 pub mod oprf;
 pub mod shuffle;
 pub(super) mod signed;
+pub(super) mod slice_ops;
 pub(super) mod unsigned;
 
 /// Trait to mark ID type for integers
