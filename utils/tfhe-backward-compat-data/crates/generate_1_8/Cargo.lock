@@ -255,6 +255,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd6a120d2e16b3e1b4a24bd70f23b12d3e16b81f113364a26935f8db7245452d"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1389,7 +1395,7 @@ version = "1.8.0"
 source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
  "aligned-vec",
- "bincode",
+ "bincode 1.3.3",
  "blake3",
  "bytemuck",
  "dyn-stack",
@@ -1413,7 +1419,7 @@ dependencies = [
 name = "tfhe-backward-compat-data"
 version = "0.9.0"
 dependencies = [
- "bincode",
+ "bincode 3.0.0",
  "ciborium",
  "clap",
  "ron",
@@ -1464,7 +1470,7 @@ name = "tfhe-safe-serialize"
 version = "0.1.1"
 source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.8.0#ab8ba567443002718a98c16899e5578698be8778"
 dependencies = [
- "bincode",
+ "bincode 1.3.3",
  "serde",
  "tfhe-versionable",
 ]
