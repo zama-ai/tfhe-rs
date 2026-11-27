@@ -2602,6 +2602,12 @@ gen_key_cache:
 		--features=shortint,experimental,internal-keycache -p tfhe \
 		-- $(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
 
+.PHONY: gen_key_cache_boolean # Run the script to generate keys and cache them for boolean tests
+gen_key_cache_boolean:
+	RUSTFLAGS="$(RUSTFLAGS)" cargo run --profile $(CARGO_PROFILE) \
+		--example generates_test_keys \
+		--features=boolean,internal-keycache -p tfhe-experimental
+
 .PHONY: gen_key_cache_core_crypto # Run function to generate keys and cache them for core_crypto tests
 gen_key_cache_core_crypto:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --tests --profile $(CARGO_PROFILE) \

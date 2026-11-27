@@ -29,6 +29,10 @@ avx512 = ["tfhe/avx512"]
 boolean = ["dep:rayon"]
 internal-keycache = ["tfhe/internal-keycache", "dep:paste"]
 
+[[example]]
+name = "generates_test_keys"
+required-features = ["boolean", "internal-keycache"]
+
 [package.metadata.docs.rs]
 all-features = true
 

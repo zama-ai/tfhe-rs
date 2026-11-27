@@ -53,6 +53,7 @@ jobs:
         run: |
           make GEN_KEY_CACHE_COVERAGE_ONLY=TRUE gen_key_cache
           make gen_key_cache_core_crypto
+          make gen_key_cache_boolean
 
       - name: Run coverage for core_crypto
         if: steps.changed-files.outputs.tfhe_any_changed == 'true'
