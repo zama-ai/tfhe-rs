@@ -44,6 +44,7 @@ jobs:
           files_yaml: |
             tfhe:
               - tfhe/src/**
+              - tfhe-experimental/**
             tfhe_csprng:
               - tfhe-csprng/src/**
 
