@@ -4,8 +4,8 @@
 use std::path::PathBuf;
 
 use benchmark_spec::tfhe::TfheLayerKind;
-use chrono::NaiveDateTime;
 use clap::{ArgGroup, Parser, ValueEnum};
+use jiff::civil::DateTime;
 
 use crate::archive;
 use crate::db::{self, PbsKind};
@@ -104,8 +104,8 @@ pub const BENCH_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
 
 /// Rejects a malformed `--bench-date` here rather than leaving it to PostgreSQL
 /// once the connection is open.
-fn parse_bench_date(s: &str) -> Result<NaiveDateTime, String> {
-    NaiveDateTime::parse_from_str(s, BENCH_DATE_FORMAT)
+fn parse_bench_date(s: &str) -> Result<DateTime, String> {
+    DateTime::strptime(BENCH_DATE_FORMAT, s)
         .map_err(|e| format!("expected an ISO 8601 YYYY-MM-DDThh:mm:ss timestamp: {e}"))
 }
 
@@ -201,7 +201,7 @@ pub struct Args {
     /// Last insertion date to look for in the database, formatted as ISO 8601
     /// timestamp YYYY-MM-DDThh:mm:ss. Defaults to now when omitted.
     #[arg(long = "bench-date", value_parser = parse_bench_date)]
-    pub bench_date: Option<NaiveDateTime>,
+    pub bench_date: Option<DateTime>,
 
     /// Name of the database used to store results.
     #[arg(short, long, default_value = "tfhe_rs")]
