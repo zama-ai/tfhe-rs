@@ -38,6 +38,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # Breaking bumps, which for cargo include 0.x -> 0.y: one PR per
+      # dependency across all directories instead of one per directory
+      cargo-major:
+        applies-to: version-updates
+        group-by: dependency-name
+        update-types:
+          - "major"
 
   - package-ecosystem: "npm"
     directories:
@@ -58,6 +65,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      npm-major:
+        applies-to: version-updates
+        group-by: dependency-name
+        update-types:
+          - "major"
 
   # Python requirements lock files (*requirements.txt) are generated from their
   # *requirements.in sources by uv, see scripts/python_requirements.sh, hence the uv
@@ -89,3 +101,8 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      python-major:
+        applies-to: version-updates
+        group-by: dependency-name
+        update-types:
+          - "major"
