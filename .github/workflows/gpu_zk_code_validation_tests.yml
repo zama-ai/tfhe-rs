@@ -14,6 +14,9 @@ env:
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
+  schedule:
+    # Every Wednesday at midnight Paris time (winter time, 1a.m. in summer time)
+    - cron: "0 23 * * 3"
 
 permissions:
   contents: read
