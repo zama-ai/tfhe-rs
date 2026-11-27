@@ -1,6 +1,6 @@
 use rayon::prelude::*;
 
-use crate::shortint::{Ciphertext, MaxNoiseLevel, MessageModulus, ServerKey};
+use crate::shortint::{CarryModulus, Ciphertext, MaxNoiseLevel, MessageModulus, ServerKey};
 use crate::transciphering::{
     FheKeyStream, KeyStreamLayout, StreamCiphertext, TranscipheringOutputLayout,
 };
@@ -31,19 +31,13 @@ pub fn apply_keystream(
     input: &StreamCiphertext,
     output_layout: &TranscipheringOutputLayout,
 ) -> Result<Vec<Ciphertext>, TranscipherError> {
-    if !keystream
-        .layout
-        .can_fit(sks.message_modulus, sks.carry_modulus)
-    {
-        return Err(TranscipherError::InvalidKeystream);
-    }
-
     let plan = StreamApplicationPlan::try_new(
         &keystream.layout,
         keystream.len(),
         input,
         output_layout,
         sks.message_modulus,
+        sks.carry_modulus,
         sks.max_noise_level,
     )?;
 
@@ -52,18 +46,18 @@ pub fn apply_keystream(
 
 /// Contribution of one keystream ct to one output ct
 #[derive(Clone, Debug, PartialEq)]
-struct Contribution {
+pub(crate) struct Contribution {
     /// The index of the stream ct of this contribution in the keystream
-    stream_ct_idx: usize,
+    pub(crate) stream_ct_idx: usize,
     /// The starting bit position of this contribution in the keystream ct
-    src_bit_pos: usize,
+    pub(crate) src_bit_pos: usize,
     /// The starting bit position of this contribution in the output ct
-    dst_bit_pos: usize,
+    pub(crate) dst_bit_pos: usize,
     /// The number of bits that will be applied by this contribution
-    len: usize,
+    pub(crate) len: usize,
     /// The "FHE clear" user input bits for this contribution, that will be
     /// xor'ed with the keystream.
-    input_bits: u64,
+    pub(crate) input_bits: u64,
 }
 
 impl Contribution {
@@ -114,11 +108,16 @@ impl Contribution {
 /// - several contributions: pack the keystream cts with a linear combination, then xor with the
 ///   user input
 #[derive(Debug, PartialEq)]
-struct StreamApplicationPlan {
+pub(crate) struct StreamApplicationPlan {
     contribs: Vec<Vec<Contribution>>,
 }
 
 impl StreamApplicationPlan {
+    #[cfg(feature = "gpu")]
+    pub(crate) fn contribs(&self) -> &[Vec<Contribution>] {
+        &self.contribs
+    }
+
     /// Build a plan from the keystream and output layouts.
     //
     // The algorithm loops over the entries in the output layout:
@@ -182,14 +181,19 @@ impl StreamApplicationPlan {
     //     - keystream_bit_pos = 4:
     //       - stream_ct_idx = 4, src_bit_pos = 0, dst_bit_pos = 1, len = 1
     //     => the block is built from c3 bits 0..1 and c4 bits 0..1 (2 Contributions)
-    fn try_new(
+    pub(crate) fn try_new(
         stream_layout: &KeyStreamLayout,
         ct_count: usize,
         user_input: &StreamCiphertext,
         output_layout: &TranscipheringOutputLayout,
         message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
         max_noise_level: MaxNoiseLevel,
     ) -> Result<Self, TranscipherError> {
+        if !stream_layout.can_fit(message_modulus, carry_modulus) {
+            return Err(TranscipherError::InvalidKeystream);
+        }
+
         let n_bits = user_input.n_bits;
         let bits_per_ct = usize::from(stream_layout.bits_per_ct.get());
 

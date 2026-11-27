@@ -579,6 +579,42 @@ const _: () = {
     ["Offset of field: CudaPackedGlweCiphertextListFFI::polynomial_size"]
         [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, polynomial_size) - 24usize];
 };
+#[doc = " @brief A run of bits that one output block takes from one keystream block,\n with the clear bits to XOR it with.\n\n Both examples have a message modulus of 4. An integer block holds 2 bits, a\n boolean block holds 1.\n\n Example with OTP OPRF, 2 bits per keystream block. The client sent a 4 bit\n integer then a boolean, each padded to a byte (the dots):\n\n     keystream blocks   [k0][k1][k2][k3][k4][k5][k6][k7]\n     clear input bits    1 1 0 0........ 1..............\n     output blocks      [o0][o1]........o2..............\n\n     output   keystream   src_bit_pos   dst_bit_pos   len   input_bits\n     o0       k0          0             0             2     3\n     o1       k1          0             0             2     0\n     o2       k4          0             0             1     1\n\n Example with Kreyvium, 1 bit per keystream block. The client sent a 64 bit\n integer, these are its first 4 bits:\n\n     keystream blocks   [k0][k1][k2][k3] ...\n     clear input bits     1   0   0   1  ...\n     output blocks      [  o0  ][  o1  ] ...\n\n     output   keystream   src_bit_pos   dst_bit_pos   len   input_bits\n     o0       k0          0             0             1     1\n     o0       k1          0             1             1     0\n     o1       k2          0             0             1     0\n     o1       k3          0             1             1     1\n\n int_apply_keystream_buffer shows what the backend does with them."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaKeystreamContributionFFI {
+    #[doc = " Clear bits to XOR with this run, the first one in bit 0"]
+    pub input_bits: u64,
+    #[doc = " Output block that receives the run"]
+    pub output_block_index: u32,
+    #[doc = " Keystream block that holds the run"]
+    pub keystream_block_index: u32,
+    #[doc = " First bit of the run in the keystream block"]
+    pub src_bit_pos: u32,
+    #[doc = " First bit of the run in the output block"]
+    pub dst_bit_pos: u32,
+    #[doc = " Number of bits of the run"]
+    pub len: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaKeystreamContributionFFI"]
+        [::std::mem::size_of::<CudaKeystreamContributionFFI>() - 32usize];
+    ["Alignment of CudaKeystreamContributionFFI"]
+        [::std::mem::align_of::<CudaKeystreamContributionFFI>() - 8usize];
+    ["Offset of field: CudaKeystreamContributionFFI::input_bits"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, input_bits) - 0usize];
+    ["Offset of field: CudaKeystreamContributionFFI::output_block_index"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, output_block_index) - 8usize];
+    ["Offset of field: CudaKeystreamContributionFFI::keystream_block_index"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, keystream_block_index) - 12usize];
+    ["Offset of field: CudaKeystreamContributionFFI::src_bit_pos"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, src_bit_pos) - 16usize];
+    ["Offset of field: CudaKeystreamContributionFFI::dst_bit_pos"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, dst_bit_pos) - 20usize];
+    ["Offset of field: CudaKeystreamContributionFFI::len"]
+        [::std::mem::offset_of!(CudaKeystreamContributionFFI, len) - 24usize];
+};
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_64_async(
         streams: CudaStreamsFFI,
@@ -2367,6 +2403,33 @@ unsafe extern "C" {
         streams: CudaStreamsFFI,
         mem_ptr_void: *mut *mut i8,
     );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_apply_keystream_64_async(
+        streams: CudaStreamsFFI,
+        mem_ptr: *mut *mut i8,
+        bsk_params: CudaLweBootstrapKeyParamsFFI,
+        ksk_params: CudaLweKeyswitchKeyParamsFFI,
+        contributions: *const CudaKeystreamContributionFFI,
+        num_contributions: u32,
+        num_output_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_apply_keystream_64_async(
+        streams: CudaStreamsFFI,
+        output: *mut CudaRadixCiphertextFFI,
+        keystream: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_apply_keystream_64(streams: CudaStreamsFFI, mem_ptr_void: *mut *mut i8);
 }
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64_async(

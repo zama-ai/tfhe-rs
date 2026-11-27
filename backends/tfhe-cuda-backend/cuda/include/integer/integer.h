@@ -112,6 +112,53 @@ typedef struct {
   uint32_t polynomial_size;
 } CudaPackedGlweCiphertextListFFI;
 
+/// @brief A run of bits that one output block takes from one keystream block,
+/// with the clear bits to XOR it with.
+///
+/// Both examples have a message modulus of 4. An integer block holds 2 bits, a
+/// boolean block holds 1.
+///
+/// Example with OTP OPRF, 2 bits per keystream block. The client sent a 4 bit
+/// integer then a boolean, each padded to a byte (the dots):
+///
+///     keystream blocks   [k0][k1][k2][k3][k4][k5][k6][k7]
+///     clear input bits    1 1 0 0........ 1..............
+///     output blocks      [o0][o1]........o2..............
+///
+///     output   keystream   src_bit_pos   dst_bit_pos   len   input_bits
+///     o0       k0          0             0             2     3
+///     o1       k1          0             0             2     0
+///     o2       k4          0             0             1     1
+///
+/// Example with Kreyvium, 1 bit per keystream block. The client sent a 64 bit
+/// integer, these are its first 4 bits:
+///
+///     keystream blocks   [k0][k1][k2][k3] ...
+///     clear input bits     1   0   0   1  ...
+///     output blocks      [  o0  ][  o1  ] ...
+///
+///     output   keystream   src_bit_pos   dst_bit_pos   len   input_bits
+///     o0       k0          0             0             1     1
+///     o0       k1          0             1             1     0
+///     o1       k2          0             0             1     0
+///     o1       k3          0             1             1     1
+///
+/// int_apply_keystream_buffer shows what the backend does with them.
+typedef struct {
+  /// Clear bits to XOR with this run, the first one in bit 0
+  uint64_t input_bits;
+  /// Output block that receives the run
+  uint32_t output_block_index;
+  /// Keystream block that holds the run
+  uint32_t keystream_block_index;
+  /// First bit of the run in the keystream block
+  uint32_t src_bit_pos;
+  /// First bit of the run in the output block
+  uint32_t dst_bit_pos;
+  /// Number of bits of the run
+  uint32_t len;
+} CudaKeystreamContributionFFI;
+
 uint64_t scratch_cuda_apply_univariate_lut_64_async(
     CudaStreamsFFI streams, int8_t **mem_ptr, void const *input_lut,
     CudaLweBootstrapKeyParamsFFI bsk_params,
@@ -1054,6 +1101,23 @@ void cuda_integer_oprf_bitonic_shuffle_64_async(
 
 void cleanup_cuda_integer_oprf_bitonic_shuffle_64(CudaStreamsFFI streams,
                                                   int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_apply_keystream_64_async(
+    CudaStreamsFFI streams, int8_t **mem_ptr,
+    CudaLweBootstrapKeyParamsFFI bsk_params,
+    CudaLweKeyswitchKeyParamsFFI ksk_params,
+    CudaKeystreamContributionFFI const *contributions,
+    uint32_t num_contributions, uint32_t num_output_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, bool allocate_gpu_memory);
+
+void cuda_apply_keystream_64_async(CudaStreamsFFI streams,
+                                   CudaRadixCiphertextFFI *output,
+                                   CudaRadixCiphertextFFI const *keystream,
+                                   int8_t *mem_ptr, void *const *bsks,
+                                   void *const *ksks);
+
+void cleanup_cuda_apply_keystream_64(CudaStreamsFFI streams,
+                                     int8_t **mem_ptr_void);
 } // extern C
 
 #endif // CUDA_INTEGER_H
