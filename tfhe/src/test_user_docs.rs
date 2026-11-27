@@ -64,6 +64,10 @@ mod test_cpu_doc {
         "../docs/fhe-computation/advanced-features/rerand.md",
         advanced_rerand
     );
+    doctest!(
+        "../docs/fhe-computation/advanced-features/transciphering.md",
+        advanced_transciphering
+    );
 
     // COMPUTE
     doctest!(
