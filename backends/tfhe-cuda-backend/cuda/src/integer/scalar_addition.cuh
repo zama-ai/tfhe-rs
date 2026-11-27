@@ -134,5 +134,11 @@ __host__ void host_scalar_subtraction_inplace(
           (Torus *)lwe_array->ptr, scalar_input, input_lwe_ciphertext_count,
           lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
+  // Raw subtraction without correcting term: the result may wrap into the
+  // padding bit, so set the worst case degree as host_subtraction does. The
+  // scalar is a plaintext, so the noise level is unchanged.
+  for (uint32_t i = 0; i < input_lwe_ciphertext_count; i++) {
+    lwe_array->degrees[i] = carry_modulus * message_modulus * 2 - 1;
+  }
 }
 #endif
