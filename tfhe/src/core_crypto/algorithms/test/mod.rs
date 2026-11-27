@@ -4,7 +4,6 @@ use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
 pub(crate) use params::*;
-use std::fmt::Debug;
 
 mod bootstrap_key_conformance;
 mod ggsw_encryption;
@@ -19,7 +18,7 @@ mod lwe_keyswitch_key_generation;
 mod lwe_linear_algebra;
 mod lwe_multi_bit_bootstrap_key_generation;
 pub(crate) mod lwe_multi_bit_programmable_bootstrapping;
-mod lwe_packing_keyswitch;
+pub(crate) mod lwe_packing_keyswitch;
 mod lwe_packing_keyswitch_key_generation;
 mod lwe_private_functional_packing_keyswitch;
 pub(crate) mod lwe_programmable_bootstrapping;
@@ -490,20 +489,14 @@ pub fn round_decode<Scalar: UnsignedInteger>(decrypted: Scalar, delta: Scalar) -
     divide_round(decrypted, delta)
 }
 
-pub(crate) fn gen_keys_or_get_from_cache_if_enabled<
-    P: Debug + KeyCacheAccess<Keys = K> + serde::Serialize + serde::de::DeserializeOwned,
-    K: serde::de::DeserializeOwned + serde::Serialize + Clone,
->(
-    params: P,
-    keygen_func: &mut dyn FnMut(P) -> K,
-) -> K {
+pub(crate) fn gen_keys_or_get_from_cache_if_enabled<P: KeyCacheAccess>(params: P) -> P::Keys {
     #[cfg(feature = "internal-keycache")]
     {
-        crate::core_crypto::keycache::KEY_CACHE.get_key_with_closure(params, keygen_func)
+        crate::core_crypto::keycache::KEY_CACHE.get_key(params)
     }
     #[cfg(not(feature = "internal-keycache"))]
     {
-        keygen_func(params)
+        <P::Keys as crate::keycache::GenerateKeyFromParams<P>>::generate_key_from_params(params)
     }
 }
 

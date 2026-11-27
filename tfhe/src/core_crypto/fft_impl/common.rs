@@ -143,8 +143,7 @@ pub mod tests {
 
         let fft = K::new_fft(polynomial_size);
 
-        let mut keys_gen = |params| generate_keys(params, &mut rsc);
-        let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+        let keys = gen_keys_or_get_from_cache_if_enabled(params);
         let (std_bootstrapping_key, small_lwe_sk, big_lwe_sk) =
             (keys.bsk, keys.small_lwe_sk, keys.big_lwe_sk);
 

@@ -9,7 +9,7 @@ mod lwe_multi_bit_programmable_bootstrapping;
 mod lwe_multi_bit_programmable_bootstrapping_128;
 mod lwe_packing_keyswitch;
 mod lwe_programmable_bootstrapping;
-mod lwe_programmable_bootstrapping_128;
+pub(crate) mod lwe_programmable_bootstrapping_128;
 mod modulus_switch;
 mod noise_distribution;
 mod params;

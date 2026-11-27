@@ -7,7 +7,7 @@ use crate::keycache::*;
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
-use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
+use crate::shortint::{gen_keys, ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
 
 named_params_impl!( AtomicPatternParameters =>
@@ -174,11 +174,9 @@ named_params_impl!( NoiseSquashingCompressionParameters =>
     V1_9_NOISE_SQUASHING_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 );
 
-impl From<AtomicPatternParameters> for (ClientKey, ServerKey) {
-    fn from(param: AtomicPatternParameters) -> Self {
-        let cks = ClientKey::new(param);
-        let sks = ServerKey::new(&cks);
-        (cks, sks)
+impl GenerateKeyFromParams<AtomicPatternParameters> for (ClientKey, ServerKey) {
+    fn generate_key_from_params(params: AtomicPatternParameters) -> Self {
+        gen_keys(params)
     }
 }
 
@@ -270,6 +268,19 @@ impl NamedParam for KeySwitchingKeyParams {
     }
 }
 
+impl GenerateKeyFromParams<KeySwitchingKeyParams> for KeySwitchingKey {
+    fn generate_key_from_params(params: KeySwitchingKeyParams) -> Self {
+        // The KSK is only valid with the shortint keys stored in KEY_CACHE for the same parameters
+        let key_1 = KEY_CACHE.get_from_param(params.0);
+        let key_2 = KEY_CACHE.get_from_param(params.1);
+        Self::new(
+            (key_1.client_key(), Some(key_1.server_key())),
+            (key_2.client_key(), key_2.server_key()),
+            params.2,
+        )
+    }
+}
+
 /// The KeyCache struct for shortint.
 ///
 /// You should not create an instance yourself,
@@ -294,13 +305,7 @@ impl KeycacheKeySwitchingKey {
         let params = params.into();
         let key_1 = KEY_CACHE.get_from_param(params.0);
         let key_2 = KEY_CACHE.get_from_param(params.1);
-        let ksk = self.inner.get_with_closure(params, &mut |_| {
-            KeySwitchingKey::new(
-                (key_1.client_key(), Some(key_1.server_key())),
-                (key_2.client_key(), key_2.server_key()),
-                params.2,
-            )
-        });
+        let ksk = self.inner.get(params);
         SharedKeySwitchingKey {
             inner_1: key_1.inner,
             inner_2: key_2.inner,
