@@ -285,7 +285,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "367c9c827ed431bff6868b7aa926e05b16eb46603cc8b6e768e4a5553fa1d155"
 dependencies = [
  "num-traits",
- "rand 0.8.6",
+ "rand 0.8.8",
  "rayon",
 ]
 
@@ -1916,7 +1916,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "mio",
- "rand 0.8.6",
+ "rand 0.8.8",
  "serde",
  "tempfile",
  "uuid",
@@ -2492,7 +2492,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c80231409c20246a13fddb31776fb942c38553c51e871f8cbd687a4cfb5843d"
 dependencies = [
  "phf_shared",
- "rand 0.8.6",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -2696,9 +2696,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.8.6"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ca0ecfa931c29007047d1bc58e623ab12e5590e8c7cc53200d5202b69266d8a"
+checksum = "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
 dependencies = [
  "libc",
  "rand_chacha",
@@ -2748,7 +2748,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
 dependencies = [
  "num-traits",
- "rand 0.8.6",
+ "rand 0.8.8",
 ]
 
 [[package]]
@@ -3382,7 +3382,7 @@ dependencies = [
  "md-5",
  "memchr",
  "once_cell",
- "rand 0.8.6",
+ "rand 0.8.8",
  "serde",
  "serde_json",
  "sha2",
@@ -3547,7 +3547,7 @@ dependencies = [
  "percent-encoding",
  "pest",
  "pest_derive",
- "rand 0.8.6",
+ "rand 0.8.8",
  "regex",
  "serde",
  "serde_json",
@@ -3602,7 +3602,7 @@ name = "tests"
 version = "0.1.0"
 dependencies = [
  "cargo_toml",
- "rand 0.8.6",
+ "rand 0.10.1",
  "semver",
  "tfhe",
  "tfhe-backward-compat-data",
@@ -3637,7 +3637,7 @@ dependencies = [
  "num-bigint 0.5.1",
  "paste",
  "pulp",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rand_core 0.6.4",
  "rand_distr",
  "rayon",
@@ -3703,7 +3703,7 @@ dependencies = [
  "libc",
  "num_cpus",
  "paste",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rayon",
  "serde",
  "serde_json",
@@ -3735,7 +3735,7 @@ dependencies = [
  "ctr",
  "getrandom 0.2.17",
  "libc",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rayon",
  "serde",
  "tfhe-versionable",
@@ -3789,7 +3789,7 @@ dependencies = [
  "more-asserts",
  "num-complex",
  "pulp",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rug",
  "rustfft",
  "serde",
@@ -3844,7 +3844,7 @@ dependencies = [
  "bytemuck",
  "criterion",
  "pulp",
- "rand 0.8.6",
+ "rand 0.10.1",
  "serde",
  "serde_json",
 ]
@@ -3906,7 +3906,7 @@ dependencies = [
  "getrandom 0.2.17",
  "itertools 0.15.0",
  "num-bigint 0.5.1",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rayon",
  "serde",
  "serde_json",
@@ -4572,7 +4572,7 @@ dependencies = [
  "ark-ff",
  "console_error_panic_hook",
  "getrandom 0.2.17",
- "rand 0.8.6",
+ "rand 0.10.1",
  "serde",
  "serde-wasm-bindgen",
  "wasm-bindgen",
