@@ -243,6 +243,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd6a120d2e16b3e1b4a24bd70f23b12d3e16b81f113364a26935f8db7245452d"
+
+[[package]]
 name = "bitflags"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -899,7 +905,7 @@ version = "1.3.0"
 source = "git+https://github.com/zama-ai/tfhe-rs.git?tag=tfhe-rs-1.3.0#187159d9f936a322508ae1a8a2659b6f42fcd8f6"
 dependencies = [
  "aligned-vec",
- "bincode",
+ "bincode 1.3.3",
  "bytemuck",
  "dyn-stack",
  "itertools 0.14.0",
@@ -921,7 +927,7 @@ dependencies = [
 name = "tfhe-backward-compat-data"
 version = "0.9.0"
 dependencies = [
- "bincode",
+ "bincode 3.0.0",
  "ciborium",
  "clap",
  "ron",
