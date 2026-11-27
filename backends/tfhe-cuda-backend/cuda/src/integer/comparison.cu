@@ -102,9 +102,6 @@ void cuda_integer_comparison_64_async(CudaStreamsFFI streams,
   case GE:
   case LT:
   case LE:
-    if (num_radix_blocks % 2 != 0)
-      PANIC("Cuda error (comparisons): the number of radix blocks has to be "
-            "even.")
     if (buffer->use_borrow_fast_path) {
       // The borrow-propagation path computes `left < right`. Express each op as
       // a `<` with the operands possibly swapped (the boolean inversion for
@@ -125,8 +122,6 @@ void cuda_integer_comparison_64_async(CudaStreamsFFI streams,
     break;
   case MAX:
   case MIN:
-    if (num_radix_blocks % 2 != 0)
-      PANIC("Cuda error (max/min): the number of radix blocks has to be even.")
     host_maxmin<uint64_t>(CudaStreams(streams), lwe_array_out, lwe_array_1,
                           lwe_array_2, buffer, bsks, (uint64_t **)(ksks),
                           num_radix_blocks);
