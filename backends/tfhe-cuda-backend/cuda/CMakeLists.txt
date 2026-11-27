@@ -81,7 +81,7 @@ else()
 endif()
 
 # Add OpenMP support
-find_package(OpenMP REQUIRED)
+find_package(OpenMP REQUIRED COMPONENTS CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")

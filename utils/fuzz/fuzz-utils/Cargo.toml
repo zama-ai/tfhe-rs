@@ -10,6 +10,8 @@ gpu = ["tfhe/gpu"]
 
 [dependencies]
 tfhe = { path = "../../../tfhe", features = ["integer", "zk-pok"] }
+
+[target.'cfg(fuzzing)'.dependencies]
 afl = "0.18.2"
 
 [lints.rust]

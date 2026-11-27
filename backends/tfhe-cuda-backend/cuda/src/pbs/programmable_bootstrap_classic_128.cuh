@@ -39,6 +39,18 @@ static_assert(pbs_fft_traits<__uint128_t>::coefficient_bytes == sizeof(f128x2),
   __launch_bounds__(512, 2)
 #endif
 
+// Launch bounds for the host-driven TBC 128 kernel: (., 2) keeps two blocks
+// per SM so the three published Fourier buffers fit in 96 KB of shared memory.
+// Dropped in debug builds (extra registers break the occupancy constraint) and
+// under TFHE_CUDA_FUZZING (synthetic small polynomial sizes fall outside what
+// the hint was tuned for and would otherwise fail to launch).
+#if defined(__CUDACC_DEBUG__) || defined(TFHE_CUDA_FUZZING)
+#define HOST_DRIVEN_TBC_128_LAUNCH_BOUNDS
+#else
+#define HOST_DRIVEN_TBC_128_LAUNCH_BOUNDS                                      \
+  __launch_bounds__(params::degree / params::opt, 2)
+#endif
+
 template <typename InputTorus, class params, sharedMemDegree SMD,
           bool first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
@@ -957,13 +969,13 @@ constexpr uint32_t PBS128_SNS_BASE_LOG = 24;
 template <typename InputTorus, class params, bool is_first_iter,
           bool is_last_iter, uint32_t base_log, uint32_t level_count,
           uint32_t glwe_dimension>
-__global__ void __launch_bounds__(params::degree / params::opt, 2)
-    device_programmable_bootstrap_host_driven_tbc_128(
-        __uint128_t *lwe_array_out, const __uint128_t *__restrict__ lut_vector,
-        const InputTorus *__restrict__ lwe_array_in,
-        const double *__restrict__ bootstrapping_key,
-        __uint128_t *global_accumulator, uint32_t lwe_iteration,
-        uint32_t lwe_dimension, PBS_MS_REDUCTION_T noise_reduction_type) {
+__global__ void HOST_DRIVEN_TBC_128_LAUNCH_BOUNDS
+device_programmable_bootstrap_host_driven_tbc_128(
+    __uint128_t *lwe_array_out, const __uint128_t *__restrict__ lut_vector,
+    const InputTorus *__restrict__ lwe_array_in,
+    const double *__restrict__ bootstrapping_key,
+    __uint128_t *global_accumulator, uint32_t lwe_iteration,
+    uint32_t lwe_dimension, PBS_MS_REDUCTION_T noise_reduction_type) {
   constexpr int half_degree = params::degree / 2;
   constexpr int fourier_poly_size = half_degree * 4;
   constexpr int stride = params::degree / params::opt;
