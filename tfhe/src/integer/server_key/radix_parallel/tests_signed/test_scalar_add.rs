@@ -4,10 +4,10 @@ use crate::integer::server_key::radix_parallel::test_harness::{
 };
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
-    narrow_scalar_cases, signed_add_under_modulus, MAX_NB_CTXT, NB_CTXT,
+    narrow_scalar_cases, signed_add_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::int::Int;
@@ -23,6 +23,7 @@ use std::sync::Arc;
 
 create_parameterized_test!(integer_signed_unchecked_scalar_add);
 create_parameterized_test!(integer_signed_default_scalar_add);
+create_parameterized_test!(integer_signed_default_scalar_add_narrow_i8);
 create_parameterized_test!(integer_signed_default_overflowing_scalar_add);
 create_parameterized_test!(integer_signed_default_overflowing_scalar_add_narrow_i8);
 
@@ -38,8 +39,48 @@ fn integer_signed_default_scalar_add<P>(param: P)
 where
     P: Into<TestParameters>,
 {
-    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_add_parallelized);
-    signed_default_scalar_add_test(param, executor);
+    let ctx = TestContext::from_env(param);
+    let mut executor = CpuFunctionExecutor::new(&ServerKey::scalar_add_parallelized);
+    executor.setup_with_server_key(ctx.server_key());
+    signed_default_scalar_add_test(&ctx, executor);
+}
+
+pub(crate) fn signed_default_scalar_add_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<(SignedRadixCiphertext, i64), SignedRadixCiphertext>,
+{
+    TestBuilder::new(ctx)
+        .fixed_cases(default_scalar_fixed_cases::<i64>)
+        .execute(executor, |(lhs, rhs): (Int, TestScalar<i64>)| {
+            // The scalar is reduced to the radix width
+            lhs.wrapping_add(rhs.cast(lhs.bits()))
+        });
+}
+
+fn integer_signed_default_scalar_add_narrow_i8<P>(param: P)
+where
+    P: Into<TestParameters>,
+{
+    let ctx = TestContext::from_env(param);
+    let mut executor =
+        CpuFunctionExecutor::new(&ServerKey::scalar_add_parallelized::<SignedRadixCiphertext, i8>);
+    executor.setup_with_server_key(ctx.server_key());
+    narrow_scalar_scalar_add_test(&ctx, executor);
+}
+
+/// Only the cases a scalar narrower than the radix adds, see [`narrow_scalar_cases`].
+pub(crate) fn narrow_scalar_scalar_add_test<E>(ctx: &TestContext, executor: E)
+where
+    E: ExecuteOn<(SignedRadixCiphertext, i8), SignedRadixCiphertext>,
+{
+    TestBuilder::new(ctx)
+        // Only fixed_cases: signed_default_scalar_add_test already draws random inputs,
+        // this test only adds the edges of a scalar narrower than the radix
+        .fixed_cases_only()
+        .fixed_cases(narrow_scalar_cases)
+        .execute(executor, |(lhs, rhs): (Int, TestScalar<i8>)| {
+            lhs.wrapping_add(rhs.cast(lhs.bits()))
+        });
 }
 
 fn integer_signed_default_overflowing_scalar_add<P>(param: P)
@@ -132,55 +173,5 @@ where
         let dec_res: i64 = cks.decrypt_signed(&ct_res);
         let clear_res = signed_add_under_modulus(clear_0, clear_1, modulus);
         assert_eq!(clear_res, dec_res);
-    }
-}
-
-pub(crate) fn signed_default_scalar_add_test<P, T>(param: P, mut executor: T)
-where
-    P: Into<TestParameters>,
-    T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
-{
-    let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    sks.set_deterministic_pbs_execution(true);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-    let sks = Arc::new(sks);
-
-    executor.setup(&cks, sks);
-
-    let cks: crate::integer::ClientKey = cks.into();
-
-    let mut clear;
-
-    let mut rng = rand::thread_rng();
-
-    for num_blocks in 1..MAX_NB_CTXT {
-        // message_modulus^vec_length
-        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
-
-        for _ in 0..nb_tests_smaller {
-            let clear_0 = rng.gen::<i64>() % modulus;
-            let clear_1 = rng.gen::<i64>() % modulus;
-
-            let ctxt_0 = cks.encrypt_signed_radix(clear_0, num_blocks);
-
-            let mut ct_res = executor.execute((&ctxt_0, clear_1));
-            assert!(ct_res.block_carries_are_empty());
-
-            clear = signed_add_under_modulus(clear_0, clear_1, modulus);
-
-            // add multiple times to raise the degree
-            for _ in 0..nb_tests_smaller {
-                let tmp = executor.execute((&ct_res, clear_1));
-                ct_res = executor.execute((&ct_res, clear_1));
-                assert!(ct_res.block_carries_are_empty());
-                assert_eq!(ct_res, tmp);
-                clear = signed_add_under_modulus(clear, clear_1, modulus);
-
-                let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
-                assert_eq!(clear, dec_res);
-            }
-        }
     }
 }
