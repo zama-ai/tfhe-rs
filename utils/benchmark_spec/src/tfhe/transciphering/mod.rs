@@ -4,6 +4,7 @@ use strum::{Display, EnumDiscriminants, EnumString};
 
 pub mod aes;
 pub mod kreyvium;
+pub mod one_time_pad;
 pub mod prince;
 pub mod trivium;
 
@@ -11,6 +12,7 @@ use crate::error::SpecParseError;
 use crate::traits::SpecNode;
 use aes::AesFlavor;
 use kreyvium::KreyviumFlavor;
+use one_time_pad::OneTimePadFlavor;
 use prince::PrinceFlavor;
 use trivium::TriviumFlavor;
 
@@ -26,6 +28,7 @@ pub enum TranscipheringBench {
     Aes256(AesFlavor),
     Kreyvium(KreyviumFlavor),
     FastKreyvium(KreyviumFlavor),
+    OneTimePad(OneTimePadFlavor),
     Prince(PrinceFlavor),
     Trivium(TriviumFlavor),
 }
@@ -37,6 +40,7 @@ impl SpecNode for TranscipheringBench {
             TranscipheringBench::Aes256(op) => op,
             TranscipheringBench::Kreyvium(op) => op,
             TranscipheringBench::FastKreyvium(op) => op,
+            TranscipheringBench::OneTimePad(op) => op,
             TranscipheringBench::Prince(op) => op,
             TranscipheringBench::Trivium(op) => op,
         })
@@ -55,6 +59,7 @@ impl FromStr for TranscipheringBench {
             TranscipheringBenchKind::Aes256 => Ok(Self::Aes256(rest.parse()?)),
             TranscipheringBenchKind::Kreyvium => Ok(Self::Kreyvium(rest.parse()?)),
             TranscipheringBenchKind::FastKreyvium => Ok(Self::FastKreyvium(rest.parse()?)),
+            TranscipheringBenchKind::OneTimePad => Ok(Self::OneTimePad(rest.parse()?)),
             TranscipheringBenchKind::Prince => Ok(Self::Prince(rest.parse()?)),
             TranscipheringBenchKind::Trivium => Ok(Self::Trivium(rest.parse()?)),
         }
