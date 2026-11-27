@@ -1,6 +1,7 @@
 {
   "name": "transciphering_wasm_x86_test",
   "version": "1.0.0",
+  "private": true,
   "description": "",
   "main": "index.js",
   "scripts": {

@@ -68,7 +68,7 @@ jobs:
     environment: release
     name: make_release_tfhe/make-release-js
     needs: make-release
-    if: ${{ always() && needs.make-release.result != 'failure' }}
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/') && needs.make-release.result != 'failure' }}
     runs-on: ubuntu-latest
     # For provenance of npmjs publish
     permissions:

@@ -152,7 +152,8 @@ jobs:
           persist-credentials: "false"
           fetch-depth: 0
           lfs: true
-          ref: antoniu/use-tfhe-main-benches
+          # Commit from 22nd June 2026
+          ref: a2764bdd66ea590ccc8eba8f4beb2648c010a335 # antoniu/use-tfhe-main-benches
           path: fhevm
 
       - name: Get benchmark details
@@ -262,7 +263,7 @@ jobs:
           cp ./host-contracts/.env.example ./host-contracts/.env
           cd ./host-contracts 
           npm ci --include=optional
-          npm install && npm run deploy:emptyProxies && npx hardhat compile
+          npm run deploy:emptyProxies && npx hardhat compile
         working-directory: fhevm/
 
       - name: Profile erc20 no-cmux benchmark on GPU
