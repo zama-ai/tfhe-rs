@@ -58,6 +58,7 @@
   * [Public key encryption](fhe-computation/advanced-features/public-key.md)
   * [Trivial ciphertexts](fhe-computation/advanced-features/trivial-ciphertext.md)
   * [Zero-knowledge proofs](fhe-computation/advanced-features/zk-pok.md)
+  * [Transciphering](fhe-computation/advanced-features/transciphering.md)
   * [Multi-threading with Rayon crate](fhe-computation/advanced-features/rayon-crate.md)
   * [Noise squashing](fhe-computation/advanced-features/noise-squashing.md)
   * [Key upgrade](fhe-computation/advanced-features/upgrade-key-chain.md)
