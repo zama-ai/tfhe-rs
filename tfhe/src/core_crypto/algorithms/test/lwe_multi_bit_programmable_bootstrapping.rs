@@ -2,15 +2,9 @@ use super::*;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(not(tarpaulin))]
 // Divided by two compared to other tests, we are running the algorithm twice for determinism
 const NB_TESTS_LIGHT: usize = 5;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
-#[cfg(tarpaulin)]
-const NB_TESTS_LIGHT: usize = 1;
 
 pub fn generate_keys<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
@@ -166,11 +160,6 @@ where
 
             assert_eq!(decoded, f(msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -296,11 +285,6 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
 
             assert_eq!(out_pbs_ct_other, out_pbs_ct);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -400,11 +384,6 @@ where
 
             assert_eq!(decoded, f(msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -530,11 +509,6 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_decrypt_custom_mod<Scalar>(
 
             assert_eq!(out_pbs_ct_other, out_pbs_ct);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -767,11 +741,6 @@ fn std_lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
 
             assert_eq!(out_pbs_ct_other, out_pbs_ct);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -926,11 +895,6 @@ fn lwe_encrypt_multi_bit_deterministic_pbs_f128_decrypt_custom_mod(
 
             assert_eq!(out_pbs_ct_other, out_pbs_ct);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 

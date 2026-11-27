@@ -13,8 +13,6 @@ use crate::integer::server_key::MatchValues;
 use crate::integer::tests::create_parameterized_test;
 use rand::prelude::*;
 
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 

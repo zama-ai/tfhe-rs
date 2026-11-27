@@ -37,8 +37,6 @@ use tfhe_versionable::Versionize;
 pub mod aliases;
 pub mod classic;
 pub mod compact_public_key_only;
-#[cfg(tarpaulin)]
-pub mod coverage_parameters;
 #[cfg(feature = "hpu")]
 pub mod hpu;
 pub mod key_switching;
@@ -83,8 +81,6 @@ pub use compact_public_key_only::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters, ExpandFunctionsOwned,
     ExpandFunctionsView,
 };
-#[cfg(tarpaulin)]
-pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use ks32::KeySwitch32PBSParameters;
 pub use meta::{

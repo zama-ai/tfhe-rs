@@ -2,10 +2,7 @@ use super::*;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 pub fn generate_keys<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
@@ -154,11 +151,6 @@ where
 
             assert_eq!(decoded, f(msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -296,11 +288,6 @@ where
 
             assert!(decoded_list.iter().all(|ct| *ct == f(msg)));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -524,11 +511,6 @@ where
                     assert_eq!(decoded, func(msg));
                 }
             }
-
-            // In coverage, we break after one while loop iteration, changing message values does
-            // not yield higher coverage
-            #[cfg(tarpaulin)]
-            break;
         }
     }
 }
@@ -690,11 +672,6 @@ where
 
             assert_eq!(decoded, f(msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -854,11 +831,6 @@ fn lwe_encrypt_pbs_ntt64_decrypt_custom_mod(params: ClassicTestParams<u64>) {
 
             assert_eq!(decoded, f(msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does
-        // not yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -993,11 +965,6 @@ fn test_lwe_encrypt_pbs_switch_mod_switch_scalar_decrypt_custom_mod() {
 
             assert_eq!(msg as u64, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -1151,11 +1118,6 @@ fn lwe_encrypt_pbs_ntt64_bnf_decrypt(params: ClassicTestParams<u64>) {
 
                 assert_eq!(decoded, f(msg));
             }
-
-            // In coverage, we break after one while loop iteration, changing message values does
-            // not yield higher coverage
-            #[cfg(tarpaulin)]
-            break;
         }
     }
 }
@@ -1242,11 +1204,6 @@ fn lwe_encrypt_pbs_karatsuba_decrypt_custom_mod(params: ClassicTestParams<u64>) 
 
             assert_eq!(decoded, f(msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 

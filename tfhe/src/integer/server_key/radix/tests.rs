@@ -6,25 +6,14 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_slice::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test_classical_params;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, U256};
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
 
 /// Number of loop iteration within randomized tests
-#[cfg(not(tarpaulin))]
 pub(crate) const NB_TESTS: usize = 30;
 
-// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
-// instrumentation
-#[cfg(tarpaulin)]
-pub(crate) const NB_TESTS: usize = 1;
-
-#[cfg(not(tarpaulin))]
 const NB_CTXT: usize = 4;
-#[cfg(tarpaulin)]
-const NB_CTXT: usize = 2;
 
 create_parameterized_test_classical_params!(integer_encrypt_decrypt);
 create_parameterized_test_classical_params!(integer_encrypt_decrypt_128_bits);
@@ -38,7 +27,6 @@ create_parameterized_test_classical_params!(integer_blockshift);
 create_parameterized_test_classical_params!(integer_blockshift_right);
 create_parameterized_test_classical_params!(integer_unchecked_neg);
 create_parameterized_test_classical_params!(integer_unchecked_sub);
-#[cfg(not(tarpaulin))]
 
 create_parameterized_test_classical_params!(integer_unchecked_scalar_sub);
 create_parameterized_test_classical_params!(integer_unchecked_scalar_add);

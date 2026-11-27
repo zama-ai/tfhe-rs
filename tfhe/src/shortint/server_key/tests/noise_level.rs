@@ -316,7 +316,6 @@ fn test_ct_scalar_op_assign_noise_level_propagation(sk: &ServerKey, ct: &Ciphert
     });
 }
 
-#[cfg(not(tarpaulin))] // This test is ignored in coverage, it takes around 4 hours to run otherwise.
 #[test]
 fn test_noise_level_propagation_ci_run_filter() {
     let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;

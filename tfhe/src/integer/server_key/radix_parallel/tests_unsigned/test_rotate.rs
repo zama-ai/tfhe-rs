@@ -11,8 +11,6 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::uint::Uint;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;

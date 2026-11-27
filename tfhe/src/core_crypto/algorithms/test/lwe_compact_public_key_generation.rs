@@ -2,10 +2,7 @@ use super::*;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, MaskRandomGenerator};
 use crate::core_crypto::commons::math::random::Uniform;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn test_seeded_lwe_cpk_gen_equivalence<Scalar: UnsignedTorus>(
     ciphertext_modulus: CiphertextModulus<Scalar>,

@@ -7,10 +7,7 @@ use crate::core_crypto::commons::test_tools;
 #[cfg(feature = "zk-pok")]
 use rand::Rng;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn parallel_and_seeded_lwe_list_encryption_equivalence<Scalar: UnsignedTorus + Sync + Send>(
     params: ClassicTestParams<Scalar>,
@@ -196,11 +193,6 @@ fn lwe_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPara
                 assert_eq!(msg, decoded);
             }
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -250,11 +242,6 @@ fn lwe_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -303,11 +290,6 @@ fn lwe_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 create_parameterized_test_with_non_native_parameters!(lwe_trivial_encrypt_decrypt_custom_mod);
@@ -353,11 +335,6 @@ fn lwe_allocate_trivial_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -424,11 +401,6 @@ fn lwe_list_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTes
 
             assert!(decoded.iter().all(|&x| x == msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -495,11 +467,6 @@ fn lwe_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync + Send>(
 
             assert!(decoded.iter().all(|&x| x == msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -561,11 +528,6 @@ fn lwe_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -636,11 +598,6 @@ fn lwe_seeded_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -719,11 +676,6 @@ fn lwe_seeded_list_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Sync +
 
             assert!(decoded.iter().all(|&x| x == msg));
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -785,11 +737,6 @@ fn lwe_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicT
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -846,11 +793,6 @@ fn lwe_seeded_allocate_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -982,11 +924,6 @@ fn lwe_compact_public_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -1099,11 +1036,6 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
                 ct.as_mut()[index] = ct.as_mut()[index].wrapping_add(value_to_add);
                 assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, metadata).is_invalid());
             }
-
-            // In coverage, we break after one while loop iteration, changing message values does
-            // not yield higher coverage
-            #[cfg(tarpaulin)]
-            break;
         }
     }
 }

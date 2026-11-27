@@ -53,8 +53,6 @@ use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::uint::Uint;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::ciphertext::MaxDegree;
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::CompressedServerKey;
@@ -64,15 +62,9 @@ use rand::Rng;
 use std::sync::Arc;
 use tfhe_csprng::generators::DefaultRandomGenerator;
 
-#[cfg(not(tarpaulin))]
 pub(crate) const NB_CTXT: usize = 4;
-#[cfg(tarpaulin)]
-pub(crate) const NB_CTXT: usize = 2;
 
-#[cfg(not(tarpaulin))]
 pub(crate) const MAX_VEC_LEN: usize = 25;
-#[cfg(tarpaulin)]
-pub(crate) const MAX_VEC_LEN: usize = 5;
 
 pub(crate) const MAX_NB_CTXT: usize = 8;
 
@@ -87,23 +79,17 @@ pub(crate) const fn nb_unchecked_tests_for_params(params: AtomicPatternParameter
 pub(crate) const fn nb_tests_for_params(params: AtomicPatternParameters) -> usize {
     let full_modulus = params.message_modulus().0 * params.carry_modulus().0;
 
-    if cfg!(tarpaulin) {
-        // Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to
-        // code instrumentation
-        1
-    } else {
-        // >= 8 bits (4_4)
-        if full_modulus >= 1 << 8 {
-            return 5;
-        }
-
-        // >= 6 bits (3_3)
-        if full_modulus >= 1 << 6 {
-            return 15;
-        }
-
-        30
+    // >= 8 bits (4_4)
+    if full_modulus >= 1 << 8 {
+        return 5;
     }
+
+    // >= 6 bits (3_3)
+    if full_modulus >= 1 << 6 {
+        return 15;
+    }
+
+    30
 }
 
 /// Smaller number of loop iteration within randomized test,
@@ -111,21 +97,17 @@ pub(crate) const fn nb_tests_for_params(params: AtomicPatternParameters) -> usiz
 pub(crate) const fn nb_tests_smaller_for_params(params: AtomicPatternParameters) -> usize {
     let full_modulus = params.message_modulus().0 * params.carry_modulus().0;
 
-    if cfg!(tarpaulin) {
-        1
-    } else {
-        // >= 8 bits (4_4)
-        if full_modulus >= 1 << 8 {
-            return 2;
-        }
-
-        // >= 6 bits (3_3)
-        if full_modulus >= 1 << 6 {
-            return 5;
-        }
-
-        10
+    // >= 8 bits (4_4)
+    if full_modulus >= 1 << 8 {
+        return 2;
     }
+
+    // >= 6 bits (3_3)
+    if full_modulus >= 1 << 6 {
+        return 5;
+    }
+
+    10
 }
 
 pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
@@ -547,69 +529,45 @@ impl ExpectedDegrees {
     }
 }
 create_parameterized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
-create_parameterized_test!(
-    integer_full_propagate {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,  // Test case where carry_modulus > message_modulus
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128,  // Test case where carry_modulus > message_modulus
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-create_parameterized_test!(
-    integer_full_propagate_full_blocks {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,  // Test case where carry_modulus > message_modulus
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128,  // Test case where carry_modulus > message_modulus
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-create_parameterized_test!(
-    integer_full_propagate_noisy_blocks {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,  // Test case where carry_modulus > message_modulus
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128,  // Test case where carry_modulus > message_modulus
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
+create_parameterized_test!(integer_full_propagate {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128, /* Test case where carry_modulus >
+                                                         * message_modulus */
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+});
+create_parameterized_test!(integer_full_propagate_full_blocks {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128, /* Test case where carry_modulus >
+                                                         * message_modulus */
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+});
+create_parameterized_test!(integer_full_propagate_noisy_blocks {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_3_KS_PBS_GAUSSIAN_2M128, /* Test case where carry_modulus >
+                                                         * message_modulus */
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+});
 
 /// The function executor for cpu server key
 ///
@@ -919,7 +877,6 @@ where
 //=============================================================================
 
 #[test]
-#[cfg(not(tarpaulin))]
 fn test_non_regression_clone_from() {
     // Issue: https://github.com/zama-ai/tfhe-rs/issues/410
     let (client_key, server_key) =

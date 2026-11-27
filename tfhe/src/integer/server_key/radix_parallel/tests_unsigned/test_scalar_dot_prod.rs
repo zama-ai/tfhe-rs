@@ -11,8 +11,6 @@ use crate::shortint::parameters::TestParameters;
 use rand::{thread_rng, Rng};
 use std::sync::Arc;
 
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 

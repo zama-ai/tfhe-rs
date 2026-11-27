@@ -4,23 +4,14 @@ use crate::shortint::parameters::*;
 use rand::Rng;
 
 /// Number of assert in randomized tests
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 30;
 /// Number of sub tests used to increase degree of ciphertexts
-#[cfg(not(tarpaulin))]
 const NB_SUB_TEST: usize = 40;
 
-// Use lower numbers for coverage to ensure fast tests to counter balance slowdown due to code
-// instrumentation
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 // This constant is tailored to trigger a message extract during operation processing.
 // It's applicable for PARAM_MESSAGE_2_CARRY_2_KS_PBS parameters set.
-#[cfg(tarpaulin)]
-const NB_SUB_TEST: usize = 5;
 
 // Macro to generate tests for all parameter sets
-#[cfg(not(tarpaulin))]
 macro_rules! create_parameterized_test{
     ($name:ident { $($param:ident),* }) => {
         ::paste::paste! {
@@ -67,28 +58,6 @@ macro_rules! create_parameterized_test{
             TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
             TEST_PARAM_MESSAGE_3_CARRY_3_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
             TEST_PARAM_MESSAGE_4_CARRY_4_COMPACT_PK_PBS_KS_GAUSSIAN_2M128
-        });
-    };
-}
-
-// Test against a small subset of parameters to speed up coverage tests
-#[cfg(tarpaulin)]
-macro_rules! create_parameterized_test{
-    ($name:ident { $($param:ident),* }) => {
-        ::paste::paste! {
-            $(
-            #[test]
-            fn [<test_ $name _ $param:lower>]() {
-                $name($param)
-            }
-            )*
-        }
-    };
-    ($name:ident)=> {
-        create_parameterized_test!($name
-        {
-            TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
-            TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128
         });
     };
 }

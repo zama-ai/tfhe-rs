@@ -6,8 +6,6 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, I256, U256};
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::distributions::Standard;
@@ -175,8 +173,6 @@ macro_rules! define_scalar_comparison_test_functions {
 
                 // 2M128 is too slow for 4_4, it is estimated to be 2x slower
                 TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-                #[cfg(tarpaulin)]
-                COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
 
             create_parameterized_test!([<integer_default_scalar_ $comparison_name _parallelized_ $clear_type:lower>]
@@ -191,8 +187,6 @@ macro_rules! define_scalar_comparison_test_functions {
 
                 // 2M128 is too slow for 4_4, it is estimated to be 2x slower
                 TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-                #[cfg(tarpaulin)]
-                COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
         }
     };
@@ -602,149 +596,95 @@ pub(crate) fn test_default_scalar_minmax<P, T, ClearF, Scalar>(
     }
 }
 
-#[cfg(not(tarpaulin))]
-mod no_coverage {
-    use super::*;
-
-    fn integer_unchecked_scalar_min_parallelized_u256(
-        params: crate::shortint::ClassicPBSParameters,
-    ) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_min_parallelized);
-        test_unchecked_scalar_minmax(params, 2, executor, std::cmp::min::<U256>);
-    }
-
-    fn integer_unchecked_scalar_max_parallelized_u256(
-        params: crate::shortint::ClassicPBSParameters,
-    ) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_max_parallelized);
-        test_unchecked_scalar_minmax(params, 2, executor, std::cmp::max::<U256>);
-    }
-
-    fn integer_scalar_min_parallelized_u256(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::scalar_min_parallelized);
-        test_default_scalar_minmax(params, 2, executor, std::cmp::min::<U256>);
-    }
-
-    fn integer_scalar_max_parallelized_u256(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::scalar_max_parallelized);
-        test_default_scalar_minmax(params, 2, executor, std::cmp::max::<U256>);
-    }
-
-    create_parameterized_test!(integer_unchecked_scalar_min_parallelized_u256 {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-    create_parameterized_test!(integer_unchecked_scalar_max_parallelized_u256 {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-
-    create_parameterized_test!(integer_scalar_min_parallelized_u256 {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        // No test for 3_3, see define_scalar_comparison_test_functions macro
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-    create_parameterized_test!(integer_scalar_max_parallelized_u256 {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        // No test for 3_3, see define_scalar_comparison_test_functions macro
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-
-    define_scalar_comparison_test_functions!(eq, U256);
-    define_scalar_comparison_test_functions!(ne, U256);
-    define_scalar_comparison_test_functions!(lt, U256);
-    define_scalar_comparison_test_functions!(le, U256);
-    define_scalar_comparison_test_functions!(gt, U256);
-    define_scalar_comparison_test_functions!(ge, U256);
-
-    create_parameterized_test!(integer_unchecked_scalar_comparisons_edge {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-
-    create_parameterized_test!(integer_unchecked_scalar_comparisons_edge_one_block {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-
-    create_parameterized_test!(integer_is_scalar_out_of_bounds {
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
-        // as the test relies on the ciphertext to encrypt 128bits
-        // but with param 3_3 we actually encrypt more that 128bits
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
-    });
-
-    create_parameterized_test!(integer_comparisons_for_empty_blocks {
-        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-    });
+fn integer_unchecked_scalar_min_parallelized_u256(params: crate::shortint::ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_min_parallelized);
+    test_unchecked_scalar_minmax(params, 2, executor, std::cmp::min::<U256>);
 }
 
-// Smaller integers are used in coverage to speed-up execution.
-#[cfg(tarpaulin)]
-mod coverage {
-    use super::*;
-    use crate::integer::tests::create_parameterized_test_classical_params;
-
-    fn integer_unchecked_scalar_min_parallelized_u8(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_min_parallelized);
-        test_unchecked_scalar_minmax(params, 1, executor, std::cmp::min::<u8>);
-    }
-
-    fn integer_unchecked_scalar_max_parallelized_u8(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_max_parallelized);
-        test_unchecked_scalar_minmax(params, 1, executor, std::cmp::max::<u8>);
-    }
-
-    fn integer_scalar_min_parallelized_u8(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::scalar_min_parallelized);
-        test_default_scalar_minmax(params, 1, executor, std::cmp::min::<u8>);
-    }
-
-    fn integer_scalar_max_parallelized_u8(params: crate::shortint::ClassicPBSParameters) {
-        let executor = CpuFunctionExecutor::new(&ServerKey::scalar_max_parallelized);
-        test_default_scalar_minmax(params, 1, executor, std::cmp::max::<u8>);
-    }
-
-    create_parameterized_test_classical_params!(integer_unchecked_scalar_min_parallelized_u8);
-    create_parameterized_test_classical_params!(integer_unchecked_scalar_max_parallelized_u8);
-    create_parameterized_test_classical_params!(integer_scalar_min_parallelized_u8);
-    create_parameterized_test_classical_params!(integer_scalar_max_parallelized_u8);
-
-    define_scalar_comparison_test_functions!(eq, u8);
-    define_scalar_comparison_test_functions!(ne, u8);
-    define_scalar_comparison_test_functions!(lt, u8);
-    define_scalar_comparison_test_functions!(le, u8);
-    define_scalar_comparison_test_functions!(gt, u8);
-    define_scalar_comparison_test_functions!(ge, u8);
-
-    create_parameterized_test_classical_params!(integer_unchecked_scalar_comparisons_edge);
-
-    create_parameterized_test_classical_params!(integer_is_scalar_out_of_bounds);
-
-    create_parameterized_test_classical_params!(integer_comparisons_for_empty_blocks);
+fn integer_unchecked_scalar_max_parallelized_u256(params: crate::shortint::ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_max_parallelized);
+    test_unchecked_scalar_minmax(params, 2, executor, std::cmp::max::<U256>);
 }
+
+fn integer_scalar_min_parallelized_u256(params: crate::shortint::ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_min_parallelized);
+    test_default_scalar_minmax(params, 2, executor, std::cmp::min::<U256>);
+}
+
+fn integer_scalar_max_parallelized_u256(params: crate::shortint::ClassicPBSParameters) {
+    let executor = CpuFunctionExecutor::new(&ServerKey::scalar_max_parallelized);
+    test_default_scalar_minmax(params, 2, executor, std::cmp::max::<U256>);
+}
+
+create_parameterized_test!(integer_unchecked_scalar_min_parallelized_u256 {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+});
+create_parameterized_test!(integer_unchecked_scalar_max_parallelized_u256 {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+});
+
+create_parameterized_test!(integer_scalar_min_parallelized_u256 {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    // No test for 3_3, see define_scalar_comparison_test_functions macro
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+});
+create_parameterized_test!(integer_scalar_max_parallelized_u256 {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    // No test for 3_3, see define_scalar_comparison_test_functions macro
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+});
+
+define_scalar_comparison_test_functions!(eq, U256);
+define_scalar_comparison_test_functions!(ne, U256);
+define_scalar_comparison_test_functions!(lt, U256);
+define_scalar_comparison_test_functions!(le, U256);
+define_scalar_comparison_test_functions!(gt, U256);
+define_scalar_comparison_test_functions!(ge, U256);
+
+create_parameterized_test!(integer_unchecked_scalar_comparisons_edge {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+});
+
+create_parameterized_test!(integer_unchecked_scalar_comparisons_edge_one_block {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+});
+
+create_parameterized_test!(integer_is_scalar_out_of_bounds {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    // as the test relies on the ciphertext to encrypt 128bits
+    // but with param 3_3 we actually encrypt more that 128bits
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+});
+
+create_parameterized_test!(integer_comparisons_for_empty_blocks {
+    TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+    TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+});
 
 create_parameterized_test!(integer_extensive_trivial_default_scalar_comparisons);
 

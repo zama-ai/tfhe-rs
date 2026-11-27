@@ -1,9 +1,6 @@
 use super::*;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
     params: ClassicTestParams<Scalar>,
@@ -99,11 +96,6 @@ fn lwe_encrypt_ks_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -210,11 +202,6 @@ fn test_lwe_encrypt_ks_switch_mod_decrypt_custom_mod() {
 
             assert_eq!(msg, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }
 
@@ -324,10 +311,5 @@ fn test_lwe_encrypt_ks_switch_mod_switch_scalar_decrypt_custom_mod() {
 
             assert_eq!(msg as u32, decoded);
         }
-
-        // In coverage, we break after one while loop iteration, changing message values does not
-        // yield higher coverage
-        #[cfg(tarpaulin)]
-        break;
     }
 }

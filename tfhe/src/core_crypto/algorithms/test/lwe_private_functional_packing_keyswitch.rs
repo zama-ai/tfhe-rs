@@ -1,15 +1,11 @@
 use super::*;
 
-#[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
-#[cfg(tarpaulin)]
-const NB_TESTS: usize = 1;
 
 fn test_parallel_pfpks_equivalence<Scalar: UnsignedTorus + Send + Sync>(
     ciphertext_modulus: CiphertextModulus<Scalar>,
 ) {
     // Realistic sizes
-    #[cfg(not(tarpaulin))]
     {
         let decomp_base_log = DecompositionBaseLog(15);
         let decomp_level_count = DecompositionLevelCount(2);
@@ -210,7 +206,6 @@ fn test_parallel_pfpks_equivalence_u64_native_mod() {
 fn test_parallel_pfpks_lwe_list_equivalence<Scalar: UnsignedTorus + Send + Sync>(
     ciphertext_modulus: CiphertextModulus<Scalar>,
 ) {
-    #[cfg(not(tarpaulin))]
     // Realistic sizes
     {
         let decomp_base_log = DecompositionBaseLog(15);

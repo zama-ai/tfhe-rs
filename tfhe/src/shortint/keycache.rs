@@ -3,8 +3,6 @@ use std::sync::LazyLock;
 use super::atomic_pattern::AtomicPatternParameters;
 use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
@@ -83,20 +81,6 @@ named_params_impl!( AtomicPatternParameters =>
     V1_9_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
     // KS32 AP with TUniform
     V1_9_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
-
-    // Coverage
-    #[cfg(tarpaulin)]
-    COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-    #[cfg(tarpaulin)]
-    COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS,
-    #[cfg(tarpaulin)]
-    COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS,
-    #[cfg(tarpaulin)]
-    COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-    #[cfg(tarpaulin)]
-    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
-    #[cfg(tarpaulin)]
-    COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
 
     #[cfg(feature ="hpu")]
     V1_9_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,

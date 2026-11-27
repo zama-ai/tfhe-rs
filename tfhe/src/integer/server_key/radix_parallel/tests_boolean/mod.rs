@@ -8,9 +8,6 @@ use crate::integer::{BooleanBlock, ServerKey};
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::{TestParameters, *};
 
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
-
 pub(crate) fn test_boolean_flip_test_case<E>(ctxt: &TestContext, executor: E)
 where
     E: ExecuteOn<(BooleanBlock, BooleanBlock, BooleanBlock), (BooleanBlock, BooleanBlock)>,

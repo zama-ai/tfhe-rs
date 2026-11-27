@@ -4,8 +4,6 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::ServerKey;
-#[cfg(tarpaulin)]
-use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
