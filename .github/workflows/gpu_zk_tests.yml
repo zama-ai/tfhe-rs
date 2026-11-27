@@ -17,6 +17,7 @@ on:
   schedule:
     # Every Tuesday at midnight Paris time (winter time, 1a.m. in summer time)
     - cron: "0 23 * * 2"
+  pull_request:
 
 permissions:
   contents: read
@@ -47,10 +48,13 @@ jobs:
         with:
           files_yaml: |
             gpu:
+              - Cargo.toml
               - tfhe/Cargo.toml
               - tfhe/build.rs
               - backends/tfhe-cuda-backend/**
+              - backends/tfhe-cuda-common/**
               - backends/zk-cuda-backend/**
+              - tfhe/src/integer/gpu/**
               - tfhe/src/shortint/parameters/**
               - tfhe/src/zk/**
               - tfhe-zk-pok/**
@@ -62,7 +66,7 @@ jobs:
     name: gpu_zk_tests/setup-instance
     needs: should-run
     if: github.event_name != 'pull_request' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'approved' && needs.should-run.outputs.gpu_test == 'true')
+      needs.should-run.outputs.gpu_test == 'true'
     uses: ./.github/workflows/slab_setup.yml
     with:
       backend: terraform
