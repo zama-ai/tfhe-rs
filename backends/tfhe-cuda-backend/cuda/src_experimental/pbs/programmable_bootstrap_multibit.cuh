@@ -1,6 +1,7 @@
 #ifndef CUDA_MULTIBIT_PBS_CUH
 #define CUDA_MULTIBIT_PBS_CUH
 
+#include "bootstrapping_key_multibit.cuh"
 #include "cooperative_groups.h"
 #include "crypto/gadget.cuh"
 #include "crypto/ggsw.cuh"

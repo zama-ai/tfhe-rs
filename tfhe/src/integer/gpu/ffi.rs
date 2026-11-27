@@ -230,16 +230,20 @@ where
 /// Contrary to [gen_keys_gpu], this returns a [RadixClientKey]
 ///
 /// ```rust
-/// use tfhe::core_crypto::gpu::CudaStreams;
 /// use tfhe::core_crypto::gpu::vec::GpuIndex;
+/// use tfhe::core_crypto::gpu::CudaStreams;
 /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-/// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+/// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 ///
 /// let gpu_index = 0;
 /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 /// // generate the client key and the server key:
 /// let num_blocks = 4;
-/// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
+/// let (cks, sks) = gen_keys_radix_gpu(
+///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+///     num_blocks,
+///     &streams,
+/// );
 /// ```
 pub fn gen_keys_radix_gpu<P>(
     parameters_set: P,

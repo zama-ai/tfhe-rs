@@ -261,9 +261,10 @@ mod tests {
         ProvenCompactCiphertextList,
     };
     use crate::shortint::parameters::test_params::TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+    #[cfg(feature = "gpu-experimental-pbs")]
+    use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use crate::shortint::parameters::{
         CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -276,16 +277,17 @@ mod tests {
 
     #[test]
     fn test_zk_compact_ciphertext_list_encryption() {
-        let params: [(
+        let params: &[(
             ShortintKeySwitchingParameters,
             CompactPublicKeyEncryptionParameters,
             PBSParameters,
-        ); 3] = [
+        )] = &[
             (
                 PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
+            #[cfg(feature = "gpu-experimental-pbs")]
             (
                 PARAM_KEYSWITCH_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -298,7 +300,7 @@ mod tests {
             ),
         ];
 
-        for (ksk_params, pke_params, fhe_params) in params {
+        for (ksk_params, pke_params, fhe_params) in params.iter().copied() {
             let metadata = b"integer";
 
             let num_blocks = 4usize;
@@ -368,16 +370,17 @@ mod tests {
 
     #[test]
     fn test_several_proven_lists() {
-        let params: [(
+        let params: &[(
             ShortintKeySwitchingParameters,
             CompactPublicKeyEncryptionParameters,
             PBSParameters,
-        ); 3] = [
+        )] = &[
             (
                 PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
+            #[cfg(feature = "gpu-experimental-pbs")]
             (
                 PARAM_KEYSWITCH_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -390,7 +393,7 @@ mod tests {
             ),
         ];
 
-        for (ksk_params, pke_params, fhe_params) in params {
+        for (ksk_params, pke_params, fhe_params) in params.iter().copied() {
             let metadata = b"integer";
 
             let crs_blocks_for_64_bits =
@@ -459,16 +462,17 @@ mod tests {
     fn test_malicious_boolean_proven_lists() {
         use crate::integer::ciphertext::DataKind;
 
-        let params: [(
+        let params: &[(
             ShortintKeySwitchingParameters,
             CompactPublicKeyEncryptionParameters,
             PBSParameters,
-        ); 3] = [
+        )] = &[
             (
                 PARAM_KEYSWITCH_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
+            #[cfg(feature = "gpu-experimental-pbs")]
             (
                 PARAM_KEYSWITCH_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -481,7 +485,7 @@ mod tests {
             ),
         ];
 
-        for (ksk_params, pke_params, fhe_params) in params {
+        for (ksk_params, pke_params, fhe_params) in params.iter().copied() {
             let metadata = b"integer";
 
             let crs_blocks_for_64_bits =
@@ -838,6 +842,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "gpu-experimental-pbs")]
     fn test_expander_length_matches_data_items() {
         // This test ensures len() returns the number of data items, not the total number of blocks.
         use crate::high_level_api::prelude::*;

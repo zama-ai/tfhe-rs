@@ -5,8 +5,10 @@
 #include "integer/radix_ciphertext.cuh"
 #include "integer/radix_ciphertext.h"
 #include "keyswitch/keyswitch.h"
-#include "pbs/pbs_multibit_utilities.h"
 #include "pbs/pbs_utilities.h"
+#ifdef TFHE_CUDA_EXT_PBS
+#include "pbs/pbs_multibit_utilities.h"
+#endif
 #include "pbs/programmable_bootstrap.cuh"
 #include "utils/helper_multi_gpu.cuh"
 #include <algorithm>
@@ -843,6 +845,7 @@ template <typename Torus> struct int_shared_pbs_buffer {
                      gpu_index, shared->input_lwe_ciphertext_count, num_inputs);
       break;
     }
+#ifdef TFHE_CUDA_EXT_PBS
     case PBS_TYPE::MULTI_BIT: {
       auto shared_mb = std::get<multi_bit_pbs_params>(params.pbs_params());
       auto lut_mb = std::get<multi_bit_pbs_params>(lut_params.pbs_params());
@@ -864,6 +867,7 @@ template <typename Torus> struct int_shared_pbs_buffer {
           num_inputs, gpu_index, shared->pbs_variant);
       break;
     }
+#endif
     default:
       PANIC("Error: unsupported cuda PBS type %u.", params.pbs_type())
     }

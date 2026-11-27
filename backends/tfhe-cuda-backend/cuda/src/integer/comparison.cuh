@@ -11,7 +11,6 @@
 #include "integer/scalar_addition.cuh"
 #include "integer/subtraction.cuh"
 #include "pbs/programmable_bootstrap_classic.cuh"
-#include "pbs/programmable_bootstrap_multibit.cuh"
 #include "utils/helper.cuh"
 
 // lwe_dimension + 1 threads

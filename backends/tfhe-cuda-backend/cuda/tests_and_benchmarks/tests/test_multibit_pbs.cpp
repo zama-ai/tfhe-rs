@@ -1,3 +1,4 @@
+#ifdef TFHE_CUDA_EXT_PBS
 #include "checked_arithmetic.h"
 #include "device.h"
 #include <cmath>
@@ -388,3 +389,4 @@ INSTANTIATE_TEST_CASE_P(MultiBitProgrammableBootstrapInstantiation,
 INSTANTIATE_TEST_CASE_P(MultiBitPbsBufferReuseInstantiation,
                         MultiBitPbsBufferReuseTest_u64,
                         multipbs_reuse_params_u64, printParamName);
+#endif // TFHE_CUDA_EXT_PBS
