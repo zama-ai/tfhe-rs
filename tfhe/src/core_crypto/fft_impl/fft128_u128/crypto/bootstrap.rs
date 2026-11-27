@@ -53,6 +53,54 @@ pub fn polynomial_wrapping_monic_monomial_div_assign_split(
         .for_each(|(lo, hi)| (*lo, *hi) = wrapping_neg((*lo, *hi)));
 }
 
+/// One cmux of a `u128` (split lo/hi) blind rotation. Split analog of
+/// [`crate::core_crypto::fft_impl::fft128::crypto::bootstrap::cmux_step`]. A no-op when
+/// `lwe_mask_element == 0`. Shared by
+/// [`Fourier128LweBootstrapKey::blind_rotate_assign_split`] and the half-rotate bootstrap.
+#[inline(always)]
+pub(crate) fn cmux_step_split<ContGgsw>(
+    ct0_lo: &mut GlweCiphertext<&mut [u64]>,
+    ct0_hi: &mut GlweCiphertext<&mut [u64]>,
+    lwe_mask_element: usize,
+    ggsw: &Fourier128GgswCiphertext<ContGgsw>,
+    fft: Fft128View<'_>,
+    stack: &mut PodStack,
+) where
+    ContGgsw: Container<Element = f64>,
+{
+    if lwe_mask_element == 0 {
+        return;
+    }
+
+    // We copy ct_0 to ct_1
+    let (ct1_lo, stack) = stack.collect_aligned(CACHELINE_ALIGN, ct0_lo.as_ref().iter().copied());
+    let (ct1_hi, stack) = stack.collect_aligned(CACHELINE_ALIGN, ct0_hi.as_ref().iter().copied());
+    let mut ct1_lo = GlweCiphertextMutView::from_container(
+        ct1_lo,
+        ct0_lo.polynomial_size(),
+        ct0_lo.ciphertext_modulus(),
+    );
+    let mut ct1_hi = GlweCiphertextMutView::from_container(
+        ct1_hi,
+        ct0_lo.polynomial_size(),
+        ct0_lo.ciphertext_modulus(),
+    );
+
+    // We rotate ct_1 by performing ct_1 <- ct_1 * X^{lwe_mask_element}
+    for (poly_lo, poly_hi) in izip_eq!(
+        ct1_lo.as_mut_polynomial_list().iter_mut(),
+        ct1_hi.as_mut_polynomial_list().iter_mut(),
+    ) {
+        polynomial_wrapping_monic_monomial_mul_assign_split(
+            poly_lo,
+            poly_hi,
+            MonomialDegree(lwe_mask_element),
+        );
+    }
+
+    cmux_split(ct0_lo, ct0_hi, &mut ct1_lo, &mut ct1_hi, ggsw, fft, stack);
+}
+
 impl<Cont> Fourier128LweBootstrapKey<Cont>
 where
     Cont: Container<Element = f64>,
@@ -97,46 +145,14 @@ where
             for (lwe_mask_element, bootstrap_key_ggsw) in
                 izip_eq!(msed_lwe_mask, this.into_ggsw_iter())
             {
-                if lwe_mask_element != 0 {
-                    let stack = &mut *stack;
-                    // We copy ct_0 to ct_1
-                    let (ct1_lo, stack) =
-                        stack.collect_aligned(CACHELINE_ALIGN, ct0_lo.as_ref().iter().copied());
-                    let (ct1_hi, stack) =
-                        stack.collect_aligned(CACHELINE_ALIGN, ct0_hi.as_ref().iter().copied());
-                    let mut ct1_lo = GlweCiphertextMutView::from_container(
-                        ct1_lo,
-                        ct0_lo.polynomial_size(),
-                        ct0_lo.ciphertext_modulus(),
-                    );
-                    let mut ct1_hi = GlweCiphertextMutView::from_container(
-                        ct1_hi,
-                        ct0_lo.polynomial_size(),
-                        ct0_lo.ciphertext_modulus(),
-                    );
-
-                    // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
-                    for (poly_lo, poly_hi) in izip_eq!(
-                        ct1_lo.as_mut_polynomial_list().iter_mut(),
-                        ct1_hi.as_mut_polynomial_list().iter_mut(),
-                    ) {
-                        polynomial_wrapping_monic_monomial_mul_assign_split(
-                            poly_lo,
-                            poly_hi,
-                            MonomialDegree(lwe_mask_element),
-                        );
-                    }
-
-                    cmux_split(
-                        &mut ct0_lo,
-                        &mut ct0_hi,
-                        &mut ct1_lo,
-                        &mut ct1_hi,
-                        &bootstrap_key_ggsw,
-                        fft,
-                        stack,
-                    );
-                }
+                cmux_step_split(
+                    &mut ct0_lo,
+                    &mut ct0_hi,
+                    lwe_mask_element,
+                    &bootstrap_key_ggsw,
+                    fft,
+                    stack,
+                );
             }
         }
         implementation(
