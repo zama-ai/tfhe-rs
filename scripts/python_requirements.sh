@@ -20,6 +20,13 @@
 # to the ones found in PATH.
 # When PY_AUDIT_REPORT_DIR is set, audit also writes a JSON report per lock file in that directory,
 # named after the lock file path with '/' replaced by '__', see ci/python_audit_report.py.
+#
+# Dependabot updates the lock files too, see .github/dependabot.yaml. It does not run this script
+# but 'uv pip compile' itself, from the directory of the .in file, with the options it finds in the
+# text of the lock file, and its pull requests have to pass check: this script generates the lock
+# files so that both give the same output, see LOCK_OPTIONS and uv_compile. Its security updates are
+# generated with pip-tools instead, which cannot do that and may break a lock file: running compile
+# on its branch repairs the file and keeps the versions it selected.
 
 set -euo pipefail
 
@@ -45,8 +52,18 @@ for uv_variable in $(env | sed -n 's/^\(UV_[A-Za-z0-9_]*\)=.*/\1/p'); do
     fi
 done
 
-# Paths written in the generated files are relative to the current directory, always run from the
-# repository root so that the output does not depend on where the script is called from.
+# The tools are not run from the current directory, see below and uv_compile: make a path given
+# relative to it absolute while it still resolves. A name without '/' is looked up in PATH and left
+# as is.
+if [[ "${PY_UV_EXE}" == */* && "${PY_UV_EXE}" != /* ]]; then
+    PY_UV_EXE="${PWD}/${PY_UV_EXE}"
+fi
+if [[ "${PY_PIP_AUDIT_EXE}" == */* && "${PY_PIP_AUDIT_EXE}" != /* ]]; then
+    PY_PIP_AUDIT_EXE="${PWD}/${PY_PIP_AUDIT_EXE}"
+fi
+
+# Files are listed and named from the repository root, so that what the script does and prints does
+# not depend on where it is called from.
 # The assignment makes the script stop if git fails, 'cd "$(git ...)"' would silently not move.
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "${REPO_ROOT}"
@@ -62,6 +79,14 @@ FILES_LIST="${TMP_DIR}/files"
 list_files() {
     git ls-files --cached --others --exclude-standard -z -- "$1" > "${FILES_LIST}"
 }
+
+# Options of 'uv pip compile' deciding what a lock file contains:
+# --universal: single lock file for all platforms and Python versions >= PYTHON_MIN_VERSION, using
+#   environment markers
+# --generate-hashes: pin the hashes of the files of each package, pip then refuses any other file
+# They are repeated in the header of the lock files, see --custom-compile-command in uv_compile:
+# Dependabot looks for them there to run uv the same way.
+LOCK_OPTIONS=(--universal --python-version "${PYTHON_MIN_VERSION}" --generate-hashes)
 
 uv_compile() {
     local requirements_in="$1"
@@ -82,8 +107,16 @@ uv_compile() {
         fi
     fi
 
-    # --universal: single lock file for all platforms and Python versions >= PYTHON_MIN_VERSION,
-    #   using environment markers
+    # uv writes the path of the .in file, as it is given, in the annotations of the lock file
+    # ('# via -r <path>'): it is run from the directory of the .in file, like Dependabot does, so
+    # that both write the same text. The lock file is then designated by an absolute path, which is
+    # not written anywhere.
+    local output_file="${requirements_txt}"
+    if [[ "${output_file}" != /* ]]; then
+        output_file="${REPO_ROOT}/${output_file}"
+    fi
+
+    # LOCK_OPTIONS: see above
     # --no-python-downloads: an interpreter is only needed to build source distributions, any local
     #   one will do, no need to download one matching PYTHON_MIN_VERSION
     # --no-config: ignore uv configuration files (uv.toml, pyproject.toml), UV_* environment
@@ -93,15 +126,21 @@ uv_compile() {
     #   which would run code from the package during resolution
     # --exclude-newer: ignore releases younger than the cooldown, see above
     # --custom-compile-command: recorded in the header in place of the actual command line, so that
-    #   the output does not depend on how uv was invoked and documents how to regenerate the files
+    #   the output does not depend on how uv was invoked and documents how to regenerate the files.
+    #   Dependabot keeps the header as it is and searches the file for LOCK_OPTIONS, they follow as
+    #   a comment
     # ${array[@]+"${array[@]}"} expands to nothing when the array is empty, "${array[@]}" would be an
     # unbound variable error with bash 3 (macOS) under 'set -u'
-    "${PY_UV_EXE}" pip compile --universal --python-version "${PYTHON_MIN_VERSION}" \
-        --generate-hashes --no-python-downloads --no-config --no-build --quiet \
-        --default-index https://pypi.org/simple \
-        ${cooldown_args[@]+"${cooldown_args[@]}"} \
-        --custom-compile-command "make compile_python_requirements" "$@" \
-        --output-file "${requirements_txt}" "${requirements_in}"
+    (
+        cd "${REPO_ROOT}/$(dirname "${requirements_in}")"
+        "${PY_UV_EXE}" pip compile "${LOCK_OPTIONS[@]}" \
+            --no-python-downloads --no-config --no-build --quiet \
+            --default-index https://pypi.org/simple \
+            ${cooldown_args[@]+"${cooldown_args[@]}"} \
+            --custom-compile-command \
+            "make compile_python_requirements # uv pip compile ${LOCK_OPTIONS[*]}" "$@" \
+            --output-file "${output_file}" "$(basename "${requirements_in}")"
+    )
 }
 
 STATUS=0

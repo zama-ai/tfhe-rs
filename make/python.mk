@@ -10,6 +10,8 @@
 # pip in a dedicated venv, their versions are pinned in
 # ci/python_tooling_requirements.in, any Python at least PYTHON_MIN_VERSION able to create a venv can
 # be used, set PYTHON_EXE to point to one if the default python3 is too old.
+# Dependabot updates the lock files as well, see .github/dependabot.yaml: how they are generated has
+# to match what it does, see scripts/python_requirements.sh.
 PYTHON_MIN_VERSION=3.12
 PYTHON_RELEASE_COOLDOWN=3 days
 PYTHON_EXE?=python3
