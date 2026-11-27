@@ -424,6 +424,7 @@ impl HlSquashedNoiseExpandable for SquashedNoiseFheInt {}
 
 #[cfg(feature = "gpu")]
 mod gpu {
+    use super::create_error_message;
     use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use crate::high_level_api::booleans::InnerSquashedNoiseBoolean;
     use crate::high_level_api::integers::signed::InnerSquashedNoiseSignedRadixCiphertext;
@@ -437,26 +438,24 @@ mod gpu {
     };
     use crate::integer::gpu::ciphertext::CudaSquashedNoiseExpandable;
     use crate::{SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint, Tag};
+    use std::num::NonZero;
 
     impl CudaSquashedNoiseExpandable for SquashedNoiseFheBool {
         fn from_expanded_blocks(
             blocks: CudaLweCiphertextList<u128>,
             info: CudaRadixCiphertextInfo,
-            _kind: DataKind,
+            kind: DataKind,
         ) -> crate::Result<Self> {
-            let cuda_ns_ct = CudaSquashedNoiseRadixCiphertext {
-                packed_d_blocks: blocks,
-                info,
-                original_block_count: 1,
-            };
-            let cuda_ns_boolean_ct = CudaSquashedNoiseBooleanBlock {
-                ciphertext: cuda_ns_ct,
-            };
-            Ok(Self::new(
-                InnerSquashedNoiseBoolean::Cuda(cuda_ns_boolean_ct),
-                SquashedNoiseCiphertextState::PostDecompression,
-                Tag::default(),
-            ))
+            if kind != DataKind::Boolean {
+                return Err(create_error_message(DataKind::Boolean, kind));
+            }
+            CudaSquashedNoiseBooleanBlock::from_expanded_blocks(blocks, info, kind).map(|v| {
+                Self::new(
+                    InnerSquashedNoiseBoolean::Cuda(v),
+                    SquashedNoiseCiphertextState::PostDecompression,
+                    Tag::default(),
+                )
+            })
         }
     }
 
@@ -466,18 +465,19 @@ mod gpu {
             info: CudaRadixCiphertextInfo,
             kind: DataKind,
         ) -> crate::Result<Self> {
-            let message_modulus = info.blocks.first().unwrap().message_modulus;
-
-            let cuda_ns_ct = CudaSquashedNoiseRadixCiphertext {
-                packed_d_blocks: blocks,
-                info,
-                original_block_count: kind.num_blocks(message_modulus)?,
-            };
-            Ok(Self::new(
-                InnerSquashedNoiseRadixCiphertext::Cuda(cuda_ns_ct),
-                SquashedNoiseCiphertextState::PostDecompression,
-                Tag::default(),
-            ))
+            if !matches!(kind, DataKind::Unsigned(_)) {
+                return Err(create_error_message(
+                    DataKind::Unsigned(NonZero::<usize>::MIN),
+                    kind,
+                ));
+            }
+            CudaSquashedNoiseRadixCiphertext::from_expanded_blocks(blocks, info, kind).map(|v| {
+                Self::new(
+                    InnerSquashedNoiseRadixCiphertext::Cuda(v),
+                    SquashedNoiseCiphertextState::PostDecompression,
+                    Tag::default(),
+                )
+            })
         }
     }
     impl CudaSquashedNoiseExpandable for SquashedNoiseFheInt {
@@ -486,20 +486,21 @@ mod gpu {
             info: CudaRadixCiphertextInfo,
             kind: DataKind,
         ) -> crate::Result<Self> {
-            let message_modulus = info.blocks.first().unwrap().message_modulus;
-            let cuda_ns_ct = CudaSquashedNoiseRadixCiphertext {
-                packed_d_blocks: blocks,
-                info,
-                original_block_count: kind.num_blocks(message_modulus)?,
-            };
-            let cuda_ns_signed_ct = CudaSquashedNoiseSignedRadixCiphertext {
-                ciphertext: cuda_ns_ct,
-            };
-            Ok(Self::new(
-                InnerSquashedNoiseSignedRadixCiphertext::Cuda(cuda_ns_signed_ct),
-                SquashedNoiseCiphertextState::PostDecompression,
-                Tag::default(),
-            ))
+            if !matches!(kind, DataKind::Signed(_)) {
+                return Err(create_error_message(
+                    DataKind::Signed(NonZero::<usize>::MIN),
+                    kind,
+                ));
+            }
+            CudaSquashedNoiseSignedRadixCiphertext::from_expanded_blocks(blocks, info, kind).map(
+                |v| {
+                    Self::new(
+                        InnerSquashedNoiseSignedRadixCiphertext::Cuda(v),
+                        SquashedNoiseCiphertextState::PostDecompression,
+                        Tag::default(),
+                    )
+                },
+            )
         }
     }
 }
@@ -802,6 +803,14 @@ mod tests {
 
         assert!(list.is_conformant(&conformance_params_from_key));
 
+        // Incorrect types.
+        assert!(list.get::<SquashedNoiseFheUint>(0).is_err());
+        assert!(list.get::<SquashedNoiseFheBool>(0).is_err());
+        assert!(list.get::<SquashedNoiseFheInt>(1).is_err());
+        assert!(list.get::<SquashedNoiseFheBool>(1).is_err());
+        assert!(list.get::<SquashedNoiseFheInt>(2).is_err());
+        assert!(list.get::<SquashedNoiseFheUint>(2).is_err());
+
         let ns_a: SquashedNoiseFheInt = list.get(0).unwrap().unwrap();
         let ns_b: SquashedNoiseFheUint = list.get(1).unwrap().unwrap();
         let ns_c: SquashedNoiseFheBool = list.get(2).unwrap().unwrap();
@@ -869,6 +878,15 @@ mod tests {
         let mut list: CompressedSquashedNoiseCiphertextList =
             safe_deserialize(serialized_list.as_slice(), 1 << 24).unwrap();
         list.move_to_current_device().unwrap();
+        assert_eq!(list.current_device(), crate::Device::CudaGpu);
+
+        // Incorrect types.
+        assert!(list.get::<SquashedNoiseFheUint>(0).is_err());
+        assert!(list.get::<SquashedNoiseFheBool>(0).is_err());
+        assert!(list.get::<SquashedNoiseFheInt>(1).is_err());
+        assert!(list.get::<SquashedNoiseFheBool>(1).is_err());
+        assert!(list.get::<SquashedNoiseFheInt>(2).is_err());
+        assert!(list.get::<SquashedNoiseFheUint>(2).is_err());
 
         let ns_a: SquashedNoiseFheInt = list.get(0).unwrap().unwrap();
         let ns_b: SquashedNoiseFheUint = list.get(1).unwrap().unwrap();
