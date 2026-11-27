@@ -1,10 +1,9 @@
+use super::legacy_default_tests::legacy_default_scalar_sub_test;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    default_scalar_sub_test, unchecked_scalar_sub_test,
-};
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::unchecked_scalar_sub_test;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
@@ -24,5 +23,5 @@ where
     P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_sub);
-    default_scalar_sub_test(param, executor);
+    legacy_default_scalar_sub_test(param, executor);
 }

@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::Numeric;
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto, PaddingBitValue};
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::ServerKey;
 
@@ -13,7 +13,14 @@ where
 {
     fn twos_complement_negation(self) -> Self {
         let flipped = !self;
-        flipped + Self::ONE
+        // The negation wraps like the two's complement it computes: `flipped + 1` overflows
+        // only for `flipped == MAX` (zero for unsigned types, the minimum for signed ones),
+        // and wraps to `!MAX` in both cases
+        if flipped == Self::MAX {
+            !Self::MAX
+        } else {
+            flipped + Self::ONE
+        }
     }
 }
 
@@ -50,15 +57,15 @@ impl ServerKey {
     pub fn unchecked_scalar_sub<T, Scalar>(&self, ct: &T, scalar: Scalar) -> T
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8>,
     {
         let mut result = ct.clone();
         self.unchecked_scalar_sub_assign(&mut result, scalar);
         result
     }
 
-    // Creates an iterator that return decomposed blocks of the negated
-    // value of `scalar`
+    // Creates an iterator that returns the `num_blocks` blocks of the negated value of `scalar`,
+    // that is of `-scalar` on a radix of `num_blocks` blocks
     //
     // Returns
     // - `None` if scalar is zero
@@ -67,45 +74,41 @@ impl ServerKey {
     pub(crate) fn create_negated_block_decomposer<Scalar>(
         &self,
         scalar: Scalar,
+        num_blocks: usize,
     ) -> Option<impl Iterator<Item = u8>>
     where
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8>,
     {
         if scalar == Scalar::ZERO {
             return None;
         }
-        let bits_in_message = self.key.message_modulus.0.ilog2();
+        let message_modulus = self.key.message_modulus.0;
+        let bits_in_message = message_modulus.ilog2();
         assert!(bits_in_message <= u8::BITS);
 
-        // The whole idea behind this iterator we construct is:
-        // - to support combos of parameters and num blocks for which the total number of bits is
-        //   not a multiple of T::BITS
-        //
-        // - Support subtraction in the case the T::BITS is lower than the target ciphertext bits.
-        //   In clear rust this would require an upcast, to support that we have to do a few things
-
-        let neg_scalar = scalar.twos_complement_negation();
-
-        // If we had upcasted the scalar, its msb would be zeros (0)
-        // then they would become ones (1) after the bitwise_not (!).
-        // The only case where these msb could become 0 after the addition
-        // is if scalar == T::ZERO (=> !T::ZERO == T::MAX => T::MAX + 1 == overflow),
-        // but this case has been handled earlier.
-        let pad_block = (1 << bits_in_message as u8) - 1;
-
-        let decomposer =
-            BlockDecomposer::with_padding_bit(neg_scalar, bits_in_message, PaddingBitValue::One)
-                .iter_as::<u8>()
-                .chain(std::iter::repeat(pad_block));
+        // -scalar = !scalar + 1, computed on the blocks of the scalar extended to the radix
+        // width (sign extended if it is signed). Negating the scalar in its own type would give
+        // the wrong upper blocks for a negative scalar narrower than the radix (its opposite is
+        // positive), and overflow for the minimum of a signed type.
+        let max_block_value = message_modulus - 1;
+        let mut carry = 1;
+        let decomposer = BlockDecomposer::with_block_count(scalar, bits_in_message, num_blocks)
+            .iter_as::<u8>()
+            .map(move |block| {
+                let negated_block = max_block_value - u64::from(block) + carry;
+                carry = negated_block / message_modulus;
+                (negated_block % message_modulus) as u8
+            });
         Some(decomposer)
     }
 
     pub fn unchecked_scalar_sub_assign<T, Scalar>(&self, ct: &mut T, scalar: Scalar)
     where
         T: IntegerRadixCiphertext,
-        Scalar: TwosComplementNegation + DecomposableInto<u8>,
+        Scalar: DecomposableInto<u8>,
     {
-        let Some(decomposer) = self.create_negated_block_decomposer(scalar) else {
+        let Some(decomposer) = self.create_negated_block_decomposer(scalar, ct.blocks().len())
+        else {
             // subtraction by zero
             return;
         };

@@ -1,13 +1,11 @@
+use super::legacy_default_tests::{legacy_default_overflowing_sub_test, legacy_default_sub_test};
 use crate::core_crypto::gpu::get_number_of_gpus;
 use crate::integer::gpu::server_key::radix::tests_signed::GpuMultiDeviceFunctionExecutor;
 use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
-    default_sub_test, unchecked_sub_test,
-};
-use crate::integer::server_key::radix_parallel::tests_unsigned::test_sub::default_overflowing_sub_test;
+use crate::integer::server_key::radix_parallel::tests_cases_unsigned::unchecked_sub_test;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
@@ -30,7 +28,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::sub);
-    default_sub_test(param, executor);
+    legacy_default_sub_test(param, executor);
 }
 
 fn multi_device_integer_sub<P>(param: P)
@@ -40,7 +38,7 @@ where
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
     let num_gpus = get_number_of_gpus();
     if num_gpus > 1 {
-        default_sub_test(param, executor);
+        legacy_default_sub_test(param, executor);
     }
 }
 
@@ -49,7 +47,7 @@ where
     P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
-    default_overflowing_sub_test(param, executor);
+    legacy_default_overflowing_sub_test(param, executor);
 }
 
 fn multi_device_integer_default_overflowing_sub<P>(param: P)
@@ -59,6 +57,6 @@ where
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
     let num_gpus = get_number_of_gpus();
     if num_gpus > 1 {
-        default_overflowing_sub_test(param, executor);
+        legacy_default_overflowing_sub_test(param, executor);
     }
 }

@@ -2,7 +2,8 @@ use crate::integer::server_key::radix_parallel::test_harness::{
     default_scalar_fixed_cases, ExecuteOn, RadixInputSize, TestBuilder, TestContext, TestScalar,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    narrow_scalar_cases, CpuFunctionExecutor,
+    narrow_scalar_cases, narrow_scalar_input_sizes, narrow_signed_scalar_on_unsigned_radix_cases,
+    CpuFunctionExecutor,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::tests::int::Int;
@@ -146,33 +147,6 @@ where
         CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_add_parallelized::<u8>);
     executor.setup_with_server_key(ctx.server_key());
     narrow_scalar_overflowing_scalar_add_test(&ctx, executor);
-}
-
-/// Block counts for the tests of a scalar narrower than the radix: one block, the scalar's
-/// width, one block past it and twice it.
-fn narrow_scalar_input_sizes(ctx: &TestContext) -> Vec<RadixInputSize> {
-    let scalar_width = u8::BITS.div_ceil(ctx.bits_per_block());
-    [1, scalar_width, scalar_width + 1, 2 * scalar_width]
-        .map(RadixInputSize::new)
-        .to_vec()
-}
-
-/// Cases for a signed scalar narrower than the unsigned radix: the radix edges against the
-/// `i8` bounds, one and minus one. A negative scalar has to be sign extended to the radix
-/// width, a zero extension turns `-1i8` into `255` on any radix wider than 8 bits.
-fn narrow_signed_scalar_on_unsigned_radix_cases(
-    input_size: RadixInputSize,
-    ctx: &TestContext,
-) -> Vec<(Uint, TestScalar<i8>)> {
-    let radix_bits = ctx.radix_bits(input_size.n_blocks);
-    let scalars = [i8::MIN, -1, 1, i8::MAX]
-        .map(|scalar| TestScalar::<i8>::new(Int::new(scalar.into(), i8::BITS)));
-    let radix_edges = [
-        Uint::zero(radix_bits),
-        Uint::one(radix_bits),
-        Uint::max(radix_bits),
-    ];
-    iproduct!(radix_edges, scalars).collect()
 }
 
 /// Only the cases a scalar narrower than the radix adds, see [`narrow_scalar_cases`].

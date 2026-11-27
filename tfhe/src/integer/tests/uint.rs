@@ -104,6 +104,10 @@ impl Uint {
             .is_none_or(|sum| sum > Self::max(self.bits).value);
         (self.wrapping_add(other), overflowed)
     }
+    pub(crate) fn overflowing_sub(self, other: Self) -> (Self, bool) {
+        self.assert_same_width(other);
+        self.overflowing_scalar_sub(other)
+    }
     /// `self + scalar` where `scalar` may have any width: the result is on `self`'s width,
     /// the overflow is that of the exact sum, like the FHE `overflowing_scalar_add`.
     pub(crate) fn overflowing_scalar_add(self, scalar: Self) -> (Self, bool) {
