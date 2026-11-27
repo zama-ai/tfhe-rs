@@ -93,22 +93,8 @@ where
         true_ct: &T,
         false_ct: &T,
     ) -> Self::Output {
-        let mut ct_clones = [None, None];
-        let mut ct_refs = [true_ct, false_ct];
-
-        ct_refs
-            .par_iter_mut()
-            .zip(ct_clones.par_iter_mut())
-            .for_each(|(ct_ref, ct_clone)| {
-                if !ct_ref.block_carries_are_empty() {
-                    let mut cloned = ct_ref.clone();
-                    self.full_propagate_parallelized(&mut cloned);
-                    *ct_ref = ct_clone.insert(cloned);
-                }
-            });
-
-        let [true_ct, false_ct] = ct_refs;
-        self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
+        let (true_ct, false_ct) = self.clean_for_default_binary_op(true_ct, false_ct);
+        self.unchecked_if_then_else_parallelized(condition, &true_ct, &false_ct)
     }
 
     fn flip_parallelized(
@@ -122,11 +108,7 @@ where
             b.blocks().len(),
             "Inputs must have the same number of blocks"
         );
-
-        let (a, b) = rayon::join(
-            || self.clean_for_default_op(a),
-            || self.clean_for_default_op(b),
-        );
+        let (a, b) = self.clean_for_default_binary_op(a, b);
         let (mut a, mut b) = self.unchecked_flip_parallelized(condition, &*a, &*b);
         a.blocks_mut()
             .par_iter_mut()
@@ -186,17 +168,8 @@ where
         true_ct: &RadixCiphertext,
         false_value: Scalar,
     ) -> Self::Output {
-        let mut tmp_true_ct;
-
-        let true_ct_ref = if true_ct.block_carries_are_empty() {
-            true_ct
-        } else {
-            tmp_true_ct = true_ct.clone();
-            self.full_propagate_parallelized(&mut tmp_true_ct);
-            &tmp_true_ct
-        };
-
-        self.unchecked_scalar_if_then_else_parallelized(condition, true_ct_ref, false_value)
+        let true_ct = self.clean_for_default_op(true_ct);
+        self.unchecked_scalar_if_then_else_parallelized(condition, &true_ct, false_value)
     }
 
     fn flip_parallelized(
@@ -285,17 +258,8 @@ where
         true_ct: &SignedRadixCiphertext,
         false_value: Scalar,
     ) -> Self::Output {
-        let mut tmp_true_ct;
-
-        let true_ct_ref = if true_ct.block_carries_are_empty() {
-            true_ct
-        } else {
-            tmp_true_ct = true_ct.clone();
-            self.full_propagate_parallelized(&mut tmp_true_ct);
-            &tmp_true_ct
-        };
-
-        self.unchecked_scalar_if_then_else_parallelized(condition, true_ct_ref, false_value)
+        let true_ct = self.clean_for_default_op(true_ct);
+        self.unchecked_scalar_if_then_else_parallelized(condition, &true_ct, false_value)
     }
 
     fn flip_parallelized(
